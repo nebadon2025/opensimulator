@@ -43,10 +43,11 @@ namespace OpenSimLite
 		public Terrain Terrain;
 		private PhysicsManager _physics;
 		private Server _server;
-		private  System.Text.Encoding _enc = System.Text.Encoding.ASCII;
+		private System.Text.Encoding _enc = System.Text.Encoding.ASCII;
 		private libsecondlife.Packets.ObjectUpdatePacket.ObjectDataBlock _avatarTemplate;
 
 		public NonBlockingQueue<UpdateCommand> Commands;
+		
 		
 		#region Thread Sync
 		//public object CommandsSync = new object();
@@ -315,16 +316,11 @@ namespace OpenSimLite
 		}
 	}
 	
-	public class Face
+	public struct Face
 	{
 		public int V1;
 		public int V2;
 		public int V3;
-		
-		public Face()
-		{
-			
-		}
 	}
 	
 	public class UpdateCommand

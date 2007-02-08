@@ -60,7 +60,7 @@ namespace OpenSimLite
 				for(;;)
 				{
 					Packet packet = null;
-					packet=this.InQueue.Dequeue();
+					packet = this.InQueue.Dequeue();
 					switch(packet.Type)
 					{
 						case PacketType.UseCircuitCode:

@@ -26,63 +26,32 @@
 */
 
 using System;
-using System.Collections.Generic;
-using libsecondlife;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Security.Cryptography;
 
 namespace OpenSimLite
 {
 	/// <summary>
-	/// Description of Globals.
+	/// Description of Utility.
 	/// </summary>
-	public sealed class Globals
+	public class Utility
 	{
-		private static Globals instance = new Globals();
-		private GridManager _grid;
-		
-		public static Globals Instance 
-		{
-			get 
-			{
-				return instance;
-			}
-		}
-		
-		public GridManager Grid
-		{
-			set
-			{
-				_grid = value;
-			}
-		}
-		
-		public bool LocalRunning = true; // not connected to a grid?
-		public string SimIPAddress = "127.0.0.1";
-		public int SimPort = 50000;
-		public string RegionName = "Test Sandbox\0";
-		public ulong RegionHandle = 1096213093147648;
-		
-		public bool StartLoginServer = true;
-		public ushort LoginServerPort = 8080;
-		public List<Logon> IncomingLogins = new List<Logon>();
-		
-		public string Password="mypassword";
-		public bool NeedPasswd=false;
-		
-		/// <summary>
-		/// 
-		/// </summary>
-		private Globals()
+		public Utility()
 		{
 		}
 		
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="type"></param>
-		/// <returns></returns>
-		public LLUUID RequestUUID(byte type)
+		public static string EncodePassword(string passwd)
 		{
-			return(_grid.RequestUUID(type));
+			Byte[] originalBytes;
+			Byte[] encodedBytes;
+			MD5 md5;
+			
+			md5 = new MD5CryptoServiceProvider();
+			originalBytes = ASCIIEncoding.Default.GetBytes(passwd);
+			encodedBytes = md5.ComputeHash(originalBytes);
+
+			return Regex.Replace(BitConverter.ToString(encodedBytes), "-", "").ToLower();
 		}
 	}
 }

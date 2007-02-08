@@ -51,6 +51,7 @@
     <Compile Include="PhysicsManager.cs" />
     <Compile Include="InstantMessaging.cs" />
     <Compile Include="Globals.cs" />
+    <Compile Include="Utility.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.Targets" />
 </Project>

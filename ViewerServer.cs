@@ -35,7 +35,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Timers;
 
-namespace OpenSimLite
+namespace OpenSim
 {
 	/// <summary>
 	/// Manages Viewer connections
@@ -55,7 +55,7 @@ namespace OpenSimLite
 		}
 	}*/
 	
-	 //for now though, we will use a slightly adapted version of the server
+	 //for now though, we will use a adapted version of the server
 	 // class from version 0.1
 	 public class Server
 	 {
@@ -66,6 +66,7 @@ namespace OpenSimLite
 	 	/// <summary>The Region class that this Simulator wraps</summary>
 	 	// public Region Region;
 
+	 	private object _sendPacketSync = new object();
 	 	/// <summary>
 	 	/// Used internally to track sim disconnections, do not modify this
 	 	/// variable
@@ -116,13 +117,14 @@ namespace OpenSimLite
 	 	private System.Timers.Timer AckTimer;
 	 	private Server_Settings Settings=new Server_Settings();
 	 	public ArrayList User_agents=new ArrayList();
+	 	private IUserServer _userServer;
 
 	 	/// <summary>
 	 	/// 
 	 	/// </summary>
-	 	public Server()
+	 	public Server(IUserServer userServer)
 	 	{
-	 		
+	 		this._userServer = userServer;
 	 	}
 	 	
 	 	/// <summary>
@@ -207,110 +209,113 @@ namespace OpenSimLite
 	 	/// <param name="incrementSequence">Increment sequence number?</param>
 	 	public void SendPacket(Packet packet, bool incrementSequence, NetworkInfo User_info)
 	 	{
-	 		byte[] buffer;
-	 		int bytes;
-
-	 		if (!connected && packet.Type != PacketType.UseCircuitCode)
+	 		lock(this._sendPacketSync)
 	 		{
-	 			// Client.Log("Trying to send a " + packet.Type.ToString() + " packet when the socket is closed",
-	 			//      Helpers.LogLevel.Info);
+	 			byte[] buffer;
+	 			int bytes;
 
-	 			return;
-	 		}
-
-	 		if (packet.Header.AckList.Length > 0)
-	 		{
-	 			// Scrub any appended ACKs since all of the ACK handling is done here
-	 			packet.Header.AckList = new uint[0];
-	 		}
-	 		packet.Header.AppendedAcks = false;
-
-	 		// Keep track of when this packet was sent out
-	 		packet.TickCount = Environment.TickCount;
-
-	 		if (incrementSequence)
-	 		{
-	 			// Set the sequence number
-	 			lock (SequenceLock)
+	 			if (!connected && packet.Type != PacketType.UseCircuitCode)
 	 			{
-	 				if (Sequence > Settings.MAX_SEQUENCE)
-	 					Sequence = 1;
-	 				else
-	 					Sequence++;
-	 				packet.Header.Sequence = Sequence;
+	 				// Client.Log("Trying to send a " + packet.Type.ToString() + " packet when the socket is closed",
+	 				//      Helpers.LogLevel.Info);
+
+	 				return;
 	 			}
 
-	 			if (packet.Header.Reliable)
+	 			if (packet.Header.AckList.Length > 0)
 	 			{
-	 				lock (User_info.NeedAck)
+	 				// Scrub any appended ACKs since all of the ACK handling is done here
+	 				packet.Header.AckList = new uint[0];
+	 			}
+	 			packet.Header.AppendedAcks = false;
+
+	 			// Keep track of when this packet was sent out
+	 			packet.TickCount = Environment.TickCount;
+
+	 			if (incrementSequence)
+	 			{
+	 				// Set the sequence number
+	 				lock (SequenceLock)
 	 				{
-	 					if (!User_info.NeedAck.ContainsKey(packet.Header.Sequence))
-	 					{
-	 						User_info.NeedAck.Add(packet.Header.Sequence, packet);
-	 					}
+	 					if (Sequence > Settings.MAX_SEQUENCE)
+	 						Sequence = 1;
 	 					else
-	 					{
-	 						//  Client.Log("Attempted to add a duplicate sequence number (" +
-	 						//     packet.Header.Sequence + ") to the NeedAck dictionary for packet type " +
-	 						//      packet.Type.ToString(), Helpers.LogLevel.Warning);
-	 					}
+	 						Sequence++;
+	 					packet.Header.Sequence = Sequence;
 	 				}
 
-	 				// Don't append ACKs to resent packets, in case that's what was causing the
-	 				// delivery to fail
-	 				if (!packet.Header.Resent)
+	 				if (packet.Header.Reliable)
 	 				{
-	 					// Append any ACKs that need to be sent out to this packet
-	 					lock (User_info.PendingAcks)
+	 					lock (User_info.NeedAck)
 	 					{
-	 						if (User_info.PendingAcks.Count > 0 && User_info.PendingAcks.Count < Settings.MAX_APPENDED_ACKS &&
-	 							packet.Type != PacketType.PacketAck &&
-	 						    packet.Type != PacketType.LogoutRequest)
+	 						if (!User_info.NeedAck.ContainsKey(packet.Header.Sequence))
 	 						{
-	 							packet.Header.AckList = new uint[User_info.PendingAcks.Count];
-	 							int i = 0;
-	 							
-	 							foreach (uint ack in User_info.PendingAcks.Values)
-	 							{
-	 								packet.Header.AckList[i] = ack;
-	 								i++;
-	 							}
+	 							User_info.NeedAck.Add(packet.Header.Sequence, packet);
+	 						}
+	 						else
+	 						{
+	 							//  Client.Log("Attempted to add a duplicate sequence number (" +
+	 							//     packet.Header.Sequence + ") to the NeedAck dictionary for packet type " +
+	 							//      packet.Type.ToString(), Helpers.LogLevel.Warning);
+	 						}
+	 					}
 
-	 							User_info.PendingAcks.Clear();
-	 							packet.Header.AppendedAcks = true;
+	 					// Don't append ACKs to resent packets, in case that's what was causing the
+	 					// delivery to fail
+	 					if (!packet.Header.Resent)
+	 					{
+	 						// Append any ACKs that need to be sent out to this packet
+	 						lock (User_info.PendingAcks)
+	 						{
+	 							if (User_info.PendingAcks.Count > 0 && User_info.PendingAcks.Count < Settings.MAX_APPENDED_ACKS &&
+	 							    packet.Type != PacketType.PacketAck &&
+	 							    packet.Type != PacketType.LogoutRequest)
+	 							{
+	 								packet.Header.AckList = new uint[User_info.PendingAcks.Count];
+	 								int i = 0;
+	 								
+	 								foreach (uint ack in User_info.PendingAcks.Values)
+	 								{
+	 									packet.Header.AckList[i] = ack;
+	 									i++;
+	 								}
+
+	 								User_info.PendingAcks.Clear();
+	 								packet.Header.AppendedAcks = true;
+	 							}
 	 						}
 	 					}
 	 				}
 	 			}
-	 		}
 
-	 		// Serialize the packet
-	 		buffer = packet.ToBytes();
-	 		bytes = buffer.Length;
+	 			// Serialize the packet
+	 			buffer = packet.ToBytes();
+	 			bytes = buffer.Length;
 
-	 		try
-	 		{
-	 			// Zerocode if needed
-	 			if (packet.Header.Zerocoded)
+	 			try
 	 			{
-	 				lock (ZeroOutBuffer)
+	 				// Zerocode if needed
+	 				if (packet.Header.Zerocoded)
 	 				{
-	 					bytes = Helpers.ZeroEncode(buffer, bytes, ZeroOutBuffer);
-	 					Connection.SendTo(ZeroOutBuffer, bytes, SocketFlags.None,User_info.endpoint);
+	 					lock (ZeroOutBuffer)
+	 					{
+	 						bytes = Helpers.ZeroEncode(buffer, bytes, ZeroOutBuffer);
+	 						Connection.SendTo(ZeroOutBuffer, bytes, SocketFlags.None,User_info.endpoint);
+	 					}
+	 				}
+	 				else
+	 				{
+	 					
+	 					Connection.SendTo(buffer, bytes, SocketFlags.None,User_info.endpoint);
 	 				}
 	 			}
-	 			else
+	 			catch (SocketException)
 	 			{
-	 				
-	 				Connection.SendTo(buffer, bytes, SocketFlags.None,User_info.endpoint);
-	 			}
-	 		}
-	 		catch (SocketException)
-	 		{
-	 			//Client.Log("Tried to send a " + packet.Type.ToString() + " on a closed socket",
-	 			//   Helpers.LogLevel.Warning);
+	 				//Client.Log("Tried to send a " + packet.Type.ToString() + " on a closed socket",
+	 				//   Helpers.LogLevel.Warning);
 
-	 			Disconnect();
+	 				Disconnect();
+	 			}
 	 		}
 	 	}
 
@@ -425,6 +430,23 @@ namespace OpenSimLite
 	 				{
 	 					//new connection
 	 					UseCircuitCodePacket cir_pack=(UseCircuitCodePacket)packet;
+	 					//should check that this session/circuit is authorised
+	 					AuthenticateResponse sessionInfo = this._userServer.AuthenticateSession(cir_pack.CircuitCode.SessionID, cir_pack.CircuitCode.ID, cir_pack.CircuitCode.Code);
+	 					if(!sessionInfo.Authorised)
+	 					{
+	 						//session/circuit not authorised
+	 						//so do something about it
+	 					}
+	 					else
+	 					{
+	 						//is authorised so add the logon object to the incominglogin list
+	 						//should be a better way of doing this now the login server connects to the user server
+	 						// like passing the logon object straight to the ClientConnection
+	 						lock(Globals.Instance.IncomingLogins)
+	 						{
+	 							Globals.Instance.IncomingLogins.Add(sessionInfo.LogonInfo);
+	 						}
+	 					}
 	 					NetworkInfo new_user=new NetworkInfo();
 	 					new_user.CircuitCode=cir_pack.CircuitCode.Code;
 	 					new_user.User.AgentID=cir_pack.CircuitCode.ID;

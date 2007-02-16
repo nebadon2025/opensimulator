@@ -26,63 +26,80 @@
 */
 
 using System;
-using System.Collections.Generic;
 using libsecondlife;
 
 namespace OpenSim
 {
 	/// <summary>
-	/// Description of Globals.
+	/// Description of Assets.
 	/// </summary>
-	public sealed class Globals
+	public class AssetBase
 	{
-		private static Globals instance = new Globals();
-		private GridManager _grid;
+		public byte[] Data;
+		public LLUUID FullID;
+		public sbyte Type;
+		public sbyte InvType;
+		public string Name;
+		public string Description;
+		public string Filename;
 		
-		public static Globals Instance 
+		public AssetBase()
 		{
-			get 
-			{
-				return instance;
-			}
-		}
-		
-		public GridManager Grid
-		{
-			set
-			{
-				_grid = value;
-			}
-		}
-		
-		public bool LocalRunning = true; // not connected to a grid?
-		public string SimIPAddress = "127.0.0.1";
-		public int SimPort = 50000;
-		public string RegionName = "Test Sandbox\0";
-		public ulong RegionHandle = 1096213093147648;
-		
-		public bool StartLoginServer = true;
-		public ushort LoginServerPort = 8080;
-		public List<Logon> IncomingLogins = new List<Logon>();
-		
-		public string Password="mypassword";
-		public bool NeedPasswd=false;
-		
-		/// <summary>
-		/// 
-		/// </summary>
-		private Globals()
-		{
-		}
-		
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="type"></param>
-		/// <returns></returns>
-		public LLUUID RequestUUID(byte type)
-		{
-			return(_grid.RequestUUID(type));
+			
 		}
 	}
+	
+	public class PrimAsset: AssetBase
+	{
+		public PrimData PrimData;
+		
+		public PrimAsset()
+		{
+			this.PrimData = new PrimData();
+		}
+	}
+	public class PrimData
+	{
+		public LLUUID OwnerID;
+		public byte PCode;
+		public byte PathBegin;
+		public byte PathEnd;
+		public byte PathScaleX;
+		public byte PathScaleY;
+		public byte PathShearX;
+		public byte PathShearY;
+		public sbyte PathSkew;
+		public byte ProfileBegin;
+		public byte ProfileEnd;
+		public LLVector3 Scale;
+		public byte PathCurve;
+		public byte ProfileCurve;
+		public uint ParentID=0;
+		public byte ProfileHollow;
+		//public bool DataBaseStorage=false;
+		
+		public PrimData()
+		{
+			
+		}
+	}
+	
+	//a hangover from the old code, so is it needed for future use?
+	public class TextureImage: AssetBase
+	{
+		public TextureImage()
+		{
+			
+		}
+	}
+	
+	//a hangover from the old code, so is it needed for future use?
+	public class AssetInfo :AssetBase
+	{
+		public AssetInfo()
+		{
+			
+		}
+	}
+	
 }

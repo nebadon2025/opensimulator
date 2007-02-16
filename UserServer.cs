@@ -26,17 +26,21 @@
 */
 
 using System;
+using libsecondlife;
+using System.Collections.Generic;
 
-namespace OpenSimLite
+namespace OpenSim
 {
 	/// <summary>
 	/// Handles connection to User Servers
 	/// 
 	/// </summary>
-	public class UserServer
+	public class UserServer :IUserServer
 	{
+		public List<Logon> Sessions = new List<Logon>();  //should change to something other than logon classes? 
 		public UserServer()
 		{
+			Sessions = new List<Logon>();
 		}
 		
 		private void Initialise()
@@ -47,5 +51,46 @@ namespace OpenSimLite
 				
 			}
 		}
+		
+		public AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode)
+		{
+			//For Grid use:
+			//should check to see if it is a teleportation, if so then we should be expecting this session, agent. (?)
+			//if not check with User server/ login server that it is authorised.
+			
+			//but for now we are running local
+			AuthenticateResponse user = new AuthenticateResponse();
+			
+			lock(this.Sessions)
+			{
+				
+				for(int i = 0; i < Sessions.Count; i++)
+				{
+					if((Sessions[i].Agent == agentID) && (Sessions[i].Session == sessionID))
+					{
+						user.Authorised = true;
+						user.LogonInfo = Sessions[i];
+					}
+				}
+			}
+			return(user);
+		}
+	}
+	
+	public interface IUserServer
+	{
+		AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode);
+	}
+	
+	public class AuthenticateResponse
+	{
+		public bool Authorised;
+		public Logon LogonInfo;
+		
+		public AuthenticateResponse()
+		{
+			
+		}
+			
 	}
 }

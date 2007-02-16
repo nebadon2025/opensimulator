@@ -26,16 +26,34 @@
 */
 
 using System;
+using libsecondlife;
 
-namespace OpenSimLite
+namespace OpenSim
 {
 	/// <summary>
 	/// Manages and provides local cache of Prims.
 	/// </summary>
 	public class PrimManager
 	{
+		private LocalPrimDb _localPrimDB;
+		
 		public PrimManager()
 		{
+			this._localPrimDB = new LocalPrimDb();
+			
+			
+			//database test
+			/*PrimAsset prim = new PrimAsset();
+			prim.Name="happy now";
+			prim.Description= "test";
+			prim.FullID = new LLUUID("00000000-0000-0000-0000-000000000008");
+			this._localPrimDB.CreateNewPrimStorage(prim);
+			
+			PrimAsset prim1 = this._localPrimDB.GetPrimFromStroage( new LLUUID("00000000-0000-0000-0000-000000000008"));
+			Console.WriteLine("prim recieved : "+prim1.Name + " "+ prim1.Description);
+			*/
+			//this._localPrimDB.ReadWholedatabase();
 		}
+		
 	}
 }

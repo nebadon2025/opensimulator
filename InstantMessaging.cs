@@ -27,7 +27,7 @@
 
 using System;
 
-namespace OpenSimLite
+namespace OpenSim
 {
 	/// <summary>
 	/// Description of InstantMessaging.

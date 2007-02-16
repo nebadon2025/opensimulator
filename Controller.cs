@@ -31,7 +31,7 @@ using System.Collections.Generic;
 using libsecondlife;
 using libsecondlife.Packets;
 
-namespace OpenSimLite
+namespace OpenSim
 {
 	class Controller
 	{
@@ -40,29 +40,47 @@ namespace OpenSimLite
 		private LoginServer _loginServer;
 		private GridManager _gridManager;
 		private AgentManager _agentManager;
+		private AssetManager _assetManager;
 		private SceneGraph _scene;
+		private PrimManager _primManager;
 		
 		public static void Main(string[] args)
 		{
 			Controller c = new Controller();
-            while( true ) 
-            System.Threading.Thread.Sleep( 1000 );
+			bool Run=true;
+            while( Run ) 
+            {
+            	
+            	string input = Console.ReadLine();
+
+            	if(input == "Exit")
+            	{
+            		Run = false;
+            	}
+           	 	
+            }
+            
+            BerkeleyDatabases.Instance.Close();
 		}
 		
 		public Controller()
 		{
-			_viewerServer = new Server();
 			_backboneServers = new BackboneServers();
-			_agentManager = new AgentManager();
+			_viewerServer = new Server(_backboneServers.UserServer);
+			_agentManager = new AgentManager(_viewerServer);
 			_gridManager = new GridManager(_viewerServer, _agentManager);
-			_scene = new SceneGraph(_viewerServer);
+			_scene = new SceneGraph(_viewerServer, _agentManager);
+			_assetManager = new AssetManager(_viewerServer, _backboneServers.AssetServer);
 			ClientConnection.Grid = _gridManager;
 			ClientConnection.Scene = _scene;
+			ClientConnection.AgentManager = _agentManager;
 			_viewerServer.Startup();
+			BerkeleyDatabases.Instance.Startup();
+			_primManager = new PrimManager();
 			
 			if(Globals.Instance.StartLoginServer)
 			{
-				_loginServer = new LoginServer();
+				_loginServer = new LoginServer(_backboneServers.UserServer);
 				_loginServer.Startup();
 			}
 			

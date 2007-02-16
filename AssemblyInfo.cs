@@ -8,11 +8,11 @@ using System.Runtime.InteropServices;
 // change them to the information which is associated with the assembly
 // you compile.
 
-[assembly: AssemblyTitle("OpenSimLite")]
+[assembly: AssemblyTitle("OpenSim")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("OpenSim project")]
-[assembly: AssemblyProduct("OpenSimLite")]
+[assembly: AssemblyProduct("OpenSim")]
 [assembly: AssemblyCopyright("(c) OpenSim project")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

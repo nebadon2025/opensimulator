@@ -31,7 +31,7 @@ using System.Threading;
 using libsecondlife;
 using libsecondlife.Packets;
 
-namespace OpenSimLite
+namespace OpenSim
 {
 	/// <summary>
 	/// Hanldes a single clients connection. Runs in own thread.
@@ -40,6 +40,9 @@ namespace OpenSimLite
 	{
 		public static GridManager Grid;
 		public static SceneGraph Scene;
+		public static AgentManager AgentManager;
+		public static PrimManager PrimManager;
+		public byte ConnectionType=1;
 		
 		private Thread _mthread;
 		
@@ -50,6 +53,7 @@ namespace OpenSimLite
 		public override void Start()
 		{
 			_mthread = new Thread(new ThreadStart(RunClientRead));
+			_mthread.IsBackground = true;
 			_mthread.Start();
 		}
 		
@@ -64,16 +68,45 @@ namespace OpenSimLite
 					switch(packet.Type)
 					{
 						case PacketType.UseCircuitCode:
-							//should be a new user joining
-							Console.WriteLine("new agent");
+							Console.WriteLine("new circuit");
+							//should be a new user/circuit joining
+							// add agents profile to agentmanager
+							string first = "",last ="";
+							LLUUID baseFolder = null, inventoryFolder =null;
+							
+							//rather than use IncomingLogins list, the logon object could be passed to this connection on creation
+							lock(Globals.Instance.IncomingLogins)
+							{
+								for(int i = 0; i < Globals.Instance.IncomingLogins.Count; i++)
+								{
+									if(Globals.Instance.IncomingLogins[i].Agent == this.NetInfo.User.AgentID)
+									{
+										first = Globals.Instance.IncomingLogins[i].First;
+										last = Globals.Instance.IncomingLogins[i].Last;
+										baseFolder = Globals.Instance.IncomingLogins[i].BaseFolder;
+										inventoryFolder = Globals.Instance.IncomingLogins[i].InventoryFolder;
+										Globals.Instance.IncomingLogins.RemoveAt(i);
+										break;
+									}
+								}
+							}
+							if(first != "")
+							{
+								AgentManager.NewAgent(this.NetInfo, first, last, baseFolder, inventoryFolder);
+							}
 							break;
 						case PacketType.CompleteAgentMovement:
 							//Agent completing movement to region
+							// so send region handshake
 							Grid.SendRegionData(this.NetInfo);
+							// send movmentcomplete reply
+							Scene.AgentCompletingMove(this.NetInfo);
 							break;
 						case PacketType.RegionHandshakeReply:
 							Console.WriteLine("RegionHandshake reply");
 							Scene.SendTerrainData(this.NetInfo);
+							Scene.AddNewAvatar(AgentManager.GetAgent(this.NetInfo.User.AgentID).Avatar);
+							// send current avatars and prims data
 							break;
 						default:
 							break;
@@ -82,7 +115,7 @@ namespace OpenSimLite
 			}
 			catch (Exception e)
 			{
-				Console.WriteLine(e.Message);
+				Console.WriteLine(e.Message + ", So die!");
 			}
 		}
 	}
@@ -101,67 +134,5 @@ namespace OpenSimLite
 		{
 			
 		}
-	}
-	
-	public class BlockingQueue< T >
-	{
-		private Queue< T > _queue = new Queue< T >();
-		private object _queueSync = new object();
-
-		public void Enqueue(T value)
-		{
-			lock(_queueSync)
-			{
-				_queue.Enqueue(value);
-				Monitor.Pulse(_queueSync);
-			}
-		}
-
-		public T Dequeue()
-		{
-			lock(_queueSync)
-			{
-				if( _queue.Count < 1)
-					Monitor.Wait(_queueSync);
-
-				return _queue.Dequeue();
-			}
-		}
-	}
-	
-	public class NonBlockingQueue< T >
-	{
-		private Queue< T > _queue = new Queue< T >();
-		private object _queueSync = new object();
-
-		public void Enqueue(T value)
-		{
-			lock(_queueSync)
-			{
-				_queue.Enqueue(value);
-			}
-		}
-
-		public T Dequeue()
-		{
-			T rValue = default(T);
-			lock(_queueSync)
-			{
-				if( _queue.Count > 0)
-				{
-					rValue = _queue.Dequeue();
-				}
-			}
-			return rValue;
-		}
-		
-		public int Count
-		{
-			get
-			{
-				return(_queue.Count);
-			}
-		}
-	}
-	
+	}	
 }

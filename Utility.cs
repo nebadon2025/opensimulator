@@ -27,10 +27,12 @@
 
 using System;
 using System.Text;
+using System.Collections.Generic;
+using System.Threading;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 
-namespace OpenSimLite
+namespace OpenSim
 {
 	/// <summary>
 	/// Description of Utility.
@@ -52,6 +54,67 @@ namespace OpenSimLite
 			encodedBytes = md5.ComputeHash(originalBytes);
 
 			return Regex.Replace(BitConverter.ToString(encodedBytes), "-", "").ToLower();
+		}
+	}
+	
+	public class BlockingQueue< T >
+	{
+		private Queue< T > _queue = new Queue< T >();
+		private object _queueSync = new object();
+
+		public void Enqueue(T value)
+		{
+			lock(_queueSync)
+			{
+				_queue.Enqueue(value);
+				Monitor.Pulse(_queueSync);
+			}
+		}
+
+		public T Dequeue()
+		{
+			lock(_queueSync)
+			{
+				if( _queue.Count < 1)
+					Monitor.Wait(_queueSync);
+
+				return _queue.Dequeue();
+			}
+		}
+	}
+	
+	public class NonBlockingQueue< T >
+	{
+		private Queue< T > _queue = new Queue< T >();
+		private object _queueSync = new object();
+
+		public void Enqueue(T value)
+		{
+			lock(_queueSync)
+			{
+				_queue.Enqueue(value);
+			}
+		}
+
+		public T Dequeue()
+		{
+			T rValue = default(T);
+			lock(_queueSync)
+			{
+				if( _queue.Count > 0)
+				{
+					rValue = _queue.Dequeue();
+				}
+			}
+			return rValue;
+		}
+		
+		public int Count
+		{
+			get
+			{
+				return(_queue.Count);
+			}
 		}
 	}
 }

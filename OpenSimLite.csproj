@@ -1,8 +1,8 @@
 ﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>OpenSimLite</RootNamespace>
-    <AssemblyName>OpenSimLite</AssemblyName>
+    <RootNamespace>OpenSim</RootNamespace>
+    <AssemblyName>OpenSim</AssemblyName>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{782CCAFD-7313-4638-ADAC-53703DF24DF0}</ProjectGuid>
@@ -31,6 +31,14 @@
       <HintPath>bin\Debug\libsecondlife.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
     </Reference>
+    <Reference Include="libdb_dotNET43">
+      <HintPath>bin\Debug\libdb_dotNET43.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Include="Kds.Serialization">
+      <HintPath>bin\Debug\Kds.Serialization.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Controller.cs" />
@@ -52,6 +60,10 @@
     <Compile Include="InstantMessaging.cs" />
     <Compile Include="Globals.cs" />
     <Compile Include="Utility.cs" />
+    <Compile Include="LocalStorageBase.cs" />
+    <Compile Include="Assets.cs" />
+    <Compile Include="LocalAssetCache.cs" />
+    <Compile Include="BerkeleyDatabase.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.Targets" />
 </Project>

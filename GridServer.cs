@@ -26,17 +26,33 @@
 */
 
 using System;
+using libsecondlife;
 
-namespace OpenSimLite
+namespace OpenSim
 {
 	/// <summary>
 	/// Handles connection to Grid Servers.
 	/// also Sim to Sim connections?
 	/// </summary>
-	public class GridServer
+	public class GridServer //:IGridServer
 	{
 		public GridServer()
 		{
 		}
 	}
+	
+	public interface IGridServer
+	{
+		bool RequestConnection(RegionInfo myRegion);
+		UUIDBlock RequestUUIDBlock();
+		RegionInfo[] RequestNeighbours();
+	}
+	
+	public struct UUIDBlock
+	{
+		public LLUUID BlockStart;
+		public LLUUID BlockEnd;
+	}
+	
 }
+

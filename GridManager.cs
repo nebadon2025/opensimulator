@@ -32,7 +32,7 @@ using libsecondlife;
 using libsecondlife.Packets;
 using System.Collections.Generic;
 
-namespace OpenSimLite
+namespace OpenSim
 {
 
 	/// <summary>
@@ -213,7 +213,7 @@ namespace OpenSimLite
 		}
 		
 		/// <summary>
-		/// 
+		/// most of this should be moved into the grid server class 
 		/// </summary>
 		private void LoadGrid()
 		{

@@ -26,14 +26,20 @@
 */
 
 using System;
+using libsecondlife;
+using BerkeleyDb;
+using Kds.Serialization;
+using Kds.Serialization.Buffer;
 
-namespace OpenSimLite
+namespace OpenSim
 {
 	/// <summary>
 	/// Handles connection to Asset Server.
 	/// </summary>
-	public class AssetServer
+	public class AssetServer  : IAssetServer
 	{
+		private IAssetReceived _receiver;
+		
 		public AssetServer()
 		{
 		}
@@ -46,5 +52,71 @@ namespace OpenSimLite
 				
 			}
 		}
+		public void SetReceiver(IAssetReceived receiver)
+		{
+			this._receiver = receiver;
+		}
+		public void RequestAsset(LLUUID assetID)
+		{
+			AssetBase asset = null;
+			byte[] dataBuffer = new byte[4096];
+			byte[] keyBuffer = new byte[256];
+			int index;
+			DbEntry keyEntry;
+			DbEntry dataEntry;
+			dataEntry = DbEntry.InOut(dataBuffer, 0, 4096);
+			index = 0;
+			BerkeleyDatabases.Instance.dbs.Formatter.Serialize<string>(assetID.ToStringHyphenated(),  keyBuffer, ref index);
+			byte[] co= new byte[44];
+			Array.Copy(keyBuffer,co,44);
+			keyEntry = DbEntry.InOut(co, 0, 44);
+			ReadStatus status = BerkeleyDatabases.Instance.dbs.AssetDb.Get(null, ref keyEntry, ref dataEntry, DbFile.ReadFlags.None);
+			if (status != ReadStatus.Success)
+			{
+				throw new ApplicationException("Read failed");
+			}
+			index = 0;
+			BerkeleyDatabases.Instance.dbs.Formatter.Deserialize<AssetBase>(ref asset, dataEntry.Buffer, ref index);
+			this._receiver.AssetReceived( asset);
+		}
+		public void UpdateAsset(AssetBase asset)
+		{
+			//can we use UploadNewAsset to update as well?
+			this.UploadNewAsset(asset);
+		}
+		public void UploadNewAsset(AssetBase asset)
+		{
+			byte[] dataBuffer = new byte[4096];
+			byte[] keyBuffer = new byte[256];
+			int index;
+			DbEntry keyEntry;
+			DbEntry dataEntry;
+			index = 0;
+			BerkeleyDatabases.Instance.dbs.Formatter.Serialize<string>(asset.FullID.ToStringHyphenated(), keyBuffer, ref index);
+			byte[] co= new byte[44];
+			Array.Copy(keyBuffer,co,44);
+			keyEntry = DbEntry.InOut(co, 0, 44);
+			index = 0;
+			BerkeleyDatabases.Instance.dbs.Formatter.Serialize<AssetBase>(asset, dataBuffer, ref index);
+			dataEntry = DbEntry.InOut(dataBuffer, 0, index);
+			WriteStatus status = BerkeleyDatabases.Instance.dbs.AssetDb.Put(null, ref keyEntry, ref dataEntry, DbFile.WriteFlags.None);
+			if (status != WriteStatus.Success)
+				throw new ApplicationException("Put failed");
+		}
+	
+	}
+	
+	public interface IAssetServer
+	{
+		void SetReceiver(IAssetReceived receiver);
+		void RequestAsset(LLUUID assetID);
+		void UpdateAsset(AssetBase asset);
+		void UploadNewAsset(AssetBase asset);
+	}
+	
+	// could change to delegate
+	public interface IAssetReceived
+	{
+		void AssetReceived(AssetBase asset);
 	}
 }

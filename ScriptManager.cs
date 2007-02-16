@@ -27,7 +27,7 @@
 
 using System;
 
-namespace OpenSimLite
+namespace OpenSim
 {
 	/// <summary>
 	/// Description of ScriptManager.
@@ -39,10 +39,10 @@ namespace OpenSimLite
 		}
 	}
 	
-	public interface ScriptPlugin
+	public interface IScriptPlugin
 	{
-		ScriptObject ICompileScript(string script);
-		bool IStart();
+		ScriptObject CompileScript(string script);
+		bool Start();
 	}
 	
 	public interface ScriptObject

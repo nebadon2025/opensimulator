@@ -37,18 +37,19 @@ using System.Collections;
 using System.Xml;
 using libsecondlife;
 
-namespace OpenSimLite
+namespace OpenSim 
 {
 	/// <summary>
 	/// When running in local (default) mode , handles client logins.
 	/// </summary>
 	public class LoginServer
 	{
-		public LoginServer()
+		public LoginServer(UserServer userServer)
 		{
-			
+			_userServer = userServer;
 		}
 		private Logon _login;
+		private UserServer _userServer;
 		private ushort _loginPort = Globals.Instance.LoginServerPort;
 		public IPAddress clientAddress = IPAddress.Loopback;
 		public IPAddress remoteAddress = IPAddress.Any;
@@ -58,7 +59,7 @@ namespace OpenSimLite
 		private string _defaultResponse;
 		
 		private string _mpasswd;
-		private bool _needPassswd=false;
+		private bool _needPasswd=false;
 
 		// InitializeLoginProxy: initialize the login proxy
 		private void InitializeLoginProxy() {
@@ -66,7 +67,7 @@ namespace OpenSimLite
 			loginServer.Bind(new IPEndPoint(remoteAddress, _loginPort));
 			loginServer.Listen(1);
 			
-			this._needPassswd=Globals.Instance.NeedPasswd;
+			this._needPasswd=Globals.Instance.NeedPasswd;
 			//read in default response string
 			StreamReader SR;
     		string lines;
@@ -94,7 +95,7 @@ namespace OpenSimLite
 		
 		private void RunLoginProxy() 
 		{
-			Console.WriteLine("Starting Login Sever");
+			Console.WriteLine("Starting Login Server");
 		    try 
 		    {
 		    	for (;;) 
@@ -145,7 +146,7 @@ namespace OpenSimLite
 				{
 					// read one line of the header
 					line = reader.ReadLine();
-					
+				
 					// check for premature EOF
 					if (line == null)
 						throw new Exception("EOF in client HTTP header");
@@ -157,7 +158,6 @@ namespace OpenSimLite
 				} while (line != "");
 				
 				// read the HTTP body into a buffer
-				this._login = new Logon();
 				char[] content = new char[contentLength];
 				reader.Read(content, 0, contentLength);
 				
@@ -180,6 +180,7 @@ namespace OpenSimLite
 					{
 						first = "test";
 					}
+					
 					if(requestData.Contains("last"))
 					{
 						last = (string)requestData["last"];
@@ -188,6 +189,7 @@ namespace OpenSimLite
 					{
 						last = "User"+NumClients.ToString();
 					}
+					
 					if(requestData.Contains("passwd"))
 					{
 						passwd = (string)requestData["passwd"];
@@ -235,6 +237,7 @@ namespace OpenSimLite
 					
 					CustomiseLoginResponse( responseData, first, last );
 					
+					this._login = new Logon();
 					//copy data to login object
 					_login.First = first;
 					_login.Last = last;
@@ -243,9 +246,10 @@ namespace OpenSimLite
 					_login.BaseFolder = BaseFolderID;
 					_login.InventoryFolder = InventoryFolderID;
 					
-					lock(Globals.Instance.IncomingLogins)
+					//working on local computer so lets add to the userserver's list of sessions
+					lock(this._userServer.Sessions)
 					{
-						Globals.Instance.IncomingLogins.Add(_login);
+						this._userServer.Sessions.Add(_login);
 					}
 					
 					// forward the XML-RPC response to the client
@@ -279,11 +283,11 @@ namespace OpenSimLite
 
 		protected virtual bool Authenticate(string first, string last, string  passwd)
 		{
-			if(this._needPassswd)
+			if(this._needPasswd)
 			{
 				//every user needs the password to login
-				string encodedpass = passwd.Remove(0,3); //remove $1$
-				if(encodedpass == this._mpasswd)
+				string encodedPass = passwd.Remove(0,3); //remove $1$
+				if(encodedPass == this._mpasswd)
 				{
 					return true;
 				}
@@ -294,7 +298,7 @@ namespace OpenSimLite
 			}
 			else
 			{
-				//not need password to login
+				//do not need password to login
 				return true;
 			}
 		}

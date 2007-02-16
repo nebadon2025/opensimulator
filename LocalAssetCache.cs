@@ -26,63 +26,21 @@
 */
 
 using System;
-using System.Collections.Generic;
-using libsecondlife;
 
 namespace OpenSim
 {
 	/// <summary>
-	/// Description of Globals.
+	/// Description of LocalAssetCache.
 	/// </summary>
-	public sealed class Globals
+	public class LocalAssetCache
 	{
-		private static Globals instance = new Globals();
-		private GridManager _grid;
-		
-		public static Globals Instance 
-		{
-			get 
-			{
-				return instance;
-			}
-		}
-		
-		public GridManager Grid
-		{
-			set
-			{
-				_grid = value;
-			}
-		}
-		
-		public bool LocalRunning = true; // not connected to a grid?
-		public string SimIPAddress = "127.0.0.1";
-		public int SimPort = 50000;
-		public string RegionName = "Test Sandbox\0";
-		public ulong RegionHandle = 1096213093147648;
-		
-		public bool StartLoginServer = true;
-		public ushort LoginServerPort = 8080;
-		public List<Logon> IncomingLogins = new List<Logon>();
-		
-		public string Password="mypassword";
-		public bool NeedPasswd=false;
-		
-		/// <summary>
-		/// 
-		/// </summary>
-		private Globals()
+		public LocalAssetCache()
 		{
 		}
-		
-		/// <summary>
-		/// 
-		/// </summary>
-		/// <param name="type"></param>
-		/// <returns></returns>
-		public LLUUID RequestUUID(byte type)
-		{
-			return(_grid.RequestUUID(type));
-		}
+	}
+	
+	public interface ILocalCacheStorage
+	{
+		void SaveAsset(AssetBase asset);
 	}
 }

@@ -29,7 +29,7 @@ using System;
 using System.Collections.Generic;
 using libsecondlife;
 
-namespace OpenSimLite
+namespace OpenSim
 {
 	/// <summary>
 	/// Local cache of Inventories

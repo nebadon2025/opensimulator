@@ -27,6 +27,7 @@ Copyright (c) OpenSim project, http://sim.opensecondlife.org/
 
 
 using System;
+using System.Timers;
 using System.Collections.Generic;
 using libsecondlife;
 using libsecondlife.Packets;
@@ -43,6 +44,7 @@ namespace OpenSim
 		private AssetManager _assetManager;
 		private SceneGraph _scene;
 		private PrimManager _primManager;
+		private Timer timer1 = new Timer();
 		
 		public static void Main(string[] args)
 		{
@@ -50,14 +52,11 @@ namespace OpenSim
 			bool Run = true;
             while( Run ) 
             {
-            	
             	string input = Console.ReadLine();
-
             	if(input == "Exit")
             	{
             		Run = false;
-            	}
-           	 	
+            	}	
             }
             
             BerkeleyDatabases.Instance.Close();
@@ -84,6 +83,9 @@ namespace OpenSim
 				_loginServer = new LoginServer(_backboneServers.UserServer);
 				_loginServer.Startup();
 			}
+			timer1.Enabled = true;
+            timer1.Interval = 200;
+            timer1.Elapsed +=new ElapsedEventHandler( this.Timer1Tick );
 			
 		}
 		
@@ -98,6 +100,12 @@ namespace OpenSim
 			
 		}
 		
+		void Timer1Tick( object sender, System.EventArgs e ) 
+		{
+            //this.time++;
+            this._scene.Update();
+           // this._assetManager.DoWork( time );
+        }
 	}
 	
 	public class BackboneServers

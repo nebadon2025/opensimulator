@@ -105,7 +105,13 @@ namespace OpenSim
 							Console.WriteLine("RegionHandshake reply");
 							Scene.SendTerrainData(this.NetInfo);
 							Scene.AddNewAvatar(AgentManager.GetAgent(this.NetInfo.User.AgentID).Avatar);
-							// send current avatars and prims data
+							break;
+						case PacketType.AgentWearablesRequest:
+							AgentManager.RequestWearables(this.NetInfo);
+							break;
+						case PacketType.AgentUpdate:
+							AgentUpdatePacket agentUpdate = (AgentUpdatePacket)packet;
+							Scene.AvatarMovementCommand(this.NetInfo, agentUpdate);
 							break;
 						default:
 							break;

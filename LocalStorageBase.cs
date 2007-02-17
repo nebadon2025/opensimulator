@@ -50,6 +50,7 @@ namespace OpenSim
 		}
 		public void CreateNewPrimStorage(PrimAsset prim)
 		{
+			Console.WriteLine("prim data length is: "+prim.Data.Length);
 			byte[] dataBuffer = new byte[4096];
 			byte[] keyBuffer = new byte[256];
 			int index;

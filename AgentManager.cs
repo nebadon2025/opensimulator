@@ -49,29 +49,34 @@ namespace OpenSim
 		
 		public AgentName GetAgentName(LLUUID AgentID)
 		{
-			
 			AgentName name;
-			if(AgentList.ContainsKey(AgentID))
+			lock(AgentList)
 			{
-				name=AgentList[AgentID].Name;
-			}
-			else
-			{
-				name = new AgentName();
+				if(AgentList.ContainsKey(AgentID))
+				{
+					name=AgentList[AgentID].Name;
+				}
+				else
+				{
+					name = new AgentName();
+				}
 			}
 			return(name);
 		}
 		
 		public AgentProfile GetAgent(LLUUID id)
 		{
-			if(!this.AgentList.ContainsKey(id))
+			lock(AgentList)
 			{
-				return null;
-			}
-			else
-			{
-				AgentProfile avatar = this.AgentList[id];
-				return avatar;
+				if(!this.AgentList.ContainsKey(id))
+				{
+					return null;
+				}
+				else
+				{
+					AgentProfile avatar = this.AgentList[id];
+					return avatar;
+				}
 			}
 		}
 		/// <summary>
@@ -193,6 +198,28 @@ namespace OpenSim
 				_server.SendPacket(packet, true, kp.Value.Avatar.NetInfo);
 			}
 		}
+		
+		public void SendTerseUpdateLists()
+		{
+			foreach (KeyValuePair<libsecondlife.LLUUID, AgentProfile> kp in this.AgentList)
+			{
+				if(kp.Value.Avatar.TerseUpdateList.Count > 0)
+				{
+					ImprovedTerseObjectUpdatePacket im = new ImprovedTerseObjectUpdatePacket();
+					im.RegionData.RegionHandle = Globals.Instance.RegionHandle;;
+					im.RegionData.TimeDilation = 64096;
+					
+					im.ObjectData = new ImprovedTerseObjectUpdatePacket.ObjectDataBlock[kp.Value.Avatar.TerseUpdateList.Count];
+					
+					for(int i = 0; i < kp.Value.Avatar.TerseUpdateList.Count; i++)
+					{
+						im.ObjectData[i] = kp.Value.Avatar.TerseUpdateList[i];
+					}
+					_server.SendPacket(im, true, kp.Value.Avatar.NetInfo);
+					kp.Value.Avatar.TerseUpdateList.Clear();
+				}
+			}
+		}
 	}
 	
 	public struct AgentName
@@ -219,7 +246,7 @@ namespace OpenSim
 		public NetworkInfo NetInfo;
 		public LLUUID FullID;
 		public uint LocalID;
-		//public LLQuaternion Rotation;
+		public LLQuaternion BodyRotation;
 		public bool Walk = false;
 		public bool Started = false;
 		//public TextureEntry TextureEntry;
@@ -248,8 +275,8 @@ namespace OpenSim
 	
 	public class AvatarWearable
 	{
-		public LLUUID AssetID;
-		public LLUUID ItemID;
+		public LLUUID AssetID = new LLUUID("00000000-0000-0000-0000-000000000000");
+		public LLUUID ItemID = new LLUUID("00000000-0000-0000-0000-000000000000");
 		
 		public AvatarWearable()
 		{

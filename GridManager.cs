@@ -241,7 +241,7 @@ namespace OpenSim
 				
 				XmlNode nodes = root.FirstChild;
 				if (nodes.Name != "Grid")
-					throw new Exception("Error: Invalid File. <project> first child should be <Grid>");
+					throw new Exception("Error: Invalid File. <Root> first child should be <Grid>");
 				
 				if (nodes.HasChildNodes)   {
 					foreach( XmlNode xmlnc in nodes.ChildNodes)

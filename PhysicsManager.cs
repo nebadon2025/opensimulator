@@ -40,5 +40,23 @@ namespace OpenSim
 		{
 			_sceneGraph=sceneGraph;
 		}
+		
+		public void UpdatePhysics()
+		{
+			lock(this._sceneGraph.RootNode)
+			{
+				for (int i = 0; i < _sceneGraph.RootNode.ChildrenCount; i++)
+				{
+					if(_sceneGraph.RootNode.GetChild(i).SceneType == 1) //check it is a avatar node
+					{
+						AvatarData avatar = (AvatarData)_sceneGraph.RootNode.GetChild(i);
+						avatar.Position.X += (avatar.Velocity.X * 0.2f);
+						avatar.Position.Y += (avatar.Velocity.Y * 0.2f);
+						avatar.Position.Z += (avatar.Velocity.Z * 0.2f);
+					}
+				}
+			}
+		}
+				
 	}
 }

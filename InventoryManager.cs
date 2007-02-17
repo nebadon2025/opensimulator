@@ -52,10 +52,16 @@ namespace OpenSim
 		public List<InventoryFolder> Folders;
 		public int LastCached;  //time this was last stored/compared to user server
 		public LLUUID AgentID;
+		public AvatarWearable[] Wearables; 
 		
 		public AgentInventory()
 		{
 			Folders = new List<InventoryFolder>();
+			Wearables = new AvatarWearable[2];
+			for(int i = 0; i < 2; i++)
+			{
+				Wearables[i] = new AvatarWearable();
+			}
 		}
 	}
 	

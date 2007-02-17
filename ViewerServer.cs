@@ -209,6 +209,7 @@ namespace OpenSim
 	 	/// <param name="incrementSequence">Increment sequence number?</param>
 	 	public void SendPacket(Packet packet, bool incrementSequence, NetworkInfo User_info)
 	 	{
+	 		
 	 		lock(this._sendPacketSync)
 	 		{
 	 			byte[] buffer;
@@ -459,7 +460,6 @@ namespace OpenSim
 	 					{
 	 						temp_agent=(NetworkInfo)this.User_agents[ii];
 	 						IPEndPoint ag_ip=(IPEndPoint)temp_agent.endpoint;
-	 						//this.callback_object.error("searching: address is "+ag_ip.Address +"port number is: "+ag_ip.Port.ToString());
 	 						
 	 						if((ag_ip.Address.ToString()==send_ip.Address.ToString()) && (ag_ip.Port.ToString()==send_ip.Port.ToString()))
 	 						{
@@ -486,14 +486,12 @@ namespace OpenSim
 	 		{
 	 			
 	 			//error finding agent
-	 			//this.CallbackObject.ErrorCallback("no user found");
 	 			return;
 	 		}
 
 	 		// Fail-safe check
 	 		if (packet == null)
 	 		{
-	 			//this.CallbackObject.ErrorCallback("couldn't build packet");
 	 			// Client.Log("Couldn't build a message from the incoming data", Helpers.LogLevel.Warning);
 	 			return;
 	 		}
@@ -525,7 +523,6 @@ namespace OpenSim
 	 				}
 
 	 				// Avoid firing a callback twice for the same packet
-	 				// this.callback_object.error("avoiding callback");
 	 				return;
 	 			}
 	 			else

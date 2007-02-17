@@ -71,7 +71,6 @@ namespace OpenSim
 
 		public void Open(string dbDir, string appName, Stream errStream) {
 			this.dbDir = dbDir;
-			//Remove();
 
 			// open local prim database
 			Db db = new Db(DbCreateFlags.None);
@@ -152,7 +151,11 @@ namespace OpenSim
 		protected override void SerializeValue(PrimAsset value) {
 			Formatter.Serialize<string>(value.Name);
 			Formatter.Serialize<string>(value.Description);
-			
+			Formatter.Serialize<int>((int?)value.Data.Length);
+			for( int i = 0; i < value.Data.Length; i++)
+			{
+				Formatter.Serialize<byte>((byte?)value.Data[i]);
+			}
 		}
 
 		protected override void DeserializeInstance(ref PrimAsset instance) {
@@ -163,12 +166,22 @@ namespace OpenSim
 		protected override void DeserializeMembers(PrimAsset instance) {
 			Formatter.Deserialize<string>(ref instance.Name);
 			Formatter.Deserialize<string>(ref instance.Description);
+			int dataLength;
+			dataLength =(int) Formatter.Deserialize<int>();
+			instance.Data = new byte[dataLength];
+			for( int i = 0; i < dataLength; i++)
+			{
+				instance.Data[i] =(byte) Formatter.Deserialize<byte>();
+			}
 			
 		}
 
 		protected override void SkipValue() {
 			if (Formatter.Skip<string>())
-				Formatter.Skip<string>();
+				if	(Formatter.Skip<string>())
+				if ( Formatter.Skip<int>())	
+					Formatter.Skip<byte[]>();
+			
 		}
 	}
 	
@@ -179,7 +192,11 @@ namespace OpenSim
 		protected override void SerializeValue(AssetBase value) {
 			Formatter.Serialize<string>(value.Name);
 			Formatter.Serialize<string>(value.Description);
-			
+			Formatter.Serialize<int>((int?)value.Data.Length);
+			for( int i = 0; i < value.Data.Length; i++)
+			{
+				Formatter.Serialize<byte>((byte?)value.Data[i]);
+			}
 		}
 
 		protected override void DeserializeInstance(ref AssetBase instance) {
@@ -190,12 +207,21 @@ namespace OpenSim
 		protected override void DeserializeMembers(AssetBase instance) {
 			Formatter.Deserialize<string>(ref instance.Name);
 			Formatter.Deserialize<string>(ref instance.Description);
-			
+			int dataLength;
+			dataLength =(int) Formatter.Deserialize<int>();
+			instance.Data = new byte[dataLength];
+			for( int i = 0; i < dataLength; i++)
+			{
+				instance.Data[i] =(byte) Formatter.Deserialize<byte>();
+			}
 		}
 
 		protected override void SkipValue() {
 			if (Formatter.Skip<string>())
-				Formatter.Skip<string>();
+				if 	(Formatter.Skip<string>())
+				if ( Formatter.Skip<int>())	
+					Formatter.Skip<byte[]>();
+			
 		}
 	}
 }

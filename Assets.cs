@@ -41,7 +41,6 @@ namespace OpenSim
 		public sbyte InvType;
 		public string Name;
 		public string Description;
-		public string Filename;
 		
 		public AssetBase()
 		{
@@ -58,9 +57,10 @@ namespace OpenSim
 			this.PrimData = new PrimData();
 		}
 	}
-	public class PrimData
+	public class PrimData : Node
 	{
 		public LLUUID OwnerID;
+		public uint LocalID;
 		public byte PCode;
 		public byte PathBegin;
 		public byte PathEnd;
@@ -81,6 +81,16 @@ namespace OpenSim
 		public PrimData()
 		{
 			
+		}
+		
+		public void FromBytes(byte[] bytes)
+		{
+			
+		}
+		
+		public byte[] ToBytes()
+		{
+			return null;
 		}
 	}
 	

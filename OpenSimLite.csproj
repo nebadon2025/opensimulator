@@ -39,6 +39,14 @@
       <HintPath>bin\Debug\Kds.Serialization.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
     </Reference>
+    <Reference Include="Axiom.MathLib">
+      <HintPath>bin\Debug\Axiom.MathLib.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Include="log4net">
+      <HintPath>bin\Debug\log4net.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Controller.cs" />

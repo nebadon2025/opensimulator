@@ -31,6 +31,7 @@ using System.Collections.Generic;
 using System.Threading;
 using libsecondlife;
 using libsecondlife.Packets;
+using Axiom.MathLib;
 
 namespace OpenSim
 {
@@ -98,6 +99,7 @@ namespace OpenSim
 		public void Update()
 		{
 			// run physics engine to update positions etc since last frame
+			this._physics.UpdatePhysics();
 			
 			// process command list
 			lock(this.Commands)  //do we want to stop new commands being added while we process?
@@ -108,6 +110,21 @@ namespace OpenSim
 					switch(command.CommandType)
 					{
 						case 1:
+							//movement command
+							if(command.SObject.SceneType == 1)
+							{
+								AvatarData avatar =(AvatarData) command.SObject;
+								avatar.Walk = !avatar.Walk;
+								command.SObject.InternVelocityX = command.InternVelocityX;
+								command.SObject.InternVelocityY = command.InternVelocityY;
+								command.SObject.InternVelocityZ = command.InternVelocityZ;
+								
+								command.SObject.Velocity = command.Velocity;
+								if((command.SObject.UpdateFlag & (1)) != 1)
+								{
+									command.SObject.UpdateFlag += 1;
+								}
+							}
 							break;
 						default:
 							break;
@@ -128,15 +145,16 @@ namespace OpenSim
 						int updatemask = avatar.UpdateFlag & (128);
 						if(updatemask == 128) //is a new avatar?
 						{
+							Console.WriteLine("new avatar has been added to scene so update it on the current scene");
+						
 							this.SendAvatarDataToAll(avatar);
 							
 							//should send a avatar appearance to other clients except the avatar's owner
+							this.SendAvatarAppearanceToAllExcept(avatar);
 							
 							//and send complete scene update to the new avatar's owner
 							this.SendCompleteSceneTo(avatar);
-							
-							//reset new avatar flag
-							//avatar.UpdateFlag -= 128;
+							avatar.Started = true;
 						}
 					}
 				}
@@ -167,9 +185,11 @@ namespace OpenSim
 								{
 									AvatarData avatar2 =(AvatarData) this.RootNode.GetChild(i);
 									int newmask = avatar2.UpdateFlag & (128);
-									if(newmask != 128) //is a new avatar?
+									if(newmask != 128) 
+									//is a new avatar?
+									//if it is then we don't need to tell it about updates as it has already received a full update of the scene
 									{
-										//no its not so let add to its updatelist
+										//but if it is not then we add to its updatelist
 										avatar2.TerseUpdateList.Add(this.CreateTerseBlock(avatar));
 									}
 								}
@@ -185,6 +205,81 @@ namespace OpenSim
 				for (int i = 0; i < this.RootNode.ChildrenCount; i++)
 				{
 					this.RootNode.GetChild(i).UpdateFlag = 0;
+				}
+			}
+			this._agentManager.SendTerseUpdateLists();
+		}
+		
+		public void AvatarMovementCommand(NetworkInfo userInfo, AgentUpdatePacket updatePacket)
+		{
+			uint mask = updatePacket.AgentData.ControlFlags & (1);
+			AvatarData avatar = _agentManager.GetAgent(userInfo.User.AgentID).Avatar;
+			if (avatar != null)
+			{
+				if (avatar.Started)
+				{
+					if (mask == (1))
+					{
+						if (!avatar.Walk)
+						{
+							UpdateCommand newCommand = new UpdateCommand();
+							newCommand.CommandType = 1;
+							newCommand.SObject = avatar;
+							//start walking
+							Axiom.MathLib.Vector3 v3 = new Axiom.MathLib.Vector3(1, 0, 0);
+							Axiom.MathLib.Quaternion q = new Axiom.MathLib.Quaternion(updatePacket.AgentData.BodyRotation.W, updatePacket.AgentData.BodyRotation.X, updatePacket.AgentData.BodyRotation.Y, updatePacket.AgentData.BodyRotation.Z);
+							Axiom.MathLib.Vector3 direc = q * v3;
+							direc.Normalize();
+							
+							Axiom.MathLib.Vector3 internDirec = new Vector3(direc.x, direc.y, direc.z);
+							
+							//work out velocity for sim physics system
+							direc = direc * ((0.03f) * 128f);
+							//because of us using a frame based system we can't update the avatar directly
+							//so we need to add the command to the list and let the update loop deal with it
+							newCommand.Velocity = new libsecondlife.LLVector3(0, 0 , 0);
+							newCommand.Velocity.X = direc.x;
+							newCommand.Velocity.Y = direc.y;
+							newCommand.Velocity.Z = direc.z;
+							//avatar.Walk = true;
+							
+							//work out velocity for internal clients movement commands
+							internDirec = internDirec * (0.03f);
+							internDirec.x += 1;
+							internDirec.y += 1;
+							internDirec.z += 1;
+							
+							newCommand.InternVelocityX = (ushort)(32768 * internDirec.x);
+							newCommand.InternVelocityY = (ushort)(32768 * internDirec.y);
+							newCommand.InternVelocityZ = (ushort)(32768 * internDirec.z);
+							lock(this.Commands)
+							{
+								this.Commands.Enqueue(newCommand);
+							}
+						}
+					}
+					else
+					{
+						if (avatar.Walk)
+						{
+							UpdateCommand newCommand = new UpdateCommand();
+							newCommand.CommandType = 1;
+							newCommand.SObject = avatar;
+							//walking but key not pressed so need to stop
+							//avatar.Walk = false;
+							newCommand.Velocity.X = 0;
+							newCommand.Velocity.Y = 0;
+							newCommand.Velocity.Z = 0;
+							
+							newCommand.InternVelocityX = (ushort)(32768 );
+							newCommand.InternVelocityY = (ushort)(32768 );
+							newCommand.InternVelocityZ = (ushort)(32768 );
+							lock(this.Commands)
+							{
+								this.Commands.Enqueue(newCommand);
+							}
+						}
+					}
 				}
 			}
 		}
@@ -207,7 +302,7 @@ namespace OpenSim
 				Console.WriteLine("Sent terrain data");
 				
 				//test
-				this.SendAvatarData(userInfo);
+				//this.SendAvatarData(userInfo);
 			}
 		}
 		
@@ -246,9 +341,11 @@ namespace OpenSim
 		
 		public void AddNewAvatar(AvatarData avatar)
 		{
+			Console.WriteLine("adding avatar to scene");
 			lock(this.RootNode)
 			{
 				avatar.SceneName = "Avatar" + this._objectCount.ToString("00000");
+				avatar.Position = new LLVector3(100f, 100f, 22f);
 				this._objectCount++;
 				this.RootNode.AddChild(avatar);
 			}
@@ -316,6 +413,7 @@ namespace OpenSim
 		#endregion
 		private void SendAvatarDataToAll(AvatarData avatar)
 		{
+			Console.WriteLine("sending avatar data");
 			ObjectUpdatePacket objupdate = new ObjectUpdatePacket();
 			objupdate.RegionData.RegionHandle = Globals.Instance.RegionHandle;
 			objupdate.RegionData.TimeDilation = 0;
@@ -326,7 +424,7 @@ namespace OpenSim
 			objupdate.ObjectData[0].FullID = avatar.NetInfo.User.AgentID;
 			objupdate.ObjectData[0].NameValue = _enc.GetBytes("FirstName STRING RW SV " + avatar.NetInfo.User.FirstName + "\nLastName STRING RW SV " + avatar.NetInfo.User.LastName + " \0");
 			
-			libsecondlife.LLVector3 pos2 = new LLVector3(100f, 100.0f, 22.0f);
+			libsecondlife.LLVector3 pos2 = avatar.Position;
 			byte[] pb = pos2.GetBytes();
 			Array.Copy(pb, 0, objupdate.ObjectData[0].ObjectData, 16, pb.Length);
 			
@@ -345,12 +443,109 @@ namespace OpenSim
 		
 		public ImprovedTerseObjectUpdatePacket.ObjectDataBlock CreateTerseBlock(AvatarData avatar)
 		{
-			return(null);
+			byte[] bytes = new byte[60];
+			int i=0;
+			ImprovedTerseObjectUpdatePacket.ObjectDataBlock dat = new ImprovedTerseObjectUpdatePacket.ObjectDataBlock();
+			
+			dat.TextureEntry = _avatarTemplate.TextureEntry;
+			libsecondlife.LLVector3 pos2 = new LLVector3(avatar.Position.X, avatar.Position.Y, avatar.Position.Z);
+			
+			uint ID = avatar.LocalID;
+			bytes[i++] = (byte)(ID % 256);
+			bytes[i++] = (byte)((ID >> 8) % 256);
+			bytes[i++] = (byte)((ID >> 16) % 256);
+			bytes[i++] = (byte)((ID >> 24) % 256);
+			
+			bytes[i++] = 0;
+			bytes[i++] = 1;
+
+			i += 14;
+			bytes[i++] = 128;
+			bytes[i++] = 63;
+			byte[] pb = pos2.GetBytes();
+			
+			Array.Copy(pb, 0, bytes, i, pb.Length);
+			i += 12;
+			ushort ac = 32767;
+			bytes[i++] = (byte)(avatar.InternVelocityX % 256);
+			bytes[i++] = (byte)((avatar.InternVelocityX >> 8) % 256);
+			
+			bytes[i++] = (byte)(avatar.InternVelocityY % 256);
+			bytes[i++] = (byte)((avatar.InternVelocityY>> 8) % 256);
+			
+			bytes[i++] = (byte)(avatar.InternVelocityZ % 256);
+			bytes[i++] = (byte)((avatar.InternVelocityZ >> 8) % 256);
+			
+			//accel
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			
+			//rot
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			
+			//rotation vel
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			
+			dat.Data=bytes;
+			return(dat);
 		}
 		
 		public void SendAvatarAppearanceToAllExcept(AvatarData avatar)
 		{
+			AvatarAppearancePacket avp = new AvatarAppearancePacket();
+		
 			
+			avp.VisualParam = new AvatarAppearancePacket.VisualParamBlock[218];
+			//avp.ObjectData.TextureEntry=this.avatar_template.TextureEntry;// br.ReadBytes((int)numBytes);
+			
+			FileInfo fInfo = new FileInfo("Avatar_texture3.dat");
+			long numBytes = fInfo.Length;
+			FileStream fStream = new FileStream("Avatar_texture3.dat", FileMode.Open, FileAccess.Read);
+			BinaryReader br = new BinaryReader(fStream);
+			avp.ObjectData.TextureEntry = br.ReadBytes((int)numBytes);
+			br.Close();
+			fStream.Close();
+			
+			AvatarAppearancePacket.VisualParamBlock avblock = null;
+			for(int i = 0; i < 218; i++)
+			{
+				avblock = new AvatarAppearancePacket.VisualParamBlock();
+				avblock.ParamValue = (byte)avatar.VisParams.Params[i];
+				avp.VisualParam[i] = avblock;
+			}
+			
+			avp.Sender.IsTrial = false;
+			avp.Sender.ID = avatar.NetInfo.User.AgentID;
+			
+			SendInfo send = new SendInfo();
+			send.Incr = true;
+			send.NetInfo = avatar.NetInfo;
+			send.Packet = avp;
+			send.SentTo = 2; //to all clients except avatar
+			this._updateSender.SendList.Enqueue(send);
 		}
 	}
 	
@@ -365,6 +560,9 @@ namespace OpenSim
 		public LLVector3 Position;
 		public LLVector3 Velocity = new LLVector3(0,0,0);
 		public byte UpdateFlag;
+		public ushort InternVelocityX = 32768;
+		public ushort InternVelocityY = 32768;
+		public ushort InternVelocityZ = 32768;
 		
 		public List<Node> ChildNodes
 		{
@@ -529,6 +727,9 @@ namespace OpenSim
 		public Node SObject;
 		public LLVector3 Position;
 		public LLVector3 Velocity;
+		public ushort InternVelocityX;
+		public ushort InternVelocityY;
+		public ushort InternVelocityZ;
 		public LLQuaternion Rotation;
 		
 		public UpdateCommand()

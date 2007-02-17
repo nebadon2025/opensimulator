@@ -41,17 +41,23 @@ namespace OpenSim
 		{
 			this._localPrimDB = new LocalPrimDb();
 			
-			
 			//database test
 			/*PrimAsset prim = new PrimAsset();
 			prim.Name="happy now";
 			prim.Description= "test";
 			prim.FullID = new LLUUID("00000000-0000-0000-0000-000000000008");
+			prim.Data= new byte[10];
+			prim.Data[0]=5;
+			prim.Data[1]=4;
+			prim.Data[2]=5;
+			prim.Data[3]=6;
+			prim.Data[4]=5;
 			this._localPrimDB.CreateNewPrimStorage(prim);
 			
 			PrimAsset prim1 = this._localPrimDB.GetPrimFromStroage( new LLUUID("00000000-0000-0000-0000-000000000008"));
-			Console.WriteLine("prim recieved : "+prim1.Name + " "+ prim1.Description);
-			
+			Console.WriteLine("prim received : "+prim1.Name + " "+ prim1.Description);
+			Console.WriteLine("received prims data length is: "+prim1.Data.Length);
+			Console.WriteLine(Helpers.FieldToString(prim1.Data));
 			//this._localPrimDB.ReadWholedatabase();
 			*/
 		}

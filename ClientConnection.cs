@@ -42,7 +42,9 @@ namespace OpenSim
 		public static SceneGraph Scene;
 		public static AgentManager AgentManager;
 		public static PrimManager PrimManager;
+		public static UserServer UserServer;
 		public byte ConnectionType=1;
+		private bool _authorised = false;
 		
 		private Thread _mthread;
 		
@@ -69,32 +71,29 @@ namespace OpenSim
 					{
 						case PacketType.UseCircuitCode:
 							Console.WriteLine("new circuit");
-							//should be a new user/circuit joining
-							// add agents profile to agentmanager
-							string first = "",last ="";
-							LLUUID baseFolder = null, inventoryFolder =null;
 							
-							//rather than use IncomingLogins list, the logon object could be passed to this connection on creation
-							lock(Globals.Instance.IncomingLogins)
+							//should check that this session/circuit is authorised
+							UseCircuitCodePacket circuitPacket=(UseCircuitCodePacket)packet;
+							AuthenticateResponse sessionInfo = UserServer.AuthenticateSession(circuitPacket.CircuitCode.SessionID, circuitPacket.CircuitCode.ID, circuitPacket.CircuitCode.Code);
+							if(!sessionInfo.Authorised)
 							{
-								for(int i = 0; i < Globals.Instance.IncomingLogins.Count; i++)
-								{
-									if(Globals.Instance.IncomingLogins[i].Agent == this.NetInfo.User.AgentID)
-									{
-										first = Globals.Instance.IncomingLogins[i].First;
-										last = Globals.Instance.IncomingLogins[i].Last;
-										baseFolder = Globals.Instance.IncomingLogins[i].BaseFolder;
-										inventoryFolder = Globals.Instance.IncomingLogins[i].InventoryFolder;
-										Globals.Instance.IncomingLogins.RemoveAt(i);
-										break;
-									}
-								}
+								//session/circuit not authorised
+								//so do something about it
 							}
-							if(first != "")
+							else
 							{
+								//is authorised 
+								string first = "",last ="";
+								LLUUID baseFolder = null, inventoryFolder =null;
+								first = sessionInfo.LogonInfo.First;
+								last = sessionInfo.LogonInfo.Last;
+								baseFolder = sessionInfo.LogonInfo.BaseFolder;
+								inventoryFolder = sessionInfo.LogonInfo.InventoryFolder;
 								AgentManager.NewAgent(this.NetInfo, first, last, baseFolder, inventoryFolder);
+								this._authorised = true;
 							}
 							break;
+						//should check this circuit is authorised before processing any other packets
 						case PacketType.CompleteAgentMovement:
 							//Agent completing movement to region
 							// so send region handshake

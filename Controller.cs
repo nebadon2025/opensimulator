@@ -47,7 +47,7 @@ namespace OpenSim
 		public static void Main(string[] args)
 		{
 			Controller c = new Controller();
-			bool Run=true;
+			bool Run = true;
             while( Run ) 
             {
             	
@@ -74,6 +74,7 @@ namespace OpenSim
 			ClientConnection.Grid = _gridManager;
 			ClientConnection.Scene = _scene;
 			ClientConnection.AgentManager = _agentManager;
+			ClientConnection.UserServer = _backboneServers.UserServer;
 			_viewerServer.Startup();
 			BerkeleyDatabases.Instance.Startup();
 			_primManager = new PrimManager();

@@ -51,8 +51,9 @@ namespace OpenSim
 			
 			PrimAsset prim1 = this._localPrimDB.GetPrimFromStroage( new LLUUID("00000000-0000-0000-0000-000000000008"));
 			Console.WriteLine("prim recieved : "+prim1.Name + " "+ prim1.Description);
-			*/
+			
 			//this._localPrimDB.ReadWholedatabase();
+			*/
 		}
 		
 	}

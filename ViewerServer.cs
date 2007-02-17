@@ -117,14 +117,14 @@ namespace OpenSim
 	 	private System.Timers.Timer AckTimer;
 	 	private Server_Settings Settings=new Server_Settings();
 	 	public ArrayList User_agents=new ArrayList();
-	 	private IUserServer _userServer;
+	 	//private IUserServer _userServer;
 
 	 	/// <summary>
 	 	/// 
 	 	/// </summary>
 	 	public Server(IUserServer userServer)
 	 	{
-	 		this._userServer = userServer;
+	 		//this._userServer = userServer;
 	 	}
 	 	
 	 	/// <summary>
@@ -429,24 +429,8 @@ namespace OpenSim
 	 				if (packet.Type == PacketType.UseCircuitCode)
 	 				{
 	 					//new connection
+	 					//for now it isn't authorised but we will let the clientconnection thread deal with that
 	 					UseCircuitCodePacket cir_pack=(UseCircuitCodePacket)packet;
-	 					//should check that this session/circuit is authorised
-	 					AuthenticateResponse sessionInfo = this._userServer.AuthenticateSession(cir_pack.CircuitCode.SessionID, cir_pack.CircuitCode.ID, cir_pack.CircuitCode.Code);
-	 					if(!sessionInfo.Authorised)
-	 					{
-	 						//session/circuit not authorised
-	 						//so do something about it
-	 					}
-	 					else
-	 					{
-	 						//is authorised so add the logon object to the incominglogin list
-	 						//should be a better way of doing this now the login server connects to the user server
-	 						// like passing the logon object straight to the ClientConnection
-	 						lock(Globals.Instance.IncomingLogins)
-	 						{
-	 							Globals.Instance.IncomingLogins.Add(sessionInfo.LogonInfo);
-	 						}
-	 					}
 	 					NetworkInfo new_user=new NetworkInfo();
 	 					new_user.CircuitCode=cir_pack.CircuitCode.Code;
 	 					new_user.User.AgentID=cir_pack.CircuitCode.ID;
@@ -458,7 +442,10 @@ namespace OpenSim
 	 					new_user.Connection.Start();
 	 					
 	 					//this.CallbackObject.NewUserCallback(new_user);
+	 					lock(this.User_agents)
+	 					{
 	 					this.User_agents.Add(new_user);
+	 					}
 	 					
 	 				}
 	 				
@@ -466,17 +453,20 @@ namespace OpenSim
 	 				IPEndPoint send_ip=(IPEndPoint)epSender;
 	 				//	this.callback_object.error("incoming: address is "+send_ip.Address +"port number is: "+send_ip.Port.ToString());
 	 				
-	 				for(int ii=0; ii<this.User_agents.Count ; ii++)
+	 				lock(this.User_agents)
 	 				{
-	 					temp_agent=(NetworkInfo)this.User_agents[ii];
-	 					IPEndPoint ag_ip=(IPEndPoint)temp_agent.endpoint;
-	 					//this.callback_object.error("searching: address is "+ag_ip.Address +"port number is: "+ag_ip.Port.ToString());
-	 					
-	 					if((ag_ip.Address.ToString()==send_ip.Address.ToString()) && (ag_ip.Port.ToString()==send_ip.Port.ToString()))
+	 					for(int ii=0; ii<this.User_agents.Count ; ii++)
 	 					{
-	 						//this.callback_object.error("found user");
-	 						User_info=temp_agent;
-	 						break;
+	 						temp_agent=(NetworkInfo)this.User_agents[ii];
+	 						IPEndPoint ag_ip=(IPEndPoint)temp_agent.endpoint;
+	 						//this.callback_object.error("searching: address is "+ag_ip.Address +"port number is: "+ag_ip.Port.ToString());
+	 						
+	 						if((ag_ip.Address.ToString()==send_ip.Address.ToString()) && (ag_ip.Port.ToString()==send_ip.Port.ToString()))
+	 						{
+	 							//this.callback_object.error("found user");
+	 							User_info=temp_agent;
+	 							break;
+	 						}
 	 					}
 	 				}
 	 				

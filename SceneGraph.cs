@@ -41,6 +41,8 @@ namespace OpenSim
 	{
 		public Node RootNode;
 		public Terrain Terrain;
+		
+		private Thread _mthread;
 		private PhysicsManager _physics;
 		private Server _server;
 		private System.Text.Encoding _enc = System.Text.Encoding.ASCII;
@@ -69,6 +71,28 @@ namespace OpenSim
 			//testing
 			this.SetupTemplate("objectupate168.dat");
 			_updateSender.Startup();
+		}
+		
+		public void Startup()
+		{
+			_mthread = new Thread(new System.Threading.ThreadStart(RunScene));
+			_mthread.IsBackground = true;
+			_mthread.Start();
+		}
+		
+		public void RunScene()
+		{
+			try
+			{
+				for(;;)
+				{
+					this.Update();
+				}
+			}
+			catch (Exception e)
+			{
+				Console.WriteLine(e.Message);
+			}
 		}
 		
 		public void Update()
@@ -516,7 +540,7 @@ namespace OpenSim
 	public class UpdateSender
 	{
 		public BlockingQueue<SendInfo> SendList;
-		private Thread mthread;
+		private Thread _mthread;
 		private Server _server;
 		private AgentManager _agentManager;
 		
@@ -529,9 +553,9 @@ namespace OpenSim
 		
 		public void Startup()
 		{
-			mthread = new Thread(new System.Threading.ThreadStart(RunSender));
-			mthread.IsBackground = true;
-			mthread.Start();
+			_mthread = new Thread(new System.Threading.ThreadStart(RunSender));
+			_mthread.IsBackground = true;
+			_mthread.Start();
 		}
 		
 		private void RunSender()

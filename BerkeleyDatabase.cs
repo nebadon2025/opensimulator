@@ -61,10 +61,6 @@ namespace OpenSim
 			formatter.RegisterField<AssetBase>(new AssetBaseField(formatter));
 		
 		}
-		~BerkeleyDatabases()
-		{
-			this.Close();
-		}
 		
 		public BerkeleyDatabases dbs;
 

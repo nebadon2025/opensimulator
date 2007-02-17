@@ -74,8 +74,8 @@ function login($args) {
 	$position=$profiledata['position'];
 	$look_at=$profiledata['look_at'];
 	
-	$LocX=$siminfo['GridLocX'];
-	$LocY=$siminfo['GridLocY'];
+	$LocX=intval($siminfo['GridLocX'])*256;
+	$LocY=intval($siminfo['GridLocY'])*256;
 	$home="{'region_handle':'$region_handle', 'position':'$position', 'look_at':'$look_at'}";
 
 	$globaltextures = new LLBlock(

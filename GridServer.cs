@@ -68,6 +68,10 @@ namespace OpenSim
 			return(user);
 		}
 		
+		/// <summary>
+		/// used by the local login server to inform us of new sessions
+		/// </summary>
+		/// <param name="session"></param>
 		public void AddNewSession(Logon session)
 		{
 			lock(this.Sessions)
@@ -83,7 +87,6 @@ namespace OpenSim
 		UUIDBlock RequestUUIDBlock();
 		RegionInfo[] RequestNeighbours();
 		AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode);
-		void AddNewSession(Logon session);
 	}
 	
 	public struct UUIDBlock

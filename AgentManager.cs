@@ -38,7 +38,7 @@ namespace OpenSim
 	public class AgentManager
 	{
 		public Dictionary<libsecondlife.LLUUID,AgentProfile> AgentList;
-		private uint _localNumber=0;
+		private uint _localAvatarNumber=0;
 		private Server _server;
 		
 		public AgentManager(Server server)
@@ -108,8 +108,8 @@ namespace OpenSim
 			agent.Avatar.Position = new LLVector3(100, 100, 22);
 			agent.Avatar.BaseFolder = baseFolder;
 			agent.Avatar.InventoryFolder = inventoryFolder;
-			agent.Avatar.LocalID = 8880000 + this._localNumber;
-			this._localNumber++;
+			agent.Avatar.LocalID = 8880000 + this._localAvatarNumber;
+			this._localAvatarNumber++;
 			this.AgentList.Add(agent.Avatar.FullID, agent);
 			
 			//Create new Wearable Assets and place in Inventory

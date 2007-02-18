@@ -70,21 +70,24 @@ namespace OpenSim
 			_gridManager = new GridManager(_viewerServer, _agentManager);
 			_scene = new SceneGraph(_viewerServer, _agentManager);
 			_assetManager = new AssetManager(_viewerServer, _backboneServers.AssetServer);
+			_primManager = new PrimManager();
 			ClientConnection.Grid = _gridManager;
 			ClientConnection.Scene = _scene;
 			ClientConnection.AgentManager = _agentManager;
+			ClientConnection.PrimManager = _primManager;
 			ClientConnection.UserServer = _backboneServers.UserServer;
+			ClientConnection.GridServer = _backboneServers.GridServer;
 			_viewerServer.Startup();
 			BerkeleyDatabases.Instance.Startup();
-			_primManager = new PrimManager();
+			
 			
 			if(Globals.Instance.StartLoginServer)
 			{
-				_loginServer = new LoginServer(_backboneServers.UserServer);
+				_loginServer = new LoginServer(_backboneServers.GridServer);
 				_loginServer.Startup();
 			}
 			timer1.Enabled = true;
-            timer1.Interval = 200;
+            timer1.Interval = 125;
             timer1.Elapsed +=new ElapsedEventHandler( this.Timer1Tick );
 			
 		}
@@ -110,15 +113,15 @@ namespace OpenSim
 	
 	public class BackboneServers
 	{
-		public GridServer GridServer;
-		public UserServer UserServer;
-		public AssetServer AssetServer;
+		public IGridServer GridServer;
+		public IUserServer UserServer;
+		public IAssetServer AssetServer;
 		
 		public BackboneServers()
 		{
-			this.GridServer = new GridServer();
-			this.UserServer = new UserServer();
-			this.AssetServer = new AssetServer();
+			this.GridServer = (IGridServer) new GridServer();
+			this.UserServer =(IUserServer) new UserServer();
+			this.AssetServer =(IAssetServer) new AssetServer();
 		}
 	}
 }

@@ -60,6 +60,7 @@ namespace OpenSim
 	public class PrimData : Node
 	{
 		public LLUUID OwnerID;
+		public LLUUID FullID;
 		public uint LocalID;
 		public byte PCode;
 		public byte PathBegin;
@@ -76,11 +77,13 @@ namespace OpenSim
 		public byte ProfileCurve;
 		public uint ParentID=0;
 		public byte ProfileHollow;
+		public uint AddFlags;
+		public libsecondlife.LLObject.TextureEntry Texture;
 		//public bool DataBaseStorage=false;
 		
 		public PrimData()
 		{
-			
+			this.SceneType = 2;
 		}
 		
 		public void FromBytes(byte[] bytes)

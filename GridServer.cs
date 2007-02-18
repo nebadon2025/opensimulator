@@ -26,6 +26,7 @@
 */
 
 using System;
+using System.Collections.Generic;
 using libsecondlife;
 
 namespace OpenSim
@@ -36,8 +37,43 @@ namespace OpenSim
 	/// </summary>
 	public class GridServer //:IGridServer
 	{
+		public List<Logon> Sessions = new List<Logon>();  //should change to something other than logon classes? 
+		
 		public GridServer()
 		{
+			Sessions = new List<Logon>();
+		}
+		
+		public AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode)
+		{
+			//For Grid use:
+			//should check to see if it is a teleportation, if so then we should be expecting this session, agent. (?)
+			//if not check with User server/ login server that it is authorised.
+			
+			//but for now we are running local
+			AuthenticateResponse user = new AuthenticateResponse();
+			
+			lock(this.Sessions)
+			{
+				
+				for(int i = 0; i < Sessions.Count; i++)
+				{
+					if((Sessions[i].Agent == agentID) && (Sessions[i].Session == sessionID))
+					{
+						user.Authorised = true;
+						user.LogonInfo = Sessions[i];
+					}
+				}
+			}
+			return(user);
+		}
+		
+		public void AddNewSession(Logon session)
+		{
+			lock(this.Sessions)
+			{
+				this.Sessions.Add(session);
+			}
 		}
 	}
 	
@@ -46,6 +82,8 @@ namespace OpenSim
 		bool RequestConnection(RegionInfo myRegion);
 		UUIDBlock RequestUUIDBlock();
 		RegionInfo[] RequestNeighbours();
+		AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode);
+		void AddNewSession(Logon session);
 	}
 	
 	public struct UUIDBlock
@@ -54,5 +92,16 @@ namespace OpenSim
 		public LLUUID BlockEnd;
 	}
 	
+	public class AuthenticateResponse
+	{
+		public bool Authorised;
+		public Logon LogonInfo;
+		
+		public AuthenticateResponse()
+		{
+			
+		}
+			
+	}
 }
 

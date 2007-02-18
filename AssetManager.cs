@@ -46,13 +46,13 @@ namespace OpenSim
 		public List<AssetRequest> RequestedAssets = new List<AssetRequest>(); //Assets requested from the asset server
 		public List<TextureRequest> RequestedTextures = new List<TextureRequest>(); //Textures requested from the asset server
 		
-		private AssetServer _assetServer;
+		private IAssetServer _assetServer;
 		private Server _server;
 		
 		/// <summary>
 		/// 
 		/// </summary>
-		public AssetManager(Server server, AssetServer assetServer)
+		public AssetManager(Server server, IAssetServer assetServer)
 		{
 			_server = server;
 			_assetServer = assetServer;

@@ -42,7 +42,8 @@ namespace OpenSim
 		public static SceneGraph Scene;
 		public static AgentManager AgentManager;
 		public static PrimManager PrimManager;
-		public static UserServer UserServer;
+		public static IUserServer UserServer;
+		public static IGridServer GridServer;
 		public byte ConnectionType=1;
 		private bool _authorised = false;
 		
@@ -74,7 +75,7 @@ namespace OpenSim
 							
 							//should check that this session/circuit is authorised
 							UseCircuitCodePacket circuitPacket=(UseCircuitCodePacket)packet;
-							AuthenticateResponse sessionInfo = UserServer.AuthenticateSession(circuitPacket.CircuitCode.SessionID, circuitPacket.CircuitCode.ID, circuitPacket.CircuitCode.Code);
+							AuthenticateResponse sessionInfo = GridServer.AuthenticateSession(circuitPacket.CircuitCode.SessionID, circuitPacket.CircuitCode.ID, circuitPacket.CircuitCode.Code);
 							if(!sessionInfo.Authorised)
 							{
 								//session/circuit not authorised
@@ -112,6 +113,11 @@ namespace OpenSim
 						case PacketType.AgentUpdate:
 							AgentUpdatePacket agentUpdate = (AgentUpdatePacket)packet;
 							Scene.AvatarMovementCommand(this.NetInfo, agentUpdate);
+							break;
+						case PacketType.ObjectAdd:
+							Console.WriteLine("received add object packet");
+							PrimAsset prim = PrimManager.CreateNewPrim(this.NetInfo, (ObjectAddPacket) packet);
+							Scene.AddNewPrim(prim.PrimData);
 							break;
 						default:
 							break;

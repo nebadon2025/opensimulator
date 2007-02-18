@@ -26,7 +26,10 @@
 */
 
 using System;
+using System.IO;
+using System.Collections.Generic;
 using libsecondlife;
+using libsecondlife.Packets;
 
 namespace OpenSim
 {
@@ -36,30 +39,59 @@ namespace OpenSim
 	public class PrimManager
 	{
 		private LocalPrimDb _localPrimDB;
+		private int _localPrimNumber;
+		private Dictionary<libsecondlife.LLUUID,PrimAsset> PrimList;
 		
 		public PrimManager()
 		{
 			this._localPrimDB = new LocalPrimDb();
+			this.PrimList = new Dictionary<libsecondlife.LLUUID,PrimAsset>();
+		}
+		
+		/// <summary>
+		/// Called when a prim is created in-world
+		/// </summary>
+		/// <param name="userInfo"></param>
+		/// <param name="addPacket"></param>
+		/// <returns></returns>
+		public PrimAsset CreateNewPrim(NetworkInfo userInfo, ObjectAddPacket addPacket)
+		{
+			PrimData PData = new PrimData();
+			PData.OwnerID = userInfo.User.AgentID;
+			PData.PCode = addPacket.ObjectData.PCode;
+			PData.PathBegin = addPacket.ObjectData.PathBegin;
+			PData.PathEnd = addPacket.ObjectData.PathEnd;
+			PData.PathScaleX = addPacket.ObjectData.PathScaleX;
+			PData.PathScaleY = addPacket.ObjectData.PathScaleY;
+			PData.PathShearX = addPacket.ObjectData.PathShearX;
+			PData.PathShearY = addPacket.ObjectData.PathShearY;
+			PData.PathSkew = addPacket.ObjectData.PathSkew;
+			PData.ProfileBegin = addPacket.ObjectData.ProfileBegin;
+			PData.ProfileEnd = addPacket.ObjectData.ProfileEnd;
+			PData.Scale = addPacket.ObjectData.Scale;
+			PData.PathCurve = addPacket.ObjectData.PathCurve;
+			PData.ProfileCurve = addPacket.ObjectData.ProfileCurve;
+			PData.ParentID = 0;
+			PData.ProfileHollow = addPacket.ObjectData.ProfileHollow;
+			PData.AddFlags = addPacket.ObjectData.AddFlags;
 			
-			//database test
-			/*PrimAsset prim = new PrimAsset();
-			prim.Name="happy now";
-			prim.Description= "test";
-			prim.FullID = new LLUUID("00000000-0000-0000-0000-000000000008");
-			prim.Data= new byte[10];
-			prim.Data[0]=5;
-			prim.Data[1]=4;
-			prim.Data[2]=5;
-			prim.Data[3]=6;
-			prim.Data[4]=5;
-			this._localPrimDB.CreateNewPrimStorage(prim);
+			//finish off copying rest of shape data
+			PData.LocalID = (uint)(702000 + _localPrimNumber);
+			PData.FullID = new LLUUID("edba7151-5857-acc5-b30b-f01efefd"+_localPrimNumber.ToString("0000"));
+			PData.Position = addPacket.ObjectData.RayEnd;
+			_localPrimNumber++;
 			
-			PrimAsset prim1 = this._localPrimDB.GetPrimFromStroage( new LLUUID("00000000-0000-0000-0000-000000000008"));
-			Console.WriteLine("prim received : "+prim1.Name + " "+ prim1.Description);
-			Console.WriteLine("received prims data length is: "+prim1.Data.Length);
-			Console.WriteLine(Helpers.FieldToString(prim1.Data));
-			//this._localPrimDB.ReadWholedatabase();
-			*/
+			//for now give it a default texture
+			PData.Texture = new LLObject.TextureEntry(new LLUUID("00000000-0000-0000-5005-000000000005"));
+			
+			PrimAsset prim = new PrimAsset();
+			prim.FullID = PData.FullID;
+			prim.PrimData = PData;
+			this.PrimList.Add(prim.FullID, prim);
+			
+			//should copy to local prim database (and at some point upload to the asset server)
+			
+			return(prim);
 		}
 		
 	}

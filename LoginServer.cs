@@ -44,12 +44,12 @@ namespace OpenSim
 	/// </summary>
 	public class LoginServer
 	{
-		public LoginServer(UserServer userServer)
+		public LoginServer(IGridServer gridServer)
 		{
-			_userServer = userServer;
+			_gridServer = gridServer;
 		}
 		private Logon _login;
-		private UserServer _userServer;
+		private IGridServer _gridServer;
 		private ushort _loginPort = Globals.Instance.LoginServerPort;
 		public IPAddress clientAddress = IPAddress.Loopback;
 		public IPAddress remoteAddress = IPAddress.Any;
@@ -246,11 +246,8 @@ namespace OpenSim
 					_login.BaseFolder = BaseFolderID;
 					_login.InventoryFolder = InventoryFolderID;
 					
-					//working on local computer so lets add to the userserver's list of sessions
-					lock(this._userServer.Sessions)
-					{
-						this._userServer.Sessions.Add(_login);
-					}
+					//working on local computer so lets add to the gridserver's list of sessions
+					this._gridServer.AddNewSession(_login);
 					
 					// forward the XML-RPC response to the client
 					writer.WriteLine("HTTP/1.0 200 OK");

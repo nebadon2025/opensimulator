@@ -48,6 +48,8 @@ namespace OpenSim
 		private Server _server;
 		private System.Text.Encoding _enc = System.Text.Encoding.ASCII;
 		private libsecondlife.Packets.ObjectUpdatePacket.ObjectDataBlock _avatarTemplate;
+		private libsecondlife.Packets.ObjectUpdatePacket.ObjectDataBlock PrimTemplate;
+		
 		private int _objectCount=0;
 		private UpdateSender _updateSender;
 		private AgentManager _agentManager;
@@ -70,7 +72,8 @@ namespace OpenSim
 			_updateSender = new UpdateSender(_server, agentManager);
 			_agentManager = agentManager;
 			//testing
-			this.SetupTemplate("objectupate168.dat");
+			this.SetupAvatarTemplate("objectupate168.dat");
+			this.SetupObjectTemplate("objectupate164.dat");
 			_updateSender.Startup();
 		}
 		
@@ -145,7 +148,7 @@ namespace OpenSim
 						int updatemask = avatar.UpdateFlag & (128);
 						if(updatemask == 128) //is a new avatar?
 						{
-							Console.WriteLine("new avatar has been added to scene so update it on the current scene");
+							//Console.WriteLine("new avatar has been added to scene so update it on the current scene");
 						
 							this.SendAvatarDataToAll(avatar);
 							
@@ -155,6 +158,24 @@ namespace OpenSim
 							//and send complete scene update to the new avatar's owner
 							this.SendCompleteSceneTo(avatar);
 							avatar.Started = true;
+						}
+					}
+				}
+			}
+			
+			//check for new prims
+			lock(this.RootNode)
+			{
+				for (int i = 0; i < this.RootNode.ChildrenCount; i++)
+				{
+					
+					if(this.RootNode.GetChild(i).SceneType == 2) //check it is a prim node
+					{
+						PrimData prim =(PrimData) this.RootNode.GetChild(i);
+						if((prim.UpdateFlag & (64)) == 64)
+						{
+							//send prim data to all clients
+							this.SendPrimToAll(prim);
 						}
 					}
 				}
@@ -241,9 +262,8 @@ namespace OpenSim
 							newCommand.Velocity.X = direc.x;
 							newCommand.Velocity.Y = direc.y;
 							newCommand.Velocity.Z = direc.z;
-							//avatar.Walk = true;
 							
-							//work out velocity for internal clients movement commands
+							//work out velocity for clients movement commands
 							internDirec = internDirec * (0.03f);
 							internDirec.x += 1;
 							internDirec.y += 1;
@@ -266,7 +286,6 @@ namespace OpenSim
 							newCommand.CommandType = 1;
 							newCommand.SObject = avatar;
 							//walking but key not pressed so need to stop
-							//avatar.Walk = false;
 							newCommand.Velocity.X = 0;
 							newCommand.Velocity.Y = 0;
 							newCommand.Velocity.Z = 0;
@@ -355,35 +374,20 @@ namespace OpenSim
 			
 		}
 		
-		#region testing
-		//test only
-		private void SendAvatarData(NetworkInfo userInfo)
+		public void AddNewPrim(PrimData prim)
 		{
-			ObjectUpdatePacket objupdate = new ObjectUpdatePacket();
-			objupdate.RegionData.RegionHandle = Globals.Instance.RegionHandle;
-			objupdate.RegionData.TimeDilation = 64096;
-			objupdate.ObjectData = new libsecondlife.Packets.ObjectUpdatePacket.ObjectDataBlock[1];
-			
-			objupdate.ObjectData[0] = _avatarTemplate;
-			//give this avatar object a local id and assign the user a name
-			objupdate.ObjectData[0].ID = 8880000;// + this._localNumber;
-			userInfo.User.AvatarLocalID = objupdate.ObjectData[0].ID;
-			//User_info.name="Test"+this.local_numer+" User";
-			//this.GetAgent(userInfo.UserAgentID).Started = true;
-			objupdate.ObjectData[0].FullID = userInfo.User.AgentID;
-			objupdate.ObjectData[0].NameValue = _enc.GetBytes("FirstName STRING RW SV " + userInfo.User.FirstName + "\nLastName STRING RW SV " + userInfo.User.LastName + " \0");
-			//userInfo.User.FullName = "FirstName STRING RW SV " + userInfo.first_name + "\nLastName STRING RW SV " + userInfo.last_name + " \0";
-			
-			libsecondlife.LLVector3 pos2 = new LLVector3(100f, 100.0f, 22.0f);
-			byte[] pb = pos2.GetBytes();
-			Array.Copy(pb, 0, objupdate.ObjectData[0].ObjectData, 16, pb.Length);
-			
-			//this._localNumber++;
-			_server.SendPacket(objupdate, true, userInfo);
+			lock(this.RootNode)
+			{
+				prim.SceneName = "Prim" + this._objectCount.ToString("00000");  //not sure why still doing this as its not used
+				this._objectCount++;	
+				this.RootNode.AddChild(prim);
+			}
+			prim.UpdateFlag = 64;
 		}
+		#region temporary template
 		
-		//test only
-		private void SetupTemplate(string name)
+		//temporary only
+		private void SetupAvatarTemplate(string name)
 		{
 			//should be replaced with completely code generated packets
 			int i = 0;
@@ -409,6 +413,26 @@ namespace OpenSim
 			
 			_avatarTemplate = objdata;
 				
+		}
+		//really really need to get rid of these templates
+		public void SetupObjectTemplate(string name)
+		{
+				
+			int i = 0;
+			FileInfo fInfo = new FileInfo(name);
+			long numBytes = fInfo.Length;
+			FileStream fStream = new FileStream(name, FileMode.Open, FileAccess.Read);
+			BinaryReader br = new BinaryReader(fStream);
+			byte [] data1 = br.ReadBytes((int)numBytes);
+			br.Close();
+			fStream.Close();
+			
+			libsecondlife.Packets.ObjectUpdatePacket.ObjectDataBlock objdata = new libsecondlife.Packets.ObjectUpdatePacket.ObjectDataBlock(data1,ref i);
+			this.PrimTemplate = objdata;
+			objdata.UpdateFlags = objdata.UpdateFlags + 12 - 16 + 32 + 256;
+			objdata.OwnerID = new LLUUID("00000000-0000-0000-0000-000000000000");
+			//test adding a new texture to object , to test image downloading
+			
 		}
 		#endregion
 		private void SendAvatarDataToAll(AvatarData avatar)
@@ -441,6 +465,49 @@ namespace OpenSim
 			
 		}
 		
+		public void SendPrimToAll(PrimData prim)
+		{
+			PrimData PData = prim;
+			ObjectUpdatePacket objupdate = new ObjectUpdatePacket();
+			objupdate.RegionData.RegionHandle = Globals.Instance.RegionHandle;
+			objupdate.RegionData.TimeDilation = 0;
+			
+			objupdate.ObjectData = new libsecondlife.Packets.ObjectUpdatePacket.ObjectDataBlock[1];
+			objupdate.ObjectData[0] = this.PrimTemplate;
+			
+			objupdate.ObjectData[0].OwnerID = PData.OwnerID;
+			objupdate.ObjectData[0].PCode = PData.PCode;
+			objupdate.ObjectData[0].PathBegin = PData.PathBegin;
+			objupdate.ObjectData[0].PathEnd = PData.PathEnd;
+			objupdate.ObjectData[0].PathScaleX = PData.PathScaleX;
+			objupdate.ObjectData[0].PathScaleY = PData.PathScaleY;
+			objupdate.ObjectData[0].PathShearX = PData.PathShearX;
+			objupdate.ObjectData[0].PathShearY = PData.PathShearY;
+			objupdate.ObjectData[0].PathSkew = PData.PathSkew;
+			objupdate.ObjectData[0].ProfileBegin = PData.ProfileBegin;
+			objupdate.ObjectData[0].ProfileEnd = PData.ProfileEnd;
+			objupdate.ObjectData[0].Scale = PData.Scale;
+			objupdate.ObjectData[0].PathCurve = PData.PathCurve;
+			objupdate.ObjectData[0].ProfileCurve = PData.ProfileCurve;
+			objupdate.ObjectData[0].ParentID = PData.ParentID ;
+			objupdate.ObjectData[0].ProfileHollow = PData.ProfileHollow ;
+			
+			
+			objupdate.ObjectData[0].TextureEntry = PData.Texture.ToBytes();
+			objupdate.ObjectData[0].ID = PData.LocalID;
+			objupdate.ObjectData[0].FullID = PData.FullID;
+			//update position
+			byte[] pb = PData.Position.GetBytes();		
+			Array.Copy(pb, 0, objupdate.ObjectData[0].ObjectData, 0, pb.Length);
+			
+			SendInfo send = new SendInfo();
+			send.Incr = true;
+			send.NetInfo = null;
+			send.Packet = objupdate;
+			send.SentTo = 1; //to all clients 
+			this._updateSender.SendList.Enqueue(send);
+		}
+		
 		public ImprovedTerseObjectUpdatePacket.ObjectDataBlock CreateTerseBlock(AvatarData avatar)
 		{
 			byte[] bytes = new byte[60];
@@ -455,57 +522,47 @@ namespace OpenSim
 			bytes[i++] = (byte)((ID >> 8) % 256);
 			bytes[i++] = (byte)((ID >> 16) % 256);
 			bytes[i++] = (byte)((ID >> 24) % 256);
-			
 			bytes[i++] = 0;
 			bytes[i++] = 1;
-
 			i += 14;
 			bytes[i++] = 128;
 			bytes[i++] = 63;
-			byte[] pb = pos2.GetBytes();
 			
+			byte[] pb = pos2.GetBytes();
 			Array.Copy(pb, 0, bytes, i, pb.Length);
 			i += 12;
+			
 			ushort ac = 32767;
 			bytes[i++] = (byte)(avatar.InternVelocityX % 256);
 			bytes[i++] = (byte)((avatar.InternVelocityX >> 8) % 256);
-			
 			bytes[i++] = (byte)(avatar.InternVelocityY % 256);
 			bytes[i++] = (byte)((avatar.InternVelocityY>> 8) % 256);
-			
 			bytes[i++] = (byte)(avatar.InternVelocityZ % 256);
 			bytes[i++] = (byte)((avatar.InternVelocityZ >> 8) % 256);
 			
 			//accel
 			bytes[i++] = (byte)(ac % 256);
 			bytes[i++] = (byte)((ac >> 8) % 256);
-			
 			bytes[i++] = (byte)(ac % 256);
 			bytes[i++] = (byte)((ac >> 8) % 256);
-			
 			bytes[i++] = (byte)(ac % 256);
 			bytes[i++] = (byte)((ac >> 8) % 256);
 			
 			//rot
 			bytes[i++] = (byte)(ac % 256);
 			bytes[i++] = (byte)((ac >> 8) % 256);
-			
 			bytes[i++] = (byte)(ac % 256);
 			bytes[i++] = (byte)((ac >> 8) % 256);
-			
 			bytes[i++] = (byte)(ac % 256);
-			bytes[i++] = (byte)((ac >> 8) % 256);
-			
+			bytes[i++] = (byte)((ac >> 8) % 256);	
 			bytes[i++] = (byte)(ac % 256);
 			bytes[i++] = (byte)((ac >> 8) % 256);
 			
 			//rotation vel
 			bytes[i++] = (byte)(ac % 256);
-			bytes[i++] = (byte)((ac >> 8) % 256);
-			
+			bytes[i++] = (byte)((ac >> 8) % 256);			
 			bytes[i++] = (byte)(ac % 256);
-			bytes[i++] = (byte)((ac >> 8) % 256);
-			
+			bytes[i++] = (byte)((ac >> 8) % 256);	
 			bytes[i++] = (byte)(ac % 256);
 			bytes[i++] = (byte)((ac >> 8) % 256);
 			

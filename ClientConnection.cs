@@ -83,6 +83,7 @@ namespace OpenSim
 							}
 							else
 							{
+								//Console.WriteLine("session authorised");
 								//is authorised 
 								string first = "",last ="";
 								LLUUID baseFolder = null, inventoryFolder =null;

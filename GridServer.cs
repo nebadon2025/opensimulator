@@ -35,7 +35,7 @@ namespace OpenSim
 	/// Handles connection to Grid Servers.
 	/// also Sim to Sim connections?
 	/// </summary>
-	public class GridServer //:IGridServer
+	public class GridServer :IGridServer
 	{
 		public List<Logon> Sessions = new List<Logon>();  //should change to something other than logon classes? 
 		
@@ -44,6 +44,10 @@ namespace OpenSim
 			Sessions = new List<Logon>();
 		}
 		
+		public bool RequestConnection(RegionInfo myRegion)
+		{
+			return true;
+		}
 		public AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode)
 		{
 			//For Grid use:
@@ -68,6 +72,16 @@ namespace OpenSim
 			return(user);
 		}
 		
+		public UUIDBlock RequestUUIDBlock()
+		{
+			UUIDBlock uuidBlock = new UUIDBlock();
+			return(uuidBlock);
+		}
+		
+		public RegionInfo[] RequestNeighbours()
+		{
+			return(null);
+		}
 		/// <summary>
 		/// used by the local login server to inform us of new sessions
 		/// </summary>

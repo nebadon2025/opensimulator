@@ -107,7 +107,6 @@ namespace OpenSim
 		{
             //this.time++;
             this._scene.Update();
-           // this._assetManager.DoWork( time );
         }
 	}
 	
@@ -119,6 +118,8 @@ namespace OpenSim
 		
 		public BackboneServers()
 		{
+			//These should be changed depending on if we are running as a local sandbox 
+			// or connected to a grid.
 			this.GridServer = (IGridServer) new GridServer();
 			this.UserServer =(IUserServer) new UserServer();
 			this.AssetServer =(IAssetServer) new AssetServer();

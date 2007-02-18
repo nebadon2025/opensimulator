@@ -90,6 +90,7 @@ namespace OpenSim
 			{
 				for(;;)
 				{
+					//Should be run at a fixed frame rate
 					this.Update();
 				}
 			}
@@ -99,6 +100,7 @@ namespace OpenSim
 			}
 		}
 		
+		//will be called from the RunScene thread but for now is called by the timer thread.
 		public void Update()
 		{
 			// run physics engine to update positions etc since last frame

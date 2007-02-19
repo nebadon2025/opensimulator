@@ -36,6 +36,7 @@ namespace OpenSim
 {
 	class Controller
 	{
+		//
 		private Server _viewerServer;
 		private BackboneServers _backboneServers;
 		private LoginServer _loginServer;

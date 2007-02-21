@@ -13,9 +13,16 @@ function login($args) {
     global $dbhost,$dbuser,$dbpasswd,$dbname;
     global $grid_owner, $gridserver_sendkey, $gridserver_recvkey, $gridserver_url;
     
-    $firstname=add_slashes($args['first']);
-    $lastname=add_slashes($args['last']);
-    $passwd=add_slashes($args['passwd']);
+
+    if(get_magic_quotes_gpc()) {
+	    $firstname=add_slashes($args['first']);
+	    $lastname=add_slashes($args['last']);
+	    $passwd=add_slashes($args['passwd']);
+    else {
+	    $firstname=$args['first'];
+	    $lastname=$args['last'];
+	    $passwd=$args['passwd'];
+    }
 
     $link = mysql_connect($dbhost,$dbuser,$dbpasswd)
      OR die("Unable to connect to database");

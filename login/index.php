@@ -18,7 +18,7 @@ function login($args) {
 	    $firstname=add_slashes($args['first']);
 	    $lastname=add_slashes($args['last']);
 	    $passwd=add_slashes($args['passwd']);
-    else {
+    } else {
 	    $firstname=$args['first'];
 	    $lastname=$args['last'];
 	    $passwd=$args['passwd'];

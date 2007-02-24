@@ -1,5 +1,5 @@
 <?
-error_reporting(0); // Remember kids, PHP errors kill XML-RPC responses!
+error_reporting(E_ALL); // Remember kids, PHP errors kill XML-RPC responses!
 
 // include all the common stuff
 include("../common/xmlrpc.inc.php");
@@ -15,9 +15,9 @@ function login($args) {
     
 
     if(get_magic_quotes_gpc()) {
-	    $firstname=add_slashes($args['first']);
-	    $lastname=add_slashes($args['last']);
-	    $passwd=add_slashes($args['passwd']);
+	    $firstname=mysql_addslashes($args['first']);
+	    $lastname=addslashes($args['last']);
+	    $passwd=addslashes($args['passwd']);
     } else {
 	    $firstname=$args['first'];
 	    $lastname=$args['last'];

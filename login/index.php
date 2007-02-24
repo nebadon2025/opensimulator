@@ -15,7 +15,7 @@ function login($args) {
     
 
     if(get_magic_quotes_gpc()) {
-	    $firstname=mysql_addslashes($args['first']);
+	    $firstname=addslashes($args['first']);
 	    $lastname=addslashes($args['last']);
 	    $passwd=addslashes($args['passwd']);
     } else {

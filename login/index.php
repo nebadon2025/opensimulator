@@ -1,5 +1,5 @@
 <?
-error_reporting(E_ALL); // Remember kids, PHP errors kill XML-RPC responses!
+error_reporting(0); // Remember kids, PHP errors kill XML-RPC responses!
 
 // include all the common stuff
 include("../common/xmlrpc.inc.php");

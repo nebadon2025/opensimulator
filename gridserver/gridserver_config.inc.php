@@ -9,4 +9,6 @@ $userserver_recvkey="HEY GRID SERVER, I AM THE DAMN LOGIN SERVER, THIS IS MY KEY
 
 $sim_recvkey = "we are not linden labs1234dyson";
 $sim_sendkey = "you are ogs4325678";
+
+$grid_home = "http://www.osgrid.org/ogs/gridserver/";
 ?>

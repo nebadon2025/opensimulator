@@ -1,3 +1,0 @@
-Options +FollowSymlinks
-RewriteEngine on
-RewriteRule ^/gridserver/usersessions(.*) /gridserver/usersessions/index.php$1   

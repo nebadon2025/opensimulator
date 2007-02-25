@@ -1,0 +1,3 @@
+Options +FollowSymlinks
+RewriteEngine on
+^/gridserver/usersessions(.*) /gridserver/usersessions/index.php$1   

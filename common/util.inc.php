@@ -23,6 +23,14 @@ function format_lluuid($uuid)
     return strtolower(substr($uuid,0,8)."-".substr($uuid,8,4)."-".substr($uuid,12,4)."-".substr($uuid,16,4)."-".substr($uuid,20));
 }
 
+function output_xml_block($blockname, $data) {
+	echo("<$blockname>\n");
+	foreach($data as $name => $value) {
+		echo(" <$name>$value</$name>\n");		
+	}
+	echo("</$blockname>\n");
+}
+
 function rand_uuid()
 {
    return sprintf( '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',

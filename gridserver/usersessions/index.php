@@ -1,4 +1,8 @@
 <?
+// DIRTY HACK ALERT!!!!!!!!!!!!!
+// The following code shows the vital importance of the r69 revision of the original gareth/ branch
+
+
 // This file parses URLs of the format:
 // usersessions/key/userid/data
 // where key is the key to authenticate with the grid, userid is the user's LLUUID and data is the data about the user's session being requested
@@ -29,11 +33,20 @@ mysql_select_db($dbname)
 $agent_id = strtolower($params[2]);
 $query = "SELECT * FROM sessions WHERE agent_id='$agent_id' AND session_active=1";
 
+// if we have 4 params, then param 4 is the command
+if(count($params)==4) {
+        $cmd=$params['3'];
+} else if(count($params)==5) {
+        $circuit_code=$params[3];
+        $cmd=$params[4];              // otherwise, 5 is the command and 4 is the circuit code
+}
+
 $result = mysql_query($query);
 if(mysql_num_rows($result)>0) {
 	$info=mysql_fetch_assoc($result);
         $circuit_code = $info['circuit_code'];
-        $secure_session_id=$info['secure_session_id'];
+        if($circuit_code == 0) $circuit_code=$params['4'];
+	$secure_session_id=$info['secure_session_id'];
         $session_id=$info['session_id'];
 
         $query = "SELECT * FROM local_user_profiles WHERE userprofile_LLUUID='$agent_id'";
@@ -42,9 +55,12 @@ if(mysql_num_rows($result)>0) {
         $firstname=$userinfo['profile_firstname'];
         $lastname=$userinfo['profile_lastname'];
         $agent_id=$userinfo['userprofile_LLUUID'];
+	$exists=1;
+} else {
+	$exists=0;
 }
 
-// if only 4 params, assume we are sending an XML response
+// if only 3 params, assume we are sending an XML response
 if(count($params)==3) {
 	output_xml_block("usersession",Array(
             'authkey' => $sim_sendkey,
@@ -56,6 +72,10 @@ if(count($params)==3) {
             'lastname' => $lastname
         ));
 }
-}
 
+switch($cmd) {
+	case 'exists':
+		echo $exists;
+	break;
+}
 ?>

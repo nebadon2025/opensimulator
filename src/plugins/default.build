@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+    <project name="OpenSim-Plugins" default="build" basedir=".">
+        <description>Builds opensim plugins</description>
+        <property name="debug" value="true" overwrite="false" />
+        
+	<target name="clean" description="remove all generated files">
+            <delete file="../../bin/plugins/*.dll" failonerror="false" />
+        </target>
+
+	<target name="svnupdate" description="updates to latest SVN">
+		<exec program="svn">
+			<arg value="update" />
+		</exec>
+	</target>
+
+	<target name="upgrade" description="updates from SVN and then builds" depends="clean,svnupdate,build">
+		
+	</target>
+	
+	<target name="build" description="compiles the source code">
+
+		<csc target="library" output="../../bin/plugins/physics.dll" debug="${debug}" verbose="true" warninglevel="4">
+			<references basedir="../../bin/" failonempty="true">
+				<include name="System" />
+				<include name="System.Data" />
+				<include name="System.Xml" />
+				<include name="Axiom.MathLib.dll" />
+				<include name="libsecondlife.dll" />
+				<include name="log4net.dll" />
+				<include name="Db4objects.Db4o.dll" />
+				<include name="world.dll" />
+			</references>
+			<sources basedir=".">
+        	        	<include name="PhysicsEngine.cs" />
+			</sources>
+		</csc>
+	</target>
+</project>

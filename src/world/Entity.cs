@@ -9,7 +9,7 @@ namespace OpenSim.world
     public class Entity
     {
         protected libsecondlife.LLUUID uuid;
-        protected Vector3 position;
+        protected libsecondlife.LLVector3 position;
         protected Vector3 velocity;
         protected Quaternion rotation;
         protected string name;
@@ -18,7 +18,7 @@ namespace OpenSim.world
         public Entity()
         {
             uuid = new libsecondlife.LLUUID();
-            position = new Vector3();
+            position = new libsecondlife.LLVector3();
             velocity = new Vector3();
             rotation = new Quaternion();
             name = "(basic entity)";

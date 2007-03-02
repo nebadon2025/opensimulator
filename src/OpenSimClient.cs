@@ -150,6 +150,9 @@ namespace OpenSim
 				Thread AssetLoaderThread = new Thread(new ThreadStart(AssetLoader));
                         	AssetLoaderThread.Start();
 			break;
+			case PacketType.AgentUpdate:
+				ClientAvatar.HandleUpdate((AgentUpdatePacket)Pack);
+			break;
 		    }
 		}
 

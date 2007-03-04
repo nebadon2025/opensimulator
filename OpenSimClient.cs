@@ -79,7 +79,7 @@ namespace OpenSim
 		}
 		
 		public void AssetLoader() {
-			/*
+			
 			Console.WriteLine("OpenSimClient.cs:AssetLoader() - Starting new thread");
 			TransferRequestPacket reqPacket = AssetRequests.Dequeue();
 			Console.WriteLine("OpenSimClient.cs:AssetLoader() - Got a request, processing it");
@@ -128,7 +128,7 @@ namespace OpenSim
 				OutPacket(TransferPacket);
 			}
 			AssetResponse.Close();
-			*/
+			
 		}
 		
 		public void ProcessInPacket(Packet Pack) {
@@ -389,7 +389,7 @@ namespace OpenSim
 		}
 		
 		private void AuthUser() {
-			/*Console.WriteLine("OpenSimClient.cs:AuthUser() - Authenticating new user request with grid");
+			Console.WriteLine("OpenSimClient.cs:AuthUser() - Authenticating new user request with grid");
 			WebRequest CheckSession = WebRequest.Create(OpenSim_Main.cfg.GridURL + "/usersessions/" + OpenSim_Main.cfg.GridSendKey + "/" + cirpack.CircuitCode.ID.ToString() + "/" + cirpack.CircuitCode.Code.ToString() + "/exists");
 			WebResponse GridResponse = CheckSession.GetResponse();
 			StreamReader sr = new StreamReader(GridResponse.GetResponseStream());
@@ -406,12 +406,14 @@ namespace OpenSim
 			} else {			// Invalid
 				Console.WriteLine("OpenSimClient.cs:AuthUser() - New user request denied to " + userEP.ToString());
 				ClientThread.Abort();	
-			}*/
-			this.AgentID=cirpack.CircuitCode.ID;
+			}
+			// quick hack so we don't use the grid server for local testing
+			/*this.AgentID=cirpack.CircuitCode.ID;
 			this.SessionID=cirpack.CircuitCode.SessionID;
 			this.CircuitCode=cirpack.CircuitCode.Code;
 			InitNewClient();
 			ClientLoop();
+			*/
 		}
 	}
 

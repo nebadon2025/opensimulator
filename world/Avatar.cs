@@ -45,8 +45,7 @@ namespace OpenSim.world
 					this._physActor.Velocity = phyVector;
 					this.updateflag = true;
 					this.velocity = new LLVector3(force.X, force.Y, force.Z); //shouldn't really be doing this
-																						  // but as we are setting the velocity (rather than using real forces) at the moment it is okay.
-					
+																			  // but as we are setting the velocity (rather than using real forces) at the moment it is okay.				
 				}
 			}
 		}
@@ -176,8 +175,6 @@ namespace OpenSim.world
     				Axiom.MathLib.Vector3 direc = q * v3;
     				direc.Normalize();
     				
-    				Axiom.MathLib.Vector3 internDirec = new Vector3(direc.x, direc.y, direc.z);
-    				
     				//work out velocity for sim physics system
     				direc = direc * ((0.03f) * 128f);
     				newVelocity.X = direc.x;
@@ -263,7 +260,7 @@ namespace OpenSim.world
 			ushort InternVelocityX;
 			ushort InternVelocityY;
 			ushort InternVelocityZ;
-			Axiom.MathLib.Vector3 internDirec = new Axiom.MathLib.Vector3(this.velocity.X, this.velocity.Y, this.velocity.Z);
+			Axiom.MathLib.Vector3 internDirec = new Axiom.MathLib.Vector3(this._physActor.Velocity.X, this._physActor.Velocity.Y, this._physActor.Velocity.Z);
 			internDirec = internDirec /128.0f;
 			internDirec.x += 1;
 			internDirec.y += 1;

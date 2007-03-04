@@ -48,12 +48,12 @@ namespace PhysicsSystem
 		{
 			if(_plugins.ContainsKey(engineName))
 			{
-				Console.WriteLine("returning "+engineName);
+				Console.WriteLine("creating "+engineName);
 				return _plugins[engineName].GetScene();
 			}
 			else
 			{
-				Console.WriteLine("couldn't find "+ engineName);
+				Console.WriteLine("couldn't find physicsEngine: "+ engineName);
 				return null;
 			}
 		}

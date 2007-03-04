@@ -91,6 +91,26 @@ namespace PhysXplugin
 				actor.Position.X = actor.Position.X + actor.Velocity.X * timeStep;
 				actor.Position.Y = actor.Position.Y + actor.Velocity.Y * timeStep;
 				actor.Position.Z = actor.Position.Z + actor.Velocity.Z * timeStep;
+				if(actor.Position.X<0) 
+				{
+					actor.Position.X = 0;
+					actor.Velocity.X = 0;
+				}
+				if(actor.Position.Y < 0)
+				{
+					actor.Position.Y = 0;
+					actor.Velocity.Y = 0;
+				}
+				if(actor.Position.X > 255)
+				{
+					actor.Position.X = 255;
+					actor.Velocity.X = 0;
+				}
+				if(actor.Position.Y > 255) 
+				{
+					actor.Position.Y = 255;
+					actor.Velocity.X = 0;
+				}
 			}
 		}
 		

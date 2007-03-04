@@ -3,7 +3,7 @@ using libsecondlife;
 using libsecondlife.Packets;
 using System.Collections.Generic;
 using System.Text;
-using PhysicsManager;
+using PhysicsSystem;
 
 namespace OpenSim.world
 {
@@ -80,7 +80,7 @@ namespace OpenSim.world
 		Console.WriteLine("World.cs:AddViewerAgent() - Starting RegionHandshake ");
 		NewAvatar.SendRegionHandshake(this);
 		
-		NewAvatar.PhysActor = this.phyScene.AddAvatar(new PhysicsVector(NewAvatar.position.x, NewAvatar.position.y, NewAvatar.position.z));
+		NewAvatar.PhysActor = this.phyScene.AddAvatar(new PhysicsVector(NewAvatar.position.X, NewAvatar.position.Y, NewAvatar.position.Z));
 		//this.Update();		// will work for now, but needs to be optimised so we don't update everything in the sim for each new user
 	}
 

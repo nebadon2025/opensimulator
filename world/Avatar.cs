@@ -4,7 +4,8 @@ using System.IO;
 using System.Text;
 using libsecondlife;
 using libsecondlife.Packets;
-using PhysicsManager;
+using PhysicsSystem;
+using Axiom.MathLib;
 
 namespace OpenSim.world
 {
@@ -23,7 +24,8 @@ namespace OpenSim.world
     		Console.WriteLine("Avatar.cs - Loading details from grid (DUMMY)");
     		ControllingClient=TheClient;
     		SetupTemplate("avatar-template.dat");
-    	}
+			position = new LLVector3(100.0f,100.0f,30.0f);
+		}
     	
     	public PhysicsActor PhysActor
     	{
@@ -40,9 +42,9 @@ namespace OpenSim.world
 				{
 					NewForce force = this.forcesList[i];
 					PhysicsVector phyVector = new PhysicsVector(force.X, force.Y, force.Z);
-					this.PhysActor.Velocity = phyVector;
+					this._physActor.Velocity = phyVector;
 					this.updateflag = true;
-					this.velocity = new Axiom.MathLib.Vector3(force.X, force.Y, force.Z); //shouldn't really be doing this
+					this.velocity = new LLVector3(force.X, force.Y, force.Z); //shouldn't really be doing this
 																						  // but as we are setting the velocity (rather than using real forces) at the moment it is okay.
 					
 				}
@@ -55,6 +57,18 @@ namespace OpenSim.world
     		{
     			//need to send movement info
     			//so create the improvedterseobjectupdate packet
+    			//use CreateTerseBlock()
+    			ImprovedTerseObjectUpdatePacket.ObjectDataBlock terseBlock = CreateTerseBlock();
+    			ImprovedTerseObjectUpdatePacket terse = new ImprovedTerseObjectUpdatePacket();
+    			terse.RegionData.RegionHandle = OpenSim_Main.cfg.RegionHandle; // FIXME
+    			terse.RegionData.TimeDilation = 0;
+    			terse.ObjectData = new ImprovedTerseObjectUpdatePacket.ObjectDataBlock[1];
+    			terse.ObjectData[0] = terseBlock;
+    			foreach(OpenSimClient client in OpenSim_Main.sim.ClientThreads.Values) {
+					client.OutPacket(terse);
+				}
+    			
+    			updateflag =false;
     		}
     	}
 
@@ -113,13 +127,12 @@ namespace OpenSim.world
     		
     		objupdate.ObjectData[0] = AvatarTemplate;
     		//give this avatar object a local id and assign the user a name
-    		objupdate.ObjectData[0].ID = 8880000 + OpenSim_Main.local_world._localNumber;
-    		//User_info.name="Test"+this.local_numer+" User";
+    		objupdate.ObjectData[0].ID = this.localid;
     		objupdate.ObjectData[0].FullID = ControllingClient.AgentID;
     		objupdate.ObjectData[0].NameValue = _enc.GetBytes("FirstName STRING RW SV " + firstname + "\nLastName STRING RW SV " + lastname + " \0");
     		
-    		libsecondlife.LLVector3 pos2 = new LLVector3(100f, 100.0f, 23.0f);
-    		
+    		libsecondlife.LLVector3 pos2 = new LLVector3((float)this.position.X, (float)this.position.Y, (float)this.position.Z);
+		
     		byte[] pb = pos2.GetBytes();
     		
     		Array.Copy(pb, 0, objupdate.ObjectData[0].ObjectData, 16, pb.Length);
@@ -157,7 +170,7 @@ namespace OpenSim.world
     			{
     				//we should add a new force to the list 
     				// but for now we will deal with velocities
-    				NewFoce newVelocity = new NewForce();
+    				NewForce newVelocity = new NewForce();
     				Axiom.MathLib.Vector3 v3 = new Axiom.MathLib.Vector3(1, 0, 0);
     				Axiom.MathLib.Quaternion q = new Axiom.MathLib.Quaternion(pack.AgentData.BodyRotation.W, pack.AgentData.BodyRotation.X, pack.AgentData.BodyRotation.Y, pack.AgentData.BodyRotation.Z);
     				Axiom.MathLib.Vector3 direc = q * v3;
@@ -178,7 +191,12 @@ namespace OpenSim.world
     		{
     			if(walking)
     			{
-    				
+    				NewForce newVelocity = new NewForce();
+    				newVelocity.X = 0;
+    				newVelocity.Y = 0;
+    				newVelocity.Z = 0;
+    				this.forcesList.Add(newVelocity);
+    				walking = false;
     			}
     		}
     	}
@@ -218,6 +236,81 @@ namespace OpenSim.world
     		Console.WriteLine("Avatar.cs:SendRegionHandshake() - Sending RegionHandshake packet");
     		this.ControllingClient.OutPacket(handshake);
     	}
+		
+		public ImprovedTerseObjectUpdatePacket.ObjectDataBlock CreateTerseBlock()
+		{
+			byte[] bytes = new byte[60];
+			int i=0;
+			ImprovedTerseObjectUpdatePacket.ObjectDataBlock dat = new ImprovedTerseObjectUpdatePacket.ObjectDataBlock();
+			
+			dat.TextureEntry = AvatarTemplate.TextureEntry;
+			libsecondlife.LLVector3 pos2 = new LLVector3(this._physActor.Position.X, this._physActor.Position.Y, this._physActor.Position.Z);
+			
+			uint ID = this.localid;
+			bytes[i++] = (byte)(ID % 256);
+			bytes[i++] = (byte)((ID >> 8) % 256);
+			bytes[i++] = (byte)((ID >> 16) % 256);
+			bytes[i++] = (byte)((ID >> 24) % 256);
+			bytes[i++] = 0;
+			bytes[i++] = 1;
+			i += 14;
+			bytes[i++] = 128;
+			bytes[i++] = 63;
+			
+			byte[] pb = pos2.GetBytes();
+			Array.Copy(pb, 0, bytes, i, pb.Length);
+			i += 12;
+			ushort InternVelocityX;
+			ushort InternVelocityY;
+			ushort InternVelocityZ;
+			Axiom.MathLib.Vector3 internDirec = new Axiom.MathLib.Vector3(this.velocity.X, this.velocity.Y, this.velocity.Z);
+			internDirec = internDirec /128.0f;
+			internDirec.x += 1;
+			internDirec.y += 1;
+			internDirec.z += 1;
+			
+			InternVelocityX = (ushort)(32768 * internDirec.x);
+			InternVelocityY = (ushort)(32768 * internDirec.y);
+			InternVelocityZ = (ushort)(32768 * internDirec.z);
+			
+			
+			ushort ac = 32767;
+			bytes[i++] = (byte)(InternVelocityX % 256);
+			bytes[i++] = (byte)((InternVelocityX >> 8) % 256);
+			bytes[i++] = (byte)(InternVelocityY % 256);
+			bytes[i++] = (byte)((InternVelocityY>> 8) % 256);
+			bytes[i++] = (byte)(InternVelocityZ % 256);
+			bytes[i++] = (byte)((InternVelocityZ >> 8) % 256);
+			
+			//accel
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			
+			//rot
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);	
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			
+			//rotation vel
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);			
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);	
+			bytes[i++] = (byte)(ac % 256);
+			bytes[i++] = (byte)((ac >> 8) % 256);
+			
+			dat.Data=bytes;
+			return(dat);
+		}
     }
     
     public class NewForce

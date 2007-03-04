@@ -3,14 +3,16 @@ using System.Collections.Generic;
 using System.Text;
 using Axiom.MathLib;
 using OpenSim.types;
+using libsecondlife;
 
 namespace OpenSim.world
 {
     public class Entity
     {
         protected libsecondlife.LLUUID uuid;
-        public Vector3 position;
-        public Vector3 velocity;
+        protected uint localid;
+        public LLVector3 position;
+        public LLVector3 velocity;
         public Quaternion rotation;
         protected string name;
         protected List<Entity> children;
@@ -18,8 +20,9 @@ namespace OpenSim.world
         public Entity()
         {
             uuid = new libsecondlife.LLUUID();
-            position = new Vector3();
-            velocity = new Vector3();
+            localid = 8880000 + (OpenSim_Main.local_world._localNumber++); // FIXME - race condition!
+            position = new LLVector3();
+            velocity = new LLVector3();
             rotation = new Quaternion();
             name = "(basic entity)";
             children = new List<Entity>();

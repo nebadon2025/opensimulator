@@ -30,7 +30,7 @@ using System.Collections;
 using System.IO;
 using System.Reflection;
 
-namespace PhysicsManager
+namespace PhysicsSystem
 {
 	/// <summary>
 	/// Description of MyClass.
@@ -48,10 +48,12 @@ namespace PhysicsManager
 		{
 			if(_plugins.ContainsKey(engineName))
 			{
+				Console.WriteLine("returning "+engineName);
 				return _plugins[engineName].GetScene();
 			}
 			else
 			{
+				Console.WriteLine("couldn't find "+ engineName);
 				return null;
 			}
 		}
@@ -59,7 +61,7 @@ namespace PhysicsManager
 		public void LoadPlugins()
 		{
 			string path = Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory ,"Physics");
-       		string[] pluginFiles = Directory.GetFiles(path, "*.Phy");
+       		string[] pluginFiles = Directory.GetFiles(path, "*.Dll");
         
 
         	for(int i= 0; i<pluginFiles.Length; i++)
@@ -123,6 +125,7 @@ namespace PhysicsManager
 		public abstract PhysicsVector Position
 		{
 			get;
+			set;
 		}
 		
 		public abstract PhysicsVector Velocity

@@ -33,11 +33,13 @@ using System.IO;
 using System.Threading;
 using System.Net;
 using System.Net.Sockets;
+using System.Timers;
 using System.Collections;
 using System.Collections.Generic;
 using libsecondlife;
 using libsecondlife.Packets;
 using OpenSim.world;
+using PhysicsSystem;
 
 namespace OpenSim
 {
@@ -46,7 +48,7 @@ namespace OpenSim
     /// </summary>
     public class OpenSim_Main 
     {
-	private static OpenSim_Main sim;
+	public static OpenSim_Main sim;
 	public static SimConfig cfg;
 	public static World local_world;
 	private static Thread MainListener;
@@ -60,10 +62,12 @@ namespace OpenSim
 	private static AsyncCallback ReceivedData;
 	public Dictionary<EndPoint, OpenSimClient> ClientThreads = new Dictionary<EndPoint, OpenSimClient>();
 	private PhysicsManager physManager;
+	private System.Timers.Timer timer1 = new System.Timers.Timer();
+	
 	[STAThread]
         public static void Main( string[] args ) 
         {
-		Console.WriteLine("OpenSim " + VersionInfo.Version + "\n");
+		//Console.WriteLine("OpenSim " + VersionInfo.Version + "\n");
 		Console.WriteLine("Starting...\n");
 		sim = new OpenSim_Main();		
 		sim.Startup();
@@ -76,6 +80,10 @@ namespace OpenSim
 	}
 	
 	private void Startup() {
+        	timer1.Enabled = true;
+        	timer1.Interval = 100;
+        	timer1.Elapsed +=new ElapsedEventHandler( this.Timer1Tick );
+        	
 		// We check our local database first, then the grid for config options
 		Console.WriteLine("Main.cs:Startup() - Loading configuration");
 		cfg = new SimConfig();
@@ -87,12 +95,12 @@ namespace OpenSim
 		Console.WriteLine("Initialising world");
 		local_world = cfg.LoadWorld();
 		
-		this.physManager = new PhysicsManager();
+		this.physManager = new PhysicsSystem.PhysicsManager();
 		this.physManager.LoadPlugins();
-		local_world.PhysScene = this.physManager.GetScene("PhysX"); //should be reading from the config file what physics engine to use
-
 		Console.WriteLine("Main.cs:Startup() - Starting up messaging system");
-		MainListener = new Thread(new ThreadStart(MainServerListener));	
+		local_world.PhysScene = this.physManager.GetPhysicsScene("PhysX"); //should be reading from the config file what physics engine to use
+
+		MainListener = new Thread(new ThreadStart(MainServerListener));
 		MainListener.Start();
 
 	}
@@ -138,5 +146,10 @@ namespace OpenSim
 			Thread.Sleep(1000);	
 		}
 	}
+        
+     void Timer1Tick( object sender, System.EventArgs e ) 
+		{
+     	local_world.Update();
+        }
     }
 }

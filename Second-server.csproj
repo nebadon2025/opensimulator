@@ -25,24 +25,27 @@
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Axiom.MathLib, Version=0.7.0.25497, Culture=neutral">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\bin\Axiom.MathLib.dll</HintPath>
-    </Reference>
-    <Reference Include="Db4objects.Db4o, Version=6.0.1.0, Culture=neutral, PublicKeyToken=6199cd4f203aa8eb, processorArchitecture=MSIL" />
-    <Reference Include="libsecondlife, Version=0.9.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\bin\libsecondlife.dll</HintPath>
-    </Reference>
-    <Reference Include="log4net, Version=1.2.10.0, Culture=neutral, PublicKeyToken=1b44e1d426115821, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\bin\log4net.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
     <Reference Include="PhysicsManager">
-      <HintPath>..\..\..\..\physics\PhysicsManager\bin\Release\PhysicsManager.dll</HintPath>
+      <HintPath>..\physics\PhysicsManager\bin\Release\PhysicsManager.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Include="log4net">
+      <HintPath>..\Version0_2_myserver\OpenSim\bin\Debug\log4net.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Include="Axiom.MathLib">
+      <HintPath>..\Version0_2_myserver\OpenSim\bin\Debug\Axiom.MathLib.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Include="Db4objects.Db4o">
+      <HintPath>..\Version0_2_myserver\OpenSim\bin\Debug\Db4objects.Db4o.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+    </Reference>
+    <Reference Include="libsecondlife">
+      <HintPath>..\Version0_2_myserver\OpenSim\bin\Debug\libsecondlife.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
     </Reference>
   </ItemGroup>
@@ -54,7 +57,6 @@
     <Compile Include="types\Mesh.cs" />
     <Compile Include="types\Triangle.cs" />
     <Compile Include="Util.cs" />
-    <Compile Include="VersionInfo.cs" />
     <Compile Include="world\Avatar.cs" />
     <Compile Include="world\Entity.cs" />
     <Compile Include="world\Primitive.cs" />

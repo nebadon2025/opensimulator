@@ -68,9 +68,11 @@
     <Compile Include="GridServers\IGridServer.cs" />
     <Compile Include="GridServers\IAssetServer.cs" />
     <Compile Include="GridServers\LoginServer.cs" />
+    <Compile Include="Assets\AssetCache.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="GridServers" />
+    <Folder Include="Assets" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.Targets" />
 </Project>

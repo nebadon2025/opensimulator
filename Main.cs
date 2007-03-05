@@ -112,9 +112,9 @@ namespace OpenSim
 	}
 	
 	private void Startup() {
-        	timer1.Enabled = true;
-        	timer1.Interval = 100;
-        	timer1.Elapsed +=new ElapsedEventHandler( this.Timer1Tick );
+        timer1.Enabled = true;
+        timer1.Interval = 100;
+        timer1.Elapsed +=new ElapsedEventHandler( this.Timer1Tick );
         	
 		// We check our local database first, then the grid for config options
 		Console.WriteLine("Main.cs:Startup() - Loading configuration");
@@ -132,8 +132,6 @@ namespace OpenSim
 		Console.WriteLine("Main.cs:Startup() - Starting up messaging system");
 		local_world.PhysScene = this.physManager.GetPhysicsScene("PhysX"); //should be reading from the config file what physics engine to use
 
-		//MainListener = new Thread(new ThreadStart(MainServerListener));
-		//MainListener.Start();
 		MainServerListener();
 
 	}
@@ -175,9 +173,7 @@ namespace OpenSim
 		Server.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref epSender, ReceivedData, null);
 		
 		Console.WriteLine("Main.cs:MainServerListener() - Listening...");
-		/*while(true) {
-			Thread.Sleep(1000);	
-		}*/
+		
 	}
         
     void Timer1Tick( object sender, System.EventArgs e ) 

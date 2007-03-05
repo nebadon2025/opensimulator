@@ -27,6 +27,7 @@
 
 using System;
 using libsecondlife;
+using OpenSim.Assets;
 
 namespace OpenSim.GridServers
 {
@@ -47,11 +48,11 @@ namespace OpenSim.GridServers
 		{
 			
 		}
-		public void UpdateAsset()
+		public void UpdateAsset(AssetBase asset)
 		{
 			
 		}
-		public void UploadNewAsset()
+		public void UploadNewAsset(AssetBase asset)
 		{
 			
 		}
@@ -61,13 +62,14 @@ namespace OpenSim.GridServers
 	{
 		void SetReceiver(IAssetReceived receiver);
 		void RequestAsset(LLUUID assetID);
-		void UpdateAsset();
-		void UploadNewAsset();
+		void UpdateAsset(AssetBase asset);
+		void UploadNewAsset(AssetBase asset);
 	}
 	
 	// could change to delegate
 	public interface IAssetReceived
 	{
-		void AssetReceived();
+		void AssetReceived(AssetBase asset);
+		void AssetNotFound(AssetBase asset);
 	}
 }

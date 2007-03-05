@@ -64,8 +64,8 @@ namespace OpenSim.GridServers
 		private string _mpasswd;
 		private bool _needPasswd=false;
 
-		// InitializeLoginProxy: initialize the login proxy
-		private void InitializeLoginProxy() {
+		// InitializeLogin: initialize the login 
+		private void InitializeLogin() {
 			loginServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 			loginServer.Bind(new IPEndPoint(remoteAddress, _loginPort));
 			loginServer.Listen(1);
@@ -90,13 +90,13 @@ namespace OpenSim.GridServers
 		
 		public void Startup()
 		{
-			this.InitializeLoginProxy();
-			Thread runLoginProxy = new Thread(new ThreadStart(RunLoginProxy));
+			this.InitializeLogin();
+			Thread runLoginProxy = new Thread(new ThreadStart(RunLogin));
 			runLoginProxy.IsBackground = true;
 			runLoginProxy.Start();
 		}
 		
-		private void RunLoginProxy() 
+		private void RunLogin() 
 		{
 			Console.WriteLine("Starting Login Server");
 		    try 
@@ -113,7 +113,7 @@ namespace OpenSim.GridServers
 
 		    		try
 		    		{
-		    			ProxyLogin(networkReader, networkWriter);
+		    			LoginRequest(networkReader, networkWriter);
 		    		}
 		    		catch (Exception e)
 		    		{
@@ -138,7 +138,7 @@ namespace OpenSim.GridServers
 		}
 
 		// ProxyLogin: proxy a login request
-		private void ProxyLogin(StreamReader reader, StreamWriter writer) 
+		private void LoginRequest(StreamReader reader, StreamWriter writer) 
 		{ 
 			lock(this)
 			{

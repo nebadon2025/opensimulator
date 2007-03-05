@@ -46,8 +46,6 @@ namespace OpenSim
 		
 		public LLUUID AgentID;
 		public LLUUID SessionID;
-		private string AgentFirstName;
-		private string AgentLastName;
 		public uint CircuitCode;
 		public world.Avatar ClientAvatar;
 		private UseCircuitCodePacket cirpack;
@@ -407,8 +405,6 @@ namespace OpenSim
 			OpenSim_Main.local_world.AddViewerAgent(this);
 			world.Entity tempent=OpenSim_Main.local_world.Entities[this.AgentID];
 			this.ClientAvatar=(world.Avatar)tempent;
-			this.ClientAvatar.firstname = this.AgentFirstName;
-			this.ClientAvatar.lastname = this.AgentLastName;
 		}
 		
 		private void AuthUser() 
@@ -424,12 +420,12 @@ namespace OpenSim
 			{
 				Console.WriteLine("OpenSimClient.cs:AuthUser() - Got authenticated connection from " + userEP.ToString());
 				//session is authorised
-				this.AgentFirstName = sessionInfo.LoginInfo.First;
-				this.AgentLastName = sessionInfo.LoginInfo.Last;
 				this.AgentID=cirpack.CircuitCode.ID;
 				this.SessionID=cirpack.CircuitCode.SessionID;
 				this.CircuitCode=cirpack.CircuitCode.Code;
 				InitNewClient();
+				this.ClientAvatar.firstname = sessionInfo.LoginInfo.First;
+				this.ClientAvatar.lastname = sessionInfo.LoginInfo.Last;
 				ClientLoop();	
 			}
 	 	}

@@ -34,6 +34,7 @@ using System.Net.Sockets;
 using System.IO;
 using System.Threading;
 using System.Timers;
+using OpenSim.GridServers;
 
 namespace OpenSim
 {
@@ -45,6 +46,8 @@ namespace OpenSim
 		
 		public LLUUID AgentID;
 		public LLUUID SessionID;
+		private string AgentFirstName;
+		private string AgentLastName;
 		public uint CircuitCode;
 		public world.Avatar ClientAvatar;
 		private UseCircuitCodePacket cirpack;
@@ -79,7 +82,7 @@ namespace OpenSim
 		}
 		
 		public void AssetLoader() {
-			
+			/*
 			Console.WriteLine("OpenSimClient.cs:AssetLoader() - Starting new thread");
 			TransferRequestPacket reqPacket = AssetRequests.Dequeue();
 			Console.WriteLine("OpenSimClient.cs:AssetLoader() - Got a request, processing it");
@@ -128,7 +131,7 @@ namespace OpenSim
 				OutPacket(TransferPacket);
 			}
 			AssetResponse.Close();
-			
+			*/
 		}
 		
 		public void ProcessInPacket(Packet Pack) {
@@ -145,12 +148,12 @@ namespace OpenSim
 		    		ClientAvatar.SendInitialAppearance();
 		    		break;
 		    	case PacketType.TransferRequest:
-		    		Console.WriteLine("OpenSimClient.cs:ProcessInPacket() - Got transfer request");
+		    		//Console.WriteLine("OpenSimClient.cs:ProcessInPacket() - Got transfer request");
 		    		// We put transfer requests into a big queue and then spawn a thread for each new one
-		    		TransferRequestPacket transfer = (TransferRequestPacket)Pack;
-		    		AssetRequests.Enqueue(transfer);
-		    		Thread AssetLoaderThread = new Thread(new ThreadStart(AssetLoader));
-		    		AssetLoaderThread.Start();
+		    		//TransferRequestPacket transfer = (TransferRequestPacket)Pack;
+		    		//AssetRequests.Enqueue(transfer);
+		    		//Thread AssetLoaderThread = new Thread(new ThreadStart(AssetLoader));
+		    		//AssetLoaderThread.Start();
 		    		break;
 		    	case PacketType.AgentUpdate:
 		    		ClientAvatar.HandleUpdate((AgentUpdatePacket)Pack);
@@ -404,35 +407,32 @@ namespace OpenSim
 			OpenSim_Main.local_world.AddViewerAgent(this);
 			world.Entity tempent=OpenSim_Main.local_world.Entities[this.AgentID];
 			this.ClientAvatar=(world.Avatar)tempent;
+			this.ClientAvatar.firstname = this.AgentFirstName;
+			this.ClientAvatar.lastname = this.AgentLastName;
 		}
 		
-		private void AuthUser() {
-			Console.WriteLine("OpenSimClient.cs:AuthUser() - Authenticating new user request with grid");
-			WebRequest CheckSession = WebRequest.Create(OpenSim_Main.cfg.GridURL + "/usersessions/" + OpenSim_Main.cfg.GridSendKey + "/" + cirpack.CircuitCode.ID.ToString() + "/" + cirpack.CircuitCode.Code.ToString() + "/exists");
-			WebResponse GridResponse = CheckSession.GetResponse();
-			StreamReader sr = new StreamReader(GridResponse.GetResponseStream());
-			String grTest = sr.ReadLine();
-			sr.Close();
-			GridResponse.Close();
-			if(String.IsNullOrEmpty(grTest) || grTest.Equals("1")) { 	// YAY! Valid login
+		private void AuthUser() 
+		{
+			AuthenticateResponse sessionInfo = OpenSim_Main.gridServers.GridServer.AuthenticateSession(cirpack.CircuitCode.SessionID, cirpack.CircuitCode.ID, cirpack.CircuitCode.Code);
+			if(!sessionInfo.Authorised)
+			{
+				//session/circuit not authorised
+				Console.WriteLine("OpenSimClient.cs:AuthUser() - New user request denied to " + userEP.ToString());
+				ClientThread.Abort();
+			}
+			else
+			{
 				Console.WriteLine("OpenSimClient.cs:AuthUser() - Got authenticated connection from " + userEP.ToString());
+				//session is authorised
+				this.AgentFirstName = sessionInfo.LoginInfo.First;
+				this.AgentLastName = sessionInfo.LoginInfo.Last;
 				this.AgentID=cirpack.CircuitCode.ID;
 				this.SessionID=cirpack.CircuitCode.SessionID;
 				this.CircuitCode=cirpack.CircuitCode.Code;
 				InitNewClient();
 				ClientLoop();	
-			} else {			// Invalid
-				Console.WriteLine("OpenSimClient.cs:AuthUser() - New user request denied to " + userEP.ToString());
-				ClientThread.Abort();	
 			}
-			// quick hack so we don't use the grid server for local testing
-			/*this.AgentID=cirpack.CircuitCode.ID;
-			this.SessionID=cirpack.CircuitCode.SessionID;
-			this.CircuitCode=cirpack.CircuitCode.Code;
-			InitNewClient();
-			ClientLoop();
-			*/
-		}
+	 	}
 	}
 
 }

@@ -39,6 +39,7 @@ using System.Collections.Generic;
 using libsecondlife;
 using libsecondlife.Packets;
 using OpenSim.world;
+using OpenSim.GridServers;
 using PhysicsSystem;
 
 namespace OpenSim
@@ -51,8 +52,9 @@ namespace OpenSim
 	public static OpenSim_Main sim;
 	public static SimConfig cfg;
 	public static World local_world;
-	private static Thread MainListener;
-	private static Thread PingRespponder;
+	public static Grid gridServers;
+	//private static Thread MainListener;
+	//private static Thread PingRespponder;
 	public static Socket Server;
 	private static IPEndPoint ServerIncoming;
 	private static byte[] RecvBuffer = new byte[4096];
@@ -69,7 +71,37 @@ namespace OpenSim
         {
 		//Console.WriteLine("OpenSim " + VersionInfo.Version + "\n");
 		Console.WriteLine("Starting...\n");
-		sim = new OpenSim_Main();		
+		sim = new OpenSim_Main();	
+		
+		bool sandbox = false;
+		bool loginserver = false;
+		for (int i = 0; i < args.Length; i++)
+		{
+			if(args[i] == "-sandbox")
+			{
+				sandbox = true;
+			}
+			if(args[i] == "-loginserver")
+			{
+				loginserver = true;
+			}
+		}
+		if(sandbox)
+		{
+			OpenSim_Main.gridServers = new Grid(true);
+			Console.WriteLine("Starting in Sandbox mode");
+		}
+		else
+		{
+			OpenSim_Main.gridServers = new Grid(false);
+			Console.WriteLine("Starting in Grid mode");
+		}
+		if(loginserver && sandbox)
+		{
+			LoginServer loginServer = new LoginServer(OpenSim_Main.gridServers.GridServer);
+			loginServer.Startup();
+		}
+		
 		sim.Startup();
 		while(true) {
 			Thread.Sleep(1000);
@@ -100,8 +132,9 @@ namespace OpenSim
 		Console.WriteLine("Main.cs:Startup() - Starting up messaging system");
 		local_world.PhysScene = this.physManager.GetPhysicsScene("PhysX"); //should be reading from the config file what physics engine to use
 
-		MainListener = new Thread(new ThreadStart(MainServerListener));
-		MainListener.Start();
+		//MainListener = new Thread(new ThreadStart(MainServerListener));
+		//MainListener.Start();
+		MainServerListener();
 
 	}
 
@@ -142,14 +175,34 @@ namespace OpenSim
 		Server.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref epSender, ReceivedData, null);
 		
 		Console.WriteLine("Main.cs:MainServerListener() - Listening...");
-		while(true) {
+		/*while(true) {
 			Thread.Sleep(1000);	
-		}
+		}*/
 	}
         
-     void Timer1Tick( object sender, System.EventArgs e ) 
-		{
+    void Timer1Tick( object sender, System.EventArgs e ) 
+	{
      	local_world.Update();
-        }
+    }
+  }
+    
+    public class Grid
+    {
+    	public IAssetServer AssetServer;
+    	public IGridServer GridServer;
+    	
+    	public Grid(bool sandbox)
+    	{
+    		if(sandbox)
+    		{
+    			this.AssetServer =(IAssetServer) new LocalAssetServer();
+    			this.GridServer =(IGridServer) new LocalGridServer();
+    		}
+    		else
+    		{
+    			this.AssetServer =(IAssetServer) new LocalAssetServer(); //assets not implemented yet
+    			this.GridServer =(IGridServer) new RemoteGridServer();
+    		}
+    	}
     }
 }

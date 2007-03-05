@@ -114,6 +114,8 @@ namespace PhysicsSystem
 		
 		public abstract void GetResults();
 		
+		public abstract void SetTerrain(float[] heightMap);
+		
 		public abstract bool IsThreaded
 		{
 			get;

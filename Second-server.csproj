@@ -65,6 +65,12 @@
     <Compile Include="world\SurfacePatch.cs" />
     <Compile Include="world\TerrainDecoder.cs" />
     <Compile Include="world\World.cs" />
+    <Compile Include="GridServers\IGridServer.cs" />
+    <Compile Include="GridServers\IAssetServer.cs" />
+    <Compile Include="GridServers\LoginServer.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="GridServers" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.Targets" />
 </Project>

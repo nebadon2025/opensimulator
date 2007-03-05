@@ -126,6 +126,11 @@ namespace PhysXplugin
 				return(false); // for now we won't be multithreaded
 			}
 		}
+		
+		public override void SetTerrain(float[] heightMap)
+		{
+			
+		}
 	}
 	
 	public  class PhysXActor : PhysicsActor

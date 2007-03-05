@@ -51,8 +51,7 @@ namespace OpenSim
 		private UseCircuitCodePacket cirpack;
 		private Thread ClientThread;
 		private EndPoint userEP;
-		private  BlockingQueue<QueItem> PacketQueue;
-		private BlockingQueue<TransferRequestPacket> AssetRequests;
+		private BlockingQueue<QueItem> PacketQueue;
 		private Dictionary<uint, uint> PendingAcks = new Dictionary<uint, uint>();
 		private Dictionary<uint, Packet> NeedAck = new Dictionary<uint, Packet>();
 		private System.Timers.Timer AckTimer;
@@ -79,59 +78,6 @@ namespace OpenSim
 		    }
 		}
 		
-		public void AssetLoader() {
-			/*
-			Console.WriteLine("OpenSimClient.cs:AssetLoader() - Starting new thread");
-			TransferRequestPacket reqPacket = AssetRequests.Dequeue();
-			Console.WriteLine("OpenSimClient.cs:AssetLoader() - Got a request, processing it");
-			LLUUID AssetID = new LLUUID(reqPacket.TransferInfo.Params, 0);
-			WebRequest AssetLoad = WebRequest.Create(OpenSim_Main.cfg.AssetURL + "getasset/" + OpenSim_Main.cfg.AssetSendKey + "/" + AssetID + "/data");
-			WebResponse AssetResponse = AssetLoad.GetResponse();
-			byte[] idata = new byte[(int)AssetResponse.ContentLength];
-			BinaryReader br = new BinaryReader(AssetResponse.GetResponseStream());
-			idata = br.ReadBytes((int)AssetResponse.ContentLength);
-			br.Close();
-		
-			TransferInfoPacket Transfer = new TransferInfoPacket();
-			Transfer.TransferInfo.ChannelType = 2;
-			Transfer.TransferInfo.Status = 0;
-			Transfer.TransferInfo.TargetType = 0;
-			Transfer.TransferInfo.Params = reqPacket.TransferInfo.Params;
-			Transfer.TransferInfo.Size = (int)AssetResponse.ContentLength;
-			Transfer.TransferInfo.TransferID = reqPacket.TransferInfo.TransferID;
-				
-			OutPacket(Transfer);
-			
-			TransferPacketPacket TransferPacket = new TransferPacketPacket();
-			TransferPacket.TransferData.Packet = 0;
-			TransferPacket.TransferData.ChannelType = 2;
-			TransferPacket.TransferData.TransferID=reqPacket.TransferInfo.TransferID;
-		
-			if(AssetResponse.ContentLength>1000) {
-				byte[] chunk = new byte[1000];
-				Array.Copy(idata,chunk,1000);
-				TransferPacket.TransferData.Data = chunk;
-				TransferPacket.TransferData.Status = 0;
-				OutPacket(TransferPacket);
- 
-				TransferPacket = new TransferPacketPacket();
-				TransferPacket.TransferData.Packet = 1;
-				TransferPacket.TransferData.ChannelType = 2;
-				TransferPacket.TransferData.TransferID = reqPacket.TransferInfo.TransferID;
-				byte[] chunk1 = new byte[(idata.Length-1000)];
-				Array.Copy(idata, 1000, chunk1, 0, chunk1.Length);
-				TransferPacket.TransferData.Data = chunk1;
-				TransferPacket.TransferData.Status = 1;
-				OutPacket(TransferPacket);
-			} else {
-				TransferPacket.TransferData.Status = 1;
-				TransferPacket.TransferData.Data = idata;
-				OutPacket(TransferPacket);
-			}
-			AssetResponse.Close();
-			*/
-		}
-		
 		public void ProcessInPacket(Packet Pack) {
 		    ack_pack(Pack);
 		    switch(Pack.Type) {
@@ -147,11 +93,8 @@ namespace OpenSim
 		    		break;
 		    	case PacketType.TransferRequest:
 		    		//Console.WriteLine("OpenSimClient.cs:ProcessInPacket() - Got transfer request");
-		    		// We put transfer requests into a big queue and then spawn a thread for each new one
-		    		//TransferRequestPacket transfer = (TransferRequestPacket)Pack;
-		    		//AssetRequests.Enqueue(transfer);
-		    		//Thread AssetLoaderThread = new Thread(new ThreadStart(AssetLoader));
-		    		//AssetLoaderThread.Start();
+		    		TransferRequestPacket transfer = (TransferRequestPacket)Pack;
+		    		OpenSim_Main.assetCache.AddAssetRequest(this, transfer);
 		    		break;
 		    	case PacketType.AgentUpdate:
 		    		ClientAvatar.HandleUpdate((AgentUpdatePacket)Pack);
@@ -373,7 +316,6 @@ namespace OpenSim
 			cirpack = initialcirpack;
 			userEP = remoteEP;
 			PacketQueue = new BlockingQueue<QueItem>();
-			AssetRequests = new BlockingQueue<TransferRequestPacket>();
 			AckTimer = new System.Timers.Timer(500);
 	 		AckTimer.Elapsed += new ElapsedEventHandler(AckTimer_Elapsed);
 			AckTimer.Start();

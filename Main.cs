@@ -40,6 +40,7 @@ using libsecondlife;
 using libsecondlife.Packets;
 using OpenSim.world;
 using OpenSim.GridServers;
+using OpenSim.Assets;
 using PhysicsSystem;
 
 namespace OpenSim
@@ -53,6 +54,7 @@ namespace OpenSim
 	public static SimConfig cfg;
 	public static World local_world;
 	public static Grid gridServers;
+	public static AssetCache assetCache;
 	//private static Thread MainListener;
 	//private static Thread PingRespponder;
 	public static Socket Server;
@@ -101,6 +103,7 @@ namespace OpenSim
 			LoginServer loginServer = new LoginServer(OpenSim_Main.gridServers.GridServer);
 			loginServer.Startup();
 		}
+		assetCache = new AssetCache(OpenSim_Main.gridServers.AssetServer);
 		
 		sim.Startup();
 		while(true) {
@@ -191,12 +194,12 @@ namespace OpenSim
     	{
     		if(sandbox)
     		{
-    			this.AssetServer =(IAssetServer) new LocalAssetServer();
+    			this.AssetServer =(IAssetServer) new LocalAssetServer(); //assets not implemented yet
     			this.GridServer =(IGridServer) new LocalGridServer();
     		}
     		else
     		{
-    			this.AssetServer =(IAssetServer) new LocalAssetServer(); //assets not implemented yet
+    			this.AssetServer =(IAssetServer) new RemoteAssetServer(); //assets not implemented yet
     			this.GridServer =(IGridServer) new RemoteGridServer();
     		}
     	}

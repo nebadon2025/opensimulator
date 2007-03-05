@@ -26,6 +26,10 @@
 */
 
 using System;
+using System.Net;
+using System.Net.Sockets;
+using System.IO;
+using System.Threading;
 using libsecondlife;
 using OpenSim.Assets;
 
@@ -36,40 +40,125 @@ namespace OpenSim.GridServers
 	/// </summary>
 	public class LocalAssetServer : IAssetServer
 	{
+		private IAssetReceiver _receiver;
+		private BlockingQueue<ARequest> _assetRequests;
+		
 		public LocalAssetServer()
 		{
+			this._assetRequests = new BlockingQueue<ARequest>();
 		}
 		
-		public void SetReceiver(IAssetReceived receiver)
+		public void SetReceiver(IAssetReceiver receiver)
 		{
-			
+			this._receiver = receiver;
 		}
-		public void RequestAsset(LLUUID assetID)
+		
+		public void RequestAsset(LLUUID assetID, bool isTexture)
 		{
-			
+			ARequest req = new ARequest();
+			req.AssetID = assetID;
+			req.IsTexture = isTexture;
+			this._assetRequests.Enqueue(req);
 		}
+		
 		public void UpdateAsset(AssetBase asset)
 		{
 			
 		}
+		
 		public void UploadNewAsset(AssetBase asset)
 		{
 			
+		}
+		
+		private void RunRequests()
+		{
+			while(true)
+			{
+				
+			}
+		}
+	}
+	
+	public class RemoteAssetServer : IAssetServer
+	{
+		private IAssetReceiver _receiver;
+		private BlockingQueue<ARequest> _assetRequests;
+		private Thread _remoteAssetServerThread;
+		
+		
+		public RemoteAssetServer()
+		{
+			this._assetRequests = new BlockingQueue<ARequest>();
+			this._remoteAssetServerThread = new Thread(new ThreadStart(RunRequests));
+			this._remoteAssetServerThread.IsBackground = true;
+			this._remoteAssetServerThread.Start();
+		}
+		
+		public void SetReceiver(IAssetReceiver receiver)
+		{
+			this._receiver = receiver;
+		}
+		
+		public void RequestAsset(LLUUID assetID, bool isTexture)
+		{
+			ARequest req = new ARequest();
+			req.AssetID = assetID;
+			req.IsTexture = isTexture;
+			this._assetRequests.Enqueue(req);
+		}
+		
+		public void UpdateAsset(AssetBase asset)
+		{
+			
+		}
+		
+		public void UploadNewAsset(AssetBase asset)
+		{
+			
+		}
+		
+		private void RunRequests()
+		{
+			while(true)
+			{
+				//we need to add support for the asset server not knowing about a requested asset
+				ARequest req = this._assetRequests.Dequeue();
+				LLUUID assetID = req.AssetID;
+				Console.WriteLine(" RemoteAssetServer- Got a AssetServer request, processing it");
+				WebRequest AssetLoad = WebRequest.Create(OpenSim_Main.cfg.AssetURL + "getasset/" + OpenSim_Main.cfg.AssetSendKey + "/" + assetID + "/data");
+				WebResponse AssetResponse = AssetLoad.GetResponse();
+				byte[] idata = new byte[(int)AssetResponse.ContentLength];
+				BinaryReader br = new BinaryReader(AssetResponse.GetResponseStream());
+				idata = br.ReadBytes((int)AssetResponse.ContentLength);
+				br.Close();
+				
+				AssetBase asset = new AssetBase();
+				asset.FullID = assetID;
+				asset.Data = idata;
+				_receiver.AssetReceived(asset, req.IsTexture );
+			}
 		}
 	}
 	
 	public interface IAssetServer
 	{
-		void SetReceiver(IAssetReceived receiver);
-		void RequestAsset(LLUUID assetID);
+		void SetReceiver(IAssetReceiver receiver);
+		void RequestAsset(LLUUID assetID, bool isTexture);
 		void UpdateAsset(AssetBase asset);
 		void UploadNewAsset(AssetBase asset);
 	}
 	
-	// could change to delegate
-	public interface IAssetReceived
+	// could change to delegate?
+	public interface IAssetReceiver
 	{
-		void AssetReceived(AssetBase asset);
+		void AssetReceived(AssetBase asset, bool IsTexture);
 		void AssetNotFound(AssetBase asset);
+	}
+	
+	public struct ARequest
+	{
+		public LLUUID AssetID;
+		public bool IsTexture;
 	}
 }

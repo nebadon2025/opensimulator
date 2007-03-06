@@ -56,9 +56,7 @@ namespace OpenSim
     	public static SimConfig cfg;
     	public static World local_world;
     	public static Grid gridServers;
-    	public static AssetCache assetCache;
-    	//private static Thread MainListener;
-    	//private static Thread PingRespponder;
+    	
     	public static Socket Server;
     	private static IPEndPoint ServerIncoming;
     	private static byte[] RecvBuffer = new byte[4096];
@@ -67,10 +65,14 @@ namespace OpenSim
     	private static EndPoint epSender;
     	private static AsyncCallback ReceivedData;
 
+    	public AssetCache assetCache;
+    	public DateTime startuptime;
     	public Dictionary<EndPoint, OpenSimClient> ClientThreads = new Dictionary<EndPoint, OpenSimClient>();
     	private PhysicsManager physManager;
     	private System.Timers.Timer timer1 = new System.Timers.Timer();
     	private string ConfigDll = "SimConfig.dll";
+    	public bool sandbox = false;
+    	public bool loginserver = false;
     	
     	[STAThread]
     	public static void Main( string[] args )
@@ -81,22 +83,20 @@ namespace OpenSim
     		
     		sim = new OpenSim_Main();
     		
-    		bool sandbox = false;
-    		bool loginserver = false;
     		for (int i = 0; i < args.Length; i++)
     		{
     			if(args[i] == "-sandbox")
     			{
-    				sandbox = true;
+    				sim.sandbox = true;
     			}
     			if(args[i] == "-loginserver")
     			{
-    				loginserver = true;
+    				sim.loginserver = true;
     			}
     		}
     		
     		OpenSim_Main.gridServers = new Grid();
-    		if(sandbox)
+    		if(sim.sandbox)
     		{
     			OpenSim_Main.gridServers.AssetDll = "LocalGridServers.dll";
     			OpenSim_Main.gridServers.GridDll = "LocalGridServers.dll";
@@ -111,12 +111,12 @@ namespace OpenSim
     			ServerConsole.MainConsole.Instance.WriteLine("Starting in Grid mode");
     		}
     		
-    		if(loginserver && sandbox)
+    		if(sim.loginserver && sim.sandbox)
     		{
     			LoginServer loginServer = new LoginServer(OpenSim_Main.gridServers.GridServer);
     			loginServer.Startup();
     		}
-    		assetCache = new AssetCache(OpenSim_Main.gridServers.AssetServer);
+    		sim.assetCache = new AssetCache(OpenSim_Main.gridServers.AssetServer);
     		
     		sim.Startup();
     		
@@ -129,6 +129,7 @@ namespace OpenSim
     	}
     	
     	private void Startup() {
+    		startuptime=DateTime.Now;
     		timer1.Enabled = true;
     		timer1.Interval = 100;
     		timer1.Elapsed +=new ElapsedEventHandler( this.Timer1Tick );

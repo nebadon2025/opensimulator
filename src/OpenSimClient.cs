@@ -50,7 +50,7 @@ namespace OpenSim
 		public world.Avatar ClientAvatar;
 		private UseCircuitCodePacket cirpack;
 		private Thread ClientThread;
-		private EndPoint userEP;
+		public EndPoint userEP;
 		private BlockingQueue<QueItem> PacketQueue;
 		private Dictionary<uint, uint> PendingAcks = new Dictionary<uint, uint>();
 		private Dictionary<uint, Packet> NeedAck = new Dictionary<uint, Packet>();
@@ -94,7 +94,7 @@ namespace OpenSim
 		    	case PacketType.TransferRequest:
 		    		//Console.WriteLine("OpenSimClient.cs:ProcessInPacket() - Got transfer request");
 		    		TransferRequestPacket transfer = (TransferRequestPacket)Pack;
-		    		OpenSim_Main.assetCache.AddAssetRequest(this, transfer);
+		    		OpenSim_Main.sim.assetCache.AddAssetRequest(this, transfer);
 		    		break;
 		    	case PacketType.AgentUpdate:
 		    		ClientAvatar.HandleUpdate((AgentUpdatePacket)Pack);

@@ -46,16 +46,22 @@ namespace Db40SimConfig
 		private IObjectContainer db;	
 		
 		public void LoadDefaults() {
-			this.RegionName = "OpenSim test\0";
-			this.RegionLocX = 997;
-			this.RegionLocY = 996;
+			ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadDefaults() - Please press enter to retain default or enter new settings");
+			
+			this.RegionName=ServerConsole.MainConsole.Instance.CmdPrompt("Name [OpenSim test]: ","OpenSim test");
+			this.RegionLocX=(uint)Convert.ToInt32(ServerConsole.MainConsole.Instance.CmdPrompt("Grid Location X [997]: ","997"));
+			this.RegionLocY=(uint)Convert.ToInt32(ServerConsole.MainConsole.Instance.CmdPrompt("Grid Location Y [996]: ","996"));
+			this.IPListenPort=Convert.ToInt32(ServerConsole.MainConsole.Instance.CmdPrompt("UDP port for client connections [9000]: ","9000"));
+			this.IPListenAddr=ServerConsole.MainConsole.Instance.CmdPrompt("IP Address to listen on for client connections [127.0.0.1]: ","127.0.0.1");
+			
+			if(!OpenSim_Main.sim.sandbox)
+			{
+				this.AssetURL=ServerConsole.MainConsole.Instance.CmdPrompt("Asset server URL: ");
+				this.AssetSendKey=ServerConsole.MainConsole.Instance.CmdPrompt("Asset server key: ");
+				this.GridURL=ServerConsole.MainConsole.Instance.CmdPrompt("Grid server URL: ");
+				this.GridSendKey=ServerConsole.MainConsole.Instance.CmdPrompt("Grid server key: ");
+			}
 			this.RegionHandle = Util.UIntsToLong((RegionLocX*256), (RegionLocY*256));
-			this.IPListenPort = 9000;
-			this.IPListenAddr = "127.0.0.1";
-			this.AssetURL = "http://www.osgrid.org/ogs/assetserver/";
-			this.AssetSendKey = "1234";
-			this.GridURL = "http://www.osgrid.org/ogs/gridserver/";
-			this.GridSendKey = "1234";
 		}
 
 		public override void InitConfig() {
@@ -89,19 +95,25 @@ namespace Db40SimConfig
 			}
 		}
 	
-		public override World LoadWorld() {
-			IObjectSet world_result = db.Get(typeof(OpenSim.world.World));
-			if(world_result.Count==1) {
-				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Found an OpenSim.world.World object in local database, loading");
-				return (World)world_result.Next();	
+		public override World LoadWorld() 
+		{
+			ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Loading world....");
+			World blank = new World();
+			ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Looking for a heightmap in local DB");
+			IObjectSet world_result = db.Get(new float[65536]);
+			if(world_result.Count>0) {
+				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Found a heightmap in local database, loading");
+				blank.LandMap=(float[])world_result.Next();	
 			} else {
-				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Could not find the world or too many worlds! Constructing blank one");
-				World blank = new World();
-				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Saving initial world state to disk");
-				db.Set(blank);
+				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - No heightmap found, generating new one");
+				for(int i =0; i < 65536; i++) {
+                        		blank.LandMap[i] =  21.4989f; //redundant code as the landmap is already set to this in the world constructor
+                		}
+				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Saving heightmap to local database");
+				db.Set(blank.LandMap);
 				db.Commit();
-				return blank;	
 			}
+			return blank;
 		}
 
 		public override void LoadFromGrid() {

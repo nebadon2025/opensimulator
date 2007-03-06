@@ -162,15 +162,15 @@ namespace OpenSim
 		public override void ShowCommands(string ShowWhat) {
 			switch(ShowWhat) {
                                 case "uptime":
-				//this.WriteLine("OpenSim has been running since " + OpenSim_Main.startuptime.ToString());
-                               // this.WriteLine("That is " + (DateTime.Now-OpenSim_Main.startuptime).ToString());
+				this.WriteLine("OpenSim has been running since " + OpenSim_Main.sim.startuptime.ToString());
+                this.WriteLine("That is " + (DateTime.Now-OpenSim_Main.sim.startuptime).ToString());
 				break;
 				case "users":
 				OpenSim.world.Avatar TempAv;
 				this.WriteLine(String.Format("{0,-16}{1,-16}{2,-25}{3,-25}{4,-16},{5,-16}","Firstname", "Lastname","Agent ID", "Session ID", "Circuit", "IP"));
 				foreach (libsecondlife.LLUUID UUID in OpenSim_Main.local_world.Entities.Keys) {
 					TempAv=(OpenSim.world.Avatar)OpenSim_Main.local_world.Entities[UUID];
-					//this.WriteLine(String.Format("{0,-16}{1,-16}{2,-25}{3,-25}{4,-16},{5,-16}",TempAv.firstname, TempAv.lastname,UUID, TempAv.ControllingClient.SessionID, TempAv.ControllingClient.CircuitCode, TempAv.ControllingClient.userEP.ToString()));
+					this.WriteLine(String.Format("{0,-16}{1,-16}{2,-25}{3,-25}{4,-16},{5,-16}",TempAv.firstname, TempAv.lastname,UUID, TempAv.ControllingClient.SessionID, TempAv.ControllingClient.CircuitCode, TempAv.ControllingClient.userEP.ToString()));
 				}
 				break;
 			}

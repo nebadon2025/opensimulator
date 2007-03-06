@@ -93,6 +93,7 @@ namespace Db40SimConfig
 				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:InitConfig() - Exception occured");
 				ServerConsole.MainConsole.Instance.WriteLine(e.ToString());
 			}
+			
 			ServerConsole.MainConsole.Instance.WriteLine("Sim settings loaded:");
 			ServerConsole.MainConsole.Instance.WriteLine("Name: " + this.RegionName);
 			ServerConsole.MainConsole.Instance.WriteLine("Region Location: [" + this.RegionLocX.ToString() + "," + this.RegionLocY + "]");
@@ -117,7 +118,7 @@ namespace Db40SimConfig
 			} else {
 				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - No heightmap found, generating new one");
 				for(int i =0; i < 65536; i++) {
-                        		blank.LandMap[i] =  21.4989f; //redundant code as the landmap is already set to this in the world constructor
+                        		blank.LandMap[i] =  21.4989f;
                 		}
 				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Saving heightmap to local database");
 				db.Set(blank.LandMap);

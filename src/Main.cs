@@ -107,6 +107,9 @@ namespace OpenSim
     			OpenSim_Main.gridServers.LoadPlugins();
     			Console.WriteLine("Starting in Grid mode");
     		}
+    		OpenSim_Main.gridServers.AssetServer.SetServerInfo(OpenSim_Main.cfg.AssetURL, OpenSim_Main.cfg.AssetSendKey);
+    		OpenSim_Main.gridServers.GridServer.SetServerInfo(OpenSim_Main.cfg.GridURL, OpenSim_Main.cfg.GridSendKey);
+    		
     		if(loginserver && sandbox)
     		{
     			LoginServer loginServer = new LoginServer(OpenSim_Main.gridServers.GridServer);

@@ -93,6 +93,16 @@ namespace Db40SimConfig
 				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:InitConfig() - Exception occured");
 				ServerConsole.MainConsole.Instance.WriteLine(e.ToString());
 			}
+			ServerConsole.MainConsole.Instance.WriteLine("Sim settings loaded:");
+			ServerConsole.MainConsole.Instance.WriteLine("Name: " + this.RegionName);
+			ServerConsole.MainConsole.Instance.WriteLine("Region Location: [" + this.RegionLocX.ToString() + "," + this.RegionLocY + "]");
+			ServerConsole.MainConsole.Instance.WriteLine("Region Handle: " + this.RegionHandle.ToString());
+			ServerConsole.MainConsole.Instance.WriteLine("Listening on IP: " + this.IPListenAddr + ":" + this.IPListenPort);
+			ServerConsole.MainConsole.Instance.WriteLine("Sandbox Mode? " + OpenSim_Main.sim.sandbox.ToString());
+			ServerConsole.MainConsole.Instance.WriteLine("Asset URL: " + this.AssetURL);
+			ServerConsole.MainConsole.Instance.WriteLine("Asset key: " + this.AssetSendKey);
+			ServerConsole.MainConsole.Instance.WriteLine("Grid URL: " + this.GridURL);
+			ServerConsole.MainConsole.Instance.WriteLine("Grid key: " + this.GridSendKey);
 		}
 	
 		public override World LoadWorld() 

@@ -31,5 +31,11 @@
     <Compile Include="PhysicsManager.cs" />
     <Compile Include="AssemblyInfo.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ServerConsole\ServerConsole\ServerConsole.csproj">
+      <Project>{C9A6026D-8E0C-4FE4-8691-FB2A566AA245}</Project>
+      <Name>ServerConsole</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.Targets" />
 </Project>

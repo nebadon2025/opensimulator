@@ -39,10 +39,6 @@
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <Reference Include="PhysicsManager">
-      <HintPath>..\physics\PhysicsManager\bin\Release\PhysicsManager.dll</HintPath>
-      <SpecificVersion>False</SpecificVersion>
-    </Reference>
     <Reference Include="log4net">
       <HintPath>..\Version0_2_myserver\OpenSim\bin\Debug\log4net.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
@@ -55,16 +51,11 @@
       <HintPath>..\Version0_2_myserver\OpenSim\bin\Debug\libsecondlife.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
     </Reference>
-    <Reference Include="GridInterfaces">
-      <HintPath>..\GridInterfaces\GridInterfaces\bin\Debug\GridInterfaces.dll</HintPath>
-      <SpecificVersion>False</SpecificVersion>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Config.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="OpenSimClient.cs" />
-    <Compile Include="types\BitPack.cs" />
     <Compile Include="types\Mesh.cs" />
     <Compile Include="types\Triangle.cs" />
     <Compile Include="Util.cs" />
@@ -78,10 +69,23 @@
     <Compile Include="world\World.cs" />
     <Compile Include="GridServers\LoginServer.cs" />
     <Compile Include="Assets\AssetCache.cs" />
+    <Compile Include="OpenSimConsole.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="GridServers" />
     <Folder Include="Assets" />
+    <ProjectReference Include="GridInterfaces\GridInterfaces.csproj">
+      <Project>{5DA3174D-42F9-416D-9F0B-AF41FA2BE2F9}</Project>
+      <Name>GridInterfaces</Name>
+    </ProjectReference>
+    <ProjectReference Include="physics\PhysicsManager.csproj">
+      <Project>{3C86A846-7977-4EE7-A8DC-DD487FA5DC2B}</Project>
+      <Name>PhysicsManager</Name>
+    </ProjectReference>
+    <ProjectReference Include="ServerConsole\ServerConsole\ServerConsole.csproj">
+      <Project>{C9A6026D-8E0C-4FE4-8691-FB2A566AA245}</Project>
+      <Name>ServerConsole</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.Targets" />
 </Project>

@@ -70,7 +70,7 @@ namespace LocalGridServers
 		public LocalAssetServer()
 		{
 			this._assetRequests = new BlockingQueue<ARequest>();
-			Console.WriteLine("Local Asset Server class created");
+			ServerConsole.MainConsole.Instance.WriteLine("Local Asset Server class created");
 		}
 		
 		public void SetReceiver(IAssetReceiver receiver)
@@ -117,7 +117,7 @@ namespace LocalGridServers
 		public LocalGridServer()
 		{
 			Sessions = new List<Login>();
-			Console.WriteLine("Local Grid Server class created");
+			ServerConsole.MainConsole.Instance.WriteLine("Local Grid Server class created");
 		}
 		
 		public bool RequestConnection()

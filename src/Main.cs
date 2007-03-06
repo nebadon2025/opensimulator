@@ -42,6 +42,7 @@ using libsecondlife.Packets;
 using OpenSim.world;
 using OpenSim.GridServers;
 using OpenSim.Assets;
+using ServerConsole;
 using PhysicsSystem;
 
 namespace OpenSim
@@ -76,6 +77,8 @@ namespace OpenSim
     	{
     		//Console.WriteLine("OpenSim " + VersionInfo.Version + "\n");
     		Console.WriteLine("Starting...\n");
+    		ServerConsole.MainConsole.Instance = new MServerConsole(ServerConsole.ConsoleBase.ConsoleType.Local,"",0);
+    		
     		sim = new OpenSim_Main();
     		
     		bool sandbox = false;
@@ -98,17 +101,15 @@ namespace OpenSim
     			OpenSim_Main.gridServers.AssetDll = "LocalGridServers.dll";
     			OpenSim_Main.gridServers.GridDll = "LocalGridServers.dll";
     			OpenSim_Main.gridServers.LoadPlugins();
-    			Console.WriteLine("Starting in Sandbox mode");
+    			ServerConsole.MainConsole.Instance.WriteLine("Starting in Sandbox mode");
     		}
     		else
     		{
     			OpenSim_Main.gridServers.AssetDll = "RemoteGridServers.dll";
     			OpenSim_Main.gridServers.GridDll = "RemoteGridServers.dll";
     			OpenSim_Main.gridServers.LoadPlugins();
-    			Console.WriteLine("Starting in Grid mode");
+    			ServerConsole.MainConsole.Instance.WriteLine("Starting in Grid mode");
     		}
-    		OpenSim_Main.gridServers.AssetServer.SetServerInfo(OpenSim_Main.cfg.AssetURL, OpenSim_Main.cfg.AssetSendKey);
-    		OpenSim_Main.gridServers.GridServer.SetServerInfo(OpenSim_Main.cfg.GridURL, OpenSim_Main.cfg.GridSendKey);
     		
     		if(loginserver && sandbox)
     		{
@@ -118,10 +119,10 @@ namespace OpenSim
     		assetCache = new AssetCache(OpenSim_Main.gridServers.AssetServer);
     		
     		sim.Startup();
-    		//while(true) {
-    		Console.ReadLine();
-    		Thread.Sleep(1000);
-    		//}
+    		
+    		while(true) {
+    			ServerConsole.MainConsole.Instance.MainConsolePrompt();
+    		}
     	}
 
     	private OpenSim_Main() {
@@ -133,21 +134,23 @@ namespace OpenSim
     		timer1.Elapsed +=new ElapsedEventHandler( this.Timer1Tick );
     		
     		// We check our local database first, then the grid for config options
-    		Console.WriteLine("Main.cs:Startup() - Loading configuration");
+    		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Loading configuration");
     		cfg = this.LoadConfigDll();
     		cfg.InitConfig();
-    		Console.WriteLine("Main.cs:Startup() - Contacting gridserver");
+    		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Contacting gridserver");
     		cfg.LoadFromGrid();
 
-    		Console.WriteLine("Main.cs:Startup() - We are " + cfg.RegionName + " at " + cfg.RegionLocX.ToString() + "," + cfg.RegionLocY.ToString());
-    		Console.WriteLine("Initialising world");
+    		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - We are " + cfg.RegionName + " at " + cfg.RegionLocX.ToString() + "," + cfg.RegionLocY.ToString());
+    		ServerConsole.MainConsole.Instance.WriteLine("Initialising world");
     		local_world = cfg.LoadWorld();
     		
     		this.physManager = new PhysicsSystem.PhysicsManager();
     		this.physManager.LoadPlugins();
-    		Console.WriteLine("Main.cs:Startup() - Starting up messaging system");
+    		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Starting up messaging system");
     		local_world.PhysScene = this.physManager.GetPhysicsScene("PhysX"); //should be reading from the config file what physics engine to use
-
+			OpenSim_Main.gridServers.AssetServer.SetServerInfo(OpenSim_Main.cfg.AssetURL, OpenSim_Main.cfg.AssetSendKey);
+    		OpenSim_Main.gridServers.GridServer.SetServerInfo(OpenSim_Main.cfg.GridURL, OpenSim_Main.cfg.GridSendKey);
+    		
     		MainServerListener();
 
     	}
@@ -202,22 +205,32 @@ namespace OpenSim
     	}
 
     	private void MainServerListener() {
-    		Console.WriteLine("Main.cs:MainServerListener() - New thread started");
-    		Console.WriteLine("Main.cs:MainServerListener() - Opening UDP socket on " + cfg.IPListenAddr + ":" + cfg.IPListenPort);
+    		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:MainServerListener() - New thread started");
+    		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:MainServerListener() - Opening UDP socket on " + cfg.IPListenAddr + ":" + cfg.IPListenPort);
 
     		ServerIncoming = new IPEndPoint(IPAddress.Any, cfg.IPListenPort);
     		Server = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
     		Server.Bind(ServerIncoming);
     		
-    		Console.WriteLine("Main.cs:MainServerListener() - UDP socket bound, getting ready to listen");
+    		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:MainServerListener() - UDP socket bound, getting ready to listen");
 
     		ipeSender = new IPEndPoint(IPAddress.Any, 0);
     		epSender = (EndPoint) ipeSender;
     		ReceivedData = new AsyncCallback(this.OnReceivedData);
     		Server.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref epSender, ReceivedData, null);
     		
-    		Console.WriteLine("Main.cs:MainServerListener() - Listening...");
+    		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:MainServerListener() - Listening...");
     		
+    	}
+    	
+    	public static void Shutdown() {
+    		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Shutdown() - Closing all threads");
+    		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Shutdown() - Killing listener thread");
+    		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Shutdown() - Killing clients");
+    		// IMPLEMENT THIS
+    		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Shutdown() - Closing console and terminating");
+    		ServerConsole.MainConsole.Instance.Close();
+    		Environment.Exit(0);
     	}
     	
     	void Timer1Tick( object sender, System.EventArgs e )
@@ -239,7 +252,7 @@ namespace OpenSim
     	
     	public void LoadPlugins()
     	{
-    			this.AssetServer =(IAssetServer) this.LoadAssetDll();//assets not implemented yet
+    			this.AssetServer =(IAssetServer) this.LoadAssetDll();
     			this.GridServer =(IGridServer) this.LoadGridDll();
     	}
     	

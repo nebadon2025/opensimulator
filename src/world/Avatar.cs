@@ -21,7 +21,7 @@ namespace OpenSim.world
 		private List<NewForce> forcesList = new List<NewForce>();
 		
     	public Avatar(OpenSimClient TheClient) {
-    		Console.WriteLine("Avatar.cs - Loading details from grid (DUMMY)");
+    		ServerConsole.MainConsole.Instance.WriteLine("Avatar.cs - Loading details from grid (DUMMY)");
     		ControllingClient=TheClient;
     		SetupTemplate("avatar-template.dat");
 			position = new LLVector3(100.0f,100.0f,30.0f);
@@ -100,7 +100,7 @@ namespace OpenSim.world
     	}
 
     	public void CompleteMovement(World RegionInfo) {
-    		Console.WriteLine("Avatar.cs:CompleteMovement() - Constructing AgentMovementComplete packet");
+    		ServerConsole.MainConsole.Instance.WriteLine("Avatar.cs:CompleteMovement() - Constructing AgentMovementComplete packet");
     		AgentMovementCompletePacket mov = new AgentMovementCompletePacket();
     		mov.AgentData.SessionID = this.ControllingClient.SessionID;
     		mov.AgentData.AgentID = this.ControllingClient.AgentID;
@@ -110,7 +110,7 @@ namespace OpenSim.world
     		mov.Data.Position = new LLVector3(100f, 100f, 23f);
     		mov.Data.LookAt = new LLVector3(0.99f, 0.042f, 0);
     		
-    		Console.WriteLine("Sending AgentMovementComplete packet");
+    		ServerConsole.MainConsole.Instance.WriteLine("Sending AgentMovementComplete packet");
     		ControllingClient.OutPacket(mov);
     	}
 
@@ -199,11 +199,11 @@ namespace OpenSim.world
     	
 		//should be moved somewhere else
     	public void SendRegionHandshake(World RegionInfo) {
-    		Console.WriteLine("Avatar.cs:SendRegionHandshake() - Creating empty RegionHandshake packet");
+    		ServerConsole.MainConsole.Instance.WriteLine("Avatar.cs:SendRegionHandshake() - Creating empty RegionHandshake packet");
     		System.Text.Encoding _enc = System.Text.Encoding.ASCII;
     		RegionHandshakePacket handshake = new RegionHandshakePacket();
     		
-    		Console.WriteLine("Avatar.cs:SendRegionhandshake() - Filling in RegionHandshake details");
+    		ServerConsole.MainConsole.Instance.WriteLine("Avatar.cs:SendRegionhandshake() - Filling in RegionHandshake details");
     		handshake.RegionInfo.BillableFactor = 0;
     		handshake.RegionInfo.IsEstateManager = false;
     		handshake.RegionInfo.TerrainHeightRange00 = 60;
@@ -229,7 +229,7 @@ namespace OpenSim.world
     		handshake.RegionInfo.TerrainDetail3 = new LLUUID("00000000-0000-0000-0000-000000000000");
     		handshake.RegionInfo.CacheID = new LLUUID("545ec0a5-5751-1026-8a0b-216e38a7ab37");
     		
-    		Console.WriteLine("Avatar.cs:SendRegionHandshake() - Sending RegionHandshake packet");
+    		ServerConsole.MainConsole.Instance.WriteLine("Avatar.cs:SendRegionHandshake() - Sending RegionHandshake packet");
     		this.ControllingClient.OutPacket(handshake);
     	}
 		

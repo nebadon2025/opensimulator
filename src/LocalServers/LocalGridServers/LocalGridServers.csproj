@@ -26,10 +26,6 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Xml" />
-    <Reference Include="GridInterfaces">
-      <HintPath>..\..\..\GridInterfaces\GridInterfaces\bin\Debug\GridInterfaces.dll</HintPath>
-      <SpecificVersion>False</SpecificVersion>
-    </Reference>
     <Reference Include="libsecondlife">
       <HintPath>..\..\..\Libsecond-dailys\libsl-03-03\trunk\libsecondlife-cs\obj\Debug\libsecondlife.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
@@ -38,6 +34,16 @@
   <ItemGroup>
     <Compile Include="LocalGrid.cs" />
     <Compile Include="AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\ServerConsole\ServerConsole\ServerConsole.csproj">
+      <Project>{C9A6026D-8E0C-4FE4-8691-FB2A566AA245}</Project>
+      <Name>ServerConsole</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\GridInterfaces\GridInterfaces.csproj">
+      <Project>{5DA3174D-42F9-416D-9F0B-AF41FA2BE2F9}</Project>
+      <Name>GridInterfaces</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.Targets" />
 </Project>

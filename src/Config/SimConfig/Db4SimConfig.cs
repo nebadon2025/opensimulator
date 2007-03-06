@@ -36,16 +36,14 @@ namespace Db40SimConfig
 	{
 		public SimConfig GetConfigObject()
 		{
-			Console.WriteLine("Loading Config dll");
+			ServerConsole.MainConsole.Instance.WriteLine("Loading Db40Config dll");
 			return ( new DbSimConfig());
 		}
 	}
 	
 	public class DbSimConfig :SimConfig
 	{
-
-		private IObjectContainer db;
-		
+		private IObjectContainer db;	
 		
 		public void LoadDefaults() {
 			this.RegionName = "OpenSim test\0";
@@ -65,7 +63,7 @@ namespace Db40SimConfig
 				db = Db4oFactory.OpenFile("opensim.yap");
 				IObjectSet result = db.Get(typeof(DbSimConfig));
 				if(result.Count==1) {
-					Console.WriteLine("Config.cs:InitConfig() - Found a SimConfig object in the local database, loading");
+					ServerConsole.MainConsole.Instance.WriteLine("Config.cs:InitConfig() - Found a SimConfig object in the local database, loading");
 					foreach (DbSimConfig cfg in result) {
 						this.RegionName = cfg.RegionName;
 						this.RegionLocX = cfg.RegionLocX;
@@ -79,27 +77,27 @@ namespace Db40SimConfig
 						this.GridSendKey = cfg.GridSendKey;
 					}
 				} else {
-					Console.WriteLine("Config.cs:InitConfig() - Could not find object in database, loading precompiled defaults");
+					ServerConsole.MainConsole.Instance.WriteLine("Config.cs:InitConfig() - Could not find object in database, loading precompiled defaults");
 					LoadDefaults();
-					Console.WriteLine("Writing out default settings to local database");
+					ServerConsole.MainConsole.Instance.WriteLine("Writing out default settings to local database");
 					db.Set(this);
 				}
 			} catch(Exception e) {
 				db.Close();
-				Console.WriteLine("Config.cs:InitConfig() - Exception occured");
-				Console.WriteLine(e.ToString());
+				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:InitConfig() - Exception occured");
+				ServerConsole.MainConsole.Instance.WriteLine(e.ToString());
 			}
 		}
 	
 		public override World LoadWorld() {
 			IObjectSet world_result = db.Get(typeof(OpenSim.world.World));
 			if(world_result.Count==1) {
-				Console.WriteLine("Config.cs:LoadWorld() - Found an OpenSim.world.World object in local database, loading");
+				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Found an OpenSim.world.World object in local database, loading");
 				return (World)world_result.Next();	
 			} else {
-				Console.WriteLine("Config.cs:LoadWorld() - Could not find the world or too many worlds! Constructing blank one");
+				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Could not find the world or too many worlds! Constructing blank one");
 				World blank = new World();
-				Console.WriteLine("Config.cs:LoadWorld() - Saving initial world state to disk");
+				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Saving initial world state to disk");
 				db.Set(blank);
 				db.Commit();
 				return blank;	
@@ -107,7 +105,7 @@ namespace Db40SimConfig
 		}
 
 		public override void LoadFromGrid() {
-			Console.WriteLine("Config.cs:LoadFromGrid() - dummy function, DOING ABSOLUTELY NOTHING AT ALL!!!");
+			ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadFromGrid() - dummy function, DOING ABSOLUTELY NOTHING AT ALL!!!");
 			// TODO: Make this crap work
 			/* WebRequest GridLogin = WebRequest.Create(this.GridURL + "regions/" + this.RegionHandle.ToString() + "/login");
 			WebResponse GridResponse = GridLogin.GetResponse();

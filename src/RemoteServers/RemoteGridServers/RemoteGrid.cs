@@ -72,7 +72,7 @@ namespace RemoteGridServers
 		
 		public RemoteGridServer()
 		{
-			Console.WriteLine("Remote Grid Server class created");
+			ServerConsole.MainConsole.Instance.WriteLine("Remote Grid Server class created");
 		}
 		
 		public bool RequestConnection()
@@ -147,7 +147,7 @@ namespace RemoteGridServers
 			this._remoteAssetServerThread = new Thread(new ThreadStart(RunRequests));
 			this._remoteAssetServerThread.IsBackground = true;
 			this._remoteAssetServerThread.Start();
-			Console.WriteLine("Remote Asset Server class created");
+			ServerConsole.MainConsole.Instance.WriteLine("Remote Asset Server class created");
 		}
 		
 		public void SetReceiver(IAssetReceiver receiver)
@@ -186,7 +186,7 @@ namespace RemoteGridServers
 				//we need to add support for the asset server not knowing about a requested asset
 				ARequest req = this._assetRequests.Dequeue();
 				LLUUID assetID = req.AssetID;
-				Console.WriteLine(" RemoteAssetServer- Got a AssetServer request, processing it");
+				ServerConsole.MainConsole.Instance.WriteLine(" RemoteAssetServer- Got a AssetServer request, processing it");
 				WebRequest AssetLoad = WebRequest.Create(this.AssetServerUrl + "getasset/" + AssetSendKey + "/" + assetID + "/data");
 				WebResponse AssetResponse = AssetLoad.GetResponse();
 				byte[] idata = new byte[(int)AssetResponse.ContentLength];

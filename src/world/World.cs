@@ -46,7 +46,8 @@ namespace OpenSim.world
     	
     	public void Update()
     	{
-    		if(this.phyScene.IsThreaded)
+
+		if(this.phyScene.IsThreaded)
     		{
     			this.phyScene.GetResults();
     			
@@ -54,7 +55,7 @@ namespace OpenSim.world
     		
     		foreach (libsecondlife.LLUUID UUID in Entities.Keys)
     		{
-    			Entities[UUID].addFroces();
+    			Entities[UUID].addForces();
     		}
     		
     		this.phyScene.Simulate(timeStep);
@@ -87,13 +88,13 @@ namespace OpenSim.world
     		ServerConsole.MainConsole.Instance.WriteLine("World.cs:AddViewerAgent() - Creating new avatar for remote viewer agent");
     		Avatar NewAvatar = new Avatar(AgentClient);
     		ServerConsole.MainConsole.Instance.WriteLine("World.cs:AddViewerAgent() - Adding new avatar to world");
-    		this.Entities.Add(AgentClient.AgentID, NewAvatar);
     		ServerConsole.MainConsole.Instance.WriteLine("World.cs:AddViewerAgent() - Starting RegionHandshake ");
     		NewAvatar.SendRegionHandshake(this);
     		
     		NewAvatar.PhysActor = this.phyScene.AddAvatar(new PhysicsVector(NewAvatar.position.X, NewAvatar.position.Y, NewAvatar.position.Z));
     		//this.Update();		// will work for now, but needs to be optimised so we don't update everything in the sim for each new user
-    	}
+    		this.Entities.Add(AgentClient.AgentID, NewAvatar);
+	}
 
     	public bool Backup() {
     		/* TODO: Save the current world entities state. */

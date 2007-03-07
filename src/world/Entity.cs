@@ -27,11 +27,11 @@ namespace OpenSim.world
             name = "(basic entity)";
             children = new List<Entity>();
         }
-        public virtual void addFroces()
+        public virtual void addForces()
         {
         	foreach (Entity child in children)
             {
-                child.addFroces();
+                child.addForces();
             }
         }
         public virtual void update() {

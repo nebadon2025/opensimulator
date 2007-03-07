@@ -121,7 +121,7 @@ namespace OpenSim
     		sim.Startup();
     		
     		while(true) {
-    			ServerConsole.MainConsole.Instance.MainConsolePrompt();
+			ServerConsole.MainConsole.Instance.MainConsolePrompt();
     		}
     	}
 
@@ -237,7 +237,8 @@ namespace OpenSim
     	
     	void Timer1Tick( object sender, System.EventArgs e )
     	{
-    		local_world.Update();
+    		Console.WriteLine("UPDATE WORLD!");
+		local_world.Update();
     	}
     }
     

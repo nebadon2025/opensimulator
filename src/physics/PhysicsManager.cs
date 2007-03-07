@@ -61,7 +61,7 @@ namespace PhysicsSystem
 		public void LoadPlugins()
 		{
 			string path = Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory ,"Physics");
-       		string[] pluginFiles = Directory.GetFiles(path, "*.Dll");
+       		string[] pluginFiles = Directory.GetFiles(path, "*.dll");
         
 
         	for(int i= 0; i<pluginFiles.Length; i++)

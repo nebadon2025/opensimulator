@@ -35,7 +35,7 @@ namespace OpenSim.world
     			this._physActor = value;
     		}
     	}
-		public override void addFroces()
+		public override void addForces()
 		{
 			lock(this.forcesList)
 			{
@@ -43,6 +43,7 @@ namespace OpenSim.world
 				{
 					for(int i=0 ; i < this.forcesList.Count; i++)
 					{
+						Console.WriteLine("ADDING A FORCE!");
 						NewForce force = this.forcesList[i];
 						PhysicsVector phyVector = new PhysicsVector(force.X, force.Y, force.Z);
 						this._physActor.Velocity = phyVector;
@@ -60,7 +61,8 @@ namespace OpenSim.world
     	
     	public override void update()
     	{
-    		if(this.updateflag)
+    		Console.WriteLine("UPDATING AVATAR!");
+		if(this.updateflag)
     		{
     			//need to send movement info
     			//so create the improvedterseobjectupdate packet
@@ -75,7 +77,7 @@ namespace OpenSim.world
 					client.OutPacket(terse);
 				}
     			
-    			updateflag =false;
+    		updateflag =false;
     			this._updateCount = 0;
     		}
     		else

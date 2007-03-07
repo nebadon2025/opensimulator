@@ -59,6 +59,8 @@ namespace OpenSim.Assets
 		{
 			_assetServer = assetServer;
 			_assetServer.SetReceiver(this);
+             		Assets = new Dictionary<libsecondlife.LLUUID, AssetInfo> ();
+			Textures = new Dictionary<libsecondlife.LLUUID, TextureImage> ();
 			this._assetCacheThread = new Thread( new ThreadStart(RunAssetManager));
 			this._assetCacheThread.IsBackground = true;
 			this._assetCacheThread.Start();

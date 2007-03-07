@@ -99,6 +99,15 @@ namespace OpenSim
 		    	case PacketType.AgentUpdate:
 		    		ClientAvatar.HandleUpdate((AgentUpdatePacket)Pack);
 		    		break;
+		    	case PacketType.LogoutRequest:
+		    		ServerConsole.MainConsole.Instance.WriteLine("OpenSimClient.cs:ProcessInPacket() - Got a logout request");
+		    		lock(OpenSim_Main.local_world.Entities) {
+		    			OpenSim_Main.local_world.Entities.Remove(this.AgentID);
+		    		}
+		    		//need to do other cleaning up here too
+		    		OpenSim_Main.gridServers.GridServer.LogoutSession(cirpack.CircuitCode.SessionID, cirpack.CircuitCode.ID, cirpack.CircuitCode.Code);
+		    		this.ClientThread.Abort();
+		    		break;
 		    	case PacketType.ChatFromViewer:
 		    		ChatFromViewerPacket inchatpack = (ChatFromViewerPacket)Pack;
 		    		if(Helpers.FieldToString(inchatpack.ChatData.Message)=="") break;

@@ -109,6 +109,18 @@ namespace RemoteGridServers
 			return(user);
 		}
 		
+		public bool LogoutSession(LLUUID sessionID, LLUUID agentID, uint circuitCode)
+		{
+			WebRequest DeleteSession = WebRequest.Create(GridServerUrl + "/usersessions/" + GridSendKey + "/" + agentID.ToString() + circuitCode.ToString() + "/delete");
+			WebResponse GridResponse = DeleteSession.GetResponse();
+			StreamReader sr = new StreamReader(GridResponse.GetResponseStream());
+			String grTest = sr.ReadLine();
+			sr.Close();
+			GridResponse.Close();
+			ServerConsole.MainConsole.Instance.WriteLine("DEBUG: " + grTest);
+			return(true);
+		}
+		
 		public UUIDBlock RequestUUIDBlock()
 		{
 			UUIDBlock uuidBlock = new UUIDBlock();

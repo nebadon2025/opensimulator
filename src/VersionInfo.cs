@@ -1,5 +1,5 @@
 /*
-* Copyright (c) OpenSim project, http://sim.opensecondlife.org/
+Copyright (c) OpenSim project, http://osgrid.org/
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are met:
@@ -22,73 +22,16 @@
 * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-* 
 */
 
-
 using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Net.Sockets;
-using System.IO;
-using libsecondlife;
 
-namespace OpenSim.GridServers
+namespace OpenSim
 {
 	/// <summary>
-	/// Handles connection to Grid Servers.
-	/// also Sim to Sim connections?
 	/// </summary>
-	
-	
-	
-	
-	public interface IGridServer
+	public class VersionInfo
 	{
-		bool RequestConnection();
-		UUIDBlock RequestUUIDBlock();
-		void RequestNeighbours(); //should return a array of neighbouring regions
-		AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode);
-		bool LogoutSession(LLUUID sessionID, LLUUID agentID, uint circuitCode);
-		void SetServerInfo(string ServerUrl, string ServerKey);
-	 	void AddNewSession(Login session); // only used by local version of grid server 
-	 									   // and didn't use to be part of this interface until we put this in a dll
-	}
-	
-	public struct UUIDBlock
-	{
-		public LLUUID BlockStart;
-		public LLUUID BlockEnd;
-	}
-	
-	public class AuthenticateResponse
-	{
-		public bool Authorised;
-		public Login LoginInfo;
-		
-		public AuthenticateResponse()
-		{
-			
-		}
-			
-	}
-	
-	public class Login
-    {
-    	public string First = "Test";
-    	public string Last = "User";
-    	public LLUUID Agent;
-    	public LLUUID Session;
-    	public LLUUID InventoryFolder;
-    	public LLUUID BaseFolder;
-    	public Login()
-    	{
-    		
-    	}
-    }
-
-	public interface IGridPlugin
-	{
-		IGridServer GetGridServer();
+		public static string Version = "0.0.1-*"; 
 	}
 }

@@ -19,6 +19,7 @@ namespace OpenSim.world
 		private bool updateflag;
 		private bool walking;
 		private List<NewForce> forcesList = new List<NewForce>();
+		private short _updateCount;
 		
     	public Avatar(OpenSimClient TheClient) {
     		ServerConsole.MainConsole.Instance.WriteLine("Avatar.cs - Loading details from grid (DUMMY)");
@@ -36,16 +37,23 @@ namespace OpenSim.world
     	}
 		public override void addFroces()
 		{
-			if(this.forcesList.Count>0)
+			lock(this.forcesList)
 			{
-				for(int i=0 ; i < this.forcesList.Count; i++)
+				if(this.forcesList.Count>0)
 				{
-					NewForce force = this.forcesList[i];
-					PhysicsVector phyVector = new PhysicsVector(force.X, force.Y, force.Z);
-					this._physActor.Velocity = phyVector;
-					this.updateflag = true;
-					this.velocity = new LLVector3(force.X, force.Y, force.Z); //shouldn't really be doing this
-																			  // but as we are setting the velocity (rather than using real forces) at the moment it is okay.				
+					for(int i=0 ; i < this.forcesList.Count; i++)
+					{
+						NewForce force = this.forcesList[i];
+						PhysicsVector phyVector = new PhysicsVector(force.X, force.Y, force.Z);
+						this._physActor.Velocity = phyVector;
+						this.updateflag = true;
+						this.velocity = new LLVector3(force.X, force.Y, force.Z); //shouldn't really be doing this
+						// but as we are setting the velocity (rather than using real forces) at the moment it is okay.
+					}
+					for(int i=0 ; i < this.forcesList.Count; i++)
+					{
+						this.forcesList.RemoveAt(0);
+					}
 				}
 			}
 		}
@@ -60,7 +68,7 @@ namespace OpenSim.world
     			ImprovedTerseObjectUpdatePacket.ObjectDataBlock terseBlock = CreateTerseBlock();
     			ImprovedTerseObjectUpdatePacket terse = new ImprovedTerseObjectUpdatePacket();
     			terse.RegionData.RegionHandle = OpenSim_Main.cfg.RegionHandle; // FIXME
-    			terse.RegionData.TimeDilation = 0;
+    			terse.RegionData.TimeDilation = 64096;
     			terse.ObjectData = new ImprovedTerseObjectUpdatePacket.ObjectDataBlock[1];
     			terse.ObjectData[0] = terseBlock;
     			foreach(OpenSimClient client in OpenSim_Main.sim.ClientThreads.Values) {
@@ -68,6 +76,25 @@ namespace OpenSim.world
 				}
     			
     			updateflag =false;
+    			this._updateCount = 0;
+    		}
+    		else
+    		{
+    			_updateCount++;
+    			if(_updateCount>5)
+    			{
+    				//It has been a while since last update was sent so lets send one.
+    				ImprovedTerseObjectUpdatePacket.ObjectDataBlock terseBlock = CreateTerseBlock();
+    				ImprovedTerseObjectUpdatePacket terse = new ImprovedTerseObjectUpdatePacket();
+    				terse.RegionData.RegionHandle = OpenSim_Main.cfg.RegionHandle; // FIXME
+    				terse.RegionData.TimeDilation = 64096;
+    				terse.ObjectData = new ImprovedTerseObjectUpdatePacket.ObjectDataBlock[1];
+    				terse.ObjectData[0] = terseBlock;
+    				foreach(OpenSimClient client in OpenSim_Main.sim.ClientThreads.Values) {
+    					client.OutPacket(terse);
+    				}
+    				_updateCount = 0;
+    			}
     		}
     	}
 
@@ -110,13 +137,12 @@ namespace OpenSim.world
     		mov.Data.Position = new LLVector3(100f, 100f, 23f);
     		mov.Data.LookAt = new LLVector3(0.99f, 0.042f, 0);
     		
-    		ServerConsole.MainConsole.Instance.WriteLine("Sending AgentMovementComplete packet");
     		ControllingClient.OutPacket(mov);
     	}
 
     	public void SendInitialPosition() {
+    		
     		System.Text.Encoding _enc = System.Text.Encoding.ASCII;
-
     		//send a objectupdate packet with information about the clients avatar
     		ObjectUpdatePacket objupdate = new ObjectUpdatePacket();
     		objupdate.RegionData.RegionHandle = OpenSim_Main.cfg.RegionHandle;
@@ -243,6 +269,7 @@ namespace OpenSim.world
 			libsecondlife.LLVector3 pos2 = new LLVector3(this._physActor.Position.X, this._physActor.Position.Y, this._physActor.Position.Z);
 			
 			uint ID = this.localid;
+			
 			bytes[i++] = (byte)(ID % 256);
 			bytes[i++] = (byte)((ID >> 8) % 256);
 			bytes[i++] = (byte)((ID >> 16) % 256);
@@ -259,6 +286,7 @@ namespace OpenSim.world
 			ushort InternVelocityX;
 			ushort InternVelocityY;
 			ushort InternVelocityZ;
+			
 			Axiom.MathLib.Vector3 internDirec = new Axiom.MathLib.Vector3(this._physActor.Velocity.X, this._physActor.Velocity.Y, this._physActor.Velocity.Z);
 			internDirec = internDirec /128.0f;
 			internDirec.x += 1;
@@ -268,7 +296,6 @@ namespace OpenSim.world
 			InternVelocityX = (ushort)(32768 * internDirec.x);
 			InternVelocityY = (ushort)(32768 * internDirec.y);
 			InternVelocityZ = (ushort)(32768 * internDirec.z);
-			
 			
 			ushort ac = 32767;
 			bytes[i++] = (byte)(InternVelocityX % 256);

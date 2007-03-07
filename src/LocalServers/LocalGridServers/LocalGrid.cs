@@ -144,6 +144,11 @@ namespace LocalGridServers
 			return(user);
 		}
 		
+		public bool LogoutSession(LLUUID sessionID, LLUUID agentID, uint circuitCode)
+		{
+			return(true);
+		}
+		
 		public UUIDBlock RequestUUIDBlock()
 		{
 			UUIDBlock uuidBlock = new UUIDBlock();

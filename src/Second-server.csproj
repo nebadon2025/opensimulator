@@ -48,7 +48,7 @@
       <SpecificVersion>False</SpecificVersion>
     </Reference>
     <Reference Include="libsecondlife">
-      <HintPath>..\Version0_2_myserver\OpenSim\bin\Debug\libsecondlife.dll</HintPath>
+      <HintPath>..\Libsecond-dailys\libsl07-03\trunk\libsecondlife-cs\obj\Debug\libsecondlife.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
     </Reference>
   </ItemGroup>
@@ -65,11 +65,12 @@
     <Compile Include="world\ScriptEngine.cs" />
     <Compile Include="world\scripting\IScript.cs" />
     <Compile Include="world\SurfacePatch.cs" />
-    <Compile Include="world\TerrainDecoder.cs" />
     <Compile Include="world\World.cs" />
     <Compile Include="GridServers\LoginServer.cs" />
     <Compile Include="Assets\AssetCache.cs" />
     <Compile Include="OpenSimConsole.cs" />
+    <Compile Include="HeightMapGenHills.cs" />
+    <Compile Include="VersionInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="GridServers" />

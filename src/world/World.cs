@@ -12,10 +12,10 @@ namespace OpenSim.world
     	public Dictionary<libsecondlife.LLUUID, Entity> Entities;
     	public float[] LandMap;
     	public ScriptEngine Scripts;
-    	public TerrainDecode terrainengine = new TerrainDecode();
     	public uint _localNumber=0;
     	private PhysicsScene phyScene;
     	private float timeStep= 0.1f;
+    	private libsecondlife.TerrainManager TerrainManager;
     	
     	private Random Rand = new Random();
 
@@ -25,13 +25,11 @@ namespace OpenSim.world
     		Entities = new Dictionary<libsecondlife.LLUUID, Entity>();
 
     		ServerConsole.MainConsole.Instance.WriteLine("World.cs - creating LandMap");
-    		terrainengine = new TerrainDecode();
-    		LandMap = new float[65536];
-    		
-    		
-    		ServerConsole.MainConsole.Instance.WriteLine("World.cs - Creating script engine instance");
+    		TerrainManager = new TerrainManager(new SecondLife());
+    			
+    	//	ServerConsole.MainConsole.Instance.WriteLine("World.cs - Creating script engine instance");
     		// Initialise this only after the world has loaded
-    		Scripts = new ScriptEngine(this);
+    	//	Scripts = new ScriptEngine(this);
     	}
     	
     	public PhysicsScene PhysScene
@@ -39,6 +37,10 @@ namespace OpenSim.world
     		set
     		{
     			this.phyScene = value;
+    		}
+    		get
+    		{
+    			return(this.phyScene);
     		}
     	}
     	
@@ -64,10 +66,21 @@ namespace OpenSim.world
     	}
 
     	public void SendLayerData(OpenSimClient RemoteClient) {
-    		for(int x=0; x<16; x=x+4) for(int y=0; y<16; y++){
-    			Packet layerpack=this.terrainengine.CreateLayerPacket(LandMap, x,y,x+4,y+1);
-    			RemoteClient.OutPacket(layerpack);
-    		}
+    		int[] patches = new int[4];
+
+            for (int y = 0; y < 16; y++)
+            {
+                for (int x = 0; x < 16; x = x + 4)
+                {
+                    patches[0] = x + 0 + y * 16;
+                    patches[1] = x + 1 + y * 16;
+                    patches[2] = x + 2 + y * 16;
+                    patches[3] = x + 3 + y * 16;
+
+                    Packet layerpack = TerrainManager.CreateLandPacket(LandMap, patches);
+                    RemoteClient.OutPacket(layerpack);
+                }
+            }
     	}
 
     	public void AddViewerAgent(OpenSimClient AgentClient) {

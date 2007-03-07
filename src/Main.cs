@@ -77,7 +77,7 @@ namespace OpenSim
     	[STAThread]
     	public static void Main( string[] args )
     	{
-    		//Console.WriteLine("OpenSim " + VersionInfo.Version + "\n");
+    		Console.WriteLine("OpenSim " + VersionInfo.Version + "\n");
     		Console.WriteLine("Starting...\n");
     		ServerConsole.MainConsole.Instance = new MServerConsole(ServerConsole.ConsoleBase.ConsoleType.Local,"",0);
     		
@@ -136,7 +136,7 @@ namespace OpenSim
     		
     		// We check our local database first, then the grid for config options
     		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Loading configuration");
-    		cfg = this.LoadConfigDll();
+    		cfg = this.LoadConfigDll(this.ConfigDll);
     		cfg.InitConfig();
     		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Contacting gridserver");
     		cfg.LoadFromGrid();
@@ -149,16 +149,17 @@ namespace OpenSim
     		this.physManager.LoadPlugins();
     		ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Starting up messaging system");
     		local_world.PhysScene = this.physManager.GetPhysicsScene("PhysX"); //should be reading from the config file what physics engine to use
-			OpenSim_Main.gridServers.AssetServer.SetServerInfo(OpenSim_Main.cfg.AssetURL, OpenSim_Main.cfg.AssetSendKey);
+    		local_world.PhysScene.SetTerrain(local_world.LandMap);
+    		OpenSim_Main.gridServers.AssetServer.SetServerInfo(OpenSim_Main.cfg.AssetURL, OpenSim_Main.cfg.AssetSendKey);
     		OpenSim_Main.gridServers.GridServer.SetServerInfo(OpenSim_Main.cfg.GridURL, OpenSim_Main.cfg.GridSendKey);
     		
     		MainServerListener();
 
     	}
     	
-    	private SimConfig LoadConfigDll()
+    	private SimConfig LoadConfigDll(string dllName)
     	{
-    		Assembly pluginAssembly = Assembly.LoadFrom(this.ConfigDll);
+    		Assembly pluginAssembly = Assembly.LoadFrom(dllName);
 			SimConfig config = null;
 			
 			foreach (Type pluginType in pluginAssembly.GetTypes())
@@ -191,7 +192,7 @@ namespace OpenSim
     		int numBytes = Server.EndReceiveFrom(result, ref epSender);
     		int packetEnd = numBytes - 1;
     		packet = Packet.BuildPacket(RecvBuffer, ref packetEnd, ZeroBuffer);
-    		Console.Error.WriteLine(packet.ToString());
+    		//Console.Error.WriteLine(packet.ToString());
 
     		// This is either a new client or a packet to send to an old one
     		if(ClientThreads.ContainsKey(epSender)) {
@@ -253,13 +254,13 @@ namespace OpenSim
     	
     	public void LoadPlugins()
     	{
-    			this.AssetServer =(IAssetServer) this.LoadAssetDll();
-    			this.GridServer =(IGridServer) this.LoadGridDll();
+    		this.AssetServer = this.LoadAssetDll(this.AssetDll);
+    		this.GridServer = this.LoadGridDll(this.GridDll);
     	}
     	
-    	private IAssetServer LoadAssetDll()
+    	private IAssetServer LoadAssetDll(string dllName)
     	{
-    		Assembly pluginAssembly = Assembly.LoadFrom(this.AssetDll);
+    		Assembly pluginAssembly = Assembly.LoadFrom(dllName);
 			IAssetServer server = null;
 			
 			foreach (Type pluginType in pluginAssembly.GetTypes())
@@ -285,9 +286,9 @@ namespace OpenSim
 			return server;
     	}
     	
-    	private IGridServer LoadGridDll()
+    	private IGridServer LoadGridDll(string dllName)
     	{
-    		Assembly pluginAssembly = Assembly.LoadFrom(this.GridDll);
+    		Assembly pluginAssembly = Assembly.LoadFrom(dllName);
 			IGridServer server = null;
 			
 			foreach (Type pluginType in pluginAssembly.GetTypes())

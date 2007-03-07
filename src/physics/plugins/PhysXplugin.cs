@@ -70,6 +70,7 @@ namespace PhysXplugin
 	public class PhysXScene :PhysicsScene
 	{
 		private List<PhysXActor> _actors = new List<PhysXActor>();
+		private float[] _heightMap;
 		
 		public PhysXScene()
 		{
@@ -91,7 +92,8 @@ namespace PhysXplugin
 				actor.Position.X = actor.Position.X + actor.Velocity.X * timeStep;
 				actor.Position.Y = actor.Position.Y + actor.Velocity.Y * timeStep;
 				actor.Position.Z = actor.Position.Z + actor.Velocity.Z * timeStep;
-				if(actor.Position.X<0) 
+				actor.Position.Z = _heightMap[(int)actor.Position.Y * 256 + (int)actor.Position.X]+1;
+				if(actor.Position.X<0)
 				{
 					actor.Position.X = 0;
 					actor.Velocity.X = 0;
@@ -129,7 +131,7 @@ namespace PhysXplugin
 		
 		public override void SetTerrain(float[] heightMap)
 		{
-			
+			this._heightMap = heightMap;
 		}
 	}
 	

@@ -119,11 +119,6 @@ namespace Db40SimConfig
 				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - No heightmap found, generating new one");
 				HeightmapGenHills hills = new HeightmapGenHills();
                 blank.LandMap = hills.GenerateHeightmap(200, 4.0f, 80.0f, false);
-               /* blank.LandMap = new float[65536];
-                for(int i = 0 ; i <65536; i++)
-                {
-                	blank.LandMap[i] = 20.49f;
-				}*/
 				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Saving heightmap to local database");
 				db.Set(blank.LandMap);
 				db.Commit();

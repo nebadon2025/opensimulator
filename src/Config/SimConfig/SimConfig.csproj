@@ -26,12 +26,8 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Xml" />
-    <Reference Include="OpenSim">
-      <HintPath>..\..\bin\OpenSim.exe</HintPath>
-      <SpecificVersion>False</SpecificVersion>
-    </Reference>
     <Reference Include="Db4objects.Db4o">
-      <HintPath>..\..\..\..\..\Program Files\Db4objects\db4o-6.1\bin\net-2.0\Db4objects.Db4o.dll</HintPath>
+      <HintPath>..\..\..\bin\Db4objects.Db4o.dll</HintPath>
       <SpecificVersion>False</SpecificVersion>
     </Reference>
   </ItemGroup>
@@ -43,6 +39,10 @@
     <ProjectReference Include="..\..\ServerConsole\ServerConsole\ServerConsole.csproj">
       <Project>{C9A6026D-8E0C-4FE4-8691-FB2A566AA245}</Project>
       <Name>ServerConsole</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Second-server.csproj">
+      <Project>{132A6E3E-8F2D-4BF5-BDFB-8555F53F334E}</Project>
+      <Name>Second-server</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.Targets" />

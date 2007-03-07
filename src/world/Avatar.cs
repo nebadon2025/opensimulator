@@ -26,6 +26,7 @@ namespace OpenSim.world
     		ControllingClient=TheClient;
     		SetupTemplate("avatar-template.dat");
 			position = new LLVector3(100.0f,100.0f,30.0f);
+			position.Z = OpenSim_Main.local_world.LandMap[(int)position.Y * 256 + (int)position.X]+1;
 		}
     	
     	public PhysicsActor PhysActor
@@ -43,7 +44,6 @@ namespace OpenSim.world
 				{
 					for(int i=0 ; i < this.forcesList.Count; i++)
 					{
-						Console.WriteLine("ADDING A FORCE!");
 						NewForce force = this.forcesList[i];
 						PhysicsVector phyVector = new PhysicsVector(force.X, force.Y, force.Z);
 						this._physActor.Velocity = phyVector;
@@ -61,8 +61,8 @@ namespace OpenSim.world
     	
     	public override void update()
     	{
-    		Console.WriteLine("UPDATING AVATAR!");
-		if(this.updateflag)
+    		
+    		if(this.updateflag)
     		{
     			//need to send movement info
     			//so create the improvedterseobjectupdate packet
@@ -74,28 +74,31 @@ namespace OpenSim.world
     			terse.ObjectData = new ImprovedTerseObjectUpdatePacket.ObjectDataBlock[1];
     			terse.ObjectData[0] = terseBlock;
     			foreach(OpenSimClient client in OpenSim_Main.sim.ClientThreads.Values) {
-					client.OutPacket(terse);
-				}
+    				client.OutPacket(terse);
+    			}
     			
-    		updateflag =false;
+    			updateflag =false;
     			this._updateCount = 0;
     		}
     		else
     		{
-    			_updateCount++;
-    			if(_updateCount>5)
+    			if(walking)
     			{
-    				//It has been a while since last update was sent so lets send one.
-    				ImprovedTerseObjectUpdatePacket.ObjectDataBlock terseBlock = CreateTerseBlock();
-    				ImprovedTerseObjectUpdatePacket terse = new ImprovedTerseObjectUpdatePacket();
-    				terse.RegionData.RegionHandle = OpenSim_Main.cfg.RegionHandle; // FIXME
-    				terse.RegionData.TimeDilation = 64096;
-    				terse.ObjectData = new ImprovedTerseObjectUpdatePacket.ObjectDataBlock[1];
-    				terse.ObjectData[0] = terseBlock;
-    				foreach(OpenSimClient client in OpenSim_Main.sim.ClientThreads.Values) {
-    					client.OutPacket(terse);
+    				_updateCount++;
+    				if(_updateCount>3)
+    				{
+    					//It has been a while since last update was sent so lets send one.
+    					ImprovedTerseObjectUpdatePacket.ObjectDataBlock terseBlock = CreateTerseBlock();
+    					ImprovedTerseObjectUpdatePacket terse = new ImprovedTerseObjectUpdatePacket();
+    					terse.RegionData.RegionHandle = OpenSim_Main.cfg.RegionHandle; // FIXME
+    					terse.RegionData.TimeDilation = 64096;
+    					terse.ObjectData = new ImprovedTerseObjectUpdatePacket.ObjectDataBlock[1];
+    					terse.ObjectData[0] = terseBlock;
+    					foreach(OpenSimClient client in OpenSim_Main.sim.ClientThreads.Values) {
+    						client.OutPacket(terse);
+    					}
+    					_updateCount = 0;
     				}
-    				_updateCount = 0;
     			}
     		}
     	}

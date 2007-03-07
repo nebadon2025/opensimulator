@@ -91,6 +91,9 @@ namespace OpenSim
 		    	case PacketType.AgentWearablesRequest:
 		    		ClientAvatar.SendInitialAppearance();
 		    		break;
+		    	case PacketType.ObjectAdd:
+		    		OpenSim_Main.local_world.AddNewPrim((ObjectAddPacket)Pack, this);
+		    		break;
 		    	case PacketType.TransferRequest:
 		    		//Console.WriteLine("OpenSimClient.cs:ProcessInPacket() - Got transfer request");
 		    		TransferRequestPacket transfer = (TransferRequestPacket)Pack;
@@ -251,7 +254,7 @@ namespace OpenSim
 	 				}
 	 			}
 
-		ServerConsole.MainConsole.Instance.WriteLine("OUT: \n" + Pack.ToString());
+			ServerConsole.MainConsole.Instance.WriteLine("OUT: \n" + Pack.ToString());
 
 		    byte[] ZeroOutBuffer = new byte[4096];
 		    byte[] sendbuffer; 

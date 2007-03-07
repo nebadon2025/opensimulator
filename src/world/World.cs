@@ -18,6 +18,7 @@ namespace OpenSim.world
     	private libsecondlife.TerrainManager TerrainManager;
     	
     	private Random Rand = new Random();
+    	private uint _primCount = 702000;
 
     	public World()
     	{
@@ -95,11 +96,22 @@ namespace OpenSim.world
     		//this.Update();		// will work for now, but needs to be optimised so we don't update everything in the sim for each new user
     		this.Entities.Add(AgentClient.AgentID, NewAvatar);
 	}
+    	
+    	public void AddNewPrim(ObjectAddPacket addPacket, OpenSimClient AgentClient)
+    	{
+    		ServerConsole.MainConsole.Instance.WriteLine("World.cs: AddNewPrim() - Creating new prim");
+    		Primitive prim = new Primitive();
+    		prim.CreateFromPacket(addPacket, AgentClient.AgentID, this._primCount);
+    		this.Entities.Add(prim.uuid, prim);
+    		this._primCount++;
+    	}
 
     	public bool Backup() {
     		/* TODO: Save the current world entities state. */
 
     		return false;
     	}
+    	
+    	
     }
 }

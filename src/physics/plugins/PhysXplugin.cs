@@ -87,10 +87,8 @@ namespace PhysXplugin
 		
 		public override void Simulate(float timeStep)
 		{
-			Console.WriteLine("SIMULATE!");
 			foreach (PhysXActor actor in _actors)
 			{
-				Console.WriteLine("AN ACTOR!");
 				actor.Position.X = actor.Position.X + actor.Velocity.X * timeStep;
 				actor.Position.Y = actor.Position.Y + actor.Velocity.Y * timeStep;
 				actor.Position.Z = actor.Position.Z + actor.Velocity.Z * timeStep;
@@ -120,7 +118,7 @@ namespace PhysXplugin
 		
 		public override void GetResults()
 		{
-		Console.WriteLine("GET RESULTS!");	
+		
 		}
 		
 		public override bool IsThreaded

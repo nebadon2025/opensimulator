@@ -50,6 +50,11 @@ namespace ServerConsole
 		}
 	}
 	
+	public abstract class conscmd_callback {
+		public abstract void RunCmd(string cmd, string[] cmdparams);
+		public abstract void Show(string ShowWhat);
+	}
+
 	public abstract class ConsoleBase
 	{
 		

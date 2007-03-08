@@ -31,11 +31,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.IO;
 using System.Net;
-using libsecondlife;
-using libsecondlife.Packets;
 using ServerConsole;
 
-namespace OpenSim
+namespace OpenGridServices
 {
 	/// <summary>
 	/// Description of ServerConsole.
@@ -45,31 +43,33 @@ namespace OpenSim
 			
 		private ConsoleType ConsType;
 		StreamWriter Log;
-		
+		public conscmd_callback cmdparser;
+		public string componentname;
 		
 		// STUPID HACK ALERT!!!! STUPID HACK ALERT!!!!!
 		// constype - the type of console to use (see enum ConsoleType)
 		// sparam - depending on the console type:
 		//		TCP - the IP to bind to (127.0.0.1 if blank)
 		//		Local - param ignored
-		//		SimChat - the AgentID of this sim's admin
 		// and for the iparam:
 		//		TCP - the port to bind to
 		//		Local - param ignored
-		//		SimChat - the chat channel to accept commands from
-		public MServerConsole(ConsoleType constype, string sparam, int iparam) {
+		// LogFile - duh
+		// componentname - which component of the OGS system? (user, asset etc)
+		
+		public MServerConsole(ConsoleType constype, string sparam, int iparam, string LogFile, string componentname) {
 			ConsType = constype;
+			this.componentname = componentname;
 			switch(constype) {
 				case ConsoleType.Local:
 				Console.WriteLine("ServerConsole.cs - creating new local console");
-				Console.WriteLine("Logs will be saved to current directory in opensim-console.log");
-				Log=File.AppendText("opensim-console.log");
+				Console.WriteLine("Logs will be saved to current directory in " + LogFile);
+				Log=File.AppendText(LogFile);
 				Log.WriteLine("========================================================================");
-				//Log.WriteLine("OpenSim " + VersionInfo.Version + " Started at " + DateTime.Now.ToString());
+				Log.WriteLine(componentname + VersionInfo.Version + " Started at " + DateTime.Now.ToString());
 				break;
+				
 				case ConsoleType.TCP:
-				break;
-				case ConsoleType.SimChat:
 				break;
 				
 				default:
@@ -79,7 +79,7 @@ namespace OpenSim
 		}
 
 		public override void Close() {
-			Log.WriteLine("OpenSim shutdown at " + DateTime.Now.ToString());
+			Log.WriteLine("Shutdown at " + DateTime.Now.ToString());
 			Log.Close();
 		}
 	
@@ -141,54 +141,25 @@ namespace OpenSim
 
 		// Runs a command with a number of parameters
 		public override Object RunCmd(string Cmd, string[] cmdparams) {
-			switch(Cmd) {
-				case "help":
-				this.WriteLine("show users - show info about connected users");
-				this.WriteLine("shutdown - disconnect all clients and shutdown");
-				break;
-				
-				case "show":
-				ShowCommands(cmdparams[0]);
-				break;
-				
-				case "shutdown":
-				OpenSim_Main.Shutdown();
-				break;
-			}
+			cmdparser.RunCmd(Cmd, cmdparams);
 			return null;
 		}
 
 		// Shows data about something
 		public override void ShowCommands(string ShowWhat) {
-			switch(ShowWhat) {
-                                case "uptime":
-				this.WriteLine("OpenSim has been running since " + OpenSim_Main.sim.startuptime.ToString());
-                this.WriteLine("That is " + (DateTime.Now-OpenSim_Main.sim.startuptime).ToString());
-				break;
-				case "users":
-				OpenSim.world.Avatar TempAv;
-				this.WriteLine(String.Format("{0,-16}{1,-16}{2,-25}{3,-25}{4,-16},{5,-16}","Firstname", "Lastname","Agent ID", "Session ID", "Circuit", "IP"));
-				foreach (libsecondlife.LLUUID UUID in OpenSim_Main.local_world.Entities.Keys) {
-					TempAv=(OpenSim.world.Avatar)OpenSim_Main.local_world.Entities[UUID];
-					this.WriteLine(String.Format("{0,-16}{1,-16}{2,-25}{3,-25}{4,-16},{5,-16}",TempAv.firstname, TempAv.lastname,UUID, TempAv.ControllingClient.SessionID, TempAv.ControllingClient.CircuitCode, TempAv.ControllingClient.userEP.ToString()));
-				}
-				break;
-			}
+			cmdparser.Show(ShowWhat);
 		}
-	
-		// Displays a prompt to the user and then runs the command they entered
-		public override void MainConsolePrompt() {
-			string[] tempstrarray;
-			string tempstr = this.CmdPrompt("OpenSim-" + OpenSim_Main.cfg.RegionHandle.ToString() + " # ");
-			tempstrarray = tempstr.Split(' ');
-			string cmd=tempstrarray[0];
-			Array.Reverse(tempstrarray);
-			Array.Resize<string>(ref tempstrarray,tempstrarray.Length-1);
-			Array.Reverse(tempstrarray);
-			string[] cmdparams=(string[])tempstrarray;
-			RunCmd(cmd,cmdparams);
-		}
+
+                public override void MainConsolePrompt() {
+                        string[] tempstrarray;
+                        string tempstr = this.CmdPrompt(this.componentname + "# ");
+                        tempstrarray = tempstr.Split(' ');
+                        string cmd=tempstrarray[0];
+                        Array.Reverse(tempstrarray);
+                        Array.Resize<string>(ref tempstrarray,tempstrarray.Length-1);
+                        Array.Reverse(tempstrarray);
+                        string[] cmdparams=(string[])tempstrarray;
+                        RunCmd(cmd,cmdparams);
+                }
 	}
 }
-	
-

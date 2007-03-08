@@ -49,6 +49,7 @@
 			<sources>
 				<include name="../common/src/VersionInfo.cs" />
 				<include name="../common/src/OGS-Console.cs" />
+				<include name="src/ConsoleCmds.cs" />
 				<include name="src/Main.cs" />
 			</sources>
 	</csc>

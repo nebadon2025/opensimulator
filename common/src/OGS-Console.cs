@@ -56,17 +56,19 @@ namespace OpenGridServices
 		//		Local - param ignored
 		// LogFile - duh
 		// componentname - which component of the OGS system? (user, asset etc)
-		
-		public MServerConsole(ConsoleType constype, string sparam, int iparam, string LogFile, string componentname) {
+		// cmdparser - a reference to a conscmd_callback object
+	
+		public MServerConsole(ConsoleType constype, string sparam, int iparam, string LogFile, string componentname, conscmd_callback cmdparser) {
 			ConsType = constype;
 			this.componentname = componentname;
+			this.cmdparser = cmdparser;
 			switch(constype) {
 				case ConsoleType.Local:
 				Console.WriteLine("ServerConsole.cs - creating new local console");
 				Console.WriteLine("Logs will be saved to current directory in " + LogFile);
 				Log=File.AppendText(LogFile);
 				Log.WriteLine("========================================================================");
-				Log.WriteLine(componentname + VersionInfo.Version + " Started at " + DateTime.Now.ToString());
+				Log.WriteLine(componentname + " " + VersionInfo.Version + " Started at " + DateTime.Now.ToString());
 				break;
 				
 				case ConsoleType.TCP:

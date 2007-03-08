@@ -33,33 +33,28 @@ using ServerConsole;
 
 namespace OpenGridServices
 {
-	/// <summary>
-	/// </summary>
-	public class OpenGrid_Main
-	{
-		
-		public static OpenGrid_Main thegrid;
 
-		[STAThread]
-		public static void Main( string[] args )
-		{
-			Console.WriteLine("OpenGrid " + VersionInfo.Version + "\n");
-			Console.WriteLine("Starting...\n");
-			ServerConsole.MainConsole.Instance = new MServerConsole(ServerConsole.ConsoleBase.ConsoleType.Local, "", 0, "opengrid-console.log", "OpenGrid", new GridConsole());
+	public class GridConsole : conscmd_callback {
+		public GridConsole() { }
 
-			thegrid = new OpenGrid_Main();
-			thegrid.Startup();
-	
-			ServerConsole.MainConsole.Instance.WriteLine("\nEnter help for a list of commands\n");
-	
-			while(true) {
-				ServerConsole.MainConsole.Instance.MainConsolePrompt();
+                public override void RunCmd(string cmd, string[] cmdparams) {
+			switch(cmd) {
+	                        case "help":
+                                        ServerConsole.MainConsole.Instance.WriteLine("shutdown - shutdown the grid (USE CAUTION!)"
+);
+                                break;
+			
+				case "shutdown":
+					ServerConsole.MainConsole.Instance.Close();
+					Environment.Exit(0);
+				break;
 			}
 		}
-	
-		public void Startup() {
-			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Looking for configuration");
+                
+		public override void Show(string ShowWhat) {
+			switch(ShowWhat) {
 			
+			}
 		}
-	}
+        }
 }

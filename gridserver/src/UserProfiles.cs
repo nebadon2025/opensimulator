@@ -1,5 +1,5 @@
 /*
-Copyright (c) OpenSim project, http://osgrid.org/
+Copyright (c) OpenGrid project, http://osgrid.org/
 
 
 * All rights reserved.
@@ -59,6 +59,17 @@ namespace OpenGridServices
 		public UserProfile GetProfileByLLUUID(LLUUID ProfileLLUUID) {
 			return UserProfiles[ProfileLLUUID];
 		}
+	
+		public UserProfile CreateNewProfile(string firstname, string lastname, string MD5passwd) {
+			UserProfile newprofile = new UserProfile();
+			newprofile.firstname=firstname;
+			newprofile.lastname=lastname;
+			newprofile.MD5passwd=MD5passwd;
+			UserProfiles.Add(OpenGrid_Main.thegrid.HighestUUID,newprofile);
+			OpenGrid_Main.thegrid.HighestUUID=LLUUID.Random(); // FIXME: Increment, don't set random!
+			return newprofile;
+		}
+
 	}
 
 	public class UserProfile {

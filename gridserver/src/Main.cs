@@ -29,6 +29,7 @@ Copyright (c) OpenSim project, http://osgrid.org/
 
 using System;
 using System.Text;
+using libsecondlife;
 using ServerConsole;
 
 namespace OpenGridServices
@@ -44,6 +45,8 @@ namespace OpenGridServices
 		public string DefaultAssetServer;
 		public string DefaultUserServer;
 		public UserProfileManager _profilemanager;
+		public UserProfile GridGod;
+		public LLUUID HighestUUID;
 
 		[STAThread]
 		public static void Main( string[] args )
@@ -73,7 +76,10 @@ namespace OpenGridServices
 			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Creating user profile manager");
 			_profilemanager = new UserProfileManager();
 			_profilemanager.InitUserProfiles();
-		
+	
+			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Setting up LLUUID management");
+			HighestUUID = LLUUID.Random();
+	
 			string tempfirstname;
 			string templastname;
 			string tempMD5Passwd;
@@ -82,6 +88,18 @@ namespace OpenGridServices
 			tempfirstname=ServerConsole.MainConsole.Instance.CmdPrompt("First name: ");
 			templastname=ServerConsole.MainConsole.Instance.CmdPrompt("Last name: ");
 			tempMD5Passwd=ServerConsole.MainConsole.Instance.PasswdPrompt("Password: ");
+		
+			System.Security.Cryptography.MD5CryptoServiceProvider x = new System.Security.Cryptography.MD5CryptoServiceProvider();
+			byte[] bs = System.Text.Encoding.UTF8.GetBytes(tempMD5Passwd);
+			bs = x.ComputeHash(bs);
+			System.Text.StringBuilder s = new System.Text.StringBuilder();
+			foreach (byte b in bs)
+			{
+   				s.Append(b.ToString("x2").ToLower());
+			}
+			tempMD5Passwd = "$1$" + s.ToString();
+
+			GridGod=_profilemanager.CreateNewProfile(tempfirstname,templastname,tempMD5Passwd);
 		}
 	}
 }

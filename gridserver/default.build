@@ -52,6 +52,7 @@
 				<include name="../common/src/OGS-Console.cs" />
 				<include name="src/ConsoleCmds.cs" />
 				<include name="src/UserProfiles.cs" />
+				<include name="src/GridHttp.cs" />
 				<include name="src/Main.cs" />
 			</sources>
 	</csc>

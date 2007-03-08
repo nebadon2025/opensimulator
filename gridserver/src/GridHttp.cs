@@ -29,6 +29,9 @@ Copyright (c) OpenGrid project, http://osgrid.org/
 
 using System;
 using System.Text;
+using System.Threading;
+using System.Net;
+using System.IO;
 using System.Collections;
 using System.Collections.Generic;
 using libsecondlife;
@@ -36,58 +39,53 @@ using ServerConsole;
 
 namespace OpenGridServices
 {
-	/// <summary>
-	/// </summary>
-	public class UserProfileManager {
+	public class GridHTTPServer {
+		public Thread HTTPD;
+		public HttpListener Listener;
 	
-		private Dictionary<LLUUID, UserProfile> UserProfiles = new Dictionary<LLUUID, UserProfile>();
-
-		public UserProfileManager() {
-		}
-		
-		public void InitUserProfiles() {
-			// TODO: need to load from database
+		public GridHTTPServer() {
+			ServerConsole.MainConsole.Instance.WriteLine("Starting up HTTP Server");
+			HTTPD = new Thread(new ThreadStart(StartHTTP));
+			HTTPD.Start();
 		}
 
-		public UserProfile GetProfileByName(string firstname, string lastname) {
-			foreach (libsecondlife.LLUUID UUID in UserProfiles.Keys) {
-				if((UserProfiles[UUID].firstname==firstname) && (UserProfiles[UUID].lastname==lastname)) return UserProfiles[UUID];
+		public void StartHTTP() {
+			ServerConsole.MainConsole.Instance.WriteLine("GridHttp.cs:StartHTTP() - Spawned main thread OK");
+			Listener = new HttpListener();
+
+			Listener.Prefixes.Add("http://+:8080/gridserver/");
+			Listener.Start();
+
+			HttpListenerContext context;
+			while(true) {
+				context = Listener.GetContext();
+				new Thread( new ThreadStart( new HttpWorker(context).Startup ) ).Start();
 			}
-			return null;
-		}
-
-		public UserProfile GetProfileByLLUUID(LLUUID ProfileLLUUID) {
-			return UserProfiles[ProfileLLUUID];
-		}
-	
-		public void SetGod(LLUUID GodID) {
-			this.UserProfiles[GodID].IsGridGod=true;
-		}
-
-		public UserProfile CreateNewProfile(string firstname, string lastname, string MD5passwd) {
-			UserProfile newprofile = new UserProfile();
-			newprofile.firstname=firstname;
-			newprofile.lastname=lastname;
-			newprofile.MD5passwd=MD5passwd;
-			UserProfiles.Add(OpenGrid_Main.thegrid.HighestUUID,newprofile);
-			newprofile.UUID=OpenGrid_Main.thegrid.HighestUUID;
-			OpenGrid_Main.thegrid.HighestUUID=LLUUID.Random(); // FIXME: Increment, don't set random!
-			return newprofile;
 		}
 
 	}
 
-	public class UserProfile {
-	
-		public string firstname;
-		public string lastname;
-		public bool IsGridGod;
-		public string MD5passwd;
+	public class HttpWorker {
+		public HttpListenerContext context;
 
-		public LLUUID UUID;
-	
-		public UserProfile() {
+                public HttpWorker(HttpListenerContext context) {
+                	this.context=context;
 		}
 
+		public string HandleRequest(HttpListenerRequest request) {
+			ServerConsole.MainConsole.Instance.WriteLine(request.Url.ToString());
+			return "";
+		}
+
+		public void Startup() {
+                        HttpListenerRequest request = context.Request;
+                        HttpListenerResponse response = context.Response;
+			string responseString=HandleRequest(request);
+			byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
+			System.IO.Stream output = response.OutputStream;
+			output.Write(buffer,0,buffer.Length);
+			output.Close();
+		}
 	}
+
 }

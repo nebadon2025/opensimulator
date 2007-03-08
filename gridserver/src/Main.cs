@@ -44,6 +44,8 @@ namespace OpenGridServices
 		public string DefaultStartupMsg;
 		public string DefaultAssetServer;
 		public string DefaultUserServer;
+		
+		public GridHTTPServer _httpd;
 		public UserProfileManager _profilemanager;
 		public UserProfile GridGod;
 		public LLUUID HighestUUID;
@@ -100,6 +102,10 @@ namespace OpenGridServices
 			tempMD5Passwd = "$1$" + s.ToString();
 
 			GridGod=_profilemanager.CreateNewProfile(tempfirstname,templastname,tempMD5Passwd);
-		}
+			_profilemanager.SetGod(GridGod.UUID);
+
+			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Starting HTTP process");
+			_httpd = new GridHTTPServer();
+		}	
 	}
 }

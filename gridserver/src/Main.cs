@@ -39,6 +39,10 @@ namespace OpenGridServices
 	{
 		
 		public static OpenGrid_Main thegrid;
+		public string GridOwner;
+		public string DefaultStartupMsg;
+		public string DefaultAssetServer;
+		public string DefaultUserServer;
 
 		[STAThread]
 		public static void Main( string[] args )
@@ -58,8 +62,13 @@ namespace OpenGridServices
 		}
 	
 		public void Startup() {
-			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Looking for configuration");
-			
+			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Please press enter to retain default settings");
+
+                        this.GridOwner=ServerConsole.MainConsole.Instance.CmdPrompt("Grid owner [OGS development team] :","OGS development team");
+			this.DefaultStartupMsg=ServerConsole.MainConsole.Instance.CmdPrompt("Default startup message for clients [Welcome to OGS!] :","Welcome to OGS!");
+			this.DefaultAssetServer=ServerConsole.MainConsole.Instance.CmdPrompt("Default asset server [no default] :");
+			this.DefaultUserServer=ServerConsole.MainConsole.Instance.CmdPrompt("Default user server [no default] :");
+
 		}
 	}
 }

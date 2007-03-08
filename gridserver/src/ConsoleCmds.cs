@@ -52,9 +52,6 @@ namespace OpenGridServices
 		}
                 
 		public override void Show(string ShowWhat) {
-			switch(ShowWhat) {
-			
-			}
 		}
         }
 }

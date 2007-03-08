@@ -45,11 +45,13 @@
 				<include name="System" />
 				<include name="System.Xml" />
 				<include name="../common/bin/ServerConsole.dll" />
+				<include name="../common/bin/libsecondlife.dll" />
 			</references>
 			<sources>
 				<include name="../common/src/VersionInfo.cs" />
 				<include name="../common/src/OGS-Console.cs" />
 				<include name="src/ConsoleCmds.cs" />
+				<include name="src/UserProfiles.cs" />
 				<include name="src/Main.cs" />
 			</sources>
 	</csc>

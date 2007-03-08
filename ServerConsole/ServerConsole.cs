@@ -75,6 +75,8 @@ namespace ServerConsole
 
 		public abstract void Write(string Line) ;
 
+		public abstract string PasswdPrompt(string prompt);
+
 		// Displays a command prompt and waits for the user to enter a string, then returns that string
 		public abstract string CmdPrompt(string prompt) ;
 		

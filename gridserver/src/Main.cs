@@ -43,6 +43,7 @@ namespace OpenGridServices
 		public string DefaultStartupMsg;
 		public string DefaultAssetServer;
 		public string DefaultUserServer;
+		public UserProfileManager _profilemanager;
 
 		[STAThread]
 		public static void Main( string[] args )
@@ -69,6 +70,18 @@ namespace OpenGridServices
 			this.DefaultAssetServer=ServerConsole.MainConsole.Instance.CmdPrompt("Default asset server [no default] :");
 			this.DefaultUserServer=ServerConsole.MainConsole.Instance.CmdPrompt("Default user server [no default] :");
 
+			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Creating user profile manager");
+			_profilemanager = new UserProfileManager();
+			_profilemanager.InitUserProfiles();
+		
+			string tempfirstname;
+			string templastname;
+			string tempMD5Passwd;
+			
+			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Please configure the grid god user:");
+			tempfirstname=ServerConsole.MainConsole.Instance.CmdPrompt("First name: ");
+			templastname=ServerConsole.MainConsole.Instance.CmdPrompt("Last name: ");
+			tempMD5Passwd=ServerConsole.MainConsole.Instance.PasswdPrompt("Password: ");
 		}
 	}
 }

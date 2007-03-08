@@ -110,6 +110,20 @@ namespace OpenGridServices
 			return;
 		}
 
+		
+		// Displays a prompt and waits for the user to enter a string, then returns that string
+		// Done with no echo and suitable for passwords
+                public override string PasswdPrompt(string prompt) {
+                        // FIXME: Needs to be better abstracted
+			Log.WriteLine(prompt);
+			this.Write(prompt);
+                	ConsoleColor oldfg=Console.ForegroundColor;
+			Console.ForegroundColor=Console.BackgroundColor;
+			string temp=Console.ReadLine();
+			Console.ForegroundColor=oldfg;
+                	return temp;
+		}
+
 		// Displays a command prompt and waits for the user to enter a string, then returns that string
 		public override string CmdPrompt(string prompt) {
 			this.Write(prompt);

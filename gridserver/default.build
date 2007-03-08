@@ -1,10 +1,15 @@
 <?xml version="1.0"?>
-    <project name="GridServer" default="build" basedir=".">
+    <project name="GridServer" default="build" basedir="./">
         <property name="debug" value="true" overwrite="false" />
         <target name="clean" description="remove all generated files">
-            <delete file="bin/GridServer.exe" failonerror="false" />
-	    <delete file="bin/GridServer.exe.mdb" failonerror="false" />
-        </target>
+		<delete>
+			<fileset failonempty="false">
+				<include name="bin/*.dll" />
+				<include name="bin/*.exe" />
+				<include name="bin/*.mdb" />
+			</fileset>
+		</delete>
+	</target>
 
 	<target name="svnupdate" description="updates to latest SVN">
 		<exec program="svn">
@@ -46,6 +51,12 @@
 				<include name="../common/src/OGS-Console.cs" />
 				<include name="src/Main.cs" />
 			</sources>
-		</csc>
+	</csc>
+	
+	<copy todir="bin/">
+    		<fileset basedir="../common/bin">
+        		<include name="*.*" />
+    		</fileset>
+	</copy>
 	</target>
 </project>

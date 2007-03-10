@@ -110,13 +110,35 @@ namespace OpenGridServices
 					
 					LLUUID AgentID = TheUser.UUID;
 					TheUser.InitSessionData();
+					SimProfile SimInfo = new SimProfile();
+
 
 					XmlRpcResponse LoginGoodResp = new XmlRpcResponse();
 					Hashtable LoginGoodData = new Hashtable();
-						
+				
+					Hashtable GlobalTextures = new Hashtable();
+					GlobalTextures["sun_texture_id"] = "cce0f112-878f-4586-a2e2-a8f104bba271";
+					GlobalTextures["cloud_texture_id"] = "fc4b9f0b-d008-45c6-96a4-01dd947ac621";
+					GlobalTextures["moon_texture_id"] = "fc4b9f0b-d008-45c6-96a4-01dd947ac621";
+
+					Hashtable LoginFlags = new Hashtable();
+					LoginFlags["daylight_savings"]="N";
+					LoginFlags["stipend_since_login"]="N";
+					LoginFlags["gendered"]="Y";
+					LoginFlags["ever_logged_in"]="Y";
+
 					LoginGoodData["message"]=OpenUser_Main.userserver.DefaultStartupMsg;
 					LoginGoodData["session_id"]=TheUser.CurrentSessionID;
 					LoginGoodData["secure_sessionid"]=TheUser.CurrentSecureSessionID;
+					LoginGoodData["agent_access"]="M";
+					LoginGoodData["start_location"]=requestData["start"];
+					LoginGoodData["global_textures"]=GlobalTextures;
+					LoginGoodData["seconds_since_epoch"]=DateTime.Now;
+					LoginGoodData["firstname"]=firstname;
+					LoginGoodData["circuit_code"]=(new Random()).Next();
+					LoginGoodData["login_flags"]=LoginFlags;
+					LoginGoodData["seed_capability"]="http://" + SimInfo.sim_ip + ":12043" + "/cap" + TheUser.CurrentSecureSessionID.Combine(TheUser.CurrentSessionID).Combine(AgentID);
+
 					
 					LoginGoodResp.Value=LoginGoodData;
 					return(XmlRpcResponseSerializer.Singleton.Serialize(LoginGoodResp));

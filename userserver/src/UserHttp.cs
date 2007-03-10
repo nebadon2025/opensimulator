@@ -137,7 +137,7 @@ namespace OpenGridServices
 					LoginGoodData["firstname"]=firstname;
 					LoginGoodData["circuit_code"]=(new Random()).Next();
 					LoginGoodData["login_flags"]=LoginFlags;
-					LoginGoodData["seed_capability"]="http://" + SimInfo.sim_ip + ":12043" + "/cap" + TheUser.CurrentSecureSessionID.Combine(TheUser.CurrentSessionID).Combine(AgentID);
+					LoginGoodData["seed_capability"]="http://" + SimInfo.sim_ip + ":12043" + "/cap/" + TheUser.CurrentSecureSessionID.Combine(TheUser.CurrentSessionID).Combine(AgentID);
 
 					
 					LoginGoodResp.Value=LoginGoodData;

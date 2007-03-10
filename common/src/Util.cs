@@ -1,7 +1,7 @@
 /*
-Copyright (c) OpenGrid project, http://osgrid.org/
+Copyright (c) OpenSim project, http://osgrid.org/
 
-
+* Copyright (c) <year>, <copyright holder>
 * All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
@@ -28,66 +28,60 @@ Copyright (c) OpenGrid project, http://osgrid.org/
 */
 
 using System;
-using System.Text;
-using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using libsecondlife;
-using ServerConsole;
+using libsecondlife.Packets;
 
 namespace OpenGridServices
 {
 	/// <summary>
 	/// </summary>
-	public class UserProfileManager {
-	
-		private Dictionary<LLUUID, UserProfile> UserProfiles = new Dictionary<LLUUID, UserProfile>();
-
-		public UserProfileManager() {
+	/// 
+		public class Util
+		{
+			public static ulong UIntsToLong(uint X, uint Y)
+			{
+				return Helpers.UIntsToLong(X,Y);
+			}
+			public Util()
+			{
+				
+			}
 		}
 		
-		public void InitUserProfiles() {
-			// TODO: need to load from database
-		}
+        public class QueItem {
+                public QueItem()
+                {
+                }
 
-		public UserProfile GetProfileByName(string firstname, string lastname) {
-			foreach (libsecondlife.LLUUID UUID in UserProfiles.Keys) {
-				if((UserProfiles[UUID].firstname==firstname) && (UserProfiles[UUID].lastname==lastname)) return UserProfiles[UUID];
-			}
-			return null;
-		}
+                public Packet Packet;
+                public bool Incoming;
+        }
 
-		public UserProfile GetProfileByLLUUID(LLUUID ProfileLLUUID) {
-			return UserProfiles[ProfileLLUUID];
-		}
-	
-		public void SetGod(LLUUID GodID) {
-			this.UserProfiles[GodID].IsGridGod=true;
-		}
 
-		public UserProfile CreateNewProfile(string firstname, string lastname, string MD5passwd) {
-			UserProfile newprofile = new UserProfile();
-			newprofile.firstname=firstname;
-			newprofile.lastname=lastname;
-			newprofile.MD5passwd=MD5passwd;
-			UserProfiles.Add(OpenGrid_Main.thegrid.HighestUUID,newprofile);
-			newprofile.UUID=OpenGrid_Main.thegrid.HighestUUID;
-			OpenGrid_Main.thegrid.HighestUUID=LLUUID.Random(); // FIXME: Increment, don't set random!
-			return newprofile;
-		}
+        public class BlockingQueue< T > {
+                private Queue< T > _queue = new Queue< T >();
+                private object _queueSync = new object();
 
-	}
+                public void Enqueue(T value)
+                {
+                        lock(_queueSync)
+                        {
+                                _queue.Enqueue(value);
+                                Monitor.Pulse(_queueSync);
+                        }
+                }
 
-	public class UserProfile {
-	
-		public string firstname;
-		public string lastname;
-		public bool IsGridGod;
-		public string MD5passwd;
+                public T Dequeue()
+                {
+                        lock(_queueSync)
+                        {
+                                if( _queue.Count < 1)
+                                        Monitor.Wait(_queueSync);
 
-		public LLUUID UUID;
-	
-		public UserProfile() {
-		}
-
-	}
+                                return _queue.Dequeue();
+                        }
+                }
+        }
 }

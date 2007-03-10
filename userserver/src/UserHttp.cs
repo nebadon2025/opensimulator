@@ -41,21 +41,21 @@ using ServerConsole;
 
 namespace OpenGridServices
 {
-	public class GridHTTPServer {
+	public class UserHTTPServer {
 		public Thread HTTPD;
 		public HttpListener Listener;
 	
-		public GridHTTPServer() {
+		public UserHTTPServer() {
 	 		ServerConsole.MainConsole.Instance.WriteLine("Starting up HTTP Server");
 			HTTPD = new Thread(new ThreadStart(StartHTTP));
 			HTTPD.Start();
 		}
 
 		public void StartHTTP() {
-			ServerConsole.MainConsole.Instance.WriteLine("GridHttp.cs:StartHTTP() - Spawned main thread OK");
+			ServerConsole.MainConsole.Instance.WriteLine("UserHttp.cs:StartHTTP() - Spawned main thread OK");
 			Listener = new HttpListener();
 
-			Listener.Prefixes.Add("http://+:8001/gridserver/");
+			Listener.Prefixes.Add("http://+:8002/userserver/");
 			Listener.Start();
 
 			HttpListenerContext context;
@@ -70,7 +70,57 @@ namespace OpenGridServices
 		
 			Hashtable requestData = (Hashtable)request.Params[0];
 			switch(request.MethodName) {
-				case "get_simulator_info":
+				case "login_to_simulator":
+					bool GoodXML= (requestData.Contains("first") && requestData.Contains("last") && requestData.Contains("passwd"));
+					bool GoodLogin=false;
+					string firstname="";
+					string lastname="";
+					string passwd="";
+					
+					if(GoodXML) {
+						firstname=(string)requestData["first"];
+						lastname=(string)requestData["last"];
+						passwd=(string)requestData["passwd"];
+						GoodLogin=OpenUser_Main.userserver._profilemanager.AuthenticateUser(firstname,lastname,passwd);
+					}
+
+					
+					if(!(GoodXML && GoodLogin)) {
+						XmlRpcResponse LoginErrorResp = new XmlRpcResponse();
+						Hashtable ErrorRespData = new Hashtable();
+						ErrorRespData["reason"]="key";
+						ErrorRespData["message"]="Error connecting to grid. Please double check your login details and check with the grid owner if you are sure these are correct";
+						ErrorRespData["login"]="false";
+						LoginErrorResp.Value=ErrorRespData;
+						return(Regex.Replace(XmlRpcResponseSerializer.Singleton.Serialize(LoginErrorResp)," encoding=\"utf-16\"","" ));
+					} 
+					
+					UserProfile TheUser=OpenUser_Main.userserver._profilemanager.GetProfileByName(firstname,lastname);
+					
+					if(!((TheUser.CurrentSessionID==null) && (TheUser.CurrentSecureSessionID==null))) {
+                                                XmlRpcResponse PresenceErrorResp = new XmlRpcResponse();
+                                                Hashtable PresenceErrorRespData = new Hashtable();
+                                                PresenceErrorRespData["reason"]="presence";
+                                                PresenceErrorRespData["message"]="You appear to be already logged in, if this is not the case please wait for your session to timeout, if this takes longer than a few minutes please contact the grid owner";
+                                                PresenceErrorRespData["login"]="false";
+                                                PresenceErrorResp.Value=PresenceErrorRespData;
+                                                return(Regex.Replace(XmlRpcResponseSerializer.Singleton.Serialize(PresenceErrorResp)," encoding=\"utf-16\"","" ));
+
+					}
+					
+					LLUUID AgentID = TheUser.UUID;
+					TheUser.InitSessionData();
+
+					XmlRpcResponse LoginGoodResp = new XmlRpcResponse();
+					Hashtable LoginGoodData = new Hashtable();
+						
+					LoginGoodData["message"]=OpenUser_Main.userserver.DefaultStartupMsg;
+					LoginGoodData["session_id"]=TheUser.CurrentSessionID;
+					LoginGoodData["secure_sessionid"]=TheUser.CurrentSecureSessionID;
+					
+					LoginGoodResp.Value=LoginGoodData;
+					return(XmlRpcResponseSerializer.Singleton.Serialize(LoginGoodResp));
+					
 					
 				break;
 			}

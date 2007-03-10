@@ -43,12 +43,13 @@ namespace OpenGridServices
 		public string GridOwner;
 		public string DefaultStartupMsg;
 		public string DefaultAssetServer;
+		public string AssetSendKey;
+		public string AssetRecvKey;
 		public string DefaultUserServer;
-		
+		public string UserSendKey;
+		public string UserRecvKey;
+	
 		public GridHTTPServer _httpd;
-		public UserProfileManager _profilemanager;
-		public UserProfile GridGod;
-		public LLUUID HighestUUID;
 
 		[STAThread]
 		public static void Main( string[] args )
@@ -70,40 +71,17 @@ namespace OpenGridServices
 		public void Startup() {
 			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Please press enter to retain default settings");
 
-                        this.GridOwner=ServerConsole.MainConsole.Instance.CmdPrompt("Grid owner [OGS development team] :","OGS development team");
-			this.DefaultStartupMsg=ServerConsole.MainConsole.Instance.CmdPrompt("Default startup message for clients [Welcome to OGS!] :","Welcome to OGS!");
-			this.DefaultAssetServer=ServerConsole.MainConsole.Instance.CmdPrompt("Default asset server [no default] :");
-			this.DefaultUserServer=ServerConsole.MainConsole.Instance.CmdPrompt("Default user server [no default] :");
-
-			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Creating user profile manager");
-			_profilemanager = new UserProfileManager();
-			_profilemanager.InitUserProfiles();
-	
-			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Setting up LLUUID management");
-			HighestUUID = LLUUID.Random();
-	
-			string tempfirstname;
-			string templastname;
-			string tempMD5Passwd;
+                        this.GridOwner=ServerConsole.MainConsole.Instance.CmdPrompt("Grid owner [OGS development team]: ","OGS development team");
+			this.DefaultStartupMsg=ServerConsole.MainConsole.Instance.CmdPrompt("Default startup message for clients [Welcome to OGS!]: ","Welcome to OGS!");
 			
-			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Please configure the grid god user:");
-			tempfirstname=ServerConsole.MainConsole.Instance.CmdPrompt("First name: ");
-			templastname=ServerConsole.MainConsole.Instance.CmdPrompt("Last name: ");
-			tempMD5Passwd=ServerConsole.MainConsole.Instance.PasswdPrompt("Password: ");
+			this.DefaultAssetServer=ServerConsole.MainConsole.Instance.CmdPrompt("Default asset server [no default]: ");
+			this.AssetSendKey=ServerConsole.MainConsole.Instance.CmdPrompt("Key to send to asset server: ");
+			this.AssetRecvKey=ServerConsole.MainConsole.Instance.CmdPrompt("Key to expect from asset server: ");
 		
-			System.Security.Cryptography.MD5CryptoServiceProvider x = new System.Security.Cryptography.MD5CryptoServiceProvider();
-			byte[] bs = System.Text.Encoding.UTF8.GetBytes(tempMD5Passwd);
-			bs = x.ComputeHash(bs);
-			System.Text.StringBuilder s = new System.Text.StringBuilder();
-			foreach (byte b in bs)
-			{
-   				s.Append(b.ToString("x2").ToLower());
-			}
-			tempMD5Passwd = "$1$" + s.ToString();
-
-			GridGod=_profilemanager.CreateNewProfile(tempfirstname,templastname,tempMD5Passwd);
-			_profilemanager.SetGod(GridGod.UUID);
-
+			this.DefaultUserServer=ServerConsole.MainConsole.Instance.CmdPrompt("Default user server [no default]: ");
+			this.UserSendKey=ServerConsole.MainConsole.Instance.CmdPrompt("Key to send to user server: ");
+			this.UserRecvKey=ServerConsole.MainConsole.Instance.CmdPrompt("Key to expect from user server: ");
+	
 			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Starting HTTP process");
 			_httpd = new GridHTTPServer();
 		}	

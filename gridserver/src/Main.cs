@@ -50,6 +50,7 @@ namespace OpenGridServices
 		public string UserRecvKey;
 	
 		public GridHTTPServer _httpd;
+		public SimProfileManager _regionmanager;
 
 		[STAThread]
 		public static void Main( string[] args )

@@ -70,8 +70,31 @@ namespace OpenGridServices
 		
 			Hashtable requestData = (Hashtable)request.Params[0];
 			switch(request.MethodName) {
-				case "get_simulator_info":
-					
+				case "get_sim_info":
+					Console.WriteLine("get_sim_info");
+					uint req_handle=(uint)requestData["region_handle"];
+					SimProfile TheSim = OpenGrid_Main.thegrid._regionmanager.GetProfileByHandle(req_handle);
+					string RecvKey="";
+					string caller=(string)requestData["caller"];
+					switch(caller) {
+						case "userserver":
+							RecvKey=OpenGrid_Main.thegrid.UserRecvKey;
+						break;
+						case "assetserver":
+							RecvKey=OpenGrid_Main.thegrid.AssetRecvKey;
+						break;
+					}
+					if((TheSim!=null) && (string)requestData["authkey"]==RecvKey) {
+						XmlRpcResponse SimInfoResp = new XmlRpcResponse();
+						SimInfoResp.Value=TheSim;
+						return(XmlRpcResponseSerializer.Singleton.Serialize(SimInfoResp));
+					} else {
+						XmlRpcResponse SimErrorResp = new XmlRpcResponse();
+                                                Hashtable SimErrorData = new Hashtable();
+						SimErrorData["error"]="sim not found";
+						SimErrorResp.Value=SimErrorData;
+                                                return(XmlRpcResponseSerializer.Singleton.Serialize(SimErrorResp));
+					}
 				break;
 			}
 

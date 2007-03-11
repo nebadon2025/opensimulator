@@ -111,7 +111,7 @@ namespace OpenGridServices
 					LLUUID AgentID = TheUser.UUID;
 					TheUser.InitSessionData();
 					SimProfile SimInfo = new SimProfile();
-
+					SimInfo = SimInfo.LoadFromGrid(TheUser.homeregionhandle,OpenUser_Main.userserver.GridURL,OpenUser_Main.userserver.GridSendKey,OpenUser_Main.userserver.GridRecvKey);
 
 					XmlRpcResponse LoginGoodResp = new XmlRpcResponse();
 					Hashtable LoginGoodData = new Hashtable();

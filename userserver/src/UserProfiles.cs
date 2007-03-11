@@ -32,6 +32,7 @@ using System.Text;
 using System.Collections;
 using System.Collections.Generic;
 using libsecondlife;
+using Nwc.XmlRpc;
 using ServerConsole;
 
 namespace OpenGridServices
@@ -111,6 +112,7 @@ namespace OpenGridServices
 			Circuits = new Dictionary<LLUUID, uint>();
 			InventoryFolders = new Dictionary<LLUUID, InventoryFolder>();
 			InventoryItems = new Dictionary<LLUUID, InventoryItem>();
+			homeregionhandle=0;
 		}
 	
 		public void InitSessionData() {
@@ -156,7 +158,19 @@ namespace OpenGridServices
                 public string recvkey;
 
 
-                public SimProfile() {
+               	public SimProfile LoadFromGrid(uint region_handle, string GridURL, string SendKey, string RecvKey) {
+			Hashtable GridReqParams = new Hashtable();
+			GridReqParams["region_handle"]=region_handle;
+			GridReqParams["caller"]="userserver";
+			GridReqParams["authkey"]=SendKey;
+			ArrayList SendParams = new ArrayList();
+			SendParams.Add(GridReqParams);
+			XmlRpcResponse GridResp = new XmlRpcRequest("get_sim_info",SendParams).Send(GridURL,3000);
+			
+			return (SimProfile)GridResp.Value;
+		}
+ 
+		public SimProfile() {
                 }
 
 

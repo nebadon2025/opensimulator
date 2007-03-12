@@ -98,7 +98,7 @@ namespace OpenGridServices
 						SimInfoData["sendkey"]=TheSim.sendkey;
 						SimInfoData["recvkey"]=TheSim.recvkey;
 						SimInfoResp.Value=SimInfoData;
-						return(XmlRpcResponseSerializer.Singleton.Serialize(SimInfoResp));
+						return(Regex.Replace(XmlRpcResponseSerializer.Singleton.Serialize(SimInfoResp),"utf-16","utf-8"));
 					} else {
 						XmlRpcResponse SimErrorResp = new XmlRpcResponse();
                                                 Hashtable SimErrorData = new Hashtable();
@@ -129,7 +129,7 @@ namespace OpenGridServices
 			response.SendChunked=false;
 
 			System.IO.Stream body = request.InputStream;
-			System.Text.Encoding encoding = request.ContentEncoding;
+			System.Text.Encoding encoding = System.Text.Encoding.UTF8; 
 			System.IO.StreamReader reader = new System.IO.StreamReader(body, encoding);
    
 	    		string requestBody = reader.ReadToEnd();
@@ -152,11 +152,9 @@ namespace OpenGridServices
 			}
 	
 	
-	                byte[] buffer = System.Text.Encoding.Unicode.GetBytes(responseString);
+	                byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
         	        System.IO.Stream output = response.OutputStream;
     	        	response.SendChunked=false;
-			encoding = System.Text.Encoding.Unicode;
-        		response.ContentEncoding = encoding;
 			response.ContentLength64=buffer.Length;
 			output.Write(buffer,0,buffer.Length);
         	        output.Close();

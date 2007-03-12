@@ -167,7 +167,7 @@ namespace OpenGridServices
 			GridReqParams["authkey"]=SendKey;
 			ArrayList SendParams = new ArrayList();
 			SendParams.Add(GridReqParams);
-			XmlRpcRequest GridReq = new XmlRpcRequest("get_sim_info",GridReqParams);
+			XmlRpcRequest GridReq = new XmlRpcRequest("get_sim_info",SendParams);
 	
 			XmlRpcResponse GridResp = GridReq.Send(GridURL,3000);
 		

@@ -104,6 +104,8 @@ namespace OpenGridServices
 
 			GridGod=_profilemanager.CreateNewProfile(tempfirstname,templastname,tempMD5Passwd);
 			_profilemanager.SetGod(GridGod.UUID);
+			GridGod.homelookat = new LLVector3(-0.57343f, -0.819255f, 0f);
+			GridGod.homepos = new LLVector3(128f,128f,23f);
 
 			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Starting HTTP process");
 			_httpd = new UserHTTPServer();

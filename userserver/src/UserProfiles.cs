@@ -172,7 +172,16 @@ namespace OpenGridServices
 			XmlRpcResponse GridResp = GridReq.Send(GridURL,3000);
 		
 			Hashtable RespData=(Hashtable)GridResp.Value;	
-			Console.WriteLine(RespData.ToString());
+			this.UUID = new LLUUID(RespData["UUID"].ToString());
+			this.regionhandle = Convert.ToUInt64(RespData["regionhandle"]);
+			this.regionname=(string)RespData["regionname"];
+			this.sim_ip=(string)RespData["sim_ip"];
+			this.sim_port=Convert.ToUInt16(RespData["sim_port"]);
+			this.caps_url=(string)RespData["caps_url"];
+			this.RegionLocX=Convert.ToUInt32(RespData["RegionLocX"]);
+			this.RegionLocY=Convert.ToUInt32(RespData["RegionLocY"]);
+			this.sendkey=(string)RespData["sendkey"];
+			this.recvkey=(string)RespData["recvkey"];
 			} catch(Exception e) {
 				Console.WriteLine(e.ToString());
 			}

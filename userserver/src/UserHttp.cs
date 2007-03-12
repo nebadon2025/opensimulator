@@ -149,7 +149,7 @@ namespace OpenGridServices
 					LoginGoodData["circuit_code"]=(new Random()).Next().ToString();
 					LoginGoodData["login_flags"]=LoginFlags;
 					LoginGoodData["seed_capability"]=SimInfo.caps_url;
-					LoginGoodData["home"]="{'region_handle':'r" + (SimInfo.RegionLocX*256).ToString() + "," + (SimInfo.RegionLocY*256).ToString() + "', 'position':'r" + TheUser.homepos.X.ToString() + "," + TheUser.homepos.Y.ToString() + "," + TheUser.homepos.Z.ToString() + "', 'look_at':'r" + TheUser.homelookat.X.ToString() + "," + TheUser.homelookat.Y.ToString() + "," + TheUser.homelookat.Z.ToString() + "'}";
+					LoginGoodData["home"]="{'region_handle':[r" + (SimInfo.RegionLocX*256).ToString() + "," + (SimInfo.RegionLocY*256).ToString() + "], 'position':[r" + TheUser.homepos.X.ToString() + "," + TheUser.homepos.Y.ToString() + "," + TheUser.homepos.Z.ToString() + "], 'look_at':[r" + TheUser.homelookat.X.ToString() + "," + TheUser.homelookat.Y.ToString() + "," + TheUser.homelookat.Z.ToString() + "]}";
 					LoginGoodData["sim_ip"]=SimInfo.sim_ip.ToString();
 					LoginGoodData["sim_port"]=SimInfo.sim_port;
 					LoginGoodData["region_x"]=SimInfo.RegionLocX;

@@ -66,13 +66,13 @@ namespace OpenGridServices
 		}
 
 		static string ParseXMLRPC(string requestBody) {
+			try{
 			XmlRpcRequest request = (XmlRpcRequest)(new XmlRpcRequestDeserializer()).Deserialize(requestBody);
 		
 			Hashtable requestData = (Hashtable)request.Params[0];
 			switch(request.MethodName) {
 				case "get_sim_info":
-					Console.WriteLine("get_sim_info");
-					uint req_handle=(uint)requestData["region_handle"];
+					ulong req_handle=(ulong)Convert.ToInt64(requestData["region_handle"]);
 					SimProfile TheSim = OpenGrid_Main.thegrid._regionmanager.GetProfileByHandle(req_handle);
 					string RecvKey="";
 					string caller=(string)requestData["caller"];
@@ -86,7 +86,18 @@ namespace OpenGridServices
 					}
 					if((TheSim!=null) && (string)requestData["authkey"]==RecvKey) {
 						XmlRpcResponse SimInfoResp = new XmlRpcResponse();
-						SimInfoResp.Value=TheSim;
+						Hashtable SimInfoData = new Hashtable();
+						SimInfoData["UUID"]=TheSim.UUID.ToString();
+						SimInfoData["regionhandle"]=TheSim.regionhandle.ToString();
+						SimInfoData["regionname"]=TheSim.regionname;
+						SimInfoData["sim_ip"]=TheSim.sim_ip;
+						SimInfoData["sim_port"]=TheSim.sim_port.ToString();
+						SimInfoData["caps_url"]=TheSim.caps_url;
+						SimInfoData["RegionLocX"]=TheSim.RegionLocX.ToString();
+						SimInfoData["RegionLocY"]=TheSim.RegionLocY.ToString();
+						SimInfoData["sendkey"]=TheSim.sendkey;
+						SimInfoData["recvkey"]=TheSim.recvkey;
+						SimInfoResp.Value=SimInfoData;
 						return(XmlRpcResponseSerializer.Singleton.Serialize(SimInfoResp));
 					} else {
 						XmlRpcResponse SimErrorResp = new XmlRpcResponse();
@@ -97,7 +108,9 @@ namespace OpenGridServices
 					}
 				break;
 			}
-
+			} catch(Exception e) {
+				Console.WriteLine(e.ToString());
+			}
 			return "";
 		}
 		
@@ -142,7 +155,7 @@ namespace OpenGridServices
 	                byte[] buffer = System.Text.Encoding.Unicode.GetBytes(responseString);
         	        System.IO.Stream output = response.OutputStream;
     	        	response.SendChunked=false;
-			encoding = System.Text.Encoding.UTF8;
+			encoding = System.Text.Encoding.Unicode;
         		response.ContentEncoding = encoding;
 			response.ContentLength64=buffer.Length;
 			output.Write(buffer,0,buffer.Length);

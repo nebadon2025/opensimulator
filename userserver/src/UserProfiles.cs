@@ -78,6 +78,7 @@ namespace OpenGridServices
 
 		public UserProfile CreateNewProfile(string firstname, string lastname, string MD5passwd) {
 			UserProfile newprofile = new UserProfile();
+			newprofile.homeregionhandle=Util.UIntsToLong((997*256), (996*256));
 			newprofile.firstname=firstname;
 			newprofile.lastname=lastname;
 			newprofile.MD5passwd=MD5passwd;
@@ -92,7 +93,7 @@ namespace OpenGridServices
 	
 		public string firstname;
 		public string lastname;
-		public uint homeregionhandle;
+		public ulong homeregionhandle;
 		public LLVector3 homepos;
 		public LLVector3 homelookat;
 
@@ -112,7 +113,7 @@ namespace OpenGridServices
 			Circuits = new Dictionary<LLUUID, uint>();
 			InventoryFolders = new Dictionary<LLUUID, InventoryFolder>();
 			InventoryItems = new Dictionary<LLUUID, InventoryItem>();
-			homeregionhandle=0;
+			homeregionhandle=Util.UIntsToLong((997*256), (996*256));;
 		}
 	
 		public void InitSessionData() {
@@ -158,20 +159,28 @@ namespace OpenGridServices
                 public string recvkey;
 
 
-               	public SimProfile LoadFromGrid(uint region_handle, string GridURL, string SendKey, string RecvKey) {
+               	public SimProfile LoadFromGrid(ulong region_handle, string GridURL, string SendKey, string RecvKey) {
+			try {
 			Hashtable GridReqParams = new Hashtable();
-			GridReqParams["region_handle"]=region_handle;
+			GridReqParams["region_handle"]=region_handle.ToString();
 			GridReqParams["caller"]="userserver";
 			GridReqParams["authkey"]=SendKey;
 			ArrayList SendParams = new ArrayList();
 			SendParams.Add(GridReqParams);
-			XmlRpcResponse GridResp = new XmlRpcRequest("get_sim_info",SendParams).Send(GridURL,3000);
-			
-			return (SimProfile)GridResp.Value;
+			XmlRpcRequest GridReq = new XmlRpcRequest("get_sim_info",GridReqParams);
+	
+			XmlRpcResponse GridResp = GridReq.Send(GridURL,3000);
+		
+			Hashtable RespData=(Hashtable)GridResp.Value;	
+			Console.WriteLine(RespData.ToString());
+			} catch(Exception e) {
+				Console.WriteLine(e.ToString());
+			}
+			return this;
 		}
  
 		public SimProfile() {
-                }
+		}
 
 
         }

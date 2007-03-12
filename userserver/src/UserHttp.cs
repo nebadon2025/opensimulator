@@ -139,10 +139,13 @@ namespace OpenGridServices
 					LoginGoodData["login_flags"]=LoginFlags;
 					LoginGoodData["seed_capability"]="http://" + SimInfo.sim_ip + ":12043" + "/cap/" + TheUser.CurrentSecureSessionID.Combine(TheUser.CurrentSessionID).Combine(AgentID);
 
-					
+				
+				try {	
 					LoginGoodResp.Value=LoginGoodData;
 					return(XmlRpcResponseSerializer.Singleton.Serialize(LoginGoodResp));
-					
+				} catch (Exception E) {
+					Console.WriteLine(E.ToString());
+				}					
 					
 				break;
 			}

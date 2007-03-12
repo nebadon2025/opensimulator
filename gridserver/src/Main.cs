@@ -85,6 +85,10 @@ namespace OpenGridServices
 	
 			ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Starting HTTP process");
 			_httpd = new GridHTTPServer();
+			
+			this._regionmanager=new SimProfileManager();
+			_regionmanager.CreateNewProfile("OpenSim Test", "http://there-is-no-caps.com", "4.78.190.75", 9000, 997, 996, this.UserSendKey, this.UserRecvKey);
+
 		}	
 	}
 }

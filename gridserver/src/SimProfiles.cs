@@ -78,9 +78,11 @@ namespace OpenGridServices
 			newprofile.sim_port=sim_port;
 			newprofile.RegionLocX=RegionLocX;
 			newprofile.RegionLocY=RegionLocY;
+			newprofile.caps_url="http://" + sim_ip + ":12036";
 			newprofile.sendkey=sendkey;
 			newprofile.recvkey=recvkey;
 			newprofile.regionhandle=Util.UIntsToLong((RegionLocX*256), (RegionLocY*256));
+			newprofile.UUID=LLUUID.Random();
 			this.SimProfiles.Add(newprofile.UUID,newprofile);
 			return newprofile;
 		}

@@ -69,7 +69,8 @@ namespace RemoteGridServers
 	{
 		private string GridServerUrl;
 		private string GridSendKey;
-		
+		private Dictionary<uint, agentcircuitdata> AgentCircuits = new Dictionary<uint, agentcircuitdata>(); 
+	
 		public RemoteGridServer()
 		{
 			ServerConsole.MainConsole.Instance.WriteLine("Remote Grid Server class created");
@@ -79,26 +80,20 @@ namespace RemoteGridServers
 		{
 			return true;
 		}
-		public AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode)
+		
+		public AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitcode)
 		{
+			agentcircuitdata validcircuit=this.AgentCircuits[circuitcode];
 			AuthenticateResponse user = new AuthenticateResponse();
-			
-			WebRequest CheckSession = WebRequest.Create(GridServerUrl + "/usersessions/" + GridSendKey + "/" + agentID.ToString() + "/" + circuitCode.ToString() + "/exists");
-			WebResponse GridResponse = CheckSession.GetResponse();
-			StreamReader sr = new StreamReader(GridResponse.GetResponseStream());
-			String grTest = sr.ReadLine();
-			sr.Close();
-			GridResponse.Close();
-			if(String.IsNullOrEmpty(grTest) || grTest.Equals("1")) 
+			if((sessionID==validcircuit.SessionID) && (agentID==validcircuit.AgentID)) 
 			{
 				// YAY! Valid login
 				user.Authorised = true;
 				user.LoginInfo = new Login();
 				user.LoginInfo.Agent = agentID;
 				user.LoginInfo.Session = sessionID;
-				user.LoginInfo.First = "";
-				user.LoginInfo.Last = "";
-				
+				user.LoginInfo.First = validcircuit.firstname;
+				user.LoginInfo.Last = validcircuit.lastname;
 			}
 			else 
 			{
@@ -212,6 +207,16 @@ namespace RemoteGridServers
 				_receiver.AssetReceived(asset, req.IsTexture );
 			}
 		}
+	}
+
+	public class agentcircuitdata {
+		public agentcircuitdata() { }
+		public LLUUID AgentID;
+		public LLUUID SessionID;
+		public LLUUID SecureSessionID;
+		public string firstname;
+		public string lastname;
+		public uint circuitcode;
 	}
 	
 	public class BlockingQueue< T > {

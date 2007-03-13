@@ -14,7 +14,7 @@ using System.Runtime.InteropServices;
 
 [assembly: ComVisibleAttribute(false)]
 [assembly: CLSCompliantAttribute(false)]
-[assembly: AssemblyVersionAttribute("0.1.*.195")]
+[assembly: AssemblyVersionAttribute("0.1.*.196")]
 [assembly: AssemblyTitleAttribute("opensim-localservers")]
 [assembly: AssemblyDescriptionAttribute("local grid servers")]
 [assembly: AssemblyCopyrightAttribute("Copyright © OGS development team 2007")]

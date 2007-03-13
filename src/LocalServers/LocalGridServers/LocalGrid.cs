@@ -219,7 +219,7 @@ namespace LocalGridServers
 			//should request Asset from storage manager
 			//but for now read from file
 			
-            string dataPath = System.AppDomain.CurrentDomain.BaseDirectory ; //+ folder;
+			string dataPath = Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory ,"assets"); //+ folder;
             string fileName = Path.Combine(dataPath, filename);
 			FileInfo fInfo = new FileInfo(fileName);
 			long numBytes = fInfo.Length;

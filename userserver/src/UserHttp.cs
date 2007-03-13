@@ -136,25 +136,64 @@ namespace OpenGridServices
 					uiconfig["allow_first_life"]="Y";
 					ArrayList ui_config=new ArrayList();
 					ui_config.Add(uiconfig);
+					
+					Hashtable ClassifiedCategoriesHash = new Hashtable();
+					ClassifiedCategoriesHash["category_name"]="bla bla";
+					ClassifiedCategoriesHash["category_id"]=(Int32)1;
+					ArrayList ClassifiedCategories = new ArrayList();
+					ClassifiedCategories.Add(ClassifiedCategoriesHash);
+				
+					ArrayList AgentInventory = new ArrayList();
+					foreach(InventoryFolder InvFolder in TheUser.InventoryFolders.Values) {
+						Hashtable TempHash = new Hashtable();
+						TempHash["name"]=InvFolder.FolderName;
+						TempHash["parent_id"]=InvFolder.ParentID.ToStringHyphenated();
+						TempHash["version"]=(Int32)InvFolder.Version;
+						TempHash["type_default"]=(Int32)InvFolder.DefaultType;
+						TempHash["folder_id"]=InvFolder.FolderID.ToStringHyphenated();
+						AgentInventory.Add(TempHash);
+					}
 
-					LoginGoodData["message"]=OpenUser_Main.userserver.DefaultStartupMsg;
-					LoginGoodData["session_id"]=TheUser.CurrentSessionID.ToString();
-					LoginGoodData["secure_sessionid"]=TheUser.CurrentSecureSessionID.ToString();
-					LoginGoodData["agent_access"]="M";
-					LoginGoodData["start_location"]=requestData["start"];
-					LoginGoodData["look_at"]="[r" + TheUser.homelookat.X.ToString() + ", r" + TheUser.homelookat.Y.ToString() + ", r" + TheUser.homelookat.Z.ToString() + "]";
-					LoginGoodData["global_textures"]=GlobalTextures;
-					LoginGoodData["seconds_since_epoch"]=(Int32)(DateTime.UtcNow - new DateTime(1970,1,1)).TotalSeconds;
-					LoginGoodData["firstname"]=firstname;
-					LoginGoodData["circuit_code"]=(new Random()).Next().ToString();
-					LoginGoodData["login_flags"]=LoginFlags;
-					LoginGoodData["seed_capability"]=SimInfo.caps_url;
-					LoginGoodData["home"]="{'region_handle':[r" + (SimInfo.RegionLocX*256).ToString() + "," + (SimInfo.RegionLocY*256).ToString() + "], 'position':[r" + TheUser.homepos.X.ToString() + "," + TheUser.homepos.Y.ToString() + "," + TheUser.homepos.Z.ToString() + "], 'look_at':[r" + TheUser.homelookat.X.ToString() + "," + TheUser.homelookat.Y.ToString() + "," + TheUser.homelookat.Z.ToString() + "]}";
+					Hashtable InventoryRootHash = new Hashtable();
+					InventoryRootHash["folder_id"]=TheUser.InventoryRoot.FolderID.ToStringHyphenated();
+					ArrayList InventoryRoot = new ArrayList();
+					InventoryRoot.Add(InventoryRootHash);
+					
+					Hashtable InitialOutfitHash = new Hashtable();
+					InitialOutfitHash["folder_name"]="Nightclub Female";
+					InitialOutfitHash["gender"]="female";
+					ArrayList InitialOutfit = new ArrayList();
+					InitialOutfit.Add(InitialOutfitHash);
+
+					LoginGoodData["last_name"]="\"" + TheUser.firstname + "\"";
+					LoginGoodData["ui-config"]=ui_config;
 					LoginGoodData["sim_ip"]=SimInfo.sim_ip.ToString();
-					LoginGoodData["sim_port"]=SimInfo.sim_port;
-					LoginGoodData["region_x"]=SimInfo.RegionLocX;
-					LoginGoodData["region_y"]=SimInfo.RegionLocY;
-					LoginGoodData["ui_config"] = ui_config;
+					LoginGoodData["login-flags"]=LoginFlags;
+					LoginGoodData["global-textures"]=GlobalTextures;
+					LoginGoodData["classified_categories"]=ClassifiedCategories;
+					LoginGoodData["event_categories"]=new ArrayList();
+					LoginGoodData["inventory-skeleton"]=AgentInventory;
+					LoginGoodData["inventory-skel-lib"]=new ArrayList();
+					LoginGoodData["inventory-root"]=InventoryRoot;
+					LoginGoodData["event_notifications"]=new ArrayList();
+					LoginGoodData["gestures"]=new ArrayList();
+					LoginGoodData["inventory-lib-owner"]=new ArrayList();
+					LoginGoodData["initial-outfit"]=InitialOutfit;
+					LoginGoodData["seconds_since_epoch"]=(Int32)(DateTime.UtcNow - new DateTime(1970,1,1)).TotalSeconds;
+					LoginGoodData["start_location"]="last";
+					LoginGoodData["home"]="{'region_handle':[r" + (SimInfo.RegionLocX*256).ToString() + ",r" + (SimInfo.RegionLocY*256).ToString() + "], 'position':[r" + TheUser.homepos.X.ToString() + ",r" + TheUser.homepos.Y.ToString() + ",r" + TheUser.homepos.Z.ToString() + "], 'look_at':[r" + TheUser.homelookat.X.ToString() + ",r" + TheUser.homelookat.Y.ToString() + ",r" + TheUser.homelookat.Z.ToString() + "]}";
+					LoginGoodData["message"]=OpenUser_Main.userserver.DefaultStartupMsg;
+					LoginGoodData["first_name"]="\"" + firstname + "\"";
+					LoginGoodData["circuit_code"]=(Int32)(new Random()).Next();
+					LoginGoodData["sim_port"]=(Int32)SimInfo.sim_port;
+					LoginGoodData["secure_session_id"]=TheUser.CurrentSecureSessionID.ToStringHyphenated();
+					LoginGoodData["look_at"]="\n[r" + TheUser.homelookat.X.ToString() + ",r" + TheUser.homelookat.Y.ToString() + ",r" + TheUser.homelookat.Z.ToString() + "]\n";
+					LoginGoodData["agent_id"]=AgentID.ToStringHyphenated();
+					LoginGoodData["region_y"]=(Int32)SimInfo.RegionLocY*256;
+					LoginGoodData["region_x"]=(Int32)SimInfo.RegionLocX*256;
+					LoginGoodData["seed_capability"]=null;
+					LoginGoodData["agent_access"]="M";
+					LoginGoodData["session_id"]=TheUser.CurrentSessionID.ToStringHyphenated();
 					LoginGoodData["login"]="true";
 	
 					LoginGoodResp.Value=LoginGoodData;

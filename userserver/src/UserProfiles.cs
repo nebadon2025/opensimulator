@@ -106,6 +106,8 @@ namespace OpenGridServices
 		public LLUUID CurrentSecureSessionID;
 		public LLUUID UUID;
 		public Dictionary<LLUUID, uint> Circuits = new Dictionary<LLUUID, uint>();	// tracks circuit codes
+		
+		public InventoryFolder InventoryRoot;
 		public Dictionary<LLUUID, InventoryFolder> InventoryFolders;
 		public Dictionary<LLUUID, InventoryItem> InventoryItems;
 	
@@ -113,6 +115,13 @@ namespace OpenGridServices
 			Circuits = new Dictionary<LLUUID, uint>();
 			InventoryFolders = new Dictionary<LLUUID, InventoryFolder>();
 			InventoryItems = new Dictionary<LLUUID, InventoryItem>();
+			InventoryRoot=new InventoryFolder();
+			InventoryRoot.FolderID = LLUUID.Random();
+			InventoryRoot.ParentID=new LLUUID();
+			InventoryRoot.Version=1;
+			InventoryRoot.DefaultType=8;
+			InventoryRoot.FolderName="My Inventory";
+			InventoryFolders.Add(InventoryRoot.FolderID, InventoryRoot);
 			homeregionhandle=Util.UIntsToLong((997*256), (996*256));;
 		}
 	

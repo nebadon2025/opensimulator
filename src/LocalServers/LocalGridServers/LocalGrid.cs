@@ -74,7 +74,10 @@ namespace LocalGridServers
 		
 		public LocalAssetServer()
 		{
+			bool yapfile;
 			this._assetRequests = new BlockingQueue<ARequest>();
+			yapfile = System.IO.File.Exists("assets.yap");
+			
 			ServerConsole.MainConsole.Instance.WriteLine("Local Asset Server class created");
 			try 
 			{
@@ -87,7 +90,10 @@ namespace LocalGridServers
 				ServerConsole.MainConsole.Instance.WriteLine("Db4 Asset server :Constructor - Exception occured");
 				ServerConsole.MainConsole.Instance.WriteLine(e.ToString());
 			}
-			this.SetUpAssetDatabase();
+			if(!yapfile)
+			{
+				this.SetUpAssetDatabase();
+			}
 			this._localAssetServerThread = new Thread(new ThreadStart(RunRequests));
 			this._localAssetServerThread.IsBackground = true;
 			this._localAssetServerThread.Start();

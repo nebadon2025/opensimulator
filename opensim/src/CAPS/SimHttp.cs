@@ -73,8 +73,16 @@ namespace OpenSim
 		
 			Hashtable requestData = (Hashtable)request.Params[0];
 			switch(request.MethodName) {
-				// Eventually will be used for useful things if we actually use XML-RPC
-				case "":
+				case "expect_user":
+					GridServers.agentcircuitdata agent_data = new GridServers.agentcircuitdata();
+					agent_data.SessionID = new LLUUID((string)requestData["session_id"]);
+					agent_data.SecureSessionID = new LLUUID((string)requestData["secure_session_id"]);
+					agent_data.firstname = (string)requestData["firstname"];
+					agent_data.lastname = (string)requestData["lastname"];
+					agent_data.AgentID = new LLUUID((string)requestData["agent_id"]);
+					agent_data.circuitcode = Convert.ToUInt32(requestData["circuit_code"]);
+					OpenSim_Main.gridServers.GridServer.agentcircuits.Add((uint)agent_data.circuitcode,agent_data);
+					return "<?xml version=\"1.0\"?><methodResponse><params /></methodResponse>";
 				break;
 			}
 			} catch(Exception e) {

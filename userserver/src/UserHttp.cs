@@ -165,6 +165,9 @@ namespace OpenGridServices
 					ArrayList InitialOutfit = new ArrayList();
 					InitialOutfit.Add(InitialOutfitHash);
 
+					uint circode = (uint)(new Random()).Next();
+					TheUser.AddSimCircuit(circode, SimInfo.UUID);
+
 					LoginGoodData["last_name"]="\"" + TheUser.firstname + "\"";
 					LoginGoodData["ui-config"]=ui_config;
 					LoginGoodData["sim_ip"]=SimInfo.sim_ip.ToString();
@@ -184,7 +187,7 @@ namespace OpenGridServices
 					LoginGoodData["home"]="{'region_handle':[r" + (SimInfo.RegionLocX*256).ToString() + ",r" + (SimInfo.RegionLocY*256).ToString() + "], 'position':[r" + TheUser.homepos.X.ToString() + ",r" + TheUser.homepos.Y.ToString() + ",r" + TheUser.homepos.Z.ToString() + "], 'look_at':[r" + TheUser.homelookat.X.ToString() + ",r" + TheUser.homelookat.Y.ToString() + ",r" + TheUser.homelookat.Z.ToString() + "]}";
 					LoginGoodData["message"]=OpenUser_Main.userserver.DefaultStartupMsg;
 					LoginGoodData["first_name"]="\"" + firstname + "\"";
-					LoginGoodData["circuit_code"]=(Int32)(new Random()).Next();
+					LoginGoodData["circuit_code"]=(Int32)circode;
 					LoginGoodData["sim_port"]=(Int32)SimInfo.sim_port;
 					LoginGoodData["secure_session_id"]=TheUser.CurrentSecureSessionID.ToStringHyphenated();
 					LoginGoodData["look_at"]="\n[r" + TheUser.homelookat.X.ToString() + ",r" + TheUser.homelookat.Y.ToString() + ",r" + TheUser.homelookat.Z.ToString() + "]\n";
@@ -197,6 +200,7 @@ namespace OpenGridServices
 					LoginGoodData["login"]="true";
 	
 					LoginGoodResp.Value=LoginGoodData;
+					TheUser.SendDataToSim(SimInfo);
 					return(Regex.Replace(XmlRpcResponseSerializer.Singleton.Serialize(LoginGoodResp),"utf-16","utf-8" ));
 
 				} catch (Exception E) {

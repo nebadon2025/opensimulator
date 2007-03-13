@@ -131,7 +131,24 @@ namespace OpenGridServices
 		}
 	
 		public void AddSimCircuit(uint circuit_code, LLUUID region_UUID) {
-			if(!this.Circuits.ContainsKey(region_UUID)) this.Circuits.Add(region_UUID, circuit_code);
+			if(this.Circuits.ContainsKey(region_UUID)== false)
+				this.Circuits.Add(region_UUID, circuit_code);
+		}
+
+		public void SendDataToSim(SimProfile TheSim) {
+			Console.WriteLine(TheSim.caps_url);
+			Hashtable SimParams = new Hashtable();
+			SimParams["session_id"]=this.CurrentSessionID.ToString();
+			SimParams["secure_session_id"]=this.CurrentSecureSessionID.ToString();
+			SimParams["firstname"]=this.firstname;
+			SimParams["lastname"]=this.lastname;
+			SimParams["agent_id"]=this.UUID.ToString();
+			SimParams["circuit_code"]=(Int32)this.Circuits[TheSim.UUID];
+                        ArrayList SendParams = new ArrayList();
+                        SendParams.Add(SimParams);
+                        
+			XmlRpcRequest GridReq = new XmlRpcRequest("expect_user",SendParams);
+                        XmlRpcResponse GridResp = GridReq.Send(TheSim.caps_url,3000);
 		}
 	}
 
@@ -180,15 +197,15 @@ namespace OpenGridServices
 	
 			XmlRpcResponse GridResp = GridReq.Send(GridURL,3000);
 		
-			Hashtable RespData=(Hashtable)GridResp.Value;	
-			this.UUID = new LLUUID(RespData["UUID"].ToString());
-			this.regionhandle = Convert.ToUInt64(RespData["regionhandle"]);
+			Hashtable RespData=(Hashtable)GridResp.Value;
+			this.UUID = new LLUUID((string)RespData["UUID"]);
+			this.regionhandle = (ulong)Convert.ToUInt64(RespData["regionhandle"]);
 			this.regionname=(string)RespData["regionname"];
 			this.sim_ip=(string)RespData["sim_ip"];
-			this.sim_port=Convert.ToUInt16(RespData["sim_port"]);
+			this.sim_port=(uint)Convert.ToUInt16(RespData["sim_port"]);
 			this.caps_url=(string)RespData["caps_url"];
-			this.RegionLocX=Convert.ToUInt32(RespData["RegionLocX"]);
-			this.RegionLocY=Convert.ToUInt32(RespData["RegionLocY"]);
+			this.RegionLocX=(uint)Convert.ToUInt32(RespData["RegionLocX"]);
+			this.RegionLocY=(uint)Convert.ToUInt32(RespData["RegionLocY"]);
 			this.sendkey=(string)RespData["sendkey"];
 			this.recvkey=(string)RespData["recvkey"];
 			} catch(Exception e) {

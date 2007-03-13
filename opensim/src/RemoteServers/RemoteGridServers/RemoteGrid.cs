@@ -70,6 +70,11 @@ namespace RemoteGridServers
 		private string GridServerUrl;
 		private string GridSendKey;
 		private Dictionary<uint, agentcircuitdata> AgentCircuits = new Dictionary<uint, agentcircuitdata>(); 
+
+		public Dictionary<uint, agentcircuitdata> agentcircuits {
+                        get {return AgentCircuits;} 
+                        set {AgentCircuits=value;}
+                }
 	
 		public RemoteGridServer()
 		{
@@ -80,7 +85,8 @@ namespace RemoteGridServers
 		{
 			return true;
 		}
-		
+	
+	
 		public AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitcode)
 		{
 			agentcircuitdata validcircuit=this.AgentCircuits[circuitcode];
@@ -209,16 +215,6 @@ namespace RemoteGridServers
 		}
 	}
 
-	public class agentcircuitdata {
-		public agentcircuitdata() { }
-		public LLUUID AgentID;
-		public LLUUID SessionID;
-		public LLUUID SecureSessionID;
-		public string firstname;
-		public string lastname;
-		public uint circuitcode;
-	}
-	
 	public class BlockingQueue< T > {
 		private Queue< T > _queue = new Queue< T >();
 		private object _queueSync = new object();

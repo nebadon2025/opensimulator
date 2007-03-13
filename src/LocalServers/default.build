@@ -42,6 +42,7 @@
 				<include name="libsecondlife.dll" />
 				<include name="GridInterfaces.dll" />
 				<include name="ServerConsole.dll" />
+				<include name="Db4objects.Db4o.dll" />
 			</references>
 			<sources basedir="LocalGridServers/">
 				<include name="*.cs" />

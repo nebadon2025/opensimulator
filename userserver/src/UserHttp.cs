@@ -56,6 +56,7 @@ namespace OpenGridServices
 			Listener = new HttpListener();
 
 			Listener.Prefixes.Add("http://+:8002/userserver/");
+			Listener.Prefixes.Add("http://+:8002/usersessions/");
 			Listener.Start();
 
 			HttpListenerContext context;
@@ -213,7 +214,27 @@ namespace OpenGridServices
 			return "";
 		}
 		
-		static string ParseREST(string requestBody, string requestURL) {
+		static string ParseREST(HttpListenerRequest www_req) {
+		
+			string[] rest_params = www_req.RawUrl.Split('/');
+			string req_type = rest_params[0];	// First part of the URL is the type of request - usersessions/userprofiles/inventory/blabla
+			switch(req_type) {
+				case "usersessions":
+					LLUUID sessionid = new LLUUID(rest_params[1]);	// get usersessions/sessionid
+					if(www_req.HttpMethod=="DELETE") {
+			                        foreach (libsecondlife.LLUUID UUID in OpenUser_Main.userserver._profilemanager.UserProfiles.Keys) {
+							if(OpenUser_Main.userserver._profilemanager.UserProfiles[UUID].CurrentSessionID==sessionid) {
+								OpenUser_Main.userserver._profilemanager.UserProfiles[UUID].CurrentSessionID=null;
+								OpenUser_Main.userserver._profilemanager.UserProfiles[UUID].CurrentSecureSessionID=null;
+								OpenUser_Main.userserver._profilemanager.UserProfiles[UUID].Circuits.Clear();
+							}
+			                        }
+
+					}
+					return "OK";
+				break;
+			}
+
 			return "";
 		}
 
@@ -246,7 +267,7 @@ namespace OpenGridServices
                         	
 				case null:
 					// must be REST or invalid crap, so pass to the REST parser
-					responseString=ParseREST(request.Url.OriginalString,requestBody);
+					responseString=ParseREST(request);
 				break;
 			}
 	

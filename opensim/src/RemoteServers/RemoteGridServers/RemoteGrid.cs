@@ -112,10 +112,18 @@ namespace RemoteGridServers
 		
 		public bool LogoutSession(LLUUID sessionID, LLUUID agentID, uint circuitCode)
 		{
-			WebRequest DeleteSession = WebRequest.Create(RemoteUrl + "/usersessions/" + sessionID.ToString());
+			WebRequest DeleteSession = WebRequest.Create(GridServerUrl + "/usersessions/" + sessionID.ToString());
 			DeleteSession.Method="DELETE";
-			WebResponse GridResponse = DeleteSession.GetResponse();
-			GridResponse.Close();
+			DeleteSession.ContentType="text/plaintext";
+			DeleteSession.ContentLength=0;
+
+			StreamWriter stOut = new StreamWriter (DeleteSession.GetRequestStream(), System.Text.Encoding.ASCII);
+			stOut.Write("");
+			stOut.Close();
+
+			StreamReader stIn = new StreamReader(DeleteSession.GetResponse().GetResponseStream());
+			string GridResponse = stIn.ReadToEnd();
+			stIn.Close(); 
 			return(true);
 		}
 		

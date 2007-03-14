@@ -215,12 +215,14 @@ namespace OpenGridServices
 		}
 		
 		static string ParseREST(HttpListenerRequest www_req) {
-		
-			string[] rest_params = www_req.RawUrl.Split('/');
-			string req_type = rest_params[0];	// First part of the URL is the type of request - usersessions/userprofiles/inventory/blabla
+			Console.WriteLine("INCOMING REST - " + www_req.RawUrl);
+	
+			char[] splitter  = {'/'};
+			string[] rest_params = www_req.RawUrl.Split(splitter);
+			string req_type = rest_params[1];	// First part of the URL is the type of request - usersessions/userprofiles/inventory/blabla
 			switch(req_type) {
 				case "usersessions":
-					LLUUID sessionid = new LLUUID(rest_params[1]);	// get usersessions/sessionid
+					LLUUID sessionid = new LLUUID(rest_params[2]);	// get usersessions/sessionid
 					if(www_req.HttpMethod=="DELETE") {
 			                        foreach (libsecondlife.LLUUID UUID in OpenUser_Main.userserver._profilemanager.UserProfiles.Keys) {
 							if(OpenUser_Main.userserver._profilemanager.UserProfiles[UUID].CurrentSessionID==sessionid) {
@@ -265,9 +267,9 @@ namespace OpenGridServices
 					response.AddHeader("Content-type","text/xml");	
 				break;
                         	
-				case null:
-					// must be REST or invalid crap, so pass to the REST parser
+				case "text/plaintext":
 					responseString=ParseREST(request);
+					response.AddHeader("Content-type","text/plaintext");
 				break;
 			}
 	

@@ -240,7 +240,7 @@ namespace LocalGridServers
 		}
 	}
 	
-	public class LocalGridServer :IGridServer
+	public class LocalGridServer : LocalGridBase
 	{
 		public List<Login> Sessions = new List<Login>();  
 		
@@ -250,11 +250,17 @@ namespace LocalGridServers
 			ServerConsole.MainConsole.Instance.WriteLine("Local Grid Server class created");
 		}
 		
-		public bool RequestConnection()
+		public override bool RequestConnection()
 		{
 			return true;
 		}
-		public AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode)
+
+        public override string GetName()
+        {
+            return "Local";
+        }
+
+		public override AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode)
 		{
 			//we are running local
 			AuthenticateResponse user = new AuthenticateResponse();
@@ -274,36 +280,37 @@ namespace LocalGridServers
 			return(user);
 		}
 		
-		public bool LogoutSession(LLUUID sessionID, LLUUID agentID, uint circuitCode)
+		public override bool LogoutSession(LLUUID sessionID, LLUUID agentID, uint circuitCode)
 		{
 			return(true);
 		}
 		
-		public UUIDBlock RequestUUIDBlock()
+		public override UUIDBlock RequestUUIDBlock()
 		{
 			UUIDBlock uuidBlock = new UUIDBlock();
 			return(uuidBlock);
 		}
 		
-		public void RequestNeighbours()
+		public override void RequestNeighbours()
 		{
 			return;
 		}
 		
-		public void SetServerInfo(string ServerUrl, string ServerKey)
+		public override void SetServerInfo(string ServerUrl, string ServerKey)
 		{
 			
 		}
 		
-		public void Close()
+		public override void Close()
 		{
 			
 		}
+
 		/// <summary>
 		/// used by the local login server to inform us of new sessions
 		/// </summary>
 		/// <param name="session"></param>
-		public void AddNewSession(Login session)
+		public override void AddNewSession(Login session)
 		{
 			lock(this.Sessions)
 			{

@@ -34,50 +34,50 @@ using libsecondlife;
 
 namespace OpenSim.GridServers
 {
-	/// <summary>
-	/// Description of IAssetServer.
-	/// </summary>
-	
-	public interface IAssetServer
-	{
-		void SetReceiver(IAssetReceiver receiver);
-		void RequestAsset(LLUUID assetID, bool isTexture);
-		void UpdateAsset(AssetBase asset);
-		void UploadNewAsset(AssetBase asset);
-		void SetServerInfo(string ServerUrl, string ServerKey);
-		void Close();
-	}
-	
-	// could change to delegate?
-	public interface IAssetReceiver
-	{
-		void AssetReceived(AssetBase asset, bool IsTexture);
-		void AssetNotFound(AssetBase asset);
-	}
-	
-	public struct ARequest
-	{
-		public LLUUID AssetID;
-		public bool IsTexture;
-	}
-	
-	public class AssetBase
-	{
-		public byte[] Data;
-		public LLUUID FullID;
-		public sbyte Type;
-		public sbyte InvType;
-		public string Name;
-		public string Description;
-		
-		public AssetBase()
-		{
-			
-		}
-	}
-	
-	public interface IAssetPlugin
-	{
-		IAssetServer GetAssetServer();
-	}
+    /// <summary>
+    /// Description of IAssetServer.
+    /// </summary>
+
+    public interface IAssetServer
+    {
+        void SetReceiver(IAssetReceiver receiver);
+        void RequestAsset(LLUUID assetID, bool isTexture);
+        void UpdateAsset(AssetBase asset);
+        void UploadNewAsset(AssetBase asset);
+        void SetServerInfo(string ServerUrl, string ServerKey);
+        void Close();
+    }
+
+    // could change to delegate?
+    public interface IAssetReceiver
+    {
+        void AssetReceived(AssetBase asset, bool IsTexture);
+        void AssetNotFound(AssetBase asset);
+    }
+
+    public struct ARequest
+    {
+        public LLUUID AssetID;
+        public bool IsTexture;
+    }
+
+    public class AssetBase
+    {
+        public byte[] Data;
+        public LLUUID FullID;
+        public sbyte Type;
+        public sbyte InvType;
+        public string Name;
+        public string Description;
+
+        public AssetBase()
+        {
+
+        }
+    }
+
+    public interface IAssetPlugin
+    {
+        IAssetServer GetAssetServer();
+    }
 }

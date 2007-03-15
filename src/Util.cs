@@ -1,5 +1,8 @@
 /*
-* Copyright (c) OpenSim project, http://sim.opensecondlife.org/
+Copyright (c) OpenSim project, http://osgrid.org/
+
+* Copyright (c) <year>, <copyright holder>
+* All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are met:
@@ -22,65 +25,77 @@
 * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-* 
 */
 
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using libsecondlife;
+using libsecondlife.Packets;
 
-namespace GridInterfaces
+namespace OpenSim
 {
     /// <summary>
-    /// ILocalStorage. Really hacked together right now needs cleaning up
     /// </summary>
-    public interface ILocalStorage
+    /// 
+    public class Util
     {
-        void StorePrim(PrimData prim);
-        void RemovePrim(LLUUID primID);
-        void LoadPrimitives(ILocalStorageReceiver receiver);
-        void ShutDown();
-    }
-
-    public interface ILocalStorageReceiver
-    {
-        void PrimFromStorage(PrimData prim);
-    }
-
-
-    public class PrimData
-    {
-        public LLUUID OwnerID;
-        public byte PCode;
-        public byte PathBegin;
-        public byte PathEnd;
-        public byte PathScaleX;
-        public byte PathScaleY;
-        public byte PathShearX;
-        public byte PathShearY;
-        public sbyte PathSkew;
-        public byte ProfileBegin;
-        public byte ProfileEnd;
-        public LLVector3 Scale;
-        public byte PathCurve;
-        public byte ProfileCurve;
-        public uint ParentID = 0;
-        public byte ProfileHollow;
-        public sbyte PathRadiusOffset;
-        public byte PathRevolutions;
-        public sbyte PathTaperX;
-        public sbyte PathTaperY;
-        public sbyte PathTwist;
-        public sbyte PathTwistBegin;
-
-        //following only used during prim storage
-        public LLVector3 Position;
-        public LLQuaternion Rotation;
-        public uint LocalID;
-        public LLUUID FullID;
-
-        public PrimData()
+        public static ulong UIntsToLong(uint X, uint Y)
+        {
+            return Helpers.UIntsToLong(X, Y);
+        }
+        public Util()
         {
 
+        }
+    }
+
+    public class QueItem
+    {
+        public QueItem()
+        {
+        }
+
+        public Packet Packet;
+        public bool Incoming;
+    }
+
+    /*  this is in IGridServer.cs, so there should be no reason for it to be here as well
+    public class agentcircuitdata
+    {
+        public agentcircuitdata() { }
+        public LLUUID AgentID;
+        public LLUUID SessionID;
+        public LLUUID SecureSessionID;
+        public string firstname;
+        public string lastname;
+        public uint circuitcode;
+    }
+    */
+
+    public class BlockingQueue<T>
+    {
+        private Queue<T> _queue = new Queue<T>();
+        private object _queueSync = new object();
+
+        public void Enqueue(T value)
+        {
+            lock (_queueSync)
+            {
+                _queue.Enqueue(value);
+                Monitor.Pulse(_queueSync);
+            }
+        }
+
+        public T Dequeue()
+        {
+            lock (_queueSync)
+            {
+                if (_queue.Count < 1)
+                    Monitor.Wait(_queueSync);
+
+                return _queue.Dequeue();
+            }
         }
     }
 }

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) OpenSim project, http://sim.opensecondlife.org/
+Copyright (c) OpenSim project, http://osgrid.org/
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are met:
@@ -22,65 +22,16 @@
 * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-* 
 */
 
 using System;
-using libsecondlife;
 
-namespace GridInterfaces
+namespace OpenSim
 {
     /// <summary>
-    /// ILocalStorage. Really hacked together right now needs cleaning up
     /// </summary>
-    public interface ILocalStorage
+    public class VersionInfo
     {
-        void StorePrim(PrimData prim);
-        void RemovePrim(LLUUID primID);
-        void LoadPrimitives(ILocalStorageReceiver receiver);
-        void ShutDown();
-    }
-
-    public interface ILocalStorageReceiver
-    {
-        void PrimFromStorage(PrimData prim);
-    }
-
-
-    public class PrimData
-    {
-        public LLUUID OwnerID;
-        public byte PCode;
-        public byte PathBegin;
-        public byte PathEnd;
-        public byte PathScaleX;
-        public byte PathScaleY;
-        public byte PathShearX;
-        public byte PathShearY;
-        public sbyte PathSkew;
-        public byte ProfileBegin;
-        public byte ProfileEnd;
-        public LLVector3 Scale;
-        public byte PathCurve;
-        public byte ProfileCurve;
-        public uint ParentID = 0;
-        public byte ProfileHollow;
-        public sbyte PathRadiusOffset;
-        public byte PathRevolutions;
-        public sbyte PathTaperX;
-        public sbyte PathTaperY;
-        public sbyte PathTwist;
-        public sbyte PathTwistBegin;
-
-        //following only used during prim storage
-        public LLVector3 Position;
-        public LLQuaternion Rotation;
-        public uint LocalID;
-        public LLUUID FullID;
-
-        public PrimData()
-        {
-
-        }
+        public static string Version = "0.1, Build 1173843165, Revision 193:206M";
     }
 }

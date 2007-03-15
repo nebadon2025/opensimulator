@@ -26,61 +26,29 @@
 */
 
 using System;
-using libsecondlife;
+using System.Collections.Generic;
+using System.Text;
 
-namespace GridInterfaces
+namespace PhysicsSystem
 {
-    /// <summary>
-    /// ILocalStorage. Really hacked together right now needs cleaning up
-    /// </summary>
-    public interface ILocalStorage
+    public class PhysicsVector
     {
-        void StorePrim(PrimData prim);
-        void RemovePrim(LLUUID primID);
-        void LoadPrimitives(ILocalStorageReceiver receiver);
-        void ShutDown();
-    }
+        public float X;
+        public float Y;
+        public float Z;
 
-    public interface ILocalStorageReceiver
-    {
-        void PrimFromStorage(PrimData prim);
-    }
-
-
-    public class PrimData
-    {
-        public LLUUID OwnerID;
-        public byte PCode;
-        public byte PathBegin;
-        public byte PathEnd;
-        public byte PathScaleX;
-        public byte PathScaleY;
-        public byte PathShearX;
-        public byte PathShearY;
-        public sbyte PathSkew;
-        public byte ProfileBegin;
-        public byte ProfileEnd;
-        public LLVector3 Scale;
-        public byte PathCurve;
-        public byte ProfileCurve;
-        public uint ParentID = 0;
-        public byte ProfileHollow;
-        public sbyte PathRadiusOffset;
-        public byte PathRevolutions;
-        public sbyte PathTaperX;
-        public sbyte PathTaperY;
-        public sbyte PathTwist;
-        public sbyte PathTwistBegin;
-
-        //following only used during prim storage
-        public LLVector3 Position;
-        public LLQuaternion Rotation;
-        public uint LocalID;
-        public LLUUID FullID;
-
-        public PrimData()
+        public PhysicsVector()
         {
 
         }
+
+        public PhysicsVector(float x, float y, float z)
+        {
+            X = x;
+            Y = y;
+            Z = z;
+        }
+
+        public static readonly PhysicsVector Zero = new PhysicsVector(0f, 0f, 0f);
     }
 }

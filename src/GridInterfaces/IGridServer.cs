@@ -32,64 +32,105 @@ using System.Net;
 using System.Net.Sockets;
 using System.IO;
 using libsecondlife;
+using OpenSim;
 
 namespace OpenSim.GridServers
 {
-	/// <summary>
-	/// Handles connection to Grid Servers.
-	/// also Sim to Sim connections?
-	/// </summary>
-	
-	
-	
-	
-	public interface IGridServer
-	{
-		bool RequestConnection();
-		UUIDBlock RequestUUIDBlock();
-		void RequestNeighbours(); //should return a array of neighbouring regions
-		AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode);
-		bool LogoutSession(LLUUID sessionID, LLUUID agentID, uint circuitCode);
-		void SetServerInfo(string ServerUrl, string ServerKey);
-		void Close();
-		void AddNewSession(Login session); // only used by local version of grid server
-	 									   // and didn't use to be part of this interface until we put this in a dll
-	}
-	
-	public struct UUIDBlock
-	{
-		public LLUUID BlockStart;
-		public LLUUID BlockEnd;
-	}
-	
-	public class AuthenticateResponse
-	{
-		public bool Authorised;
-		public Login LoginInfo;
-		
-		public AuthenticateResponse()
-		{
-			
-		}
-			
-	}
-	
-	public class Login
+    /// <summary>
+    /// Handles connection to Grid Servers.
+    /// also Sim to Sim connections?
+    /// </summary>
+
+    public interface IGridServer
     {
-    	public string First = "Test";
-    	public string Last = "User";
-    	public LLUUID Agent;
-    	public LLUUID Session;
-    	public LLUUID InventoryFolder;
-    	public LLUUID BaseFolder;
-    	public Login()
-    	{
-    		
-    	}
+        UUIDBlock RequestUUIDBlock();
+        void RequestNeighbours(); //should return a array of neighbouring regions
+        AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode);
+        bool LogoutSession(LLUUID sessionID, LLUUID agentID, uint circuitCode);
+        string GetName();
+        bool RequestConnection();
+        void SetServerInfo(string ServerUrl, string ServerKey);
+        void Close();
     }
 
-	public interface IGridPlugin
-	{
-		IGridServer GetGridServer();
-	}
+    public abstract class RemoteGridBase : IGridServer
+    {
+        public abstract Dictionary<uint, agentcircuitdata> agentcircuits
+        {
+            get;
+            set;
+        }
+
+        public abstract UUIDBlock RequestUUIDBlock();
+        public abstract void RequestNeighbours();
+        public abstract AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode);
+        public abstract bool LogoutSession(LLUUID sessionID, LLUUID agentID, uint circuitCode);
+        public abstract string GetName();
+        public abstract bool RequestConnection();
+        public abstract void SetServerInfo(string ServerUrl, string ServerKey);
+        public abstract void Close();
+    }
+
+    public abstract class LocalGridBase : IGridServer
+    {
+        public abstract UUIDBlock RequestUUIDBlock();
+        public abstract void RequestNeighbours();
+        public abstract AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitCode);
+        public abstract bool LogoutSession(LLUUID sessionID, LLUUID agentID, uint circuitCode);
+        public abstract string GetName();
+        public abstract bool RequestConnection();
+        public abstract void SetServerInfo(string ServerUrl, string ServerKey);
+        public abstract void AddNewSession(Login session);
+        public abstract void Close();
+    }
+
+    public struct UUIDBlock
+    {
+        public LLUUID BlockStart;
+        public LLUUID BlockEnd;
+    }
+
+    public class AuthenticateResponse
+    {
+        public bool Authorised;
+        public Login LoginInfo;
+
+        public AuthenticateResponse()
+        {
+
+        }
+
+    }
+
+    public class Login
+    {
+        public string First = "Test";
+        public string Last = "User";
+        public LLUUID Agent;
+        public LLUUID Session;
+        public LLUUID InventoryFolder;
+        public LLUUID BaseFolder;
+        public Login()
+        {
+
+        }
+    }
+
+    public interface IGridPlugin
+    {
+        IGridServer GetGridServer();
+    }
+
+    public class agentcircuitdata
+    {
+        public agentcircuitdata() { }
+        public LLUUID AgentID;
+        public LLUUID SessionID;
+        public LLUUID SecureSessionID;
+        public string firstname;
+        public string lastname;
+        public uint circuitcode;
+    }
+
+
 }

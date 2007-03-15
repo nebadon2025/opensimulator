@@ -47,15 +47,21 @@ namespace PhysicsSystem
 		
 		public PhysicsScene GetPhysicsScene(string engineName)
 		{
+            if (String.IsNullOrEmpty(engineName))
+            {
+                return new NullPhysicsScene();
+            }
+
 			if(_plugins.ContainsKey(engineName))
 			{
 				ServerConsole.MainConsole.Instance.WriteLine("creating "+engineName);
 				return _plugins[engineName].GetScene();
 			}
 			else
-			{
-				ServerConsole.MainConsole.Instance.WriteLine("couldn't find physicsEngine: "+ engineName);
-				return null;
+            {
+                string error = String.Format("couldn't find physicsEngine: {0}", engineName);
+                ServerConsole.MainConsole.Instance.WriteLine(error);
+                throw new ArgumentException(error);
 			}
 		}
 		
@@ -99,90 +105,12 @@ namespace PhysicsSystem
 			pluginAssembly = null; 
 		}
 	}
+
 	public interface IPhysicsPlugin
 	{
 		bool Init();
 		PhysicsScene GetScene();
 		string GetName();
 		void Dispose();
-	}
-	
-	public abstract class PhysicsScene
-	{
-		public abstract PhysicsActor AddAvatar(PhysicsVector position);
-		
-		public abstract PhysicsActor AddPrim(PhysicsVector position, PhysicsVector size);
-		
-		public abstract void Simulate(float timeStep);
-		
-		public abstract void GetResults();
-		
-		public abstract void SetTerrain(float[] heightMap);
-		
-		public abstract bool IsThreaded
-		{
-			get;
-		}
-	}
-	
-	public abstract class PhysicsActor
-	{
-		public abstract PhysicsVector Position
-		{
-			get;
-			set;
-		}
-		
-		public abstract PhysicsVector Velocity
-		{
-			get;
-			set;
-		}
-		
-		public abstract PhysicsVector Acceleration
-		{
-			get;
-		}
-		
-		public abstract Axiom.MathLib.Quaternion Orientation
-		{
-			get;
-			set;
-		}
-		
-		public abstract bool Flying
-		{
-			get;
-			set;
-		}
-		
-		public abstract bool Kinematic
-		{
-			get;
-			set;
-		}
-		
-		public abstract void AddForce(PhysicsVector force);
-		
-		public abstract void SetMomentum(PhysicsVector momentum);
-	}
-
-	public class PhysicsVector
-	{
-		public float X;
-		public float Y;
-		public float Z;
-		
-		public PhysicsVector()
-		{
-			
-		}
-		
-		public PhysicsVector(float x, float y, float z)
-		{
-			X = x;
-			Y = y;
-			Z = z;
-		}
 	}
 }

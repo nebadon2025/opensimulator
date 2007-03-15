@@ -35,40 +35,40 @@ using OpenSim.world;
 
 namespace OpenSim
 {
-	/// <summary>
-	/// This class handles connection to the underlying database used for configuration of the region.
-	/// Region content is also stored by this class. The main entry point is InitConfig() which attempts to locate
-	/// opensim.yap in the current working directory. If opensim.yap can not be found, default settings are loaded from
-	/// what is hardcoded here and then saved into opensim.yap for future startups.
-	/// </summary>
-	
-	
-	public abstract class SimConfig
-	{
-		public string RegionName;
-		
-		public uint RegionLocX;
-		public uint RegionLocY;
-		public ulong RegionHandle;
-		
-		public int IPListenPort;
-		public string IPListenAddr;
-		
+    /// <summary>
+    /// This class handles connection to the underlying database used for configuration of the region.
+    /// Region content is also stored by this class. The main entry point is InitConfig() which attempts to locate
+    /// opensim.yap in the current working directory. If opensim.yap can not be found, default settings are loaded from
+    /// what is hardcoded here and then saved into opensim.yap for future startups.
+    /// </summary>
+
+
+    public abstract class SimConfig
+    {
+        public string RegionName;
+
+        public uint RegionLocX;
+        public uint RegionLocY;
+        public ulong RegionHandle;
+
+        public int IPListenPort;
+        public string IPListenAddr;
+
         public string AssetURL;
-	    public string AssetSendKey;
-		
-	    public string GridURL;
-	    public string GridSendKey;
-		
-	    public abstract void InitConfig();
-	    public abstract void LoadFromGrid();
-	    public abstract World LoadWorld();
-	    public abstract void SaveMap();
-		
-	}
-	
-	public interface ISimConfig
-	{
-		SimConfig GetConfigObject();
-	}
+        public string AssetSendKey;
+
+        public string GridURL;
+        public string GridSendKey;
+
+        public abstract void InitConfig();
+        public abstract void LoadFromGrid();
+        public abstract World LoadWorld();
+        public abstract void SaveMap();
+
+    }
+
+    public interface ISimConfig
+    {
+        SimConfig GetConfigObject();
+    }
 }

@@ -61,21 +61,6 @@ namespace OpenSim.Framework.Interfaces
         public bool IsTexture;
     }
 
-    /*public class AssetBase
-    {
-        public byte[] Data;
-        public LLUUID FullID;
-        public sbyte Type;
-        public sbyte InvType;
-        public string Name;
-        public string Description;
-
-        public AssetBase()
-        {
-
-        }
-    }*/
-
     public interface IAssetPlugin
     {
         IAssetServer GetAssetServer();

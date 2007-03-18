@@ -99,7 +99,7 @@ namespace OpenSim.world
         {
             if (this.newPrimFlag)
             {
-                foreach (OpenSimClient client in OpenSim_Main.sim.ClientThreads.Values)
+                foreach (OpenSimClient client in OpenSim_Main.Instance.ClientThreads.Values)
                 {
                     client.OutPacket(OurPacket);
                 }
@@ -108,11 +108,11 @@ namespace OpenSim.world
             else if (this.updateFlag)
             {
                 ImprovedTerseObjectUpdatePacket terse = new ImprovedTerseObjectUpdatePacket();
-                terse.RegionData.RegionHandle = OpenSim_Main.cfg.RegionHandle; // FIXME
+                terse.RegionData.RegionHandle = OpenSim_Main.Instance.Cfg.RegionHandle; // FIXME
                 terse.RegionData.TimeDilation = 64096;
                 terse.ObjectData = new ImprovedTerseObjectUpdatePacket.ObjectDataBlock[1];
                 terse.ObjectData[0] = this.CreateImprovedBlock();
-                foreach (OpenSimClient client in OpenSim_Main.sim.ClientThreads.Values)
+                foreach (OpenSimClient client in OpenSim_Main.Instance.ClientThreads.Values)
                 {
                     client.OutPacket(terse);
                 }
@@ -120,7 +120,7 @@ namespace OpenSim.world
             }
             else if (this.dirtyFlag)
             {
-                foreach (OpenSimClient client in OpenSim_Main.sim.ClientThreads.Values)
+                foreach (OpenSimClient client in OpenSim_Main.Instance.ClientThreads.Values)
                 {
                     UpdateClient(client);
                 }
@@ -131,11 +131,11 @@ namespace OpenSim.world
                 if (this._physActor != null && this.physicsEnabled)
                 {
                     ImprovedTerseObjectUpdatePacket terse = new ImprovedTerseObjectUpdatePacket();
-                    terse.RegionData.RegionHandle = OpenSim_Main.cfg.RegionHandle; // FIXME
+                    terse.RegionData.RegionHandle = OpenSim_Main.Instance.Cfg.RegionHandle; // FIXME
                     terse.RegionData.TimeDilation = 64096;
                     terse.ObjectData = new ImprovedTerseObjectUpdatePacket.ObjectDataBlock[1];
                     terse.ObjectData[0] = this.CreateImprovedBlock();
-                    foreach (OpenSimClient client in OpenSim_Main.sim.ClientThreads.Values)
+                    foreach (OpenSimClient client in OpenSim_Main.Instance.ClientThreads.Values)
                     {
                         client.OutPacket(terse);
                     }
@@ -254,7 +254,7 @@ namespace OpenSim.world
         public void CreateFromPacket(ObjectAddPacket addPacket, LLUUID agentID, uint localID)
         {
             ObjectUpdatePacket objupdate = new ObjectUpdatePacket();
-            objupdate.RegionData.RegionHandle = OpenSim_Main.cfg.RegionHandle;
+            objupdate.RegionData.RegionHandle = OpenSim_Main.Instance.Cfg.RegionHandle;
             objupdate.RegionData.TimeDilation = 64096;
 
             objupdate.ObjectData = new libsecondlife.Packets.ObjectUpdatePacket.ObjectDataBlock[1];
@@ -301,8 +301,6 @@ namespace OpenSim.world
             PData.PathTwist = objupdate.ObjectData[0].PathTwist = addPacket.ObjectData.PathTwist;
             PData.PathTwistBegin = objupdate.ObjectData[0].PathTwistBegin = addPacket.ObjectData.PathTwistBegin;
 
-            //finish off copying rest of shape data
-
             objupdate.ObjectData[0].ID = (uint)(localID);
             objupdate.ObjectData[0].FullID = new LLUUID("edba7151-5857-acc5-b30b-f01efef" + (localID - 702000).ToString("00000"));
             objupdate.ObjectData[0].ObjectData = new byte[60];
@@ -324,7 +322,7 @@ namespace OpenSim.world
         {
             //need to clean this up as it shares a lot of code with CreateFromPacket()
             ObjectUpdatePacket objupdate = new ObjectUpdatePacket();
-            objupdate.RegionData.RegionHandle = OpenSim_Main.cfg.RegionHandle;
+            objupdate.RegionData.RegionHandle = OpenSim_Main.Instance.Cfg.RegionHandle;
             objupdate.RegionData.TimeDilation = 64096;
             objupdate.ObjectData = new libsecondlife.Packets.ObjectUpdatePacket.ObjectDataBlock[1];
 
@@ -476,12 +474,11 @@ namespace OpenSim.world
 
         public override void BackUp()
         {
-
             this.primData.FullID = this.uuid;
             this.primData.LocalID = this.localid;
             this.primData.Position = this.position;
             this.primData.Rotation = new LLQuaternion(this.rotation.x, this.rotation.y, this.rotation.z, this.rotation.w);
-            OpenSim_Main.local_world.localStorage.StorePrim(this.primData);
+            OpenSim_Main.Instance.LocalWorld.localStorage.StorePrim(this.primData);
         }
     }
 

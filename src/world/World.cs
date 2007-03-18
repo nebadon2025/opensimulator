@@ -8,6 +8,7 @@ using System.IO;
 using PhysicsSystem;
 using OpenSim.Framework.Interfaces;
 using OpenSim.Framework.Assets;
+using OpenSim.Framework.Terrain;
 
 namespace OpenSim.world
 {
@@ -113,9 +114,9 @@ namespace OpenSim.world
     		HeightmapGenHills hills = new HeightmapGenHills();
     		this.LandMap = hills.GenerateHeightmap(200, 4.0f, 80.0f, false);
     		this.phyScene.SetTerrain(this.LandMap);
-    		OpenSim_Main.cfg.SaveMap();
+    		OpenSim_Main.Instance.Cfg.SaveMap(this.LandMap);
     		
-    		foreach(OpenSimClient client in OpenSim_Main.sim.ClientThreads.Values) {
+    		foreach(OpenSimClient client in OpenSim_Main.Instance.ClientThreads.Values) {
     			this.SendLayerData(client);
     		}
     	}

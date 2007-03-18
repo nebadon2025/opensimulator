@@ -29,60 +29,46 @@ Copyright (c) OpenSim project, http://osgrid.org/
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
+using System.IO;
 using libsecondlife;
-using libsecondlife.Packets;
+//using OpenSim.world;
 
-namespace OpenSim
+namespace OpenSim.Framework.Interfaces
 {
     /// <summary>
+    /// This class handles connection to the underlying database used for configuration of the region.
+    /// Region content is also stored by this class. The main entry point is InitConfig() which attempts to locate
+    /// opensim.yap in the current working directory. If opensim.yap can not be found, default settings are loaded from
+    /// what is hardcoded here and then saved into opensim.yap for future startups.
     /// </summary>
-    /// 
-    public class Util
-    {
-        public static ulong UIntsToLong(uint X, uint Y)
-        {
-            return Helpers.UIntsToLong(X, Y);
-        }
-        public Util()
-        {
 
-        }
+
+    public abstract class SimConfig
+    {
+        public string RegionName;
+
+        public uint RegionLocX;
+        public uint RegionLocY;
+        public ulong RegionHandle;
+
+        public int IPListenPort;
+        public string IPListenAddr;
+
+        public string AssetURL;
+        public string AssetSendKey;
+
+        public string GridURL;
+        public string GridSendKey;
+
+        public abstract void InitConfig(bool sandboxMode);
+        public abstract void LoadFromGrid(); 
+        public abstract float[] LoadWorld();
+        public abstract void SaveMap(float[] heightmap);
+
     }
 
-    public class QueItem
+    public interface ISimConfig
     {
-        public QueItem()
-        {
-        }
-
-        public Packet Packet;
-        public bool Incoming;
-    }
-
-    public class BlockingQueue<T>
-    {
-        private Queue<T> _queue = new Queue<T>();
-        private object _queueSync = new object();
-
-        public void Enqueue(T value)
-        {
-            lock (_queueSync)
-            {
-                _queue.Enqueue(value);
-                Monitor.Pulse(_queueSync);
-            }
-        }
-
-        public T Dequeue()
-        {
-            lock (_queueSync)
-            {
-                if (_queue.Count < 1)
-                    Monitor.Wait(_queueSync);
-
-                return _queue.Dequeue();
-            }
-        }
+        SimConfig GetConfigObject();
     }
 }

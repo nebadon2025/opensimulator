@@ -41,10 +41,13 @@
   <ItemGroup>
     <Compile Include="AssetBase.cs" />
     <Compile Include="BlockingQueue.cs" />
+    <Compile Include="HeightMapGenHills.cs" />
     <Compile Include="IAssetServer.cs" />
+    <Compile Include="IConfig.cs" />
     <Compile Include="IGridServer.cs" />
     <Compile Include="ILocalStorage.cs" />
     <Compile Include="Inventory.cs" />
+    <Compile Include="IUserServer.cs" />
     <Compile Include="LoginService.cs" />
     <Compile Include="PrimData.cs" />
     <Compile Include="SimProfile.cs" />

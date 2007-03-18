@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using libsecondlife;
 using OpenSim.Framework.Utilities;
+using OpenSim.Framework.Inventory;
 
 namespace OpenSim.Framework.User
 {
@@ -73,6 +74,17 @@ namespace OpenSim.Framework.User
             newprofile.UUID = LLUUID.Random();
             this.UserProfiles.Add(newprofile.UUID, newprofile);
             return newprofile;
+        }
+
+        public virtual AgentInventory GetUsersInventory(LLUUID agentID)
+        {
+            UserProfile user = this.GetProfileByLLUUID(agentID);
+            if (user != null)
+            {
+                return user.Inventory;
+            }
+
+            return null;
         }
 
     }

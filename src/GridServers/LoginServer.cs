@@ -42,6 +42,7 @@ using OpenSim.Framework.Interfaces;
 using OpenSim.Framework.Grid;
 using OpenSim.Framework.Inventory;
 using OpenSim.Framework.User;
+using OpenSim.Framework.Utilities;
 
 namespace OpenSim.Framework.LocalServers
 {
@@ -49,26 +50,24 @@ namespace OpenSim.Framework.LocalServers
     /// <summary>
     /// When running in local (default) mode , handles client logins.
     /// </summary>
-    public class LoginServer : LoginService
+    public class LoginServer : LoginService , IUserServer
     {
-        public LoginServer(IGridServer gridServer)
-        {
-            _gridServer = gridServer;
-        }
-
-        private Login _login;
         private IGridServer _gridServer;
         private ushort _loginPort = 8080;
         public IPAddress clientAddress = IPAddress.Loopback;
         public IPAddress remoteAddress = IPAddress.Any;
         private Socket loginServer;
-        private Random RandomClass = new Random();
         private int NumClients;
         private string _defaultResponse;
         private bool userAccounts = false;
         private string _mpasswd;
         private bool _needPasswd = false;
         private LocalUserProfileManager userManager;
+
+        public LoginServer(IGridServer gridServer)
+        {
+            _gridServer = gridServer;
+        }
 
         // InitializeLogin: initialize the login 
         private void InitializeLogin()
@@ -89,7 +88,10 @@ namespace OpenSim.Framework.LocalServers
             }
             SR.Close();
             this._mpasswd = EncodePassword("testpass");
+
             userManager = new LocalUserProfileManager(this._gridServer);
+            userManager.InitUserProfiles();
+            userManager.SetKeys("", "", "", "Welcome to OpenSim");
 
             loginServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             loginServer.Bind(new IPEndPoint(remoteAddress, _loginPort));
@@ -174,6 +176,7 @@ namespace OpenSim.Framework.LocalServers
 
                 if (this.userAccounts)
                 {
+                    //ask the UserProfile Manager to process the request
                     string reply = this.userManager.ParseXMLRPC(new String(content));
                     // forward the XML-RPC response to the client
                     writer.WriteLine("HTTP/1.0 200 OK");
@@ -183,138 +186,158 @@ namespace OpenSim.Framework.LocalServers
                 }
                 else
                 {
+                    //handle ourselves
                     XmlRpcRequest request = (XmlRpcRequest)(new XmlRpcRequestDeserializer()).Deserialize(new String(content));
-                    this.ProcessXmlRequest(request, writer);
+                    if (request.MethodName == "login_to_simulator")
+                    {
+                        this.ProcessXmlRequest(request, writer);
+                    }
+                    else
+                    {
+                        XmlRpcResponse PresenceErrorResp = new XmlRpcResponse();
+                        Hashtable PresenceErrorRespData = new Hashtable();
+                        PresenceErrorRespData["reason"] = "XmlRequest"; ;
+                        PresenceErrorRespData["message"] = "Unknown Rpc request";
+                        PresenceErrorRespData["login"] = "false";
+                        PresenceErrorResp.Value = PresenceErrorRespData;
+                        string reply = Regex.Replace(XmlRpcResponseSerializer.Singleton.Serialize(PresenceErrorResp), " encoding=\"utf-16\"", "");
+                        writer.WriteLine("HTTP/1.0 200 OK");
+                        writer.WriteLine("Content-type: text/xml");
+                        writer.WriteLine();
+                        writer.WriteLine(reply);
+                    }
                 }
             }
         }
 
         public bool ProcessXmlRequest(XmlRpcRequest request, StreamWriter writer)
         {
-            if (request.MethodName == "login_to_simulator")
+            Hashtable requestData = (Hashtable)request.Params[0];
+            string first;
+            string last;
+            string passwd;
+            LLUUID Agent;
+            LLUUID Session;
+
+            //get login name
+            if (requestData.Contains("first"))
             {
-                Hashtable requestData = (Hashtable)request.Params[0];
-                string first;
-                string last;
-                string passwd;
-                LLUUID Agent;
-                LLUUID Session;
-
-                //get login name
-                if (requestData.Contains("first"))
-                {
-                    first = (string)requestData["first"];
-                }
-                else
-                {
-                    first = "test";
-                }
-
-                if (requestData.Contains("last"))
-                {
-                    last = (string)requestData["last"];
-                }
-                else
-                {
-                    last = "User" + NumClients.ToString();
-                }
-
-                if (requestData.Contains("passwd"))
-                {
-                    passwd = (string)requestData["passwd"];
-                }
-                else
-                {
-                    passwd = "notfound";
-                }
-
-                if (!Authenticate(first, last, passwd))
-                {
-                    // Fail miserably
-                    writer.WriteLine("HTTP/1.0 403 Authentication Forbidden");
-                    writer.WriteLine();
-                    return false;
-                }
-                NumClients++;
-
-                //create a agent and session LLUUID
-                Agent = GetAgentId(first, last);
-                int SessionRand = this.RandomClass.Next(1, 999);
-                Session = new LLUUID("aaaabbbb-0200-" + SessionRand.ToString("0000") + "-8664-58f53e442797");
-
-                //create some login info
-                Hashtable LoginFlagsHash = new Hashtable();
-                LoginFlagsHash["daylight_savings"] = "N";
-                LoginFlagsHash["stipend_since_login"] = "N";
-                LoginFlagsHash["gendered"] = "Y";
-                LoginFlagsHash["ever_logged_in"] = "Y";
-                ArrayList LoginFlags = new ArrayList();
-                LoginFlags.Add(LoginFlagsHash);
-
-                Hashtable GlobalT = new Hashtable();
-                GlobalT["sun_texture_id"] = "cce0f112-878f-4586-a2e2-a8f104bba271";
-                GlobalT["cloud_texture_id"] = "fc4b9f0b-d008-45c6-96a4-01dd947ac621";
-                GlobalT["moon_texture_id"] = "fc4b9f0b-d008-45c6-96a4-01dd947ac621";
-                ArrayList GlobalTextures = new ArrayList();
-                GlobalTextures.Add(GlobalT);
-
-                XmlRpcResponse response = (XmlRpcResponse)(new XmlRpcResponseDeserializer()).Deserialize(this._defaultResponse);
-                Hashtable responseData = (Hashtable)response.Value;
-
-                responseData["sim_port"] = OpenSim_Main.cfg.IPListenPort;
-                responseData["sim_ip"] = OpenSim_Main.cfg.IPListenAddr;
-                responseData["agent_id"] = Agent.ToStringHyphenated();
-                responseData["session_id"] = Session.ToStringHyphenated();
-                responseData["seconds_since_epoch"] = (Int32)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
-                responseData["login-flags"] = LoginFlags;
-                responseData["global-textures"] = GlobalTextures;
-
-                //inventory
-                ArrayList InventoryList = (ArrayList)responseData["inventory-skeleton"];
-                Hashtable Inventory1 = (Hashtable)InventoryList[0];
-                Hashtable Inventory2 = (Hashtable)InventoryList[1];
-                LLUUID BaseFolderID = LLUUID.Random();
-                LLUUID InventoryFolderID = LLUUID.Random();
-                Inventory2["name"] = "Base";
-                Inventory2["folder_id"] = BaseFolderID.ToStringHyphenated();
-                Inventory2["type_default"] = 6;
-                Inventory1["folder_id"] = InventoryFolderID.ToStringHyphenated();
-
-                ArrayList InventoryRoot = (ArrayList)responseData["inventory-root"];
-                Hashtable Inventoryroot = (Hashtable)InventoryRoot[0];
-                Inventoryroot["folder_id"] = InventoryFolderID.ToStringHyphenated();
-
-                CustomiseLoginResponse(responseData, first, last);
-
-                this._login = new Login();
-                //copy data to login object
-                _login.First = first;
-                _login.Last = last;
-                _login.Agent = Agent;
-                _login.Session = Session;
-                _login.BaseFolder = BaseFolderID;
-                _login.InventoryFolder = InventoryFolderID;
-
-                //working on local computer if so lets add to the gridserver's list of sessions?
-                if (OpenSim_Main.gridServers.GridServer.GetName() == "Local")
-                {
-                    ((LocalGridBase)this._gridServer).AddNewSession(_login);
-                }
-
-                // forward the XML-RPC response to the client
-                writer.WriteLine("HTTP/1.0 200 OK");
-                writer.WriteLine("Content-type: text/xml");
-                writer.WriteLine();
-
-                XmlTextWriter responseWriter = new XmlTextWriter(writer);
-                XmlRpcResponseSerializer.Singleton.Serialize(responseWriter, response);
-                responseWriter.Close();
+                first = (string)requestData["first"];
             }
             else
             {
-                writer.WriteLine("HTTP/1.0 403 Authentication Forbidden");
-                writer.WriteLine();
+                first = "test";
             }
+
+            if (requestData.Contains("last"))
+            {
+                last = (string)requestData["last"];
+            }
+            else
+            {
+                last = "User" + NumClients.ToString();
+            }
+
+            if (requestData.Contains("passwd"))
+            {
+                passwd = (string)requestData["passwd"];
+            }
+            else
+            {
+                passwd = "notfound";
+            }
+
+            if (!Authenticate(first, last, passwd))
+            {
+                XmlRpcResponse PresenceErrorResp = new XmlRpcResponse();
+                Hashtable PresenceErrorRespData = new Hashtable();
+                PresenceErrorRespData["reason"] = "key"; ;
+                PresenceErrorRespData["message"] = "You have entered an invalid name/password combination. Check Caps/lock.";
+                PresenceErrorRespData["login"] = "false";
+                PresenceErrorResp.Value = PresenceErrorRespData;
+                string reply = Regex.Replace(XmlRpcResponseSerializer.Singleton.Serialize(PresenceErrorResp), " encoding=\"utf-16\"", "");
+                writer.WriteLine("HTTP/1.0 200 OK");
+                writer.WriteLine("Content-type: text/xml");
+                writer.WriteLine();
+                writer.WriteLine(reply);
+                return false;
+            }
+
+            NumClients++;
+
+            //create a agent and session LLUUID
+            Agent = GetAgentId(first, last);
+            int SessionRand = Util.RandomClass.Next(1, 999);
+            Session = new LLUUID("aaaabbbb-0200-" + SessionRand.ToString("0000") + "-8664-58f53e442797");
+
+            //create some login info
+            Hashtable LoginFlagsHash = new Hashtable();
+            LoginFlagsHash["daylight_savings"] = "N";
+            LoginFlagsHash["stipend_since_login"] = "N";
+            LoginFlagsHash["gendered"] = "Y";
+            LoginFlagsHash["ever_logged_in"] = "Y";
+            ArrayList LoginFlags = new ArrayList();
+            LoginFlags.Add(LoginFlagsHash);
+
+            Hashtable GlobalT = new Hashtable();
+            GlobalT["sun_texture_id"] = "cce0f112-878f-4586-a2e2-a8f104bba271";
+            GlobalT["cloud_texture_id"] = "fc4b9f0b-d008-45c6-96a4-01dd947ac621";
+            GlobalT["moon_texture_id"] = "fc4b9f0b-d008-45c6-96a4-01dd947ac621";
+            ArrayList GlobalTextures = new ArrayList();
+            GlobalTextures.Add(GlobalT);
+
+            XmlRpcResponse response = (XmlRpcResponse)(new XmlRpcResponseDeserializer()).Deserialize(this._defaultResponse);
+            Hashtable responseData = (Hashtable)response.Value;
+
+            responseData["sim_port"] = OpenSim_Main.Instance.Cfg.IPListenPort;
+            responseData["sim_ip"] = OpenSim_Main.Instance.Cfg.IPListenAddr;
+            responseData["agent_id"] = Agent.ToStringHyphenated();
+            responseData["session_id"] = Session.ToStringHyphenated();
+            responseData["seconds_since_epoch"] = (Int32)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+            responseData["login-flags"] = LoginFlags;
+            responseData["global-textures"] = GlobalTextures;
+
+            //inventory
+            ArrayList InventoryList = (ArrayList)responseData["inventory-skeleton"];
+            Hashtable Inventory1 = (Hashtable)InventoryList[0];
+            Hashtable Inventory2 = (Hashtable)InventoryList[1];
+            LLUUID BaseFolderID = LLUUID.Random();
+            LLUUID InventoryFolderID = LLUUID.Random();
+            Inventory2["name"] = "Base";
+            Inventory2["folder_id"] = BaseFolderID.ToStringHyphenated();
+            Inventory2["type_default"] = 6;
+            Inventory1["folder_id"] = InventoryFolderID.ToStringHyphenated();
+
+            ArrayList InventoryRoot = (ArrayList)responseData["inventory-root"];
+            Hashtable Inventoryroot = (Hashtable)InventoryRoot[0];
+            Inventoryroot["folder_id"] = InventoryFolderID.ToStringHyphenated();
+
+            CustomiseLoginResponse(responseData, first, last);
+
+            Login _login = new Login();
+            //copy data to login object
+            _login.First = first;
+            _login.Last = last;
+            _login.Agent = Agent;
+            _login.Session = Session;
+            _login.BaseFolder = BaseFolderID;
+            _login.InventoryFolder = InventoryFolderID;
+
+            //working on local computer if so lets add to the gridserver's list of sessions?
+            if (OpenSim_Main.Instance.GridServers.GridServer.GetName() == "Local")
+            {
+                ((LocalGridBase)this._gridServer).AddNewSession(_login);
+            }
+
+            // forward the XML-RPC response to the client
+            writer.WriteLine("HTTP/1.0 200 OK");
+            writer.WriteLine("Content-type: text/xml");
+            writer.WriteLine();
+
+            XmlTextWriter responseWriter = new XmlTextWriter(writer);
+            XmlRpcResponseSerializer.Singleton.Serialize(responseWriter, response);
+            responseWriter.Close();
+
             return true;
         }
 
@@ -325,7 +348,7 @@ namespace OpenSim.Framework.LocalServers
         protected virtual LLUUID GetAgentId(string firstName, string lastName)
         {
             LLUUID Agent;
-            int AgentRand = this.RandomClass.Next(1, 9999);
+            int AgentRand = Util.RandomClass.Next(1, 9999);
             Agent = new LLUUID("99998888-0100-" + AgentRand.ToString("0000") + "-8ec1-0b1d5cd6aead");
             return Agent;
         }
@@ -363,6 +386,17 @@ namespace OpenSim.Framework.LocalServers
             encodedBytes = md5.ComputeHash(originalBytes);
 
             return Regex.Replace(BitConverter.ToString(encodedBytes), "-", "").ToLower();
+        }
+
+        public AgentInventory RequestAgentsInventory(LLUUID agentID)
+        {
+            AgentInventory aInventory = null;
+            if (this.userAccounts)
+            {
+                aInventory = this.userManager.GetUsersInventory(agentID);
+            }
+
+            return aInventory;
         }
 
     }

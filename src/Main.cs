@@ -52,12 +52,23 @@ namespace OpenSim
     /// </summary>
     public class OpenSim_Main
     {
-        public static OpenSim_Main sim;
-        public static SimConfig cfg;
-        public static World local_world;
-        public static Grid gridServers;
+        private static OpenSim_Main instance = null;
 
-        public SimCAPSHTTPServer http_server;
+        public static OpenSim_Main Instance
+        {
+            get
+            {
+                return instance;
+            }
+        }
+
+        public World LocalWorld;
+        public Grid GridServers;
+        public SimConfig Cfg;
+        public SimCAPSHTTPServer HttpServer;
+        public AssetCache AssetCache;
+        public InventoryManager InventoryCache;
+
         public Socket Server;
         private IPEndPoint ServerIncoming;
         private byte[] RecvBuffer = new byte[4096];
@@ -66,8 +77,6 @@ namespace OpenSim
         private EndPoint epSender;
         private AsyncCallback ReceivedData;
 
-        public AssetCache assetCache;
-        public InventoryManager inventoryManager;
         public DateTime startuptime;
         public Dictionary<EndPoint, OpenSimClient> ClientThreads = new Dictionary<EndPoint, OpenSimClient>();
         private PhysicsManager physManager;
@@ -84,55 +93,55 @@ namespace OpenSim
             Console.WriteLine("Starting...\n");
             ServerConsole.MainConsole.Instance = new MServerConsole(ServerConsole.ConsoleBase.ConsoleType.Local, "", 0);
 
-            sim = new OpenSim_Main();
+            instance = new OpenSim_Main();
 
-            sim.sandbox = false;
-            sim.loginserver = false;
-            sim._physicsEngine = "PhysX";
+            Instance.sandbox = false;
+            Instance.loginserver = false;
+            Instance._physicsEngine = "PhysX";
 
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-sandbox")
                 {
-                    sim.sandbox = true;
+                    Instance.sandbox = true;
                 }
 
                 if (args[i] == "-loginserver")
                 {
-                    sim.loginserver = true;
+                    Instance.loginserver = true;
                 }
                 if (args[i] == "-realphysx")
                 {
-                    sim._physicsEngine = "RealPhysX";
+                    Instance._physicsEngine = "RealPhysX";
                     OpenSim.world.Avatar.PhysicsEngineFlying = true;
                 }
             }
 
-            OpenSim_Main.gridServers = new Grid();
-            if (sim.sandbox)
+            OpenSim_Main.Instance.GridServers = new Grid();
+            if (Instance.sandbox)
             {
-                OpenSim_Main.gridServers.AssetDll = "LocalGridServers.dll";
-                OpenSim_Main.gridServers.GridDll = "LocalGridServers.dll";
-                OpenSim_Main.gridServers.LoadPlugins();
+                OpenSim_Main.Instance.GridServers.AssetDll = "LocalGridServers.dll";
+                OpenSim_Main.Instance.GridServers.GridDll = "LocalGridServers.dll";
+                OpenSim_Main.Instance.GridServers.LoadPlugins();
                 ServerConsole.MainConsole.Instance.WriteLine("Starting in Sandbox mode");
             }
             else
             {
-                OpenSim_Main.gridServers.AssetDll = "RemoteGridServers.dll";
-                OpenSim_Main.gridServers.GridDll = "RemoteGridServers.dll";
-                OpenSim_Main.gridServers.LoadPlugins();
+                OpenSim_Main.Instance.GridServers.AssetDll = "RemoteGridServers.dll";
+                OpenSim_Main.Instance.GridServers.GridDll = "RemoteGridServers.dll";
+                OpenSim_Main.Instance.GridServers.LoadPlugins();
                 ServerConsole.MainConsole.Instance.WriteLine("Starting in Grid mode");
             }
 
-            if (sim.loginserver && sim.sandbox)
+            if (Instance.loginserver && Instance.sandbox)
             {
-                LoginServer loginServer = new LoginServer(OpenSim_Main.gridServers.GridServer);
+                LoginServer loginServer = new LoginServer(OpenSim_Main.Instance.GridServers.GridServer);
                 loginServer.Startup();
             }
-            sim.assetCache = new AssetCache(OpenSim_Main.gridServers.AssetServer);
-            sim.inventoryManager = new InventoryManager();
+            Instance.AssetCache = new AssetCache(OpenSim_Main.Instance.GridServers.AssetServer);
+            Instance.InventoryCache = new InventoryManager();
 
-            sim.Startup();
+            Instance.Startup();
 
             while (true)
             {
@@ -150,41 +159,41 @@ namespace OpenSim
 
             // We check our local database first, then the grid for config options
             ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Loading configuration");
-            cfg = this.LoadConfigDll(this.ConfigDll);
-            cfg.InitConfig();
+            Cfg = this.LoadConfigDll(this.ConfigDll);
+            Cfg.InitConfig(this.sandbox);
             ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Contacting gridserver");
-            cfg.LoadFromGrid();
+            Cfg.LoadFromGrid();
 
-            ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - We are " + cfg.RegionName + " at " + cfg.RegionLocX.ToString() + "," + cfg.RegionLocY.ToString());
+            ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - We are " + Cfg.RegionName + " at " + Cfg.RegionLocX.ToString() + "," + Cfg.RegionLocY.ToString());
             ServerConsole.MainConsole.Instance.WriteLine("Initialising world");
-            local_world = cfg.LoadWorld();
+            Instance.LocalWorld = new World();
+            Instance.LocalWorld.LandMap = Cfg.LoadWorld();
 
             this.physManager = new PhysicsSystem.PhysicsManager();
             this.physManager.LoadPlugins();
             ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Starting up messaging system");
-            local_world.PhysScene = this.physManager.GetPhysicsScene(this._physicsEngine); //should be reading from the config file what physics engine to use
-            local_world.PhysScene.SetTerrain(local_world.LandMap);
+            Instance.LocalWorld.PhysScene = this.physManager.GetPhysicsScene(this._physicsEngine); //should be reading from the config file what physics engine to use
+            Instance.LocalWorld.PhysScene.SetTerrain(Instance.LocalWorld.LandMap);
 
-            OpenSim_Main.gridServers.AssetServer.SetServerInfo(OpenSim_Main.cfg.AssetURL, OpenSim_Main.cfg.AssetSendKey);
-            OpenSim_Main.gridServers.GridServer.SetServerInfo(OpenSim_Main.cfg.GridURL, OpenSim_Main.cfg.GridSendKey);
+            OpenSim_Main.Instance.GridServers.AssetServer.SetServerInfo(OpenSim_Main.Instance.Cfg.AssetURL, OpenSim_Main.Instance.Cfg.AssetSendKey);
+            OpenSim_Main.Instance.GridServers.GridServer.SetServerInfo(OpenSim_Main.Instance.Cfg.GridURL, OpenSim_Main.Instance.Cfg.GridSendKey);
 
-            local_world.LoadStorageDLL("Db4LocalStorage.dll"); //all these dll names shouldn't be hard coded.
-            local_world.LoadPrimsFromStorage();
+            Instance.LocalWorld.LoadStorageDLL("Db4LocalStorage.dll"); //all these dll names shouldn't be hard coded.
+            Instance.LocalWorld.LoadPrimsFromStorage();
 
             if (this.sandbox)
             {
-                this.assetCache.LoadDefaultTextureSet();
+                this.AssetCache.LoadDefaultTextureSet();
             }
 
             ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Startup() - Starting CAPS HTTP server");
-            http_server = new SimCAPSHTTPServer();
+            HttpServer = new SimCAPSHTTPServer();
 
             timer1.Enabled = true;
             timer1.Interval = 100;
             timer1.Elapsed += new ElapsedEventHandler(this.Timer1Tick);
 
             MainServerListener();
-
         }
 
         private SimConfig LoadConfigDll(string dllName)
@@ -244,9 +253,9 @@ namespace OpenSim
         private void MainServerListener()
         {
             ServerConsole.MainConsole.Instance.WriteLine("Main.cs:MainServerListener() - New thread started");
-            ServerConsole.MainConsole.Instance.WriteLine("Main.cs:MainServerListener() - Opening UDP socket on " + cfg.IPListenAddr + ":" + cfg.IPListenPort);
+            ServerConsole.MainConsole.Instance.WriteLine("Main.cs:MainServerListener() - Opening UDP socket on " + Cfg.IPListenAddr + ":" + Cfg.IPListenPort);
 
-            ServerIncoming = new IPEndPoint(IPAddress.Any, cfg.IPListenPort);
+            ServerIncoming = new IPEndPoint(IPAddress.Any, Cfg.IPListenPort);
             Server = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             Server.Bind(ServerIncoming);
 
@@ -268,8 +277,8 @@ namespace OpenSim
             ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Shutdown() - Killing clients");
             // IMPLEMENT THIS
             ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Shutdown() - Closing console and terminating");
-            OpenSim_Main.local_world.Close();
-            OpenSim_Main.gridServers.Close();
+            OpenSim_Main.Instance.LocalWorld.Close();
+            OpenSim_Main.Instance.GridServers.Close();
             ServerConsole.MainConsole.Instance.Close();
             Environment.Exit(0);
         }
@@ -277,86 +286,9 @@ namespace OpenSim
         void Timer1Tick(object sender, System.EventArgs e)
         {
 
-            local_world.Update();
+            Instance.LocalWorld.Update();
         }
     }
 
-    public class Grid
-    {
-        public IAssetServer AssetServer;
-        public IGridServer GridServer;
-        public string AssetDll = "";
-        public string GridDll = "";
-
-        public Grid()
-        {
-        }
-
-        public void LoadPlugins()
-        {
-            this.AssetServer = this.LoadAssetDll(this.AssetDll);
-            this.GridServer = this.LoadGridDll(this.GridDll);
-        }
-        public void Close()
-        {
-            this.AssetServer.Close();
-            this.GridServer.Close();
-        }
-
-        private IAssetServer LoadAssetDll(string dllName)
-        {
-            Assembly pluginAssembly = Assembly.LoadFrom(dllName);
-            IAssetServer server = null;
-
-            foreach (Type pluginType in pluginAssembly.GetTypes())
-            {
-                if (pluginType.IsPublic)
-                {
-                    if (!pluginType.IsAbstract)
-                    {
-                        Type typeInterface = pluginType.GetInterface("IAssetPlugin", true);
-
-                        if (typeInterface != null)
-                        {
-                            IAssetPlugin plug = (IAssetPlugin)Activator.CreateInstance(pluginAssembly.GetType(pluginType.ToString()));
-                            server = plug.GetAssetServer();
-                            break;
-                        }
-
-                        typeInterface = null;
-                    }
-                }
-            }
-            pluginAssembly = null;
-            return server;
-        }
-
-        private IGridServer LoadGridDll(string dllName)
-        {
-            Assembly pluginAssembly = Assembly.LoadFrom(dllName);
-            IGridServer server = null;
-
-            foreach (Type pluginType in pluginAssembly.GetTypes())
-            {
-                if (pluginType.IsPublic)
-                {
-                    if (!pluginType.IsAbstract)
-                    {
-                        Type typeInterface = pluginType.GetInterface("IGridPlugin", true);
-
-                        if (typeInterface != null)
-                        {
-                            IGridPlugin plug = (IGridPlugin)Activator.CreateInstance(pluginAssembly.GetType(pluginType.ToString()));
-                            server = plug.GetGridServer();
-                            break;
-                        }
-
-                        typeInterface = null;
-                    }
-                }
-            }
-            pluginAssembly = null;
-            return server;
-        }
-    }
+    
 }

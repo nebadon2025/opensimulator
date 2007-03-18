@@ -44,10 +44,6 @@
       <Project>{C9A6026D-8E0C-4FE4-8691-FB2A566AA245}</Project>
       <Name>ServerConsole</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\Second-server.csproj">
-      <Project>{132A6E3E-8F2D-4BF5-BDFB-8555F53F334E}</Project>
-      <Name>Second-server</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.Targets" />
 </Project>

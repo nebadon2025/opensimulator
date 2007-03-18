@@ -28,7 +28,9 @@ using System;
 using System.Collections.Generic;
 using OpenSim;
 using OpenSim.Framework.Utilities;
-using OpenSim.world;
+using OpenSim.Framework.Interfaces;
+using OpenSim.Framework.Terrain;
+//using OpenSim.world;
 using Db4objects.Db4o;
 
 namespace Db40SimConfig
@@ -44,6 +46,7 @@ namespace Db40SimConfig
 	
 	public class DbSimConfig :SimConfig
 	{
+        private bool isSandbox;
 		private IObjectContainer db;	
 		
 		public void LoadDefaults() {
@@ -55,7 +58,7 @@ namespace Db40SimConfig
 			this.IPListenPort=Convert.ToInt32(ServerConsole.MainConsole.Instance.CmdPrompt("UDP port for client connections [9000]: ","9000"));
 			this.IPListenAddr=ServerConsole.MainConsole.Instance.CmdPrompt("IP Address to listen on for client connections [127.0.0.1]: ","127.0.0.1");
 			
-			if(!OpenSim_Main.sim.sandbox)
+			if(!isSandbox)
 			{
 				this.AssetURL=ServerConsole.MainConsole.Instance.CmdPrompt("Asset server URL: ");
 				this.AssetSendKey=ServerConsole.MainConsole.Instance.CmdPrompt("Asset server key: ");
@@ -65,7 +68,8 @@ namespace Db40SimConfig
 			this.RegionHandle = Util.UIntsToLong((RegionLocX*256), (RegionLocY*256));
 		}
 
-		public override void InitConfig() {
+		public override void InitConfig(bool sandboxMode) {
+            this.isSandbox = sandboxMode;
 			try {
 				db = Db4oFactory.OpenFile("opensim.yap");
 				IObjectSet result = db.Get(typeof(DbSimConfig));
@@ -100,37 +104,40 @@ namespace Db40SimConfig
 			ServerConsole.MainConsole.Instance.WriteLine("Region Location: [" + this.RegionLocX.ToString() + "," + this.RegionLocY + "]");
 			ServerConsole.MainConsole.Instance.WriteLine("Region Handle: " + this.RegionHandle.ToString());
 			ServerConsole.MainConsole.Instance.WriteLine("Listening on IP: " + this.IPListenAddr + ":" + this.IPListenPort);
-			ServerConsole.MainConsole.Instance.WriteLine("Sandbox Mode? " + OpenSim_Main.sim.sandbox.ToString());
+			ServerConsole.MainConsole.Instance.WriteLine("Sandbox Mode? " + isSandbox.ToString());
 			ServerConsole.MainConsole.Instance.WriteLine("Asset URL: " + this.AssetURL);
 			ServerConsole.MainConsole.Instance.WriteLine("Asset key: " + this.AssetSendKey);
 			ServerConsole.MainConsole.Instance.WriteLine("Grid URL: " + this.GridURL);
 			ServerConsole.MainConsole.Instance.WriteLine("Grid key: " + this.GridSendKey);
 		}
 	
-		public override World LoadWorld() 
+		public override float[] LoadWorld() 
 		{
 			ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Loading world....");
-			World blank = new World();
+			//World blank = new World();
+            float[] heightmap = null;
 			ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Looking for a heightmap in local DB");
 			IObjectSet world_result = db.Get(typeof(MapStorage));
 			if(world_result.Count>0) {
 				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Found a heightmap in local database, loading");
 				MapStorage map=(MapStorage)world_result.Next();	
-				blank.LandMap = map.Map;
+				//blank.LandMap = map.Map;
+                heightmap = map.Map;
 			} else {
 				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - No heightmap found, generating new one");
 				HeightmapGenHills hills = new HeightmapGenHills();
-                blank.LandMap = hills.GenerateHeightmap(200, 4.0f, 80.0f, false);
+               // blank.LandMap = hills.GenerateHeightmap(200, 4.0f, 80.0f, false);
+                heightmap = hills.GenerateHeightmap(200, 4.0f, 80.0f, false);
 				ServerConsole.MainConsole.Instance.WriteLine("Config.cs:LoadWorld() - Saving heightmap to local database");
 				MapStorage map= new MapStorage();
-				map.Map = blank.LandMap;
+                map.Map = heightmap; //blank.LandMap;
 				db.Set(map);
 				db.Commit();
 			}
-			return blank;
+			return heightmap;
 		}
 		
-		public override void SaveMap()
+		public override void SaveMap(float[] heightmap)
 		{
 			IObjectSet world_result = db.Get(typeof(MapStorage));
 			if(world_result.Count>0) {
@@ -139,7 +146,7 @@ namespace Db40SimConfig
 				db.Delete(map);
 			}
 			MapStorage map1= new MapStorage();
-			map1.Map = OpenSim_Main.local_world.LandMap;
+            map1.Map = heightmap; //OpenSim_Main.local_world.LandMap;
 			db.Set(map1);
 			db.Commit();
 		}

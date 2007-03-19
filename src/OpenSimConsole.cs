@@ -156,11 +156,11 @@ namespace OpenSim
 				break;
 				
 				case "regenerate":
-				OpenSim_Main.Instance.LocalWorld.RegenerateTerrain();
+				OpenSimMain.Instance.LocalWorld.RegenerateTerrain();
 				break;
 				
 				case "shutdown":
-				OpenSim_Main.Shutdown();
+				OpenSimMain.Shutdown();
 				break;
 			}
 			return null;
@@ -170,16 +170,16 @@ namespace OpenSim
 		public override void ShowCommands(string ShowWhat) {
 			switch(ShowWhat) {
 				case "uptime":
-					this.WriteLine("OpenSim has been running since " + OpenSim_Main.Instance.startuptime.ToString());
-					this.WriteLine("That is " + (DateTime.Now-OpenSim_Main.Instance.startuptime).ToString());
+					this.WriteLine("OpenSim has been running since " + OpenSimMain.Instance.startuptime.ToString());
+					this.WriteLine("That is " + (DateTime.Now-OpenSimMain.Instance.startuptime).ToString());
 					break;
 				case "users":
 					OpenSim.world.Avatar TempAv;
 					this.WriteLine(String.Format("{0,-16}{1,-16}{2,-25}{3,-25}{4,-16}{5,-16}","Firstname", "Lastname","Agent ID", "Session ID", "Circuit", "IP"));
-					foreach (libsecondlife.LLUUID UUID in OpenSim_Main.Instance.LocalWorld.Entities.Keys) {
-						if(OpenSim_Main.Instance.LocalWorld.Entities[UUID].ToString()== "OpenSim.world.Avatar")
+					foreach (libsecondlife.LLUUID UUID in OpenSimMain.Instance.LocalWorld.Entities.Keys) {
+						if(OpenSimMain.Instance.LocalWorld.Entities[UUID].ToString()== "OpenSim.world.Avatar")
 						{
-							TempAv=(OpenSim.world.Avatar)OpenSim_Main.Instance.LocalWorld.Entities[UUID];
+							TempAv=(OpenSim.world.Avatar)OpenSimMain.Instance.LocalWorld.Entities[UUID];
 							this.WriteLine(String.Format("{0,-16}{1,-16}{2,-25}{3,-25}{4,-16},{5,-16}",TempAv.firstname, TempAv.lastname,UUID, TempAv.ControllingClient.SessionID, TempAv.ControllingClient.CircuitCode, TempAv.ControllingClient.userEP.ToString()));
 						}
 					}
@@ -190,7 +190,7 @@ namespace OpenSim
 		// Displays a prompt to the user and then runs the command they entered
 		public override void MainConsolePrompt() {
 			string[] tempstrarray;
-			string tempstr = this.CmdPrompt("OpenSim-" + OpenSim_Main.Instance.Cfg.RegionHandle.ToString() + " # ");
+			string tempstr = this.CmdPrompt("OpenSim-" + OpenSimMain.Instance.Cfg.RegionHandle.ToString() + " # ");
 			tempstrarray = tempstr.Split(' ');
 			string cmd=tempstrarray[0];
 			Array.Reverse(tempstrarray);

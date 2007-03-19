@@ -103,15 +103,15 @@ namespace OpenSim
             switch (Pack.Type)
             {
                 case PacketType.CompleteAgentMovement:
-                    ClientAvatar.CompleteMovement(OpenSim_Main.Instance.LocalWorld);
+                    ClientAvatar.CompleteMovement(OpenSimMain.Instance.LocalWorld);
                     ClientAvatar.SendInitialPosition();
                     break;
                 case PacketType.RegionHandshakeReply:
-                    OpenSim_Main.Instance.LocalWorld.SendLayerData(this);
+                    OpenSimMain.Instance.LocalWorld.SendLayerData(this);
                     break;
                 case PacketType.AgentWearablesRequest:
                     ClientAvatar.SendInitialAppearance();
-                    foreach (OpenSimClient client in OpenSim_Main.Instance.ClientThreads.Values)
+                    foreach (OpenSimClient client in OpenSimMain.Instance.ClientThreads.Values)
                     {
                         if (client.AgentID != this.AgentID)
                         {
@@ -120,10 +120,10 @@ namespace OpenSim
                             client.ClientAvatar.SendAppearanceToOtherAgent(this);
                         }
                     }
-                    OpenSim_Main.Instance.LocalWorld.GetInitialPrims(this);
+                    OpenSimMain.Instance.LocalWorld.GetInitialPrims(this);
                     break;
                 case PacketType.ObjectAdd:
-                    OpenSim_Main.Instance.LocalWorld.AddNewPrim((ObjectAddPacket)Pack, this);
+                    OpenSimMain.Instance.LocalWorld.AddNewPrim((ObjectAddPacket)Pack, this);
                     break;
                 case PacketType.ObjectLink:
                     ServerConsole.MainConsole.Instance.WriteLine(Pack.ToString());
@@ -135,7 +135,7 @@ namespace OpenSim
                     ObjectShapePacket shape = (ObjectShapePacket)Pack;
                     for (int i = 0; i < shape.ObjectData.Length; i++)
                     {
-                        foreach (Entity ent in OpenSim_Main.Instance.LocalWorld.Entities.Values)
+                        foreach (Entity ent in OpenSimMain.Instance.LocalWorld.Entities.Values)
                         {
                             if (ent.localid == shape.ObjectData[i].ObjectLocalID)
                             {
@@ -152,7 +152,7 @@ namespace OpenSim
                         if (multipleupdate.ObjectData[i].Type == 9) //change position
                         {
                             libsecondlife.LLVector3 pos = new LLVector3(multipleupdate.ObjectData[i].Data, 0);
-                            foreach (Entity ent in OpenSim_Main.Instance.LocalWorld.Entities.Values)
+                            foreach (Entity ent in OpenSimMain.Instance.LocalWorld.Entities.Values)
                             {
                                 if (ent.localid == multipleupdate.ObjectData[i].ObjectLocalID)
                                 {
@@ -166,7 +166,7 @@ namespace OpenSim
                         else if (multipleupdate.ObjectData[i].Type == 10)//rotation
                         {
                             libsecondlife.LLQuaternion rot = new LLQuaternion(multipleupdate.ObjectData[i].Data, 0, true);
-                            foreach (Entity ent in OpenSim_Main.Instance.LocalWorld.Entities.Values)
+                            foreach (Entity ent in OpenSimMain.Instance.LocalWorld.Entities.Values)
                             {
                                 if (ent.localid == multipleupdate.ObjectData[i].ObjectLocalID)
                                 {
@@ -179,7 +179,7 @@ namespace OpenSim
                         {
 
                             libsecondlife.LLVector3 scale = new LLVector3(multipleupdate.ObjectData[i].Data, 12);
-                            foreach (Entity ent in OpenSim_Main.Instance.LocalWorld.Entities.Values)
+                            foreach (Entity ent in OpenSimMain.Instance.LocalWorld.Entities.Values)
                             {
                                 if (ent.localid == multipleupdate.ObjectData[i].ObjectLocalID)
                                 {
@@ -193,13 +193,13 @@ namespace OpenSim
                     RequestImagePacket imageRequest = (RequestImagePacket)Pack;
                     for (int i = 0; i < imageRequest.RequestImage.Length; i++)
                     {
-                        OpenSim_Main.Instance.AssetCache.AddTextureRequest(this, imageRequest.RequestImage[i].Image);
+                        OpenSimMain.Instance.AssetCache.AddTextureRequest(this, imageRequest.RequestImage[i].Image);
                     }
                     break;
                 case PacketType.TransferRequest:
                     //Console.WriteLine("OpenSimClient.cs:ProcessInPacket() - Got transfer request");
                     TransferRequestPacket transfer = (TransferRequestPacket)Pack;
-                    OpenSim_Main.Instance.AssetCache.AddAssetRequest(this, transfer);
+                    OpenSimMain.Instance.AssetCache.AddAssetRequest(this, transfer);
                     break;
                 case PacketType.AgentUpdate:
                     ClientAvatar.HandleUpdate((AgentUpdatePacket)Pack);
@@ -219,17 +219,17 @@ namespace OpenSim
                     kill.ObjectData = new KillObjectPacket.ObjectDataBlock[1];
                     kill.ObjectData[0] = new KillObjectPacket.ObjectDataBlock();
                     kill.ObjectData[0].ID = this.ClientAvatar.localid;
-                    foreach (OpenSimClient client in OpenSim_Main.Instance.ClientThreads.Values)
+                    foreach (OpenSimClient client in OpenSimMain.Instance.ClientThreads.Values)
                     {
                         client.OutPacket(kill);
                     }
-                    OpenSim_Main.Instance.GridServers.GridServer.LogoutSession(this.SessionID, this.AgentID, this.CircuitCode);
-                    lock (OpenSim_Main.Instance.LocalWorld.Entities)
+                    OpenSimMain.Instance.GridServers.GridServer.LogoutSession(this.SessionID, this.AgentID, this.CircuitCode);
+                    lock (OpenSimMain.Instance.LocalWorld.Entities)
                     {
-                        OpenSim_Main.Instance.LocalWorld.Entities.Remove(this.AgentID);
+                        OpenSimMain.Instance.LocalWorld.Entities.Remove(this.AgentID);
                     }
                     //need to do other cleaning up here too
-                    OpenSim_Main.Instance.ClientThreads.Remove(this.userEP);
+                    OpenSimMain.Instance.ClientThreads.Remove(this.userEP);
                     this.ClientThread.Abort();
                     break;
                 case PacketType.ChatFromViewer:
@@ -246,7 +246,7 @@ namespace OpenSim
                     reply.ChatData.FromName = _enc.GetBytes(this.ClientAvatar.firstname + " " + this.ClientAvatar.lastname + "\0");
                     reply.ChatData.OwnerID = this.AgentID;
                     reply.ChatData.SourceID = this.AgentID;
-                    foreach (OpenSimClient client in OpenSim_Main.Instance.ClientThreads.Values)
+                    foreach (OpenSimClient client in OpenSimMain.Instance.ClientThreads.Values)
                     {
                         client.OutPacket(reply);
                     }
@@ -255,7 +255,7 @@ namespace OpenSim
                     ObjectImagePacket imagePack = (ObjectImagePacket)Pack;
                     for (int i = 0; i < imagePack.ObjectData.Length; i++)
                     {
-                        foreach (Entity ent in OpenSim_Main.Instance.LocalWorld.Entities.Values)
+                        foreach (Entity ent in OpenSimMain.Instance.LocalWorld.Entities.Values)
                         {
                             if (ent.localid == imagePack.ObjectData[i].ObjectLocalID)
                             {
@@ -266,7 +266,7 @@ namespace OpenSim
                     break;
                 case PacketType.ObjectFlagUpdate:
                     ObjectFlagUpdatePacket flags = (ObjectFlagUpdatePacket)Pack;
-                    foreach (Entity ent in OpenSim_Main.Instance.LocalWorld.Entities.Values)
+                    foreach (Entity ent in OpenSimMain.Instance.LocalWorld.Entities.Values)
                     {
                         if (ent.localid == flags.AgentData.ObjectLocalID)
                         {
@@ -321,11 +321,11 @@ namespace OpenSim
                 case PacketType.FetchInventory:
                     Console.WriteLine("fetch item packet");
                     FetchInventoryPacket FetchInventory = (FetchInventoryPacket)Pack;
-                    OpenSim_Main.Instance.InventoryCache.FetchInventory(this, FetchInventory);
+                    OpenSimMain.Instance.InventoryCache.FetchInventory(this, FetchInventory);
                     break;
                 case PacketType.FetchInventoryDescendents:
                     FetchInventoryDescendentsPacket Fetch = (FetchInventoryDescendentsPacket)Pack;
-                    OpenSim_Main.Instance.InventoryCache.FetchInventoryDescendents(this, Fetch);
+                    OpenSimMain.Instance.InventoryCache.FetchInventoryDescendents(this, Fetch);
                     break;
             }
         }
@@ -464,11 +464,11 @@ namespace OpenSim
                 if (Pack.Header.Zerocoded)
                 {
                     int packetsize = Helpers.ZeroEncode(sendbuffer, sendbuffer.Length, ZeroOutBuffer);
-                    OpenSim_Main.Instance.Server.SendTo(ZeroOutBuffer, packetsize, SocketFlags.None, userEP);
+                    OpenSimMain.Instance.Server.SendTo(ZeroOutBuffer, packetsize, SocketFlags.None, userEP);
                 }
                 else
                 {
-                    OpenSim_Main.Instance.Server.SendTo(sendbuffer, sendbuffer.Length, SocketFlags.None, userEP);
+                    OpenSimMain.Instance.Server.SendTo(sendbuffer, sendbuffer.Length, SocketFlags.None, userEP);
                 }
             }
             catch (Exception)
@@ -569,14 +569,14 @@ namespace OpenSim
         private void InitNewClient()
         {
             ServerConsole.MainConsole.Instance.WriteLine("OpenSimClient.cs:InitNewClient() - Adding viewer agent to world");
-            OpenSim_Main.Instance.LocalWorld.AddViewerAgent(this);
-            world.Entity tempent = OpenSim_Main.Instance.LocalWorld.Entities[this.AgentID];
+            OpenSimMain.Instance.LocalWorld.AddViewerAgent(this);
+            world.Entity tempent = OpenSimMain.Instance.LocalWorld.Entities[this.AgentID];
             this.ClientAvatar = (world.Avatar)tempent;
         }
 
         private void AuthUser()
         {
-            AuthenticateResponse sessionInfo = OpenSim_Main.Instance.GridServers.GridServer.AuthenticateSession(cirpack.CircuitCode.SessionID, cirpack.CircuitCode.ID, cirpack.CircuitCode.Code);
+            AuthenticateResponse sessionInfo = OpenSimMain.Instance.GridServers.GridServer.AuthenticateSession(cirpack.CircuitCode.SessionID, cirpack.CircuitCode.ID, cirpack.CircuitCode.Code);
             if (!sessionInfo.Authorised)
             {
                 //session/circuit not authorised
@@ -595,16 +595,16 @@ namespace OpenSim
                 this.ClientAvatar.lastname = sessionInfo.LoginInfo.Last;
 
                 // Create Inventory, currently only works for sandbox mode
-                if (OpenSim_Main.Instance.sandbox)
+                if (OpenSimMain.Instance.sandbox)
                 {
                     if (sessionInfo.LoginInfo.InventoryFolder != null)
                     {
                         this.CreateInventory(sessionInfo.LoginInfo.InventoryFolder);
                         if (sessionInfo.LoginInfo.BaseFolder != null)
                         {
-                            OpenSim_Main.Instance.InventoryCache.CreateNewInventoryFolder(this, sessionInfo.LoginInfo.BaseFolder);
+                            OpenSimMain.Instance.InventoryCache.CreateNewInventoryFolder(this, sessionInfo.LoginInfo.BaseFolder);
                             this.newAssetFolder = sessionInfo.LoginInfo.BaseFolder;
-                            AssetBase[] inventorySet = OpenSim_Main.Instance.AssetCache.CreateNewInventorySet(this.AgentID);
+                            AssetBase[] inventorySet = OpenSimMain.Instance.AssetCache.CreateNewInventorySet(this.AgentID);
                             if (inventorySet != null)
                             {
                                 for (int i = 0; i < inventorySet.Length; i++)
@@ -612,7 +612,7 @@ namespace OpenSim
                                     if (inventorySet[i] != null)
                                     {
                                         Console.WriteLine(Helpers.FieldToString(inventorySet[i].Data));
-                                        OpenSim_Main.Instance.InventoryCache.AddNewInventoryItem(this, sessionInfo.LoginInfo.BaseFolder, inventorySet[i]);
+                                        OpenSimMain.Instance.InventoryCache.AddNewInventoryItem(this, sessionInfo.LoginInfo.BaseFolder, inventorySet[i]);
                                     }
                                 }
                             }
@@ -628,9 +628,19 @@ namespace OpenSim
         {
             AgentInventory inventory = new AgentInventory();
             inventory.AgentID = this.AgentID;
-            OpenSim_Main.Instance.InventoryCache.AddNewAgentsInventory(inventory);
-            OpenSim_Main.Instance.InventoryCache.CreateNewInventoryFolder(this, baseFolder);
+            OpenSimMain.Instance.InventoryCache.AddNewAgentsInventory(inventory);
+            OpenSimMain.Instance.InventoryCache.CreateNewInventoryFolder(this, baseFolder);
         }
+    }
+
+    public class QueItem
+    {
+        public QueItem()
+        {
+        }
+
+        public Packet Packet;
+        public bool Incoming;
     }
 
 }

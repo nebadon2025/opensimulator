@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 9.00
 # Visual C# Express 2005
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Second-server", "Second-server.csproj", "{132A6E3E-8F2D-4BF5-BDFB-8555F53F334E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenSim", "OpenSim.csproj", "{132A6E3E-8F2D-4BF5-BDFB-8555F53F334E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PhysicsManager", "physics\PhysicsManager.csproj", "{3C86A846-7977-4EE7-A8DC-DD487FA5DC2B}"
 EndProject

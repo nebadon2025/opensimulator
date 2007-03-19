@@ -291,13 +291,13 @@ namespace LocalGridServers
 			UUIDBlock uuidBlock = new UUIDBlock();
 			return(uuidBlock);
 		}
-		
-		public override void RequestNeighbours()
+
+        public override NeighbourInfo[] RequestNeighbours()
 		{
-			return;
+			return null;
 		}
-		
-		public override void SetServerInfo(string ServerUrl, string ServerKey)
+
+        public override void SetServerInfo(string ServerUrl, string SendKey, string RecvKey)
 		{
 			
 		}

@@ -70,9 +70,10 @@ namespace RemoteGridServers
     {
         private string GridServerUrl;
         private string GridSendKey;
-        private Dictionary<uint, agentcircuitdata> AgentCircuits = new Dictionary<uint, agentcircuitdata>();
+        private string GridRecvKey;
+        private Dictionary<uint, AgentCircuitData> AgentCircuits = new Dictionary<uint, AgentCircuitData>();
 
-        public override Dictionary<uint, agentcircuitdata> agentcircuits
+        public override Dictionary<uint, AgentCircuitData> agentcircuits
         {
             get { return AgentCircuits; }
             set { AgentCircuits = value; }
@@ -90,7 +91,7 @@ namespace RemoteGridServers
 
         public override AuthenticateResponse AuthenticateSession(LLUUID sessionID, LLUUID agentID, uint circuitcode)
         {
-            agentcircuitdata validcircuit = null;
+            AgentCircuitData validcircuit = null;
             if (this.AgentCircuits.ContainsKey(circuitcode))
             {
                 validcircuit = this.AgentCircuits[circuitcode];
@@ -145,15 +146,16 @@ namespace RemoteGridServers
             return (uuidBlock);
         }
 
-        public override void RequestNeighbours()
+        public override NeighbourInfo[] RequestNeighbours()
         {
-            return;
+            return null;
         }
 
-        public override void SetServerInfo(string ServerUrl, string ServerKey)
+        public override void SetServerInfo(string ServerUrl, string SendKey, string RecvKey)
         {
             this.GridServerUrl = ServerUrl;
-            this.GridSendKey = ServerKey;
+            this.GridSendKey = SendKey;
+            this.GridRecvKey = RecvKey;
         }
 
         public override string GetName()

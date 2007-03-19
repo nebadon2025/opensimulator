@@ -6,7 +6,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{132A6E3E-8F2D-4BF5-BDFB-8555F53F334E}</ProjectGuid>
-    <StartupObject>OpenSim.OpenSim_Main</StartupObject>
+    <StartupObject>OpenSim.OpenSimMain</StartupObject>
     <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
     <NoStdLib>False</NoStdLib>
     <WarningLevel>4</WarningLevel>

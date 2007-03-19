@@ -29,8 +29,8 @@ namespace OpenSim.Framework.LocalServers
             uint circode = (uint)response["circuit_code"];
             theUser.AddSimCircuit(circode, LLUUID.Random());
             response["home"] = "{'region_handle':[r" + (997 * 256).ToString() + ",r" + (996 * 256).ToString() + "], 'position':[r" + theUser.homepos.X.ToString() + ",r" + theUser.homepos.Y.ToString() + ",r" + theUser.homepos.Z.ToString() + "], 'look_at':[r" + theUser.homelookat.X.ToString() + ",r" + theUser.homelookat.Y.ToString() + ",r" + theUser.homelookat.Z.ToString() + "]}";
-            response["sim_port"] = OpenSim_Main.Instance.Cfg.IPListenPort;
-            response["sim_ip"] = OpenSim_Main.Instance.Cfg.IPListenAddr;
+            response["sim_port"] = OpenSimMain.Instance.Cfg.IPListenPort;
+            response["sim_ip"] = OpenSimMain.Instance.Cfg.IPListenAddr;
             response["region_y"] = (Int32)996 * 256;
             response["region_x"] = (Int32)997* 256;
 
@@ -67,7 +67,7 @@ namespace OpenSim.Framework.LocalServers
             _login.InventoryFolder = new LLUUID((string)Inventory1["folder_id"]);
 
             //working on local computer if so lets add to the gridserver's list of sessions?
-            if (OpenSim_Main.Instance.GridServers.GridServer.GetName() == "Local")
+            if (OpenSimMain.Instance.GridServers.GridServer.GetName() == "Local")
             {
                 ((LocalGridBase)this._gridServer).AddNewSession(_login);
             }

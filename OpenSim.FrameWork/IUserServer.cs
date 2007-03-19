@@ -9,5 +9,6 @@ namespace OpenSim.Framework.Interfaces
     public interface IUserServer
     {
         AgentInventory RequestAgentsInventory(LLUUID agentID);
+        void SetServerInfo(string ServerUrl, string SendKey, string RecvKey);
     }
 }

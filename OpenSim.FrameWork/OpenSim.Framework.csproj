@@ -39,6 +39,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AgentCiruitData.cs" />
     <Compile Include="AssetBase.cs" />
     <Compile Include="BlockingQueue.cs" />
     <Compile Include="HeightMapGenHills.cs" />
@@ -48,8 +49,12 @@
     <Compile Include="ILocalStorage.cs" />
     <Compile Include="Inventory.cs" />
     <Compile Include="IUserServer.cs" />
+    <Compile Include="LocalGridBase.cs" />
+    <Compile Include="Login.cs" />
     <Compile Include="LoginService.cs" />
+    <Compile Include="NeighbourInfo.cs" />
     <Compile Include="PrimData.cs" />
+    <Compile Include="RemoteGridBase.cs" />
     <Compile Include="SimProfile.cs" />
     <Compile Include="SimProfileBase.cs" />
     <Compile Include="UserProfile.cs" />

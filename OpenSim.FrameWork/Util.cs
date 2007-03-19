@@ -29,13 +29,4 @@ namespace OpenSim.Framework.Utilities
         }
     }
 
-    public class QueItem
-    {
-        public QueItem()
-        {
-        }
-
-        public Packet Packet;
-        public bool Incoming;
-    }
 }

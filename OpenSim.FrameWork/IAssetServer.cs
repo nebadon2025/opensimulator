@@ -55,14 +55,14 @@ namespace OpenSim.Framework.Interfaces
         void AssetNotFound(AssetBase asset);
     }
 
+    public interface IAssetPlugin
+    {
+        IAssetServer GetAssetServer();
+    }
+
     public struct ARequest
     {
         public LLUUID AssetID;
         public bool IsTexture;
-    }
-
-    public interface IAssetPlugin
-    {
-        IAssetServer GetAssetServer();
     }
 }

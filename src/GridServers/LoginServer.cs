@@ -289,8 +289,8 @@ namespace OpenSim.Framework.LocalServers
             XmlRpcResponse response = (XmlRpcResponse)(new XmlRpcResponseDeserializer()).Deserialize(this._defaultResponse);
             Hashtable responseData = (Hashtable)response.Value;
 
-            responseData["sim_port"] = OpenSim_Main.Instance.Cfg.IPListenPort;
-            responseData["sim_ip"] = OpenSim_Main.Instance.Cfg.IPListenAddr;
+            responseData["sim_port"] = OpenSimMain.Instance.Cfg.IPListenPort;
+            responseData["sim_ip"] = OpenSimMain.Instance.Cfg.IPListenAddr;
             responseData["agent_id"] = Agent.ToStringHyphenated();
             responseData["session_id"] = Session.ToStringHyphenated();
             responseData["seconds_since_epoch"] = (Int32)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
@@ -324,7 +324,7 @@ namespace OpenSim.Framework.LocalServers
             _login.InventoryFolder = InventoryFolderID;
 
             //working on local computer if so lets add to the gridserver's list of sessions?
-            if (OpenSim_Main.Instance.GridServers.GridServer.GetName() == "Local")
+            if (OpenSimMain.Instance.GridServers.GridServer.GetName() == "Local")
             {
                 ((LocalGridBase)this._gridServer).AddNewSession(_login);
             }
@@ -397,6 +397,11 @@ namespace OpenSim.Framework.LocalServers
             }
 
             return aInventory;
+        }
+
+        public void SetServerInfo(string ServerUrl, string SendKey, string RecvKey)
+        {
+
         }
 
     }

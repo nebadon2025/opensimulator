@@ -50,11 +50,11 @@ namespace OpenSim
     /// <summary>
     /// Description of MainForm.
     /// </summary>
-    public class OpenSim_Main
+    public class OpenSimMain
     {
-        private static OpenSim_Main instance = null;
+        private static OpenSimMain instance = null;
 
-        public static OpenSim_Main Instance
+        public static OpenSimMain Instance
         {
             get
             {
@@ -93,7 +93,7 @@ namespace OpenSim
             Console.WriteLine("Starting...\n");
             ServerConsole.MainConsole.Instance = new MServerConsole(ServerConsole.ConsoleBase.ConsoleType.Local, "", 0);
 
-            instance = new OpenSim_Main();
+            instance = new OpenSimMain();
 
             Instance.sandbox = false;
             Instance.loginserver = false;
@@ -117,28 +117,28 @@ namespace OpenSim
                 }
             }
 
-            OpenSim_Main.Instance.GridServers = new Grid();
+            OpenSimMain.Instance.GridServers = new Grid();
             if (Instance.sandbox)
             {
-                OpenSim_Main.Instance.GridServers.AssetDll = "LocalGridServers.dll";
-                OpenSim_Main.Instance.GridServers.GridDll = "LocalGridServers.dll";
-                OpenSim_Main.Instance.GridServers.LoadPlugins();
+                OpenSimMain.Instance.GridServers.AssetDll = "LocalGridServers.dll";
+                OpenSimMain.Instance.GridServers.GridDll = "LocalGridServers.dll";
+                OpenSimMain.Instance.GridServers.LoadPlugins();
                 ServerConsole.MainConsole.Instance.WriteLine("Starting in Sandbox mode");
             }
             else
             {
-                OpenSim_Main.Instance.GridServers.AssetDll = "RemoteGridServers.dll";
-                OpenSim_Main.Instance.GridServers.GridDll = "RemoteGridServers.dll";
-                OpenSim_Main.Instance.GridServers.LoadPlugins();
+                OpenSimMain.Instance.GridServers.AssetDll = "RemoteGridServers.dll";
+                OpenSimMain.Instance.GridServers.GridDll = "RemoteGridServers.dll";
+                OpenSimMain.Instance.GridServers.LoadPlugins();
                 ServerConsole.MainConsole.Instance.WriteLine("Starting in Grid mode");
             }
 
             if (Instance.loginserver && Instance.sandbox)
             {
-                LoginServer loginServer = new LoginServer(OpenSim_Main.Instance.GridServers.GridServer);
+                LoginServer loginServer = new LoginServer(OpenSimMain.Instance.GridServers.GridServer);
                 loginServer.Startup();
             }
-            Instance.AssetCache = new AssetCache(OpenSim_Main.Instance.GridServers.AssetServer);
+            Instance.AssetCache = new AssetCache(OpenSimMain.Instance.GridServers.AssetServer);
             Instance.InventoryCache = new InventoryManager();
 
             Instance.Startup();
@@ -149,7 +149,7 @@ namespace OpenSim
             }
         }
 
-        private OpenSim_Main()
+        private OpenSimMain()
         {
         }
 
@@ -175,8 +175,8 @@ namespace OpenSim
             Instance.LocalWorld.PhysScene = this.physManager.GetPhysicsScene(this._physicsEngine); //should be reading from the config file what physics engine to use
             Instance.LocalWorld.PhysScene.SetTerrain(Instance.LocalWorld.LandMap);
 
-            OpenSim_Main.Instance.GridServers.AssetServer.SetServerInfo(OpenSim_Main.Instance.Cfg.AssetURL, OpenSim_Main.Instance.Cfg.AssetSendKey);
-            OpenSim_Main.Instance.GridServers.GridServer.SetServerInfo(OpenSim_Main.Instance.Cfg.GridURL, OpenSim_Main.Instance.Cfg.GridSendKey);
+            OpenSimMain.Instance.GridServers.AssetServer.SetServerInfo(OpenSimMain.Instance.Cfg.AssetURL, OpenSimMain.Instance.Cfg.AssetSendKey);
+            OpenSimMain.Instance.GridServers.GridServer.SetServerInfo(OpenSimMain.Instance.Cfg.GridURL, OpenSimMain.Instance.Cfg.GridSendKey, OpenSimMain.Instance.Cfg.GridRecvKey);
 
             Instance.LocalWorld.LoadStorageDLL("Db4LocalStorage.dll"); //all these dll names shouldn't be hard coded.
             Instance.LocalWorld.LoadPrimsFromStorage();
@@ -277,8 +277,8 @@ namespace OpenSim
             ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Shutdown() - Killing clients");
             // IMPLEMENT THIS
             ServerConsole.MainConsole.Instance.WriteLine("Main.cs:Shutdown() - Closing console and terminating");
-            OpenSim_Main.Instance.LocalWorld.Close();
-            OpenSim_Main.Instance.GridServers.Close();
+            OpenSimMain.Instance.LocalWorld.Close();
+            OpenSimMain.Instance.GridServers.Close();
             ServerConsole.MainConsole.Instance.Close();
             Environment.Exit(0);
         }

@@ -28,8 +28,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ServerConsole.cs" />
     <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="ServerConsole.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.Targets" />
 </Project>

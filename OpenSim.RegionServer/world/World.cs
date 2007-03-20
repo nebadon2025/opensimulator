@@ -114,9 +114,9 @@ namespace OpenSim.world
     		HeightmapGenHills hills = new HeightmapGenHills();
     		this.LandMap = hills.GenerateHeightmap(200, 4.0f, 80.0f, false);
     		this.phyScene.SetTerrain(this.LandMap);
-    		OpenSimMain.Instance.Cfg.SaveMap(this.LandMap);
+    		OpenSimRoot.Instance.Cfg.SaveMap(this.LandMap);
     		
-    		foreach(SimClient client in OpenSimMain.Instance.ClientThreads.Values) {
+    		foreach(SimClient client in OpenSimRoot.Instance.ClientThreads.Values) {
     			this.SendLayerData(client);
     		}
     	}

@@ -51,11 +51,11 @@ namespace OpenSim
     /// <summary>
     /// Description of MainForm.
     /// </summary>
-    public class OpenSimMain
+    public class OpenSimMain : OpenSimApplication
     {
-        private static OpenSimMain instance = null;
+       /* private static OpenSimRoot instance = null;
 
-        public static OpenSimMain Instance
+        public static OpenSimRoot Instance
         {
             get
             {
@@ -69,6 +69,11 @@ namespace OpenSim
         public SimCAPSHTTPServer HttpServer;
         public AssetCache AssetCache;
         public InventoryCache InventoryCache;
+        public Dictionary<EndPoint, SimClient> ClientThreads = new Dictionary<EndPoint, SimClient>();
+        public DateTime startuptime;
+        */
+        private Dictionary<EndPoint, uint> clientCircuits = new Dictionary<EndPoint, uint>();
+        private PhysicsManager physManager;
 
         public Socket Server;
         private IPEndPoint ServerIncoming;
@@ -78,9 +83,6 @@ namespace OpenSim
         private EndPoint epSender;
         private AsyncCallback ReceivedData;
 
-        public DateTime startuptime;
-        public Dictionary<EndPoint, SimClient> ClientThreads = new Dictionary<EndPoint, SimClient>();
-        private PhysicsManager physManager;
         private System.Timers.Timer timer1 = new System.Timers.Timer();
         private string ConfigDll = "SimConfig.dll";
         private string _physicsEngine = "basicphysics";
@@ -94,55 +96,58 @@ namespace OpenSim
             Console.WriteLine("Starting...\n");
             OpenSim.Framework.Console.MainConsole.Instance = new SimConsole(OpenSim.Framework.Console.ConsoleBase.ConsoleType.Local, "", 0);
 
-            instance = new OpenSimMain();
+            //OpenSimRoot.instance = new OpenSimRoot();
+            OpenSimMain sim = new OpenSimMain();
+            OpenSimRoot.Instance.Application = sim;
 
-            Instance.sandbox = false;
-            Instance.loginserver = false;
-            Instance._physicsEngine = "basicphysics";
+            sim.sandbox = false;
+            sim.loginserver = false;
+            sim._physicsEngine = "basicphysics";
 
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "-sandbox")
                 {
-                    Instance.sandbox = true;
+                    sim.sandbox = true;
+                    OpenSimRoot.Instance.Sandbox = true;
                 }
 
                 if (args[i] == "-loginserver")
                 {
-                    Instance.loginserver = true;
+                    sim.loginserver = true;
                 }
                 if (args[i] == "-realphysx")
                 {
-                    Instance._physicsEngine = "RealPhysX";
+                    sim._physicsEngine = "RealPhysX";
                     OpenSim.world.Avatar.PhysicsEngineFlying = true;
                 }
             }
 
-            OpenSimMain.Instance.GridServers = new Grid();
-            if (Instance.sandbox)
+            OpenSimRoot.Instance.GridServers = new Grid();
+            if (sim.sandbox)
             {
-                OpenSimMain.Instance.GridServers.AssetDll = "LocalGridServers.dll";
-                OpenSimMain.Instance.GridServers.GridDll = "LocalGridServers.dll";
-                OpenSimMain.Instance.GridServers.LoadPlugins();
+                OpenSimRoot.Instance.GridServers.AssetDll = "LocalGridServers.dll";
+                OpenSimRoot.Instance.GridServers.GridDll = "LocalGridServers.dll";
+                OpenSimRoot.Instance.GridServers.Initialise();
                 OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Starting in Sandbox mode");
             }
             else
             {
-                OpenSimMain.Instance.GridServers.AssetDll = "RemoteGridServers.dll";
-                OpenSimMain.Instance.GridServers.GridDll = "RemoteGridServers.dll";
-                OpenSimMain.Instance.GridServers.LoadPlugins();
+                OpenSimRoot.Instance.GridServers.AssetDll = "RemoteGridServers.dll";
+                OpenSimRoot.Instance.GridServers.GridDll = "RemoteGridServers.dll";
+                OpenSimRoot.Instance.GridServers.Initialise();
                 OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Starting in Grid mode");
             }
 
-            if (Instance.loginserver && Instance.sandbox)
+            if (sim.loginserver && sim.sandbox)
             {
-                LoginServer loginServer = new LoginServer(OpenSimMain.Instance.GridServers.GridServer);
+                LoginServer loginServer = new LoginServer(OpenSimRoot.Instance.GridServers.GridServer);
                 loginServer.Startup();
             }
-            Instance.AssetCache = new AssetCache(OpenSimMain.Instance.GridServers.AssetServer);
-            Instance.InventoryCache = new InventoryCache();
+            OpenSimRoot.Instance.AssetCache = new AssetCache(OpenSimRoot.Instance.GridServers.AssetServer);
+            OpenSimRoot.Instance.InventoryCache = new InventoryCache();
 
-            Instance.Startup();
+            OpenSimRoot.Instance.StartUp();
 
             while (true)
             {
@@ -154,41 +159,41 @@ namespace OpenSim
         {
         }
 
-        private void Startup()
+        public override void StartUp()
         {
-            startuptime = DateTime.Now;
+            OpenSimRoot.Instance.startuptime = DateTime.Now;
 
             // We check our local database first, then the grid for config options
             OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:Startup() - Loading configuration");
-            Cfg = this.LoadConfigDll(this.ConfigDll);
-            Cfg.InitConfig(this.sandbox);
+            OpenSimRoot.Instance.Cfg = this.LoadConfigDll(this.ConfigDll);
+            OpenSimRoot.Instance.Cfg.InitConfig(this.sandbox);
             OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:Startup() - Contacting gridserver");
-            Cfg.LoadFromGrid();
+            OpenSimRoot.Instance.Cfg.LoadFromGrid();
 
-            OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:Startup() - We are " + Cfg.RegionName + " at " + Cfg.RegionLocX.ToString() + "," + Cfg.RegionLocY.ToString());
+            OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:Startup() - We are " + OpenSimRoot.Instance.Cfg.RegionName + " at " + OpenSimRoot.Instance.Cfg.RegionLocX.ToString() + "," + OpenSimRoot.Instance.Cfg.RegionLocY.ToString());
             OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Initialising world");
-            Instance.LocalWorld = new World();
-            Instance.LocalWorld.LandMap = Cfg.LoadWorld();
+            OpenSimRoot.Instance.LocalWorld = new World();
+            OpenSimRoot.Instance.LocalWorld.LandMap = OpenSimRoot.Instance.Cfg.LoadWorld();
 
             this.physManager = new OpenSim.Physics.Manager.PhysicsManager();
             this.physManager.LoadPlugins();
             OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:Startup() - Starting up messaging system");
-            Instance.LocalWorld.PhysScene = this.physManager.GetPhysicsScene(this._physicsEngine); //should be reading from the config file what physics engine to use
-            Instance.LocalWorld.PhysScene.SetTerrain(Instance.LocalWorld.LandMap);
+            OpenSimRoot.Instance.LocalWorld.PhysScene = this.physManager.GetPhysicsScene(this._physicsEngine); //should be reading from the config file what physics engine to use
+            OpenSimRoot.Instance.LocalWorld.PhysScene.SetTerrain(OpenSimRoot.Instance.LocalWorld.LandMap);
 
-            OpenSimMain.Instance.GridServers.AssetServer.SetServerInfo(OpenSimMain.Instance.Cfg.AssetURL, OpenSimMain.Instance.Cfg.AssetSendKey);
-            OpenSimMain.Instance.GridServers.GridServer.SetServerInfo(OpenSimMain.Instance.Cfg.GridURL, OpenSimMain.Instance.Cfg.GridSendKey, OpenSimMain.Instance.Cfg.GridRecvKey);
+            OpenSimRoot.Instance.GridServers.AssetServer.SetServerInfo(OpenSimRoot.Instance.Cfg.AssetURL, OpenSimRoot.Instance.Cfg.AssetSendKey);
+            OpenSimRoot.Instance.GridServers.GridServer.SetServerInfo(OpenSimRoot.Instance.Cfg.GridURL, OpenSimRoot.Instance.Cfg.GridSendKey, OpenSimRoot.Instance.Cfg.GridRecvKey);
 
-            Instance.LocalWorld.LoadStorageDLL("Db4LocalStorage.dll"); //all these dll names shouldn't be hard coded.
-            Instance.LocalWorld.LoadPrimsFromStorage();
+            OpenSimRoot.Instance.LocalWorld.LoadStorageDLL("Db4LocalStorage.dll"); //all these dll names shouldn't be hard coded.
+            OpenSimRoot.Instance.LocalWorld.LoadPrimsFromStorage();
 
             if (this.sandbox)
             {
-                this.AssetCache.LoadDefaultTextureSet();
+                OpenSimRoot.Instance.AssetCache.LoadDefaultTextureSet();
             }
 
             OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:Startup() - Starting CAPS HTTP server");
-            HttpServer = new SimCAPSHTTPServer();
+            OpenSimRoot.Instance.HttpServer = new SimCAPSHTTPServer();
 
             timer1.Enabled = true;
             timer1.Interval = 100;
@@ -233,16 +238,20 @@ namespace OpenSim
             int numBytes = Server.EndReceiveFrom(result, ref epSender);
             int packetEnd = numBytes - 1;
             packet = Packet.BuildPacket(RecvBuffer, ref packetEnd, ZeroBuffer);
-
+            
             // This is either a new client or a packet to send to an old one
-            if (ClientThreads.ContainsKey(epSender))
+           // if (OpenSimRoot.Instance.ClientThreads.ContainsKey(epSender))
+            if(this.clientCircuits.ContainsKey(epSender))
             {
-                ClientThreads[epSender].InPacket(packet);
+                OpenSimRoot.Instance.ClientThreads[this.clientCircuits[epSender]].InPacket(packet);
             }
             else if (packet.Type == PacketType.UseCircuitCode)
             { // new client
-                SimClient newuser = new SimClient(epSender, (UseCircuitCodePacket)packet);
-                ClientThreads.Add(epSender, newuser);
+                UseCircuitCodePacket useCircuit = (UseCircuitCodePacket)packet;
+                this.clientCircuits.Add(epSender, useCircuit.CircuitCode.Code);
+                SimClient newuser = new SimClient(epSender, useCircuit);
+                //OpenSimRoot.Instance.ClientThreads.Add(epSender, newuser);
+                OpenSimRoot.Instance.ClientThreads.Add(useCircuit.CircuitCode.Code, newuser);
             }
             else
             { // invalid client
@@ -254,9 +263,9 @@ namespace OpenSim
         private void MainServerListener()
         {
             OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:MainServerListener() - New thread started");
-            OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:MainServerListener() - Opening UDP socket on " + Cfg.IPListenAddr + ":" + Cfg.IPListenPort);
+            OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:MainServerListener() - Opening UDP socket on " + OpenSimRoot.Instance.Cfg.IPListenAddr + ":" + OpenSimRoot.Instance.Cfg.IPListenPort);
 
-            ServerIncoming = new IPEndPoint(IPAddress.Any, Cfg.IPListenPort);
+            ServerIncoming = new IPEndPoint(IPAddress.Any, OpenSimRoot.Instance.Cfg.IPListenPort);
             Server = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             Server.Bind(ServerIncoming);
 
@@ -271,15 +280,44 @@ namespace OpenSim
 
         }
 
-        public static void Shutdown()
+        public override void SendPacketTo(byte[] buffer, int size, SocketFlags flags, uint circuitcode )//EndPoint packetSender)
+        {
+            EndPoint sendto = null;
+            foreach(KeyValuePair<EndPoint, uint> p in this.clientCircuits)
+            {
+                if (p.Value == circuitcode)
+                {
+                    sendto = p.Key;
+                    break;
+                }
+            }
+            if (sendto != null)
+            {
+                this.Server.SendTo(buffer, size, flags, sendto);
+            }
+        }
+
+        public override void RemoveClientCircuit(uint circuitcode)
+        {
+            foreach (KeyValuePair<EndPoint, uint> p in this.clientCircuits)
+            {
+                if (p.Value == circuitcode)
+                {
+                    this.clientCircuits.Remove(p.Key);
+                    break;
+                }
+            }
+        }
+
+        public override void Shutdown()
         {
             OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:Shutdown() - Closing all threads");
             OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:Shutdown() - Killing listener thread");
             OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:Shutdown() - Killing clients");
             // IMPLEMENT THIS
             OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:Shutdown() - Closing console and terminating");
-            OpenSimMain.Instance.LocalWorld.Close();
-            OpenSimMain.Instance.GridServers.Close();
+            OpenSimRoot.Instance.LocalWorld.Close();
+            OpenSimRoot.Instance.GridServers.Close();
             OpenSim.Framework.Console.MainConsole.Instance.Close();
             Environment.Exit(0);
         }
@@ -287,7 +325,7 @@ namespace OpenSim
         void Timer1Tick(object sender, System.EventArgs e)
         {
 
-            Instance.LocalWorld.Update();
+            OpenSimRoot.Instance.LocalWorld.Update();
         }
     }
 

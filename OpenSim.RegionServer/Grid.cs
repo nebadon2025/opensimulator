@@ -18,12 +18,13 @@ namespace OpenSim
         {
         }
 
-        public void LoadPlugins()
+        public virtual void Initialise()
         {
+            //load the dlls 
             this.AssetServer = this.LoadAssetDll(this.AssetDll);
             this.GridServer = this.LoadGridDll(this.GridDll);
         }
-        public void Close()
+        public virtual void Close()
         {
             this.AssetServer.Close();
             this.GridServer.Close();

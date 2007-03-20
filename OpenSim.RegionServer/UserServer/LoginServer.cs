@@ -289,10 +289,11 @@ namespace OpenSim.UserServer
             XmlRpcResponse response = (XmlRpcResponse)(new XmlRpcResponseDeserializer()).Deserialize(this._defaultResponse);
             Hashtable responseData = (Hashtable)response.Value;
 
-            responseData["sim_port"] = OpenSimMain.Instance.Cfg.IPListenPort;
-            responseData["sim_ip"] = OpenSimMain.Instance.Cfg.IPListenAddr;
+            responseData["sim_port"] = OpenSimRoot.Instance.Cfg.IPListenPort;
+            responseData["sim_ip"] = OpenSimRoot.Instance.Cfg.IPListenAddr;
             responseData["agent_id"] = Agent.ToStringHyphenated();
             responseData["session_id"] = Session.ToStringHyphenated();
+            responseData["circuit_code"] = (Int32)(Util.RandomClass.Next()); 
             responseData["seconds_since_epoch"] = (Int32)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
             responseData["login-flags"] = LoginFlags;
             responseData["global-textures"] = GlobalTextures;
@@ -324,7 +325,7 @@ namespace OpenSim.UserServer
             _login.InventoryFolder = InventoryFolderID;
 
             //working on local computer if so lets add to the gridserver's list of sessions?
-            if (OpenSimMain.Instance.GridServers.GridServer.GetName() == "Local")
+            if (OpenSimRoot.Instance.GridServers.GridServer.GetName() == "Local")
             {
                 ((LocalGridBase)this._gridServer).AddNewSession(_login);
             }

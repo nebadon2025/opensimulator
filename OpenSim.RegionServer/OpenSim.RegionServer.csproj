@@ -58,6 +58,8 @@
   <ItemGroup>
     <Compile Include="Assets\InventoryCache.cs" />
     <Compile Include="Grid.cs" />
+    <Compile Include="OpenSimApplication.cs" />
+    <Compile Include="OpenSimRoot.cs" />
     <Compile Include="UserServer\LocalUserProfileManager.cs" />
     <Compile Include="OpenSimMain.cs" />
     <Compile Include="QueItem.cs" />

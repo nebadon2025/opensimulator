@@ -63,7 +63,7 @@ namespace OpenSim.CAPS
                 OpenSim.Framework.Console.MainConsole.Instance.WriteLine("SimHttp.cs:StartHTTP() - Spawned main thread OK");
                 Listener = new HttpListener();
 
-                Listener.Prefixes.Add("http://+:" + OpenSimMain.Instance.Cfg.IPListenPort + "/");
+                Listener.Prefixes.Add("http://+:" + OpenSimRoot.Instance.Cfg.IPListenPort + "/");
                 Listener.Start();
 
                 HttpListenerContext context;
@@ -96,9 +96,9 @@ namespace OpenSim.CAPS
                         agent_data.lastname = (string)requestData["lastname"];
                         agent_data.AgentID = new LLUUID((string)requestData["agent_id"]);
                         agent_data.circuitcode = Convert.ToUInt32(requestData["circuit_code"]);
-                        if (OpenSimMain.Instance.GridServers.GridServer.GetName() == "Remote")
+                        if (OpenSimRoot.Instance.GridServers.GridServer.GetName() == "Remote")
                         {
-                            ((RemoteGridBase)OpenSimMain.Instance.GridServers.GridServer).agentcircuits.Add((uint)agent_data.circuitcode, agent_data);
+                            ((RemoteGridBase)OpenSimRoot.Instance.GridServers.GridServer).agentcircuits.Add((uint)agent_data.circuitcode, agent_data);
                         }
                         return "<?xml version=\"1.0\"?><methodResponse><params /></methodResponse>";
                         break;

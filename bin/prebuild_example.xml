@@ -1,0 +1,815 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<DNPreBuild xmlns="http://dnpb.sourceforge.net/schemas/dnpb-1.5.xsd">
+	<Solution name="RealmForge" activeConfig="Debug">
+		<Configuration name="Debug">
+			<Options>
+				<CompilerDefines>TRACE;DEBUG</CompilerDefines>
+				<OptimizeCode>false</OptimizeCode>
+				<CheckUnderflowOverflow>false</CheckUnderflowOverflow>
+				<AllowUnsafe>false</AllowUnsafe>
+				<WarningLevel>4</WarningLevel>
+				<WarningsAsErrors>false</WarningsAsErrors>
+				<SupressWarnings>1595;1591;219;1573;1572;168;1574;1570;1587</SupressWarnings>
+				<OutputPath>bin</OutputPath>
+				<DebugInformation>true</DebugInformation>
+				<GenerateXmlDocFile>false</GenerateXmlDocFile>
+				<RegisterCOMInterop>false</RegisterCOMInterop>
+				<IncrementalBuild>true</IncrementalBuild>
+				<BaseAddress>285212672</BaseAddress>
+				<FileAlignment>4096</FileAlignment>
+				<NoStdLib>false</NoStdLib>
+			</Options>
+		</Configuration>
+		<Configuration name="Release">
+			<Options>
+				<CompilerDefines>TRACE</CompilerDefines>
+				<OptimizeCode>true</OptimizeCode>
+				<CheckUnderflowOverflow>false</CheckUnderflowOverflow>
+				<AllowUnsafe>false</AllowUnsafe>
+				<WarningLevel>4</WarningLevel>
+				<WarningsAsErrors>false</WarningsAsErrors>
+				<SupressWarnings>1595;1591;219;1573;1572;168;1574;1570;1587</SupressWarnings>
+				<OutputPath>bin</OutputPath>
+				<DebugInformation>false</DebugInformation>
+				<GenerateXmlDocFile>false</GenerateXmlDocFile>
+				<RegisterCOMInterop>false</RegisterCOMInterop>
+				<IncrementalBuild>true</IncrementalBuild>
+				<BaseAddress>285212672</BaseAddress>
+				<FileAlignment>4096</FileAlignment>
+				<NoStdLib>false</NoStdLib>			
+			</Options>
+		</Configuration>
+		<Files>
+			<File>..\bin\Modules.config</File>
+			<Match path="..\bin\DemoGame" pattern="*"/>
+			<Match path="..\bin\WinterTutorial" pattern="*"/>
+			<Match path="..\bin\MMT" pattern="*"/>
+			<Match path="..\bin\Samples" pattern="*"/>
+			<Match path="..\bin\NewGame" pattern="*"/>
+		</Files>
+
+		<Project name="RealmForge.Utility" filterGroups="Axiom|Cegui" path="Utility" type="Library" assemblyName="RealmForge.Utility" rootNamespace="RealmForge">
+			<Configuration name="Debug">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<ReferencePath>../../libs</ReferencePath>
+			<Reference name="System"/>
+			<Reference name="System.Drawing"/>
+			<Reference name="System.Xml"/>
+			<Files>
+				<Match pattern="*.cs" recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="RealmForge.Audio.DirectSound" path="Audio/DirectSound" type="Library" rootNamespace="RealmForge.Audio">
+			<ReferencePath>../../../libs</ReferencePath>
+			<Reference name="System"/>
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="RealmForge.Framework"/>
+			<Reference name="Microsoft.DirectX"/>
+			<Reference name="Microsoft.DirectX.DirectSound"/>
+			<Files>
+				<Match pattern="*.cs" recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="RealmForge.Audio.OpenAL" path="Audio/OpenAL" type="Library" rootNamespace="RealmForge.Audio">
+			<ReferencePath>../../../libs</ReferencePath>
+			<Reference name="System"/>
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="RealmForge.Framework"/>
+			<Reference name="Tao.OpenAl"/>
+			<Reference name="csogg"/>
+			<Reference name="csvorbis"/>
+			<Files>
+				<Match pattern="*.cs" recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="RealmForge.Framework" path="Framework" type="Library" assemblyName="RealmForge.Framework" rootNamespace="RealmForge">
+			<ReferencePath>../../libs</ReferencePath>
+			<Reference name="System"/>
+			<Reference name="System.Drawing.Design"/>
+			<Reference name="System.Data"/> 
+			<Reference name="System.Xml"/>
+			<Reference name="System.Windows.Forms"/>
+			<Reference name="System.Drawing"/>
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="ICSharpCode.SharpZipLib"/>
+			<Files>
+				<Match pattern="*.cs" recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="RealmForge.Genres" path="Genres" type="Library" assemblyName="RealmForge.Genres" rootNamespace="RealmForge">
+			<ReferencePath>../../libs</ReferencePath>
+			<Reference name="System"/>
+			<Reference name="System.Data"/> 
+			<Reference name="System.Xml"/>
+			<Reference name="System.Windows.Forms"/>
+			<Reference name="System.Drawing"/>
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="RealmForge.Framework"/>
+			<Files>
+				<Match pattern="*.cs" recurse="true"/>
+			</Files>
+		</Project>
+				
+		<Project name="RealmForge.Forms" path="Forms" type="Library" assemblyName="RealmForge.Forms" rootNamespace="RealmForge">
+			<Configuration name="Debug">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<ReferencePath>../../libs</ReferencePath>
+			<Reference name="System"/>
+			<Reference name="System.Drawing"/>
+			<Reference name="System.Data"/>
+			<Reference name="System.Design"/>
+			<Reference name="System.Windows.Forms"/>
+			<Reference name="System.Xml"/>
+			<Reference name="RealmForge.Framework"/>
+			<Reference name="RealmForge.Utility"/>
+			<Files>
+				<Match pattern="*.cs" recurse="true"/>
+				<Match pattern="*.bmp" buildAction="EmbeddedResource" recurse="true"/>
+			</Files>
+		</Project>
+		
+		<Project name="RealmForge.RAGE" path="RAGE" type="Library" assemblyName="RealmForge.RAGE" rootNamespace="RealmForge">
+			<Configuration name="Debug">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<ReferencePath>../../libs</ReferencePath>
+			<Reference name="System"/>
+			<Reference name="System.Design"/>
+			<Reference name="System.XML"/>
+			<Reference name="System.Windows.Forms"/>
+			<Reference name="System.Drawing"/>
+			<Reference name="Axiom.Plugins.CgProgramManager"/>
+			<Reference name="Axiom.Engine"/>
+			<Reference name="Axiom.Plugins.ParticleFX"/>
+			<Reference name="Axiom.Platforms.Win32"/>
+			<Reference name="Axiom.RenderSystems.DirectX9"/>
+			<Reference name="Axiom.Platforms.SDL"/>
+			<Reference name="Axiom.Plugins.CgProgramManager"/>
+			<Reference name="Axiom.Plugins.ParticleFX"/>
+			<Reference name="Axiom.SceneManagers.Bsp"/>
+			<Reference name="Axiom.SceneManagers.Octree"/>
+			<Reference name="Axiom.SceneManagers.PagingLandscape"/>
+			<Reference name="Cegui.Renderers.Axiom"/>
+			<Reference name="Cegui.Themes"/>
+			<Reference name="Cegui"/>
+			<Reference name="Axiom.RenderSystems.OpenGL"/>
+			<Reference name="Axiom.SceneManagers.Octree"/>
+			<Reference name="RealmForge.Importers.Collada"/>
+			<Reference name="ICSharpCode.SharpZipLib"/>
+			<Reference name="System.Data"/>
+			<Reference name="RealmForge.Framework"/>
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="ode"/>
+			<Files>
+				<Match pattern="*.cs" recurse="true"/>
+			</Files>
+		</Project>
+
+
+		<Project name="RealmForge.ScriptLibrary" path="ScriptLibrary" type="Library" assemblyName="RealmForge.ScriptLibrary" rootNamespace="RSL">
+			<ReferencePath>../../libs</ReferencePath>
+			<Reference name="System"/>
+			<Reference name="System.XML"/>
+			<Reference name="System.Windows.Forms"/>
+			<Reference name="System.Drawing"/>
+			<Reference name="RealmForge.Forms"/>
+			<Reference name="RealmForge.RAGE"/>
+			<Reference name="RealmForge.Framework"/>
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="RealmForge.Importers.Collada"/>
+			<Reference name="RealmForge.Scripting.Boo"/>
+			<Reference name="RealmForge.Physics.ODE"/>
+			<Reference name="RealmForge.Audio.OpenAL"/>
+			<Reference name="RealmForge.Audio.DirectSound"/>
+			<Files>
+				<Match pattern="*.cs" recurse="true"/>
+			</Files>
+		</Project>
+
+
+		<Project name="RealmForge.Scripting.Boo" type="Library" path="Scripting/Boo" rootNamespace="RealmForge.Scripting">
+			<ReferencePath>..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="Boo.Lang"/>
+			<Reference name="Boo.Lang.CodeDom"/> 
+			<Reference name="Boo.Lang.Compiler"/>
+			<Reference name="Boo.Lang.Interpreter"/>
+			<Reference name="Boo.Lang.Parser"/>
+			<Reference name="Boo.Lang.Useful"/>
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="RealmForge.Framework"/>
+			<Files>
+				<Match path="." pattern="*.cs" recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="RealmForge.Physics.ODE" type="Library" path="Physics/ODE" rootNamespace="RealmForge.Physics">
+			<Configuration name="Debug">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<ReferencePath>..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Xml" />
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="RealmForge.Framework"/>
+			<Reference name="RealmForge.RAGE"/>
+			<Reference name="Axiom.Engine"/>
+			<Reference name="ode"/>
+			<Files>
+				<Match path="." pattern="*.cs" recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="RealmForge.Importers.Collada" type="Library" path="Importers/Collada" rootNamespace="RealmForge.Importers">
+			<ReferencePath>..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Xml" />
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="RealmForge.Framework"/>
+			<Files>
+				<Match path="."      pattern="*.cs"  recurse="true"/>
+				<Match path="Schema" pattern="*.txt" recurse="true" buildAction="None"/>
+				<Match path="Schema" pattern="*.xsd" recurse="true" buildAction="EmbeddedResource"/>
+				<Match path="Schema" pattern="*.pdf" recurse="true" buildAction="None"/>
+			</Files>
+		</Project>
+
+
+<!-- _______________________________________________ CEGUI# ________________________________________________________ -->
+
+		<Project name="Cegui" filterGroups="Cegui" type="Library" path="Cegui/Base" rootNamespace="Cegui">
+			<Configuration name="Debug">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<ReferencePath>..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Xml" />
+			<Reference name="RealmForge.Utility"/>
+			
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true" />
+			</Files>
+		</Project>
+		    
+		<Project name="Cegui.Themes" filterGroups="Cegui" type="Library" path="Cegui/WidgetSets" rootNamespace="Cegui">		
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Xml" />
+			<Reference name="Cegui" />
+			<Reference name="RealmForge.Utility"/>
+			
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true" />
+			</Files>
+		</Project>
+
+
+		<Project name="Cegui.Renderers.Axiom" filterGroups="Axiom+Cegui" type="Library" path="Cegui/Renderers/Axiom" rootNamespace="Cegui">
+			<ReferencePath>..\..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Xml" />
+			<Reference name="Axiom.Engine"/>
+			<Reference name="Cegui" />
+			<Reference name="Axiom.Platforms.Win32" />
+			<Reference name="Axiom.RenderSystems.DirectX9" />
+			<Reference name="RealmForge.Utility"/>
+			
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		</Project>
+		    
+		<Project name="Cegui.Renderers.SdlDotNet" filterGroups="Cegui" type="Library" path="Cegui/Renderers/SdlDotNet" rootNamespace="Cegui.Renderers">
+			<ReferencePath>..\..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Xml" />
+			<Reference name="SdlDotNet"/>
+			<Reference name="Cegui" />
+			<Reference name="RealmForge.Utility"/>
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		</Project>
+
+
+<!-- _______________________________________________ Applications ________________________________________________________ -->
+
+		<Project name="RealmForge.Editor" path="Editor" type="WinExe" icon="..\..\bin\RealmForge.ico" assemblyName="Editor" rootNamespace="RealmForge">
+			<Configuration name="Debug">
+				<Options>
+					<OutputPath>../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<OutputPath>../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<ReferencePath>../../libs</ReferencePath>
+			<Reference name="System"/>
+			<Reference name="System.Drawing"/>
+			<Reference name="System.Windows.Forms"/>
+			<Reference name="RealmForge.Forms"/>
+			<Reference name="RealmForge.ScriptLibrary"/>
+			<Reference name="RealmForge.RAGE"/>
+			<Reference name="RealmForge.Framework"/>
+			<Reference name="RealmForge.Utility"/>
+			<Files>
+				<Match pattern="*.cs" recurse="true"/>
+			</Files>
+		</Project>
+
+
+		<Project name="RealmForge.SampleBrowser" path="Samples" type="WinExe" icon="..\..\bin\RealmForge.ico" assemblyName="SampleBrowser" rootNamespace="RealmForge">
+			<Configuration name="Debug">
+				<Options>
+					<OutputPath>../../bin</OutputPath>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<OutputPath>../../bin</OutputPath>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<ReferencePath>../../libs</ReferencePath>
+			<Reference name="System"/>
+			<Reference name="System.Drawing"/>
+			<Reference name="System.Windows.Forms"/>
+			<Reference name="System.Xml"/>
+			<Reference name="RealmForge.Forms"/>
+			<Reference name="Axiom.Engine"/>
+			<Reference name="RealmForge.Forms"/>
+			<Reference name="RealmForge.ScriptLibrary"/>
+			<Reference name="RealmForge.RAGE"/>
+			<Reference name="RealmForge.Framework"/>
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="RealmForge.Importers.Collada"/>
+			<Reference name="Cegui"/>
+
+			<Files>
+				<Match pattern="*.cs" recurse="true"/>
+				<Match path="Resources" pattern="*.xml" buildAction="EmbeddedResource" recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="RealmForge.Demos.DemoGame" path="DemoGame" type="WinExe" icon="..\..\bin\RealmForge.ico" assemblyName="DemoGame" rootNamespace="RealmForge">
+			<Configuration name="Debug">
+				<Options>
+					<OutputPath>../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<OutputPath>../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<ReferencePath>../../libs</ReferencePath>
+			<Reference name="System"/>
+			<Reference name="System.Drawing"/>
+			<Reference name="System.Windows.Forms"/>
+			<Reference name="RealmForge.Forms"/>
+			<Reference name="RealmForge.ScriptLibrary"/>
+			<Reference name="RealmForge.RAGE"/>
+			<Reference name="RealmForge.Framework"/>
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="RealmForge.Genres"/>
+			<Files>
+				<Match pattern="*.cs" recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="RealmForge.Demos.WinterTutorial" path="WinterTutorial" type="WinExe" icon="..\..\bin\RealmForge.ico" assemblyName="WinterTutorial" rootNamespace="RealmForge.WinterTutorial">
+			<Configuration name="Debug">
+				<Options>
+					<OutputPath>../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<OutputPath>../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<ReferencePath>../../libs</ReferencePath>
+			<Reference name="System"/>
+			<Reference name="System.Drawing"/>
+			<Reference name="System.Windows.Forms"/>
+			<Reference name="RealmForge.Forms"/>
+			<Reference name="RealmForge.ScriptLibrary"/>
+			<Reference name="RealmForge.RAGE"/>
+			<Reference name="RealmForge.Framework"/>
+			<Reference name="RealmForge.Utility"/>
+			<Files>
+				<Match pattern="*.cs" recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="Might and Magic Tribute" path="MMT" type="WinExe" icon="..\..\bin\MMT.ico" assemblyName="MMT" rootNamespace="MightAndMagic">
+			<Configuration name="Debug">
+				<Options>
+					<OutputPath>../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<OutputPath>../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<ReferencePath>../../libs</ReferencePath>
+			<Reference name="System"/>
+			<Reference name="System.Drawing"/>
+			<Reference name="System.Windows.Forms"/>
+			<Reference name="RealmForge.Forms"/>
+			<Reference name="RealmForge.ScriptLibrary"/>
+			<Reference name="RealmForge.RAGE"/>
+			<Reference name="RealmForge.Framework"/>
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="Cegui" />
+			<Files>
+				<Match pattern="*.cs" recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="Axiom.Demos" filterGroups="Axiom" type="WinExe" path="Axiom/DemoTest" rootNamespace="Axiom.Demos" assemblyName="Axiom Demos">		
+			<Configuration name="Debug">
+				<Options>
+					<OutputPath>../../../bin</OutputPath>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<OutputPath>../../../bin</OutputPath>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<ReferencePath>..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Xml" />
+			<Reference name="Axiom.Engine"/>
+			<Reference name="Axiom.Platforms.SDL"/>
+			<Reference name="Axiom.RenderSystems.OpenGL"/>
+			<Reference name="Tao.DevIl" />
+			<Reference name="ICSharpCode.SharpZipLib" />
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="Tao.OpenGl"/>
+			<Reference name="Tao.OpenGl.ExtensionLoader"/>
+			<Reference name="Tao.OpenGl.Glu"/>
+			<Reference name="Tao.Sdl" />
+			<Reference name="Axiom.Plugins.CgProgramManager"/>
+			<Reference name="Axiom.Plugins.ParticleFX"/>
+			<Reference name="Axiom.SceneManagers.Bsp"/>
+			<Reference name="Axiom.SceneManagers.Octree"/>
+			<Reference name="Axiom.SceneManagers.PagingLandscape"/>
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="Cegui.Demos.SdlDotNet" filterGroups="Cegui" type="WinExe" path="Cegui/Demos/SdlDemo1" rootNamespace="Cegui.Demos" assemblyName="Cegui SDL.NET Demo">
+			<Configuration name="Debug">
+				<Options>
+					<OutputPath>../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<OutputPath>../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<ReferencePath>..\..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Xml" />
+			<Reference name="SdlDotNet"/>
+			<Reference name="Axiom.Engine"/>
+			<Reference name="Cegui" />
+			<Reference name="Cegui.Renderers.SdlDotNet" />
+			<Reference name="Cegui.Themes" />
+			<Reference name="RealmForge.Utility"/>
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		    </Project>
+
+		<Project name="Cegui.Demos.Axiom1" filterGroups="Axiom+Cegui" type="WinExe" path="Cegui/Demos/AxiomDemo1" rootNamespace="Cegui.Demos" assemblyName="Cegui Axiom Demo 1">
+			<Configuration name="Debug">
+				<Options>
+					<OutputPath>../../../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<OutputPath>../../../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<ReferencePath>..\..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Xml" />
+			<Reference name="Axiom.Engine"/>
+			<Reference name="Cegui" />
+			<Reference name="Cegui.Renderers.Axiom" />
+			<Reference name="Cegui.Themes" />
+			<Reference name="RealmForge.Utility"/>
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		    </Project>
+
+		<Project name="Cegui.Demos.Axiom2" filterGroups="Axiom+Cegui" type="WinExe" path="Cegui/Demos/AxiomDemo2" rootNamespace="Cegui.Demos" assemblyName="Cegui Axiom Demo 2">
+			<Configuration name="Debug">
+				<Options>
+					<OutputPath>../../../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<OutputPath>../../../../bin</OutputPath>
+				</Options>
+			</Configuration>
+			<ReferencePath>..\..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Xml" />
+			<Reference name="Axiom.Engine"/>
+			<Reference name="Cegui" />
+			<Reference name="Cegui.Renderers.Axiom" />
+			<Reference name="Cegui.Themes" />
+			<Reference name="RealmForge.Utility"/>
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		</Project>
+
+<!-- _______________________________________________ Axiom ________________________________________________________ -->
+
+		<Project name="Axiom.Engine" filterGroups="Axiom" type="Library" path="Axiom/Engine" rootNamespace="Axiom" >		
+			<Configuration name="Debug">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<ReferencePath>..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Xml" />
+			<Reference name="Tao.DevIl" />
+			<Reference name="ICSharpCode.SharpZipLib" />
+			<Reference name="RealmForge.Utility"/>
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="Axiom.Platforms.SDL" filterGroups="Axiom" type="Library" path="Axiom/Platforms/SDL" rootNamespace="Axiom">
+			<ReferencePath>..\..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Xml" />
+			<Reference name="Axiom.Engine" />
+			<Reference name="Tao.Platform.Windows" />
+			<Reference name="Tao.Sdl"/>
+			<Reference name="RealmForge.Utility"/>	
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		</Project>
+
+	<?if OS = "Win32" ?>
+		<Project name="Axiom.Platforms.Win32" filterGroups="Axiom" type="Library" path="Axiom/Platforms/Win32" rootNamespace="Axiom">
+			<ReferencePath>..\..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Windows.Forms" />
+			<Reference name="System.Xml" />
+			<Reference name="Axiom.Engine"/>
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="Microsoft.DirectX" />
+			<Reference name="Microsoft.DirectX.DirectInput" />
+			<Reference name="Tao.Platform.Windows"/>
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="Axiom.RenderSystems.DirectX9" filterGroups="Axiom" type="Library" path="Axiom/RenderSystems/DirectX9" rootNamespace="Axiom">
+			<Configuration name="Debug">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<ReferencePath>..\..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Windows.Forms" />
+			<Reference name="System.Xml" />
+			<Reference name="Axiom.Engine" />
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="Microsoft.DirectX" />
+			<Reference name="Microsoft.DirectX.Direct3D" />
+			<Reference name="Microsoft.DirectX.Direct3DX" />
+			<Reference name="Tao.Platform.Windows"  />
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		</Project>
+
+	<?endif ?>
+
+		<Project name="Axiom.RenderSystems.OpenGL" filterGroups="Axiom" type="Library" path="Axiom/RenderSystems/OpenGL" rootNamespace="Axiom" >
+			<Configuration name="Debug">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<ReferencePath>..\..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Drawing" />
+			<Reference name="System.Windows.Forms" />
+			<Reference name="System.Xml" />
+			<Reference name="Axiom.Engine" />
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="Tao.OpenGl" localCopy="false"/>
+			<Reference name="Tao.OpenGl.ExtensionLoader"/>
+			<Reference name="Tao.OpenGl.Glu"/>
+			<Reference name="Tao.Sdl" />
+			<Files>
+				<Match pattern="*.cs" path="." />
+				<Match pattern="*.cs" path="./ATI" />
+				<Match pattern="*.cs" path="./Nvidia" />
+				<Match pattern="*.cs" path="./GLSL" />
+				<Match pattern="*.cs" path="./SDL" />
+			</Files>
+		</Project>
+
+		<Project name="Axiom.Plugins.CgProgramManager" filterGroups="Axiom" type="Library" path="Axiom/Plugins/CgProgramManager" rootNamespace="Axiom">		
+			<ReferencePath>..\..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Xml" />
+			<Reference name="Axiom.Engine"/>
+			<Reference name="RealmForge.Utility"/>
+			<Reference name="Tao.Cg"  />
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true" />
+			</Files>
+		</Project>
+
+		<Project name="Axiom.Plugins.ParticleFX" filterGroups="Axiom" type="Library" path="Axiom/Plugins/ParticleFX" rootNamespace="Axiom" >
+			<ReferencePath>..\..\..\..\libs</ReferencePath>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Xml" />
+			<Reference name="Axiom.Engine" />
+			<Reference name="RealmForge.Utility"/>
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="Axiom.SceneManagers.Octree" filterGroups="Axiom" type="Library" path="Axiom\SceneManagers\Octree" rootNamespace="Axiom" >
+			<Configuration name="Debug">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Xml" />
+			<Reference name="Axiom.Engine"/>
+			<Reference name="RealmForge.Utility"/>
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="Axiom.SceneManagers.Bsp" filterGroups="Axiom" type="Library" path="Axiom\SceneManagers\Bsp" rootNamespace="Axiom" >
+			<Configuration name="Debug">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Xml" />
+			<Reference name="Axiom.Engine" />
+			<Reference name="RealmForge.Utility"/>
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		</Project>
+
+		<Project name="Axiom.SceneManagers.PagingLandscape" filterGroups="Axiom" type="Library" path="Axiom\SceneManagers\PagingLandscape" rootNamespace="Axiom">
+			<Configuration name="Debug">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Configuration name="Release">
+				<Options>
+					<AllowUnsafe>true</AllowUnsafe>
+				</Options>
+			</Configuration>
+			<Reference name="System" />
+			<Reference name="System.Data" />
+			<Reference name="System.Xml" />
+			<Reference name="Axiom.Engine"/>
+			<Reference name="RealmForge.Utility"/>
+			<Files>
+				<Match pattern="*.cs" path="." recurse="true"/>
+			</Files>
+		   </Project>
+	</Solution>
+</DNPreBuild>
+
+	

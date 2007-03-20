@@ -1,74 +1,164 @@
 ﻿<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectType>Local</ProjectType>
     <ProductVersion>8.0.50727</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{2E46A825-3168-492F-93BC-637126B5B72B}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>OpenSim.Framework</RootNamespace>
+    <ProjectGuid>{5FD3848E-EA2C-4187-95CB-844195E56FBF}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ApplicationIcon>
+    </ApplicationIcon>
+    <AssemblyKeyContainerName>
+    </AssemblyKeyContainerName>
     <AssemblyName>OpenSim.Framework</AssemblyName>
+    <AssemblyOriginatorKeyFile>
+    </AssemblyOriginatorKeyFile>
+    <DefaultClientScript>JScript</DefaultClientScript>
+    <DefaultHTMLPageLayout>Grid</DefaultHTMLPageLayout>
+    <DefaultTargetSchema>IE50</DefaultTargetSchema>
+    <DelaySign>false</DelaySign>
+    <OutputType>Library</OutputType>
+    <RootNamespace>OpenSim.Framework</RootNamespace>
     <StartupObject>
     </StartupObject>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
+    <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
+    <BaseAddress>285212672</BaseAddress>
+    <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+    <ConfigurationOverrideFile>
+    </ConfigurationOverrideFile>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <DocumentationFile>
+    </DocumentationFile>
+    <DebugSymbols>True</DebugSymbols>
+    <FileAlignment>4096</FileAlignment>
+    <Optimize>False</Optimize>
+    <OutputPath>..\bin\</OutputPath>
+    <RegisterForComInterop>False</RegisterForComInterop>
+    <RemoveIntegerChecks>False</RemoveIntegerChecks>
+    <TreatWarningsAsErrors>False</TreatWarningsAsErrors>
     <WarningLevel>4</WarningLevel>
+    <NoWarn>
+    </NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
+    <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
+    <BaseAddress>285212672</BaseAddress>
+    <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+    <ConfigurationOverrideFile>
+    </ConfigurationOverrideFile>
     <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
+    <DocumentationFile>
+    </DocumentationFile>
+    <DebugSymbols>False</DebugSymbols>
+    <FileAlignment>4096</FileAlignment>
+    <Optimize>True</Optimize>
+    <OutputPath>..\bin\</OutputPath>
+    <RegisterForComInterop>False</RegisterForComInterop>
+    <RemoveIntegerChecks>False</RemoveIntegerChecks>
+    <TreatWarningsAsErrors>False</TreatWarningsAsErrors>
     <WarningLevel>4</WarningLevel>
+    <NoWarn>
+    </NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="libsecondlife, Version=0.9.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\bin\libsecondlife.dll</HintPath>
+    <Reference Include="System.dll">
+      <Name>System.dll</Name>
+      <HintPath>\System.dll.dll</HintPath>
+      <Private>True</Private>
     </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.dll">
+      <Name>System.Xml.dll</Name>
+      <HintPath>\System.Xml.dll.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="libsecondlife.dll">
+      <Name>libsecondlife.dll</Name>
+      <HintPath>\libsecondlife.dll.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AgentCiruitData.cs" />
-    <Compile Include="AssetBase.cs" />
-    <Compile Include="BlockingQueue.cs" />
-    <Compile Include="HeightMapGenHills.cs" />
-    <Compile Include="IAssetServer.cs" />
-    <Compile Include="IConfig.cs" />
-    <Compile Include="IGridServer.cs" />
-    <Compile Include="ILocalStorage.cs" />
-    <Compile Include="Inventory.cs" />
-    <Compile Include="IUserServer.cs" />
-    <Compile Include="LocalGridBase.cs" />
-    <Compile Include="Login.cs" />
-    <Compile Include="LoginService.cs" />
-    <Compile Include="NeighbourInfo.cs" />
-    <Compile Include="PrimData.cs" />
-    <Compile Include="RemoteGridBase.cs" />
-    <Compile Include="SimProfile.cs" />
-    <Compile Include="SimProfileBase.cs" />
-    <Compile Include="UserProfile.cs" />
-    <Compile Include="UserProfileManager.cs" />
-    <Compile Include="UserProfileManagerBase.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Util.cs" />
   </ItemGroup>
-  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
+  <ItemGroup>
+    <Compile Include="AgentCiruitData.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="AssetBase.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="BlockingQueue.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="HeightMapGenHills.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IAssetServer.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IConfig.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IGridServer.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ILocalStorage.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Inventory.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="IUserServer.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="LocalGridBase.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Login.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="LoginService.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="NeighbourInfo.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="PrimData.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="RemoteGridBase.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SimProfile.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="SimProfileBase.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="UserProfile.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="UserProfileManager.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="UserProfileManagerBase.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Util.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Properties\AssemblyInfo.cs">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSHARP.Targets" />
+  <PropertyGroup>
+    <PreBuildEvent>
+    </PreBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
 </Project>

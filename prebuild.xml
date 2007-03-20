@@ -72,7 +72,7 @@
 			</Configuration>
 
 			<ReferencePath>../bin/</ReferencePath>
-			<Reference name="System.dll"/>
+			<Reference name="System" localCopy="False"/>
 			<Files>
 				<Match pattern="*.cs" recurse="true"/>
 			</Files>
@@ -91,10 +91,10 @@
 			</Configuration>
 
 			<ReferencePath>../../bin/</ReferencePath>
-			<Reference name="System.dll"/>
-			<Reference name="System.Xml.dll"/>
-			<Reference name="Axiom.MathLib.dll"/>
-			<Reference name="OpenSim.Framework.Console"/>
+			<Reference name="System" localCopy="False"/>
+			<Reference name="System.Xml.dll" localCopy="False" />
+			<Reference name="Axiom.MathLib.dll" localCopy="False"/>
+			<Reference name="OpenSim.Framework.Console" localCopy="False"/>
 			<Files>
 				<Match pattern="*.cs" recurse="false"/>
 			</Files>
@@ -114,7 +114,7 @@
 			</Configuration>
 
 			<ReferencePath>../../bin/</ReferencePath>
-			<Reference name="System.dll"/>
+			<Reference name="System" localCopy="False"/>
 			<Reference name="System.Data.dll"/>
 			<Reference name="System.Xml.dll"/>
 			<Reference name="libsecondlife.dll"/>
@@ -140,7 +140,7 @@
 			</Configuration>
 
 			<ReferencePath>../../bin/</ReferencePath>
-			<Reference name="System.dll"/>
+			<Reference name="System" localCopy="False"/>
 			<Reference name="System.Xml.dll"/>
 			<Reference name="Db4objects.Db4o.dll"/>
 			<Reference name="libsecondlife.dll"/>
@@ -164,7 +164,7 @@
 			</Configuration>
 
 			<ReferencePath>../../bin/</ReferencePath>
-			<Reference name="System.dll"/>
+			<Reference name="System" localCopy="False"/>
 			<Reference name="System.Xml.dll"/>
 			<Reference name="libsecondlife.dll"/>
 			<Reference name="OpenSim.Framework"/>
@@ -188,7 +188,7 @@
 			</Configuration>
 
 			<ReferencePath>../../bin/</ReferencePath>
-			<Reference name="System.dll"/>
+			<Reference name="System" localCopy="False"/>
 			<Reference name="Axiom.MathLib.dll" localCopy="False"/>
 			<Reference name="OpenSim.Physics.Manager" localCopy="False"/>
 			<Files>
@@ -209,7 +209,7 @@
 			</Configuration>
 
 			<ReferencePath>../../bin/</ReferencePath>
-			<Reference name="System.dll"/>
+			<Reference name="System" localCopy="False"/>
 			<Reference name="Axiom.MathLib.dll" localCopy="False"/>
 			<Reference name="PhysX_Wrapper_Dotnet.dll" localCopy="False"/>
 			<Reference name="OpenSim.Physics.Manager" localCopy="False"/>
@@ -232,7 +232,7 @@
 			</Configuration>
 			
 			<ReferencePath>../bin/</ReferencePath>
-			<Reference name="System.dll"/>
+			<Reference name="System" localCopy="False"/>
 			<Reference name="System.Xml.dll"/>
 			<Reference name="libsecondlife.dll"/>
 			<Reference name="Axiom.MathLib.dll"/>
@@ -260,7 +260,7 @@
 			</Configuration>
 
 			<ReferencePath>../../bin/</ReferencePath>
-			<Reference name="System.dll"/>
+			<Reference name="System" localCopy="False"/>
 			<Reference name="System.Xml.dll"/>
 			<Reference name="Db4objects.Db4o.dll"/>
 			<Reference name="libsecondlife.dll"/>

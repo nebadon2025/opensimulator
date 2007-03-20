@@ -1,0 +1,28 @@
+<?xml version="1.0" ?>
+<project name="OpenSim.Framework.Console" default="build">
+    <target name="build">
+        <echo message="Build Directory is ${project::get-base-directory()}/${build.dir}" />
+        <mkdir dir="${project::get-base-directory()}/${build.dir}" />
+        <csc target="library" debug="${build.debug}" unsafe="true" output="${project::get-base-directory()}/${build.dir}/${project::get-name()}.dll">
+            <sources failonempty="true">
+                <include name="./AssemblyInfo.cs" />
+                <include name="./ConsoleBase.cs" />
+                <include name="./MainConsole.cs" />
+            </sources>
+            <references basedir="${project::get-base-directory()}">
+                <lib>
+                    <include name="${project::get-base-directory()}" />
+                </lib>
+                <include name="System.dll" />
+            </references>
+            <resources>
+            </resources>
+        </csc>
+    </target>
+    <target name="clean">
+        <delete dir="${bin.dir}" failonerror="false" />
+        <delete dir="${obj.dir}" failonerror="false" />
+    </target>
+    <target name="doc" description="Creates documentation.">
+    </target>
+</project>

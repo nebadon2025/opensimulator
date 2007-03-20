@@ -1,0 +1,11 @@
+Prebuild seems to be quite a few features short of complete. We'll have to look into fixing them or getting patches.
+
+* vs2005 builds fine except for not honouring localCopy=False - I have a fix for like half the cases
+* Nant is borked, as the nant target doesn't honour Output redirection, which causes everything to land in {project}/bin/Debug
+* Also, we have the System.Xml / System.dll.dll - issues in Nant. Further digging needed.
+
+Now, the good news is that prebuild is very straight forward, so we should be able to fix what we need in the tool and submit the changes to the Prebuild team.
+
+Be my guest, anybody!
+
+/lbsa71

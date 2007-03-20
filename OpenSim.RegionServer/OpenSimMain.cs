@@ -83,7 +83,7 @@ namespace OpenSim
         private PhysicsManager physManager;
         private System.Timers.Timer timer1 = new System.Timers.Timer();
         private string ConfigDll = "SimConfig.dll";
-        private string _physicsEngine = "PhysX";
+        private string _physicsEngine = "basicphysics";
         public bool sandbox = false;
         public bool loginserver = false;
 
@@ -98,7 +98,7 @@ namespace OpenSim
 
             Instance.sandbox = false;
             Instance.loginserver = false;
-            Instance._physicsEngine = "PhysX";
+            Instance._physicsEngine = "basicphysics";
 
             for (int i = 0; i < args.Length; i++)
             {

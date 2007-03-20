@@ -1,0 +1,89 @@
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenSim.Storage.LocalStorageDb4o", "..\zircon\OpenSim.Storage\LocalStorageDb4o\OpenSim.Storage.LocalStorageDb4o.csproj", "{147B65A0-BDD0-4569-86E8-B04A3120FB62}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenSim.Framework.Console", "..\zircon\OpenSim.Framework.Console\OpenSim.Framework.Console.csproj", "{F1B7CF0A-F6CA-419F-AC2E-95FFF2CAE7B7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenSim.Config.SimConfigDb4o", "..\zircon\OpenSim.Config\SimConfigDb4o\OpenSim.Config.SimConfigDb4o.csproj", "{B4011E4F-E363-48C0-9B99-D65B8E6E67BA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenSim.Physics.BasicPhysicsPlugin", "..\zircon\OpenSim.Physics\BasicPhysicsPlugin\OpenSim.Physics.BasicPhysicsPlugin.csproj", "{93756CDD-663B-48F6-8B72-0B730773DC82}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenSim.GridInterfaces.Remote", "..\zircon\OpenSim.GridInterfaces\Remote\OpenSim.GridInterfaces.Remote.csproj", "{7E55E413-3E75-4FF0-8322-6D179A49C5BF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenSim.Framework", "..\zircon\OpenSim.Framework\OpenSim.Framework.csproj", "{15BCBDD6-3591-4443-B060-C34B46E719D4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenSim.Physics.PhysXplugin", "..\zircon\OpenSim.Physics\PhysXplugin\OpenSim.Physics.PhysXplugin.csproj", "{65AD77F6-5E41-42CB-A6C9-D88009A5159B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenSim.RegionServer", "..\zircon\OpenSim.RegionServer\OpenSim.RegionServer.csproj", "{E02DFEDE-1F61-470C-8556-6EE467C2884E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenSim.Physics.Manager", "..\zircon\OpenSim.Physics\Manager\OpenSim.Physics.Manager.csproj", "{47EF519F-E5E1-4520-9EC4-2FAEB4CA44FB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OpenSim.GridInterfaces.Local", "..\zircon\OpenSim.GridInterfaces\Local\OpenSim.GridInterfaces.Local.csproj", "{536BD9EC-9F5D-4D96-B6D5-883D5B7E0DAE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectDependencies) = postSolution
+		({147B65A0-BDD0-4569-86E8-B04A3120FB62}).4 = ({15BCBDD6-3591-4443-B060-C34B46E719D4})
+		({147B65A0-BDD0-4569-86E8-B04A3120FB62}).5 = ({F1B7CF0A-F6CA-419F-AC2E-95FFF2CAE7B7})
+		({B4011E4F-E363-48C0-9B99-D65B8E6E67BA}).5 = ({15BCBDD6-3591-4443-B060-C34B46E719D4})
+		({B4011E4F-E363-48C0-9B99-D65B8E6E67BA}).6 = ({F1B7CF0A-F6CA-419F-AC2E-95FFF2CAE7B7})
+		({93756CDD-663B-48F6-8B72-0B730773DC82}).2 = ({47EF519F-E5E1-4520-9EC4-2FAEB4CA44FB})
+		({7E55E413-3E75-4FF0-8322-6D179A49C5BF}).3 = ({15BCBDD6-3591-4443-B060-C34B46E719D4})
+		({7E55E413-3E75-4FF0-8322-6D179A49C5BF}).4 = ({F1B7CF0A-F6CA-419F-AC2E-95FFF2CAE7B7})
+		({65AD77F6-5E41-42CB-A6C9-D88009A5159B}).3 = ({47EF519F-E5E1-4520-9EC4-2FAEB4CA44FB})
+		({E02DFEDE-1F61-470C-8556-6EE467C2884E}).5 = ({F1B7CF0A-F6CA-419F-AC2E-95FFF2CAE7B7})
+		({E02DFEDE-1F61-470C-8556-6EE467C2884E}).6 = ({47EF519F-E5E1-4520-9EC4-2FAEB4CA44FB})
+		({E02DFEDE-1F61-470C-8556-6EE467C2884E}).7 = ({15BCBDD6-3591-4443-B060-C34B46E719D4})
+		({47EF519F-E5E1-4520-9EC4-2FAEB4CA44FB}).3 = ({F1B7CF0A-F6CA-419F-AC2E-95FFF2CAE7B7})
+		({536BD9EC-9F5D-4D96-B6D5-883D5B7E0DAE}).4 = ({15BCBDD6-3591-4443-B060-C34B46E719D4})
+		({536BD9EC-9F5D-4D96-B6D5-883D5B7E0DAE}).5 = ({F1B7CF0A-F6CA-419F-AC2E-95FFF2CAE7B7})
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{147B65A0-BDD0-4569-86E8-B04A3120FB62}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{147B65A0-BDD0-4569-86E8-B04A3120FB62}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{147B65A0-BDD0-4569-86E8-B04A3120FB62}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{147B65A0-BDD0-4569-86E8-B04A3120FB62}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F1B7CF0A-F6CA-419F-AC2E-95FFF2CAE7B7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F1B7CF0A-F6CA-419F-AC2E-95FFF2CAE7B7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F1B7CF0A-F6CA-419F-AC2E-95FFF2CAE7B7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F1B7CF0A-F6CA-419F-AC2E-95FFF2CAE7B7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B4011E4F-E363-48C0-9B99-D65B8E6E67BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B4011E4F-E363-48C0-9B99-D65B8E6E67BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B4011E4F-E363-48C0-9B99-D65B8E6E67BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B4011E4F-E363-48C0-9B99-D65B8E6E67BA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{93756CDD-663B-48F6-8B72-0B730773DC82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93756CDD-663B-48F6-8B72-0B730773DC82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93756CDD-663B-48F6-8B72-0B730773DC82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93756CDD-663B-48F6-8B72-0B730773DC82}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E55E413-3E75-4FF0-8322-6D179A49C5BF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E55E413-3E75-4FF0-8322-6D179A49C5BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E55E413-3E75-4FF0-8322-6D179A49C5BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E55E413-3E75-4FF0-8322-6D179A49C5BF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{15BCBDD6-3591-4443-B060-C34B46E719D4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15BCBDD6-3591-4443-B060-C34B46E719D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15BCBDD6-3591-4443-B060-C34B46E719D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15BCBDD6-3591-4443-B060-C34B46E719D4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{65AD77F6-5E41-42CB-A6C9-D88009A5159B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65AD77F6-5E41-42CB-A6C9-D88009A5159B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{65AD77F6-5E41-42CB-A6C9-D88009A5159B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65AD77F6-5E41-42CB-A6C9-D88009A5159B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E02DFEDE-1F61-470C-8556-6EE467C2884E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E02DFEDE-1F61-470C-8556-6EE467C2884E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E02DFEDE-1F61-470C-8556-6EE467C2884E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E02DFEDE-1F61-470C-8556-6EE467C2884E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{47EF519F-E5E1-4520-9EC4-2FAEB4CA44FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{47EF519F-E5E1-4520-9EC4-2FAEB4CA44FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{47EF519F-E5E1-4520-9EC4-2FAEB4CA44FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{47EF519F-E5E1-4520-9EC4-2FAEB4CA44FB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{536BD9EC-9F5D-4D96-B6D5-883D5B7E0DAE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{536BD9EC-9F5D-4D96-B6D5-883D5B7E0DAE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{536BD9EC-9F5D-4D96-B6D5-883D5B7E0DAE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{536BD9EC-9F5D-4D96-B6D5-883D5B7E0DAE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

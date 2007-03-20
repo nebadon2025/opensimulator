@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 9.00
-# Visual C# Express 2005
+# Visual Studio 2005
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OGS-UserServer", "userserver\src\OGS-UserServer.csproj", "{D45B6E48-5668-478D-B9CB-6D46E665FACF}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServerConsole", "ServerConsole\ServerConsole.csproj", "{7667E6E2-F227-41A2-B1B2-315613E1BAFC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OGS-GridServer", "gridserver\src\OGS-GridServer.csproj", "{FE50A574-C8ED-433B-95F0-213A5EED2AB2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OGS-Data", "OGS-Data\OGS-Data.csproj", "{F60CC1AF-31F7-4DFA-A917-9F43111B2DB5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -25,6 +27,10 @@ Global
 		{FE50A574-C8ED-433B-95F0-213A5EED2AB2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FE50A574-C8ED-433B-95F0-213A5EED2AB2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FE50A574-C8ED-433B-95F0-213A5EED2AB2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F60CC1AF-31F7-4DFA-A917-9F43111B2DB5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F60CC1AF-31F7-4DFA-A917-9F43111B2DB5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F60CC1AF-31F7-4DFA-A917-9F43111B2DB5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F60CC1AF-31F7-4DFA-A917-9F43111B2DB5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

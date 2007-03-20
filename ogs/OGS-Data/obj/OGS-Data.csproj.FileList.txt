@@ -1,0 +1,5 @@
+bin\Debug\OGS-Data.dll
+bin\Debug\OGS-Data.pdb
+obj\Debug\ResolveAssemblyReference.cache
+obj\Debug\OGS-Data.dll
+obj\Debug\OGS-Data.pdb

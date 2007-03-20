@@ -1,0 +1,8 @@
+bin\Debug\OGS-UserServer.exe
+bin\Debug\OGS-UserServer.pdb
+bin\Debug\libsecondlife.dll
+bin\Debug\ServerConsole.dll
+bin\Debug\ServerConsole.pdb
+obj\Debug\ResolveAssemblyReference.cache
+obj\Debug\OGS-UserServer.exe
+obj\Debug\OGS-UserServer.pdb

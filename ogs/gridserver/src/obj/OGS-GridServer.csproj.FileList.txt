@@ -1,0 +1,8 @@
+bin\Debug\OGS-GridServer.exe
+bin\Debug\OGS-GridServer.pdb
+bin\Debug\libsecondlife.dll
+bin\Debug\ServerConsole.dll
+bin\Debug\ServerConsole.pdb
+obj\Debug\ResolveAssemblyReference.cache
+obj\Debug\OGS-GridServer.exe
+obj\Debug\OGS-GridServer.pdb

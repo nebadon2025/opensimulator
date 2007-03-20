@@ -8,6 +8,7 @@ using libsecondlife;
 using Nwc.XmlRpc;
 using OpenSim.Framework.Sims;
 using OpenSim.Framework.Inventory;
+using OpenSim.Framework.Utilities;
 
 namespace OpenSim.Framework.User
 {
@@ -138,7 +139,7 @@ namespace OpenSim.Framework.User
                         ArrayList InitialOutfit = new ArrayList();
                         InitialOutfit.Add(InitialOutfitHash);
 
-                        uint circode = (uint)(new Random()).Next();
+                        uint circode = (uint)(Util.RandomClass.Next());
                         //TheUser.AddSimCircuit(circode, SimInfo.UUID);
 
                         LoginGoodData["last_name"] = "\"" + TheUser.firstname + "\"";

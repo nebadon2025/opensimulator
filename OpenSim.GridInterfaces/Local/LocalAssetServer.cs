@@ -185,7 +185,7 @@ namespace OpenSim.GridInterfaces.Local
             //should request Asset from storage manager
             //but for now read from file
 
-            string dataPath = Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "assets"); //+ folder;
+            string dataPath = Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Assets"); //+ folder;
             string fileName = Path.Combine(dataPath, filename);
             FileInfo fInfo = new FileInfo(fileName);
             long numBytes = fInfo.Length;

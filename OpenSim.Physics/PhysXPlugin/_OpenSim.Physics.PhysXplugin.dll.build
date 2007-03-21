@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<project name="OpenSim.Physics.PhysXplugin" default="build">
+<project name="OpenSim.Physics.PhysXPlugin" default="build">
     <target name="build">
         <echo message="Build Directory is ${project::get-base-directory()}/${build.dir}" />
         <mkdir dir="${project::get-base-directory()}/${build.dir}" />
@@ -8,7 +8,7 @@
             </fileset>
         </copy>
         <csc target="library" debug="${build.debug}" unsafe="False" define="TRACE;DEBUG" output="${project::get-base-directory()}/${build.dir}/${project::get-name()}.dll">
-            <resources prefix="OpenSim.Physics.PhysXplugin" dynamicprefix="true" >
+            <resources prefix="OpenSim.Physics.PhysXPlugin" dynamicprefix="true" >
             </resources>
             <sources failonempty="true">
                 <include name="AssemblyInfo.cs" />

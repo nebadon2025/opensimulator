@@ -42,7 +42,7 @@ To build it with nant :
 * cd to /Prebuild/
 * type 'nant'
 
-After you've built it, move it to the /bin/ directory,
+After you've built it, move it from /Prebuild/src/bin to /bin/ directory,
 
 after that you just modify the prebuild.xml and then execute
 

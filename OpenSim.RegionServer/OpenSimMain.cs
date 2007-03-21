@@ -65,7 +65,7 @@ namespace OpenSim
         private AsyncCallback ReceivedData;
 
         private System.Timers.Timer timer1 = new System.Timers.Timer();
-        private string ConfigDll = "SimConfig.dll";
+        private string ConfigDll = "OpenSim.Config.SimConfigDb4o.dll";
         private string _physicsEngine = "basicphysics";
         public bool sandbox = false;
         public bool loginserver = false;
@@ -108,15 +108,15 @@ namespace OpenSim
             OpenSimRoot.Instance.GridServers = new Grid();
             if (sim.sandbox)
             {
-                OpenSimRoot.Instance.GridServers.AssetDll = "LocalGridServers.dll";
-                OpenSimRoot.Instance.GridServers.GridDll = "LocalGridServers.dll";
+                OpenSimRoot.Instance.GridServers.AssetDll = "OpenSim.GridInterfaces.Local.dll";
+                OpenSimRoot.Instance.GridServers.GridDll = "OpenSim.GridInterfaces.Local.dll";
                 OpenSimRoot.Instance.GridServers.Initialise();
                 OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Starting in Sandbox mode");
             }
             else
             {
-                OpenSimRoot.Instance.GridServers.AssetDll = "RemoteGridServers.dll";
-                OpenSimRoot.Instance.GridServers.GridDll = "RemoteGridServers.dll";
+                OpenSimRoot.Instance.GridServers.AssetDll = "OpenSim.GridInterfaces.Remote.dll";
+                OpenSimRoot.Instance.GridServers.GridDll = "OpenSim.GridInterfaces.Remote.dll";
                 OpenSimRoot.Instance.GridServers.Initialise();
                 OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Starting in Grid mode");
             }
@@ -168,7 +168,7 @@ namespace OpenSim
             OpenSimRoot.Instance.GridServers.AssetServer.SetServerInfo(OpenSimRoot.Instance.Cfg.AssetURL, OpenSimRoot.Instance.Cfg.AssetSendKey);
             OpenSimRoot.Instance.GridServers.GridServer.SetServerInfo(OpenSimRoot.Instance.Cfg.GridURL, OpenSimRoot.Instance.Cfg.GridSendKey, OpenSimRoot.Instance.Cfg.GridRecvKey);
 
-            OpenSimRoot.Instance.LocalWorld.LoadStorageDLL("Db4LocalStorage.dll"); //all these dll names shouldn't be hard coded.
+            OpenSimRoot.Instance.LocalWorld.LoadStorageDLL("OpenSim.Storage.LocalStorageDb4o.dll"); //all these dll names shouldn't be hard coded.
             OpenSimRoot.Instance.LocalWorld.LoadPrimsFromStorage();
 
             if (this.sandbox)

@@ -11,6 +11,7 @@ namespace OpenSim.Framework.Interfaces
         public string Last = "User";
         public LLUUID Agent;
         public LLUUID Session;
+        public LLUUID SecureSession = LLUUID.Zero;
         public LLUUID InventoryFolder;
         public LLUUID BaseFolder;
         public Login()

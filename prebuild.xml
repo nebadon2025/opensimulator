@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <DNPreBuild xmlns="http://dnpb.sourceforge.net/schemas/dnpb-1.5.xsd">
-	<Solution name="OpenSim" activeConfig="Debug">
+	<Solution name="OpenSim" activeConfig="Debug" path="./">
 		<Configuration name="Debug">
 			<Options>
 				<CompilerDefines>TRACE;DEBUG</CompilerDefines>
@@ -59,7 +59,7 @@
 			</Files>
 		</Project>
 
-		<Project name="OpenSim.Framework.Console" path="OpenSim.Framework.Console" type="Library">
+		<Project name="OpenSim.Framework.Console" path="./OpenSim.Framework.Console" type="Library">
 			<Configuration name="Debug">
 				<Options>
 					<OutputPath>../bin/</OutputPath>
@@ -78,7 +78,7 @@
 			</Files>
 		</Project>
 		
-		<Project name="OpenSim.Physics.Manager" path="OpenSim.Physics/Manager" type="Library">
+		<Project name="OpenSim.Physics.Manager" path="./OpenSim.Physics/Manager" type="Library">
 			<Configuration name="Debug">
 				<Options>
 					<OutputPath>../../bin/</OutputPath>
@@ -101,7 +101,7 @@
 		</Project>
 
 		<!-- Config Plug-ins -->
-		<Project name="OpenSim.Config.SimConfigDb4o" path="OpenSim.Config/SimConfigDb4o" type="Library">
+		<Project name="OpenSim.Config.SimConfigDb4o" path="./OpenSim.Config/SimConfigDb4o" type="Library">
 			<Configuration name="Debug">
 				<Options>
 					<OutputPath>../../bin/</OutputPath>
@@ -219,7 +219,7 @@
 		</Project>		
 
 		<!-- OpenSim app -->
-		<Project name="OpenSim.RegionServer" path="OpenSim.RegionServer" type="Exe">
+		<Project name="OpenSim.RegionServer" path="OpenSim.RegionServer" type="Exe" startupObject="OpenSim.RegionServer">
 			<Configuration name="Debug">
 				<Options>
 					<OutputPath>../bin/</OutputPath>
@@ -269,10 +269,63 @@
 			<Files>
 				<Match pattern="*.cs" recurse="true"/>
 			</Files>
-		</Project>	
-		
-
+		</Project>		
 	</Solution>
+	<Solution name="Prebuild" path="./Prebuild/" >
+		<Configuration name="Debug">
+		    <Options>
+			<CompilerDefines>DEBUG;TRACE</CompilerDefines>
+			<OptimizeCode>false</OptimizeCode>
+			<OutputPath>bin/Debug</OutputPath>
+			<DebugInformation>true</DebugInformation>
+			<SuppressWarnings>1595</SuppressWarnings>
+		    </Options>
+		</Configuration>
+		<Configuration name="Release">
+		    <Options>
+			<CompilerDefines>TRACE</CompilerDefines>
+			<OutputPath>bin/Release</OutputPath>
+			<OptimizeCode>true</OptimizeCode>
+			<DebugInformation>false</DebugInformation>
+			<SuppressWarnings>1595</SuppressWarnings>
+		    </Options>
+		</Configuration>
+		<Files>
+		    <File>prebuild.xml</File>
+		    <File>prebuild</File>
+		</Files>
+		<Project name="Prebuild" path="src/" language="C#" assemblyName="prebuild" icon="App.ico" type="Exe" rootNamespace="Prebuild" startupObject="Prebuild.Prebuild">
+		    <Configuration name="Debug">
+			<Options>
+			    <CompilerDefines>DEBUG;TRACE</CompilerDefines>
+			    <OptimizeCode>false</OptimizeCode>
+			    <OutputPath>..\bin\</OutputPath>
+			    <DebugInformation>true</DebugInformation>
+			    <KeyFile>Prebuild.snk</KeyFile>
+			    <SuppressWarnings>1595</SuppressWarnings>
+			</Options>
+		    </Configuration>
+		    <Configuration name="Release">
+			<Options>
+			    <CompilerDefines>TRACE</CompilerDefines>
+			    <OutputPath>..\bin\</OutputPath>
+			    <OptimizeCode>true</OptimizeCode>
+			    <DebugInformation>false</DebugInformation>
+			    <KeyFile>Prebuild.snk</KeyFile>
+			    <SuppressWarnings>1595</SuppressWarnings>
+			</Options>
+		    </Configuration>
+		    <Reference name="System.EnterpriseServices" />
+		    <Reference name="System.Xml" />
+		    <Reference name="System" />
+		    <Files>
+			<Match pattern="App.ico" buildAction="EmbeddedResource"/>
+			<Match path="data" pattern="prebuild-1.7.xsd" buildAction="EmbeddedResource"/>
+			<Match pattern="*.cs" recurse="true"/>			
+		    </Files>
+		</Project>
+	</Solution>
+
 </DNPreBuild>
 
 	

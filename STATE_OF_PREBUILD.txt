@@ -1,10 +1,10 @@
 These are the issues we have with Prebuild:
 
 * vs2005 target 
-   * does not honour localCopy=False - fairly easy to add <Private> node on ref.
-   * screws up solution file projects references by miscalculating relative dir (it walks one level too high up then back)
+   * does not honour localCopy=False - fairly easy to add <Private> node on ref. ** fixed **
+   * screws up solution file projects references by miscalculating relative dir (it walks one level too high up then back) **fixed**
 * Nant target
-   * doesn't honour Output redirection at all, which causes everything to land in {project}/bin/Debug
+   * doesn't honour Output redirection at all, which causes everything to land in {project}/bin/Debug **fixed**
    
 Both targets
    * Have problems with refs

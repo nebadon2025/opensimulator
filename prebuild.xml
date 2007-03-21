@@ -196,7 +196,7 @@
 			</Files>
 		</Project>		
 		
-		<Project name="OpenSim.Physics.PhysXplugin" path="OpenSim.Physics/PhysXplugin" type="Library">
+		<Project name="OpenSim.Physics.PhysXPlugin" path="OpenSim.Physics/PhysXPlugin" type="Library">
 			<Configuration name="Debug">
 				<Options>
 					<OutputPath>../../bin/Physics/</OutputPath>

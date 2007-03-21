@@ -62,6 +62,14 @@
                 <include name="System.dll" />
             </references>
         </csc>
+        <echo message="Copying from [${project::get-base-directory()}/${build.dir}/] to [${project::get-base-directory()}/../bin/" />
+        <mkdir dir="${project::get-base-directory()}/../bin/"/>
+        <copy todir="${project::get-base-directory()}/../bin/">
+            <fileset basedir="${project::get-base-directory()}/${build.dir}/" >
+                <include name="*.dll"/>
+                <include name="*.exe"/>
+            </fileset>
+        </copy>
     </target>
     <target name="clean">
         <delete dir="${bin.dir}" failonerror="false" />

@@ -33,6 +33,7 @@ using libsecondlife.Packets;
 using OpenSim;
 using OpenSim.Framework.Interfaces;
 using OpenSim.Framework.Assets;
+using OpenSim.Framework.Utilities;
 
 namespace OpenSim.Assets
 {
@@ -50,7 +51,7 @@ namespace OpenSim.Assets
         public Dictionary<LLUUID, AssetRequest> RequestedAssets = new Dictionary<LLUUID, AssetRequest>(); //Assets requested from the asset server
         public Dictionary<LLUUID, AssetRequest> RequestedTextures = new Dictionary<LLUUID, AssetRequest>(); //Textures requested from the asset server
 
-        private Dictionary<libsecondlife.LLUUID, AssetBase> IncomingAssets;
+        //private Dictionary<libsecondlife.LLUUID, AssetBase> IncomingAssets;
 
         private IAssetServer _assetServer;
         private Thread _assetCacheThread;
@@ -66,7 +67,7 @@ namespace OpenSim.Assets
             _assetServer.SetReceiver(this);
             Assets = new Dictionary<libsecondlife.LLUUID, AssetInfo>();
             Textures = new Dictionary<libsecondlife.LLUUID, TextureImage>();
-            IncomingAssets = new Dictionary<libsecondlife.LLUUID, AssetBase>();
+            //IncomingAssets = new Dictionary<libsecondlife.LLUUID, AssetBase>();
             this._assetCacheThread = new Thread(new ThreadStart(RunAssetManager));
             this._assetCacheThread.IsBackground = true;
             this._assetCacheThread.Start();
@@ -82,9 +83,10 @@ namespace OpenSim.Assets
             {
                 try
                 {
+                    //Console.WriteLine("Asset cache loop");
                     this.ProcessAssetQueue();
                     this.ProcessTextureQueue();
-                    Thread.Sleep(100);
+                    Thread.Sleep(500);
                 }
                 catch (Exception e)
                 {
@@ -115,6 +117,7 @@ namespace OpenSim.Assets
                     inventorySet[i] = this.CloneImage(agentID, this.Textures[textureList[i]]);
                     TextureImage image = new TextureImage(inventorySet[i]);
                     this.Textures.Add(image.FullID, image);
+                    this._assetServer.UploadNewAsset(image); //save the asset to the asset server
                 }
             }
             return inventorySet;
@@ -142,58 +145,64 @@ namespace OpenSim.Assets
                 num = 5;
             }
             AssetRequest req;
+            Console.WriteLine("processing texture requests ( " + num + " )");
             for (int i = 0; i < num; i++)
             {
                 req = (AssetRequest)this.TextureRequests[i];
-
-                if (req.PacketCounter == 0)
+                if (req.PacketCounter != req.NumPackets)
                 {
-                    //first time for this request so send imagedata packet
-                    if (req.NumPackets == 1)
+                    // if (req.ImageInfo.FullID == new LLUUID("00000000-0000-0000-5005-000000000005"))
+                    Console.WriteLine("sending base texture ( " + req.ImageInfo.FullID + " ) in " + req.NumPackets + "number of packets");
+
+                    if (req.PacketCounter == 0)
                     {
-                        //only one packet so send whole file
-                        ImageDataPacket im = new ImageDataPacket();
-                        im.ImageID.Packets = 1;
-                        im.ImageID.ID = req.ImageInfo.FullID;
-                        im.ImageID.Size = (uint)req.ImageInfo.Data.Length;
-                        im.ImageData.Data = req.ImageInfo.Data;
-                        im.ImageID.Codec = 2;
-                        req.RequestUser.OutPacket(im);
-                        req.PacketCounter++;
-                        //req.ImageInfo.l= time;
-                        //System.Console.WriteLine("sent texture: "+req.image_info.FullID);
+                        //first time for this request so send imagedata packet
+                        if (req.NumPackets == 1)
+                        {
+                            //only one packet so send whole file
+                            ImageDataPacket im = new ImageDataPacket();
+                            im.ImageID.Packets = 1;
+                            im.ImageID.ID = req.ImageInfo.FullID;
+                            im.ImageID.Size = (uint)req.ImageInfo.Data.Length;
+                            im.ImageData.Data = req.ImageInfo.Data;
+                            im.ImageID.Codec = 2;
+                            req.RequestUser.OutPacket(im);
+                            req.PacketCounter++;
+                            //req.ImageInfo.l= time;
+                            //System.Console.WriteLine("sent texture: "+req.image_info.FullID);
+                        }
+                        else
+                        {
+                            //more than one packet so split file up
+                            ImageDataPacket im = new ImageDataPacket();
+                            im.ImageID.Packets = (ushort)req.NumPackets;
+                            im.ImageID.ID = req.ImageInfo.FullID;
+                            im.ImageID.Size = (uint)req.ImageInfo.Data.Length;
+                            im.ImageData.Data = new byte[600];
+                            Array.Copy(req.ImageInfo.Data, 0, im.ImageData.Data, 0, 600);
+                            im.ImageID.Codec = 2;
+                            req.RequestUser.OutPacket(im);
+                            req.PacketCounter++;
+                            //req.ImageInfo.last_used = time;
+                            //System.Console.WriteLine("sent first packet of texture:
+                        }
                     }
                     else
                     {
+                        //send imagepacket
                         //more than one packet so split file up
-                        ImageDataPacket im = new ImageDataPacket();
-                        im.ImageID.Packets = (ushort)req.NumPackets;
+                        ImagePacketPacket im = new ImagePacketPacket();
+                        im.ImageID.Packet = (ushort)req.PacketCounter;
                         im.ImageID.ID = req.ImageInfo.FullID;
-                        im.ImageID.Size = (uint)req.ImageInfo.Data.Length;
-                        im.ImageData.Data = new byte[600];
-                        Array.Copy(req.ImageInfo.Data, 0, im.ImageData.Data, 0, 600);
-                        im.ImageID.Codec = 2;
+                        int size = req.ImageInfo.Data.Length - 600 - 1000 * (req.PacketCounter - 1);
+                        if (size > 1000) size = 1000;
+                        im.ImageData.Data = new byte[size];
+                        Array.Copy(req.ImageInfo.Data, 600 + 1000 * (req.PacketCounter - 1), im.ImageData.Data, 0, size);
                         req.RequestUser.OutPacket(im);
                         req.PacketCounter++;
                         //req.ImageInfo.last_used = time;
-                        //System.Console.WriteLine("sent first packet of texture:
+                        //System.Console.WriteLine("sent a packet of texture: "+req.image_info.FullID);
                     }
-                }
-                else
-                {
-                    //send imagepacket
-                    //more than one packet so split file up
-                    ImagePacketPacket im = new ImagePacketPacket();
-                    im.ImageID.Packet = (ushort)req.PacketCounter;
-                    im.ImageID.ID = req.ImageInfo.FullID;
-                    int size = req.ImageInfo.Data.Length - 600 - 1000 * (req.PacketCounter - 1);
-                    if (size > 1000) size = 1000;
-                    im.ImageData.Data = new byte[size];
-                    Array.Copy(req.ImageInfo.Data, 600 + 1000 * (req.PacketCounter - 1), im.ImageData.Data, 0, size);
-                    req.RequestUser.OutPacket(im);
-                    req.PacketCounter++;
-                    //req.ImageInfo.last_used = time;
-                    //System.Console.WriteLine("sent a packet of texture: "+req.image_info.FullID);
                 }
             }
 
@@ -201,21 +210,24 @@ namespace OpenSim.Assets
             int count = 0;
             for (int i = 0; i < num; i++)
             {
-                req = (AssetRequest)this.TextureRequests[count];
-                if (req.PacketCounter == req.NumPackets)
+                if (this.TextureRequests.Count > count)
                 {
-                    this.TextureRequests.Remove(req);
-                }
-                else
-                {
-                    count++;
+                    req = (AssetRequest)this.TextureRequests[count];
+                    if (req.PacketCounter == req.NumPackets)
+                    {
+                        this.TextureRequests.Remove(req);
+                    }
+                    else
+                    {
+                        count++;
+                    }
                 }
             }
 
         }
         public void AssetReceived(AssetBase asset, bool IsTexture)
         {
-
+            Console.WriteLine("received asset from asset server ( " + asset.FullID + " )");
             if (asset.FullID != LLUUID.Zero)  // if it is set to zero then the asset wasn't found by the server
             {
                 //check if it is a texture or not
@@ -230,6 +242,15 @@ namespace OpenSim.Assets
                     {
                         AssetRequest req = this.RequestedTextures[image.FullID];
                         req.ImageInfo = image;
+                        if (image.Data.LongLength > 600)
+                        {
+                            //over 600 bytes so split up file
+                            req.NumPackets = 1 + (int)(image.Data.Length - 600 + 999) / 1000;
+                        }
+                        else
+                        {
+                            req.NumPackets = 1;
+                        }
                         this.RequestedTextures.Remove(image.FullID);
                         this.TextureRequests.Add(req);
                     }
@@ -242,6 +263,15 @@ namespace OpenSim.Assets
                     {
                         AssetRequest req = this.RequestedAssets[assetInf.FullID];
                         req.AssetInf = assetInf;
+                        if (assetInf.Data.LongLength > 600)
+                        {
+                            //over 600 bytes so split up file
+                            req.NumPackets = 1 + (int)(assetInf.Data.Length - 600 + 999) / 1000;
+                        }
+                        else
+                        {
+                            req.NumPackets = 1;
+                        }
                         this.RequestedAssets.Remove(assetInf.FullID);
                         this.AssetRequests.Add(req);
                     }
@@ -403,6 +433,9 @@ namespace OpenSim.Assets
         /// <param name="imageID"></param>
         public void AddTextureRequest(SimClient userInfo, LLUUID imageID)
         {
+            if (imageID == new LLUUID("00000000-0000-0000-5005-000000000005"))
+                Console.WriteLine("request base prim texture ");
+
             //check to see if texture is in local cache, if not request from asset server
             if (!this.Textures.ContainsKey(imageID))
             {
@@ -452,50 +485,46 @@ namespace OpenSim.Assets
         #endregion
 
         #region viewer asset uploading
-        /*	public AssetBase UploadPacket(AssetUploadRequestPacket pack)
-		{
-			AssetBase asset = null;
-			if(this.IncomingAssets.ContainsKey(pack.AssetBlock.TransactionID))
-			{
-			   // not the first packet of this transaction	
-			   asset = this.IncomingAssets[pack.AssetBlock.TransactionID];
-			   byte[] idata = new byte[asset.Data.Length + pack.AssetBlock.AssetData.Length];
-			   Array.Copy(asset.Data, 0, idata, 0, asset.Data.Length);
-			   Array.Copy(pack.AssetBlock.AssetData, 0, idata, asset.Data.Length, pack.AssetBlock.AssetData.Length);
-			   asset.Data = idata;
-			}
-			else
-			{
-				//first packet for transaction
-				asset = new AssetBase();
-				asset.FullID = LLUUID.Random();
-				asset.Type = pack.AssetBlock.Type;
-				asset.InvType = asset.Type;
-				asset.Data = pack.AssetBlock.AssetData;
-				//this.IncomingAssets.Add(pack.AssetBlock.TransactionID,asset);
-				TextureImage image = new TextureImage(asset);
-				this.Textures.Add(image.FullID, image);
-				
-			}
-			return asset;
-		}
-		
-		/*
-		public AssetBase TransactionComplete(LLUUID transactionID)
-		{
-			AssetBase asset = null;
-			if(this.IncomingAssets.ContainsKey(transactionID))
-			{
-			   // not the first packet of this transaction	
-			   asset = this.IncomingAssets[transactionID];
-			   if(asset.Type == 0)
-			   {
-			   		TextureImage image = new TextureImage(asset);
-			   		this.Textures.Add(image.FullID, image);
-			   }
-			}
-			return asset;
-		}*/
+        public AssetBase UploadPacket(AssetUploadRequestPacket pack, LLUUID assetID)
+        {
+            
+            AssetBase asset = null;
+            if (pack.AssetBlock.Type == 0)
+            {
+                if (pack.AssetBlock.AssetData.Length > 0)
+                {
+                    //first packet for transaction
+                    asset = new AssetBase();
+                    asset.FullID = assetID;
+                    asset.Type = pack.AssetBlock.Type;
+                    asset.InvType = asset.Type;
+                    asset.Name = "UploadedTexture" + Util.RandomClass.Next(1, 1000).ToString("000");
+                    asset.Data = pack.AssetBlock.AssetData;
+                    this._assetServer.UploadNewAsset(asset);
+                    TextureImage image = new TextureImage(asset);
+                    this.Textures.Add(image.FullID, image);
+                }
+            }
+
+            return asset;
+        }
+
+        /*
+        public AssetBase TransactionComplete(LLUUID transactionID)
+        {
+            AssetBase asset = null;
+            if(this.IncomingAssets.ContainsKey(transactionID))
+            {
+               // not the first packet of this transaction	
+               asset = this.IncomingAssets[transactionID];
+               if(asset.Type == 0)
+               {
+                    TextureImage image = new TextureImage(asset);
+                    this.Textures.Add(image.FullID, image);
+               }
+            }
+            return asset;
+        }*/
 
         #endregion
 

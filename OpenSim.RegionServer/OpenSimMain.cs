@@ -49,29 +49,10 @@ using OpenSim.Physics.Manager;
 namespace OpenSim
 {
     /// <summary>
-    /// Description of MainForm.
+    /// 
     /// </summary>
     public class OpenSimMain : OpenSimApplication
     {
-       /* private static OpenSimRoot instance = null;
-
-        public static OpenSimRoot Instance
-        {
-            get
-            {
-                return instance;
-            }
-        }
-
-        public World LocalWorld;
-        public Grid GridServers;
-        public SimConfig Cfg;
-        public SimCAPSHTTPServer HttpServer;
-        public AssetCache AssetCache;
-        public InventoryCache InventoryCache;
-        public Dictionary<EndPoint, SimClient> ClientThreads = new Dictionary<EndPoint, SimClient>();
-        public DateTime startuptime;
-        */
         private Dictionary<EndPoint, uint> clientCircuits = new Dictionary<EndPoint, uint>();
         private PhysicsManager physManager;
 
@@ -84,7 +65,7 @@ namespace OpenSim
         private AsyncCallback ReceivedData;
 
         private System.Timers.Timer timer1 = new System.Timers.Timer();
-        private string ConfigDll = "OpenSim.Config.SimConfigDb4o.dll";
+        private string ConfigDll = "SimConfig.dll";
         private string _physicsEngine = "basicphysics";
         public bool sandbox = false;
         public bool loginserver = false;
@@ -123,18 +104,19 @@ namespace OpenSim
                 }
             }
 
+            
             OpenSimRoot.Instance.GridServers = new Grid();
             if (sim.sandbox)
             {
-                OpenSimRoot.Instance.GridServers.AssetDll = "OpenSim.GridInterfaces.Local.dll";
-                OpenSimRoot.Instance.GridServers.GridDll = "OpenSim.GridInterfaces.Local.dll";
+                OpenSimRoot.Instance.GridServers.AssetDll = "LocalGridServers.dll";
+                OpenSimRoot.Instance.GridServers.GridDll = "LocalGridServers.dll";
                 OpenSimRoot.Instance.GridServers.Initialise();
                 OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Starting in Sandbox mode");
             }
             else
             {
-                OpenSimRoot.Instance.GridServers.AssetDll = "OpenSim.GridInterfaces.Remote.dll";
-                OpenSimRoot.Instance.GridServers.GridDll = "OpenSim.GridInterfaces.Remote.dll";
+                OpenSimRoot.Instance.GridServers.AssetDll = "RemoteGridServers.dll";
+                OpenSimRoot.Instance.GridServers.GridDll = "RemoteGridServers.dll";
                 OpenSimRoot.Instance.GridServers.Initialise();
                 OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Starting in Grid mode");
             }
@@ -144,8 +126,6 @@ namespace OpenSim
                 LoginServer loginServer = new LoginServer(OpenSimRoot.Instance.GridServers.GridServer);
                 loginServer.Startup();
             }
-            OpenSimRoot.Instance.AssetCache = new AssetCache(OpenSimRoot.Instance.GridServers.AssetServer);
-            OpenSimRoot.Instance.InventoryCache = new InventoryCache();
 
             OpenSimRoot.Instance.StartUp();
 
@@ -163,6 +143,9 @@ namespace OpenSim
         {
             OpenSimRoot.Instance.startuptime = DateTime.Now;
 
+            OpenSimRoot.Instance.AssetCache = new AssetCache(OpenSimRoot.Instance.GridServers.AssetServer);
+            OpenSimRoot.Instance.InventoryCache = new InventoryCache();
+
             // We check our local database first, then the grid for config options
             OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:Startup() - Loading configuration");
             OpenSimRoot.Instance.Cfg = this.LoadConfigDll(this.ConfigDll);
@@ -177,6 +160,7 @@ namespace OpenSim
 
             this.physManager = new OpenSim.Physics.Manager.PhysicsManager();
             this.physManager.LoadPlugins();
+
             OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Main.cs:Startup() - Starting up messaging system");
             OpenSimRoot.Instance.LocalWorld.PhysScene = this.physManager.GetPhysicsScene(this._physicsEngine); //should be reading from the config file what physics engine to use
             OpenSimRoot.Instance.LocalWorld.PhysScene.SetTerrain(OpenSimRoot.Instance.LocalWorld.LandMap);
@@ -184,7 +168,7 @@ namespace OpenSim
             OpenSimRoot.Instance.GridServers.AssetServer.SetServerInfo(OpenSimRoot.Instance.Cfg.AssetURL, OpenSimRoot.Instance.Cfg.AssetSendKey);
             OpenSimRoot.Instance.GridServers.GridServer.SetServerInfo(OpenSimRoot.Instance.Cfg.GridURL, OpenSimRoot.Instance.Cfg.GridSendKey, OpenSimRoot.Instance.Cfg.GridRecvKey);
 
-            OpenSimRoot.Instance.LocalWorld.LoadStorageDLL("OpenSim.Storage.LocalStorageDb4o.dll"); //all these dll names shouldn't be hard coded.
+            OpenSimRoot.Instance.LocalWorld.LoadStorageDLL("Db4LocalStorage.dll"); //all these dll names shouldn't be hard coded.
             OpenSimRoot.Instance.LocalWorld.LoadPrimsFromStorage();
 
             if (this.sandbox)
@@ -241,6 +225,8 @@ namespace OpenSim
             
             // This is either a new client or a packet to send to an old one
            // if (OpenSimRoot.Instance.ClientThreads.ContainsKey(epSender))
+
+            // do we already have a circuit for this endpoint
             if(this.clientCircuits.ContainsKey(epSender))
             {
                 OpenSimRoot.Instance.ClientThreads[this.clientCircuits[epSender]].InPacket(packet);
@@ -282,6 +268,7 @@ namespace OpenSim
 
         public override void SendPacketTo(byte[] buffer, int size, SocketFlags flags, uint circuitcode )//EndPoint packetSender)
         {
+            // find the endpoint for this circuit
             EndPoint sendto = null;
             foreach(KeyValuePair<EndPoint, uint> p in this.clientCircuits)
             {
@@ -293,6 +280,7 @@ namespace OpenSim
             }
             if (sendto != null)
             {
+                //we found the endpoint so send the packet to it
                 this.Server.SendTo(buffer, size, flags, sendto);
             }
         }
@@ -324,7 +312,6 @@ namespace OpenSim
 
         void Timer1Tick(object sender, System.EventArgs e)
         {
-
             OpenSimRoot.Instance.LocalWorld.Update();
         }
     }

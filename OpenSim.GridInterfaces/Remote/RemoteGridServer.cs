@@ -81,6 +81,7 @@ namespace OpenSim.GridInterfaces.Remote
                 user.LoginInfo = new Login();
                 user.LoginInfo.Agent = agentID;
                 user.LoginInfo.Session = sessionID;
+                user.LoginInfo.SecureSession = validcircuit.SecureSessionID;
                 user.LoginInfo.First = validcircuit.firstname;
                 user.LoginInfo.Last = validcircuit.lastname;
             }

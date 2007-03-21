@@ -80,7 +80,12 @@ namespace OpenSim.GridInterfaces.Local
 
         public void UploadNewAsset(AssetBase asset)
         {
-
+            AssetStorage store = new AssetStorage();
+            store.Data = asset.Data;
+            store.Name = asset.Name;
+            store.UUID = asset.FullID;
+            db.Set(store);
+            db.Commit();
         }
 
         public void SetServerInfo(string ServerUrl, string ServerKey)
@@ -156,9 +161,10 @@ namespace OpenSim.GridInterfaces.Local
             db.Set(store);
             db.Commit();
 
-
+            Image = new AssetBase();
             Image.FullID = new LLUUID("00000000-0000-0000-5005-000000000005");
             Image.Name = "Prim Base Texture";
+            this.LoadAsset(Image, true, "testpic2.jp2");
             store = new AssetStorage();
             store.Data = Image.Data;
             store.Name = Image.Name;
@@ -185,7 +191,7 @@ namespace OpenSim.GridInterfaces.Local
             //should request Asset from storage manager
             //but for now read from file
 
-            string dataPath = Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "Assets"); //+ folder;
+            string dataPath = Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "assets"); //+ folder;
             string fileName = Path.Combine(dataPath, filename);
             FileInfo fInfo = new FileInfo(fileName);
             long numBytes = fInfo.Length;

@@ -15,9 +15,9 @@ using OpenSim.Physics.Manager;
 
 namespace OpenSim
 {
-    public class OpenSimRoot
+    public sealed class OpenSimRoot
     {
-        private static OpenSimRoot instance = new OpenSimRoot(); //null;
+        private static OpenSimRoot instance = new OpenSimRoot();
 
         public static OpenSimRoot Instance
         {

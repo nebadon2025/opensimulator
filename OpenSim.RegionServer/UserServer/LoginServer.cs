@@ -269,7 +269,7 @@ namespace OpenSim.UserServer
             Agent = GetAgentId(first, last);
             int SessionRand = Util.RandomClass.Next(1, 999);
             Session = new LLUUID("aaaabbbb-0200-" + SessionRand.ToString("0000") + "-8664-58f53e442797");
-
+            LLUUID secureSess = LLUUID.Random();
             //create some login info
             Hashtable LoginFlagsHash = new Hashtable();
             LoginFlagsHash["daylight_savings"] = "N";
@@ -293,6 +293,7 @@ namespace OpenSim.UserServer
             responseData["sim_ip"] = OpenSimRoot.Instance.Cfg.IPListenAddr;
             responseData["agent_id"] = Agent.ToStringHyphenated();
             responseData["session_id"] = Session.ToStringHyphenated();
+            responseData["secure_session_id"]= secureSess.ToStringHyphenated();
             responseData["circuit_code"] = (Int32)(Util.RandomClass.Next()); 
             responseData["seconds_since_epoch"] = (Int32)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
             responseData["login-flags"] = LoginFlags;
@@ -306,7 +307,7 @@ namespace OpenSim.UserServer
             LLUUID InventoryFolderID = LLUUID.Random();
             Inventory2["name"] = "Base";
             Inventory2["folder_id"] = BaseFolderID.ToStringHyphenated();
-            Inventory2["type_default"] = 6;
+            Inventory2["type_default"] = 0;
             Inventory1["folder_id"] = InventoryFolderID.ToStringHyphenated();
 
             ArrayList InventoryRoot = (ArrayList)responseData["inventory-root"];
@@ -321,6 +322,7 @@ namespace OpenSim.UserServer
             _login.Last = last;
             _login.Agent = Agent;
             _login.Session = Session;
+            _login.SecureSession = secureSess;
             _login.BaseFolder = BaseFolderID;
             _login.InventoryFolder = InventoryFolderID;
 
@@ -389,6 +391,7 @@ namespace OpenSim.UserServer
             return Regex.Replace(BitConverter.ToString(encodedBytes), "-", "").ToLower();
         }
 
+        //IUserServer implementation
         public AgentInventory RequestAgentsInventory(LLUUID agentID)
         {
             AgentInventory aInventory = null;

@@ -52,6 +52,7 @@ namespace OpenSim
 
         public LLUUID AgentID;
         public LLUUID SessionID;
+        public LLUUID SecureSessionID = LLUUID.Zero;
         public uint CircuitCode;
         public world.Avatar ClientAvatar;
         private UseCircuitCodePacket cirpack;
@@ -277,41 +278,22 @@ namespace OpenSim
 
                     break;
                 case PacketType.AssetUploadRequest:
-                    //AssetUploadRequestPacket request = (AssetUploadRequestPacket)Pack;
-                    //Console.WriteLine("upload request "+ request.AssetBlock.TransactionID);
-                    //AssetBase newAsset = OpenSim_Main.sim.assetCache.UploadPacket(request);
-                    //Console.WriteLine(request.ToString());
-
-                    /*if(newAsset != null)
+                    AssetUploadRequestPacket request = (AssetUploadRequestPacket)Pack;
+                    Console.WriteLine("upload request "+ request.AssetBlock.TransactionID);
+                    AssetBase newAsset = OpenSimRoot.Instance.AssetCache.UploadPacket(request, LLUUID.Random());
+                    if (newAsset != null)
                     {
-                        if(!this.UploadedAssets.ContainsKey(newAsset.FullID))
-                        {
-                            this.UploadedAssets.Add(newAsset.FullID, newAsset);
-                        }
-                    }*/
-                    /*AssetUploadCompletePacket response = new AssetUploadCompletePacket();
+                        OpenSimRoot.Instance.InventoryCache.AddNewInventoryItem(this, this.newAssetFolder, newAsset);
+                    }
+                    Console.WriteLine(request.ToString());
+                    Console.WriteLine("combined uuid is " + request.AssetBlock.TransactionID.Combine(this.SecureSessionID).ToStringHyphenated());
+
+                    AssetUploadCompletePacket response = new AssetUploadCompletePacket();
                     response.AssetBlock.Type =request.AssetBlock.Type;
-                    response.AssetBlock.Success = false;
-                    response.AssetBlock.UUID = request.AssetBlock.TransactionID;
+                    response.AssetBlock.Success = true;
+                    response.AssetBlock.UUID = request.AssetBlock.TransactionID.Combine(this.SecureSessionID);
 		    		
-                    this.OutPacket(response);*/
-                    break;
-                case PacketType.AssetUploadComplete:
-                    //AssetUploadCompletePacket complete = (AssetUploadCompletePacket)Pack;
-                    //Console.WriteLine("upload complete "+ complete.AssetBlock.UUID);
-
-                    /*AssetBase completedAsset = OpenSim_Main.sim.assetCache.TransactionComplete(complete.AssetBlock.UUID);
-                    if(completedAsset != null)
-                    {
-                        if(!this.UploadedAssets.ContainsKey(completedAsset.FullID))
-                        {
-                            this.UploadedAssets.Remove(completedAsset.FullID);
-                            if(this.newAssetFolder != LLUUID.Zero)
-                            {
-                                OpenSim_Main.sim.inventoryManager.AddNewInventoryItem(this, this.newAssetFolder, completedAsset);
-                            }
-                        }
-                    }	*/
+                    this.OutPacket(response);
                     break;
                 case PacketType.CreateInventoryFolder:
                     //Console.WriteLine(Pack.ToString());
@@ -594,6 +576,10 @@ namespace OpenSim
                 InitNewClient(); //shouldn't be called here as we might be a child agent and not want a full avatar 
                 this.ClientAvatar.firstname = sessionInfo.LoginInfo.First;
                 this.ClientAvatar.lastname = sessionInfo.LoginInfo.Last;
+                if (sessionInfo.LoginInfo.SecureSession != LLUUID.Zero)
+                {
+                    this.SecureSessionID = sessionInfo.LoginInfo.SecureSession;
+                }
 
                 // Create Inventory, currently only works for sandbox mode
                 if (OpenSimRoot.Instance.Sandbox)

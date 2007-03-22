@@ -34,7 +34,7 @@
 
     <!-- Core OpenSim Projects -->
 
-    <Project name="OpenSim.Framework" path="OpenSim.Framework" type="Library">
+    <Project name="OpenSim.Framework" path="./OpenSim.Framework" type="Library">
       <Configuration name="Debug">
         <Options>
           <OutputPath>../bin/</OutputPath>

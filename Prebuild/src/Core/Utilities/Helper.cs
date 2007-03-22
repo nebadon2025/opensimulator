@@ -452,10 +452,10 @@ namespace Prebuild.Core.Utilities
 				ret += "." + ext;
 			}
             
-			foreach(char c in Path.GetInvalidPathChars())
-			{
-				ret = ret.Replace(c, '_');
-			}
+            //foreach(char c in Path.GetInvalidPathChars())
+            //{
+            //    ret = ret.Replace(c, '_');
+            //}
 
 			return ret;
 		}
@@ -477,10 +477,10 @@ namespace Prebuild.Core.Utilities
 
 			ret += name;
 
-            foreach (char c in Path.GetInvalidPathChars())
-			{
-				ret = ret.Replace(c, '_');
-			}
+            //foreach (char c in Path.GetInvalidPathChars())
+            //{
+            //    ret = ret.Replace(c, '_');
+            //}
 
 			return ret;
 		}
@@ -494,10 +494,10 @@ namespace Prebuild.Core.Utilities
 		{
 			string ret = EndPath(NormalizePath(path));
 
-            foreach (char c in Path.GetInvalidPathChars())
-			{
-				ret = ret.Replace(c, '_');
-			}
+            //foreach (char c in Path.GetInvalidPathChars())
+            //{
+            //    ret = ret.Replace(c, '_');
+            //}
 
 			return ret;
 		}

@@ -50,7 +50,7 @@ namespace OpenSim.UserServer
     /// <summary>
     /// When running in local (default) mode , handles client logins.
     /// </summary>
-    public class LoginServer : LoginService , IUserServer
+    public class LoginServer : LoginService, IUserServer
     {
         private IGridServer m_gridServer;
         private ushort _loginPort = 8080;
@@ -59,19 +59,34 @@ namespace OpenSim.UserServer
         private Socket loginServer;
         private int NumClients;
         private string _defaultResponse;
-        private bool userAccounts = false;
+        public bool userAccounts = false;
         private string _mpasswd;
         private bool _needPasswd = false;
-        private LocalUserProfileManager userManager;
+        private LocalUserProfileManager m_localUserManager;
         private int m_simPort;
         private string m_simAddr;
 
-        public LoginServer(IGridServer gridServer, string simAddr, int simPort , bool useAccounts)
+        public LocalUserProfileManager LocalUserManager
+        {
+            get
+            {
+                return m_localUserManager;
+            }
+        }
+
+        public LoginServer(IGridServer gridServer, string simAddr, int simPort)
         {
             m_gridServer = gridServer;
             m_simPort = simPort;
             m_simAddr = simAddr;
-            this.userAccounts = useAccounts;
+        }
+
+        public void Startup()
+        {
+            this.InitializeLogin();
+            //Thread runLoginProxy = new Thread(new ThreadStart(RunLogin));
+            //runLoginProxy.IsBackground = true;
+            //runLoginProxy.Start();
         }
 
         // InitializeLogin: initialize the login 
@@ -94,128 +109,132 @@ namespace OpenSim.UserServer
             SR.Close();
             this._mpasswd = EncodePassword("testpass");
 
-            userManager = new LocalUserProfileManager(this.m_gridServer, m_simPort, m_simAddr );
-            userManager.InitUserProfiles();
-            userManager.SetKeys("", "", "", "Welcome to OpenSim");
+            m_localUserManager = new LocalUserProfileManager(this.m_gridServer, m_simPort, m_simAddr);
+            m_localUserManager.InitUserProfiles();
+            m_localUserManager.SetKeys("", "", "", "Welcome to OpenSim");
 
-            loginServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            loginServer.Bind(new IPEndPoint(remoteAddress, _loginPort));
-            loginServer.Listen(1);
+            //loginServer = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            //loginServer.Bind(new IPEndPoint(remoteAddress, _loginPort));
+            //loginServer.Listen(1);
         }
 
-        public void Startup()
-        {
-            this.InitializeLogin();
-            Thread runLoginProxy = new Thread(new ThreadStart(RunLogin));
-            runLoginProxy.IsBackground = true;
-            runLoginProxy.Start();
-        }
 
-        private void RunLogin()
-        {
-            Console.WriteLine("Starting Login Server");
-            try
-            {
-                for (; ; )
-                {
-                    Socket client = loginServer.Accept();
-                    IPEndPoint clientEndPoint = (IPEndPoint)client.RemoteEndPoint;
+        //private void RunLogin()
+        //{
+        //    Console.WriteLine("Starting Login Server");
+        //    try
+        //    {
+        //        for (; ; )
+        //        {
+        //            Socket client = loginServer.Accept();
+        //            IPEndPoint clientEndPoint = (IPEndPoint)client.RemoteEndPoint;
 
 
-                    NetworkStream networkStream = new NetworkStream(client);
-                    StreamReader networkReader = new StreamReader(networkStream);
-                    StreamWriter networkWriter = new StreamWriter(networkStream);
+        //            NetworkStream networkStream = new NetworkStream(client);
+        //            StreamReader networkReader = new StreamReader(networkStream);
+        //            StreamWriter networkWriter = new StreamWriter(networkStream);
 
-                    try
-                    {
-                        LoginRequest(networkReader, networkWriter);
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e.Message);
-                    }
+        //            try
+        //            {
+        //                LoginRequest(networkReader, networkWriter);
+        //            }
+        //            catch (Exception e)
+        //            {
+        //                Console.WriteLine(e.Message);
+        //            }
 
-                    networkWriter.Close();
-                    networkReader.Close();
-                    networkStream.Close();
+        //            networkWriter.Close();
+        //            networkReader.Close();
+        //            networkStream.Close();
 
-                    client.Close();
+        //            client.Close();
 
-                    // send any packets queued for injection
+        //            // send any packets queued for injection
 
-                }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-                Console.WriteLine(e.StackTrace);
-            }
-        }
+        //        }
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        Console.WriteLine(e.Message);
+        //        Console.WriteLine(e.StackTrace);
+        //    }
+        //}
 
         // ProxyLogin: proxy a login request
-        private void LoginRequest(StreamReader reader, StreamWriter writer)
-        {
-            lock (this)
-            {
-                string line;
-                int contentLength = 0;
-                // read HTTP header
-                do
-                {
-                    // read one line of the header
-                    line = reader.ReadLine();
+        //private void LoginRequest(StreamReader reader, StreamWriter writer)
+        //{
+        //    lock (this)
+        //    {
+        //        string line;
+        //        int contentLength = 0;
+        //        // read HTTP header
+        //        do
+        //        {
+        //            // read one line of the header
+        //            line = reader.ReadLine();
 
-                    // check for premature EOF
-                    if (line == null)
-                        throw new Exception("EOF in client HTTP header");
+        //            // check for premature EOF
+        //            if (line == null)
+        //                throw new Exception("EOF in client HTTP header");
 
-                    // look for Content-Length
-                    Match match = (new Regex(@"Content-Length: (\d+)$")).Match(line);
-                    if (match.Success)
-                        contentLength = Convert.ToInt32(match.Groups[1].Captures[0].ToString());
-                } while (line != "");
+        //            // look for Content-Length
+        //            Match match = (new Regex(@"Content-Length: (\d+)$")).Match(line);
+        //            if (match.Success)
+        //                contentLength = Convert.ToInt32(match.Groups[1].Captures[0].ToString());
+        //        } while (line != "");
 
-                // read the HTTP body into a buffer
-                char[] content = new char[contentLength];
-                reader.Read(content, 0, contentLength);
+        //        // read the HTTP body into a buffer
+        //        char[] content = new char[contentLength];
+        //        reader.Read(content, 0, contentLength);
 
-                if (this.userAccounts)
-                {
-                    //ask the UserProfile Manager to process the request
-                    string reply = this.userManager.ParseXMLRPC(new String(content));
-                    // forward the XML-RPC response to the client
-                    writer.WriteLine("HTTP/1.0 200 OK");
-                    writer.WriteLine("Content-type: text/xml");
-                    writer.WriteLine();
-                    writer.WriteLine(reply);
-                }
-                else
-                {
-                    //handle ourselves
-                    XmlRpcRequest request = (XmlRpcRequest)(new XmlRpcRequestDeserializer()).Deserialize(new String(content));
-                    if (request.MethodName == "login_to_simulator")
-                    {
-                        this.ProcessXmlRequest(request, writer);
-                    }
-                    else
-                    {
-                        XmlRpcResponse PresenceErrorResp = new XmlRpcResponse();
-                        Hashtable PresenceErrorRespData = new Hashtable();
-                        PresenceErrorRespData["reason"] = "XmlRequest"; ;
-                        PresenceErrorRespData["message"] = "Unknown Rpc request";
-                        PresenceErrorRespData["login"] = "false";
-                        PresenceErrorResp.Value = PresenceErrorRespData;
-                        string reply = Regex.Replace(XmlRpcResponseSerializer.Singleton.Serialize(PresenceErrorResp), " encoding=\"utf-16\"", "");
-                        writer.WriteLine("HTTP/1.0 200 OK");
-                        writer.WriteLine("Content-type: text/xml");
-                        writer.WriteLine();
-                        writer.WriteLine(reply);
-                    }
-                }
-            }
-        }
+        //        if (this.userAccounts)
+        //        {
+        //            //ask the UserProfile Manager to process the request
+        //            string reply = this.userManager.ParseXMLRPC(new String(content));
+        //            // forward the XML-RPC response to the client
+        //            writer.WriteLine("HTTP/1.0 200 OK");
+        //            writer.WriteLine("Content-type: text/xml");
+        //            writer.WriteLine();
+        //            writer.WriteLine(reply);
+        //        }
+        //        else
+        //        {
+        //            //handle ourselves
+        //            XmlRpcRequest request = (XmlRpcRequest)(new XmlRpcRequestDeserializer()).Deserialize(new String(content));
+        //            if (request.MethodName == "login_to_simulator")
+        //            {
+        //                this.ProcessXmlRequest(request, writer);
+        //            }
+        //            else
+        //            {
 
-        public bool ProcessXmlRequest(XmlRpcRequest request, StreamWriter writer)
+        //                string reply = Regex.Replace(XmlRpcResponseSerializer.Singleton.Serialize(PresenceErrorResp), " encoding=\"utf-16\"", "");
+        //                writer.WriteLine("HTTP/1.0 200 OK");
+        //                writer.WriteLine("Content-type: text/xml");
+        //                writer.WriteLine();
+        //                writer.WriteLine(reply);
+        //            }
+        //        }
+        //    }
+        //}
+
+        //public bool ProcessXmlRequest(XmlRpcRequest request, StreamWriter writer)
+        //{
+        //    XmlRpcResponse response = XmlRpcLoginMethod(request);
+
+        //    // forward the XML-RPC response to the client
+        //    writer.WriteLine("HTTP/1.0 200 OK");
+        //    writer.WriteLine("Content-type: text/xml");
+        //    writer.WriteLine();
+
+        //    XmlTextWriter responseWriter = new XmlTextWriter(writer);
+        //    XmlRpcResponseSerializer.Singleton.Serialize(responseWriter, response);
+        //    responseWriter.Close();
+
+        //    return true;
+        //}
+
+        public XmlRpcResponse XmlRpcLoginMethod(XmlRpcRequest request)
         {
             Hashtable requestData = (Hashtable)request.Params[0];
             string first;
@@ -223,6 +242,8 @@ namespace OpenSim.UserServer
             string passwd;
             LLUUID Agent;
             LLUUID Session;
+
+            XmlRpcResponse response = new XmlRpcResponse();
 
             //get login name
             if (requestData.Contains("first"))
@@ -254,99 +275,84 @@ namespace OpenSim.UserServer
 
             if (!Authenticate(first, last, passwd))
             {
-                XmlRpcResponse PresenceErrorResp = new XmlRpcResponse();
-                Hashtable PresenceErrorRespData = new Hashtable();
-                PresenceErrorRespData["reason"] = "key"; ;
-                PresenceErrorRespData["message"] = "You have entered an invalid name/password combination. Check Caps/lock.";
-                PresenceErrorRespData["login"] = "false";
-                PresenceErrorResp.Value = PresenceErrorRespData;
-                string reply = Regex.Replace(XmlRpcResponseSerializer.Singleton.Serialize(PresenceErrorResp), " encoding=\"utf-16\"", "");
-                writer.WriteLine("HTTP/1.0 200 OK");
-                writer.WriteLine("Content-type: text/xml");
-                writer.WriteLine();
-                writer.WriteLine(reply);
-                return false;
+                Hashtable loginError = new Hashtable();
+                loginError["reason"] = "key"; ;
+                loginError["message"] = "You have entered an invalid name/password combination. Check Caps/lock.";
+                loginError["login"] = "false";
+                response.Value = loginError;
             }
-
-            NumClients++;
-
-            //create a agent and session LLUUID
-            Agent = GetAgentId(first, last);
-            int SessionRand = Util.RandomClass.Next(1, 999);
-            Session = new LLUUID("aaaabbbb-0200-" + SessionRand.ToString("0000") + "-8664-58f53e442797");
-            LLUUID secureSess = LLUUID.Random();
-            //create some login info
-            Hashtable LoginFlagsHash = new Hashtable();
-            LoginFlagsHash["daylight_savings"] = "N";
-            LoginFlagsHash["stipend_since_login"] = "N";
-            LoginFlagsHash["gendered"] = "Y";
-            LoginFlagsHash["ever_logged_in"] = "Y";
-            ArrayList LoginFlags = new ArrayList();
-            LoginFlags.Add(LoginFlagsHash);
-
-            Hashtable GlobalT = new Hashtable();
-            GlobalT["sun_texture_id"] = "cce0f112-878f-4586-a2e2-a8f104bba271";
-            GlobalT["cloud_texture_id"] = "fc4b9f0b-d008-45c6-96a4-01dd947ac621";
-            GlobalT["moon_texture_id"] = "fc4b9f0b-d008-45c6-96a4-01dd947ac621";
-            ArrayList GlobalTextures = new ArrayList();
-            GlobalTextures.Add(GlobalT);
-
-            XmlRpcResponse response = (XmlRpcResponse)(new XmlRpcResponseDeserializer()).Deserialize(this._defaultResponse);
-            Hashtable responseData = (Hashtable)response.Value;
-
-            responseData["sim_port"] = m_simPort;
-            responseData["sim_ip"] = m_simAddr;
-            responseData["agent_id"] = Agent.ToStringHyphenated();
-            responseData["session_id"] = Session.ToStringHyphenated();
-            responseData["secure_session_id"]= secureSess.ToStringHyphenated();
-            responseData["circuit_code"] = (Int32)(Util.RandomClass.Next()); 
-            responseData["seconds_since_epoch"] = (Int32)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
-            responseData["login-flags"] = LoginFlags;
-            responseData["global-textures"] = GlobalTextures;
-
-            //inventory
-            ArrayList InventoryList = (ArrayList)responseData["inventory-skeleton"];
-            Hashtable Inventory1 = (Hashtable)InventoryList[0];
-            Hashtable Inventory2 = (Hashtable)InventoryList[1];
-            LLUUID BaseFolderID = LLUUID.Random();
-            LLUUID InventoryFolderID = LLUUID.Random();
-            Inventory2["name"] = "Textures";
-            Inventory2["folder_id"] = BaseFolderID.ToStringHyphenated();
-            Inventory2["type_default"] = 0;
-            Inventory1["folder_id"] = InventoryFolderID.ToStringHyphenated();
-
-            ArrayList InventoryRoot = (ArrayList)responseData["inventory-root"];
-            Hashtable Inventoryroot = (Hashtable)InventoryRoot[0];
-            Inventoryroot["folder_id"] = InventoryFolderID.ToStringHyphenated();
-
-            CustomiseLoginResponse(responseData, first, last);
-
-            Login _login = new Login();
-            //copy data to login object
-            _login.First = first;
-            _login.Last = last;
-            _login.Agent = Agent;
-            _login.Session = Session;
-            _login.SecureSession = secureSess;
-            _login.BaseFolder = BaseFolderID;
-            _login.InventoryFolder = InventoryFolderID;
-
-            //working on local computer if so lets add to the gridserver's list of sessions?
-            if (m_gridServer.GetName() == "Local")
+            else
             {
-                ((LocalGridBase)m_gridServer).AddNewSession(_login);
+                NumClients++;
+
+                //create a agent and session LLUUID
+                Agent = GetAgentId(first, last);
+                int SessionRand = Util.RandomClass.Next(1, 999);
+                Session = new LLUUID("aaaabbbb-0200-" + SessionRand.ToString("0000") + "-8664-58f53e442797");
+                LLUUID secureSess = LLUUID.Random();
+                //create some login info
+                Hashtable LoginFlagsHash = new Hashtable();
+                LoginFlagsHash["daylight_savings"] = "N";
+                LoginFlagsHash["stipend_since_login"] = "N";
+                LoginFlagsHash["gendered"] = "Y";
+                LoginFlagsHash["ever_logged_in"] = "Y";
+                ArrayList LoginFlags = new ArrayList();
+                LoginFlags.Add(LoginFlagsHash);
+
+                Hashtable GlobalT = new Hashtable();
+                GlobalT["sun_texture_id"] = "cce0f112-878f-4586-a2e2-a8f104bba271";
+                GlobalT["cloud_texture_id"] = "fc4b9f0b-d008-45c6-96a4-01dd947ac621";
+                GlobalT["moon_texture_id"] = "fc4b9f0b-d008-45c6-96a4-01dd947ac621";
+                ArrayList GlobalTextures = new ArrayList();
+                GlobalTextures.Add(GlobalT);
+
+                response = (XmlRpcResponse)(new XmlRpcResponseDeserializer()).Deserialize(this._defaultResponse);
+                Hashtable responseData = (Hashtable)response.Value;
+
+                responseData["sim_port"] = m_simPort;
+                responseData["sim_ip"] = m_simAddr;
+                responseData["agent_id"] = Agent.ToStringHyphenated();
+                responseData["session_id"] = Session.ToStringHyphenated();
+                responseData["secure_session_id"] = secureSess.ToStringHyphenated();
+                responseData["circuit_code"] = (Int32)(Util.RandomClass.Next());
+                responseData["seconds_since_epoch"] = (Int32)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
+                responseData["login-flags"] = LoginFlags;
+                responseData["global-textures"] = GlobalTextures;
+
+                //inventory
+                ArrayList InventoryList = (ArrayList)responseData["inventory-skeleton"];
+                Hashtable Inventory1 = (Hashtable)InventoryList[0];
+                Hashtable Inventory2 = (Hashtable)InventoryList[1];
+                LLUUID BaseFolderID = LLUUID.Random();
+                LLUUID InventoryFolderID = LLUUID.Random();
+                Inventory2["name"] = "Textures";
+                Inventory2["folder_id"] = BaseFolderID.ToStringHyphenated();
+                Inventory2["type_default"] = 0;
+                Inventory1["folder_id"] = InventoryFolderID.ToStringHyphenated();
+
+                ArrayList InventoryRoot = (ArrayList)responseData["inventory-root"];
+                Hashtable Inventoryroot = (Hashtable)InventoryRoot[0];
+                Inventoryroot["folder_id"] = InventoryFolderID.ToStringHyphenated();
+
+                CustomiseLoginResponse(responseData, first, last);
+
+                Login _login = new Login();
+                //copy data to login object
+                _login.First = first;
+                _login.Last = last;
+                _login.Agent = Agent;
+                _login.Session = Session;
+                _login.SecureSession = secureSess;
+                _login.BaseFolder = BaseFolderID;
+                _login.InventoryFolder = InventoryFolderID;
+
+                //working on local computer if so lets add to the gridserver's list of sessions?
+                if (m_gridServer.GetName() == "Local")
+                {
+                    ((LocalGridBase)m_gridServer).AddNewSession(_login);
+                }
             }
-
-            // forward the XML-RPC response to the client
-            writer.WriteLine("HTTP/1.0 200 OK");
-            writer.WriteLine("Content-type: text/xml");
-            writer.WriteLine();
-
-            XmlTextWriter responseWriter = new XmlTextWriter(writer);
-            XmlRpcResponseSerializer.Singleton.Serialize(responseWriter, response);
-            responseWriter.Close();
-
-            return true;
+            return response;
         }
 
         protected virtual void CustomiseLoginResponse(Hashtable responseData, string first, string last)
@@ -396,30 +402,16 @@ namespace OpenSim.UserServer
             return Regex.Replace(BitConverter.ToString(encodedBytes), "-", "").ToLower();
         }
 
-        public bool CreateUserAccount(string firstName, string lastName, string password)
-        {
-            Console.WriteLine("creating new user account");
-            string mdPassword = EncodePassword(password);
-            Console.WriteLine("with password: " + mdPassword);
-            this.userManager.CreateNewProfile(firstName, lastName, mdPassword);
-            return true;
-        }
-
         //IUserServer implementation
         public AgentInventory RequestAgentsInventory(LLUUID agentID)
         {
             AgentInventory aInventory = null;
             if (this.userAccounts)
             {
-                aInventory = this.userManager.GetUsersInventory(agentID);
+                aInventory = this.m_localUserManager.GetUsersInventory(agentID);
             }
 
             return aInventory;
-        }
-
-        public bool UpdateAgentsInventory(LLUUID agentID, AgentInventory inventory)
-        {
-            return true;
         }
 
         public void SetServerInfo(string ServerUrl, string SendKey, string RecvKey)

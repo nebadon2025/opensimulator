@@ -45,6 +45,8 @@ using OpenSim.Assets;
 using OpenSim.CAPS;
 using OpenSim.Framework.Console;
 using OpenSim.Physics.Manager;
+using Nwc.XmlRpc;
+using OpenSim.Servers;
 
 namespace OpenSim
 {
@@ -54,7 +56,7 @@ namespace OpenSim
         private World LocalWorld;
         private Grid GridServers;
         private SimConfig Cfg;
-        private SimCAPSHTTPServer HttpServer;
+        private BaseHttpServer HttpServer;
         private AssetCache AssetCache;
         private InventoryCache InventoryCache;
         //public Dictionary<EndPoint, SimClient> ClientThreads = new Dictionary<EndPoint, SimClient>();
@@ -75,16 +77,15 @@ namespace OpenSim
         public string m_physicsEngine;
         public bool m_sandbox = false;
         public bool m_loginserver;
-        public bool user_accounts = false;
 
         protected ConsoleBase m_console;
-        
-        public OpenSimMain( bool sandBoxMode, bool startLoginServer, string physicsEngine )
+
+        public OpenSimMain(bool sandBoxMode, bool startLoginServer, string physicsEngine)
         {
             m_sandbox = sandBoxMode;
             m_loginserver = startLoginServer;
             m_physicsEngine = physicsEngine;
-            
+
             m_console = new ConsoleBase("region-console.log", "Region", this);
             OpenSim.Framework.Console.MainConsole.Instance = m_console;
         }
@@ -92,11 +93,11 @@ namespace OpenSim
         public virtual void StartUp()
         {
             GridServers = new Grid();
-            if ( m_sandbox )
+            if (m_sandbox)
             {
                 GridServers.AssetDll = "OpenSim.GridInterfaces.Local.dll";
                 GridServers.GridDll = "OpenSim.GridInterfaces.Local.dll";
-                
+
                 m_console.WriteLine("Starting in Sandbox mode");
             }
             else
@@ -108,7 +109,7 @@ namespace OpenSim
             }
 
             GridServers.Initialise();
-            
+
             startuptime = DateTime.Now;
 
             AssetCache = new AssetCache(GridServers.AssetServer);
@@ -134,36 +135,61 @@ namespace OpenSim
             LocalWorld.PhysScene.SetTerrain(LocalWorld.LandMap);
 
             GridServers.AssetServer.SetServerInfo(Cfg.AssetURL, Cfg.AssetSendKey);
-            GridServers.GridServer.SetServerInfo(Cfg.GridURL, Cfg.GridSendKey, Cfg.GridRecvKey);
+            IGridServer gridServer = GridServers.GridServer;
+            gridServer.SetServerInfo(Cfg.GridURL, Cfg.GridSendKey, Cfg.GridRecvKey);
 
             LocalWorld.LoadStorageDLL("OpenSim.Storage.LocalStorageDb4o.dll"); //all these dll names shouldn't be hard coded.
             LocalWorld.LoadPrimsFromStorage();
 
-            if ( m_sandbox)
+            if (m_sandbox)
             {
                 AssetCache.LoadDefaultTextureSet();
             }
 
             m_console.WriteLine("Main.cs:Startup() - Starting CAPS HTTP server");
-            HttpServer = new SimCAPSHTTPServer(GridServers.GridServer, Cfg.IPListenPort);
 
-            LoginServer loginServer = null;
+            HttpServer = new BaseHttpServer( Cfg.IPListenPort );
+            
+            if (gridServer.GetName() == "Remote")
+            {
+                HttpServer.AddXmlRPCHandler("expect_user",
+                                            delegate(XmlRpcRequest request)
+                                            {
+                                                Hashtable requestData = (Hashtable)request.Params[0];
+                                                AgentCircuitData agent_data = new AgentCircuitData();
+                                                agent_data.SessionID = new LLUUID((string)requestData["session_id"]);
+                                                agent_data.SecureSessionID = new LLUUID((string)requestData["secure_session_id"]);
+                                                agent_data.firstname = (string)requestData["firstname"];
+                                                agent_data.lastname = (string)requestData["lastname"];
+                                                agent_data.AgentID = new LLUUID((string)requestData["agent_id"]);
+                                                agent_data.circuitcode = Convert.ToUInt32(requestData["circuit_code"]);
+
+                                                ((RemoteGridBase)gridServer).agentcircuits.Add((uint)agent_data.circuitcode, agent_data);
+
+                                                return new XmlRpcResponse();
+                                            });
+            }
+
+            HttpServer.AddRestHandler("Admin", new AdminWebFront("Admin", LocalWorld));
+            HttpServer.Start();
+
             if (m_loginserver && m_sandbox)
             {
-                loginServer = new LoginServer(GridServers.GridServer, Cfg.IPListenAddr, Cfg.IPListenPort, this.user_accounts);
+                LoginServer loginServer = new LoginServer(gridServer, Cfg.IPListenAddr, Cfg.IPListenPort);
                 loginServer.Startup();
-                
-            }
-            if((m_loginserver) && (m_sandbox) && (user_accounts))
-            {
-                this.GridServers.UserServer = loginServer;
-                HttpServer.AddRestHandler("Admin", new AdminWebFront("Admin", LocalWorld, loginServer));
-            }
-            else 
-            {
-                HttpServer.AddRestHandler("Admin", new AdminWebFront("Admin", LocalWorld, null));
-            }
 
+                if (loginServer.userAccounts)
+                {
+                    // Actually, this is never tru as of now, but if it were, we'd do something like
+
+                    HttpServer.AddXmlRPCHandler("login_to_simulator", loginServer.LocalUserManager.XmlRpcLoginMethod);
+                }
+                else
+                {
+                    HttpServer.AddXmlRPCHandler("login_to_simulator", loginServer.XmlRpcLoginMethod);
+                }
+            }
+            
             MainServerListener();
 
             timer1.Enabled = true;
@@ -207,12 +233,12 @@ namespace OpenSim
             int numBytes = Server.EndReceiveFrom(result, ref epSender);
             int packetEnd = numBytes - 1;
             packet = Packet.BuildPacket(RecvBuffer, ref packetEnd, ZeroBuffer);
-            
+
             // This is either a new client or a packet to send to an old one
-           // if (OpenSimRoot.Instance.ClientThreads.ContainsKey(epSender))
+            // if (OpenSimRoot.Instance.ClientThreads.ContainsKey(epSender))
 
             // do we already have a circuit for this endpoint
-            if(this.clientCircuits.ContainsKey(epSender))
+            if (this.clientCircuits.ContainsKey(epSender))
             {
                 ClientThreads[this.clientCircuits[epSender]].InPacket(packet);
             }
@@ -221,11 +247,6 @@ namespace OpenSim
                 UseCircuitCodePacket useCircuit = (UseCircuitCodePacket)packet;
                 this.clientCircuits.Add(epSender, useCircuit.CircuitCode.Code);
                 SimClient newuser = new SimClient(epSender, useCircuit, LocalWorld, ClientThreads, AssetCache, GridServers.GridServer, this, InventoryCache, m_sandbox);
-                if ((this.GridServers.UserServer != null) && (user_accounts))
-                {
-                    Console.WriteLine("setting userserver");
-                    newuser.UserServer = this.GridServers.UserServer;
-                }
                 //OpenSimRoot.Instance.ClientThreads.Add(epSender, newuser);
                 ClientThreads.Add(useCircuit.CircuitCode.Code, newuser);
             }
@@ -256,11 +277,11 @@ namespace OpenSim
 
         }
 
-        public virtual void SendPacketTo(byte[] buffer, int size, SocketFlags flags, uint circuitcode )//EndPoint packetSender)
+        public virtual void SendPacketTo(byte[] buffer, int size, SocketFlags flags, uint circuitcode)//EndPoint packetSender)
         {
             // find the endpoint for this circuit
             EndPoint sendto = null;
-            foreach(KeyValuePair<EndPoint, uint> p in this.clientCircuits)
+            foreach (KeyValuePair<EndPoint, uint> p in this.clientCircuits)
             {
                 if (p.Value == circuitcode)
                 {
@@ -304,7 +325,7 @@ namespace OpenSim
         {
             LocalWorld.Update();
         }
-        
+
         public void RunCmd(string command, string[] cmdparams)
         {
             switch (command)
@@ -353,5 +374,5 @@ namespace OpenSim
         }
     }
 
-    
+
 }

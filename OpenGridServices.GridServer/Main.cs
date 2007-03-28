@@ -84,18 +84,18 @@ namespace OpenGridServices.GridServer
         
         public void Startup()
         {
-            m_console.WriteLine("Main.cs:Startup() - Please press enter to retain default settings");
+            m_console.WriteLine("Main.cs:Startup() - Please press enter for default settings");
 
-            this.GridOwner = m_console.CmdPrompt("Grid owner [OGS development team]: ", "OGS development team");
-            this.DefaultStartupMsg = m_console.CmdPrompt("Default startup message for clients [Welcome to OGS!]: ", "Welcome to OGS!");
+            this.GridOwner = m_console.CmdPrompt("Grid owner", "OGS development team");
+            this.DefaultStartupMsg = m_console.CmdPrompt("Default startup message for clients", "Welcome to OGS!");
 
-            this.DefaultAssetServer = m_console.CmdPrompt("Default asset server [no default]: ");
-            this.AssetSendKey = m_console.CmdPrompt("Key to send to asset server: ");
-            this.AssetRecvKey = m_console.CmdPrompt("Key to expect from asset server: ");
+            this.DefaultAssetServer = m_console.CmdPrompt("Default asset server");
+            this.AssetSendKey = m_console.CmdPrompt("Key to send to asset server");
+            this.AssetRecvKey = m_console.CmdPrompt("Key to expect from asset server");
 
-            this.DefaultUserServer = m_console.CmdPrompt("Default user server [no default]: ");
-            this.UserSendKey = m_console.CmdPrompt("Key to send to user server: ");
-            this.UserRecvKey = m_console.CmdPrompt("Key to expect from user server: ");
+            this.DefaultUserServer = m_console.CmdPrompt("Default user server", "http://localhost:8002/userserver");
+            this.UserSendKey = m_console.CmdPrompt("Key to send to user server");
+            this.UserRecvKey = m_console.CmdPrompt("Key to expect from user server");
 
             m_console.WriteLine("Main.cs:Startup() - Starting HTTP process");
             _httpd = new GridHTTPServer();

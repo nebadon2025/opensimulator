@@ -52,22 +52,22 @@ namespace OpenSim.Config.SimConfigDb4o
 		public void LoadDefaults() {
 			OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Config.cs:LoadDefaults() - Please press enter to retain default or enter new settings");
 			
-			this.RegionName=OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Name [OpenSim test]: ","OpenSim test");
-			this.RegionLocX=(uint)Convert.ToInt32(OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Grid Location X [997]: ","997"));
-			this.RegionLocY=(uint)Convert.ToInt32(OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Grid Location Y [996]: ","996"));
-			this.IPListenPort=Convert.ToInt32(OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("UDP port for client connections [9000]: ","9000"));
-			this.IPListenAddr=OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("IP Address to listen on for client connections [127.0.0.1]: ","127.0.0.1");
+			this.RegionName=OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Name","OpenSim test");
+			this.RegionLocX=(uint)Convert.ToInt32(OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Grid Location X","997"));
+			this.RegionLocY=(uint)Convert.ToInt32(OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Grid Location Y","996"));
+			this.IPListenPort=Convert.ToInt32(OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("UDP port for client connections","9000"));
+			this.IPListenAddr=OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("IP Address to listen on for client connections","127.0.0.1");
 			
 			if(!isSandbox)
 			{
-				this.AssetURL=OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Asset server URL: ");
-				this.AssetSendKey=OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Asset server key: ");
-				this.GridURL=OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Grid server URL: ");
-                this.GridSendKey = OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Key to send to grid server: ");
-                this.GridRecvKey = OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Key to expect from grid server: ");
-                this.UserURL = OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("User server URL: ");
-                this.UserSendKey = OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Key to send to user server: ");
-                this.UserRecvKey = OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Key to expect from user server: ");
+				this.AssetURL=OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Asset server URL");
+				this.AssetSendKey=OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Asset server key");
+                this.GridURL = OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Grid server URL", "http://localhost:8002/userserver");
+                this.GridSendKey = OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Key to send to grid server");
+                this.GridRecvKey = OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Key to expect from grid server");
+                this.UserURL = OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("User server URL", "http://localhost:8001/gridserver");
+                this.UserSendKey = OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Key to send to user server");
+                this.UserRecvKey = OpenSim.Framework.Console.MainConsole.Instance.CmdPrompt("Key to expect from user server");
 			}
 			this.RegionHandle = Util.UIntsToLong((RegionLocX*256), (RegionLocY*256));
 		}

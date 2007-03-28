@@ -54,3 +54,19 @@ nant - to generate new nant build scripts
 
 Remember to run prebuild whenever you've added or removed files as well.
 
+
+=== Local Set up of OGS config ===
+
+**NOTE: At the moment OGS is non-functionable, so this won't work **NOTE
+
+* start up bin/OpenGridServices.GridServer.exe (listens on http://localhost:8001/gridserver)
+  * just press enter to keep the defaults
+
+* start up bin/OpenGridServices.UserServer.exe (listens on http://localhost:8002/userserver)
+  * just press enter to keep the defaults
+
+* start up bin/OpenSim.exe ( listens for udp on port 9000 )
+  * just press enter to keep the defaults
+
+* start the secondlife viewer with -loginuri http://localhost:8080/
+

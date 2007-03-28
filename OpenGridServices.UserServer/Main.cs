@@ -87,11 +87,11 @@ namespace OpenGridServices.UserServer
 	    }
 	    
 		public void Startup() {
-			MainConsole.Instance.WriteLine("Main.cs:Startup() - Please press enter to retain default settings");
+			MainConsole.Instance.WriteLine("Main.cs:Startup() - Please press enter for default settings");
 
-            this.GridURL=MainConsole.Instance.CmdPrompt("Grid URL: ");
-			this.GridSendKey=MainConsole.Instance.CmdPrompt("Key to send to grid: ");
-			this.GridRecvKey=MainConsole.Instance.CmdPrompt("Key to expect from grid: ");
+            this.GridURL = MainConsole.Instance.CmdPrompt("Grid URL", "http://localhost:8001/gridserver");
+			this.GridSendKey=MainConsole.Instance.CmdPrompt("Key to send to grid");
+			this.GridRecvKey=MainConsole.Instance.CmdPrompt("Key to expect from grid");
 		
 			this.DefaultStartupMsg=MainConsole.Instance.CmdPrompt("Default startup message for clients [Welcome to OGS!] :","Welcome to OGS!");
            
@@ -105,9 +105,9 @@ namespace OpenGridServices.UserServer
 			string templastname;
 			string tempMD5Passwd;
 			MainConsole.Instance.WriteLine("Main.cs:Startup() - Please configure the grid god user:");
-			tempfirstname=MainConsole.Instance.CmdPrompt("First name: ");
-			templastname=MainConsole.Instance.CmdPrompt("Last name: ");
-			tempMD5Passwd=MainConsole.Instance.PasswdPrompt("Password: ");
+			tempfirstname=MainConsole.Instance.CmdPrompt("First name", "God");
+			templastname=MainConsole.Instance.CmdPrompt("Last name", "User");
+			tempMD5Passwd=MainConsole.Instance.PasswdPrompt("Password");
 		
 			System.Security.Cryptography.MD5CryptoServiceProvider x = new System.Security.Cryptography.MD5CryptoServiceProvider();
 			byte[] bs = System.Text.Encoding.UTF8.GetBytes(tempMD5Passwd);

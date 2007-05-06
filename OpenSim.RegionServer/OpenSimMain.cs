@@ -150,12 +150,22 @@ namespace OpenSim
                 m_console.WriteLine("Starting in Grid mode");
             }
 
-            GridServers.Initialise();
+            try {
+		    GridServers.Initialise();
+	    } catch (Exception e) {
+		    m_console.WriteLine(e.Message + "\nSorry, could not setup the grid interface");
+		    Environment.Exit(1);
+	    }
 
             startuptime = DateTime.Now;
 
-            AssetCache = new AssetCache(GridServers.AssetServer);
-            InventoryCache = new InventoryCache();
+	    try {
+	            AssetCache = new AssetCache(GridServers.AssetServer);
+	            InventoryCache = new InventoryCache();
+	    } catch (Exception e) {
+		    m_console.WriteLine(e.Message + "\nSorry, could not setup local cache");
+		    Environment.Exit(1);
+	    }
 
             PacketServer packetServer = new PacketServer(this);
 
@@ -189,9 +199,14 @@ namespace OpenSim
                 {
                     // The grid server has told us who we are
                     // We must obey the grid server.
-                    regionData.RegionLocX = Convert.ToUInt32(((RemoteGridBase)(GridServers.GridServer)).GridData["region_locx"].ToString());
-                    regionData.RegionLocY = Convert.ToUInt32(((RemoteGridBase)(GridServers.GridServer)).GridData["region_locy"].ToString());
-                    regionData.RegionName = ((RemoteGridBase)(GridServers.GridServer)).GridData["regionname"].ToString();
+		    try {
+	                    regionData.RegionLocX = Convert.ToUInt32(((RemoteGridBase)(GridServers.GridServer)).GridData["region_locx"].ToString());
+	                    regionData.RegionLocY = Convert.ToUInt32(((RemoteGridBase)(GridServers.GridServer)).GridData["region_locy"].ToString());
+	                    regionData.RegionName = ((RemoteGridBase)(GridServers.GridServer)).GridData["regionname"].ToString();
+		    } catch(Exception e) {
+			    m_console.WriteLine(e.Message + "\nBAD ERROR! THIS SHOULD NOT HAPPEN! Bad GridData from the grid interface!!!! ZOMG!!!");
+			    Environment.Exit(1);
+		    }
                 }
 
             }
@@ -234,7 +249,8 @@ namespace OpenSim
             if (gridServer.GetName() == "Remote")
             {
                 // should startup the OGS protocol server here
-                OGSServer = new OpenGridProtocolServer(this.regionData.IPListenPort - 500); // Changed so we can have more than one OGSServer per machine.
+		// Are we actually using this?
+		OGSServer = new OpenGridProtocolServer(this.regionData.IPListenPort - 500); // Changed so we can have more than one OGSServer per machine.
 
                 // we are in Grid mode so set a XmlRpc handler to handle "expect_user" calls from the user server
                 httpServer.AddXmlRPCHandler("expect_user",

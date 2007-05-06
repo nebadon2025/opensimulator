@@ -62,7 +62,7 @@ namespace OpenGridServices.GridServer
                 }
                 catch (Exception e)
                 {
-                    OpenSim.Framework.Console.MainConsole.Instance.WriteLine("getRegionPlugin UUID " + kvp.Key + " is made of fail: " + e.ToString());
+                    OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Storage: Unable to find region " + uuid.ToStringHyphenated() + " via " + kvp.Key);
                 }
             }
             return null;
@@ -83,7 +83,7 @@ namespace OpenGridServices.GridServer
                 }
                 catch (Exception e)
                 {
-                    OpenSim.Framework.Console.MainConsole.Instance.WriteLine("getRegionPlugin Handle " + kvp.Key + " is made of fail: " + e.ToString());
+                    OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Storage: Unable to find region " + handle.ToString() + " via " + kvp.Key);
                 }
             }
             return null;

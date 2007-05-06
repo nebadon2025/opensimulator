@@ -23,27 +23,26 @@ namespace OpenGridServices.GridServer
         /// <param name="FileName">The filename to the grid server plugin DLL</param>
         public void AddPlugin(string FileName)
 		{
+            OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Storage: Attempting to load " + FileName);
 			Assembly pluginAssembly = Assembly.LoadFrom(FileName);
-			
+
+            OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Storage: Found " + pluginAssembly.GetTypes().Length + " interfaces.");
 			foreach (Type pluginType in pluginAssembly.GetTypes())
 			{
-				if (pluginType.IsPublic) 
-				{
-					if (!pluginType.IsAbstract)  
-					{
-                        Type typeInterface = pluginType.GetInterface("IGridData", true);
-						
-						if (typeInterface != null)
-						{
-                            IGridData plug = (IGridData)Activator.CreateInstance(pluginAssembly.GetType(pluginType.ToString()));
-                            plug.Initialise();
-							this._plugins.Add(plug.getName(),plug);
-							
-						}	
-						
-						typeInterface = null; 			
-					}				
-				}			
+                if (!pluginType.IsAbstract)
+                {
+                    Type typeInterface = pluginType.GetInterface("IGridData", true);
+
+                    if (typeInterface != null)
+                    {
+                        IGridData plug = (IGridData)Activator.CreateInstance(pluginAssembly.GetType(pluginType.ToString()));
+                        plug.Initialise();
+                        this._plugins.Add(plug.getName(), plug);
+                        OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Storage: Added IGridData Interface");
+                    }
+
+                    typeInterface = null;
+                }
 			}
 			
 			pluginAssembly = null; 
@@ -269,6 +268,7 @@ namespace OpenGridServices.GridServer
                 TheSim = new SimProfileData();
                 LLUUID UUID = new LLUUID(param);
                 TheSim.UUID = UUID;
+                TheSim.regionRecvKey = "badger";// MAJORFIX
             }
 
             XmlDocument doc = new XmlDocument();
@@ -320,11 +320,13 @@ namespace OpenGridServices.GridServer
 
             try
             {
+                OpenSim.Framework.Console.MainConsole.Instance.WriteLine("Attempting to add a new region to the grid - " + _plugins.Count + " storage provider(s) registered.");
                 foreach (KeyValuePair<string, IGridData> kvp in _plugins)
                 {
                     try
                     {
                         kvp.Value.AddProfile(TheSim);
+                        OpenSim.Framework.Console.MainConsole.Instance.WriteLine("New sim added to grid (" + TheSim.regionName + ")");
                     }
                     catch (Exception e)
                     {

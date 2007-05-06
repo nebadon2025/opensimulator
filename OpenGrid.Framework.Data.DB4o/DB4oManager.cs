@@ -31,7 +31,14 @@ namespace OpenGrid.Framework.Data.DB4o
         /// <returns>Successful?</returns>
         public bool AddRow(SimProfileData row)
         {
-            profiles.Add(row.UUID, row);
+            if (profiles.ContainsKey(row.UUID))
+            {
+                profiles[row.UUID] = row;
+            }
+            else
+            {
+                profiles.Add(row.UUID, row);
+            }
 
             try
             {

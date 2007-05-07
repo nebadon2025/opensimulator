@@ -10,6 +10,8 @@ namespace OpenGrid.Framework.Data
         string username;    // The configurable part of the users username
         string surname;     // The users surname (can be used to indicate user class - eg 'Test User' or 'Test Admin')
 
+        string passwordHash; // Hash of the users password
+
         ulong homeRegion;       // RegionHandle of home
         LLVector3 homeLocation; // Home Location inside the sim
 
@@ -27,7 +29,19 @@ namespace OpenGrid.Framework.Data
 
         LLUUID profileImage; // My avatars profile image
         LLUUID profileFirstImage; // First-life image
+        UserAgentData currentAgent; // The users last agent
+    }
 
+    public class UserAgentData
+    {
+        public string agentIP;          // The IP of the agent
+        public uint agentPort;          // The port of the agent
+        public bool agentOnline;        // The online status of the agent
+        public LLUUID sessionID;        // The session ID for the agent
+        public LLUUID secureSessionID;  // The secure session ID for the agent
+        public LLUUID regionID;         // The region ID the agent occupies
+        public uint loginTime;          // EPOCH based Timestamp
+        public uint logoutTime;         // Timestamp or 0 if N/A
 
     }
 }

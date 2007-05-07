@@ -98,6 +98,7 @@ namespace OpenGridServices.GridServer
             m_console.WriteLine("Main.cs:Startup() - Connecting to Storage Server");
             m_gridManager = new GridManager();
             m_gridManager.AddPlugin(GridDll); // Made of win
+            m_gridManager.defaultRecvKey = Cfg.SimRecvKey;
 
             m_console.WriteLine("Main.cs:Startup() - Starting HTTP process");
             BaseHttpServer httpServer = new BaseHttpServer(8001);

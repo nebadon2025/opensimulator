@@ -16,6 +16,7 @@ namespace OpenGridServices.GridServer
     class GridManager
     {
         Dictionary<string, IGridData> _plugins = new Dictionary<string, IGridData>();
+        public string defaultRecvKey;
 
         /// <summary>
         /// Adds a new grid server plugin - grid servers will be requested in the order they were loaded.
@@ -268,7 +269,7 @@ namespace OpenGridServices.GridServer
                 TheSim = new SimProfileData();
                 LLUUID UUID = new LLUUID(param);
                 TheSim.UUID = UUID;
-                TheSim.regionRecvKey = "badger";// MAJORFIX
+                TheSim.regionRecvKey = defaultRecvKey;
             }
 
             XmlDocument doc = new XmlDocument();

@@ -57,12 +57,12 @@ namespace OpenGrid.Framework.Data.DB4o
 
     }
 
-    class DB4oGridManager
+    class DB4oUserManager
     {
         public Dictionary<LLUUID, UserProfileData> userProfiles = new Dictionary<LLUUID, UserProfileData>();
         string dbfl;
 
-        public DB4oGridManager(string db4odb)
+        public DB4oUserManager(string db4odb)
         {
             dbfl = db4odb;
             IObjectContainer database;

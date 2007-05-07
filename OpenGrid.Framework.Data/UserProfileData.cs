@@ -7,29 +7,30 @@ namespace OpenGrid.Framework.Data
 {
     public class UserProfileData
     {
-        string username;    // The configurable part of the users username
-        string surname;     // The users surname (can be used to indicate user class - eg 'Test User' or 'Test Admin')
+        public LLUUID UUID;
+        public string username;    // The configurable part of the users username
+        public string surname;     // The users surname (can be used to indicate user class - eg 'Test User' or 'Test Admin')
 
-        string passwordHash; // Hash of the users password
+        public string passwordHash; // Hash of the users password
 
-        ulong homeRegion;       // RegionHandle of home
-        LLVector3 homeLocation; // Home Location inside the sim
+        public ulong homeRegion;       // RegionHandle of home
+        public LLVector3 homeLocation; // Home Location inside the sim
 
-        int created;    // UNIX Epoch Timestamp (User Creation)
-        int lastLogin;  // UNIX Epoch Timestamp (Last Login Time)
+        public int created;    // UNIX Epoch Timestamp (User Creation)
+        public int lastLogin;  // UNIX Epoch Timestamp (Last Login Time)
 
-        string userInventoryURI; // URI to inventory server for this user
-        string userAssetURI;     // URI to asset server for this user
+        public string userInventoryURI; // URI to inventory server for this user
+        public string userAssetURI;     // URI to asset server for this user
 
-        uint profileCanDoMask; // Profile window "I can do" mask
-        uint profileWantDoMask; // Profile window "I want to" mask
+        public uint profileCanDoMask; // Profile window "I can do" mask
+        public uint profileWantDoMask; // Profile window "I want to" mask
 
-        string profileAboutText; // My about window text
-        string profileFirstText; // First Life Text
+        public string profileAboutText; // My about window text
+        public string profileFirstText; // First Life Text
 
-        LLUUID profileImage; // My avatars profile image
-        LLUUID profileFirstImage; // First-life image
-        UserAgentData currentAgent; // The users last agent
+        public LLUUID profileImage; // My avatars profile image
+        public LLUUID profileFirstImage; // First-life image
+        public UserAgentData currentAgent; // The users last agent
     }
 
     public class UserAgentData

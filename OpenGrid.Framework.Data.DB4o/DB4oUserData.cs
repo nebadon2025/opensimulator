@@ -8,34 +8,57 @@ namespace OpenGrid.Framework.Data.DB4o
 {
     public class DB4oUserData : IUserData
     {
+        DB4oUserManager manager = new DB4oUserManager("userprofiles.yap");
+
         public UserProfileData getUserByUUID(LLUUID uuid)
         {
-            return new UserProfileData();
+            if(manager.userProfiles.ContainsKey(uuid))
+                return manager.userProfiles[uuid];
+            return null;
         }
 
         public UserProfileData getUserByName(string name)
         {
-            return getUserByName(name.Split(',')[0], name.Split(',')[1]);
+            return getUserByName(name.Split(' ')[0], name.Split(' ')[1]);
         }
 
         public UserProfileData getUserByName(string fname, string lname)
         {
-            return new UserProfileData();
+            foreach (UserProfileData profile in manager.userProfiles.Values)
+            {
+                if (profile.username == fname && profile.surname == lname)
+                    return profile;
+            }
+            return null;
         }
 
         public UserAgentData getAgentByUUID(LLUUID uuid)
         {
-            return new UserAgentData();
+            try
+            {
+                return getUserByUUID(uuid).currentAgent;
+            }
+            catch (Exception e)
+            {
+                return null;
+            }
         }
 
         public UserAgentData getAgentByName(string name)
         {
-            return getAgentByName(name.Split(',')[0], name.Split(',')[1]);
+            return getAgentByName(name.Split(' ')[0], name.Split(' ')[1]);
         }
 
         public UserAgentData getAgentByName(string fname, string lname)
         {
-            return new UserAgentData();
+            try
+            {
+                return getUserByName(fname,lname).currentAgent;
+            }
+            catch (Exception e)
+            {
+                return null;
+            }
         }
 
         public bool moneyTransferRequest(LLUUID from, LLUUID to, uint amount)

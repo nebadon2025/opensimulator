@@ -1,7 +1,0 @@
-..\..\..\..\bin\Physics\OpenSim.Region.Physics.OdePlugin.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Region.Physics.OdePlugin.dll
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Region.Physics.OdePlugin.dll
-obj\Debug\OpenSim.Region.Physics.OdePlugin.pdb
-..\..\..\..\bin\Physics\OpenSim.Region.Physics.OdePlugin.pdb

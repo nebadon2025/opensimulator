@@ -1,7 +1,0 @@
-..\..\..\bin\OpenSim.Framework.Data.MSSQL.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Framework.Data.MSSQL.dll
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Framework.Data.MSSQL.dll
-obj\Debug\OpenSim.Framework.Data.MSSQL.pdb
-..\..\..\bin\OpenSim.Framework.Data.MSSQL.pdb

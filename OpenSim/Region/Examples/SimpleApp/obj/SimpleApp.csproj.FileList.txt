@@ -1,7 +1,0 @@
-..\..\..\..\bin\SimpleApp.exe
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\SimpleApp.exe
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\SimpleApp.exe
-obj\Debug\SimpleApp.pdb
-..\..\..\..\bin\SimpleApp.pdb

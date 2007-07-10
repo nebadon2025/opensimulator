@@ -1,7 +1,0 @@
-..\..\..\bin\OpenSim.Region.Terrain.BasicTerrain.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Region.Terrain.BasicTerrain.dll
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Region.Terrain.BasicTerrain.dll
-obj\Debug\OpenSim.Region.Terrain.BasicTerrain.pdb
-..\..\..\bin\OpenSim.Region.Terrain.BasicTerrain.pdb

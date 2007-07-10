@@ -1,7 +1,0 @@
-..\..\..\bin\OpenSim.exe
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.exe
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.exe
-obj\Debug\OpenSim.pdb
-..\..\..\bin\OpenSim.pdb

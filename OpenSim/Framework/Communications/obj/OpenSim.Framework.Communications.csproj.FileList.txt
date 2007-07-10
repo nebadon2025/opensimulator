@@ -1,7 +1,0 @@
-..\..\..\bin\OpenSim.Framework.Communications.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Framework.Communications.dll
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Framework.Communications.dll
-obj\Debug\OpenSim.Framework.Communications.pdb
-..\..\..\bin\OpenSim.Framework.Communications.pdb

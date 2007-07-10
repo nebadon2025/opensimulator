@@ -1,7 +1,0 @@
-..\..\..\..\..\bin\OpenSim.Grid.Services.CoreFunctions.Local.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Grid.Services.CoreFunctions.Local.dll
-..\..\..\..\..\bin\OpenSim.Grid.Services.CoreFunctions.Local.pdb
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Grid.Services.CoreFunctions.Local.dll
-obj\Debug\OpenSim.Grid.Services.CoreFunctions.Local.pdb

@@ -1,7 +1,0 @@
-..\..\..\..\bin\OpenSim.Region.Storage.LocalStorageSQLite.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Region.Storage.LocalStorageSQLite.dll
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Region.Storage.LocalStorageSQLite.dll
-obj\Debug\OpenSim.Region.Storage.LocalStorageSQLite.pdb
-..\..\..\..\bin\OpenSim.Region.Storage.LocalStorageSQLite.pdb

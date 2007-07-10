@@ -1,7 +1,0 @@
-..\..\..\..\bin\OpenSim.Grid.Services.User.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Grid.Services.User.dll
-..\..\..\..\bin\OpenSim.Grid.Services.User.pdb
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Grid.Services.User.dll
-obj\Debug\OpenSim.Grid.Services.User.pdb

@@ -1,7 +1,0 @@
-..\..\..\..\bin\OpenSim.Region.Communications.Local.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Region.Communications.Local.dll
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Region.Communications.Local.dll
-obj\Debug\OpenSim.Region.Communications.Local.pdb
-..\..\..\..\bin\OpenSim.Region.Communications.Local.pdb

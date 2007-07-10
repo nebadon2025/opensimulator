@@ -1,7 +1,0 @@
-..\..\..\bin\OpenSim.Framework.Data.MySQL.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Framework.Data.MySQL.dll
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Framework.Data.MySQL.dll
-obj\Debug\OpenSim.Framework.Data.MySQL.pdb
-..\..\..\bin\OpenSim.Framework.Data.MySQL.pdb

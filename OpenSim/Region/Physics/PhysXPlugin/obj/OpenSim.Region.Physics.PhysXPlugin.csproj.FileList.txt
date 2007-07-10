@@ -1,7 +1,0 @@
-..\..\..\..\bin\Physics\OpenSim.Region.Physics.PhysXPlugin.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Region.Physics.PhysXPlugin.dll
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Region.Physics.PhysXPlugin.dll
-obj\Debug\OpenSim.Region.Physics.PhysXPlugin.pdb
-..\..\..\..\bin\Physics\OpenSim.Region.Physics.PhysXPlugin.pdb

@@ -1,7 +1,0 @@
-..\..\..\..\bin\OpenSim.Region.Storage.LocalStorageBerkeleyDB.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Region.Storage.LocalStorageBerkeleyDB.dll
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Region.Storage.LocalStorageBerkeleyDB.dll
-obj\Debug\OpenSim.Region.Storage.LocalStorageBerkeleyDB.pdb
-..\..\..\..\bin\OpenSim.Region.Storage.LocalStorageBerkeleyDB.pdb

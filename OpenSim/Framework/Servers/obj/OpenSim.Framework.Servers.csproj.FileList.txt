@@ -1,7 +1,0 @@
-..\..\..\bin\OpenSim.Framework.Servers.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Framework.Servers.dll
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Framework.Servers.dll
-obj\Debug\OpenSim.Framework.Servers.pdb
-..\..\..\bin\OpenSim.Framework.Servers.pdb

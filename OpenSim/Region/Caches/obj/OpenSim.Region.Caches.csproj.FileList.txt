@@ -1,7 +1,0 @@
-..\..\..\bin\OpenSim.Region.Caches.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Region.Caches.dll
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Region.Caches.dll
-obj\Debug\OpenSim.Region.Caches.pdb
-..\..\..\bin\OpenSim.Region.Caches.pdb

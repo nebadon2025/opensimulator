@@ -1,7 +1,0 @@
-..\..\..\..\bin\OpenSim.Region.GridInterfaces.Local.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Region.GridInterfaces.Local.dll
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Region.GridInterfaces.Local.dll
-obj\Debug\OpenSim.Region.GridInterfaces.Local.pdb
-..\..\..\..\bin\OpenSim.Region.GridInterfaces.Local.pdb

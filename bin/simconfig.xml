@@ -1,3 +1,0 @@
-<Root>
-  <Config HttpListenerPort="9000" RemotingListenerPort="8895" GridServerURL="http://127.0.0.1:8001/" GridSendKey="null" GridRecvKey="null" UserServerURL="http://127.0.0.1:8002/" UserSendKey="null" AssetServerURL="http://127.0.0.1:8001/" />
-</Root>

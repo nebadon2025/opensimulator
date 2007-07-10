@@ -1,7 +1,0 @@
-..\..\..\..\..\bin\OpenSim.Grid.Services.CoreFunctions.Remote.dll
-obj\Release\ResolveAssemblyReference.cache
-obj\Release\OpenSim.Grid.Services.CoreFunctions.Remote.dll
-..\..\..\..\..\bin\OpenSim.Grid.Services.CoreFunctions.Remote.pdb
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\OpenSim.Grid.Services.CoreFunctions.Remote.dll
-obj\Debug\OpenSim.Grid.Services.CoreFunctions.Remote.pdb

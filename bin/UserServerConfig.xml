@@ -1,3 +1,0 @@
-<Root>
-  <Config DataBaseProvider="OpenSim.Framework.Data.DB4o.dll" />
-</Root>

@@ -3,7 +3,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <StartArguments>-loginserver -sandbox -accounts</StartArguments>
-    <ReferencePath>C:\Sugilite\bin\</ReferencePath>
+    <ReferencePath>C:\OGSMerge\bin\</ReferencePath>
     <LastOpenVersion>8.0.50727</LastOpenVersion>
     <ProjectView>ProjectFiles</ProjectView>
     <ProjectTrust>0</ProjectTrust>

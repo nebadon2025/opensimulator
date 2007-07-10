@@ -41,7 +41,6 @@ namespace OpenSim.Region.ClientStack
 {
     public class RegionApplicationBase
     {
-        protected IGenericConfig localConfig;
         protected PhysicsManager physManager;
         protected AssetCache AssetCache;
         protected InventoryCache InventoryCache;

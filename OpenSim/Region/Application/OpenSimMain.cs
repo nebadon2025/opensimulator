@@ -38,7 +38,6 @@ using OpenSim.Framework.Data;
 using OpenSim.Framework.Interfaces;
 using OpenSim.Framework.Servers;
 using OpenSim.Framework.Types;
-using OpenSim.GenericConfig;
 using OpenSim.Physics.Manager;
 using OpenSim.Region.Caches;
 using OpenSim.Region.ClientStack;
@@ -176,12 +175,10 @@ namespace OpenSim
                 string path2 = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Regions");
                 string path3 = Path.Combine(path2, "default.xml");
                 Console.WriteLine("Creating default region config file");
-                //TODO create default region
-                IGenericConfig defaultConfig = new XmlConfig(path3);
-                defaultConfig.LoadData();
-                defaultConfig.Commit();
-                defaultConfig.Close();
-                defaultConfig = null;
+                regionDat.setConfigurationFilename(path3);
+                configManager.addConfigurationMember((ConfigurationMember)regionDat);
+                configManager.gatherConfiguration();
+                configManager.clearConfigurationMembers();
                 configFiles = Directory.GetFiles(path, "*.xml");
             }
 
@@ -272,107 +269,7 @@ namespace OpenSim
 
         #endregion
 
-        private void SetupFromConfigFile(IGenericConfig configData)
-        {
-            // Log filename
-            string attri = "";
-            attri = configData.GetAttribute("LogFilename");
-            if (String.IsNullOrEmpty(attri))
-            {
-            }
-            else
-            {
-                m_logFilename = attri;
-            }
-
-            // SandBoxMode
-            attri = "";
-            attri = configData.GetAttribute("SandBox");
-            if ((attri == "") || ((attri != "false") && (attri != "true")))
-            {
-                this.m_sandbox = false;
-                configData.SetAttribute("SandBox", "false");
-            }
-            else
-            {
-                this.m_sandbox = Convert.ToBoolean(attri);
-            }
-
-            // LoginServer
-            attri = "";
-            attri = configData.GetAttribute("LoginServer");
-            if ((attri == "") || ((attri != "false") && (attri != "true")))
-            {
-                this.m_loginserver = false;
-                configData.SetAttribute("LoginServer", "false");
-            }
-            else
-            {
-                this.m_loginserver = Convert.ToBoolean(attri);
-            }
-
-            // Sandbox User accounts
-            attri = "";
-            attri = configData.GetAttribute("UserAccount");
-            if ((attri == "") || ((attri != "false") && (attri != "true")))
-            {
-                this.user_accounts = false;
-                configData.SetAttribute("UserAccounts", "false");
-            }
-            else if (attri == "true")
-            {
-                this.user_accounts = Convert.ToBoolean(attri);
-            }
-
-            // Grid mode hack to use local asset server
-            attri = "";
-            attri = configData.GetAttribute("LocalAssets");
-            if ((attri == "") || ((attri != "false") && (attri != "true")))
-            {
-                this.gridLocalAsset = false;
-                configData.SetAttribute("LocalAssets", "false");
-            }
-            else if (attri == "true")
-            {
-                this.gridLocalAsset = Convert.ToBoolean(attri);
-            }
-
-
-            attri = "";
-            attri = configData.GetAttribute("PhysicsEngine");
-            switch (attri)
-            {
-                default:
-                    m_log.Warn("Main.cs: SetupFromConfig() - Invalid value for PhysicsEngine attribute, terminating");
-                    Environment.Exit(1);
-                    break;
-
-                case "":
-                    this.m_physicsEngine = "basicphysics";
-                    configData.SetAttribute("PhysicsEngine", "basicphysics");
-                    ScenePresence.PhysicsEngineFlying = false;
-                    break;
-
-                case "basicphysics":
-                    this.m_physicsEngine = "basicphysics";
-                    configData.SetAttribute("PhysicsEngine", "basicphysics");
-                    ScenePresence.PhysicsEngineFlying = false;
-                    break;
-
-                case "RealPhysX":
-                    this.m_physicsEngine = "RealPhysX";
-                    ScenePresence.PhysicsEngineFlying = true;
-                    break;
-
-                case "OpenDynamicsEngine":
-                    this.m_physicsEngine = "OpenDynamicsEngine";
-                    ScenePresence.PhysicsEngineFlying = true;
-                    break;
-            }
-
-            configData.Commit();
-
-        }
+        
 
         /// <summary>
         /// Performs any last-minute sanity checking and shuts down the region server

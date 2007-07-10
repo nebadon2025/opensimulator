@@ -406,7 +406,6 @@
       <ReferencePath>../../../bin/</ReferencePath>
       <Reference name="System"/>
       <Reference name="System.Xml"/>
-      <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Console"/>
 
       <Files>
@@ -508,7 +507,6 @@
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Framework.Data"/>
-      <Reference name="OpenSim.Framework.GenericConfig.Xml"/>
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="libsecondlife.dll"/>
       <Reference name="Db4objects.Db4o.dll"/>
@@ -534,7 +532,8 @@
       <ReferencePath>../../../bin/</ReferencePath>
       <Reference name="System"/>
       <Reference name="System.Xml"/>
-      <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Framework" />
+      <Reference name="OpenSim.Framework.Configuration" />
       <Reference name="OpenSim.Framework.Data" />
       <Reference name="libsecondlife.dll"/>
 
@@ -563,6 +562,7 @@
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Framework.Servers"/>
+      <Reference name="OpenSim.Framework.Configuration" />
       <Reference name="OpenSim.Framework.Communications" />
       <Reference name="OpenSim.Framework.Data" />
       <Reference name="libsecondlife.dll"/>
@@ -588,6 +588,7 @@
       <ReferencePath>../../../../bin/</ReferencePath>
       <Reference name="System"/>
       <Reference name="System.Xml"/>
+      <Reference name="OpenSim.Framework.Configuration" />
       <Reference name="OpenSim.Framework.Communications"/>
       <Reference name="OpenSim.Framework.UserManagement" />
       <Reference name="OpenSim.Framework.Data" />
@@ -619,6 +620,7 @@
       <Reference name="Db4objects.Db4o.dll"/>
       <Reference name="OpenSim.Region.Terrain.BasicTerrain"/>
       <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Framework.Configuration"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Region.Physics.Manager"/>
       <Reference name="OpenSim.Framework.Servers"/>
@@ -653,7 +655,7 @@
       <Reference name="OpenSim.Region.Terrain.BasicTerrain"/>
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Console"/>
-      <Reference name="OpenSim.Framework.GenericConfig.Xml"/>
+      <Reference name="OpenSim.Framework.Configuration" />
       <Reference name="OpenSim.Region.Physics.Manager"/>
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="OpenSim.Region.Caches"/>
@@ -929,6 +931,7 @@
       <Reference name="XMLRPC.dll"/>
       <Reference name="OpenSim.Region.GridInterfaces.Local"/>
       <Reference name="OpenSim.Framework.Servers"/>
+      <Reference name="OpenSim.Framework.Configuration" />
       <Reference name="OpenSim.Framework.Communications"/>
       <Reference name="OpenSim.Region.Communications.Local"/>
       <Reference name="OpenSim.Region.Caches"/>

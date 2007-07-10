@@ -132,6 +132,7 @@ namespace OpenSim.Framework.Types
         {
             estateSettings = new EstateSettings();
             this.setConfigurationDescription("REGION INFORMATION");
+            this.addConfigurationOption("SimUUID", "UUID of Simulator (Default is recommended, random UUID)", LLUUID.Random().ToString());
             this.addConfigurationOption("SimName", "Simulator Name", "OpenSim Test");
             this.addConfigurationOption("SimLocationX", "Grid Location (X Axis)", "1000");
             this.addConfigurationOption("SimLocationY", "Grid Location (Y Axis)", "1000");
@@ -144,215 +145,69 @@ namespace OpenSim.Framework.Types
             this.addConfigurationOption("MasterAvatarFirst", "First Name of Master Avatar", "Test");
             this.addConfigurationOption("MasterAvatarLast", "Last Name of Master Avatar", "User");
         }
+        public RegionInfo(uint regionLocX, uint regionLocY, IPEndPoint internalEndPoint, string externalUri)
+            : this()
+        {
+            m_regionLocX = regionLocX;
+            m_regionLocY = regionLocY;
+
+            m_internalEndPoint = internalEndPoint;
+            m_externalHostName = externalUri;
+        }
 
         public override void handleConfigurationItem(string configuration_key, string configuration_value)
         {
             switch (configuration_key)
             {
+                case "SimUUID":
+                    this.SimUUID = new LLUUID(configuration_value);
+                    break;
                 case "SimName":
+                    this.RegionName = configuration_value;
                     break;
                 case "SimLocationX":
+                    this.m_regionLocX = Convert.ToUInt32(configuration_value);
                     break;
                 case "SimLocationY":
+                    this.m_regionLocY = Convert.ToUInt32(configuration_value);
                     break;
                 case "Datastore":
+                    this.DataStore = configuration_value;
                     break;
                 case "InternalIPAddress":
-                    break;
-                case "InternalIPPort":
-                    break;
-                case "ExternalHostName":
-                    break;
-                case "TerrainFile":
-                    break;
-                case "TerrainMultiplier":
-                    break;
-                case "MasterAvatarFirst":
-                    break;
-                case "MasterAvatarLast":
-                    break;
-            }
-        }
-        public void InitConfig(bool sandboxMode, IGenericConfig configData)
-        {
-            this.isSandbox = sandboxMode;
-            try
-            {
-                string attri = "";
-
-                // Sim UUID
-                string simId = configData.GetAttribute("SimUUID");
-                if (String.IsNullOrEmpty( simId ))
-                {
-                    this.SimUUID = LLUUID.Random();
-                }
-                else
-                {
-                    this.SimUUID = new LLUUID(simId);
-                }
-                configData.SetAttribute("SimUUID", this.SimUUID.ToString());
-
-                this.RegionName = GetString(configData, "SimName", "OpenSim test", "Region Name");
-
-                //m_regionLocX = (uint) GetInt(configData, "SimLocationX", 1000, "Grid Location X");
-                
-                attri = "";
-                attri = configData.GetAttribute("SimLocationX");
-                if (attri == "")
-                {
-                    string location = MainLog.Instance.CmdPrompt("Grid Location X", "1000");
-                    configData.SetAttribute("SimLocationX", location);
-                    m_regionLocX = (uint)Convert.ToUInt32(location);
-                }
-                else
-                {
-                    m_regionLocX = (uint)Convert.ToUInt32(attri);
-                }
-                // Sim/Grid location Y
-                attri = "";
-                attri = configData.GetAttribute("SimLocationY");
-                if (attri == "")
-                {
-                    string location = MainLog.Instance.CmdPrompt("Grid Location Y", "1000");
-                    configData.SetAttribute("SimLocationY", location);
-                    m_regionLocY = (uint)Convert.ToUInt32(location);
-                }
-                else
-                {
-                    m_regionLocY = (uint)Convert.ToUInt32(attri);
-                }
-
-                m_regionHandle = null;
-
-                this.DataStore = GetString(configData, "Datastore", "localworld.yap", "Filename for local storage");
-                
-                IPAddress internalAddress = GetIPAddress(configData, "InternalIPAddress", "0.0.0.0", "Internal IP Address for UDP client connections");
-                int internalPort = GetIPPort(configData, "InternalIPPort", "9000", "Internal IP Port for UDP client connections");
-                m_internalEndPoint = new IPEndPoint(internalAddress, internalPort);
-
-                m_externalHostName = GetString(configData, "ExternalHostName", "127.0.0.1", "External Host Name");
-
-                estateSettings.terrainFile =
-                    GetString(configData, "TerrainFile", "default.r32", "GENERAL SETTING: Default Terrain File");                
-                
-                attri = "";
-                attri = configData.GetAttribute("TerrainMultiplier");
-                if (attri == "")
-                {
-                    string re = MainLog.Instance.CmdPrompt("GENERAL SETTING: Terrain Height Multiplier", "60.0");
-                    this.estateSettings.terrainMultiplier = Convert.ToDouble(re, CultureInfo.InvariantCulture);
-                    configData.SetAttribute("TerrainMultiplier", this.estateSettings.terrainMultiplier.ToString());
-                }
-                else
-                {
-                    this.estateSettings.terrainMultiplier = Convert.ToDouble(attri);
-                }
-
-                attri = "";
-                attri = configData.GetAttribute("MasterAvatarFirstName");
-                if (attri == "")
-                {
-                    this.MasterAvatarFirstName = MainLog.Instance.CmdPrompt("First name of Master Avatar (Land and Region Owner)", "Test");
-
-                    configData.SetAttribute("MasterAvatarFirstName", this.MasterAvatarFirstName);
-                }
-                else
-                {
-                    this.MasterAvatarFirstName = attri;
-                }
-
-                attri = "";
-                attri = configData.GetAttribute("MasterAvatarLastName");
-                if (attri == "")
-                {
-                    this.MasterAvatarLastName = MainLog.Instance.CmdPrompt("Last name of Master Avatar (Land and Region Owner)", "User");
-
-                    configData.SetAttribute("MasterAvatarLastName", this.MasterAvatarLastName);
-                }
-                else
-                {
-                    this.MasterAvatarLastName = attri;
-                }
-
-                if (isSandbox) //Sandbox Mode Specific Settings
-                {
-                    attri = "";
-                    attri = configData.GetAttribute("MasterAvatarSandboxPassword");
-                    if (attri == "")
+                    
+                    IPAddress address;
+                    if (IPAddress.TryParse(configuration_value, out address))
                     {
-                        this.MasterAvatarSandboxPassword = MainLog.Instance.CmdPrompt("Password of Master Avatar (Needed for sandbox mode account creation only)", "test");
-
-                        //Should I store this?
-                        configData.SetAttribute("MasterAvatarSandboxPassword", this.MasterAvatarSandboxPassword);
+                        this.m_internalEndPoint = new IPEndPoint(address, 0);
                     }
                     else
                     {
-                        this.MasterAvatarSandboxPassword = attri;
+                        MainLog.Instance.Error("Invalid Internal IP Address. Using default (0.0.0.0).");
+                        IPAddress.TryParse("0.0.0.0", out address);
+                        this.m_internalEndPoint = new IPEndPoint(address, 0);
                     }
-                }
-
-                configData.Commit();
+                    break;
+                case "InternalIPPort":
+                    this.m_internalEndPoint.Port = Convert.ToInt32(configuration_value);
+                    break;
+                case "ExternalHostName":
+                    this.m_externalHostName = configuration_value;
+                    break;
+                case "TerrainFile":
+                    this.estateSettings.terrainFile = configuration_value;
+                    break;
+                case "TerrainMultiplier":
+                    this.estateSettings.terrainMultiplier = Convert.ToDouble(configuration_value);
+                    break;
+                case "MasterAvatarFirst":
+                    this.MasterAvatarFirstName = configuration_value;
+                    break;
+                case "MasterAvatarLast":
+                    this.MasterAvatarLastName = configuration_value;
+                    break;
             }
-            catch (Exception e)
-            {
-                MainLog.Instance.Warn("Config.cs:InitConfig() - Exception occured");
-                MainLog.Instance.Warn(e.ToString());
-            }
-
-            MainLog.Instance.Verbose("Sim settings loaded:");
-            MainLog.Instance.Verbose("UUID: " + this.SimUUID.ToStringHyphenated());
-            MainLog.Instance.Verbose("Name: " + this.RegionName);
-            MainLog.Instance.Verbose("Region Location: [" + this.RegionLocX.ToString() + "," + this.RegionLocY + "]");
-            MainLog.Instance.Verbose("Region Handle: " + this.RegionHandle.ToString());
-            MainLog.Instance.Verbose("Listening on IP end point: " + m_internalEndPoint.ToString() );
-            MainLog.Instance.Verbose("Sandbox Mode? " + isSandbox.ToString());
-
-        }
-
-        private uint GetInt(IGenericConfig configData, string p, int p_3, string p_4)
-        {
-            throw new Exception("The method or operation is not implemented.");
-        }
-
-        private string GetString(IGenericConfig configData, string attrName, string defaultvalue, string prompt)
-        {
-            string s = configData.GetAttribute(attrName);
-
-            if (String.IsNullOrEmpty( s ))
-            {
-                s = MainLog.Instance.CmdPrompt(prompt, defaultvalue);
-                configData.SetAttribute(attrName, s );
-            }
-            return s;
-        }
-
-        private IPAddress GetIPAddress(IGenericConfig configData, string attrName, string defaultvalue, string prompt)
-        {
-            string addressStr = configData.GetAttribute(attrName);
-
-            IPAddress address;
-
-            if (!IPAddress.TryParse(addressStr, out address))
-            {
-                address =  MainLog.Instance.CmdPromptIPAddress(prompt, defaultvalue);
-                configData.SetAttribute(attrName, address.ToString());
-            }
-            return address;
         }
         
-        private int GetIPPort(IGenericConfig configData, string attrName, string defaultvalue, string prompt)
-        {
-            string portStr = configData.GetAttribute(attrName);
-
-            int port;
-
-            if (!int.TryParse(portStr, out port))
-            {
-                port = MainLog.Instance.CmdPromptIPPort(prompt, defaultvalue);
-                configData.SetAttribute(attrName, port.ToString());
-            }
-            
-            return port;
-        }
     }
 }

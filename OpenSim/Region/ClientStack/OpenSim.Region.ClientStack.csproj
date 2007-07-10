@@ -90,6 +90,12 @@
       <Package>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</Package>
 			<Private>False</Private>
     </ProjectReference>
+    <ProjectReference Include="..\..\Framework\Configuration\OpenSim.Framework.Configuration.csproj">
+      <Name>OpenSim.Framework.Configuration</Name>
+      <Project>{A45242A2-0000-0000-0000-000000000000}</Project>
+      <Package>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</Package>
+			<Private>False</Private>
+    </ProjectReference>
     <ProjectReference Include="..\..\Framework\Console\OpenSim.Framework.Console.csproj">
       <Name>OpenSim.Framework.Console</Name>
       <Project>{A7CD0630-0000-0000-0000-000000000000}</Project>
@@ -134,9 +140,6 @@
     <Compile Include="UDPServer.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="RegionApplicationBase.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="ClientView.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -150,6 +153,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="ClientView.ProcessPackets.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="RegionApplicationBase.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Assets\InventoryCache.cs">

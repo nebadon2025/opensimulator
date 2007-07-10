@@ -1,3 +1,0 @@
-<Root>
-  <Config SimUUID="16d2a66f6917440eaf5bc39794385417" SimName="OpenSim test" SimLocationX="1000" SimLocationY="1000" Datastore="localworld.yap" InternalIPAddress="0.0.0.0" InternalIPPort="9000" ExternalHostName="127.0.0.1" TerrainFile="default.r32" TerrainMultiplier="60" MasterAvatarFirstName="Test" MasterAvatarLastName="User" MasterAvatarSandboxPassword="test" />
-</Root>

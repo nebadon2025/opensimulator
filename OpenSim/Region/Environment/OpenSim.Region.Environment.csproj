@@ -74,10 +74,6 @@
       <HintPath>Microsoft.JScript.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="OpenSim.Framework.GenericConfig.Xml" >
-      <HintPath>OpenSim.Framework.GenericConfig.Xml.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="System" >
       <HintPath>System.dll</HintPath>
       <Private>False</Private>
@@ -101,6 +97,12 @@
     <ProjectReference Include="..\..\Framework\Communications\OpenSim.Framework.Communications.csproj">
       <Name>OpenSim.Framework.Communications</Name>
       <Project>{CB52B7E7-0000-0000-0000-000000000000}</Project>
+      <Package>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</Package>
+			<Private>False</Private>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Framework\Configuration\OpenSim.Framework.Configuration.csproj">
+      <Name>OpenSim.Framework.Configuration</Name>
+      <Project>{A45242A2-0000-0000-0000-000000000000}</Project>
       <Package>{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</Package>
 			<Private>False</Private>
     </ProjectReference>

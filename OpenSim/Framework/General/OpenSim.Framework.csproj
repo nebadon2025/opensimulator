@@ -187,10 +187,10 @@
     <Compile Include="Types\AssetBase.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Types\RegionInfo.cs">
+    <Compile Include="Types\NetworkServersInfo.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Types\NetworkServersInfo.cs">
+    <Compile Include="Types\RegionInfo.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs">

@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ReferencePath>C:\Sugilite\bin\;C:\Sugilite\bin\Physics\</ReferencePath>
+    <ReferencePath>C:\OGSMerge\bin\;C:\OGSMerge\bin\Physics\</ReferencePath>
     <LastOpenVersion>8.0.50727</LastOpenVersion>
     <ProjectView>ProjectFiles</ProjectView>
     <ProjectTrust>0</ProjectTrust>

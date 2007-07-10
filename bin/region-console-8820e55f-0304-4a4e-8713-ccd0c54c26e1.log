@@ -1,0 +1,13 @@
+========================================================================
+Region Started at 7/7/2007 8:17:55 PM
+Main.cs:Startup() - Loading configuration
+Key to expect from user server [null]: 
+
+Remote Asset Server class created
+Sim settings loaded:
+UUID: 16d2a66f-6917-440e-af5b-c39794385417
+Name: OpenSim test
+Region Location: [1000,1000]
+Region Handle: 1099511628032000
+Listening on IP end point: 0.0.0.0:9000
+Sandbox Mode? False

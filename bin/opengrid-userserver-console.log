@@ -1,0 +1,231 @@
+========================================================================
+OpenUser Started at 7/6/2007 4:33:54 PM
+Main.cs:Startup() - Loading configuration
+Loading Db40Config dll
+Config.cs:InitConfig() - Could not find object in database, loading precompiled defaults
+Config.cs:LoadDefaults() - Please press enter to retain default or enter new settings
+Default startup message [Welcome to OGS]: 
+
+Grid server URL [http://127.0.0.1:8001/]: 
+
+Key to send to grid server [null]: 
+
+Key to expect from grid server [null]: 
+
+Writing out default settings to local database
+User settings loaded:
+Default startup message: Welcome to OGS
+Grid server URL: http://127.0.0.1:8001/
+Key to send to grid: null
+Key to expect from grid: null
+Main.cs:Startup() - Establishing data connection
+Userstorage: Attempting to load OpenSim.Framework.Data.DB4o.dll
+Userstorage: Found 4 interfaces.
+Userstorage: Added IUserData Interface
+Main.cs:Startup() - Starting HTTP process
+BaseHttpServer.cs: Starting up HTTP Server
+Userserver 0.3 - Startup complete
+Enter help for a list of commands
+
+BaseHttpServer.cs: StartHTTP() - Spawned main thread OK
+OpenUser# : 
+
+OpenUser# : 
+
+OpenUser# : 
+create user
+First name: 
+Test
+Last name: 
+User
+Password
+Password
+Start Region X: 
+1000
+Start Region Y: 
+1000
+OpenUser# : 
+Authenticating Test User
+SIM IP: 127.0.0.1; SIM PORT: 9000
+========================================================================
+OpenUser Started at 7/6/2007 6:29:40 PM
+Main.cs:Startup() - Loading configuration
+Loading Db40Config dll
+Config.cs:InitConfig() - Found a UserConfig object in the local database, loading
+User settings loaded:
+Default startup message: Welcome to OGS
+Grid server URL: http://127.0.0.1:8001/
+Key to send to grid: null
+Key to expect from grid: null
+Main.cs:Startup() - Establishing data connection
+Userstorage: Attempting to load OpenSim.Framework.Data.DB4o.dll
+Userstorage: Found 4 interfaces.
+Userstorage: Added IUserData Interface
+Main.cs:Startup() - Starting HTTP process
+BaseHttpServer.cs: Starting up HTTP Server
+Userserver 0.3 - Startup complete
+Enter help for a list of commands
+
+BaseHttpServer.cs: StartHTTP() - Spawned main thread OK
+OpenUser# : 
+========================================================================
+OpenUser Started at 7/6/2007 7:19:27 PM
+Main.cs:Startup() - Loading configuration
+Loading Db40Config dll
+Config.cs:InitConfig() - Found a UserConfig object in the local database, loading
+User settings loaded:
+Default startup message: Welcome to OGS
+Grid server URL: http://127.0.0.1:8001/
+Key to send to grid: null
+Key to expect from grid: null
+Main.cs:Startup() - Establishing data connection
+Userstorage: Attempting to load OpenSim.Framework.Data.DB4o.dll
+Userstorage: Found 4 interfaces.
+Userstorage: Added IUserData Interface
+Main.cs:Startup() - Starting HTTP process
+BaseHttpServer.cs: Starting up HTTP Server
+Userserver 0.3 - Startup complete
+Enter help for a list of commands
+
+BaseHttpServer.cs: StartHTTP() - Spawned main thread OK
+OpenUser# : 
+========================================================================
+OpenUser Started at 7/7/2007 5:25:10 PM
+Main.cs:Startup() - Loading configuration
+Loading Db40Config dll
+Config.cs:InitConfig() - Found a UserConfig object in the local database, loading
+User settings loaded:
+Default startup message: Welcome to OGS
+Grid server URL: http://127.0.0.1:8001/
+Key to send to grid: null
+Key to expect from grid: null
+Main.cs:Startup() - Establishing data connection
+Userstorage: Attempting to load OpenSim.Framework.Data.DB4o.dll
+Userstorage: Found 4 interfaces.
+Userstorage: Added IUserData Interface
+Main.cs:Startup() - Starting HTTP process
+BaseHttpServer.cs: Starting up HTTP Server
+BaseHttpServer.cs: StartHTTP() - Spawned main thread OK
+Userserver 0.3 - Startup complete
+Enter help for a list of commands
+
+OpenUser# : 
+========================================================================
+OpenUser Started at 7/7/2007 5:25:38 PM
+Main.cs:Startup() - Loading configuration
+Loading Db40Config dll
+Config.cs:InitConfig() - Found a UserConfig object in the local database, loading
+User settings loaded:
+Default startup message: Welcome to OGS
+Grid server URL: http://127.0.0.1:8001/
+Key to send to grid: null
+Key to expect from grid: null
+Main.cs:Startup() - Establishing data connection
+Userstorage: Attempting to load OpenSim.Framework.Data.DB4o.dll
+Userstorage: Found 4 interfaces.
+Userstorage: Added IUserData Interface
+Main.cs:Startup() - Starting HTTP process
+BaseHttpServer.cs: Starting up HTTP Server
+BaseHttpServer.cs: StartHTTP() - Spawned main thread OK
+Userserver 0.3 - Startup complete
+Enter help for a list of commands
+
+OpenUser# : 
+========================================================================
+OpenUser Started at 7/7/2007 6:48:20 PM
+Main.cs:Startup() - Loading configuration
+Loading Db40Config dll
+Config.cs:InitConfig() - Found a UserConfig object in the local database, loading
+User settings loaded:
+Default startup message: Welcome to OGS
+Grid server URL: http://127.0.0.1:8001/
+Key to send to grid: null
+Key to expect from grid: null
+Main.cs:Startup() - Establishing data connection
+Userstorage: Attempting to load OpenSim.Framework.Data.DB4o.dll
+Userstorage: Found 4 interfaces.
+Userstorage: Added IUserData Interface
+Main.cs:Startup() - Starting HTTP process
+BaseHttpServer.cs: Starting up HTTP Server
+BaseHttpServer.cs: StartHTTP() - Spawned main thread OK
+Userserver 0.3 - Startup complete
+Enter help for a list of commands
+
+OpenUser# : 
+========================================================================
+OpenUser Started at 7/7/2007 6:59:55 PM
+Main.cs:Startup() - Loading configuration
+Loading Db40Config dll
+Config.cs:InitConfig() - Could not find object in database, loading precompiled defaults
+Config.cs:LoadDefaults() - Please press enter to retain default or enter new settings
+Default startup message [Welcome to OGS]: 
+
+Grid server URL [http://127.0.0.1:8001/]: 
+
+Key to send to grid server [null]: 
+
+Key to expect from grid server [null]: 
+
+Writing out default settings to local database
+User settings loaded:
+Default startup message: Welcome to OGS
+Grid server URL: http://127.0.0.1:8001/
+Key to send to grid: null
+Key to expect from grid: null
+Main.cs:Startup() - Establishing data connection
+Userstorage: Attempting to load OpenSim.Framework.Data.DB4o.dll
+Userstorage: Found 4 interfaces.
+Userstorage: Added IUserData Interface
+Main.cs:Startup() - Starting HTTP process
+BaseHttpServer.cs: Starting up HTTP Server
+BaseHttpServer.cs: StartHTTP() - Spawned main thread OK
+Userserver 0.3 - Startup complete
+Enter help for a list of commands
+
+OpenUser# : 
+
+OpenUser# : 
+Unable to find user via DB4o Userdata(System.NullReferenceException: Object reference not set to an instance of an object.
+   at OpenSim.Framework.UserManagement.UserManagerBase.getUserProfile(String name) in C:\Sugilite\OpenSim\Framework\UserManager\UserManagerBase.cs:line 117)
+========================================================================
+OpenUser Started at 7/7/2007 8:17:05 PM
+Main.cs:Startup() - Loading configuration
+Loading Db40Config dll
+Config.cs:InitConfig() - Found a UserConfig object in the local database, loading
+User settings loaded:
+Default startup message: Welcome to OGS
+Grid server URL: http://127.0.0.1:8001/
+Key to send to grid: null
+Key to expect from grid: null
+Main.cs:Startup() - Establishing data connection
+Userstorage: Attempting to load OpenSim.Framework.Data.DB4o.dll
+Userstorage: Found 4 interfaces.
+Userstorage: Added IUserData Interface
+Main.cs:Startup() - Starting HTTP process
+BaseHttpServer.cs: Starting up HTTP Server
+BaseHttpServer.cs: StartHTTP() - Spawned main thread OK
+Userserver 0.3 - Startup complete
+Enter help for a list of commands
+
+OpenUser# : 
+========================================================================
+OpenUser Started at 7/7/2007 8:17:52 PM
+Main.cs:Startup() - Loading configuration
+Loading Db40Config dll
+Config.cs:InitConfig() - Found a UserConfig object in the local database, loading
+User settings loaded:
+Default startup message: Welcome to OGS
+Grid server URL: http://127.0.0.1:8001/
+Key to send to grid: null
+Key to expect from grid: null
+Main.cs:Startup() - Establishing data connection
+Userstorage: Attempting to load OpenSim.Framework.Data.DB4o.dll
+Userstorage: Found 4 interfaces.
+Userstorage: Added IUserData Interface
+Main.cs:Startup() - Starting HTTP process
+BaseHttpServer.cs: Starting up HTTP Server
+BaseHttpServer.cs: StartHTTP() - Spawned main thread OK
+Userserver 0.3 - Startup complete
+Enter help for a list of commands
+
+OpenUser# : 

@@ -1,0 +1,97 @@
+========================================================================
+Region Started at 7/6/2007 4:33:51 PM
+Main.cs:Startup() - Loading configuration
+Http Listener Port [9000]: 
+
+Remoting Listener Port [8895]: 
+
+Grid server URL [http://127.0.0.1:8001/]: 
+
+Key to send to grid server [null]: 
+
+Key to expect from grid server [null]: 
+
+User server URL [http://127.0.0.1:8002/]: 
+
+Key to send to user server [null]: 
+
+Key to expect from user server [null]: 
+
+Asset server URL [http://127.0.0.1:8003/]: 
+
+Remote Asset Server class created
+Sim settings loaded:
+UUID: 16d2a66f-6917-440e-af5b-c39794385417
+Name: OpenSim test
+Region Location: [1000,1000]
+Region Handle: 1099511628032000
+Listening on IP end point: 0.0.0.0:9000
+Sandbox Mode? False
+OGS1 - Registering new HTTP listener on port 9000
+BaseHttpServer.cs: Starting up HTTP Server
+BaseHttpServer.cs: StartHTTP() - Spawned main thread OK
+World.cs - creating new entitities instance
+World.cs - creating LandMap
+Db4LocalStorage Opening localworld.yap
+Db4LocalStorage creation
+LoadWorld() - Loading world....
+LoadWorld() - Looking for a heightmap in local DB
+Main.cs:Startup() - Starting up messaging system
+creating basicphysics
+World.cs: LoadPrimsFromStorage() - Loading primitives
+Db4LocalStorage.cs: LoadPrimitives() - number of prims in storages is 0
+Main.cs:Startup() - Initialising HTTP server
+Main.cs:Startup() - Starting HTTP server
+BaseHttpServer.cs: Starting up HTTP Server
+BaseHttpServer.cs: StartHTTP() - Spawned main thread OK
+UDPServer.cs:ServerListener() - Opening UDP socket on 9000
+Failed to listen on prefix 'http://+:9000/' because it conflicts with an existing registration on the machine.
+UDPServer.cs:ServerListener() - UDP socket bound, getting ready to listen
+UDPServer.cs:ServerListener() - Listening...
+Region# : 
+ExpectUser() - Welcoming new user...
+OpenSimClient.cs - Started up new client thread to handle incoming request
+OpenSimClient.cs:AuthUser() - Got authenticated connection from 127.0.0.1:2380
+OpenSimClient.cs:InitNewClient() - Adding viewer agent to world
+World.cs:AddViewerAgent() - Creating new avatar for remote viewer agent
+Avatar.cs 
+World.cs:AddViewerAgent() - Adding new avatar to world
+World.cs:AddViewerAgent() - Starting RegionHandshake 
+OpenSimClient.cs:ClientLoop() - Entered loop
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+World.cs: Update() - Failed with exception System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at OpenSim.Region.Physics.BasicPhysicsPlugin.BasicScene.Simulate(Single timeStep) in C:\Sugilite\OpenSim\Region\Physics\BasicPhysicsPlugin\BasicPhysicsPlugin.cs:line 111
+   at OpenSim.Region.Environment.Scenes.Scene.Update() in C:\Sugilite\OpenSim\Region\Environment\Scenes\Scene.cs:line 176
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()
+Unimplemented - RequestNeighbourInfo()

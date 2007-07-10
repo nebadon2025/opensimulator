@@ -1,0 +1,7 @@
+..\..\..\bin\OpenSim.Region.Environment.dll
+obj\Release\ResolveAssemblyReference.cache
+obj\Release\OpenSim.Region.Environment.dll
+obj\Debug\ResolveAssemblyReference.cache
+obj\Debug\OpenSim.Region.Environment.dll
+obj\Debug\OpenSim.Region.Environment.pdb
+..\..\..\bin\OpenSim.Region.Environment.pdb

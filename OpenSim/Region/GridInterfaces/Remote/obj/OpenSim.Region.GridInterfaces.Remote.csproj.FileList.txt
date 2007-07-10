@@ -1,0 +1,7 @@
+..\..\..\..\bin\OpenSim.Region.GridInterfaces.Remote.dll
+obj\Release\ResolveAssemblyReference.cache
+obj\Release\OpenSim.Region.GridInterfaces.Remote.dll
+obj\Debug\ResolveAssemblyReference.cache
+obj\Debug\OpenSim.Region.GridInterfaces.Remote.dll
+obj\Debug\OpenSim.Region.GridInterfaces.Remote.pdb
+..\..\..\..\bin\OpenSim.Region.GridInterfaces.Remote.pdb

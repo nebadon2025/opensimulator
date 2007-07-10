@@ -1,0 +1,7 @@
+..\..\..\bin\OpenSim.Framework.Console.dll
+obj\Release\ResolveAssemblyReference.cache
+obj\Release\OpenSim.Framework.Console.dll
+obj\Debug\ResolveAssemblyReference.cache
+obj\Debug\OpenSim.Framework.Console.dll
+obj\Debug\OpenSim.Framework.Console.pdb
+..\..\..\bin\OpenSim.Framework.Console.pdb

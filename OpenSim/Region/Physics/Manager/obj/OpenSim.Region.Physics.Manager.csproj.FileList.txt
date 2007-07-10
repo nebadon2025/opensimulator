@@ -1,0 +1,7 @@
+..\..\..\..\bin\OpenSim.Region.Physics.Manager.dll
+obj\Release\ResolveAssemblyReference.cache
+obj\Release\OpenSim.Region.Physics.Manager.dll
+obj\Debug\ResolveAssemblyReference.cache
+obj\Debug\OpenSim.Region.Physics.Manager.dll
+obj\Debug\OpenSim.Region.Physics.Manager.pdb
+..\..\..\..\bin\OpenSim.Region.Physics.Manager.pdb

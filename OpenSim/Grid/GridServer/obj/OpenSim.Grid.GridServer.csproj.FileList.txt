@@ -1,0 +1,7 @@
+obj\Release\ResolveAssemblyReference.cache
+..\..\..\bin\OpenSim.Grid.GridServer.exe
+obj\Release\OpenSim.Grid.GridServer.exe
+..\..\..\bin\OpenSim.Grid.GridServer.pdb
+obj\Debug\ResolveAssemblyReference.cache
+obj\Debug\OpenSim.Grid.GridServer.exe
+obj\Debug\OpenSim.Grid.GridServer.pdb

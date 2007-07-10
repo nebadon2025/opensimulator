@@ -1,0 +1,7 @@
+..\..\..\..\bin\OpenSim.Region.Storage.LocalStorageDb4o.dll
+obj\Release\ResolveAssemblyReference.cache
+obj\Release\OpenSim.Region.Storage.LocalStorageDb4o.dll
+obj\Debug\ResolveAssemblyReference.cache
+obj\Debug\OpenSim.Region.Storage.LocalStorageDb4o.dll
+obj\Debug\OpenSim.Region.Storage.LocalStorageDb4o.pdb
+..\..\..\..\bin\OpenSim.Region.Storage.LocalStorageDb4o.pdb

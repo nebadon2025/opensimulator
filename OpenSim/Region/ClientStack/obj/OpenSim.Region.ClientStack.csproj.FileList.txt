@@ -1,0 +1,7 @@
+..\..\..\bin\OpenSim.Region.ClientStack.dll
+obj\Release\ResolveAssemblyReference.cache
+obj\Release\OpenSim.Region.ClientStack.dll
+obj\Debug\ResolveAssemblyReference.cache
+obj\Debug\OpenSim.Region.ClientStack.dll
+obj\Debug\OpenSim.Region.ClientStack.pdb
+..\..\..\bin\OpenSim.Region.ClientStack.pdb

@@ -1,0 +1,7 @@
+..\..\..\bin\OpenSim.Framework.Data.DB4o.dll
+obj\Release\ResolveAssemblyReference.cache
+obj\Release\OpenSim.Framework.Data.DB4o.dll
+obj\Debug\ResolveAssemblyReference.cache
+obj\Debug\OpenSim.Framework.Data.DB4o.dll
+obj\Debug\OpenSim.Framework.Data.DB4o.pdb
+..\..\..\bin\OpenSim.Framework.Data.DB4o.pdb

@@ -1,0 +1,355 @@
+/*
+* Copyright (c) Contributors, http://www.openmetaverse.org/
+* See CONTRIBUTORS.TXT for a full list of copyright holders.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are met:
+*     * Redistributions of source code must retain the above copyright
+*       notice, this list of conditions and the following disclaimer.
+*     * Redistributions in binary form must reproduce the above copyright
+*       notice, this list of conditions and the following disclaimer in the
+*       documentation and/or other materials provided with the distribution.
+*     * Neither the name of the OpenSim Project nor the
+*       names of its contributors may be used to endorse or promote products
+*       derived from this software without specific prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS AND ANY
+* EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+* WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+* DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
+* DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+* LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+* ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+* 
+*/
+
+using System;
+using System.IO;
+using System.Text;
+using Db4objects.Db4o;
+using libsecondlife;
+using OpenSim.Framework.Console;
+using OpenSim.Framework.Types;
+using OpenSim.Framework.Servers;
+using OpenSim.Framework.Utilities;
+
+namespace OpenSim.Grid.AssetServer
+{
+    /// <summary>
+    /// An asset server
+    /// </summary>
+    public class OpenAsset_Main : conscmd_callback
+    {
+        private IObjectContainer db;
+
+        public static OpenAsset_Main assetserver;
+
+        private LogBase m_console;
+
+        [STAThread]
+        public static void Main(string[] args)
+        {
+            Console.WriteLine("Starting...\n");
+
+            assetserver = new OpenAsset_Main();
+            assetserver.Startup();
+
+            assetserver.Work();
+        }
+
+        private void Work()
+        {
+            m_console.Notice("Enter help for a list of commands");
+
+            while (true)
+            {
+                m_console.MainLogPrompt();
+            }
+        }
+
+        private OpenAsset_Main()
+        {
+            if(!Directory.Exists(Util.logDir()))
+            {
+                Directory.CreateDirectory(Util.logDir());
+            }
+            m_console = new LogBase((Path.Combine(Util.logDir(),"opengrid-AssetServer-console.log")), "OpenAsset", this, false);
+            MainLog.Instance = m_console;
+        }
+
+        public void Startup()
+        {
+            m_console.Verbose("ASSET", "Setting up asset DB");
+            setupDB();
+
+            m_console.Verbose("ASSET", "Starting HTTP process");
+            BaseHttpServer httpServer = new BaseHttpServer(8003);
+
+            httpServer.AddStreamHandler( new GetAssetStreamHandler(this));
+            httpServer.AddStreamHandler(new PostAssetStreamHandler( this ));
+
+            httpServer.Start();
+
+        }
+
+        public byte[] GetAssetData(LLUUID assetID, bool isTexture)
+        {
+            bool found = false;
+            AssetStorage foundAsset = null;
+
+            IObjectSet result = db.Get(new AssetStorage(assetID));
+            if (result.Count > 0)
+            {
+                foundAsset = (AssetStorage)result.Next();
+                found = true;
+            }
+
+            if (found)
+            {
+                return foundAsset.Data;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public void setupDB()
+        {
+            string yappath=(Path.Combine(Util.dataDir(),"gridassets.yap"));
+            bool yapfile = File.Exists(yappath);
+            try
+            {
+                db = Db4oFactory.OpenFile(yappath);
+                MainLog.Instance.Verbose("storage", "Main.cs:setupDB() - creation");
+            }
+            catch (Exception e)
+            {
+                db.Close();
+                MainLog.Instance.Warn("storage", "Main.cs:setupDB() - Exception occured");
+                MainLog.Instance.Warn("storage", e.ToString());
+            }
+            if (!yapfile)
+            {
+                this.LoadDB();
+            }
+        }
+
+        public void LoadDB()
+        {
+            try
+            {
+
+                Console.WriteLine("setting up Asset database");
+
+                AssetBase Image = new AssetBase();
+                Image.FullID = new LLUUID("00000000-0000-0000-9999-000000000001");
+                Image.Name = "Bricks";
+                this.LoadAsset(Image, true, "bricks.jp2");
+                AssetStorage store = new AssetStorage();
+                store.Data = Image.Data;
+                store.Name = Image.Name;
+                store.UUID = Image.FullID;
+                db.Set(store);
+                db.Commit();
+
+                Image = new AssetBase();
+                Image.FullID = new LLUUID("00000000-0000-0000-9999-000000000002");
+                Image.Name = "Plywood";
+                this.LoadAsset(Image, true, "plywood.jp2");
+                store = new AssetStorage();
+                store.Data = Image.Data;
+                store.Name = Image.Name;
+                store.UUID = Image.FullID;
+                db.Set(store);
+                db.Commit();
+
+                Image = new AssetBase();
+                Image.FullID = new LLUUID("00000000-0000-0000-9999-000000000003");
+                Image.Name = "Rocks";
+                this.LoadAsset(Image, true, "rocks.jp2");
+                store = new AssetStorage();
+                store.Data = Image.Data;
+                store.Name = Image.Name;
+                store.UUID = Image.FullID;
+                db.Set(store);
+                db.Commit();
+
+                Image = new AssetBase();
+                Image.FullID = new LLUUID("00000000-0000-0000-9999-000000000004");
+                Image.Name = "Granite";
+                this.LoadAsset(Image, true, "granite.jp2");
+                store = new AssetStorage();
+                store.Data = Image.Data;
+                store.Name = Image.Name;
+                store.UUID = Image.FullID;
+                db.Set(store);
+                db.Commit();
+
+                Image = new AssetBase();
+                Image.FullID = new LLUUID("00000000-0000-0000-9999-000000000005");
+                Image.Name = "Hardwood";
+                this.LoadAsset(Image, true, "hardwood.jp2");
+                store = new AssetStorage();
+                store.Data = Image.Data;
+                store.Name = Image.Name;
+                store.UUID = Image.FullID;
+                db.Set(store);
+                db.Commit();
+
+                Image = new AssetBase();
+                Image.FullID = new LLUUID("00000000-0000-0000-5005-000000000005");
+                Image.Name = "Prim Base Texture";
+                this.LoadAsset(Image, true, "plywood.jp2");
+                store = new AssetStorage();
+                store.Data = Image.Data;
+                store.Name = Image.Name;
+                store.UUID = Image.FullID;
+                db.Set(store);
+                db.Commit();
+
+                Image = new AssetBase();
+                Image.FullID = new LLUUID("13371337-1337-1337-1337-133713371337");
+                Image.Name = "Peaches";
+                this.LoadAsset(Image, true, "peaches.jp2");
+                store = new AssetStorage();
+                store.Data = Image.Data;
+                store.Name = Image.Name;
+                store.UUID = Image.FullID;
+                db.Set(store);
+                db.Commit();
+
+                Image = new AssetBase();
+                Image.FullID = new LLUUID("66c41e39-38f9-f75a-024e-585989bfab73");
+                Image.Name = "Shape";
+                this.LoadAsset(Image, false, "base_shape.dat");
+                store = new AssetStorage();
+                store.Data = Image.Data;
+                store.Name = Image.Name;
+                store.UUID = Image.FullID;
+                db.Set(store);
+                db.Commit();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        }
+
+        private void LoadAsset(AssetBase info, bool image, string filename)
+        {
+
+
+            string dataPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "assets"); //+ folder;
+            string fileName = Path.Combine(dataPath, filename);
+            FileInfo fInfo = new FileInfo(fileName);
+            long numBytes = fInfo.Length;
+            FileStream fStream = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+            byte[] idata = new byte[numBytes];
+            BinaryReader br = new BinaryReader(fStream);
+            idata = br.ReadBytes((int)numBytes);
+            br.Close();
+            fStream.Close();
+            info.Data = idata;
+            //info.loaded=true;
+        }
+
+        public void CreateAsset(LLUUID assetId, byte[] assetData)
+        {
+            AssetBase asset = new AssetBase();
+            asset.Name = "";
+            asset.FullID = assetId;
+            asset.Data = assetData;
+                    
+            AssetStorage store = new AssetStorage();
+            store.Data = asset.Data;
+            store.Name = asset.Name;
+            store.UUID = asset.FullID;
+            db.Set(store);
+            db.Commit();
+        }
+        
+        public void RunCmd(string cmd, string[] cmdparams)
+        {
+            switch (cmd)
+            {
+                case "help":
+                    m_console.Notice("shutdown - shutdown this asset server (USE CAUTION!)");
+                    break;
+
+                case "shutdown":
+                    m_console.Close();
+                    Environment.Exit(0);
+                    break;
+            }
+        }
+
+        public void Show(string ShowWhat)
+        {
+        }
+    }
+
+    public class GetAssetStreamHandler : BaseStreamHandler
+    {
+        OpenAsset_Main m_assetManager;
+
+        override public byte[] Handle(string path, Stream request)
+        {
+            string param = GetParam(path);
+
+            byte[] assetdata = m_assetManager.GetAssetData(new LLUUID(param), false);
+            if (assetdata != null)
+            {
+                return assetdata;
+            }
+            else
+            {
+                return new byte[]{};
+            }
+        }
+
+        public GetAssetStreamHandler(OpenAsset_Main assetManager):base( "/assets/", "GET")
+        {
+            m_assetManager = assetManager;
+        }
+    }
+
+    public class PostAssetStreamHandler : BaseStreamHandler
+    {
+        OpenAsset_Main m_assetManager;
+
+        override public byte[] Handle(string path, Stream request)
+        {
+            string param = GetParam(path);
+            LLUUID assetId = new LLUUID(param);
+            byte[] txBuffer = new byte[4096];
+                
+            using( BinaryReader binReader = new BinaryReader( request ) )
+            {
+                using (MemoryStream memoryStream = new MemoryStream(4096))
+                {
+                    int count;
+                    while ((count = binReader.Read(txBuffer, 0, 4096)) > 0)
+                    {
+                        memoryStream.Write(txBuffer, 0, count);
+                    }                    
+
+                    byte[] assetData = memoryStream.ToArray();
+
+                    m_assetManager.CreateAsset(assetId, assetData);
+                }
+            }
+            
+            return new byte[]{};
+        }
+
+        public PostAssetStreamHandler( OpenAsset_Main assetManager )
+            : base("/assets/", "POST")
+        {
+            m_assetManager = assetManager;
+        }
+    }
+}

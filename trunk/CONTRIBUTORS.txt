@@ -1,0 +1,77 @@
+The following people have contributed to OpenSim (Thank you 
+for your effort!)
+
+Add your name in here if you have committed to OpenSim
+
+
+OpenSim Developers 
+
+* MW (Tribal Media AB)
+* Adam Frisby 	(DeepThink Pty Ltd)
+* MingChen 	(DeepThink Pty Ltd)
+* lbsa71 (Tribal Media AB)
+* sdague (International Business Machines Corp.)
+* Andy-	
+* Gareth
+* MorphW
+* CW
+* Babblefrog
+* Tedd
+* justincc (International Business Machines Corp.)
+* Teravus (w3z)
+* Johan Berntsson (3Di)
+* Ckrinke (Charles Krinke)
+* Danx0r
+* Dalien
+* Darok
+* chi11ken (3Di)
+* adjohn (3Di)
+* Alondria
+
+
+Patches
+
+* BigFootAg
+* CharlieO
+* jhurliman (LLSD Login)
+* kinoc
+* daTwitch 
+* mikkopa/_someone - RealXtend
+* openlifegrid.com
+* Dr Scofield (International Business Machines Corp.)
+* Daedius
+* alex_carnell
+* webmage (International Business Machines Corp.)
+* jimbo2120 (International Business Machines Corp.)
+
+
+LSL Devs
+
+* Alondria
+* CharlieO
+* Tedd
+
+
+Testers
+
+* Ckrinke
+* CharlieO (LSL)
+* openlifegrid.com
+
+
+This software uses components from the following developers:
+* Sleepycat Software (Berkeley DB)
+* DB4objects, Inc. (DB4o)
+* SQLite (Public Domain)
+* XmlRpcCS (http://xmlrpccs.sf.net/)
+* MySQL, Inc. (MySQL Connector/NET)
+* AGEIA Inc. (PhysX)
+* Russel L. Smith (ODE)
+* Prebuild ( http://sourceforge.net/projects/dnpb/ )
+* LibSecondLife ( http://www.libsecondlife.org/wiki/Main_Page )
+
+
+In addition, we would like to thank:
+* The Mono Project
+* The NANT Developers
+* Microsoft (.NET, MSSQL-Adapters)

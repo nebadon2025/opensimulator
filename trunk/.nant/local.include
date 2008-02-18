@@ -1,0 +1,41 @@
+<property name="projectdir" value="opensim-0.4" />
+
+<target name="distdir">
+   <delete dir="${projectdir}" />
+   <copy todir="${projectdir}">
+       <fileset basedir=".">
+          <include name="ThirdPartyLicenses/**" />
+          <include name="CONTRIBUTORS.txt" />
+          <include name="README" />
+          <include name="OpenSim/**/*.cs" />
+          <include name="**/*.build" />
+          <include name="**/*.csproj" />
+          <include name="**/*.csproj.user" />
+          <include name="**/*.sln" />
+          <include name="bin/*.dll" />
+          <include name="bin/*.so" />
+          <include name="bin/*.config" />
+          <include name="bin/assets/**" />
+          <include name="bin/data/**" />
+          <include name="bin/OpenSim*xml" />
+          <!-- the next is to exclude built libs -->
+          <exclude name="bin/OpenSim.*dll" />
+          <include name="bin/OpenSim.ini" />
+          <include name="bin/defaultstripe.png" />
+       </fileset>
+   </copy>
+   <touch file="${projectdir}/bin/startup_commands.txt" />
+</target>
+
+<target name="dist" depends="distdir">
+    <zip zipfile="${projectdir}.zip">
+    <fileset basedir=".">
+        <include name="${projectdir}/**" />
+    </fileset>
+    </zip>
+    <tar destfile="${projectdir}.tar.gz" compression="GZip">
+    <fileset basedir=".">
+        <include name="${projectdir}/**" />
+    </fileset>
+    </tar>
+</target>

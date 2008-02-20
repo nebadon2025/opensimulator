@@ -1,0 +1,59 @@
+The following people have contributed to OpenSim (Thank you 
+for your effort!)
+
+Add your name in here if you have committed to OpenSim
+
+OpenSim Developers 
+
+* MW
+* Adam Frisby 	(DeepThink Pty Ltd)
+* MingChen 	(DeepThink Pty Ltd)
+* lbsa71 (Tribal Media AB)
+* sdague (International Business Machines Corp.)
+* Andy-	
+* Gareth
+* MorphW
+* CW
+* Babblefrog
+* Tedd
+* justincc (International Business Machines Corp.)
+* Teravus (w3z)
+* Johan Berntsson (3Di)
+
+Patches
+
+* Alondria
+* BigFootAg
+* CharlieO
+* Danx0r
+* Dalien
+* Darok
+* jhurliman (LLSD Login)
+
+LSL Devs
+
+* Alondria
+* CharlieO
+* Tedd
+
+Testers
+
+* Ckrinke
+* CharlieO (LSL)
+
+
+This software uses components from the following developers:
+* Sleepycat Software (Berkeley DB)
+* DB4objects, Inc. (DB4o)
+* SQLite (Public Domain)
+* XmlRpcCS (http://xmlrpccs.sf.net/)
+* MySQL, Inc. (MySQL Connector/NET)
+* AGEIA Inc. (PhysX)
+* Russel L. Smith (ODE)
+* Prebuild ( http://sourceforge.net/projects/dnpb/ )
+* LibSecondLife ( http://www.libsecondlife.org/wiki/Main_Page )
+
+In addition, we would like to thank:
+* The Mono Project
+* The NANT Developers
+* Microsoft (.NET, MSSQL-Adapters)

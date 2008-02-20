@@ -1,0 +1,616 @@
+/*
+* Copyright (c) Contributors, http://opensimulator.org/
+* See CONTRIBUTORS.TXT for a full list of copyright holders.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following conditions are met:
+*     * Redistributions of source code must retain the above copyright
+*       notice, this list of conditions and the following disclaimer.
+*     * Redistributions in binary form must reproduce the above copyright
+*       notice, this list of conditions and the following disclaimer in the
+*       documentation and/or other materials provided with the distribution.
+*     * Neither the name of the OpenSim Project nor the
+*       names of its contributors may be used to endorse or promote products
+*       derived from this software without specific prior written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
+* EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+* WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+* DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
+* DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+* (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+* LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+* ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+* (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+* 
+*/
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Net;
+using System.Text;
+using System.Threading;
+using System.Xml;
+using Nwc.XmlRpc;
+using libsecondlife.StructuredData;
+using OpenSim.Framework.Console;
+
+namespace OpenSim.Framework.Servers
+{
+    public class BaseHttpServer
+    {
+        protected Thread m_workerThread;
+        protected HttpListener m_httpListener;
+        protected Dictionary<string, XmlRpcMethod> m_rpcHandlers = new Dictionary<string, XmlRpcMethod>();
+        protected LLSDMethod m_llsdHandler = null;
+        protected Dictionary<string, IRequestHandler> m_streamHandlers = new Dictionary<string, IRequestHandler>();
+        protected Dictionary<string, GenericHTTPMethod> m_HTTPHandlers = new Dictionary<string, GenericHTTPMethod>();
+
+        protected uint m_port;
+        protected bool m_ssl = false;
+        protected bool m_firstcaps = true;
+
+        public uint Port
+        {
+            get { return m_port; }
+        }
+
+        public BaseHttpServer(uint port)
+        {
+            m_port = port;
+        }
+
+        public BaseHttpServer(uint port, bool ssl)
+        {
+            m_ssl = ssl;
+            m_port = port;
+        }
+
+        public void AddStreamHandler(IRequestHandler handler)
+        {
+            string httpMethod = handler.HttpMethod;
+            string path = handler.Path;
+
+            string handlerKey = GetHandlerKey(httpMethod, path);
+            m_streamHandlers.Add(handlerKey, handler);
+        }
+
+        private static string GetHandlerKey(string httpMethod, string path)
+        {
+            return httpMethod + ":" + path;
+        }
+
+        public bool AddXmlRPCHandler(string method, XmlRpcMethod handler)
+        {
+            if (!m_rpcHandlers.ContainsKey(method))
+            {
+                m_rpcHandlers.Add(method, handler);
+                return true;
+            }
+
+            //must already have a handler for that path so return false
+            return false;
+        }
+
+        public bool AddHTTPHandler(string method, GenericHTTPMethod handler)
+        {
+            if (!m_HTTPHandlers.ContainsKey(method))
+            {
+                m_HTTPHandlers.Add(method, handler);
+                return true;
+            }
+
+            //must already have a handler for that path so return false
+            return false;
+        }
+
+        public bool SetLLSDHandler(LLSDMethod handler)
+        {
+            m_llsdHandler = handler;
+            return true;
+        }
+
+        public virtual void HandleRequest(Object stateinfo)
+        {
+            HttpListenerContext context = (HttpListenerContext) stateinfo;
+
+            HttpListenerRequest request = context.Request;
+            HttpListenerResponse response = context.Response;
+
+
+            response.KeepAlive = false;
+            response.SendChunked = false;
+
+            string path = request.RawUrl;
+            string handlerKey = GetHandlerKey(request.HttpMethod, path);
+
+            IRequestHandler requestHandler;
+
+            if (TryGetStreamHandler(handlerKey, out requestHandler))
+            {
+                // Okay, so this is bad, but should be considered temporary until everything is IStreamHandler.
+                byte[] buffer;
+                if (requestHandler is IStreamedRequestHandler)
+                {
+                    IStreamedRequestHandler streamedRequestHandler = requestHandler as IStreamedRequestHandler;
+                    buffer = streamedRequestHandler.Handle(path, request.InputStream);
+                }
+                else
+                {
+                    IStreamHandler streamHandler = (IStreamHandler) requestHandler;
+
+                    using (MemoryStream memoryStream = new MemoryStream())
+                    {
+                        streamHandler.Handle(path, request.InputStream, memoryStream);
+                        memoryStream.Flush();
+                        buffer = memoryStream.ToArray();
+                    }
+                }
+
+                request.InputStream.Close();
+                response.ContentType = requestHandler.ContentType;
+                response.ContentLength64 = buffer.LongLength;
+                response.OutputStream.Write(buffer, 0, buffer.Length);
+                response.OutputStream.Close();
+            }
+            else
+            {
+                switch (request.ContentType)
+                {
+                    case null:
+                    case "text/html":
+                        HandleHTTPRequest(request, response);
+                        break;
+                    case "application/xml+llsd":
+                        HandleLLSDRequests(request, response);
+                        break;
+                    case "text/xml":
+                    case "application/xml":
+                    default:
+                        HandleXmlRpcRequests(request, response);
+                        break;
+                }
+            }
+        }
+
+        private bool TryGetStreamHandler(string handlerKey, out IRequestHandler streamHandler)
+        {
+            string bestMatch = null;
+
+            foreach (string pattern in m_streamHandlers.Keys)
+            {
+                if (handlerKey.StartsWith(pattern))
+                {
+                    if (String.IsNullOrEmpty(bestMatch) || pattern.Length > bestMatch.Length)
+                    {
+                        bestMatch = pattern;
+                    }
+                }
+            }
+
+            if (String.IsNullOrEmpty(bestMatch))
+            {
+                streamHandler = null;
+                return false;
+            }
+            else
+            {
+                streamHandler = m_streamHandlers[bestMatch];
+                return true;
+            }
+        }
+
+        private bool TryGetHTTPHandler(string handlerKey, out GenericHTTPMethod HTTPHandler)
+        {
+            string bestMatch = null;
+
+            foreach (string pattern in m_HTTPHandlers.Keys)
+            {
+                if (handlerKey.StartsWith(pattern))
+                {
+                    if (String.IsNullOrEmpty(bestMatch) || pattern.Length > bestMatch.Length)
+                    {
+                        bestMatch = pattern;
+                    }
+                }
+            }
+
+            if (String.IsNullOrEmpty(bestMatch))
+            {
+                HTTPHandler = null;
+                return false;
+            }
+            else
+            {
+                HTTPHandler = m_HTTPHandlers[bestMatch];
+                return true;
+            }
+        }
+        private void HandleXmlRpcRequests(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            Stream requestStream = request.InputStream;
+
+            Encoding encoding = Encoding.UTF8;
+            StreamReader reader = new StreamReader(requestStream, encoding);
+
+            string requestBody = reader.ReadToEnd();
+            reader.Close();
+            requestStream.Close();
+
+            string responseString = String.Empty;
+            XmlRpcRequest xmlRprcRequest = null;
+
+            try
+            {
+                xmlRprcRequest = (XmlRpcRequest) (new XmlRpcRequestDeserializer()).Deserialize(requestBody);
+            }
+            catch (XmlException e)
+            {
+                
+            }
+
+            if (xmlRprcRequest != null)
+            {
+                string methodName = xmlRprcRequest.MethodName;
+                if (methodName != null)
+                {
+                    XmlRpcResponse xmlRpcResponse;
+
+                    XmlRpcMethod method;
+                    if (m_rpcHandlers.TryGetValue(methodName, out method))
+                    {
+                        xmlRpcResponse = method(xmlRprcRequest);
+                    }
+                    else
+                    {
+                        xmlRpcResponse = new XmlRpcResponse();
+                        Hashtable unknownMethodError = new Hashtable();
+                        unknownMethodError["reason"] = "XmlRequest";
+                        ;
+                        unknownMethodError["message"] = "Unknown Rpc Request [" + methodName + "]";
+                        unknownMethodError["login"] = "false";
+                        xmlRpcResponse.Value = unknownMethodError;
+                    }
+
+                    responseString = XmlRpcResponseSerializer.Singleton.Serialize(xmlRpcResponse);
+                }
+                else
+                {
+                    System.Console.WriteLine("Handler not found for http request " + request.RawUrl);
+                    responseString = "Error";
+                }
+            }
+
+            response.ContentType = "text/xml";
+
+            byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+
+            response.SendChunked = false;
+            response.ContentLength64 = buffer.Length;
+            response.ContentEncoding = Encoding.UTF8;
+            try
+            {
+                response.OutputStream.Write(buffer, 0, buffer.Length);
+            }
+            catch (Exception ex)
+            {
+                MainLog.Instance.Warn("HTTPD", "Error - " + ex.Message);
+            }
+            finally
+            {
+                try
+                {
+                    response.OutputStream.Flush();
+                    response.OutputStream.Close();
+                }
+                catch (Exception ex)
+                {
+                    MainLog.Instance.Warn("HTTPD", "Error closing - " + ex.Message);
+                }
+            }
+        }
+
+        private void HandleLLSDRequests(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            Stream requestStream = request.InputStream;
+
+            Encoding encoding = Encoding.UTF8;
+            StreamReader reader = new StreamReader(requestStream, encoding);
+
+            string requestBody = reader.ReadToEnd();
+            reader.Close();
+            requestStream.Close();
+
+            LLSD llsdRequest = null;
+            LLSD llsdResponse = null;
+
+            try { llsdRequest = LLSDParser.DeserializeXml(requestBody); }
+            catch (Exception ex) { MainLog.Instance.Warn("HTTPD", "Error - " + ex.Message); }
+
+            if (llsdRequest != null && m_llsdHandler != null)
+            {
+                llsdResponse = m_llsdHandler(llsdRequest);
+            }
+            else
+            {
+                LLSDMap map = new LLSDMap();
+                map["reason"] = LLSD.FromString("LLSDRequest");
+                map["message"] = LLSD.FromString("No handler registered for LLSD Requests");
+                map["login"] = LLSD.FromString("false");
+                llsdResponse = map;
+            }
+
+            response.ContentType = "application/xml+llsd";
+
+            byte[] buffer = LLSDParser.SerializeXmlBytes(llsdResponse);
+
+            response.SendChunked = false;
+            response.ContentLength64 = buffer.Length;
+            response.ContentEncoding = Encoding.UTF8;
+
+            try
+            {
+                response.OutputStream.Write(buffer, 0, buffer.Length);
+            }
+            catch (Exception ex)
+            {
+                MainLog.Instance.Warn("HTTPD", "Error - " + ex.Message);
+            }
+            finally
+            {
+                try
+                {
+                    response.OutputStream.Flush();
+                    response.OutputStream.Close();
+                }
+                catch (Exception ex)
+                {
+                    MainLog.Instance.Warn("HTTPD", "Error closing - " + ex.Message);
+                }
+            }
+        }
+
+        public void HandleHTTPRequest(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            // This is a test.  There's a workable alternative..  as this way sucks.
+            // We'd like to put this into a text file parhaps that's easily editable.
+            // 
+            // For this test to work, I used the following secondlife.exe parameters
+            // "C:\Program Files\SecondLifeWindLight\SecondLifeWindLight.exe" -settings settings_windlight.xml -channel "Second Life WindLight"  -set SystemLanguage en-us -loginpage http://10.1.1.2:8002/?show_login_form=TRUE -loginuri http://10.1.1.2:8002 -user 10.1.1.2
+            //
+            // Even after all that, there's still an error, but it's a start.
+            //
+            // I depend on show_login_form being in the secondlife.exe parameters to figure out
+            // to display the form, or process it.
+            // a better way would be nifty.
+            Stream requestStream = request.InputStream;
+
+            Encoding encoding = Encoding.UTF8;
+            StreamReader reader = new StreamReader(requestStream, encoding);
+
+            string requestBody = reader.ReadToEnd();
+            reader.Close();
+            requestStream.Close();
+
+            string responseString = String.Empty;
+
+            Hashtable keysvals = new Hashtable();
+
+            string[] querystringkeys = request.QueryString.AllKeys;
+            string[] rHeaders = request.Headers.AllKeys;
+
+
+            foreach (string queryname in querystringkeys)
+            {
+                keysvals.Add(queryname, request.QueryString[queryname]);
+                MainLog.Instance.Warn("HTTP", queryname + "=" + request.QueryString[queryname]);
+            }
+            //foreach (string headername in rHeaders)
+            //{
+            //MainLog.Instance.Warn("HEADER", headername + "=" + request.Headers[headername]);
+            //}
+            if (keysvals.Contains("method"))
+            {
+                MainLog.Instance.Warn("HTTP", "Contains Method");
+                string method = (string) keysvals["method"];
+                MainLog.Instance.Warn("HTTP", requestBody);
+                GenericHTTPMethod requestprocessor;
+                bool foundHandler = TryGetHTTPHandler(method, out requestprocessor);
+                if (foundHandler)
+                {
+                    Hashtable responsedata = requestprocessor(keysvals);
+                    DoHTTPGruntWork(responsedata,response);
+                       
+                        //SendHTML500(response);
+                    
+                }
+                else
+                {
+                    MainLog.Instance.Warn("HTTP", "Handler Not Found");
+                    SendHTML404(response);
+                }
+            }
+            else
+            {
+                MainLog.Instance.Warn("HTTP", "No Method specified");
+                SendHTML404(response);
+            }
+        }
+
+        private void DoHTTPGruntWork(Hashtable responsedata, HttpListenerResponse response)
+        {
+            int responsecode = (int)responsedata["int_response_code"];
+            string responseString = (string)responsedata["str_response_string"];
+            
+            // We're forgoing the usual error status codes here because the client 
+            // ignores anything but 200 and 301
+
+            response.StatusCode = 200;
+
+            if (responsecode == 301)
+            {
+                response.RedirectLocation = (string)responsedata["str_redirect_location"];
+                response.StatusCode = responsecode;
+            }
+            response.AddHeader("Content-type", "text/html");
+
+            byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+
+            response.SendChunked = false;
+            response.ContentLength64 = buffer.Length;
+            response.ContentEncoding = Encoding.UTF8;
+            try
+            {
+                response.OutputStream.Write(buffer, 0, buffer.Length);
+            }
+            catch (Exception ex)
+            {
+                MainLog.Instance.Warn("HTTPD", "Error - " + ex.Message);
+            }
+            finally
+            {
+                response.OutputStream.Close();
+            }
+
+
+        }
+        public void SendHTML404(HttpListenerResponse response)
+        {
+            // I know this statuscode is dumb, but the client doesn't respond to 404s and 500s
+            response.StatusCode = 200;
+            response.AddHeader("Content-type", "text/html");
+
+            string responseString = GetHTTP404();
+            byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+
+            response.SendChunked = false;
+            response.ContentLength64 = buffer.Length;
+            response.ContentEncoding = Encoding.UTF8;
+            try
+            {
+                response.OutputStream.Write(buffer, 0, buffer.Length);
+            }
+            catch (Exception ex)
+            {
+                MainLog.Instance.Warn("HTTPD", "Error - " + ex.Message);
+            }
+            finally
+            {
+                response.OutputStream.Close();
+            }
+        }
+        public void SendHTML500(HttpListenerResponse response)
+        {
+            // I know this statuscode is dumb, but the client doesn't respond to 404s and 500s
+            response.StatusCode = 200;
+            response.AddHeader("Content-type", "text/html");
+
+            string responseString = GetHTTP500();
+            byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+
+            response.SendChunked = false;
+            response.ContentLength64 = buffer.Length;
+            response.ContentEncoding = Encoding.UTF8;
+            try
+            {
+                response.OutputStream.Write(buffer, 0, buffer.Length);
+            }
+            catch (Exception ex)
+            {
+                MainLog.Instance.Warn("HTTPD", "Error - " + ex.Message);
+            }
+            finally
+            {
+                response.OutputStream.Close();
+            }
+        }
+
+        public void Start()
+        {
+            MainLog.Instance.Verbose("HTTPD", "Starting up HTTP Server");
+
+            m_workerThread = new Thread(new ThreadStart(StartHTTP));
+            m_workerThread.IsBackground = true;
+            m_workerThread.Start();
+        }
+
+        private void StartHTTP()
+        {
+            try
+            {
+                MainLog.Instance.Verbose("HTTPD", "Spawned main thread OK");
+                m_httpListener = new HttpListener();
+
+                if (!m_ssl)
+                {
+                    m_httpListener.Prefixes.Add("http://+:" + m_port + "/");
+                }
+                else
+                {
+                    m_httpListener.Prefixes.Add("https://+:" + m_port + "/");
+                }
+                m_httpListener.Start();
+
+                HttpListenerContext context;
+                while (true)
+                {
+                    context = m_httpListener.GetContext();
+                    ThreadPool.QueueUserWorkItem(new WaitCallback(HandleRequest), context);
+                }
+            }
+            catch (Exception e)
+            {
+                MainLog.Instance.Warn("HTTPD", "Error - " + e.Message);
+            }
+        }
+
+
+        public void RemoveStreamHandler(string httpMethod, string path)
+        {
+            m_streamHandlers.Remove(GetHandlerKey(httpMethod, path));
+        }
+
+        public void RemoveHTTPHandler(string httpMethod, string path)
+        {
+            m_HTTPHandlers.Remove(GetHandlerKey(httpMethod, path));
+        }
+        
+        public string GetHTTP404()
+        {
+            string file = Path.Combine(Util.configDir(), "http_404.html");
+            if (!File.Exists(file))
+                return getDefaultHTTP404();
+
+            StreamReader sr = File.OpenText(file);
+            string result = sr.ReadToEnd();
+            sr.Close();
+            return result;
+        }
+
+        public string GetHTTP500()
+        {
+            string file = Path.Combine(Util.configDir(), "http_500.html");
+            if (!File.Exists(file))
+                return getDefaultHTTP500();
+
+            StreamReader sr = File.OpenText(file);
+            string result = sr.ReadToEnd();
+            sr.Close();
+            return result;
+        }
+
+        // Fallback HTTP responses in case the HTTP error response files don't exist
+        private string getDefaultHTTP404()
+        {
+            return "<HTML><HEAD><TITLE>404 Page not found</TITLE><BODY><BR /><H1>Ooops!</H1><P>The page you requested has been obsconded with by knomes. Find hippos quick!</P></BODY></HTML>";
+        }
+
+        private string getDefaultHTTP500()
+        {
+            return "<HTML><HEAD><TITLE>500 Internal Server Error</TITLE><BODY><BR /><H1>Ooops!</H1><P>The server you requested is overun by knomes! Find hippos quick!</P></BODY></HTML>";
+        }
+
+    }
+}

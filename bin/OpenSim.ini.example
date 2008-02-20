@@ -1,0 +1,106 @@
+[Startup]
+gridmode = false
+
+; Select a mesher here. ZeroMesher is save and fast.
+; ZeroMesher also means that the physics engine models the physics of prims
+; sticking to the basic shapes the engine does support. Usually this is only a box.
+; Meshmerizer gives a better handling of complex prims by using triangle meshes.
+; Note, that only ODE physics currently deals with meshed prims in a satisfactoring way
+; 
+meshing = ZeroMesher
+;meshing = Meshmerizer
+
+; Choose one of the physics engines below
+physics = basicphysics
+;physics = POS
+;physics = OpenDynamicsEngine
+;physics = modified_BulletX
+
+; *** Prim Storage - only leave one storage_plugin uncommented ***
+; --- The NullStorage stores nothing - effectively disabling persistence:
+; storage_plugin = "OpenSim.DataStore.NullStorage.dll"
+
+; --- To use sqlite as region storage:
+storage_plugin = "OpenSim.DataStore.MonoSqlite.dll"
+storage_connection_string="URI=file:OpenSim.db,version=3";
+
+; --- To use MySQL storage, supply your own connectionstring (this is only an example):
+;     note that the supplied account needs create privilegies if you want it to auto-create needed tables.
+; storage_plugin="OpenSim.Framework.Data.MySQL.dll"
+; storage_connection_string="Data Source=localhost;Database=opensim;User ID=opensim;Password=*****;";
+
+startup_console_commands_file = "startup_commands.txt"
+shutdown_console_commands_file = "shutdown_commands.txt"
+serverside_object_permissions = false
+
+; Select the type of database to use for asset storage
+;asset_database = "db4o"
+asset_database = "sqlite"
+;asset_database = "grid"
+;asset_database = "mssql"
+
+verbose = true
+
+; ScriptEngine
+script_engine = OpenSim.Region.ScriptEngine.DotNetEngine.dll
+;Experimental remote ScriptServer plugin:
+;script_engine = OpenSim.Region.ScriptEngine.RemoteServer.dll
+
+
+; if you would like to allow prim to be physical and move by physics with the physical checkbox in the client set this to true.
+physical_prim = true
+
+; To run a script every few minutes, set the script filename here
+; timer_Script = "filename"
+
+[StandAlone]
+accounts_authenticate = true
+welcome_message = "Welcome to OpenSim"
+inventory_plugin = "OpenSim.Framework.Data.SQLite.dll"
+; userDatabase_plugin = "OpenSim.Framework.Data.DB4o.dll"
+userDatabase_plugin = "OpenSim.Framework.Data.SQLite.dll"
+default_location_x = 1000
+default_location_y = 1000
+dump_assets_to_file = false
+
+[Network]
+http_listener_port = 9000
+remoting_listener_port = 8895
+
+; Uncomment below to enable llRemoteData/remote channels
+; remoteDataPort = 20800
+
+grid_server_url = "http://127.0.0.1:8001"
+grid_send_key = "null"
+grid_recv_key = "null"
+
+user_server_url = "http://127.0.0.1:8002"
+user_send_key = "null"
+user_recv_key = "null"
+
+asset_server_url = "http://127.0.0.1:8003"
+
+inventory_server_url = "http://127.0.0.1:8004"
+
+[Chat]
+whisper_distance = 10
+say_distance = 30
+shout_distance = 100
+
+; Uncomment the following for IRC bridge
+; experimental, so if it breaks... keep both parts... yada yada
+; also, not good error detection when it fails
+;[IRC]
+;server  = name.of.irc.server.on.the.net
+;nick    = OpenSimBotNameProbablyMakeThisShorter
+;channel = #the_irc_channel_you_want_to_connect_to
+
+; Uncomment the following to control the progression of daytime
+; in the Sim.  The defaults are what is shown below
+;[Sun]
+; number of wall clock hours for an opensim day.  24.0 would mean realtime
+;day_length = 0.5
+
+; send a Sun update ever frame_rate # of frames.  A lower number will
+; make for smoother sun transition at the cost of network
+;frame_rate = 100

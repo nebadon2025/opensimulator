@@ -47,7 +47,7 @@ namespace SimpleApp
                        ModuleLoader moduleLoader, bool physicalPrim, bool ChildGetTasks)
             : base(
                 regionInfo, authen, permissionManager, commsMan, sceneGridService, assetCach, storeMan, httpServer,
-                moduleLoader, false, true, false)
+                moduleLoader, false, true, false, false)
         {
             m_avatars = new List<ScenePresence>();
         }

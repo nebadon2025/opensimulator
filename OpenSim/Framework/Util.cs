@@ -39,6 +39,39 @@ using Nini.Config;
 
 namespace OpenSim.Framework
 {
+    // rex, new class
+    // Adds a way to get to the main ini file settings from anywhere
+    public sealed class GlobalSettings
+    {
+        private static volatile GlobalSettings instance;
+        private static object syncRoot = new Object();
+
+        public IniConfigSource ConfigSource;
+
+        public bool m_3d_collision_models = false;
+
+        public static GlobalSettings Instance
+        {
+            get
+            {
+                if (instance == null)
+                {
+                    lock (syncRoot)
+                    {
+                        if (instance == null)
+                            instance = new GlobalSettings();
+                    }
+                }
+                return instance;
+            }
+        }
+
+        public GlobalSettings()
+        { }
+    }
+    // rex, end class
+
+
     public class Util
     {
         private static Random randomClass = new Random();

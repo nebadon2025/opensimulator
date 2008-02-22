@@ -444,6 +444,14 @@ namespace OpenSim.Region.Communications.OGS1
             agentData.AgentID = new LLUUID((string) requestData["agent_id"]);
             agentData.circuitcode = Convert.ToUInt32(requestData["circuit_code"]);
             agentData.CapsPath = (string) requestData["caps_path"];
+            agentData.ClientVersion = (string)requestData["version"]; //rex
+
+            if (requestData.ContainsKey("auth_addr")) {
+                agentData.authenticationAddr = (string)requestData["auth_addr"];
+            }
+            if (requestData.ContainsKey("as_addr")) {
+                agentData.asAddress = (string)requestData["as_addr"];
+            }
 
             if (requestData.ContainsKey("child_agent") && requestData["child_agent"].Equals("1"))
             {

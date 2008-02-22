@@ -43,21 +43,21 @@ namespace OpenSim.Region.Physics.Manager
         Unknown = 0,
         Agent = 1,
         Prim = 2,
-        Ground = 3
+        Ground = 3,
+        PrimVolume = 4 // rex
     }
 
     public class CollisionEventUpdate : EventArgs
     {
         // Raising the event on the object, so don't need to provide location..  further up the tree knows that info.
-
-
         public int m_colliderType;
         public bool m_startOrEnd;
-        //public uint m_LocalID;
+        public uint m_LocalID; // rex
         public List<uint> m_objCollisionList;
 
         public CollisionEventUpdate(uint localID, int colliderType, bool startOrEnd, List<uint> objCollisionList)
         {
+            m_LocalID = localID; // rex
             m_colliderType = colliderType;
             m_startOrEnd = startOrEnd;
             m_objCollisionList = objCollisionList;
@@ -148,11 +148,9 @@ namespace OpenSim.Region.Physics.Manager
 
         public virtual void SendCollisionUpdate(EventArgs e)
         {
-            CollisionUpdate handler = OnCollisionUpdate;
-            if (handler != null)
-            {
-                OnCollisionUpdate(e);
-            }
+            // CollisionUpdate handler = OnCollisionUpdate;
+            if (OnCollisionUpdate != null)
+                OnCollisionUpdate(e);            
         }
 
 
@@ -190,6 +188,11 @@ namespace OpenSim.Region.Physics.Manager
         public abstract void AddForce(PhysicsVector force);
 
         public abstract void SetMomentum(PhysicsVector momentum);
+
+        public virtual void SetCollisionMesh(byte[] vData, string MeshName, bool vbScaleMesh) { } // rex
+        public virtual void SetBoundsScaling(bool vbScaleMesh) { } // rex
+        public int NextPrimVolumeTime = 0; // rex
+        public uint m_localID; // rex
     }
 
     public class NullPhysicsActor : PhysicsActor

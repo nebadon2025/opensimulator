@@ -64,6 +64,7 @@ namespace OpenSim.Framework
                 user.LoginInfo.Last = validcircuit.lastname;
                 user.LoginInfo.InventoryFolder = validcircuit.InventoryFolder;
                 user.LoginInfo.BaseFolder = validcircuit.BaseFolder;
+                user.LoginInfo.ClientVersion = validcircuit.ClientVersion;//rex
             }
             else
             {

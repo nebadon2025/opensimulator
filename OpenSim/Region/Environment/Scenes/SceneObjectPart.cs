@@ -27,6 +27,7 @@
 */
 
 using System;
+using System.Text; // rex, StringBuilder needed
 using System.Collections.Generic;
 using System.Drawing;
 using System.Xml;
@@ -92,6 +93,46 @@ namespace OpenSim.Region.Environment.Scenes
         /// Only used internally to schedule client updates
         /// </summary>
         private byte m_updateFlag;
+
+        // rex, extra parameters & their definitions
+
+        // reX extra block parameters in easily readable format       
+        public string m_RexClassName = "";
+        public byte m_RexFlags = 0;
+        public byte m_RexCollisionType = 0;
+        public float m_RexDrawDistance = 0.0F;
+        public float m_RexLOD = 0.0F;
+        public LLUUID m_RexMeshUUID = LLUUID.Zero;
+        public LLUUID m_RexCollisionMeshUUID = LLUUID.Zero;
+        public List<LLUUID> m_RexMaterialUUID = new List<LLUUID>();
+        public byte m_RexFixedMaterial = 0;
+        public LLUUID m_RexParticleScriptUUID = LLUUID.Zero;
+
+        // reX extra parameter block defines
+        public const int PARAMS_REX = 0x0100;
+
+        // Bit values for flags
+        public const int REXFLAGS_ISMESH = 0x01;
+        public const int REXFLAGS_ISVISIBLE = 0x02;
+        public const int REXFLAGS_CASTSHADOWS = 0x04;
+        public const int REXFLAGS_SHOWTEXT = 0x08;
+        public const int REXFLAGS_SCALEMESH = 0x10;
+        public const int REXFLAGS_SOLIDALPHA = 0x20;
+        public const int REXFLAGS_ISBILLBOARD = 0x40;
+        public const int REXFLAGS_USEPARTICLESCRIPT = 0x80;
+
+        // Collision type enumeration (still unused :)) 
+        public const int REXCOLLISION_VOLUME = 0x01;
+        public const int REXCOLLISION_TRIMESH = 0x02;
+
+        // Attachment parameters
+        private ScenePresence m_attachPresence = null;
+        private byte m_attachPt;
+        private LLQuaternion m_attachRot;
+        private RegionInfo m_attachRegInfo;
+        private LLUUID m_attachAgentId;
+        
+        // rexend
 
         #region Properties
 
@@ -362,6 +403,22 @@ namespace OpenSim.Region.Environment.Scenes
 
         private string m_touchName = "";
 
+        //rex (hack)
+        private LLUUID touchedBy = LLUUID.Zero;
+
+        //rex (hack)
+        public LLUUID TouchedBy
+        {
+            set
+            {
+                touchedBy = value;
+            }
+            get
+            {
+                return touchedBy;
+            }
+        }
+
         public string TouchName
         {
             get { return m_touchName; }
@@ -574,7 +631,7 @@ namespace OpenSim.Region.Environment.Scenes
                                       AbsolutePosition.Z),
                     new PhysicsVector(Scale.X, Scale.Y, Scale.Z),
                     new Quaternion(RotationOffset.W, RotationOffset.X,
-                                   RotationOffset.Y, RotationOffset.Z), usePhysics);
+                                   RotationOffset.Y, RotationOffset.Z), usePhysics,LocalID);
             }
 
             DoPhysicsPropertyUpdate(usePhysics, true);
@@ -663,6 +720,8 @@ namespace OpenSim.Region.Environment.Scenes
             EveryoneMask &= ~(uint) LLObject.ObjectFlags.CastShadows;
             EveryoneMask &= ~(uint) LLObject.ObjectFlags.InventoryEmpty;
             EveryoneMask &= ~(uint) LLObject.ObjectFlags.CreateSelected;
+            EveryoneMask &= ~(uint)LLObject.ObjectFlags.ObjectYouOfficer;
+            EveryoneMask &= ~(uint)LLObject.ObjectFlags.ObjectModify;
 
 
             // These are some flags that ObjectFlags (m_flags) should never have
@@ -1051,11 +1110,17 @@ namespace OpenSim.Region.Environment.Scenes
             bool wasUsingPhysics = ((ObjectFlags & (uint) LLObject.ObjectFlags.Physics) != 0);
             //bool IsLocked = false;
             int i = 0;
-
+            //rex
+            LLUUID AgentID = LLUUID.Zero, SessionID = LLUUID.Zero;
+            uint ObjectLocalID;
 
             try
             {
-                i += 46;
+                //rex
+                i += 10;
+                AgentID = new LLUUID(data, i); i += 16;
+                SessionID = new LLUUID(data, i); i += 16;
+                ObjectLocalID = (uint)(data[i++] + (data[i++] << 8) + (data[i++] << 16) + (data[i++] << 24));
                 //IsLocked = (data[i++] != 0) ? true : false;
                 usePhysics = ((data[i++] != 0) && m_parentGroup.Scene.m_physicalPrim) ? true : false;
                 //System.Console.WriteLine("U" + packet.ToBytes().Length.ToString());
@@ -1068,6 +1133,17 @@ namespace OpenSim.Region.Environment.Scenes
                 Console.WriteLine("Ignoring invalid Packet:");
                 //Silently ignore it - TODO: FIXME Quick
             }
+
+            #region rex added flags
+            if (AgentID == this.OwnerID)
+            {
+                AddFlag(LLObject.ObjectFlags.ObjectYouOwner);
+            }
+            else
+            {
+                RemFlag(LLObject.ObjectFlags.ObjectYouOwner);
+            }
+            #endregion
 
             if (usePhysics)
             {
@@ -1109,7 +1185,7 @@ namespace OpenSim.Region.Environment.Scenes
                                           AbsolutePosition.Z),
                         new PhysicsVector(Scale.X, Scale.Y, Scale.Z),
                         new Quaternion(RotationOffset.W, RotationOffset.X,
-                                       RotationOffset.Y, RotationOffset.Z), usePhysics);
+                                       RotationOffset.Y, RotationOffset.Z), usePhysics, LocalID);
                     DoPhysicsPropertyUpdate(usePhysics, true);
                 }
                 else
@@ -1178,20 +1254,299 @@ namespace OpenSim.Region.Environment.Scenes
 
         public void UpdateExtraParam(ushort type, bool inUse, byte[] data)
         {
-            m_shape.ExtraParams = new byte[data.Length + 7];
-            int i = 0;
-            uint length = (uint) data.Length;
-            m_shape.ExtraParams[i++] = 1;
-            m_shape.ExtraParams[i++] = (byte) (type%256);
-            m_shape.ExtraParams[i++] = (byte) ((type >> 8)%256);
+            // rex, function fixed for handling multiple parameter blocks and disabling them
 
-            m_shape.ExtraParams[i++] = (byte) (length%256);
-            m_shape.ExtraParams[i++] = (byte) ((length >> 8)%256);
-            m_shape.ExtraParams[i++] = (byte) ((length >> 16)%256);
-            m_shape.ExtraParams[i++] = (byte) ((length >> 24)%256);
-            Array.Copy(data, 0, m_shape.ExtraParams, i, data.Length);
+            //m_shape.ExtraParams = new byte[data.Length + 7];
+            //int i = 0;
+            //uint length = (uint) data.Length;
+            //m_shape.ExtraParams[i++] = 1;
+            //m_shape.ExtraParams[i++] = (byte) (type%256);
+            //m_shape.ExtraParams[i++] = (byte) ((type >> 8)%256);
+
+            //m_shape.ExtraParams[i++] = (byte) (length%256);
+            //m_shape.ExtraParams[i++] = (byte) ((length >> 8)%256);
+            //m_shape.ExtraParams[i++] = (byte) ((length >> 16)%256);
+            //m_shape.ExtraParams[i++] = (byte) ((length >> 24)%256);
+            //Array.Copy(data, 0, m_shape.ExtraParams, i, data.Length);
+
+            // Amount of param blocks in new & old extra params
+            int numOld = 0;
+            int numNew = 0;
+
+            // If old param block exists, take its length & amount of param blocks in it
+            int totalSizeOld = 0;
+            int idxOld = 0;
+            if (m_shape.ExtraParams != null)
+            {
+                numOld = m_shape.ExtraParams[idxOld++];
+                totalSizeOld = m_shape.ExtraParams.Length;
+            }
+
+            // New extra params: maximum size = old extra params + size of new data + possible new param block header + num of blocks
+            byte[] newExtraParams = new byte[totalSizeOld + data.Length + 6 + 1];
+
+            int idxNew = 1; // Don't know the amount of new param blocks yet, fill it later     
+            bool isNewBlock = true;
+
+            // Go through each of the old params, and see if this new update disables or changes it
+            for (int i = 0; i < numOld; i++)
+            {
+                int typeOld = m_shape.ExtraParams[idxOld++] | (m_shape.ExtraParams[idxOld++] << 8);
+                int lengthOld = m_shape.ExtraParams[idxOld++] | (m_shape.ExtraParams[idxOld++] << 8) |
+                                (m_shape.ExtraParams[idxOld++] << 16) | (m_shape.ExtraParams[idxOld++] << 24);
+
+                // Not changed, copy verbatim
+                if (typeOld != type)
+                {
+                    newExtraParams[idxNew++] = (byte)(typeOld % 256);
+                    newExtraParams[idxNew++] = (byte)((typeOld >> 8) % 256);
+                    newExtraParams[idxNew++] = (byte)(lengthOld % 256);
+                    newExtraParams[idxNew++] = (byte)((lengthOld >> 8) % 256);
+                    newExtraParams[idxNew++] = (byte)((lengthOld >> 16) % 256);
+                    newExtraParams[idxNew++] = (byte)((lengthOld >> 24) % 256);
+                    Array.Copy(m_shape.ExtraParams, idxOld, newExtraParams, idxNew, lengthOld);
+
+                    idxNew += lengthOld;
+                    numNew++;
+                }
+                else
+                {
+                    isNewBlock = false;
+
+                    // Old parameter updated, check if still in use, or if should remove
+                    if (inUse)
+                    {
+                        newExtraParams[idxNew++] = (byte)(type % 256);
+                        newExtraParams[idxNew++] = (byte)((type >> 8) % 256);
+                        newExtraParams[idxNew++] = (byte)(data.Length % 256);
+                        newExtraParams[idxNew++] = (byte)((data.Length >> 8) % 256);
+                        newExtraParams[idxNew++] = (byte)((data.Length >> 16) % 256);
+                        newExtraParams[idxNew++] = (byte)((data.Length >> 24) % 256);
+                        Array.Copy(data, 0, newExtraParams, idxNew, data.Length);
+
+                        idxNew += data.Length;
+                        numNew++;
+                    }
+                }
+                idxOld += lengthOld;
+            }
+            // If type was not listed, create new block
+            if ((isNewBlock) && (inUse))
+            {
+                newExtraParams[idxNew++] = (byte)(type % 256);
+                newExtraParams[idxNew++] = (byte)((type >> 8) % 256);
+                newExtraParams[idxNew++] = (byte)(data.Length % 256);
+                newExtraParams[idxNew++] = (byte)((data.Length >> 8) % 256);
+                newExtraParams[idxNew++] = (byte)((data.Length >> 16) % 256);
+                newExtraParams[idxNew++] = (byte)((data.Length >> 24) % 256);
+                Array.Copy(data, 0, newExtraParams, idxNew, data.Length);
+
+                idxNew += data.Length;
+                numNew++;
+            }
+
+            // Now we know final size and number of param blocks
+            newExtraParams[0] = (byte)numNew;
+            m_shape.ExtraParams = new byte[idxNew];
+            Array.Copy(newExtraParams, m_shape.ExtraParams, idxNew);
+
+            string OldPythonClass = m_RexClassName;
+            LLUUID OldColMesh = m_RexCollisionMeshUUID;
+            bool OldMeshScaling = ((m_RexFlags & REXFLAGS_SCALEMESH) != 0);
+
+            GetRexParameters();
+
+            if (m_RexClassName != OldPythonClass)
+                m_parentGroup.Scene.EventManager.TriggerOnChangePythonClass(LocalID);
+
+            if (GlobalSettings.Instance.m_3d_collision_models)
+            {
+                if (m_RexCollisionMeshUUID != OldColMesh && PhysActor != null)
+                {
+                    if (m_RexCollisionMeshUUID != LLUUID.Zero)
+                        RexUpdateCollisionMesh();
+                    else
+                        PhysActor.SetCollisionMesh(null, "", false);
+                }
+
+                bool NewMeshScaling = ((m_RexFlags & REXFLAGS_SCALEMESH) != 0);
+                if (NewMeshScaling != OldMeshScaling && PhysActor != null)
+                {
+                    PhysActor.SetBoundsScaling(NewMeshScaling);
+                    m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(PhysActor);
+                }
+            }
+            // rexend
 
             ScheduleFullUpdate();
+        }
+
+        // rex, new function, compiles / sends rex parameters after serverside modification
+        public void UpdateRexParameters()
+        {
+            // Compile reX member variables into an extraparam-block
+            int size = m_RexClassName.Length + 1 // Name + endzero
+                + 1 + 1 + 4 + 4 // Flags, collisiontype, drawdistance, lod
+                + 16 + 16 // Mesh UUID & collisionmesh UUID
+                + 2 + m_RexMaterialUUID.Count * 16 // Material count and UUID's
+                + 1 // Fixed material               
+                + 16; // Particle script UUID
+
+            byte[] buffer = new byte[size];
+            int idx = 0;
+
+            for (int i = 0; i < m_RexClassName.Length; i++)
+            {
+                buffer[idx++] = (byte)m_RexClassName[i];
+            }
+            buffer[idx++] = 0;
+
+            buffer[idx++] = m_RexFlags;
+
+            buffer[idx++] = m_RexCollisionType;
+
+            System.BitConverter.GetBytes(m_RexDrawDistance).CopyTo(buffer, idx);
+            idx += 4;
+
+            System.BitConverter.GetBytes(m_RexLOD).CopyTo(buffer, idx);
+            idx += 4;
+
+            m_RexMeshUUID.GetBytes().CopyTo(buffer, idx);
+            idx += 16;
+
+            m_RexCollisionMeshUUID.GetBytes().CopyTo(buffer, idx);
+            idx += 16;
+
+            System.BitConverter.GetBytes((short)m_RexMaterialUUID.Count).CopyTo(buffer, idx);
+            idx += 2;
+            for (int i = 0; i < m_RexMaterialUUID.Count; i++)
+            {
+                m_RexMaterialUUID[i].GetBytes().CopyTo(buffer, idx);
+                idx += 16;
+            }
+
+            buffer[idx++] = m_RexFixedMaterial;
+
+            m_RexParticleScriptUUID.GetBytes().CopyTo(buffer, idx);
+            idx += 16;
+
+            UpdateExtraParam(PARAMS_REX, true, buffer);
+        }
+
+        // rex, new function, extract reX parameters from the parameter block
+        public void GetRexParameters()
+        {
+            if (m_shape.ExtraParams == null) return;
+
+            int idx = 0;
+            int numParams = m_shape.ExtraParams[idx++];
+
+            for (int i = 0; i < numParams; i++)
+            {
+                // Is this the reX parameter block?
+                int type = m_shape.ExtraParams[idx++] | (m_shape.ExtraParams[idx++] << 8);
+                int length = m_shape.ExtraParams[idx++] | (m_shape.ExtraParams[idx++] << 8) |
+                            (m_shape.ExtraParams[idx++] << 16) | (m_shape.ExtraParams[idx++] << 24);
+                int start = idx;
+
+                if (type == PARAMS_REX)
+                {
+                    // Class name
+                    StringBuilder buffer = new StringBuilder();
+                    while ((idx < (length + start)) && (m_shape.ExtraParams[idx] != 0))
+                    {
+                        char c = (char)m_shape.ExtraParams[idx++];
+                        buffer.Append(c);
+                    }
+                    m_RexClassName = buffer.ToString();
+                    idx++;
+
+                    // Rex flags
+                    if (idx < (length + start))
+                    {
+                        m_RexFlags = m_shape.ExtraParams[idx++];
+                    }
+
+                    // Collision type
+                    if (idx < (length + start))
+                    {
+                        m_RexCollisionType = m_shape.ExtraParams[idx++];
+                    }
+
+                    // Draw distance
+                    if (idx < (length + start - 3))
+                    {
+                        m_RexDrawDistance = System.BitConverter.ToSingle(m_shape.ExtraParams, idx);
+                        idx += 4;
+                    }
+
+                    // Mesh LOD
+                    if (idx < (length + start - 3))
+                    {
+                        m_RexLOD = System.BitConverter.ToSingle(m_shape.ExtraParams, idx);
+                        idx += 4;
+                    }
+
+                    // Mesh UUID
+                    if (idx < (length + start - 15))
+                    {
+                        m_RexMeshUUID = new LLUUID(m_shape.ExtraParams, idx);
+                        idx += 16;
+                    }
+
+                    // Collision mesh UUID
+                    if (idx < (length + start - 15))
+                    {
+                        m_RexCollisionMeshUUID = new LLUUID(m_shape.ExtraParams, idx);
+                        idx += 16;
+                    }
+
+                    // Number of materials
+                    if (idx < (length + start - 1))
+                    {
+                        short rexMaterials = System.BitConverter.ToInt16(m_shape.ExtraParams, idx);
+                        idx += 2;
+                        m_RexMaterialUUID = new List<LLUUID>();
+
+                        for (short j = 0; j < rexMaterials; j++)
+                        {
+                            if (idx < (length + start - 15))
+                            {
+                                m_RexMaterialUUID.Add(new LLUUID(m_shape.ExtraParams, idx));
+                                idx += 16;
+                            }
+                            else break;
+                        }
+                    }
+                    // Fixed material
+                    if (idx < (length + start))
+                    {
+                       m_RexFixedMaterial = m_shape.ExtraParams[idx++];
+                    }
+                    // Particle script UUID
+                    if (idx < (length + start - 15))
+                    {
+                        m_RexParticleScriptUUID = new LLUUID(m_shape.ExtraParams, idx);
+                        idx += 16;
+                    }
+
+                    //System.Console.WriteLine("Rex parameters of an object updated");
+                    //System.Console.WriteLine("Rex class name: " + m_RexClassName);
+                    //System.Console.WriteLine("Rex flags: " + (short)m_RexFlags);
+                    //System.Console.WriteLine("Rex collision type: " + (short)m_RexCollisionType);
+                    //System.Console.WriteLine("Rex draw distance: " + m_RexDrawDistance);
+                    //System.Console.WriteLine("Rex LOD: " + m_RexLOD);
+                    //System.Console.WriteLine("Rex mesh UUID: " + m_RexMeshUUID);
+                    //System.Console.WriteLine("Rex collisionmesh UUID: " + m_RexCollisionMeshUUID);
+                    //System.Console.WriteLine("Rex material count: " + m_RexMaterialUUID.Count);
+                    //for (int j = 0; j < m_RexMaterialUUID.Count; j++)
+                    //{
+                    //    System.Console.WriteLine("Rex material UUID " + j + ": " + m_RexMaterialUUID[j]);
+                    //}
+                    break;
+                }
+                else idx += length;
+            }
         }
 
         #endregion
@@ -1209,6 +1564,71 @@ namespace OpenSim.Region.Environment.Scenes
                 return 0;
             }
         }
+
+        // rex, added
+        public void SetMass(float vValue)
+        {
+            if (PhysActor != null)
+            {
+                // PhysActor.Mass = vValue;
+            }
+        }
+
+        // rex, added
+        public bool GetUsePrimVolumeCollision()
+        {
+            if (PhysActor != null)
+                return (PhysActor.PhysicsActorType == 4);
+            else
+                return false;
+        }
+
+        // rex, added
+        public void SetUsePrimVolumeCollision(bool vUseVolumeCollision)
+        {
+            if (PhysActor != null)
+            {
+                if (vUseVolumeCollision)
+                {
+                    if (PhysActor.PhysicsActorType != 4)
+                        PhysActor.OnCollisionUpdate += PhysicsCollisionUpdate;
+                    PhysActor.PhysicsActorType = 4;
+                }
+                else
+                {
+                    if (PhysActor.PhysicsActorType == 4)
+                        PhysActor.OnCollisionUpdate -= PhysicsCollisionUpdate;
+
+                    PhysActor.PhysicsActorType = 2;
+                }
+            }
+        }
+
+        // rex, added
+        private void PhysicsCollisionUpdate(EventArgs e)
+        {
+            if (PhysActor != null && PhysActor.PhysicsActorType == 4)
+                m_parentGroup.Scene.EventManager.TriggerOnPrimVolumeCollision(LocalID, (e as CollisionEventUpdate).m_LocalID);
+        }
+
+
+
+        // rex, added
+        public void RexUpdateCollisionMesh()
+        {
+            if (!GlobalSettings.Instance.m_3d_collision_models)
+                return;
+
+            if (m_RexCollisionMeshUUID != LLUUID.Zero && PhysActor != null)
+            {
+                bool ScaleMesh = ((m_RexFlags & REXFLAGS_SCALEMESH) != 0);
+                AssetBase tempmodel = m_parentGroup.Scene.AssetCache.FetchAsset(m_RexCollisionMeshUUID);
+                if (tempmodel != null)
+                    PhysActor.SetCollisionMesh(tempmodel.Data, tempmodel.Name, ScaleMesh);
+            }
+        }
+
+
 
         public LLVector3 GetGeometricCenter()
         {
@@ -1275,6 +1695,25 @@ namespace OpenSim.Region.Environment.Scenes
         #endregion
 
         #region Position
+
+        public void AttachToAvatar(LLUUID agentId, ScenePresence presence, byte attachPt, LLQuaternion rotation,  RegionInfo regionInfo)
+        {
+            m_attachAgentId = agentId;
+            m_attachPresence = presence;
+            m_attachPt = attachPt;
+            m_attachRot = rotation;
+            m_attachRegInfo = regionInfo;
+
+            RotationOffset = new LLQuaternion(0, 0, 0, 1);
+
+            ScheduleFullUpdate();
+        }
+
+        public void Detach()
+        {
+            m_attachPresence = null;
+            ScheduleFullUpdate();
+        }
 
         /// <summary>
         /// 
@@ -1414,6 +1853,137 @@ namespace OpenSim.Region.Environment.Scenes
             SendFullUpdateToClient(remoteClient, lPos, clientflags);
         }
 
+        public void SendAttachedUpdateToClient(IClientAPI remoteClient, LLVector3 lPos, uint clientFlags)
+        {
+            MainLog.Instance.Verbose("OBJECTPART", "Sending as attached object to " + remoteClient.FirstName + " " + remoteClient.LastName);
+            ObjectUpdatePacket objupdate = new ObjectUpdatePacket();
+            objupdate.RegionData.RegionHandle = m_attachRegInfo.RegionHandle;
+            objupdate.RegionData.TimeDilation = 64096;
+            objupdate.ObjectData = new ObjectUpdatePacket.ObjectDataBlock[2];
+
+            // avatar stuff - horrible group copypaste
+            objupdate.ObjectData[0] = new ObjectUpdatePacket.ObjectDataBlock();
+            objupdate.ObjectData[0].PSBlock = new byte[0];
+            objupdate.ObjectData[0].ExtraParams = new byte[1];
+            objupdate.ObjectData[0].MediaURL = new byte[0];
+            objupdate.ObjectData[0].NameValue = new byte[0];
+            objupdate.ObjectData[0].Text = new byte[0];
+            objupdate.ObjectData[0].TextColor = new byte[4];
+            objupdate.ObjectData[0].JointAxisOrAnchor = new LLVector3(0, 0, 0);
+            objupdate.ObjectData[0].JointPivot = new LLVector3(0, 0, 0);
+            objupdate.ObjectData[0].Material = 4;
+            objupdate.ObjectData[0].TextureAnim = new byte[0];
+            objupdate.ObjectData[0].Sound = LLUUID.Zero;
+
+            objupdate.ObjectData[0].State = 0;
+            objupdate.ObjectData[0].Data = new byte[0];
+
+            objupdate.ObjectData[0].ObjectData = new byte[76];
+            objupdate.ObjectData[0].ObjectData[15] = 128;
+            objupdate.ObjectData[0].ObjectData[16] = 63;
+            objupdate.ObjectData[0].ObjectData[56] = 128;
+            objupdate.ObjectData[0].ObjectData[61] = 102;
+            objupdate.ObjectData[0].ObjectData[62] = 40;
+            objupdate.ObjectData[0].ObjectData[63] = 61;
+            objupdate.ObjectData[0].ObjectData[64] = 189;
+
+
+            objupdate.ObjectData[0].UpdateFlags = 61 + (9 << 8) + (130 << 16) + (16 << 24);
+            objupdate.ObjectData[0].PathCurve = 16;
+            objupdate.ObjectData[0].ProfileCurve = 1;
+            objupdate.ObjectData[0].PathScaleX = 100;
+            objupdate.ObjectData[0].PathScaleY = 100;
+            objupdate.ObjectData[0].ParentID = 0;
+            objupdate.ObjectData[0].OwnerID = LLUUID.Zero;
+            objupdate.ObjectData[0].Scale = new LLVector3(1, 1, 1);
+            objupdate.ObjectData[0].PCode = 47;
+            objupdate.ObjectData[0].TextureEntry = ScenePresence.DefaultTexture;
+
+            objupdate.ObjectData[0].ID = m_attachPresence.LocalId;
+            objupdate.ObjectData[0].FullID = m_attachAgentId;
+            objupdate.ObjectData[0].ParentID = 0;
+            objupdate.ObjectData[0].NameValue =
+                   Helpers.StringToField("FirstName STRING RW SV " + m_attachPresence.Firstname + "\nLastName STRING RW SV " + m_attachPresence.Lastname);
+            LLVector3 pos2 = m_attachPresence.AbsolutePosition;
+            // new LLVector3((float) Pos.X, (float) Pos.Y, (float) Pos.Z);
+            byte[] pb = pos2.GetBytes();
+            Array.Copy(pb, 0, objupdate.ObjectData[0].ObjectData, 16, pb.Length);
+
+
+            // primitive part
+            objupdate.ObjectData[1] = new ObjectUpdatePacket.ObjectDataBlock();
+            // SetDefaultPrimPacketValues
+            objupdate.ObjectData[1].PSBlock = new byte[0];
+            objupdate.ObjectData[1].ExtraParams = new byte[1];
+            objupdate.ObjectData[1].MediaURL = new byte[0];
+            objupdate.ObjectData[1].NameValue = new byte[0];
+            objupdate.ObjectData[1].Text = new byte[0];
+            objupdate.ObjectData[1].TextColor = new byte[4];
+            objupdate.ObjectData[1].JointAxisOrAnchor = new LLVector3(0, 0, 0);
+            objupdate.ObjectData[1].JointPivot = new LLVector3(0, 0, 0);
+            objupdate.ObjectData[1].Material = 3;
+            objupdate.ObjectData[1].TextureAnim = new byte[0];
+            objupdate.ObjectData[1].Sound = LLUUID.Zero;
+            objupdate.ObjectData[1].State = 0;
+            objupdate.ObjectData[1].Data = new byte[0];
+
+            objupdate.ObjectData[1].ObjectData = new byte[60];
+            objupdate.ObjectData[1].ObjectData[46] = 128;
+            objupdate.ObjectData[1].ObjectData[47] = 63;
+
+            // SetPrimPacketShapeData
+            PrimitiveBaseShape primData = Shape;
+
+            objupdate.ObjectData[1].TextureEntry = primData.TextureEntry;
+            objupdate.ObjectData[1].PCode = primData.PCode;
+            objupdate.ObjectData[1].State = (byte)(((byte)m_attachPt) << 4);
+            objupdate.ObjectData[1].PathBegin = primData.PathBegin;
+            objupdate.ObjectData[1].PathEnd = primData.PathEnd;
+            objupdate.ObjectData[1].PathScaleX = primData.PathScaleX;
+            objupdate.ObjectData[1].PathScaleY = primData.PathScaleY;
+            objupdate.ObjectData[1].PathShearX = primData.PathShearX;
+            objupdate.ObjectData[1].PathShearY = primData.PathShearY;
+            objupdate.ObjectData[1].PathSkew = primData.PathSkew;
+            objupdate.ObjectData[1].ProfileBegin = primData.ProfileBegin;
+            objupdate.ObjectData[1].ProfileEnd = primData.ProfileEnd;
+            objupdate.ObjectData[1].Scale = primData.Scale;
+            objupdate.ObjectData[1].PathCurve = primData.PathCurve;
+            objupdate.ObjectData[1].ProfileCurve = primData.ProfileCurve;
+            objupdate.ObjectData[1].ProfileHollow = primData.ProfileHollow;
+            objupdate.ObjectData[1].PathRadiusOffset = primData.PathRadiusOffset;
+            objupdate.ObjectData[1].PathRevolutions = primData.PathRevolutions;
+            objupdate.ObjectData[1].PathTaperX = primData.PathTaperX;
+            objupdate.ObjectData[1].PathTaperY = primData.PathTaperY;
+            objupdate.ObjectData[1].PathTwist = primData.PathTwist;
+            objupdate.ObjectData[1].PathTwistBegin = primData.PathTwistBegin;
+            objupdate.ObjectData[1].ExtraParams = primData.ExtraParams;
+
+            objupdate.ObjectData[1].UpdateFlags = 276957500; // flags;  // ??
+            objupdate.ObjectData[1].ID = LocalID;
+            objupdate.ObjectData[1].FullID = UUID;
+            objupdate.ObjectData[1].OwnerID = OwnerID;
+            objupdate.ObjectData[1].Text = Helpers.StringToField(Text);
+            objupdate.ObjectData[1].TextColor[0] = 255;
+            objupdate.ObjectData[1].TextColor[1] = 255;
+            objupdate.ObjectData[1].TextColor[2] = 255;
+            objupdate.ObjectData[1].TextColor[3] = 128;
+            objupdate.ObjectData[1].ParentID = objupdate.ObjectData[0].ID;
+            //objupdate.ObjectData[1].PSBlock = particleSystem;
+            //objupdate.ObjectData[1].ClickAction = clickAction;
+            objupdate.ObjectData[1].Radius = 20;
+            objupdate.ObjectData[1].NameValue =
+            Helpers.StringToField("AttachItemID STRING RW SV " + UUID);
+            LLVector3 pos = new LLVector3((float)0.0, (float)0.0, (float)0.0);
+
+            pb = pos.GetBytes();
+            Array.Copy(pb, 0, objupdate.ObjectData[1].ObjectData, 0, pb.Length);
+
+            byte[] brot = m_attachRot.GetBytes();
+            Array.Copy(brot, 0, objupdate.ObjectData[1].ObjectData, 36, brot.Length);
+
+            remoteClient.OutPacket(objupdate, ThrottleOutPacketType.Task);
+        }
+
         /// <summary>
         /// 
         /// </summary>
@@ -1421,6 +1991,12 @@ namespace OpenSim.Region.Environment.Scenes
         /// <param name="lPos"></param>
         public void SendFullUpdateToClient(IClientAPI remoteClient, LLVector3 lPos, uint clientFlags)
         {
+            if (m_attachPresence != null)
+            {
+                SendAttachedUpdateToClient(remoteClient, lPos, clientFlags);
+                return;
+            }
+
             LLQuaternion lRot;
             lRot = RotationOffset;
             clientFlags &= ~(uint) LLObject.ObjectFlags.CreateSelected;

@@ -69,7 +69,8 @@ namespace OpenSim.Framework.Data.MSSQL
                                    ";Persist Security Info=" + persistSecurityInfo + ";User ID=" + userId + ";Password=" +
                                    password + ";";
                 dbcon = new SqlConnection(connectionString);
-                TestTables(dbcon);
+                        TestTables(dbcon);
+                //System.Threading.Thread.Sleep(3000);
                 dbcon.Open();
             }
             catch (Exception e)
@@ -105,8 +106,9 @@ namespace OpenSim.Framework.Data.MSSQL
             }
             catch (Exception)
             {
+                conn.Close();
                 conn.Open();
-                cmd = Query("alter table users add column [webLoginKey] varchar(36) default NULL", new Dictionary<string, string>());
+                cmd = Query("alter table users add [webLoginKey] varchar(36) default NULL", new Dictionary<string, string>());
                 cmd.ExecuteNonQuery();
                 cmd.Dispose();
                 conn.Close();
@@ -452,6 +454,7 @@ namespace OpenSim.Framework.Data.MSSQL
                 asset = new AssetBase();
                 asset.Data = (byte[]) reader["data"];
                 asset.Description = (string) reader["description"];
+                asset.MediaURL = (string)reader["mediaUrl"];
                 asset.FullID = new LLUUID((string) reader["id"]);
                 asset.InvType = Convert.ToSByte(reader["invType"]);
                 asset.Local = Convert.ToBoolean(reader["local"]); // ((sbyte)reader["local"]) != 0 ? true : false;

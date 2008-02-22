@@ -5,6 +5,7 @@ CREATE TABLE [assets] (
   [id] [varchar](36) NOT NULL,
   [name] [varchar](64) NOT NULL,
   [description] [varchar](64) NOT NULL,
+  [mediaURL] [varchar](255) NOT NULL,
   [assetType] [tinyint] NOT NULL,
   [invType] [tinyint] NOT NULL,
   [local] [tinyint] NOT NULL,

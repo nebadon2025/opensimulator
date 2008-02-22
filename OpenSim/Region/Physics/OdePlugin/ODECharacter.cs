@@ -31,6 +31,7 @@ using Axiom.Math;
 using Ode.NET;
 using OpenSim.Framework;
 using OpenSim.Region.Physics.Manager;
+using System.Runtime.InteropServices; // rex
 
 namespace OpenSim.Region.Physics.OdePlugin
 {
@@ -71,14 +72,19 @@ namespace OpenSim.Region.Physics.OdePlugin
         private bool jumping = false;
         //private float gravityAccel;
         public IntPtr Body;
+        private GCHandle gchBody; // rex
+
         private OdeScene _parent_scene;
         public IntPtr Shell;
+        private GCHandle gchShell; // rex
+
         public IntPtr Amotor;
         public d.Mass ShellMass;
         public bool collidelock = false;
 
-        public OdeCharacter(String avName, OdeScene parent_scene, PhysicsVector pos)
+        public OdeCharacter(String avName, OdeScene parent_scene, PhysicsVector pos, uint localID) // rex, localID added
         {
+            m_localID = localID; // rex 
             _velocity = new PhysicsVector();
             _target_velocity = new PhysicsVector();
             _position = pos;
@@ -98,8 +104,12 @@ namespace OpenSim.Region.Physics.OdePlugin
             {
                 int dAMotorEuler = 1;
                 Shell = d.CreateCapsule(parent_scene.space, CAPSULE_RADIUS, CAPSULE_LENGTH);
+                gchShell = GCHandle.Alloc(Shell, GCHandleType.Pinned); // rex
+
                 d.MassSetCapsule(out ShellMass, m_density, 3, CAPSULE_RADIUS, CAPSULE_LENGTH);
                 Body = d.BodyCreate(parent_scene.world);
+                gchBody = GCHandle.Alloc(Body, GCHandleType.Pinned); // rex
+
                 d.BodySetMass(Body, ref ShellMass);
                 d.BodySetPosition(Body, pos.X, pos.Y, pos.Z);
                 d.GeomSetBody(Shell, Body);
@@ -308,11 +318,15 @@ namespace OpenSim.Region.Physics.OdePlugin
 
                     CAPSULE_LENGTH = (SetSize.Z - ((SetSize.Z*0.43f))); // subtract 43% of the size
                     d.BodyDestroy(Body);
+                    gchBody.Free(); // rex
                     d.GeomDestroy(Shell);
+                    gchShell.Free(); // rex
                     //MainLog.Instance.Verbose("PHYSICS", "Set Avatar Height To: " + (CAPSULE_RADIUS + CAPSULE_LENGTH));
                     Shell = d.CreateCapsule(_parent_scene.space, capsuleradius, CAPSULE_LENGTH);
+                    gchShell = GCHandle.Alloc(Shell, GCHandleType.Pinned); // rex
                     d.MassSetCapsule(out ShellMass, m_density, 3, CAPSULE_RADIUS, CAPSULE_LENGTH);
                     Body = d.BodyCreate(_parent_scene.world);
+                    gchBody = GCHandle.Alloc(Body, GCHandleType.Pinned); // rex
                     d.BodySetMass(Body, ref ShellMass);
                     d.BodySetPosition(Body, _position.X, _position.Y,
                                       _position.Z + Math.Abs(CAPSULE_LENGTH - prevCapsule));

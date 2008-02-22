@@ -263,7 +263,7 @@ namespace OpenSim.Grid.UserServer
 
                 if (querysplit.Length == 2)
                 {
-                    userProfile = GetUserProfile(querysplit[0], querysplit[1]);
+                    userProfile = GetUserProfile(querysplit[0], querysplit[1], "");
                     if (userProfile == null)
                     {
                         return CreateUnknownUserErrorResponse();
@@ -291,15 +291,26 @@ namespace OpenSim.Grid.UserServer
             //CFK: Console.WriteLine("METHOD BY UUID CALLED");
             if (requestData.Contains("avatar_uuid"))
             {
+
                 LLUUID guess = new LLUUID();
                 try
                 {
-                    guess = new LLUUID((string) requestData["avatar_uuid"]);
-
-                    userProfile = GetUserProfile(guess);
+                    guess = new LLUUID((string)requestData["avatar_uuid"]);
+                    //userProfile = GetUserProfile(guess);
+                    string authAddr;
+                    if (requestData["AuthenticationAddress"] == null)
+                        authAddr = "";
+                    else
+                        authAddr = requestData["AuthenticationAddress"].ToString();
+                    userProfile = GetUserProfile(guess, authAddr);
                 }
                 catch (FormatException)
                 {
+                    return CreateUnknownUserErrorResponse();
+                }
+                catch (NullReferenceException)
+                {
+                    Console.WriteLine("NullReferenceException occured");
                     return CreateUnknownUserErrorResponse();
                 }
 

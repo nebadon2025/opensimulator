@@ -33,6 +33,7 @@ namespace OpenSim.Framework
     {
         public string First = "Test";
         public string Last = "User";
+        public string ClientVersion = "not set"; //rex
         public LLUUID Agent;
         public LLUUID Session;
         public LLUUID SecureSession = LLUUID.Zero;
@@ -41,6 +42,10 @@ namespace OpenSim.Framework
         public uint CircuitCode;
         public string CapsPath = "";
         public LLVector3 StartPos;
+
+        public string AuthAddr = "";
+        public string asAddress = "";
+
 
         public Login()
         {

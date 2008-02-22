@@ -82,6 +82,9 @@ namespace OpenSim.Framework.UserManagement
         private string firstname;
         private string lastname;
 
+        // REX (client version string)
+        private string clientVersion = "not set";
+
         // Global Textures
         private string sunTexture;
         private string cloudTexture;
@@ -157,6 +160,8 @@ namespace OpenSim.Framework.UserManagement
             lookAt = "[r0.99949799999999999756,r0.03166859999999999814,r0]";
             RegionX = (uint) 255232;
             RegionY = (uint) 254976;
+
+            clientVersion = "not set"; //rex
 
             // Classifieds;
             AddClassifiedCategory((Int32) 1, "Shopping");
@@ -348,6 +353,8 @@ namespace OpenSim.Framework.UserManagement
                 responseData["region_x"] = (Int32) RegionX*256;
                 responseData["region_y"] = (Int32) RegionY*256;
 
+                responseData["version"] = clientVersion; //rex
+
                 //responseData["inventory-lib-root"] = new ArrayList(); // todo
 
                 if (m_buddyList != null)
@@ -449,6 +456,8 @@ namespace OpenSim.Framework.UserManagement
                 map["message"] = LLSD.FromString(welcomeMessage);
                 map["region_x"] = LLSD.FromInteger(RegionX * 256);
                 map["region_y"] = LLSD.FromInteger(RegionY * 256);
+
+                map["version"] = LLSD.FromString(clientVersion); //rex
 
                 if (m_buddyList != null)
                 {
@@ -605,6 +614,12 @@ namespace OpenSim.Framework.UserManagement
             get { return lastname; }
             set { lastname = value; }
         } // Lastname
+
+        public string ClientVersion
+        {
+            get { return clientVersion; }
+            set { clientVersion = value; }
+        } //REX ClientVersion
 
         public string AgentAccess
         {

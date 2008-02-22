@@ -53,8 +53,8 @@ namespace OpenSim.Region.Communications.Local
         public event LoginToRegionEvent OnLoginToRegion;
 
         public LocalLoginService(UserManagerBase userManager, string welcomeMess, CommunicationsLocal parent,
-                                 NetworkServersInfo serversInfo, bool authenticate)
-            : base(userManager, parent.UserProfileCacheService.libraryRoot, welcomeMess)
+                                 NetworkServersInfo serversInfo, bool authenticate, bool rexMode)
+            : base(userManager, parent.UserProfileCacheService.libraryRoot, welcomeMess, rexMode)
         {
             m_Parent = parent;
             this.serversInfo = serversInfo;
@@ -64,9 +64,9 @@ namespace OpenSim.Region.Communications.Local
         }
 
 
-        public override UserProfileData GetTheUser(string firstname, string lastname)
+        public override UserProfileData GetTheUser(string firstname, string lastname, string authAddr)
         {
-            UserProfileData profile = m_userManager.GetUserProfile(firstname, lastname);
+            UserProfileData profile = m_userManager.GetUserProfile(firstname, lastname, authAddr);
             if (profile != null)
             {
                 return profile;
@@ -79,7 +79,7 @@ namespace OpenSim.Region.Communications.Local
 
                 m_userManager.AddUserProfile(firstname, lastname, "test", defaultHomeX, defaultHomeY);
 
-                profile = m_userManager.GetUserProfile(firstname, lastname);
+                profile = m_userManager.GetUserProfile(firstname, lastname, "");
                 if (profile != null)
                 {
                     m_Parent.InventoryService.CreateNewUserInventory(profile.UUID);
@@ -112,19 +112,29 @@ namespace OpenSim.Region.Communications.Local
             }
         }
 
-        public override void CustomiseResponse(LoginResponse response, UserProfileData theUser)
+        public override void CustomiseResponse(LoginResponse response, UserProfileData theUser, string ASaddress)
         {
             ulong currentRegion = theUser.currentAgent.currentHandle;
             RegionInfo reg = m_Parent.GridService.RequestNeighbourInfo(currentRegion);
 
             if (reg != null)
             {
+                // rex, start
+                LLVector3 StartLoc,StartLookAt;
+                bool bCustomStartLoc = true;
+                if (!RexScriptAccess.GetAvatarStartLocation(out StartLoc, out StartLookAt))
+                {
+                    StartLoc = theUser.homeLocation;
+                    StartLookAt = theUser.homeLocation;
+                    bCustomStartLoc = false;
+                }
+
                 response.Home = "{'region_handle':[r" + (reg.RegionLocX*256).ToString() + ",r" +
                                 (reg.RegionLocY*256).ToString() + "], " +
-                                "'position':[r" + theUser.homeLocation.X.ToString() + ",r" +
-                                theUser.homeLocation.Y.ToString() + ",r" + theUser.homeLocation.Z.ToString() + "], " +
-                                "'look_at':[r" + theUser.homeLocation.X.ToString() + ",r" +
-                                theUser.homeLocation.Y.ToString() + ",r" + theUser.homeLocation.Z.ToString() + "]}";
+                                "'position':[r" + StartLoc.X.ToString() + ",r" +
+                                StartLoc.Y.ToString() + ",r" + StartLoc.Z.ToString() + "], " +
+                                "'look_at':[r" + StartLoc.X.ToString() + ",r" +
+                                StartLoc.Y.ToString() + ",r" + StartLoc.Z.ToString() + "]}"; // rex end
                 string capsPath = Util.GetRandomCapsPath();
                 response.SimAddress = reg.ExternalEndPoint.Address.ToString();
                 response.SimPort = (uint) reg.ExternalEndPoint.Port;
@@ -149,8 +159,18 @@ namespace OpenSim.Region.Communications.Local
                 _login.Session = response.SessionID;
                 _login.SecureSession = response.SecureSessionID;
                 _login.CircuitCode = (uint) response.CircuitCode;
-                _login.StartPos = new LLVector3(128, 128, 70);
+                if(bCustomStartLoc) // rex
+                    _login.StartPos = StartLoc;
+                else
+                    _login.StartPos = theUser.currentAgent.currentPos;
                 _login.CapsPath = capsPath;
+
+                _login.ClientVersion = response.ClientVersion; //rex
+                if (m_rexMode)
+                {
+                    _login.AuthAddr = theUser.authenticationAddr;
+                    _login.asAddress = ASaddress;
+                }
 
                 if (OnLoginToRegion != null)
                 {
@@ -181,46 +201,61 @@ namespace OpenSim.Region.Communications.Local
             List<InventoryFolderBase> folders = m_Parent.InventoryService.RequestFirstLevelFolders(userID);
             if (folders.Count > 0)
             {
-                LLUUID rootID = LLUUID.Zero;
-                ArrayList AgentInventoryArray = new ArrayList();
-                Hashtable TempHash;
-                foreach (InventoryFolderBase InvFolder in folders)
+                return GetInventoryData(folders);
+            }
+            else {
+                if (!m_rexMode)
                 {
-                    if (InvFolder.parentID == LLUUID.Zero)
+                    AgentInventory userInventory = new AgentInventory();
+                    userInventory.CreateRootFolder(userID, false);
+
+                    ArrayList AgentInventoryArray = new ArrayList();
+                    Hashtable TempHash;
+                    foreach (InventoryFolder InvFolder in userInventory.InventoryFolders.Values)
                     {
-                        rootID = InvFolder.folderID;
+                        TempHash = new Hashtable();
+                        TempHash["name"] = InvFolder.FolderName;
+                        TempHash["parent_id"] = InvFolder.ParentID.ToString();
+                        TempHash["version"] = (Int32) InvFolder.Version;
+                        TempHash["type_default"] = (Int32) InvFolder.DefaultType;
+                        TempHash["folder_id"] = InvFolder.FolderID.ToString();
+                        AgentInventoryArray.Add(TempHash);
                     }
-                    TempHash = new Hashtable();
-                    TempHash["name"] = InvFolder.name;
-                    TempHash["parent_id"] = InvFolder.parentID.ToString();
-                    TempHash["version"] = (Int32) InvFolder.version;
-                    TempHash["type_default"] = (Int32) InvFolder.type;
-                    TempHash["folder_id"] = InvFolder.folderID.ToString();
-                    AgentInventoryArray.Add(TempHash);
+
+                    return new InventoryData(AgentInventoryArray, userInventory.InventoryRoot.FolderID);
                 }
-                return new InventoryData(AgentInventoryArray, rootID);
+                else { // in rex mode users are created at the authentication server and folders must be created at
+                       // first login to db 
+                    m_Parent.InventoryService.CreateNewUserInventory(userID);
+
+                    folders = m_Parent.InventoryService.RequestFirstLevelFolders(userID);
+                    return GetInventoryData(folders);
+                }
+
+
             }
-            else
+        }
+
+        private InventoryData GetInventoryData(List<InventoryFolderBase> folders)
+        {
+            LLUUID rootID = LLUUID.Zero;
+            ArrayList AgentInventoryArray = new ArrayList();
+            Hashtable TempHash;
+            foreach (InventoryFolderBase InvFolder in folders)
             {
-                AgentInventory userInventory = new AgentInventory();
-                userInventory.CreateRootFolder(userID, false);
-
-                ArrayList AgentInventoryArray = new ArrayList();
-                Hashtable TempHash;
-                foreach (InventoryFolder InvFolder in userInventory.InventoryFolders.Values)
+                if (InvFolder.parentID == LLUUID.Zero)
                 {
-                    TempHash = new Hashtable();
-                    TempHash["name"] = InvFolder.FolderName;
-                    TempHash["parent_id"] = InvFolder.ParentID.ToString();
-                    TempHash["version"] = (Int32) InvFolder.Version;
-                    TempHash["type_default"] = (Int32) InvFolder.DefaultType;
-                    TempHash["folder_id"] = InvFolder.FolderID.ToString();
-                    AgentInventoryArray.Add(TempHash);
+                    rootID = InvFolder.folderID;
                 }
-
-                return new InventoryData(AgentInventoryArray, userInventory.InventoryRoot.FolderID);
+                TempHash = new Hashtable();
+                TempHash["name"] = InvFolder.name;
+                TempHash["parent_id"] = InvFolder.parentID.ToString();
+                TempHash["version"] = (Int32)InvFolder.version;
+                TempHash["type_default"] = (Int32)InvFolder.type;
+                TempHash["folder_id"] = InvFolder.folderID.ToString();
+                AgentInventoryArray.Add(TempHash);
             }
-            
+            return new InventoryData(AgentInventoryArray, rootID);
         }
     }
 }

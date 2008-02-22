@@ -31,7 +31,6 @@ using Nini.Config;
 using OpenSim.Framework.Console;
 using OpenSim.Region.Environment.Interfaces;
 using OpenSim.Region.Environment.Scenes;
-using OpenSim.Region.ScriptEngine.Common;
 
 namespace OpenSim.Region.ScriptEngine.DotNetEngine
 {
@@ -40,7 +39,7 @@ namespace OpenSim.Region.ScriptEngine.DotNetEngine
     /// </summary>
     /// 
     [Serializable]
-    public class ScriptEngine : IRegionModule, OpenSim.Region.ScriptEngine.Common.ScriptServerInterfaces.ScriptEngine
+    public class ScriptEngine : IRegionModule
     {
         public Scene World;
         public EventManager m_EventManager; // Handles and queues incoming events from OpenSim
@@ -87,10 +86,6 @@ namespace OpenSim.Region.ScriptEngine.DotNetEngine
             // We are shutting down
         }
 
-        ScriptServerInterfaces.RemoteEvents ScriptServerInterfaces.ScriptEngine.EventManager()
-        {
-            return this.m_EventManager;
-        }
 
 
         #region IRegionModule
@@ -119,6 +114,5 @@ namespace OpenSim.Region.ScriptEngine.DotNetEngine
         }
 
         #endregion
-
     }
 }

@@ -39,6 +39,7 @@ namespace OpenSim.Framework
         public sbyte InvType;
         public string Name = "";
         public string Description = "";
+        public string MediaURL = "";//rex
         public bool Local = false;
         public bool Temporary = false;
 

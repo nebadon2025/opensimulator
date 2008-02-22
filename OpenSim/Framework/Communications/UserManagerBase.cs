@@ -44,6 +44,7 @@ namespace OpenSim.Framework.UserManagement
     {
         public UserConfig _config;
         private Dictionary<string, IUserData> _plugins = new Dictionary<string, IUserData>();
+        public bool RexMode = false; // _config is not initiated in local mode
 
         /// <summary>
         /// Adds a new user server plugin - user servers will be requested in the order they were loaded.
@@ -88,21 +89,85 @@ namespace OpenSim.Framework.UserManagement
         /// </summary>
         /// <param name="uuid">The target UUID</param>
         /// <returns>A user profile.  Returns null if no user profile is found.</returns>
-        public UserProfileData GetUserProfile(LLUUID uuid)
+        public UserProfileData GetUserProfile(LLUUID uuid, string authAddr)
+        {
+            if (!RexMode)
+            {
+                foreach (KeyValuePair<string, IUserData> plugin in _plugins)
+                {
+                    try
+                    {
+                        UserProfileData profile = plugin.Value.GetUserByUUID(uuid);
+                        if (null != profile)
+                        {
+                            profile.currentAgent = getUserAgent(profile.UUID);
+                            return profile;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        MainLog.Instance.Verbose("USERSTORAGE", "Unable to find user via " + plugin.Key + "(" + e.ToString() + ")");
+                    }
+                }
+                return null;
+            }
+            else
+            {
+                try
+                {
+                    UserProfileData userpd = null;
+                    System.Collections.Hashtable param = new System.Collections.Hashtable();
+                    param["avatar_uuid"] = uuid.ToString();
+                    param["AuthenticationAddress"] = authAddr;
+                    System.Collections.Hashtable resp = MakeCommonRequest("get_user_by_uuid", param, authAddr, 3000);
+                    userpd = RexLoginHandler.HashtableToUserProfileData(resp);
+                    return userpd;
+                }
+                catch (Exception e)
+                {
+                    System.Console.WriteLine("Error when trying to fetch profile data by uuid from remote authentication server: " +
+                                      e.Message);
+                }
+                return null;
+            }
+        }
+
+        public System.Collections.Hashtable MakeCommonRequest(string method, System.Collections.Hashtable param, string addr, int timeout)//rex
+        {
+            System.Collections.IList parameters = new System.Collections.ArrayList();
+            parameters.Add(param);
+            XmlRpcRequest req = new XmlRpcRequest(method, parameters);
+            if (!addr.StartsWith("http://"))
+                addr = "http://" + addr;
+            XmlRpcResponse resp = req.Send(addr, timeout);
+            return (System.Collections.Hashtable)resp.Value;
+        }
+
+
+        /// <summary>
+        /// Loads a user profile by name
+        /// </summary>
+        /// <param name="name">The target name</param>
+        /// <returns>A user profile</returns>
+        public UserProfileData GetUserProfileByAccount(string account)
         {
             foreach (KeyValuePair<string, IUserData> plugin in _plugins)
             {
-                UserProfileData profile = plugin.Value.GetUserByUUID(uuid);
-
-                if (null != profile)
+                try
                 {
+                    UserProfileData profile = plugin.Value.GetUserByAccount(account);
                     profile.currentAgent = getUserAgent(profile.UUID);
                     return profile;
+                }
+                catch (Exception e)
+                {
+                    MainLog.Instance.Verbose("USERSTORAGE", "Unable to find user by account via " + plugin.Key + "(" + e.ToString() + ")");
                 }
             }
 
             return null;
         }
+
 
         public List<AvatarPickerAvatar> GenerateAgentPickerRequestResponse(LLUUID queryID, string query)
         {
@@ -129,16 +194,51 @@ namespace OpenSim.Framework.UserManagement
         /// <param name="fname">First name</param>
         /// <param name="lname">Last name</param>
         /// <returns>A user profile.  Returns null if no profile is found</returns>
-        public UserProfileData GetUserProfile(string fname, string lname)
+        public UserProfileData GetUserProfile(string fname, string lname, string authAddr)
         {
-            foreach (KeyValuePair<string, IUserData> plugin in _plugins)
+            if (!RexMode)
             {
-                UserProfileData profile = plugin.Value.GetUserByName(fname, lname);
-
-                if (profile != null)
+                foreach (KeyValuePair<string, IUserData> plugin in _plugins)
                 {
-                    profile.currentAgent = getUserAgent(profile.UUID);
-                    return profile;
+                    try
+                    {
+                        UserProfileData profile = plugin.Value.GetUserByName(fname, lname);
+
+                        if (profile != null)
+                        {
+                            profile.currentAgent = getUserAgent(profile.UUID);
+                            return profile;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        MainLog.Instance.Verbose("USERSTORAGE", "Unable to find user via " + plugin.Key + "(" + e.ToString() + ")");
+                    }
+                }
+            }
+            else
+            {
+                try
+                {
+                    UserProfileData userpd = null;
+                    System.Collections.Hashtable param = new System.Collections.Hashtable();
+                    param["avatar_name"] = fname + " "+lname;
+                    param["AuthenticationAddress"] = authAddr;
+                    System.Collections.Hashtable resp = MakeCommonRequest("get_user_by_name", param, authAddr, 3000);
+                    if (resp.Contains("error_type"))
+                    {
+                        return null;
+                    }
+                    else
+                    {
+                        userpd = RexLoginHandler.HashtableToUserProfileData(resp);
+                        return userpd;
+                    }
+                }
+                catch (Exception e)
+                {
+                    System.Console.WriteLine("Error when trying to fetch profile data by firstname, lastname from remote authentication server: " +
+                                      e.Message);
                 }
             }
 
@@ -295,12 +395,36 @@ namespace OpenSim.Framework.UserManagement
         }
 
         // TODO: document
-        public void clearUserAgent(LLUUID agentID)
+        public void clearUserAgent(LLUUID agentID, string authAddr)
         {
-            UserProfileData profile = GetUserProfile(agentID);
-            profile.currentAgent = null;
-
-            setUserProfile(profile);
+            UserProfileData profile = GetUserProfile(agentID, authAddr);
+            if (profile != null)
+            {
+                profile.currentAgent = null;
+                if (!RexMode)
+                {
+                    setUserProfile(profile);
+                }
+                else
+                {
+                    try
+                    {
+                        System.Collections.Hashtable param = new System.Collections.Hashtable();
+                        param["agentID"] = profile.UUID.ToString();
+                        System.Collections.Hashtable resp = MakeCommonRequest("remove_user_agent", param, authAddr, 3000);
+                    }
+                    catch (Exception e)
+                    {
+                        System.Console.WriteLine("Error when trying to fetch agent data by uuid from remote authentication server: " +
+                                          e.Message);
+                    }
+                }
+                
+            }
+            else
+            {
+                MainLog.Instance.Verbose("USERSTORAGE", "Unable to clear user agent with agentID : " + agentID);
+            }
         }
 
         /// <summary>
@@ -461,6 +585,7 @@ namespace OpenSim.Framework.UserManagement
             user.homeRegionX = regX;
             user.homeRegionY = regY;
 
+            
             foreach (KeyValuePair<string, IUserData> plugin in _plugins)
             {
                 try
@@ -480,5 +605,97 @@ namespace OpenSim.Framework.UserManagement
         public abstract UserProfileData SetupMasterUser(string firstName, string lastName);
         public abstract UserProfileData SetupMasterUser(string firstName, string lastName, string password);
         public abstract UserProfileData SetupMasterUser(LLUUID uuid);
+
+
+        public bool AuthenticateUser(LLUUID agentId, string sessionhash, out String avatarstorage)
+        {
+            avatarstorage = "";
+            return true;
+        }
+
+        /// <summary>
+        /// Loads a user profile by name
+        /// </summary>
+        /// <param name="name">The target name</param>
+        /// <returns>A user profile</returns>
+        public UserProfileData GetUserProfile(string name, string authAddr)
+        {
+            foreach (KeyValuePair<string, IUserData> plugin in _plugins)
+            {
+                try
+                {
+                    UserProfileData profile = plugin.Value.GetUserByName(name, authAddr);
+                    profile.currentAgent = getUserAgent(profile.UUID);
+                    return profile;
+                }
+                catch (Exception e)
+                {
+                    MainLog.Instance.Verbose("USERSTORAGE", "Unable to find user via " + plugin.Key + "(" + e.ToString() + ")");
+                }
+            }
+
+            return null;
+        }
+
+        public void UpdateUserAgentData(LLUUID agentId, bool agentOnline, LLVector3 currentPos, int logoutTime, string authAddr)
+        {
+            // Saves the agent to database
+            //return true;
+            if (!RexMode)
+            {
+                foreach (KeyValuePair<string, IUserData> plugin in _plugins)
+                {
+                    try
+                    {
+                        UserAgentData agent = plugin.Value.GetAgentByUUID(agentId);
+                        if (agent != null)
+                        {
+                            agent.agentOnline = agentOnline;
+                            agent.logoutTime = logoutTime;
+                            agent.currentPos = currentPos;
+                            agent.currentPos = new LLVector3(
+                                    Convert.ToSingle(currentPos.X),
+                                    Convert.ToSingle(currentPos.Y),
+                                    Convert.ToSingle(currentPos.Z));
+                            plugin.Value.AddNewUserAgent(agent);
+                            MainLog.Instance.Verbose("USERSTORAGE", "Agent updated UUID = " + agent.UUID.ToString());
+                        }
+                        else
+                        {
+                            MainLog.Instance.Verbose("USERSTORAGE", "Agent update, agent not found with UUID = " + agentId);
+                        }
+
+                    }
+                    catch (Exception e)
+                    {
+                        MainLog.Instance.Verbose("USERSTORAGE", "Unable to add or update agent via " + plugin.Key + "(" + e.ToString() + ")");
+                    }
+                }
+            }
+            else
+            {
+                
+                try
+                {
+                    System.Collections.Hashtable param = new System.Collections.Hashtable();
+                    param["agentID"] = agentId.ToString();
+                    param["agentOnline"] = agentOnline.ToString();
+                    param["logoutTime"] = logoutTime.ToString();
+                    param["agent_currentPosX"] = Convert.ToSingle(currentPos.X).ToString();
+                    param["agent_currentPosY"] = Convert.ToSingle(currentPos.Y).ToString();
+                    param["agent_currentPosZ"] = Convert.ToSingle(currentPos.Z).ToString();
+                    param["AuthenticationAddress"] = authAddr;
+                    System.Collections.Hashtable resp = MakeCommonRequest("update_user_agent", param, authAddr, 3000);
+                }
+                catch (Exception e)
+                {
+                    System.Console.WriteLine("Error when trying to update user agent data to remote authentication server: " +
+                                      e.Message);
+                }
+                
+            }
+
+        }
+
     }
 }

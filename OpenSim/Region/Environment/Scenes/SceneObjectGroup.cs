@@ -56,6 +56,7 @@ namespace OpenSim.Region.Environment.Scenes
         public event PrimCountTaintedDelegate OnPrimCountTainted;
 
         public bool HasChanged = false;
+        public bool TemporaryPrim = false; // rex
 
         private LLVector3 lastPhysGroupPos;
         private LLQuaternion lastPhysGroupRot;
@@ -375,9 +376,8 @@ namespace OpenSim.Region.Environment.Scenes
 
             foreach (SceneObjectPart part in m_parts.Values)
             {
-                // Temporary commented to stop compiler warning
-                //Vector3 partPosition =
-                //    new Vector3(part.AbsolutePosition.X, part.AbsolutePosition.Y, part.AbsolutePosition.Z);
+                Vector3 partPosition =
+                    new Vector3(part.AbsolutePosition.X, part.AbsolutePosition.Y, part.AbsolutePosition.Z);
                 Quaternion parentrotation =
                     new Quaternion(GroupRotation.W, GroupRotation.X, GroupRotation.Y, GroupRotation.Z);
 
@@ -444,6 +444,15 @@ namespace OpenSim.Region.Environment.Scenes
                                 PrimitiveBaseShape shape)
             : this(scene, regionHandle, ownerID, localID, pos, LLQuaternion.Identity, shape)
         {
+        }
+
+        // Rex, new constructor
+        public SceneObjectGroup(Scene scene, ulong regionHandle, LLUUID ownerID, uint localID, LLVector3 pos,
+                                LLQuaternion rot, PrimitiveBaseShape shape, bool vbTempPrim, string vPyClass)
+            : this(scene, regionHandle, ownerID, localID, pos, rot, shape)
+        {
+            TemporaryPrim = vbTempPrim;
+            m_rootPart.m_RexClassName = vPyClass;
         }
 
         #endregion
@@ -543,7 +552,7 @@ namespace OpenSim.Region.Environment.Scenes
                     new PhysicsVector(dupe.RootPart.Scale.X, dupe.RootPart.Scale.Y, dupe.RootPart.Scale.Z),
                     new Quaternion(dupe.RootPart.RotationOffset.W, dupe.RootPart.RotationOffset.X,
                                    dupe.RootPart.RotationOffset.Y, dupe.RootPart.RotationOffset.Z),
-                    dupe.RootPart.PhysActor.IsPhysical);
+                    dupe.RootPart.PhysActor.IsPhysical, dupe.LocalId);
                 dupe.RootPart.DoPhysicsPropertyUpdate(dupe.RootPart.PhysActor.IsPhysical, true);
             }
             // Now we've made a copy that replaces this one, we need to 
@@ -678,6 +687,11 @@ namespace OpenSim.Region.Environment.Scenes
         /// </summary>
         public override void Update()
         {
+            if (DeleteMe) // rex, added
+            {
+                m_scene.DeleteSceneObjectGroup(this);
+                return;
+            }
             if (Util.GetDistanceTo(lastPhysGroupPos, AbsolutePosition) > 0.02)
             {
                 foreach (SceneObjectPart part in m_parts.Values)
@@ -828,8 +842,10 @@ namespace OpenSim.Region.Environment.Scenes
         /// <returns></returns>
         public bool HasChildPrim(LLUUID primID)
         {
+            SceneObjectPart childPart = null;
             if (m_parts.ContainsKey(primID))
             {
+                childPart = m_parts[primID];
                 return true;
             }
             return false;
@@ -969,7 +985,7 @@ namespace OpenSim.Region.Environment.Scenes
                         new PhysicsVector(linkPart.Scale.X, linkPart.Scale.Y, linkPart.Scale.Z),
                         new Quaternion(linkPart.RotationOffset.W, linkPart.RotationOffset.X,
                                        linkPart.RotationOffset.Y, linkPart.RotationOffset.Z),
-                        m_rootPart.PhysActor.IsPhysical);
+                        m_rootPart.PhysActor.IsPhysical, linkPart.LocalID);
                     m_rootPart.DoPhysicsPropertyUpdate(m_rootPart.PhysActor.IsPhysical, true);
                 }
 
@@ -1206,7 +1222,7 @@ namespace OpenSim.Region.Environment.Scenes
                     new PhysicsVector(m_rootPart.Scale.X, m_rootPart.Scale.Y, m_rootPart.Scale.Z),
                     new Quaternion(m_rootPart.RotationOffset.W, m_rootPart.RotationOffset.X,
                                    m_rootPart.RotationOffset.Y, m_rootPart.RotationOffset.Z),
-                    m_rootPart.PhysActor.IsPhysical);
+                    m_rootPart.PhysActor.IsPhysical, m_rootPart.LocalID);
                 bool UsePhysics = ((m_rootPart.ObjectFlags & (uint) LLObject.ObjectFlags.Physics) != 0);
                 m_rootPart.DoPhysicsPropertyUpdate(UsePhysics, true);
 
@@ -1461,6 +1477,12 @@ namespace OpenSim.Region.Environment.Scenes
         /// <param name="datastore"></param>
         public void ProcessBackup(IRegionDataStore datastore)
         {
+            // Rex, temporary prims not saved to database!
+            if (TemporaryPrim)
+            {
+                HasChanged = false;
+                return;
+            }
             if (HasChanged)
             {
                 datastore.StoreObject(this, m_scene.RegionInfo.RegionID);

@@ -202,6 +202,18 @@ namespace OpenSim.Framework.Communications.Cache
             return null;
         }
 
+        // rex, new function
+        public List<AssetBase> GetAssetList(int vAssetType)
+        {
+            return m_assetServer.GetAssetList(vAssetType);
+        }
+
+        // rex, new function
+        public AssetBase FetchAsset(LLUUID assetID)
+        {
+            return m_assetServer.FetchAsset(assetID);
+        }
+
         /// <summary>
         /// Add an asset to both the persistent store and the cache.
         /// </summary>
@@ -257,6 +269,106 @@ namespace OpenSim.Framework.Communications.Cache
             }
 
             m_log.Verbose("ASSETCACHE", "Adding {0} {1} [{2}]: {3}.", temporary, type, asset.FullID, result);
+        }
+
+        // rex, new function for "replace asset" functionality
+        public void ReplaceAsset(AssetBase asset)
+        {
+            string temporary = asset.Temporary ? "temporary" : "";
+            string type = asset.Type == 0 ? "texture" : "asset";
+
+            string result = "Ignored";
+
+            if (asset.Type == 0)
+            {
+                if (Textures.ContainsKey(asset.FullID))
+                {
+                    Textures.Remove(asset.FullID);
+                }
+
+                TextureImage textur = new TextureImage(asset);
+                Textures.Add(textur.FullID, textur);
+
+                if (asset.Temporary)
+                {
+                    result = "Replaced old asset in cache";
+                }
+                else
+                {
+                    m_assetServer.UpdateAsset(asset);
+                    result = "Replaced old asset on server";
+                }
+            }
+            else
+            {
+                if (Assets.ContainsKey(asset.FullID))
+                {
+                    Assets.Remove(asset.FullID);
+                }
+                
+                AssetInfo assetInf = new AssetInfo(asset); 
+                Assets.Add(assetInf.FullID, assetInf);
+
+                if (asset.Temporary)
+                {
+                    result = "Replaced old asset in cache";
+                }
+                else
+                {
+                    m_assetServer.UpdateAsset(asset);
+                    result = "Replaced old asset on server";
+                }
+            }
+
+            m_log.Verbose("ASSETCACHE", "Adding {0} {1} [{2}]: {3}.", temporary, type, asset.FullID, result);
+        }
+
+        // rex new function
+        public bool ExistsAsset(LLUUID assetID)
+        {
+            if (Textures.ContainsKey(assetID))
+                return true;
+            if (Assets.ContainsKey(assetID))
+                return true;
+            return m_assetServer.ExistsAsset(assetID);
+        }
+    
+        // rex new function for "replace asset" functionality
+        public LLUUID ExistsAsset(sbyte type, string name)
+        {
+            // First check locally cached assets
+            // Texture or other asset?
+            if (type == 0)
+            {
+                foreach (KeyValuePair<LLUUID, TextureImage> kvp in Textures)
+                {
+                    TextureImage t = kvp.Value;
+                    if (t != null)
+                    {
+                        if ((t.Name == name) && (t.Type == type))
+                        {
+                            return t.FullID;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                foreach (KeyValuePair<LLUUID, AssetInfo> kvp in Assets)
+                {
+                    AssetInfo a = kvp.Value;
+                    if (a != null)
+                    {
+                        if ((a.Name == name) && (a.Type == type))
+                        {
+                            return a.FullID;
+                        }
+                    }
+                }
+            }
+
+            // Then have to check asset server
+            return m_assetServer.ExistsAsset(type, name);    
         }
 
         public void DeleteAsset(LLUUID assetID)
@@ -564,6 +676,7 @@ namespace OpenSim.Framework.Communications.Cache
                 InvType = aBase.InvType;
                 Name = aBase.Name;
                 Description = aBase.Description;
+                MediaURL = aBase.MediaURL; //rex
             }
         }
 
@@ -581,6 +694,7 @@ namespace OpenSim.Framework.Communications.Cache
                 InvType = aBase.InvType;
                 Name = aBase.Name;
                 Description = aBase.Description;
+                MediaURL = aBase.MediaURL; //rex
             }
         }
 

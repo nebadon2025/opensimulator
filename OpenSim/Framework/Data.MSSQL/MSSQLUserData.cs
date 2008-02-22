@@ -244,6 +244,48 @@ namespace OpenSim.Framework.Data.MSSQL
         }
 
         /// <summary>
+        /// Searches the database for a specified user profile by account
+        /// </summary>
+        /// <param name="uuid">The account</param>
+        /// <returns>The users profile</returns>
+        public UserProfileData GetUserByAccount(string account)
+        {
+            try
+            {
+                lock (database)
+                {
+                    Dictionary<string, string> param = new Dictionary<string, string>();
+                    param["account"] = account;
+
+                    IDbCommand result = database.Query("SELECT * FROM users WHERE account = @account", param);
+                    IDataReader reader = result.ExecuteReader();
+
+                    UserProfileData row = database.readUserRow(reader);
+
+                    reader.Close();
+                    result.Dispose();
+
+                    if (row != null)
+                    {
+                        UserAgentData agentData = GetAgentByUUID(row.UUID);
+                        if (agentData != null)
+                        {
+                            row.currentAgent = agentData;
+                        }
+                    }
+
+                    return row;
+                }
+            }
+            catch (Exception e)
+            {
+                database.Reconnect();
+                MainLog.Instance.Error(e.ToString());
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Returns a user session searching by name
         /// </summary>
         /// <param name="name">The account name</param>

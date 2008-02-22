@@ -44,6 +44,9 @@ namespace OpenSim.Framework.UserManagement
         protected string m_welcomeMessage = "Welcome to OpenSim";
         protected UserManagerBase m_userManager = null;
         protected Mutex m_loginMutex = new Mutex(false);
+        protected Boolean m_rexMode;
+        protected RexLoginHandler m_rexLoginHandler;
+
         
         /// <summary>
         /// Used during login to send the skeleton of the OpenSim Library to the client.
@@ -51,11 +54,15 @@ namespace OpenSim.Framework.UserManagement
         protected LibraryRootFolder m_libraryRootFolder;
 
         public LoginService(
-            UserManagerBase userManager, LibraryRootFolder libraryRootFolder, string welcomeMess)
+            UserManagerBase userManager, LibraryRootFolder libraryRootFolder, string welcomeMess, Boolean rexMode)
         {
             m_userManager = userManager;
             m_libraryRootFolder = libraryRootFolder;
-            
+            m_rexMode = rexMode;
+            m_userManager.RexMode = rexMode;
+            if (m_rexMode)
+                m_rexLoginHandler = new RexLoginHandler(this, m_userManager);
+
             if (welcomeMess != "")
             {
                 m_welcomeMessage = welcomeMess;
@@ -73,125 +80,138 @@ namespace OpenSim.Framework.UserManagement
             m_loginMutex.WaitOne();
             try
             {
-                //CFK: CustomizeResponse contains sufficient strings to alleviate the need for this.
-                //CKF: MainLog.Instance.Verbose("LOGIN", "Attempting login now...");
-                XmlRpcResponse response = new XmlRpcResponse();
-                Hashtable requestData = (Hashtable) request.Params[0];
-
-                bool GoodXML = (requestData.Contains("first") && requestData.Contains("last") &&
-                                requestData.Contains("passwd"));
-                bool GoodLogin = false;
-
-                UserProfileData userProfile;
-                LoginResponse logResponse = new LoginResponse();
-
-                if (GoodXML)
+                if (!m_rexMode)
                 {
-                    string firstname = (string) requestData["first"];
-                    string lastname = (string) requestData["last"];
-                    string passwd = (string) requestData["passwd"];
+                    //CFK: CustomizeResponse contains sufficient strings to alleviate the need for this.
+                    //CKF: MainLog.Instance.Verbose("LOGIN", "Attempting login now...");
+                    XmlRpcResponse response = new XmlRpcResponse();
+                    Hashtable requestData = (Hashtable) request.Params[0];
 
-                    userProfile = GetTheUser(firstname, lastname);
-                    if (userProfile == null)
+                    bool GoodXML = (requestData.Contains("first") && requestData.Contains("last") &&
+                                    requestData.Contains("passwd"));
+                    bool GoodLogin = false;
+
+                    UserProfileData userProfile;
+                    LoginResponse logResponse = new LoginResponse();
+
+                    if (GoodXML)
                     {
-                        MainLog.Instance.Verbose(
-                            "LOGIN",
-                            "Could not find a profile for " + firstname + " " + lastname);
+                        string firstname = (string) requestData["first"];
+                        string lastname = (string) requestData["last"];
+                        string passwd = (string) requestData["passwd"];
 
+                        userProfile = GetTheUser(firstname, lastname, "");
+                        if (userProfile == null)
+                        {
+                            MainLog.Instance.Verbose(
+                                "LOGIN",
+                                "Could not find a profile for " + firstname + " " + lastname);
+
+                            return logResponse.CreateLoginFailedResponse();
+                        }
+
+                        GoodLogin = AuthenticateUser(userProfile, passwd);
+                    }
+                    else
+                    {
+                        return logResponse.CreateGridErrorResponse();
+                    }
+
+                    if (!GoodLogin)
+                    {
                         return logResponse.CreateLoginFailedResponse();
                     }
-
-                    GoodLogin = AuthenticateUser(userProfile, passwd);
-                }
-                else
-                {
-                    return logResponse.CreateGridErrorResponse();
-                }
-
-                if (!GoodLogin)
-                {
-                    return logResponse.CreateLoginFailedResponse();
-                }
-                else
-                {
-                    // If we already have a session...
-
-                    if (userProfile.currentAgent != null && userProfile.currentAgent.agentOnline)
+                    else
                     {
-                        userProfile.currentAgent = null;
-                        m_userManager.CommitAgent(ref userProfile);
+                        // If we already have a session...
 
-                        // Reject the login
-                        return logResponse.CreateAlreadyLoggedInResponse();
-                    }
-                    // Otherwise...
-                    // Create a new agent session
-                    CreateAgent(userProfile, request);
+                        if (userProfile.currentAgent != null && userProfile.currentAgent.agentOnline)
+                        {
+                            userProfile.currentAgent = null;
+                            m_userManager.CommitAgent(ref userProfile);
 
-                    try
-                    {
-                        LLUUID agentID = userProfile.UUID;
-
-                        // Inventory Library Section
-                        InventoryData inventData = CreateInventoryData(agentID);
-                        ArrayList AgentInventoryArray = inventData.InventoryArray;
-
-                        Hashtable InventoryRootHash = new Hashtable();
-                        InventoryRootHash["folder_id"] = inventData.RootFolderID.ToString();
-                        ArrayList InventoryRoot = new ArrayList();
-                        InventoryRoot.Add(InventoryRootHash);
-                        userProfile.rootInventoryFolderID = inventData.RootFolderID;
-
-                        // Circuit Code
-                        uint circode = (uint) (Util.RandomClass.Next());
-
-                        logResponse.Lastname = userProfile.surname;
-                        logResponse.Firstname = userProfile.username;
-                        logResponse.AgentID = agentID.ToString();
-                        logResponse.SessionID = userProfile.currentAgent.sessionID.ToString();
-                        logResponse.SecureSessionID = userProfile.currentAgent.secureSessionID.ToString();
-                        logResponse.InventoryRoot = InventoryRoot;
-                        logResponse.InventorySkeleton = AgentInventoryArray;
-                        logResponse.InventoryLibrary = GetInventoryLibrary();
-
-                        Hashtable InventoryLibRootHash = new Hashtable();
-                        InventoryLibRootHash["folder_id"] = "00000112-000f-0000-0000-000100bba000";
-                        ArrayList InventoryLibRoot = new ArrayList();
-                        InventoryLibRoot.Add(InventoryLibRootHash);
-                        logResponse.InventoryLibRoot = InventoryLibRoot;
-
-                        logResponse.InventoryLibraryOwner = GetLibraryOwner();
-                        logResponse.CircuitCode = (Int32) circode;
-                        //logResponse.RegionX = 0; //overwritten
-                        //logResponse.RegionY = 0; //overwritten
-                        logResponse.Home = "!!null temporary value {home}!!"; // Overwritten
-                        //logResponse.LookAt = "\n[r" + TheUser.homeLookAt.X.ToString() + ",r" + TheUser.homeLookAt.Y.ToString() + ",r" + TheUser.homeLookAt.Z.ToString() + "]\n";
-                        //logResponse.SimAddress = "127.0.0.1"; //overwritten
-                        //logResponse.SimPort = 0; //overwritten
-                        logResponse.Message = GetMessage();
-                        logResponse.BuddList = ConvertFriendListItem(m_userManager.GetUserFriendList(agentID)); 
+                            // Reject the login
+                            return logResponse.CreateAlreadyLoggedInResponse();
+                        }
+                        // Otherwise...
+                        // Create a new agent session
+                        CreateAgent(userProfile, request);
 
                         try
                         {
-                            CustomiseResponse(logResponse, userProfile);
-                        }
-                        catch (Exception e)
-                        {
-                            MainLog.Instance.Verbose("LOGIN", e.ToString());
-                            return logResponse.CreateDeadRegionResponse();
-                            //return logResponse.ToXmlRpcResponse();
-                        }
-                        CommitAgent(ref userProfile);
-                        return logResponse.ToXmlRpcResponse();
-                    }
+                            LLUUID agentID = userProfile.UUID;
 
-                    catch (Exception E)
-                    {
-                        MainLog.Instance.Verbose("LOGIN", E.ToString());
+                            // Inventory Library Section
+                            InventoryData inventData = CreateInventoryData(agentID);
+                            ArrayList AgentInventoryArray = inventData.InventoryArray;
+
+                            Hashtable InventoryRootHash = new Hashtable();
+                            InventoryRootHash["folder_id"] = inventData.RootFolderID.ToString();
+                            ArrayList InventoryRoot = new ArrayList();
+                            InventoryRoot.Add(InventoryRootHash);
+                            userProfile.rootInventoryFolderID = inventData.RootFolderID;
+
+                            // Circuit Code
+                            uint circode = (uint) (Util.RandomClass.Next());
+
+                            //REX: Get client version
+                            if (requestData.ContainsKey("version"))
+                            {
+                                logResponse.ClientVersion = (string)requestData["version"];
+                            }
+
+                            logResponse.Lastname = userProfile.surname;
+                            logResponse.Firstname = userProfile.username;
+                            logResponse.AgentID = agentID.ToString();
+                            logResponse.SessionID = userProfile.currentAgent.sessionID.ToString();
+                            logResponse.SecureSessionID = userProfile.currentAgent.secureSessionID.ToString();
+                            logResponse.InventoryRoot = InventoryRoot;
+                            logResponse.InventorySkeleton = AgentInventoryArray;
+                            logResponse.InventoryLibrary = GetInventoryLibrary();
+
+                            Hashtable InventoryLibRootHash = new Hashtable();
+                            InventoryLibRootHash["folder_id"] = "00000112-000f-0000-0000-000100bba000";
+                            ArrayList InventoryLibRoot = new ArrayList();
+                            InventoryLibRoot.Add(InventoryLibRootHash);
+                            logResponse.InventoryLibRoot = InventoryLibRoot;
+
+                            logResponse.InventoryLibraryOwner = GetLibraryOwner();
+                            logResponse.CircuitCode = (Int32) circode;
+                            //logResponse.RegionX = 0; //overwritten
+                            //logResponse.RegionY = 0; //overwritten
+                            logResponse.Home = "!!null temporary value {home}!!"; // Overwritten
+                            //logResponse.LookAt = "\n[r" + TheUser.homeLookAt.X.ToString() + ",r" + TheUser.homeLookAt.Y.ToString() + ",r" + TheUser.homeLookAt.Z.ToString() + "]\n";
+                            //logResponse.SimAddress = "127.0.0.1"; //overwritten
+                            //logResponse.SimPort = 0; //overwritten
+                            logResponse.Message = GetMessage();
+                            logResponse.BuddList = ConvertFriendListItem(m_userManager.GetUserFriendList(agentID)); 
+
+                            try
+                            {
+                                CustomiseResponse(logResponse, userProfile, null);
+                            }
+                            catch (Exception e)
+                            {
+                                MainLog.Instance.Verbose("LOGIN", e.ToString());
+                                return logResponse.CreateDeadRegionResponse();
+                                //return logResponse.ToXmlRpcResponse();
+                            }
+                            CommitAgent(ref userProfile);
+                            return logResponse.ToXmlRpcResponse();
+                        }
+
+                        catch (Exception E)
+                        {
+                            MainLog.Instance.Verbose("LOGIN", E.ToString());
+                        }
+                        //}
                     }
-                    //}
+                    return response;
                 }
-                return response;
+                else
+                {
+                    return m_rexLoginHandler.XmlRpcLoginMethod(request);
+                }
             }
             finally
             {
@@ -201,138 +221,231 @@ namespace OpenSim.Framework.UserManagement
 
         public LLSD LLSDLoginMethod(LLSD request)
         {
+
             // Temporary fix
             m_loginMutex.WaitOne();
 
             try
             {
-                bool GoodLogin = false;
-
-                UserProfileData userProfile = null;
-                LoginResponse logResponse = new LoginResponse();
-
-                if (request.Type == LLSDType.Map)
+                if (!m_rexMode)
                 {
-                    LLSDMap map = (LLSDMap)request;
+                    bool GoodLogin = false;
+                    string clientVersion = "not set"; //rex
 
-                    if (map.ContainsKey("first") && map.ContainsKey("last") && map.ContainsKey("passwd"))
+                    UserProfileData userProfile = null;
+                    LoginResponse logResponse = new LoginResponse();
+
+                    if (request.Type == LLSDType.Map)
                     {
-                        string firstname = map["first"].AsString();
-                        string lastname = map["last"].AsString();
-                        string passwd = map["passwd"].AsString();
+                        LLSDMap map = (LLSDMap)request;
 
-                        userProfile = GetTheUser(firstname, lastname);
-                        if (userProfile == null)
+                        if (map.ContainsKey("first") && map.ContainsKey("last") && map.ContainsKey("passwd"))
                         {
-                            MainLog.Instance.Verbose(
-                                "LOGIN",
-                                "Could not find a profile for " + firstname + " " + lastname);
+                            string firstname = map["first"].AsString();
+                            string lastname = map["last"].AsString();
+                            string passwd = map["passwd"].AsString();
 
-                            return logResponse.CreateLoginFailedResponseLLSD();
+                            //REX: Client version
+                            if (map.ContainsKey("version"))
+                            {
+                                clientVersion = map["version"].AsString();
+                            }
+
+                            userProfile = GetTheUser(firstname, lastname, "");
+                            if (userProfile == null)
+                            {
+                                MainLog.Instance.Verbose(
+                                    "LOGIN",
+                                    "Could not find a profile for " + firstname + " " + lastname);
+
+                                return logResponse.CreateLoginFailedResponseLLSD();
+                            }
+
+                            GoodLogin = AuthenticateUser(userProfile, passwd);
+                        }
+                    }
+
+                    if (!GoodLogin)
+                    {
+                        return logResponse.CreateLoginFailedResponseLLSD();
+                    }
+                    else
+                    {
+                        // If we already have a session...
+                        if (userProfile.currentAgent != null && userProfile.currentAgent.agentOnline)
+                        {
+                            userProfile.currentAgent = null;
+                            m_userManager.CommitAgent(ref userProfile);
+
+                            // Reject the login
+                            return logResponse.CreateAlreadyLoggedInResponseLLSD();
                         }
 
-                        GoodLogin = AuthenticateUser(userProfile, passwd);
-                    }
-                }
-
-                if (!GoodLogin)
-                {
-                    return logResponse.CreateLoginFailedResponseLLSD();
-                }
-                else
-                {
-                    // If we already have a session...
-                    if (userProfile.currentAgent != null && userProfile.currentAgent.agentOnline)
-                    {
-                        userProfile.currentAgent = null;
-                        m_userManager.CommitAgent(ref userProfile);
-
-                        // Reject the login
-                        return logResponse.CreateAlreadyLoggedInResponseLLSD();
-                    }
-
-                    // Otherwise...
-                    // Create a new agent session
-                    CreateAgent(userProfile, request);
-
-                    try
-                    {
-                        LLUUID agentID = userProfile.UUID;
-
-                        // Inventory Library Section
-                        InventoryData inventData = CreateInventoryData(agentID);
-                        ArrayList AgentInventoryArray = inventData.InventoryArray;
-
-                        Hashtable InventoryRootHash = new Hashtable();
-                        InventoryRootHash["folder_id"] = inventData.RootFolderID.ToString();
-                        ArrayList InventoryRoot = new ArrayList();
-                        InventoryRoot.Add(InventoryRootHash);
-                        userProfile.rootInventoryFolderID = inventData.RootFolderID;
-
-                        // Circuit Code
-                        uint circode = (uint)(Util.RandomClass.Next());
-
-                        logResponse.Lastname = userProfile.surname;
-                        logResponse.Firstname = userProfile.username;
-                        logResponse.AgentID = agentID.ToString();
-                        logResponse.SessionID = userProfile.currentAgent.sessionID.ToString();
-                        logResponse.SecureSessionID = userProfile.currentAgent.secureSessionID.ToString();
-                        logResponse.InventoryRoot = InventoryRoot;
-                        logResponse.InventorySkeleton = AgentInventoryArray;
-                        logResponse.InventoryLibrary = GetInventoryLibrary();
-
-                        Hashtable InventoryLibRootHash = new Hashtable();
-                        InventoryLibRootHash["folder_id"] = "00000112-000f-0000-0000-000100bba000";
-                        ArrayList InventoryLibRoot = new ArrayList();
-                        InventoryLibRoot.Add(InventoryLibRootHash);
-                        logResponse.InventoryLibRoot = InventoryLibRoot;
-
-                        logResponse.InventoryLibraryOwner = GetLibraryOwner();
-                        logResponse.CircuitCode = (Int32)circode;
-                        //logResponse.RegionX = 0; //overwritten
-                        //logResponse.RegionY = 0; //overwritten
-                        logResponse.Home = "!!null temporary value {home}!!"; // Overwritten
-                        //logResponse.LookAt = "\n[r" + TheUser.homeLookAt.X.ToString() + ",r" + TheUser.homeLookAt.Y.ToString() + ",r" + TheUser.homeLookAt.Z.ToString() + "]\n";
-                        //logResponse.SimAddress = "127.0.0.1"; //overwritten
-                        //logResponse.SimPort = 0; //overwritten
-                        logResponse.Message = GetMessage();
-                        logResponse.BuddList = ConvertFriendListItem(m_userManager.GetUserFriendList(agentID));
+                        // Otherwise...
+                        // Create a new agent session
+                        CreateAgent(userProfile, request);
 
                         try
                         {
-                            CustomiseResponse(logResponse, userProfile);
+                            LLUUID agentID = userProfile.UUID;
+
+                            // Inventory Library Section
+                            InventoryData inventData = CreateInventoryData(agentID);
+                            ArrayList AgentInventoryArray = inventData.InventoryArray;
+
+                            Hashtable InventoryRootHash = new Hashtable();
+                            InventoryRootHash["folder_id"] = inventData.RootFolderID.ToString();
+                            ArrayList InventoryRoot = new ArrayList();
+                            InventoryRoot.Add(InventoryRootHash);
+                            userProfile.rootInventoryFolderID = inventData.RootFolderID;
+
+                            // Circuit Code
+                            uint circode = (uint)(Util.RandomClass.Next());
+
+                            // REX: Set client version
+                            logResponse.ClientVersion = clientVersion;
+
+                            logResponse.Lastname = userProfile.surname;
+                            logResponse.Firstname = userProfile.username;
+                            logResponse.AgentID = agentID.ToString();
+                            logResponse.SessionID = userProfile.currentAgent.sessionID.ToString();
+                            logResponse.SecureSessionID = userProfile.currentAgent.secureSessionID.ToString();
+                            logResponse.InventoryRoot = InventoryRoot;
+                            logResponse.InventorySkeleton = AgentInventoryArray;
+                            logResponse.InventoryLibrary = GetInventoryLibrary();
+
+                            Hashtable InventoryLibRootHash = new Hashtable();
+                            InventoryLibRootHash["folder_id"] = "00000112-000f-0000-0000-000100bba000";
+                            ArrayList InventoryLibRoot = new ArrayList();
+                            InventoryLibRoot.Add(InventoryLibRootHash);
+                            logResponse.InventoryLibRoot = InventoryLibRoot;
+
+                            logResponse.InventoryLibraryOwner = GetLibraryOwner();
+                            logResponse.CircuitCode = (Int32)circode;
+                            //logResponse.RegionX = 0; //overwritten
+                            //logResponse.RegionY = 0; //overwritten
+                            logResponse.Home = "!!null temporary value {home}!!"; // Overwritten
+                            //logResponse.LookAt = "\n[r" + TheUser.homeLookAt.X.ToString() + ",r" + TheUser.homeLookAt.Y.ToString() + ",r" + TheUser.homeLookAt.Z.ToString() + "]\n";
+                            //logResponse.SimAddress = "127.0.0.1"; //overwritten
+                            //logResponse.SimPort = 0; //overwritten
+                            logResponse.Message = GetMessage();
+                            logResponse.BuddList = ConvertFriendListItem(m_userManager.GetUserFriendList(agentID));
+
+                            try
+                            {
+                                CustomiseResponse(logResponse, userProfile, null);
+                            }
+                            catch (Exception ex)
+                            {
+                                MainLog.Instance.Verbose("LOGIN", ex.ToString());
+                                return logResponse.CreateDeadRegionResponseLLSD();
+                            }
+
+                            CommitAgent(ref userProfile);
+
+                            return logResponse.ToLLSDResponse();
                         }
                         catch (Exception ex)
                         {
                             MainLog.Instance.Verbose("LOGIN", ex.ToString());
-                            return logResponse.CreateDeadRegionResponseLLSD();
+                            return logResponse.CreateFailedResponseLLSD();
                         }
-
-                        CommitAgent(ref userProfile);
-
-                        return logResponse.ToLLSDResponse();
-                    }
-                    catch (Exception ex)
-                    {
-                        MainLog.Instance.Verbose("LOGIN", ex.ToString());
-                        return logResponse.CreateFailedResponseLLSD();
                     }
                 }
-            }
+                else
+                {
+                    return m_rexLoginHandler.LLSDLoginMethod(request);
+                }
+
+             }
             finally
             {
                 m_loginMutex.ReleaseMutex();
             }
         }
 
+        /*
+        /// <summary>
+        /// Remove agent
+        /// </summary>
+        /// <param name="request">The XMLRPC request</param>
+        /// <returns>The response to send</returns>
+        public XmlRpcResponse XmlRpcRemoveAgentMethod(XmlRpcRequest request)
+        {
+            // Temporary fix
+            m_loginMutex.WaitOne();
+            try
+            {
+                MainLog.Instance.Verbose("REMOVE AGENT", "Attempting to remove agent...");
+                XmlRpcResponse response = new XmlRpcResponse();
+                Hashtable requestData = (Hashtable)request.Params[0];
+
+                bool parametersValid = (requestData.Contains("agentID"));
+
+                UserProfileData user;
+                LoginResponse logResponse = new LoginResponse();
+
+                if (parametersValid)
+                {
+                    string agentID = (string)requestData["agentID"];
+                    user = GetTheUser((libsecondlife.LLUUID)agentID);
+
+                    if (user == null)
+                    {
+                        MainLog.Instance.Verbose("REMOVE AGENT", "Failed. UserProfile not found.");
+                        return logResponse.CreateAgentRemoveFailedResponse();
+                    }
+
+                    if (user != null)
+                    {
+                        ClearUserAgent(ref user, user.authenticationAddr);
+                        MainLog.Instance.Verbose("REMOVE AGENT", "Success. Agent removed from database. UUID = " + user.UUID);
+                        return logResponse.GenerateAgentRemoveSuccessResponse();
+
+                    }
+                }
+
+                MainLog.Instance.Verbose("REMOVE AGENT", "Failed. Parameters invalid.");
+                return logResponse.CreateAgentRemoveFailedResponse();
+
+            }
+            finally
+            {
+                m_loginMutex.ReleaseMutex();
+            }
+
+            return null;
+
+        }//*/
+
+        public void ClearUserAgent(ref UserProfileData profile, string authAddr)
+        {
+            m_userManager.clearUserAgent(profile.UUID, authAddr);
+
+        }
+
+
         /// <summary>
         /// Customises the login response and fills in missing values.
         /// </summary>
         /// <param name="response">The existing response</param>
         /// <param name="theUser">The user profile</param>
-        public virtual void CustomiseResponse(LoginResponse response, UserProfileData theUser)
+        public virtual void CustomiseResponse(LoginResponse response, UserProfileData theUser, string ASaddress)
         {
         }
+
+        /// <summary>
+        /// Saves a target agent to the database
+        /// </summary>
+        /// <param name="profile">The users profile</param>
+        /// <returns>Successful?</returns>
+        public void UpdateAgent(UserAgentData agent, string authAddr)
+        {
+            // Saves the agent to database
+            //return true;
+            m_userManager.UpdateUserAgentData(agent.UUID, agent.agentOnline, agent.currentPos, agent.logoutTime, authAddr);
+        }
+
 
         /// <summary>
         /// Saves a target agent to the database
@@ -384,9 +497,29 @@ namespace OpenSim.Framework.UserManagement
         /// <param name="firstname"></param>
         /// <param name="lastname"></param>
         /// <returns></returns>
-        public virtual UserProfileData GetTheUser(string firstname, string lastname)
+        public virtual UserProfileData GetTheUser(string firstname, string lastname, string authAddr)
         {
-            return m_userManager.GetUserProfile(firstname, lastname);
+            return m_userManager.GetUserProfile(firstname, lastname, authAddr);
+        }
+
+        /// <summary>
+        /// Get user according to uid
+        /// </summary>
+        /// <param name="userUID"></param>
+        /// <returns></returns>
+        public virtual UserProfileData GetTheUser(LLUUID userUID)
+        {
+            return this.m_userManager.GetUserProfile(userUID, "");
+        }
+
+        /// <summary>
+        /// Get user according to account
+        /// </summary>
+        /// <param name="account"></param>
+        /// <returns></returns>
+        public virtual UserProfileData GetTheUserByAccount(string account)
+        {
+            return this.m_userManager.GetUserProfileByAccount(account);
         }
 
         /// <summary>
@@ -417,7 +550,7 @@ namespace OpenSim.Framework.UserManagement
         /// Converts the inventory library skeleton into the form required by the rpc request.
         /// </summary>
         /// <returns></returns>
-        protected virtual ArrayList GetInventoryLibrary()
+        protected internal virtual ArrayList GetInventoryLibrary()
         {
             Dictionary<LLUUID, InventoryFolderImpl> rootFolders 
                 = m_libraryRootFolder.RequestSelfAndDescendentFolders();
@@ -441,7 +574,7 @@ namespace OpenSim.Framework.UserManagement
         /// 
         /// </summary>
         /// <returns></returns>
-        protected virtual ArrayList GetLibraryOwner()
+        protected internal virtual ArrayList GetLibraryOwner()
         {
             //for now create random inventory library owner
             Hashtable TempHash = new Hashtable();
@@ -451,7 +584,7 @@ namespace OpenSim.Framework.UserManagement
             return inventoryLibOwner;
         }
 
-        protected virtual InventoryData CreateInventoryData(LLUUID userID)
+        protected internal virtual InventoryData CreateInventoryData(LLUUID userID)
         {
             AgentInventory userInventory = new AgentInventory();
             userInventory.CreateRootFolder(userID, false);

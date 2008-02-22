@@ -379,6 +379,9 @@ namespace OpenSim.Framework
     public delegate void MoveInventoryItem(
         IClientAPI remoteClient, LLUUID folderID, LLUUID itemID, int length, string newName);
 
+    public delegate void RemoveInventoryItem(
+        IClientAPI remoteClient, LLUUID itemID); // rex
+
     public delegate void RezScript(IClientAPI remoteClient, LLUUID itemID, uint localID);
 
     public delegate void UpdateTaskInventory(IClientAPI remoteClient, LLUUID itemID, LLUUID folderID, uint localID);
@@ -398,10 +401,24 @@ namespace OpenSim.Framework
     public delegate void FriendActionDelegate(IClientAPI remoteClient,LLUUID agentID,LLUUID transactionID,List<LLUUID> callingCardFolders);
     
     public delegate void FriendshipTermination(IClientAPI remoteClient,LLUUID agentID, LLUUID ExID);
-    
-   
 
-    
+    public delegate void ReceiveRexClientScriptCmd(IClientAPI remoteClient,LLUUID agentID,List<string> vParams); // rex
+
+    //Attachments
+    public delegate void RezSingleAttachmentFromInv(IClientAPI remoteClient, LLUUID itemID, LLUUID ownerID,
+                                                    uint itemFlags, byte attachPoint);
+    public delegate void ObjectAttach(IClientAPI remoteClient, uint localID, LLQuaternion rotation, byte attachPoint);
+    public delegate void ObjectDetach(IClientAPI remoteClient, uint localID);
+
+
+    // REX
+    public delegate void UpdateAssetMediaURL(IClientAPI remoteClient, LLUUID itemID, string mediaUrl);
+
+    // REX
+    public delegate void ObjectClickAction(IClientAPI remoteClient, uint objectLocalId, byte clickAction);
+
+    public delegate void TriggerSound(IClientAPI remoteClient, LLUUID soundID, LLUUID ownerID, LLUUID objectID, LLUUID parentID, ulong handle,  LLVector3 position, float gain);
+
 
     public delegate void ObjectPermissions(
         IClientAPI remoteClinet, LLUUID AgentID, LLUUID SessionID,
@@ -468,7 +485,7 @@ namespace OpenSim.Framework
         event CreateNewInventoryItem OnCreateNewInventoryItem;
         event CreateInventoryFolder OnCreateNewInventoryFolder;
         event UpdateInventoryFolder OnUpdateInventoryFolder;
-        event MoveInventoryFolder OnMoveInventoryFolder;
+        event MoveInventoryFolder OnMoveInventoryFolder;      
         event FetchInventoryDescendents OnFetchInventoryDescendents;
         event PurgeInventoryDescendents OnPurgeInventoryDescendents;
         event FetchInventory OnFetchInventory;
@@ -476,6 +493,7 @@ namespace OpenSim.Framework
         event UpdateInventoryItem OnUpdateInventoryItem;
         event CopyInventoryItem OnCopyInventoryItem;
         event MoveInventoryItem OnMoveInventoryItem;
+        event RemoveInventoryItem OnRemoveInventoryItem; // rex
         event UDPAssetUploadRequest OnAssetUploadRequest;
         event XferReceive OnXferReceive;
         event RequestXfer OnRequestXfer;
@@ -483,6 +501,10 @@ namespace OpenSim.Framework
         event RezScript OnRezScript;
         event UpdateTaskInventory OnUpdateTaskInventory;
         event RemoveTaskInventory OnRemoveTaskItem;
+
+        event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;
+        event ObjectAttach OnObjectAttach;
+        event ObjectDetach OnObjectDetach;
 
         event UUIDNameRequest OnNameFromUUIDRequest;
 
@@ -502,7 +524,11 @@ namespace OpenSim.Framework
         event FriendActionDelegate OnDenyFriendRequest;
         event FriendshipTermination OnTerminateFriendship;
 
-         
+        event ReceiveRexClientScriptCmd OnReceiveRexClientScriptCmd; // rex
+        event ObjectClickAction OnObjectClickAction; // rex
+        event UpdateAssetMediaURL OnUpdateAssetMediaURL; // rex
+        event TriggerSound OnTriggerSound;
+
         LLVector3 StartPos { get; set; }
 
         LLUUID AgentId { get; }
@@ -527,6 +553,8 @@ namespace OpenSim.Framework
         void OutPacket(Packet newPack, ThrottleOutPacketType packType);
         void SendWearables(AvatarWearable[] wearables, int serial);
         void SendAppearance(LLUUID agentID, byte[] visualParams, byte[] textureEntry);
+        void SendRexAppearance(LLUUID agentID, string avatarAddress); // rex
+        void SendRexScriptCommand(string vUnit,string vCommand, string vCmdParams); // rex
         void SendStartPingCheck(byte seq);
         void SendKillObject(ulong regionHandle, uint localID);
         void SendAnimations(LLUUID[] animID, int[] seqs, LLUUID sourceAgentId);
@@ -539,6 +567,9 @@ namespace OpenSim.Framework
 
         void SendLayerData(float[] map);
         void SendLayerData(int px, int py, float[] map);
+
+        void SendMediaURL(LLUUID assetId, string mediaURL); //rex
+
         void MoveAgentIntoRegion(RegionInfo regInfo, LLVector3 pos, LLVector3 look);
         void InformClientOfNeighbour(ulong neighbourHandle, IPEndPoint neighbourExternalEndPoint);
         AgentCircuitData RequestClientInfo();
@@ -596,12 +627,14 @@ namespace OpenSim.Framework
 
         void SendPreLoadSound(LLUUID objectID, LLUUID ownerID, LLUUID soundID);
         void SendPlayAttachedSound(LLUUID soundID, LLUUID objectID, LLUUID ownerID, float gain, byte flags);
+        void SendTriggeredSound(LLUUID soundID, LLUUID ownerID, LLUUID objectID, LLUUID parentID, ulong handle, LLVector3 position, float gain);
 
         void SendNameReply(LLUUID profileId, string firstname, string lastname);
         void SendAlertMessage(string message);
 
         void SendAgentAlertMessage(string message, bool modal);
         void SendLoadURL(string objectname, LLUUID objectID, LLUUID ownerID, bool groupOwned, string message, string url);
+        void SendDialog(string objectname, LLUUID objectID, LLUUID ownerID, string msg, LLUUID textureID, int ch, string[] buttonlabels);
         bool AddMoney(int debit);
 
         void SendSunPos(LLVector3 sunPos, LLVector3 sunVel);
@@ -609,6 +642,8 @@ namespace OpenSim.Framework
 
         void SendAvatarProperties(LLUUID avatarID, string aboutText, string bornOn, string charterMember, string flAbout,
                                   uint flags, LLUUID flImageID, LLUUID imageID, string profileURL, LLUUID partnerID);
+
+        void SendScriptTeleportRequest(string objectName, string simName, LLVector3 simPosition, LLVector3 lookAt);
 
         void SetDebug(int newDebug);
         void InPacket(Packet NewPack);

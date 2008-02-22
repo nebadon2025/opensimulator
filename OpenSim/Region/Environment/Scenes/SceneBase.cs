@@ -84,6 +84,14 @@ namespace OpenSim.Region.Environment.Scenes
             set { m_regStatus = value; }
         }
 
+        public bool RexMode
+        {
+            get { return m_rexMode; }
+            set { m_rexMode = value; }
+        }
+        public bool m_rexMode;
+
+
         #endregion
 
         #region Update Methods
@@ -128,6 +136,7 @@ namespace OpenSim.Region.Environment.Scenes
         /// </summary>
         /// <param name="agentID"></param>
         public abstract void RemoveClient(LLUUID agentID);
+        public abstract void RemoveClient(LLUUID agentID, uint circuitCode);
 
         public abstract void CloseAllAgents(uint circuitcode);
 

@@ -86,6 +86,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         private IntPtr contactgroup;
         private IntPtr LandGeom = (IntPtr) 0;
         private double[] _heightmap;
+        private GCHandle gchHeightMap; // rex
         private d.NearCallback nearCallback;
         public d.TriCallback triCallback;
         public d.TriArrayCallback triArrayCallback;
@@ -161,6 +162,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             }
 
             _heightmap = new double[514*514];
+            gchHeightMap = GCHandle.Alloc(_heightmap, GCHandleType.Pinned); // rex
 
             for (int i = 0; i < staticPrimspace.GetLength(0); i++)
             {
@@ -263,7 +265,7 @@ namespace OpenSim.Region.Physics.OdePlugin
 
                     // We only need to test p2 for 'jump crouch purposes'
                     p2.IsColliding = true;
-
+                    
 
                     switch (p1.PhysicsActorType)
                     {
@@ -277,11 +279,17 @@ namespace OpenSim.Region.Physics.OdePlugin
                         case (int) ActorTypes.Unknown:
                             p2.CollidingGround = true;
                             break;
+                        case (int)ActorTypes.PrimVolume: // rex, added primvolume
+                            if (Util.UnixTimeSinceEpoch() > p2.NextPrimVolumeTime)
+                            {
+                                p2.NextPrimVolumeTime = Util.UnixTimeSinceEpoch() + 1;
+                                p1.SendCollisionUpdate(new CollisionEventUpdate(p2.m_localID,0,true,null));
+                            }
+                            return;
                         default:
                             p2.CollidingGround = true;
                             break;
                     }
-
                     // we don't want prim or avatar to explode
 
                     #region InterPenetration Handling - Unintended physics explosions
@@ -475,14 +483,15 @@ namespace OpenSim.Region.Physics.OdePlugin
             }
         }
 
-        public override PhysicsActor AddAvatar(string avName, PhysicsVector position)
+        public override PhysicsActor AddAvatar(string avName, PhysicsVector position, uint localID) // rex, localid
         {
             PhysicsVector pos = new PhysicsVector();
             pos.X = position.X;
             pos.Y = position.Y;
             pos.Z = position.Z;
-            OdeCharacter newAv = new OdeCharacter(avName, this, pos);
+            OdeCharacter newAv = new OdeCharacter(avName, this, pos, localID); // rex, localid
             _characters.Add(newAv);
+
             return newAv;
         }
 
@@ -746,7 +755,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         }
 
         private PhysicsActor AddPrim(String name, PhysicsVector position, PhysicsVector size, Quaternion rotation,
-                                     IMesh mesh, PrimitiveBaseShape pbs, bool isphysical)
+                                     IMesh mesh, PrimitiveBaseShape pbs, bool isphysical, uint localID) // rex, localid
         {
             PhysicsVector pos = new PhysicsVector();
             pos.X = position.X;
@@ -772,7 +781,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             OdePrim newPrim;
             lock (OdeLock)
             {
-                newPrim = new OdePrim(name, this, targetspace, pos, siz, rot, mesh, pbs, isphysical);
+                newPrim = new OdePrim(name, this, targetspace, pos, siz, rot, mesh, pbs, isphysical, localID); // rex, localid
 
                 _prims.Add(newPrim);
             }
@@ -850,13 +859,13 @@ namespace OpenSim.Region.Physics.OdePlugin
         }
 
         public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, PhysicsVector position,
-                                                  PhysicsVector size, Quaternion rotation) //To be removed
+                                                  PhysicsVector size, Quaternion rotation, uint localID) //To be removed rex, localid
         {
-            return AddPrimShape(primName, pbs, position, size, rotation, false);
+            return AddPrimShape(primName, pbs, position, size, rotation, false,localID);
         }
 
         public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, PhysicsVector position,
-                                                  PhysicsVector size, Quaternion rotation, bool isPhysical)
+                                                  PhysicsVector size, Quaternion rotation, bool isPhysical, uint localID) // rex, localid
         {
             PhysicsActor result;
             IMesh mesh = null;
@@ -873,7 +882,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                     break;
             }
 
-            result = AddPrim(primName, position, size, rotation, mesh, pbs, isPhysical);
+            result = AddPrim(primName, position, size, rotation, mesh, pbs, isPhysical, localID); // rex, localid
 
 
             return result;

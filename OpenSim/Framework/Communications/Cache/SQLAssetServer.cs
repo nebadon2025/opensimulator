@@ -77,6 +77,12 @@ namespace OpenSim.Framework.Communications.Cache
             m_assetProvider.CommitAssets();
         }
 
+        // rex new function for "replace assets" functionality
+        public override libsecondlife.LLUUID ExistsAsset(sbyte assetType, string name)
+        {
+            return m_assetProvider.ExistsAsset(assetType, name);
+        }
+
         protected override AssetBase GetAsset(AssetRequest req)
         {
             AssetBase asset;

@@ -44,6 +44,7 @@ namespace OpenSim.Framework
             InvType = a.InvType;
             Name = a.Name;
             Description = a.Description;
+            MediaURL = a.MediaURL; //rex
             InternData();
         }
 

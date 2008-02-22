@@ -115,6 +115,7 @@ namespace SimpleApp
         public event UpdateInventoryItem OnUpdateInventoryItem;
         public event CopyInventoryItem OnCopyInventoryItem;
         public event MoveInventoryItem OnMoveInventoryItem;
+        public event RemoveInventoryItem OnRemoveInventoryItem; // rex
         public event UDPAssetUploadRequest OnAssetUploadRequest;
         public event XferReceive OnXferReceive;
         public event RequestXfer OnRequestXfer;
@@ -122,6 +123,10 @@ namespace SimpleApp
         public event RezScript OnRezScript;
         public event UpdateTaskInventory OnUpdateTaskInventory;
         public event RemoveTaskInventory OnRemoveTaskItem;
+
+        public event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;
+        public event ObjectAttach OnObjectAttach;
+        public event ObjectDetach OnObjectDetach;
 
         public event UUIDNameRequest OnNameFromUUIDRequest;
 
@@ -142,6 +147,11 @@ namespace SimpleApp
         public event FriendActionDelegate OnApproveFriendRequest;
         public event FriendActionDelegate OnDenyFriendRequest;
         public event FriendshipTermination OnTerminateFriendship;
+
+        public event ReceiveRexClientScriptCmd OnReceiveRexClientScriptCmd; // rex
+        public event ObjectClickAction OnObjectClickAction; // rex
+        public event UpdateAssetMediaURL OnUpdateAssetMediaURL; // rex
+        public event TriggerSound OnTriggerSound;
 
 #pragma warning restore 67
 
@@ -206,6 +216,14 @@ namespace SimpleApp
         {
         }
 
+        public virtual void SendRexAppearance(LLUUID agentID, string avatarAddress) // rex
+        {
+        }
+
+        public virtual void SendRexScriptCommand(string vUnit, string vCommand, string vCmdParams) // rex
+        {
+        }
+
         public virtual void Kick(string message)
         {
         }
@@ -250,6 +268,11 @@ namespace SimpleApp
         }
 
         public virtual void SendLayerData(int px, int py, float[] map)
+        {
+        }
+
+        //rex
+        public virtual void SendMediaURL(LLUUID assetId, string mediaURL)
         {
         }
 
@@ -374,6 +397,11 @@ namespace SimpleApp
         {
         }
 
+        public void SendTriggeredSound(LLUUID soundID, LLUUID ownerID, LLUUID objectID, LLUUID parentID, ulong handle, LLVector3 position, float gain)
+        {
+        }
+
+
         public void SendAlertMessage(string message)
         {
         }
@@ -388,6 +416,10 @@ namespace SimpleApp
 
         public void SendLoadURL(string objectname, LLUUID objectID, LLUUID ownerID, bool groupOwned, string message,
                                 string url)
+        {
+        }
+
+        public void SendDialog(string objectname, LLUUID objectID, LLUUID ownerID, string msg, LLUUID textureID, int ch, string[] buttonlabels)
         {
         }
 
@@ -500,5 +532,7 @@ namespace SimpleApp
         public void SendLogoutPacket()
         {
         }
+
+        public void SendScriptTeleportRequest(string objectName, string simName, LLVector3 simPosition, LLVector3 lookAt) { }
     }
 }

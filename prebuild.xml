@@ -374,7 +374,7 @@
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Region.Physics.Manager" localCopy="false"/>
       <Reference name="Ode.NET.dll" localCopy="false" />
-
+      <Reference name="RexDotMeshLoader.dll" localCopy="false" />
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -632,11 +632,13 @@
       <Reference name="Db4objects.Db4o.dll"/>
       <Reference name="OpenSim.Region.Terrain.BasicTerrain"/>
       <Reference name="OpenSim.Region.Environment"/>
+	  <Reference name="OpenSim.Region.Communications.VoiceChat"/>
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Data"/>
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Framework.Communications"/>
+	  <Reference name="OpenSim.Framework.ServerStatus"/>
       <Reference name="OpenSim.Region.Communications.Local"/>      
       <Reference name="OpenSim.Region.Physics.Manager"/>
       <Reference name="XMLRPC.dll"/>
@@ -672,6 +674,34 @@
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
+
+
+    <Project name="OpenSim.DataStore.MonoSqlite" path="OpenSim/Region/Storage/OpenSim.DataStore.MonoSqlite" type="Library">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../../../../bin/</ReferencePath>
+      <Reference name="System" localCopy="false"/>
+      <Reference name="System.Xml"/>
+      <Reference name="System.Data"/>
+      <Reference name="Mono.Data.SqliteClient"/>
+      <Reference name="libsecondlife.dll"/>
+      <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Region.Environment"/>
+      <Reference name="OpenSim.Framework.Console"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+
 
     <Project name="OpenSim.DataStore.MSSQL" path="OpenSim/Region/Storage/OpenSim.DataStore.MSSQL" type="Library">
       <Configuration name="Debug">
@@ -755,6 +785,7 @@
       <Reference name="OpenSim.Region.Environment"/>
       <Reference name="OpenSim.Region.ClientStack"/>
       <Reference name="OpenSim.Framework.Communications"/>
+	  <Reference name="OpenSim.Framework.ServerStatus"/>
       <Reference name="OpenSim.Region.Communications.OGS1"/>
       <Reference name="XMLRPC.dll"/>
       <Reference name="OpenSim.Region.Communications.Local"/>
@@ -941,7 +972,6 @@
       <Reference name="OpenSim.Framework.Data"/>
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Console"/>
-      <Reference name="OpenSim.Region.Environment"/>
       <Reference name="libsecondlife.dll"/>
       <Reference name="Mono.Data.SqliteClient"/>
       <Files>
@@ -1146,6 +1176,7 @@
       <Reference name="RAIL.dll"/>
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="OpenSim.Framework.Communications"/>
       <Reference name="OpenSim.Region.ScriptEngine.Common"/>
       <Reference name="OpenSim.Region.Terrain.BasicTerrain"/>
       <Reference name="Axiom.MathLib.dll" localCopy="false"/>
@@ -1224,7 +1255,94 @@
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
+	
+	<!-- Rex VoiceChat -->
+	<Project name="OpenSim.Region.Communications.VoiceChat" path="OpenSim/Region/Communications/VoiceChat" type="Library">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
 
+      <ReferencePath>../../../../bin/</ReferencePath>      
+      <Reference name="System" localCopy="false"/>
+      <Reference name="OpenSim.Region.Environment" />
+      <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Framework.Console"/>
+	  <Reference name="OpenSim.Framework.ServerStatus"/>
+      <Reference name="OpenSim.Region.ScriptEngine.Common"/>
+      <Reference name="Axiom.MathLib.dll" localCopy="false"/>
+      <Reference name="System.Web.Services"/>
+	  <Reference name="libsecondlife.dll"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+	
+	<!-- Rex ServerStatus -->
+    <Project name="OpenSim.Framework.ServerStatus" path="OpenSim/Framework/ServerStatus" type="Library">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+
+	  <ReferencePath>../../../bin/</ReferencePath>
+      <Reference name="OpenSim.Framework"/>
+	  <Reference name="System"/>
+	  <Reference name="System.Data"/>
+	  <Reference name="System.Drawing"/>
+	  <Reference name="System.Web"/>
+      <Reference name="System.Windows.Forms"/>
+	  
+	  <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+	</Project>
+
+
+    <!-- rex, rexscriptmodule -->
+    <Project name="OpenSim.Region.RexScriptModule" path="OpenSim/Region/RexScriptModule" type="Library">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../../../bin/ScriptEngines/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../../../bin/ScriptEngines/</OutputPath>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../../../bin/</ReferencePath>
+      <ReferencePath>../../../bin/ScriptEngines/</ReferencePath> 
+      <Reference name="System" localCopy="false"/>
+      <Reference name="System.Xml" localCopy="false"/>
+      <Reference name="System.Data" localCopy="false"/>
+      <Reference name="Axiom.MathLib.dll"/>
+      <Reference name="IronPython.dll"/>
+      <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="OpenSim.Framework.Communications"/>
+      <Reference name="OpenSim.Region.Environment"/>
+      <Reference name="OpenSim.Region.ScriptEngine.DotNetEngine"/>
+      <Reference name="OpenSim.Region.ScriptEngine.Common"/>
+      <Reference name="libsecondlife.dll"/>
+	<Reference name="Nini.dll" />
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
 
     
     <!-- Tools -->

@@ -176,7 +176,7 @@ namespace OpenSim.Region.Environment.Scenes
             agentData.AgentID = avatarID;
             agentData.QueryID = RequestID;
             replyPacket.AgentData = agentData;
-            //byte[] bytes = new byte[AvatarResponses.Count*32];
+            byte[] bytes = new byte[AvatarResponses.Count*32];
 
             int i = 0;
             foreach (AvatarPickerAvatar item in AvatarResponses)
@@ -195,5 +195,12 @@ namespace OpenSim.Region.Environment.Scenes
             replyPacket.Data = searchData;
             client.SendAvatarPickerReply(replyPacket);
         }
+
+        // rex, added
+        public void ProcessRexClientScriptCommand(IClientAPI remoteClient,LLUUID agentID,List<string> vParams) 
+        {
+            EventManager.TriggerOnRexClientScriptCommand(GetScenePresence(agentID), vParams);
+        }
+
     }
 }

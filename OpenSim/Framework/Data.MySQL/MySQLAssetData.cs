@@ -138,11 +138,26 @@ namespace OpenSim.Framework.Data.MySQL
             throw new Exception("The method or operation is not implemented.");
         }
 
+        // rex, new function, fixme not implemented
+        public List<AssetBase> GetAssetList(int vAssetType)
+        {
+            List<AssetBase> retvals = new List<AssetBase>();
+            return retvals;
+        }
+
         /// <summary>
         /// All writes are immediately commited to the database, so this is a no-op
         /// </summary>
         public void CommitAssets()
         {
+        }
+
+        // rex new function for "replace assets" functionality
+        // TODO: actual implementation by someone, should return LLUUID of an asset 
+        // with matching type & name, or zero if not in DB
+        public LLUUID ExistsAsset(sbyte type, string name)
+        {
+            return LLUUID.Zero;
         }
 
         #endregion

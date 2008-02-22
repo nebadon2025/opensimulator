@@ -28,12 +28,14 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.IO;
 using libsecondlife;
 using OpenSim.Framework;
 using OpenSim.Framework.Communications.Cache;
 using OpenSim.Framework.Console;
 using OpenSim.Framework.Servers;
+using Nwc.XmlRpc;
 
 namespace OpenSim.Grid.UserServer
 {
@@ -50,6 +52,8 @@ namespace OpenSim.Grid.UserServer
 
         private LogBase m_console;
         private LLUUID m_lastCreatedUser = LLUUID.Random();
+
+        private Boolean m_rexMode;
 
         [STAThread]
         public static void Main(string[] args)
@@ -94,6 +98,7 @@ namespace OpenSim.Grid.UserServer
 
             m_loginService = new UserLoginService(
                  m_userManager, new LibraryRootFolder(), Cfg, Cfg.DefaultStartupMsg);
+            m_rexMode = Cfg.RexMode;
 
             m_messagesService = new MessageServersConnector(MainLog.Instance);
 
@@ -106,19 +111,34 @@ namespace OpenSim.Grid.UserServer
             
             httpServer.SetLLSDHandler(m_loginService.LLSDLoginMethod);
 
-            httpServer.AddXmlRPCHandler("get_user_by_name", m_userManager.XmlRPCGetUserMethodName);
-            httpServer.AddXmlRPCHandler("get_user_by_uuid", m_userManager.XmlRPCGetUserMethodUUID);
-            httpServer.AddXmlRPCHandler("get_avatar_picker_avatar", m_userManager.XmlRPCGetAvatarPickerAvatar);
-            httpServer.AddXmlRPCHandler("add_new_user_friend", m_userManager.XmlRpcResponseXmlRPCAddUserFriend);
-            httpServer.AddXmlRPCHandler("remove_user_friend", m_userManager.XmlRpcResponseXmlRPCRemoveUserFriend);
-            httpServer.AddXmlRPCHandler("update_user_friend_perms", m_userManager.XmlRpcResponseXmlRPCUpdateUserFriendPerms);
-            httpServer.AddXmlRPCHandler("get_user_friend_list", m_userManager.XmlRpcResponseXmlRPCGetUserFriendList);
-           
-            // Message Server ---> User Server
-            httpServer.AddXmlRPCHandler("register_messageserver", m_messagesService.XmlRPCRegisterMessageServer);
-            httpServer.AddXmlRPCHandler("agent_change_region", m_messagesService.XmlRPCUserMovedtoRegion);
-            httpServer.AddXmlRPCHandler("deregister_messageserver", m_messagesService.XmlRPCDeRegisterMessageServer);
+            if (!m_rexMode) {
+                httpServer.AddXmlRPCHandler("get_user_by_name", m_userManager.XmlRPCGetUserMethodName);
+                httpServer.AddXmlRPCHandler("get_user_by_uuid", m_userManager.XmlRPCGetUserMethodUUID);
+                httpServer.AddXmlRPCHandler("get_avatar_picker_avatar", m_userManager.XmlRPCGetAvatarPickerAvatar);
+                httpServer.AddXmlRPCHandler("add_new_user_friend", m_userManager.XmlRpcResponseXmlRPCAddUserFriend);
+                httpServer.AddXmlRPCHandler("remove_user_friend", m_userManager.XmlRpcResponseXmlRPCRemoveUserFriend);
+                httpServer.AddXmlRPCHandler("update_user_friend_perms", m_userManager.XmlRpcResponseXmlRPCUpdateUserFriendPerms);
+                httpServer.AddXmlRPCHandler("get_user_friend_list", m_userManager.XmlRpcResponseXmlRPCGetUserFriendList);
 
+                // Message Server ---> User Server
+                httpServer.AddXmlRPCHandler("register_messageserver", m_messagesService.XmlRPCRegisterMessageServer);
+                httpServer.AddXmlRPCHandler("agent_change_region", m_messagesService.XmlRPCUserMovedtoRegion);
+                httpServer.AddXmlRPCHandler("deregister_messageserver", m_messagesService.XmlRPCDeRegisterMessageServer);
+            }
+            else {
+                httpServer.AddXmlRPCHandler("get_user_by_name", new RexRemoteHandler("get_user_by_name").rexRemoteXmlRPCHandler);
+                httpServer.AddXmlRPCHandler("get_user_by_uuid", new RexRemoteHandler("get_user_by_uuid").rexRemoteXmlRPCHandler);
+                httpServer.AddXmlRPCHandler("get_avatar_picker_avatar", new RexRemoteHandler("get_avatar_picker_avatar").rexRemoteXmlRPCHandler);
+                httpServer.AddXmlRPCHandler("add_new_user_friend", new RexRemoteHandler("add_new_user_friend").rexRemoteXmlRPCHandler);
+                httpServer.AddXmlRPCHandler("remove_user_friend", new RexRemoteHandler("remove_user_friend").rexRemoteXmlRPCHandler);
+                httpServer.AddXmlRPCHandler("update_user_friend_perms", new RexRemoteHandler("update_user_friend_perms").rexRemoteXmlRPCHandler);
+                httpServer.AddXmlRPCHandler("get_user_friend_list", new RexRemoteHandler("get_user_friend_list").rexRemoteXmlRPCHandler);
+
+                // Message Server ---> User Server
+                httpServer.AddXmlRPCHandler("register_messageserver", new RexRemoteHandler("register_messageserver").rexRemoteXmlRPCHandler);
+                httpServer.AddXmlRPCHandler("agent_change_region", new RexRemoteHandler("agent_change_region").rexRemoteXmlRPCHandler);
+                httpServer.AddXmlRPCHandler("deregister_messageserver", new RexRemoteHandler("deregister_messageserver").rexRemoteXmlRPCHandler);
+            }
 
             httpServer.AddStreamHandler(
                 new RestStreamHandler("DELETE", "/usersessions/", m_userManager.RestDeleteUserSessionMethod));
@@ -241,4 +261,55 @@ namespace OpenSim.Grid.UserServer
         {
         }
     }
+
+    /// <summary>
+    /// for forwarding some requests to authentication server
+    /// </summary>
+    class RexRemoteHandler
+    {
+        private string methodName;
+
+        public RexRemoteHandler(String method)
+        {
+            methodName = method;
+        }
+
+        public XmlRpcResponse rexRemoteXmlRPCHandler(XmlRpcRequest request)
+        {
+            Hashtable requestData = (Hashtable)request.Params[0];
+            string authAddr;
+            if (requestData.Contains("AuthenticationAddress") && requestData["AuthenticationAddress"] != null)
+            {
+                authAddr = (string)requestData["AuthenticationAddress"];
+            }
+            else
+            {
+                return CreateErrorResponse("unknown_authentication",
+                                           "Request did not contain authentication address");
+            }
+
+            ArrayList SendParams = new ArrayList();
+            foreach (Object obj in request.Params)
+            {
+                SendParams.Add(obj);
+            }
+            XmlRpcRequest req = new XmlRpcRequest(methodName, SendParams);
+            if(!authAddr.StartsWith("http://"))
+                authAddr = "http://"+ authAddr;
+            XmlRpcResponse res = req.Send(authAddr, 30000);
+            return res;
+        }
+
+        public XmlRpcResponse CreateErrorResponse(string type, string desc)
+        {
+            XmlRpcResponse response = new XmlRpcResponse();
+            Hashtable responseData = new Hashtable();
+            responseData["error_type"] = type;
+            responseData["error_desc"] = desc;
+
+            response.Value = responseData;
+            return response;
+        }
+    }
+
 }

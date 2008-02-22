@@ -63,6 +63,18 @@ namespace OpenSim.Framework.Data.DB4o
         }
 
         /// <summary>
+        /// Loads a specified user profile from a account
+        /// </summary>
+        /// <param name="uuid">The users account</param>
+        /// <returns>A user profile</returns>
+        public UserProfileData GetUserByAccount(string account)
+        {
+            if (manager.userProfiles.ContainsKey(account))
+                return manager.userProfiles[account];
+            return null;
+        }
+
+        /// <summary>
         /// Returns a user by searching for its name
         /// </summary>
         /// <param name="name">The users account name</param>

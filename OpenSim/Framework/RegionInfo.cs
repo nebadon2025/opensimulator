@@ -169,6 +169,13 @@ namespace OpenSim.Framework
         public string MasterAvatarLastName = "";
         public string MasterAvatarSandboxPassword = "";
 
+        public LLUUID SkyboxFront = null;
+        public LLUUID SkyboxBack = null;
+        public LLUUID SkyboxLeft = null;
+        public LLUUID SkyboxRight = null;
+        public LLUUID SkyboxTop = null;
+        public LLUUID SkyboxBottom = null;
+
         // Apparently, we're applying the same estatesettings regardless of whether it's local or remote.
         private static EstateSettings m_estateSettings;
 

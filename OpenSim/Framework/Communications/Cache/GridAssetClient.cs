@@ -116,6 +116,13 @@ namespace OpenSim.Framework.Communications.Cache
             throw new Exception("The method or operation is not implemented.");
         }
 
+        // rex new function for "replace assets" functionality
+        // TODO: implementation by someone
+        public override libsecondlife.LLUUID ExistsAsset(sbyte assetType, string name)
+        {
+            throw new Exception("The method or operation is not implemented.");
+        }
+
         #endregion
     }
 }

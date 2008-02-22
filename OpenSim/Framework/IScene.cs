@@ -47,6 +47,7 @@ namespace OpenSim.Framework
 
         void AddNewClient(IClientAPI client, bool child);
         void RemoveClient(LLUUID agentID);
+        void RemoveClient(LLUUID agentID, uint circuitCode);
         void CloseAllAgents(uint circuitcode);
 
         void Restart(int seconds);
@@ -60,5 +61,7 @@ namespace OpenSim.Framework
         RegionStatus Region_Status { get; set; }
 
         ClientManager ClientManager { get; }
+
+        bool RexMode { get; set; }//rex
     }
 }

@@ -295,7 +295,8 @@ namespace OpenSim.Framework.Data.MySQL
                 retval.regionDataURI = (string) reader["regionDataURI"];
                 retval.regionOnline = false; // Needs to be pinged before this can be set.
                 retval.serverIP = (string) reader["serverIP"];
-                retval.serverPort = (uint) reader["serverPort"];
+                retval.serverPort = uint.Parse(reader["serverPort"].ToString());
+                //retval.serverPort = (uint) reader["serverPort"]; // this caused exceptions
                 retval.serverURI = (string) reader["serverURI"];
                 retval.httpPort = Convert.ToUInt32(reader["serverHttpPort"].ToString());
                 retval.remotingPort = Convert.ToUInt32(reader["serverRemotingPort"].ToString());

@@ -107,6 +107,9 @@ namespace OpenSim.Region.ClientStack
             try
             {
                 numBytes = Server.EndReceiveFrom(result, ref epSender);
+
+                //Report byte count to rex statuswindow
+                OpenSim.Framework.ServerStatus.ServerStatus.ReportInPacketUdp(numBytes);
             }
             catch (SocketException e)
             {
@@ -272,7 +275,28 @@ namespace OpenSim.Region.ClientStack
             if (clientCircuits_reverse.TryGetValue(circuitcode, out sendto))
             {
                 //we found the endpoint so send the packet to it
-                Server.SendTo(buffer, size, flags, sendto);
+                while (true)
+                {
+                    try
+                    {
+                        Server.SendTo(buffer, size, flags, sendto);
+                        return;
+                    }
+                    catch (SocketException e)
+                    {
+                        if (e.ErrorCode == 10055)
+                        {
+                            //Send buffer full, halt for half second and retry
+                            MainLog.Instance.Warn("SERVER", "Socket send buffer was full, halting for 200ms");
+                            System.Threading.Thread.Sleep(200);
+                        }
+                        else
+                        {
+                            //Rethrow
+                            throw e;
+                        }
+                    }
+                }
             }
         }
 

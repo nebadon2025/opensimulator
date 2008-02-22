@@ -90,7 +90,7 @@ namespace OpenSim.Region.Physics.PhysXPlugin
         }
 
 
-        public override PhysicsActor AddAvatar(string avName, PhysicsVector position)
+        public override PhysicsActor AddAvatar(string avName, PhysicsVector position, uint localID)
         {
             Vec3 pos = new Vec3();
             pos.X = position.X;
@@ -110,7 +110,7 @@ namespace OpenSim.Region.Physics.PhysXPlugin
         {
         }
 
-        private PhysicsActor AddPrim(PhysicsVector position, PhysicsVector size, Quaternion rotation)
+        private PhysicsActor AddPrim(PhysicsVector position, PhysicsVector size, Quaternion rotation, uint localID)
         {
             Vec3 pos = new Vec3();
             pos.X = position.X;
@@ -126,15 +126,15 @@ namespace OpenSim.Region.Physics.PhysXPlugin
         }
 
         public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, PhysicsVector position,
-                                                  PhysicsVector size, Quaternion rotation) //To be removed
+                                                  PhysicsVector size, Quaternion rotation, uint localID) //To be removed
         {
-            return AddPrimShape(primName, pbs, position, size, rotation, false);
+            return AddPrimShape(primName, pbs, position, size, rotation, false,localID);
         }
 
         public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, PhysicsVector position,
-                                                  PhysicsVector size, Quaternion rotation, bool isPhysical)
+                                                  PhysicsVector size, Quaternion rotation, bool isPhysical, uint localID)
         {
-            return AddPrim(position, size, rotation);
+            return AddPrim(position, size, rotation,localID);
         }
 
         public override void AddPhysicsActorTaint(PhysicsActor prim)

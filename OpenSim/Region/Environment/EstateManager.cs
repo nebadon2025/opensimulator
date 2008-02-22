@@ -449,8 +449,8 @@ namespace OpenSim.Region.Environment
                 if (splitField.Length == 3)
                 {
                     Int16 corner = Convert.ToInt16(splitField[0]);
-                    float lowValue = (float) Convert.ToDecimal(splitField[1]);
-                    float highValue = (float) Convert.ToDecimal(splitField[2]);
+                    float lowValue = (float) Convert.ToDouble(splitField[1].Replace('.', ','));
+                    float highValue = (float) Convert.ToDouble(splitField[2].Replace('.', ','));
 
                     setEstateTextureRange(corner, lowValue, highValue);
                 }

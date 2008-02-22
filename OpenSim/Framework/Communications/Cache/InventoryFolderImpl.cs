@@ -152,5 +152,33 @@ namespace OpenSim.Framework.Communications.Cache
             }
             return folderList;
         }
+
+        // rex, new function
+        public void ClearFolder()
+        {
+            Items.Clear();
+            SubFolders.Clear();
+        }
+
+        // rex, new function
+        public bool HasAssetID(LLUUID assetID)
+        {
+            foreach (InventoryItemBase item in Items.Values)
+            {
+                if (item.assetID == assetID)
+                    return true;
+            }
+
+            foreach (InventoryFolderImpl folder in SubFolders.Values)
+            {
+                if (folder.name != "World Library")
+                {
+                    if (folder.HasAssetID(assetID))
+                        return true;
+                }
+            }
+
+            return false;
+        }
     }
 }

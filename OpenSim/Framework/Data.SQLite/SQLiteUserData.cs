@@ -114,6 +114,33 @@ namespace OpenSim.Framework.Data.SQLite
             }
         }
 
+        /// <summary>
+        /// Loads a specified user profile from a account
+        /// </summary>
+        /// <param name="account">The users account</param>
+        /// <returns>A user profile</returns>
+        public UserProfileData GetUserByAccount(string account)
+        {
+            lock (ds)
+            {
+                DataRow row = ds.Tables["users"].Rows.Find(account);
+                if (row != null)
+                {
+                    UserProfileData user = buildUserProfile(row);
+                    row = ds.Tables["useragents"].Rows.Find(user.UUID);
+                    if (row != null)
+                    {
+                        user.currentAgent = buildUserAgent(row);
+                    }
+                    return user;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+        }
+
         // see IUserData
         public UserProfileData GetUserByName(string fname, string lname)
         {

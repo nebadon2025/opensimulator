@@ -27,6 +27,7 @@
 */
 
 using libsecondlife;
+using System.Collections.Generic; // rex added
 
 namespace OpenSim.Framework
 {
@@ -37,5 +38,7 @@ namespace OpenSim.Framework
         void UpdateAsset(AssetBase asset);
         bool ExistsAsset(LLUUID uuid);
         void CommitAssets(); // force a sync to the database
+        LLUUID ExistsAsset(sbyte type, string name); // rex new function for "replace asset" functionality
+        List<AssetBase> GetAssetList(int vAssetType); // rex, added
     }
 }

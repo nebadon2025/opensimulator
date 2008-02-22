@@ -49,6 +49,8 @@ namespace OpenSim.Framework.Communications.Cache
         protected abstract void StoreAsset(AssetBase asset);
         protected abstract void CommitAssets();
 
+        public abstract LLUUID ExistsAsset(sbyte assetType, string name); // rex new function for "replace assets" functionality      
+
         /// <summary>
         /// This method must be implemented by a subclass to retrieve the asset named in the 
         /// AssetRequest.  If the asset is not found, null should be returned.
@@ -68,8 +70,8 @@ namespace OpenSim.Framework.Communications.Cache
 
             if (asset != null)
             {
-                //MainLog.Instance.Verbose(
-                //    "ASSET", "Asset {0} received from asset server", req.AssetID);
+                MainLog.Instance.Verbose(
+                    "ASSET", "Asset {0} received from asset server", req.AssetID);
 
                 m_receiver.AssetReceived(asset, req.IsTexture);
             }
@@ -149,6 +151,33 @@ namespace OpenSim.Framework.Communications.Cache
             {
                 StoreAsset(asset);
                 CommitAssets();
+            }
+        }
+
+        // rex, new function
+        public List<AssetBase> GetAssetList(int vAssetType)
+        {
+            lock (m_syncLock)
+            {
+                return m_assetProvider.GetAssetList(vAssetType);
+            }
+        }
+
+        // rex, new function
+        public virtual AssetBase FetchAsset(LLUUID assetID)
+        {
+            lock (m_syncLock)
+            {
+                return m_assetProvider.FetchAsset(assetID);
+            }
+        }
+
+        // rex, new function
+        public virtual bool ExistsAsset(LLUUID assetID)
+        {
+            lock (m_syncLock)
+            {
+                return m_assetProvider.ExistsAsset(assetID);
             }
         }
 

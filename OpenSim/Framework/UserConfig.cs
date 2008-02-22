@@ -48,6 +48,7 @@ namespace OpenSim.Framework
         public bool HttpSSL = DefaultHttpSSL;
         public uint DefaultX = 1000;
         public uint DefaultY = 1000;
+        public bool RexMode = false;
 
         private ConfigurationMember configMember;
 
@@ -89,6 +90,8 @@ namespace OpenSim.Framework
                                                 "Known good region X", "1000", false);
             configMember.addConfigurationOption("default_Y", ConfigurationOption.ConfigurationTypes.TYPE_UINT32,
                                                 "Known good region Y", "1000", false);
+            configMember.addConfigurationOption("rex_mode", ConfigurationOption.ConfigurationTypes.TYPE_BOOLEAN,
+                                                "Run in realXtend mode? true/false", "false", false);
         }
 
         public bool handleIncomingConfiguration(string configuration_key, object configuration_result)
@@ -124,6 +127,9 @@ namespace OpenSim.Framework
                     break;
                 case "default_Y":
                     DefaultY = (uint) configuration_result;
+                    break;
+                case "rex_mode":
+                    RexMode = (bool)configuration_result;
                     break;
             }
 

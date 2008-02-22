@@ -37,6 +37,7 @@ using OpenSim.Framework.Servers;
 using OpenSim.Region.Environment;
 using OpenSim.Region.Environment.Scenes;
 using OpenSim.Region.Physics.Manager;
+using OpenSim.Region.Communications.VoiceChat;
 
 namespace OpenSim.Region.ClientStack
 {
@@ -57,6 +58,8 @@ namespace OpenSim.Region.ClientStack
 
         protected StorageManager m_storageManager;
         protected string m_storageConnectionString;
+
+        protected VoiceChatServer m_voiceChatServer;
 
         public SceneManager SceneManager
         {
@@ -108,6 +111,7 @@ namespace OpenSim.Region.ClientStack
             udpServer = new UDPServer((uint) regionInfo.InternalEndPoint.Port, m_assetCache, m_log, circuitManager);
 
             Scene scene = CreateScene(regionInfo, m_storageManager, circuitManager);
+            m_voiceChatServer = new VoiceChatServer(scene);
 
             udpServer.LocalScene = scene;
 
@@ -129,6 +133,7 @@ namespace OpenSim.Region.ClientStack
                     m_commsManager.UserService.SetupMasterUser(scene.RegionInfo.MasterAvatarFirstName,
                                                                scene.RegionInfo.MasterAvatarLastName,
                                                                scene.RegionInfo.MasterAvatarSandboxPassword);
+                                                               
             }
 
             if (masterAvatar != null)

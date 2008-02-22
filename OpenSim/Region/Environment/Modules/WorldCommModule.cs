@@ -157,84 +157,86 @@ namespace OpenSim.Region.Environment.Modules
                 // If they are in proximity, then if they are
                 // listeners, if so add them to the pending queue
 
-                foreach (LLUUID eb in m_scene.Entities.Keys)
+                lock (m_scene.Entities)
                 {
-                    EntityBase sPart;
-
-                    m_scene.Entities.TryGetValue(eb, out sPart);
-
-                    // Dont process if this message is from itself!
-                    if (eb.ToString().Equals(sourceItemID) ||
-                        sPart.UUID.ToString().Equals(sourceItemID))
-                        continue;
-
-                    double dis = 0;
-
-                    if (source != null)
-                        dis = Util.GetDistanceTo(sPart.AbsolutePosition, source.AbsolutePosition);
-                    else
-                        dis = Util.GetDistanceTo(sPart.AbsolutePosition, avatar.AbsolutePosition);
-
-                    switch (type)
+                    foreach (LLUUID eb in m_scene.Entities.Keys)
                     {
-                        case ChatTypeEnum.Whisper:
+                        EntityBase sPart;
 
-                            if ((dis < 10) && (dis > -10))
-                            {
-                                ListenerInfo isListener = m_listenerManager.IsListenerMatch(
-                                    sourceItemID, sPart.UUID, channel, name, msg
-                                    );
-                                if (isListener != null)
+                        m_scene.Entities.TryGetValue(eb, out sPart);
+
+                        // Dont process if this message is from itself!
+                        if (eb.ToString().Equals(sourceItemID) ||
+                            sPart.UUID.ToString().Equals(sourceItemID))
+                            continue;
+
+                        double dis = 0;
+
+                        if (source != null)
+                            dis = Util.GetDistanceTo(sPart.AbsolutePosition, source.AbsolutePosition);
+                        else
+                            dis = Util.GetDistanceTo(sPart.AbsolutePosition, avatar.AbsolutePosition);
+
+                        switch (type)
+                        {
+                            case ChatTypeEnum.Whisper:
+
+                                if ((dis < 10) && (dis > -10))
                                 {
-                                    m_pending.Enqueue(isListener);
+                                    ListenerInfo isListener = m_listenerManager.IsListenerMatch(
+                                        sourceItemID, sPart.UUID, channel, name, msg
+                                        );
+                                    if (isListener != null)
+                                    {
+                                        m_pending.Enqueue(isListener);
+                                    }
                                 }
-                            }
-                            break;
+                                break;
 
-                        case ChatTypeEnum.Say:
+                            case ChatTypeEnum.Say:
 
-                            if ((dis < 30) && (dis > -30))
-                            {
-                                ListenerInfo isListener = m_listenerManager.IsListenerMatch(
-                                    sourceItemID, sPart.UUID, channel, name, msg
-                                    );
-                                if (isListener != null)
+                                if ((dis < 30) && (dis > -30))
                                 {
-                                    m_pending.Enqueue(isListener);
+                                    ListenerInfo isListener = m_listenerManager.IsListenerMatch(
+                                        sourceItemID, sPart.UUID, channel, name, msg
+                                        );
+                                    if (isListener != null)
+                                    {
+                                        m_pending.Enqueue(isListener);
+                                    }
                                 }
-                            }
-                            break;
+                                break;
 
-                        case ChatTypeEnum.Shout:
-                            if ((dis < 100) && (dis > -100))
-                            {
-                                ListenerInfo isListener = m_listenerManager.IsListenerMatch(
-                                    sourceItemID, sPart.UUID, channel, name, msg
-                                    );
-                                if (isListener != null)
+                            case ChatTypeEnum.Shout:
+                                if ((dis < 100) && (dis > -100))
                                 {
-                                    m_pending.Enqueue(isListener);
+                                    ListenerInfo isListener = m_listenerManager.IsListenerMatch(
+                                        sourceItemID, sPart.UUID, channel, name, msg
+                                        );
+                                    if (isListener != null)
+                                    {
+                                        m_pending.Enqueue(isListener);
+                                    }
                                 }
-                            }
-                            break;
+                                break;
 
-                        case ChatTypeEnum.Broadcast:
-                            ListenerInfo isListen =
-                                m_listenerManager.IsListenerMatch(sourceItemID, eb, channel, name, msg);
-                            if (isListen != null)
-                            {
-                                ListenerInfo isListener = m_listenerManager.IsListenerMatch(
-                                    sourceItemID, sPart.UUID, channel, name, msg
-                                    );
-                                if (isListener != null)
+                            case ChatTypeEnum.Broadcast:
+                                ListenerInfo isListen =
+                                    m_listenerManager.IsListenerMatch(sourceItemID, eb, channel, name, msg);
+                                if (isListen != null)
                                 {
-                                    m_pending.Enqueue(isListener);
+                                    ListenerInfo isListener = m_listenerManager.IsListenerMatch(
+                                        sourceItemID, sPart.UUID, channel, name, msg
+                                        );
+                                    if (isListener != null)
+                                    {
+                                        m_pending.Enqueue(isListener);
+                                    }
                                 }
-                            }
-                            break;
+                                break;
+                        }
                     }
                 }
-                ;
             }
         }
 

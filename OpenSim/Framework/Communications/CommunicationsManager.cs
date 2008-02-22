@@ -139,7 +139,7 @@ namespace OpenSim.Framework.Communications
             string md5PasswdHash = Util.Md5Hash(Util.Md5Hash(password) + ":" + "");
 
             m_userService.AddUserProfile(firstName, lastName, md5PasswdHash, regX, regY);
-            UserProfileData userProf = UserService.GetUserProfile(firstName, lastName);
+            UserProfileData userProf = UserService.GetUserProfile(firstName, lastName, "");
             if (userProf == null)
             {
                 return LLUUID.Zero;
@@ -205,7 +205,7 @@ namespace OpenSim.Framework.Communications
             }
             else
             {
-                UserProfileData profileData = m_userService.GetUserProfile(uuid);
+                UserProfileData profileData = m_userService.GetUserProfile(uuid, "");
                 if (profileData != null)
                 {
                     LLUUID profileId = profileData.UUID;

@@ -196,6 +196,12 @@ namespace OpenSim.Region.Environment.Scenes
             ForEachCurrentScene(delegate(Scene scene) { scene.SendCommandToPlugins(cmdparams); });
         }
 
+        // rex new function
+        public void SendPythonScriptCommand(string[] cmdparams)
+        {
+            ForEachCurrentScene(delegate(Scene scene) { scene.EventManager.TriggerOnPythonScriptCommand(cmdparams[0]); });
+        }
+
         public void SetBypassPermissionsOnCurrentScene(bool bypassPermissions)
         {
             ForEachCurrentScene(delegate(Scene scene) { scene.PermissionsMngr.BypassPermissions = bypassPermissions; });
@@ -221,6 +227,12 @@ namespace OpenSim.Region.Environment.Scenes
         public void BackupCurrentScene()
         {
             ForEachCurrentScene(delegate(Scene scene) { scene.Backup(); });
+        }
+
+        // rex, new function
+        public void ForcedBackupCurrentScene()
+        {
+            ForEachCurrentScene(delegate(Scene scene) { scene.ForcedBackup(); });
         }
 
         public void HandleAlertCommandOnCurrentScene(string[] cmdparams)

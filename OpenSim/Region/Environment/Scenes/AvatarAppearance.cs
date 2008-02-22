@@ -37,6 +37,10 @@ namespace OpenSim.Region.Environment.Scenes
         protected LLUUID m_scenePresenceID;
         protected int m_wearablesSerial = 1;
 
+        protected bool m_rexmode; //rex
+        protected string m_avatarStorageAddr;
+
+
         protected byte[] m_visualParams;
 
         public byte[] VisualParams
@@ -83,6 +87,19 @@ namespace OpenSim.Region.Environment.Scenes
         }
 
         /// <summary>
+        /// AvatarAppearance for rexmode, using avatarstorage address for describing avatar
+        /// </summary>
+        /// <param name="avatarID"></param>
+        /// <param name="avatarStorage"></param>
+        public AvatarAppearance(LLUUID avatarID, string avatarStorage)//rex
+        {
+            m_scenePresenceID = avatarID;
+            m_avatarStorageAddr = avatarStorage;
+            m_rexmode = true;
+            m_textureEntry = GetDefaultTextureEntry(); // rex mode fix against nullpointer in SendInitialData()
+        }
+
+        /// <summary>
         /// 
         /// </summary>
         /// <param name="texture"></param>
@@ -110,19 +127,35 @@ namespace OpenSim.Region.Environment.Scenes
         /// <param name="avatar"></param>
         public void SendAppearanceToOtherAgent(ScenePresence avatar)
         {
-            avatar.ControllingClient.SendAppearance(m_scenePresenceID, m_visualParams,
+            if (!m_rexmode) {
+                avatar.ControllingClient.SendAppearance(m_scenePresenceID, m_visualParams,
                                                     m_textureEntry.ToBytes());
+            }
+            else { //rex mode appearance sending
+                avatar.ControllingClient.SendRexAppearance(m_scenePresenceID, m_avatarStorageAddr);
+            }
         }
 
         public void SetWearable(IClientAPI client, int wearableId, AvatarWearable wearable)
         {
-            m_wearables[wearableId] = wearable;
-            SendOwnWearables(client);
+            if (m_wearables != null) // rex mode fix, wearables may be null
+            {
+                m_wearables[wearableId] = wearable;
+                SendOwnWearables(client);
+            }
         }
 
         public void SendOwnWearables(IClientAPI ourClient)
         {
-            ourClient.SendWearables(m_wearables, m_wearablesSerial++);
+            if (m_wearables != null) // rex mode fix, wearables may be null
+            {
+                ourClient.SendWearables(m_wearables, m_wearablesSerial++);
+            }
+
+            if (m_rexmode) // rex mode addition, send also for the agent itself
+            {
+                ourClient.SendRexAppearance(m_scenePresenceID, m_avatarStorageAddr);
+            }
         }
 
         public static LLObject.TextureEntry GetDefaultTextureEntry()

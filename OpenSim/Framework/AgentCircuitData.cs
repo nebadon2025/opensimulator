@@ -49,6 +49,7 @@ namespace OpenSim.Framework
             InventoryFolder = new LLUUID(cAgent.InventoryFolder);
             BaseFolder = new LLUUID(cAgent.BaseFolder);
             CapsPath = cAgent.CapsPath;
+            ClientVersion = cAgent.ClientVersion; //rex
         }
 
         public LLUUID AgentID;
@@ -62,6 +63,9 @@ namespace OpenSim.Framework
         public LLUUID InventoryFolder;
         public LLUUID BaseFolder;
         public string CapsPath = "";
+        public string ClientVersion = "not set"; //rex
+        public string authenticationAddr;
+        public string asAddress = "";
     }
 
     [Serializable]
@@ -86,6 +90,7 @@ namespace OpenSim.Framework
             InventoryFolder = cAgent.InventoryFolder.UUID;
             BaseFolder = cAgent.BaseFolder.UUID;
             CapsPath = cAgent.CapsPath;
+            ClientVersion = cAgent.ClientVersion; //rex
         }
 
         public Guid AgentID;
@@ -101,5 +106,6 @@ namespace OpenSim.Framework
         public Guid InventoryFolder;
         public Guid BaseFolder;
         public string CapsPath = "";
+        public string ClientVersion = "not set"; //rex
     }
 }

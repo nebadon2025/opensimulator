@@ -60,7 +60,7 @@ namespace OpenSim.Region.Communications.Local
 
         public override UserProfileData SetupMasterUser(string firstName, string lastName, string password)
         {
-            UserProfileData profile = GetUserProfile(firstName, lastName);
+            UserProfileData profile = GetUserProfile(firstName, lastName, "");
             if (profile != null)
             {
                 return profile;
@@ -69,7 +69,7 @@ namespace OpenSim.Region.Communications.Local
             Console.WriteLine("Unknown Master User. Sandbox Mode: Creating Account");
             AddUserProfile(firstName, lastName, password, m_defaultHomeX, m_defaultHomeY);
 
-            profile = GetUserProfile(firstName, lastName);
+            profile = GetUserProfile(firstName, lastName, "");
 
             if (profile == null)
             {
@@ -85,7 +85,7 @@ namespace OpenSim.Region.Communications.Local
 
         public override UserProfileData SetupMasterUser(LLUUID uuid)
         {
-            UserProfileData data = GetUserProfile(uuid);
+            UserProfileData data = GetUserProfile(uuid, "");
             if (data == null)
             {
                 throw new Exception("Unknown master user UUID");

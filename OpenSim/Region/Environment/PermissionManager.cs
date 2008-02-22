@@ -178,6 +178,10 @@ namespace OpenSim.Region.Environment
 
             if (m_bypassPermissions)
                 return OwnerMask;
+            else //rex
+            {
+                EveryoneMask &= ~(uint)LLObject.ObjectFlags.ObjectModify;
+            }
 
             // Object owners should be able to edit their own content
             if (user == objectOwner)

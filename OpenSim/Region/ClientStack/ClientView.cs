@@ -55,6 +55,7 @@ namespace OpenSim.Region.ClientStack
         public static TerrainManager TerrainManager;
 
         /* private variables */
+        private bool m_running = true;
         private readonly LLUUID m_sessionId;
         private LLUUID m_secureSessionId = LLUUID.Zero;
         //private AgentAssetUpload UploadAssets;
@@ -73,6 +74,12 @@ namespace OpenSim.Region.ClientStack
         private readonly uint m_circuitCode;
         private int m_moneyBalance;
 
+        private string m_clientVersion = "not set"; //rex
+        private bool m_rexClient = false; //rex
+
+        //Rex: Used to identify which materials have already been processed for mediaurl
+        private Dictionary<LLUUID, string> m_sentMediaUrls;
+
         private readonly byte[] m_channelVersion = new byte[] { 0x00 }; // Dummy value needed by libSL
 
         /* protected variables */
@@ -85,7 +92,7 @@ namespace OpenSim.Region.ClientStack
         protected IScene m_scene;
         protected AgentCircuitManager m_authenticateSessionsHandler;
 
-        protected PacketQueue m_packetQueue;
+        protected RexPacketQueue m_packetQueue;
 
         protected Dictionary<uint, uint> m_pendingAcks = new Dictionary<uint, uint>();
         protected Dictionary<uint, Packet> m_needAck = new Dictionary<uint, Packet>();
@@ -182,14 +189,14 @@ namespace OpenSim.Region.ClientStack
         {
             m_moneyBalance = 1000;
 
+            m_sentMediaUrls = new Dictionary<LLUUID, string>(); //rex
+
             m_scene = scene;
             m_assetCache = assetCache;
 
             m_networkServer = packServer;
             // m_inventoryCache = inventoryCache;
             m_authenticateSessionsHandler = authenSessions;
-
-            MainLog.Instance.Verbose("CLIENT", "Started up new client thread to handle incoming request");
 
             m_agentId = agentId;
             m_sessionId = sessionId;
@@ -204,7 +211,21 @@ namespace OpenSim.Region.ClientStack
             // in it to process.  It's an on-purpose threadlock though because 
             // without it, the clientloop will suck up all sim resources.
 
-            m_packetQueue = new PacketQueue();
+            //REX: Get options from ini, otherwise run on LAN bandwidth settings
+            if (GlobalSettings.Instance.ConfigSource.Configs["Startup"].Contains("bandwidth_start") &&
+                GlobalSettings.Instance.ConfigSource.Configs["Startup"].Contains("bandwidth_max") &&
+                GlobalSettings.Instance.ConfigSource.Configs["Startup"].Contains("bandwidth_min"))
+            {
+                m_packetQueue = new RexPacketQueue(
+                    GlobalSettings.Instance.ConfigSource.Configs["Network"].GetInt("bandwidth_start"),
+                    GlobalSettings.Instance.ConfigSource.Configs["Network"].GetInt("bandwidth_max"),
+                    GlobalSettings.Instance.ConfigSource.Configs["Network"].GetInt("bandwidth_min"));
+            }
+            else
+            {
+                //Default to very large values (LAN)
+                m_packetQueue = new RexPacketQueue(10000000, 10000000, 100000);
+            }
 
             RegisterLocalPacketHandlers();
 
@@ -222,7 +243,17 @@ namespace OpenSim.Region.ClientStack
 
         private void CloseCleanup()
         {
-            m_scene.RemoveClient(AgentId);
+            
+            if (!m_scene.RexMode)
+            {
+                m_scene.RemoveClient(AgentId);
+            }
+            else
+            {
+                m_scene.RemoveClient(AgentId, m_circuitCode);
+            }
+            //m_scene.RemoveClient(AgentId);
+
             // Send the STOP packet 
             DisableSimulatorPacket disable = (DisableSimulatorPacket)PacketPool.Instance.GetPacket(PacketType.DisableSimulator);
             OutPacket(disable, ThrottleOutPacketType.Task);
@@ -368,9 +399,65 @@ namespace OpenSim.Region.ClientStack
             }
         }
 
+        protected void SendSkyboxInformation()
+        {
+            RexSkyboxInfoPacket packet = new RexSkyboxInfoPacket();
+
+            string skyboxFront = GlobalSettings.Instance.ConfigSource.Configs["Startup"].
+                                    GetString("skybox_front", "00000000-0000-0000-0000-000000000000");
+            string skyboxBack = GlobalSettings.Instance.ConfigSource.Configs["Startup"].
+                                    GetString("skybox_back", "00000000-0000-0000-0000-000000000000");
+            string skyboxLeft = GlobalSettings.Instance.ConfigSource.Configs["Startup"].
+                                    GetString("skybox_left", "00000000-0000-0000-0000-000000000000");
+            string skyboxRight = GlobalSettings.Instance.ConfigSource.Configs["Startup"].
+                                    GetString("skybox_right", "00000000-0000-0000-0000-000000000000");
+            string skyboxTop = GlobalSettings.Instance.ConfigSource.Configs["Startup"].
+                                    GetString("skybox_top", "00000000-0000-0000-0000-000000000000");
+            string skyboxBottom = GlobalSettings.Instance.ConfigSource.Configs["Startup"].
+                                    GetString("skybox_bottom", "00000000-0000-0000-0000-000000000000");
+
+
+            //Make sure the skybox textures are actually all set before sending the packet
+            if (skyboxFront == "00000000-0000-0000-0000-000000000000" ||
+                skyboxBack == "00000000-0000-0000-0000-000000000000" ||
+                skyboxLeft == "00000000-0000-0000-0000-000000000000" ||
+                skyboxRight == "00000000-0000-0000-0000-000000000000" ||
+                skyboxTop == "00000000-0000-0000-0000-000000000000" ||
+                skyboxBottom == "00000000-0000-0000-0000-000000000000")
+            {
+                //No textures set, don't send
+                MainLog.Instance.Warn("CLIENT", "Some of the skybox textures were not set");
+                return;
+            }
+            MainLog.Instance.Verbose("CLIENT", "REX: Sending skybox data");
+
+            packet.Textures.FrontTextureID = new LLUUID(skyboxFront);
+            packet.Textures.BackTextureID = new LLUUID(skyboxBack);
+            packet.Textures.LeftTextureID = new LLUUID(skyboxLeft);
+            packet.Textures.RightTextureID = new LLUUID(skyboxRight);
+            packet.Textures.TopTextureID = new LLUUID(skyboxTop);
+            packet.Textures.BottomTextureID = new LLUUID(skyboxBottom);
+            packet.Header.Reliable = true;
+
+            OutPacket(packet, ThrottleOutPacketType.Asset);
+        }
+
+        protected void SendRexInformation()
+        {
+            MainLog.Instance.Verbose("CLIENT", "REX: Sending rexregion information");
+            SendSkyboxInformation();
+        }
+
         protected virtual void ClientLoop()
         {
             MainLog.Instance.Verbose("CLIENT", "Entered loop");
+
+            //REX: Send all rexregion related information
+            if (m_rexClient)
+            {
+                SendRexInformation();
+            }
+
             while (true)
             {
                 QueItem nextPacket = m_packetQueue.Dequeue();
@@ -434,7 +521,13 @@ namespace OpenSim.Region.ClientStack
             m_clientPingTimer.Elapsed += new ElapsedEventHandler(CheckClientConnectivity);
             m_clientPingTimer.Enabled = true;
 
-            MainLog.Instance.Verbose("CLIENT", "Adding viewer agent to scene");
+            MainLog.Instance.Verbose("CLIENT", "Adding viewer agent to scene (version: " + m_clientVersion + ")");
+
+            if (m_clientVersion != null && m_clientVersion.Contains("realXtend"))
+            {
+                m_rexClient = true;
+            }
+
             m_scene.AddNewClient(this, true);
         }
 
@@ -462,6 +555,9 @@ namespace OpenSim.Region.ClientStack
                 {
                     m_secureSessionId = sessionInfo.LoginInfo.SecureSession;
                 }
+
+                m_clientVersion = sessionInfo.LoginInfo.ClientVersion; //rex
+
                 // This sets up all the timers
                 InitNewClient();
 
@@ -540,6 +636,7 @@ namespace OpenSim.Region.ClientStack
         public event UpdateInventoryItem OnUpdateInventoryItem;
         public event CopyInventoryItem OnCopyInventoryItem;
         public event MoveInventoryItem OnMoveInventoryItem;
+        public event RemoveInventoryItem OnRemoveInventoryItem; // rex
         public event UDPAssetUploadRequest OnAssetUploadRequest;
         public event XferReceive OnXferReceive;
         public event RequestXfer OnRequestXfer;
@@ -547,6 +644,11 @@ namespace OpenSim.Region.ClientStack
         public event RezScript OnRezScript;
         public event UpdateTaskInventory OnUpdateTaskInventory;
         public event RemoveTaskInventory OnRemoveTaskItem;
+
+        //REX: Attachments
+        public event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;
+        public event ObjectAttach OnObjectAttach;
+        public event ObjectDetach OnObjectDetach;
 
         public event UUIDNameRequest OnNameFromUUIDRequest;
 
@@ -565,6 +667,11 @@ namespace OpenSim.Region.ClientStack
         public event FriendActionDelegate OnApproveFriendRequest;
         public event FriendActionDelegate OnDenyFriendRequest;
         public event FriendshipTermination OnTerminateFriendship;
+
+        public event ReceiveRexClientScriptCmd OnReceiveRexClientScriptCmd; // rex
+        public event ObjectClickAction OnObjectClickAction; // rex
+        public event UpdateAssetMediaURL OnUpdateAssetMediaURL; // rex
+        public event TriggerSound OnTriggerSound;
 
         #region Scene/Avatar to Client
 
@@ -981,6 +1088,13 @@ namespace OpenSim.Region.ClientStack
                 i = 0;
                 foreach (InventoryItemBase item in items)
                 {
+                    //REX: Send also media url for the item if it has a one
+                    if (!m_sentMediaUrls.ContainsKey(item.assetID))
+                    {
+                        //Start a request for material
+                        m_assetCache.GetAsset(item.assetID, MediaURLAssetRequest);
+                    }
+
                     descend.ItemData[i] = new InventoryDescendentsPacket.ItemDataBlock();
                     descend.ItemData[i].ItemID = item.inventoryID;
                     descend.ItemData[i].AssetID = item.assetID;
@@ -1276,6 +1390,25 @@ namespace OpenSim.Region.ClientStack
             OutPacket(loadURL, ThrottleOutPacketType.Task);
         }
 
+        public void SendDialog(string objectname, LLUUID objectID, LLUUID ownerID, string msg, LLUUID textureID, int ch, string[] buttonlabels)
+        {
+            ScriptDialogPacket dialog = (ScriptDialogPacket)PacketPool.Instance.GetPacket(PacketType.ScriptDialog);
+            dialog.Data.ObjectID = objectID;
+            dialog.Data.ObjectName = Helpers.StringToField(objectname);
+            dialog.Data.FirstName = Helpers.StringToField(this.FirstName);
+            dialog.Data.LastName = Helpers.StringToField(this.LastName);
+            dialog.Data.Message = Helpers.StringToField(msg);
+            dialog.Data.ImageID = textureID;
+            dialog.Data.ChatChannel = ch;
+            ScriptDialogPacket.ButtonsBlock[] buttons = new ScriptDialogPacket.ButtonsBlock[buttonlabels.Length];
+            for (int i = 0; i < buttonlabels.Length; i++)
+            {
+                buttons[i] = new ScriptDialogPacket.ButtonsBlock();
+                buttons[i].ButtonLabel = Helpers.StringToField(buttonlabels[i]);
+            }
+            dialog.Buttons = buttons;
+            OutPacket(dialog, ThrottleOutPacketType.Task);
+        }
 
         public void SendPreLoadSound(LLUUID objectID, LLUUID ownerID, LLUUID soundID)
         {
@@ -1297,6 +1430,20 @@ namespace OpenSim.Region.ClientStack
             sound.DataBlock.OwnerID = ownerID;
             sound.DataBlock.Gain = gain;
             sound.DataBlock.Flags = flags;
+
+            OutPacket(sound, ThrottleOutPacketType.Task);
+        }
+
+        public void SendTriggeredSound(LLUUID soundID, LLUUID ownerID, LLUUID objectID, LLUUID parentID, ulong handle,  LLVector3 position, float gain)
+        {
+            SoundTriggerPacket sound = (SoundTriggerPacket)PacketPool.Instance.GetPacket(PacketType.SoundTrigger);
+            sound.SoundData.SoundID = soundID;
+            sound.SoundData.OwnerID = ownerID;
+            sound.SoundData.ObjectID = objectID;
+            sound.SoundData.ParentID = parentID;
+            sound.SoundData.Handle = handle;
+            sound.SoundData.Position = position;
+            sound.SoundData.Gain = gain;
 
             OutPacket(sound, ThrottleOutPacketType.Task);
         }
@@ -1377,6 +1524,17 @@ namespace OpenSim.Region.ClientStack
             OutPacket(avatarReply, ThrottleOutPacketType.Task);
         }
 
+        //rex
+        public void SendScriptTeleportRequest(string objectName, string simName, LLVector3 simPosition, LLVector3 lookAt)
+        {
+            ScriptTeleportRequestPacket teleportRequest = (ScriptTeleportRequestPacket)PacketPool.Instance.GetPacket(PacketType.ScriptTeleportRequest);
+            teleportRequest.Data.ObjectName = Helpers.StringToField(objectName);
+            teleportRequest.Data.SimName = Helpers.StringToField(simName);
+            teleportRequest.Data.SimPosition = simPosition;
+            teleportRequest.Data.LookAt = lookAt;
+            OutPacket(teleportRequest, ThrottleOutPacketType.Task);
+        }
+
         #endregion
 
         #region Appearance/ Wearables Methods
@@ -1431,6 +1589,23 @@ namespace OpenSim.Region.ClientStack
             avp.Sender.IsTrial = false;
             avp.Sender.ID = agentID;
             OutPacket(avp, ThrottleOutPacketType.Task);
+        }
+
+        /// <summary>
+        /// Used in rex mode instead of SendAppearance for sending appearance storage address
+        /// </summary>
+        /// <param name="agentID"></param>
+        /// <param name="avatarAdrress"></param>
+        public void SendRexAppearance(LLUUID agentID, string avatarAddress) //rex
+        {
+            GenericMessagePacket gmp = new GenericMessagePacket();
+            gmp.MethodData.Method = Helpers.StringToField("RexAppearance");
+            gmp.ParamList = new GenericMessagePacket.ParamListBlock[2];
+			gmp.ParamList[0] = new GenericMessagePacket.ParamListBlock();
+			gmp.ParamList[0].Parameter = Helpers.StringToField(avatarAddress);
+			gmp.ParamList[1] = new GenericMessagePacket.ParamListBlock();
+			gmp.ParamList[1].Parameter = Helpers.StringToField(agentID.ToString());
+            OutPacket(gmp, ThrottleOutPacketType.Task);
         }
 
         public void SendAnimations(LLUUID[] animations, int[] seqs, LLUUID sourceAgentId)
@@ -1595,8 +1770,68 @@ namespace OpenSim.Region.ClientStack
 
             byte[] rot = rotation.GetBytes();
             Array.Copy(rot, 0, outPacket.ObjectData[0].ObjectData, 36, rot.Length);
+            
+            //REX: Check if the material has media url and send it if necessary
+            try
+            {
+                if (m_rexClient && primShape.TextureEntry != null)
+                {
+                    LLObject.TextureEntry tex = new LLObject.TextureEntry(primShape.TextureEntry, 0, primShape.TextureEntry.Length);
+                    foreach (LLObject.TextureEntryFace face in tex.FaceTextures)
+                    {
+                        if (face != null && face.TextureID != null)
+                        {
+                            if (!m_sentMediaUrls.ContainsKey(face.TextureID))
+                            {
+                                //Start a request for material
+                                m_assetCache.GetAsset(face.TextureID, MediaURLAssetRequest);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (IndexOutOfRangeException) 
+            {
+                // If primShape.TextureEntry length is 44, throws exception. Bug in libsl or Opensim?         
+                MainLog.Instance.Warn("CLIENT", "Error processing " + objectID + " texture data");
+            }
 
             OutPacket(outPacket, ThrottleOutPacketType.Task);
+        }
+
+        //REX
+        public void MediaURLAssetRequest(LLUUID assetID, AssetBase asset)
+        {
+            if (asset != null)
+            {
+                if (asset.MediaURL != String.Empty)
+                {
+                    SendMediaURL(assetID, asset.MediaURL);
+                }
+                else
+                {
+                    //Media url not set, just set empty string to avoid further queries
+                    m_sentMediaUrls[assetID] = string.Empty;
+                }
+            }
+            else
+            {
+                MainLog.Instance.Warn("CLIENT", "Could not get asset: " + assetID);
+            }
+        }
+
+        //REX
+        public void SendMediaURL(LLUUID assetID, string mediaURL)
+        {
+            if (m_rexClient && (!m_sentMediaUrls.ContainsKey(assetID) || m_sentMediaUrls[assetID] != mediaURL))
+            {
+                RexImageInfoPacket rexImgInfoPacket = new RexImageInfoPacket();
+                rexImgInfoPacket.Header.Reliable = true;
+                rexImgInfoPacket.ImageInfo.MediaURL = Helpers.StringToField(mediaURL);
+                rexImgInfoPacket.ImageInfo.ImageID = assetID;
+                OutPacket(rexImgInfoPacket, ThrottleOutPacketType.Task);
+                m_sentMediaUrls[assetID] = mediaURL;
+            }
         }
 
         /// <summary>
@@ -1633,6 +1868,30 @@ namespace OpenSim.Region.ClientStack
             terse.ObjectData[0] = CreatePrimImprovedBlock(localID, position, rotation, velocity, rotationalvelocity);
 
             OutPacket(terse, ThrottleOutPacketType.Task);
+        }
+
+
+        // Rex, send script command to client
+        public void SendRexScriptCommand(string vUnit, string vCommand, string vCmdParams) //rex
+        {
+            GenericMessagePacket gmp = new GenericMessagePacket();
+            gmp.MethodData.Method = Helpers.StringToField("RexScr");
+
+            if (vCmdParams.Length > 0)
+                gmp.ParamList = new GenericMessagePacket.ParamListBlock[3];
+            else
+                gmp.ParamList = new GenericMessagePacket.ParamListBlock[2];
+
+            gmp.ParamList[0] = new GenericMessagePacket.ParamListBlock();
+            gmp.ParamList[0].Parameter = Helpers.StringToField(vUnit);
+            gmp.ParamList[1] = new GenericMessagePacket.ParamListBlock();
+            gmp.ParamList[1].Parameter = Helpers.StringToField(vCommand);
+            if (vCmdParams.Length > 0)
+            {
+                gmp.ParamList[2] = new GenericMessagePacket.ParamListBlock();
+                gmp.ParamList[2].Parameter = Helpers.StringToField(vCmdParams);
+            }
+            OutPacket(gmp, ThrottleOutPacketType.Task);
         }
 
         #endregion
@@ -2312,10 +2571,16 @@ namespace OpenSim.Region.ClientStack
                 {
                     int packetsize = Helpers.ZeroEncode(sendbuffer, sendbuffer.Length, ZeroOutBuffer);
                     m_networkServer.SendPacketTo(ZeroOutBuffer, packetsize, SocketFlags.None, m_circuitCode);
+                    OpenSim.Framework.ServerStatus.ServerStatus.ReportOutPacketUdp(packetsize, Pack.Header.Resent);//rex
+                    OpenSim.Framework.ServerStatus.ServerStatus.
+                        ReportProcessedOutPacket(Pack.GetType().ToString(), packetsize, Pack.Header.Resent); //rex
                 }
                 else
                 {
                     m_networkServer.SendPacketTo(sendbuffer, sendbuffer.Length, SocketFlags.None, m_circuitCode);
+                    OpenSim.Framework.ServerStatus.ServerStatus.ReportOutPacketUdp(sendbuffer.Length, Pack.Header.Resent);//rex
+                    OpenSim.Framework.ServerStatus.ServerStatus.
+                        ReportProcessedOutPacket(Pack.GetType().ToString(), sendbuffer.Length, Pack.Header.Resent);//rex
                 }
             }
             catch (Exception e)
@@ -2325,6 +2590,12 @@ namespace OpenSim.Region.ClientStack
                                       m_userEndPoint.ToString() + " - killing thread");
                 MainLog.Instance.Error(e.ToString());
                 Close(true);
+            }
+
+            if (Pack.Header.Resent)
+            {
+                //Allow for later resending
+                Pack.Header.Resent = false;
             }
         }
 
@@ -2421,8 +2692,8 @@ namespace OpenSim.Region.ClientStack
                 {
                     if ((now - packet.TickCount > RESEND_TIMEOUT) && (!packet.Header.Resent))
                     {
-                        MainLog.Instance.Verbose("NETWORK", "Resending " + packet.Type.ToString() + " packet, " +
-                                                            (now - packet.TickCount) + "ms have passed");
+                        /*MainLog.Instance.Verbose("NETWORK", "Resending " + packet.Type.ToString() + " packet, " +
+                                                            (now - packet.TickCount) + "ms have passed");*/
 
                         packet.Header.Resent = true;
                         OutPacket(packet, ThrottleOutPacketType.Resend);
@@ -2492,6 +2763,8 @@ namespace OpenSim.Region.ClientStack
 
         protected void ProcessInPacket(Packet Pack)
         {
+            OpenSim.Framework.ServerStatus.ServerStatus.ReportProcessedInPacket(Pack.GetType().ToString(), Pack.ToBytes().Length);
+
             ack_pack(Pack);
 
             if (ProcessPacketMethod(Pack))
@@ -2740,6 +3013,20 @@ namespace OpenSim.Region.ClientStack
                         }
                         break;
 
+                    // rex, added handling of genericmessage for rexscr method
+                    case PacketType.GenericMessage:
+                        GenericMessagePacket gmpacket = (GenericMessagePacket)Pack;
+                        string sMethod = Helpers.FieldToUTF8String(gmpacket.MethodData.Method);
+
+                        if (sMethod == "rexscr" && OnReceiveRexClientScriptCmd != null)
+                        {
+                            List<string> tmplist = new List<string>();
+                            for (int i=0;i<gmpacket.ParamList.Length;i++)
+                                tmplist.Add(Helpers.FieldToUTF8String(gmpacket.ParamList[i].Parameter));
+
+                            OnReceiveRexClientScriptCmd(this, gmpacket.AgentData.AgentID, tmplist);
+                        }
+                        break;
                     #endregion
 
                     #region Objects/m_sceneObjects
@@ -3163,6 +3450,16 @@ namespace OpenSim.Region.ClientStack
                             }
                         }
                         break;
+                    case PacketType.RemoveInventoryItem: // rex
+                        RemoveInventoryItemPacket removeItem = (RemoveInventoryItemPacket)Pack;
+                        if (OnRemoveInventoryItem != null)
+                        {
+                            foreach (RemoveInventoryItemPacket.InventoryDataBlock datablock in removeItem.InventoryData)
+                            {
+                                OnRemoveInventoryItem(this, datablock.ItemID);
+                            }
+                        }
+                        break;
                     case PacketType.RequestTaskInventory:
                         RequestTaskInventoryPacket requesttask = (RequestTaskInventoryPacket)Pack;
                         if (OnRequestTaskInventory != null)
@@ -3482,10 +3779,12 @@ namespace OpenSim.Region.ClientStack
                         // TODO: handle this packet
                         MainLog.Instance.Warn("CLIENT", "unhandled CreateGroupRequest packet");
                         break;
+                    /* rex, removed
                     case PacketType.GenericMessage:
                         // TODO: handle this packet
                         MainLog.Instance.Warn("CLIENT", "unhandled GenericMessage packet");
                         break;
+                     */ 
                     case PacketType.MapItemRequest:
                         // TODO: handle this packet
                         MainLog.Instance.Warn("CLIENT", "unhandled MapItemRequest packet");
@@ -3532,9 +3831,11 @@ namespace OpenSim.Region.ClientStack
                         MainLog.Instance.Warn("CLIENT", "unhandled ObjectSpinStop packet");
                         break;
                     case PacketType.SoundTrigger:
-                        // TODO: handle this packet
-                        MainLog.Instance.Warn("CLIENT", "unhandled SoundTrigger packet");
+                    {
+                        SoundTriggerPacket packet = (SoundTriggerPacket)Pack;
+                        OnTriggerSound(this, packet.SoundData.SoundID, packet.SoundData.OwnerID, packet.SoundData.ObjectID, packet.SoundData.ParentID, packet.SoundData.Handle, packet.SoundData.Position, packet.SoundData.Gain);
                         break;
+                    }
                     case PacketType.UserInfoRequest:
                         // TODO: handle this packet
                         MainLog.Instance.Warn("CLIENT", "unhandled UserInfoRequest packet");
@@ -3543,6 +3844,61 @@ namespace OpenSim.Region.ClientStack
                         // TODO: handle this packet
                         MainLog.Instance.Warn("CLIENT", "unhandled InventoryDescent packet");
                         break;
+
+                    //Attachments
+                    case PacketType.RezSingleAttachmentFromInv:
+                    {
+                        RezSingleAttachmentFromInvPacket packet = (RezSingleAttachmentFromInvPacket)Pack;
+
+                        OnRezSingleAttachmentFromInv(this, packet.ObjectData.ItemID, packet.ObjectData.OwnerID, 
+                                                     packet.ObjectData.ItemFlags, packet.ObjectData.AttachmentPt);
+                        break;
+                    }
+
+                    case PacketType.ObjectDetach:
+                    {
+                        ObjectDetachPacket packet = (ObjectDetachPacket)Pack;
+
+                        foreach (ObjectDetachPacket.ObjectDataBlock block in packet.ObjectData)
+                        {
+                            OnObjectDetach(this, block.ObjectLocalID);
+                        }
+                        break;
+                    }
+
+                    case PacketType.ObjectAttach:
+                    {
+                        ObjectAttachPacket packet = (ObjectAttachPacket)Pack;
+
+                        foreach(ObjectAttachPacket.ObjectDataBlock block in packet.ObjectData)
+                        {
+                            OnObjectAttach(this, block.ObjectLocalID, block.Rotation, packet.AgentData.AttachmentPoint);
+                        }
+                        //OutPacket(packet, ThrottleOutPacketType.Task);
+
+                        break;
+                    }
+                    //REX: RexImageInfo packet used for handling mediaurl information
+                    case PacketType.RexImageInfo:
+                        // TODO: handle this packet
+                        RexImageInfoPacket imageInfo = (RexImageInfoPacket)Pack;
+
+                        MainLog.Instance.Verbose("CLIENTVIEW", "Got mediaUrl: " + Helpers.FieldToUTF8String(imageInfo.ImageInfo.MediaURL));
+
+                        OnUpdateAssetMediaURL(this, imageInfo.ImageInfo.ImageID,
+                                              Helpers.FieldToUTF8String(imageInfo.ImageInfo.MediaURL));
+                        break;
+
+                    //REX ObjectClickAction implementation
+                    case PacketType.ObjectClickAction:
+                        ObjectClickActionPacket clickActionPacket = (ObjectClickActionPacket)Pack;
+                        foreach (ObjectClickActionPacket.ObjectDataBlock block in clickActionPacket.ObjectData)
+                        {
+                            OnObjectClickAction(this, block.ObjectLocalID, block.ClickAction);
+                        }
+
+                        break;
+
                     default:
                         MainLog.Instance.Warn("CLIENT", "unhandled packet " + Pack.ToString());
                         break;

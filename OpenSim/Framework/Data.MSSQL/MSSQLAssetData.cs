@@ -92,9 +92,9 @@ namespace OpenSim.Framework.Data.MSSQL
 
             SqlCommand cmd =
                 new SqlCommand(
-                    "INSERT INTO assets ([id], [name], [description], [assetType], [invType], [local], [temporary], [data])" +
+                    "INSERT INTO assets ([id], [name], [mediaUrl], [description], [assetType], [invType], [local], [temporary], [data])" +
                     " VALUES " +
-                    "(@id, @name, @description, @assetType, @invType, @local, @temporary, @data)",
+                    "(@id, @name, @mediaUrl, @description, @assetType, @invType, @local, @temporary, @data)",
                     database.getConnection());
 
             using (cmd)
@@ -103,6 +103,7 @@ namespace OpenSim.Framework.Data.MSSQL
                 //p.Value = asset.FullID.ToString();
                 cmd.Parameters.AddWithValue("id", asset.FullID.ToString());
                 cmd.Parameters.AddWithValue("name", asset.Name);
+                cmd.Parameters.AddWithValue("mediaUrl", asset.MediaURL);
                 cmd.Parameters.AddWithValue("description", asset.Description);
                 SqlParameter e = cmd.Parameters.Add("assetType", SqlDbType.TinyInt);
                 e.Value = asset.Type;
@@ -132,6 +133,7 @@ namespace OpenSim.Framework.Data.MSSQL
         {
             SqlCommand command = new SqlCommand("UPDATE assets set id = @id, " +
                                                 "name = @name, " +
+                                                "mediaUrl = @mediaUrl, "+
                                                 "description = @description," +
                                                 "assetType = @assetType," +
                                                 "invType = @invType," +
@@ -141,13 +143,14 @@ namespace OpenSim.Framework.Data.MSSQL
                                                 "id = @keyId;", database.getConnection());
             SqlParameter param1 = new SqlParameter("@id", asset.FullID.ToString());
             SqlParameter param2 = new SqlParameter("@name", asset.Name);
-            SqlParameter param3 = new SqlParameter("@description", asset.Description);
-            SqlParameter param4 = new SqlParameter("@assetType", asset.Type);
-            SqlParameter param5 = new SqlParameter("@invType", asset.InvType);
-            SqlParameter param6 = new SqlParameter("@local", asset.Local);
-            SqlParameter param7 = new SqlParameter("@temporary", asset.Temporary);
-            SqlParameter param8 = new SqlParameter("@data", asset.Data);
-            SqlParameter param9 = new SqlParameter("@keyId", asset.FullID.ToString());
+            SqlParameter param3 = new SqlParameter("@mediaUrl", asset.MediaURL);
+            SqlParameter param4 = new SqlParameter("@description", asset.Description);
+            SqlParameter param5 = new SqlParameter("@assetType", Convert.ToBoolean(asset.Type));
+            SqlParameter param6 = new SqlParameter("@invType", Convert.ToBoolean(asset.InvType));
+            SqlParameter param7 = new SqlParameter("@local", asset.Local);
+            SqlParameter param8 = new SqlParameter("@temporary", asset.Temporary);
+            SqlParameter param9 = new SqlParameter("@data", asset.Data);
+            SqlParameter param10 = new SqlParameter("@keyId", asset.FullID.ToString());
             command.Parameters.Add(param1);
             command.Parameters.Add(param2);
             command.Parameters.Add(param3);
@@ -157,6 +160,7 @@ namespace OpenSim.Framework.Data.MSSQL
             command.Parameters.Add(param7);
             command.Parameters.Add(param8);
             command.Parameters.Add(param9);
+            command.Parameters.Add(param10);
 
             try
             {
@@ -177,11 +181,27 @@ namespace OpenSim.Framework.Data.MSSQL
             return false;
         }
 
+        // rex, new function, fixme not implemented
+        public List<AssetBase> GetAssetList(int vAssetType)
+        {
+            List<AssetBase> retvals = new List<AssetBase>();
+            return retvals;
+        }
+
+
         /// <summary>
         /// All writes are immediately commited to the database, so this is a no-op
         /// </summary>
         public void CommitAssets()
         {
+        }
+
+        // rex new function for "replace assets" functionality
+        // TODO: actual implementation by someone, should return LLUUID of an asset 
+        // with matching type & name, or zero if not in DB
+        public LLUUID ExistsAsset(sbyte type, string name)
+        {
+            return LLUUID.Zero;
         }
 
         #endregion

@@ -72,6 +72,60 @@ namespace OpenSim.Framework.Communications.Cache
             }
         }
 
+        // rex new function for "replace assets" functionality
+        public override LLUUID ExistsAsset(sbyte assetType, string name)
+        {
+            IObjectSet result = db.Query(new AssetTypeNameQuery(assetType, name));
+            AssetStorage foundAsset = null;
+            if (result.Count > 0)
+            {
+                foundAsset = (AssetStorage)result.Next();
+                return foundAsset.UUID;
+            }
+            return LLUUID.Zero;
+        }
+
+        // rex new function 
+        public override bool ExistsAsset(LLUUID assetID)
+        {
+            IObjectSet result = db.Query(new AssetUUIDQuery(assetID));
+            if (result.Count > 0)
+                return true;
+            else
+                return false;
+        }
+
+        // rex new function
+        public override AssetBase FetchAsset(LLUUID assetID)
+        {
+            byte[] idata = null;
+            bool found = false;
+            AssetStorage foundAsset = null;
+            IObjectSet result = db.Query(new AssetUUIDQuery(assetID));
+            if (result.Count > 0)
+            {
+                foundAsset = (AssetStorage)result.Next();
+                found = true;
+            }
+
+            AssetBase asset = new AssetBase();
+            if (found)
+            {
+                asset.FullID = foundAsset.UUID;
+                asset.Type = foundAsset.Type;
+                asset.InvType = foundAsset.Type;
+                asset.Name = foundAsset.Name;
+                idata = foundAsset.Data;
+                asset.Data = idata;
+
+                return asset;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         protected override AssetBase GetAsset(AssetRequest req)
         {
             byte[] idata = null;
@@ -113,6 +167,25 @@ namespace OpenSim.Framework.Communications.Cache
             CommitAssets();
         }
 
+        // rex overrided function for "replace assets" functionality to work with local assetserver
+        public override void UpdateAsset(AssetBase asset)
+        {
+            lock (m_syncLock)
+            {
+                IObjectSet result = db.Query(new AssetUUIDQuery(asset.FullID));
+                AssetStorage foundAsset = null;
+
+                int i;
+                for (i = 0; i < result.Count; i++)
+                {
+                    foundAsset = (AssetStorage)result.Next();
+                    db.Delete(foundAsset);
+                }
+
+                StoreAsset(asset);
+            }
+        }
+
         protected override void CommitAssets()
         {
             db.Commit();
@@ -138,6 +211,24 @@ namespace OpenSim.Framework.Communications.Cache
         public bool Match(AssetStorage asset)
         {
             return (asset.UUID == _findID);
+        }
+    }
+
+    // rex new class for "replace assets" functionality
+    public class AssetTypeNameQuery : Predicate
+    {
+        private sbyte _findType;
+        private string _findName;
+
+        public AssetTypeNameQuery(sbyte type, string name)
+        {
+            _findType = type;
+            _findName = name;
+        }
+
+        public bool Match(AssetStorage asset)
+        {
+            return ((asset.Type == _findType) && (asset.Name == _findName));
         }
     }
 }

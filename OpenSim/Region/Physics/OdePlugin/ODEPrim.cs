@@ -32,8 +32,66 @@ using Ode.NET;
 using OpenSim.Framework;
 using OpenSim.Region.Physics.Manager;
 
+using System.Collections.Generic; // rex
+using System.Runtime.InteropServices; // rex
+using RexDotMeshLoader; // rex
+using OpenSim.Framework.Console; // rex
+using libsecondlife; // rex
+
 namespace OpenSim.Region.Physics.OdePlugin
 {
+
+    // rex, new class
+    public class OdeCollisionMesh : IMesh
+    {
+        public float[] vertexListOrig;
+        public int[] indexListOrig;
+
+        public float[] vertexList;
+        public int[] indexList;
+        public GCHandle gchVertexList;
+        public GCHandle gchIndexList;
+
+        public LLVector3 BoundsMin = new LLVector3();
+        public LLVector3 BoundsMax = new LLVector3();
+        public bool m_BoundsScaling;
+
+        public OdeCollisionMesh(int vVertexCount, int vIndexCount)
+        {
+            vertexList = new float[vVertexCount];
+            gchVertexList = GCHandle.Alloc(vertexList, GCHandleType.Pinned);
+            vertexListOrig = new float[vVertexCount];
+
+            indexList = new int[vIndexCount];
+            gchIndexList = GCHandle.Alloc(indexList, GCHandleType.Pinned);
+            indexListOrig = new int[vIndexCount];
+        }
+
+        public void FreeLists()
+        {
+            gchVertexList.Free();
+            gchIndexList.Free();
+        }
+
+        public List<PhysicsVector> getVertexList()
+        {
+            return null;
+        }
+        public int[] getIndexListAsInt()
+        {
+            return indexList;
+        }
+        public int[] getIndexListAsIntLocked()
+        {
+            return indexList;
+        }
+        public float[] getVertexListAsFloatLocked()
+        {
+            return vertexList;
+        }
+    }
+
+
     public class OdePrim : PhysicsActor
     {
         public PhysicsVector _position;
@@ -74,10 +132,14 @@ namespace OpenSim.Region.Physics.OdePlugin
         public d.Mass pMass;
 
         private int debugcounter = 0;
+        private bool m_DotMeshCollision = false; // rex
+        public bool m_BoundsScalingUpdate = false; // rex
+        private bool m_PrimVolume = false; // rex
 
         public OdePrim(String primName, OdeScene parent_scene, IntPtr targetSpace, PhysicsVector pos, PhysicsVector size,
-                       Quaternion rotation, IMesh mesh, PrimitiveBaseShape pbs, bool pisPhysical)
+                       Quaternion rotation, IMesh mesh, PrimitiveBaseShape pbs, bool pisPhysical, uint localID)
         {
+            m_localID = localID; // rex
             _velocity = new PhysicsVector();
             _position = pos;
             m_taintposition = pos;
@@ -152,10 +214,23 @@ namespace OpenSim.Region.Physics.OdePlugin
             }
         }
 
+        // rex, modified function, m_PrimVolume added
         public override int PhysicsActorType
         {
-            get { return (int) ActorTypes.Prim; }
-            set { return; }
+            get 
+            {
+                if (m_PrimVolume)
+                    return (int)ActorTypes.PrimVolume;
+                else
+                    return (int)ActorTypes.Prim; 
+            }
+            set 
+            {
+                if (value == (int)ActorTypes.PrimVolume)
+                    m_PrimVolume = true;
+                else
+                    m_PrimVolume = false;
+            }
         }
 
         public override bool SetAlwaysRun
@@ -320,6 +395,11 @@ namespace OpenSim.Region.Physics.OdePlugin
             int VertexCount = vertexList.GetLength(0)/3;
             int IndexCount = indexList.GetLength(0);
 
+            // rex, del old trimeshdata
+            if (_triMeshData != (IntPtr)0)
+                d.GeomTriMeshDataDestroy(_triMeshData);
+            _mesh = mesh; // rex, end
+
             _triMeshData = d.GeomTriMeshDataCreate();
 
             d.GeomTriMeshDataBuildSimple(_triMeshData, vertexList, 3*sizeof (float), VertexCount, indexList, IndexCount,
@@ -349,6 +429,9 @@ namespace OpenSim.Region.Physics.OdePlugin
             //
 
             if (m_taintsize != _size)
+                changesize(timestep);
+
+            if (m_BoundsScalingUpdate) // rex
                 changesize(timestep);
             //
 
@@ -381,14 +464,34 @@ namespace OpenSim.Region.Physics.OdePlugin
             m_taintposition = _position;
         }
 
+        // rex, function changed
         public void rotate(float timestep)
         {
             d.Quaternion myrot = new d.Quaternion();
-            myrot.W = _orientation.w;
-            myrot.X = _orientation.x;
-            myrot.Y = _orientation.y;
-            myrot.Z = _orientation.z;
-            d.GeomSetQuaternion(prim_geom, ref myrot);
+
+            if (m_DotMeshCollision && _mesh != null) // rex, setting rot for collision 3d model
+            {
+                d.GeomSetPosition(prim_geom, _position.X, _position.Y, _position.Z);
+
+                Quaternion meshRotA = Quaternion.FromAngleAxis((float)(Math.PI * 0.5), new Vector3(1, 0, 0));
+                Quaternion meshRotB = Quaternion.FromAngleAxis((float)(Math.PI), new Vector3(0, 1, 0));
+                Quaternion mytemprot = _orientation * meshRotA * meshRotB;
+ 
+                myrot.W = mytemprot.w;
+                myrot.X = mytemprot.x;
+                myrot.Y = mytemprot.y;
+                myrot.Z = mytemprot.z;
+                d.GeomSetQuaternion(prim_geom, ref myrot);
+            }
+            else
+            {
+                myrot.W = _orientation.w;
+                myrot.X = _orientation.x;
+                myrot.Y = _orientation.y;
+                myrot.Z = _orientation.z;
+                d.GeomSetQuaternion(prim_geom, ref myrot);
+            }
+
             if (m_isphysical && Body != (IntPtr) 0)
             {
                 d.BodySetQuaternion(Body, ref myrot);
@@ -418,6 +521,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             m_taintPhysics = m_isphysical;
         }
 
+        // rex, function changed
         public void changesize(float timestamp)
         {
             string oldname = _parent_scene.geom_name_map[prim_geom];
@@ -440,8 +544,63 @@ namespace OpenSim.Region.Physics.OdePlugin
 
             // we don't need to do space calculation because the client sends a position update also.
 
+            if (m_DotMeshCollision && _mesh != null) // rex, scaling dotmesh models
+            {
+                float[] scalefactor = new float[3];
+                int vertindex = 0;
+                OdeCollisionMesh mesh = _mesh as OdeCollisionMesh;
+
+                LLVector3 scalingvector = new LLVector3(_size.X, _size.Y, _size.Z);
+                if (mesh.m_BoundsScaling)
+                {
+                    LLVector3 boundssize = mesh.BoundsMax - mesh.BoundsMin;
+                    if (boundssize.X != 0)
+                        scalingvector.X /= boundssize.X;
+                    if (boundssize.Y != 0)
+                        scalingvector.Z /= boundssize.Y;
+                    if (boundssize.Z != 0)
+                        scalingvector.Y /= boundssize.Z;
+                }
+                scalefactor[0] = scalingvector.X;
+                scalefactor[1] = scalingvector.Z;
+                scalefactor[2] = scalingvector.Y;
+
+                for (int i = 0; i < mesh.vertexList.GetLength(0); i++)
+                {
+                    mesh.vertexList[i] = mesh.vertexListOrig[i] * scalefactor[vertindex];
+                    vertindex++;
+                    if (vertindex > 2)
+                        vertindex = 0;
+                }
+
+                for (int i = 0; i < mesh.indexList.GetLength(0); i++)
+                    mesh.indexList[i] = mesh.indexListOrig[i];
+
+                setMesh(_parent_scene, mesh);
+
+                d.GeomSetPosition(prim_geom, _position.X, _position.Y, _position.Z);
+
+                Quaternion meshRotA = Quaternion.FromAngleAxis((float)(Math.PI * 0.5), new Vector3(1, 0, 0));
+                Quaternion meshRotB = Quaternion.FromAngleAxis((float)(Math.PI), new Vector3(0, 1, 0));
+                Quaternion mytemprot = _orientation * meshRotA * meshRotB;
+
+                d.Quaternion myrot = new d.Quaternion();
+                myrot.W = mytemprot.w;
+                myrot.X = mytemprot.x;
+                myrot.Y = mytemprot.y;
+                myrot.Z = mytemprot.z;
+                d.GeomSetQuaternion(prim_geom, ref myrot);
+
+                if (IsPhysical && Body == (IntPtr)0)
+                {
+                    // Re creates body on size.
+                    // EnableBody also does setMass()
+                    enableBody();
+                    d.BodyEnable(Body);
+                }
+            } // rex, end scaling
             // Construction of new prim
-            if (_parent_scene.needsMeshing(_pbs))
+            else if (_parent_scene.needsMeshing(_pbs))
             {
                 // Don't need to re-enable body..   it's done in SetMesh
                 IMesh mesh = _parent_scene.mesher.CreateMesh(oldname, _pbs, _size);
@@ -487,6 +646,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             _parent_scene.geom_name_map[prim_geom] = oldname;
 
             m_taintsize = _size;
+            m_BoundsScalingUpdate = false; // rex
         }
 
         public void changeshape(float timestamp)
@@ -797,5 +957,211 @@ namespace OpenSim.Region.Physics.OdePlugin
         public override void SetMomentum(PhysicsVector momentum)
         {
         }
+
+
+        // rex, new function.
+        // This function should be called only outside of simulation loop -> OdeLock used.
+        public override void SetCollisionMesh(byte[] vData, string MeshName, bool vbScaleMesh)
+        {
+            float[] tempVertexList;
+            float[] tempBounds;
+            int[] tempIndexList;
+            string errorMessage;
+            float[] scalefactor = new float[3];
+            int vertindex = 0;
+
+            lock (OdeScene.OdeLock)
+            {
+                // 1. Get rid of old mesh 
+                m_DotMeshCollision = false;
+                if (_mesh != null)
+                {
+                    if ((OdeCollisionMesh)_mesh != null)
+                        (_mesh as OdeCollisionMesh).FreeLists();
+
+                    _mesh = null;
+                }
+
+                // 2. Try to load new colmesh
+                OdeCollisionMesh mesh = null;
+                if (vData != null)
+                {
+                    DotMeshLoader.ReadDotMeshModel(vData, out tempVertexList, out tempIndexList, out tempBounds, out errorMessage);
+
+                    if (tempVertexList != null && tempIndexList != null)
+                    {
+                        mesh = new OdeCollisionMesh(tempVertexList.GetLength(0), tempIndexList.GetLength(0));
+                        mesh.m_BoundsScaling = vbScaleMesh;
+                        mesh.BoundsMin.X = tempBounds[0];
+                        mesh.BoundsMin.Y = tempBounds[1];
+                        mesh.BoundsMin.Z = tempBounds[2];
+                        mesh.BoundsMax.X = tempBounds[3];
+                        mesh.BoundsMax.Y = tempBounds[4];
+                        mesh.BoundsMax.Z = tempBounds[5];
+
+                        LLVector3 scalingvector = new LLVector3(_size.X, _size.Y, _size.Z);
+                        if (vbScaleMesh)
+                        {
+                            LLVector3 boundssize = mesh.BoundsMax - mesh.BoundsMin;
+                            if (boundssize.X != 0)
+                                scalingvector.X /= boundssize.X;
+                            if (boundssize.Y != 0)
+                                scalingvector.Z /= boundssize.Y;
+                            if (boundssize.Z != 0)
+                                scalingvector.Y /= boundssize.Z;
+                        }
+
+                        scalefactor[0] = scalingvector.X;
+                        scalefactor[1] = scalingvector.Z;
+                        scalefactor[2] = scalingvector.Y;
+                        for (int i = 0; i < tempVertexList.GetLength(0); i++)
+                        {
+                            mesh.vertexListOrig[i] = tempVertexList[i];
+                            mesh.vertexList[i] = tempVertexList[i] * scalefactor[vertindex];
+                       
+                            vertindex++;
+                            if (vertindex > 2)
+                                vertindex = 0;
+                        }
+
+                        for (int i = 0; i < tempIndexList.GetLength(0); i++)
+                        {
+                            mesh.indexListOrig[i] = tempIndexList[i];
+                            mesh.indexList[i] = tempIndexList[i];
+                        }
+
+
+                    }
+                    else
+                        MainLog.Instance.Error("PHYSICS", "Error importing mesh:" + MeshName + ", " + errorMessage);
+                }
+
+                // 3. If mesh is null, must create the default collisionbox
+                if (mesh == null)
+                {
+                    CreateDefaultCollision();
+                    return;
+                }
+
+                // 4. If mesh loaded, use it
+                string oldname = _parent_scene.geom_name_map[prim_geom];
+                m_DotMeshCollision = true;
+
+                if (IsPhysical && Body != (IntPtr)0)
+                    disableBody();
+
+                if (prim_geom != (IntPtr)0)
+                {
+                    if (d.SpaceQuery(m_targetSpace, prim_geom))
+                    {
+                        d.SpaceRemove(m_targetSpace, prim_geom);
+                    }
+                    d.GeomDestroy(prim_geom);
+                }
+
+                setMesh(_parent_scene, mesh);
+
+                d.GeomSetPosition(prim_geom, _position.X, _position.Y, _position.Z);
+
+                Quaternion meshRotA = Quaternion.FromAngleAxis((float)(Math.PI * 0.5), new Vector3(1, 0, 0));
+                Quaternion meshRotB = Quaternion.FromAngleAxis((float)(Math.PI), new Vector3(0, 1, 0));
+                Quaternion mytemprot = _orientation * meshRotA * meshRotB;
+ 
+                d.Quaternion myrot = new d.Quaternion();
+                myrot.W = mytemprot.w;
+                myrot.X = mytemprot.x;
+                myrot.Y = mytemprot.y;
+                myrot.Z = mytemprot.z;
+                d.GeomSetQuaternion(prim_geom, ref myrot);
+
+                _parent_scene.geom_name_map[prim_geom] = oldname;
+            }
+        }
+
+
+
+
+
+        // rex, function added
+        private void CreateDefaultCollision()
+        {
+            string oldname = _parent_scene.geom_name_map[prim_geom];
+
+            // Cleanup of old prim geometry
+            if (_mesh != null)
+            {
+                // Cleanup meshing here
+            }
+            //kill body to rebuild 
+            if (IsPhysical && Body != (IntPtr)0)
+            {
+                disableBody();
+            }
+            if (d.SpaceQuery(m_targetSpace, prim_geom))
+            {
+                d.SpaceRemove(m_targetSpace, prim_geom);
+            }
+            d.GeomDestroy(prim_geom);
+
+            // we don't need to do space calculation because the client sends a position update also.
+            // Construction of new prim
+            if (_parent_scene.needsMeshing(_pbs))
+            {
+                // Don't need to re-enable body..   it's done in SetMesh
+                IMesh mesh = _parent_scene.mesher.CreateMesh(oldname, _pbs, _size);
+                // createmesh returns null when it's a shape that isn't a cube.
+                if (mesh != null)
+                {
+                    setMesh(_parent_scene, mesh);
+                }
+                else
+                {
+                    prim_geom = d.CreateBox(m_targetSpace, _size.X, _size.Y, _size.Z);
+                    d.GeomSetPosition(prim_geom, _position.X, _position.Y, _position.Z);
+                    d.Quaternion myrot = new d.Quaternion();
+                    myrot.W = _orientation.w;
+                    myrot.X = _orientation.x;
+                    myrot.Y = _orientation.y;
+                    myrot.Z = _orientation.z;
+                    d.GeomSetQuaternion(prim_geom, ref myrot);
+                }
+            }
+            else
+            {
+                prim_geom = d.CreateBox(m_targetSpace, _size.X, _size.Y, _size.Z);
+                d.GeomSetPosition(prim_geom, _position.X, _position.Y, _position.Z);
+                d.Quaternion myrot = new d.Quaternion();
+                myrot.W = _orientation.w;
+                myrot.X = _orientation.x;
+                myrot.Y = _orientation.y;
+                myrot.Z = _orientation.z;
+                d.GeomSetQuaternion(prim_geom, ref myrot);
+
+
+                //d.GeomBoxSetLengths(prim_geom, _size.X, _size.Y, _size.Z);
+                if (IsPhysical && Body == (IntPtr)0)
+                {
+                    // Re creates body on size.
+                    // EnableBody also does setMass()
+                    enableBody();
+                    d.BodyEnable(Body);
+                }
+            }
+            _parent_scene.geom_name_map[prim_geom] = oldname;
+        }
+
+        // rex, new function
+        public override void SetBoundsScaling(bool vbScaleMesh)
+        {
+            if (m_DotMeshCollision && _mesh != null)
+            {
+                (_mesh as OdeCollisionMesh).m_BoundsScaling = vbScaleMesh;
+                m_BoundsScalingUpdate = true;
+            }
+        }
+
+
+
+
     }
 }

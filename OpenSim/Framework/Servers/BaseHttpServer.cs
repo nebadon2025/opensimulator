@@ -300,7 +300,15 @@ namespace OpenSim.Framework.Servers
             }
             finally
             {
-                response.OutputStream.Close();
+                try
+                {
+                    response.OutputStream.Flush();
+                    response.OutputStream.Close();
+                }
+                catch (Exception ex)
+                {
+                    MainLog.Instance.Warn("HTTPD", "Error closing - " + ex.Message);
+                }
             }
         }
 
@@ -352,7 +360,15 @@ namespace OpenSim.Framework.Servers
             }
             finally
             {
-                response.OutputStream.Close();
+                try
+                {
+                    response.OutputStream.Flush();
+                    response.OutputStream.Close();
+                }
+                catch (Exception ex)
+                {
+                    MainLog.Instance.Warn("HTTPD", "Error closing - " + ex.Message);
+                }
             }
         }
 

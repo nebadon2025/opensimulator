@@ -31,6 +31,7 @@ using System.Reflection;
 using libsecondlife;
 using Mono.Data.SqliteClient;
 using OpenSim.Framework.Console;
+using System.Collections.Generic; // rex added
 
 namespace OpenSim.Framework.Data.SQLite
 {
@@ -117,6 +118,24 @@ namespace OpenSim.Framework.Data.SQLite
             }
         }
 
+        // rex new function for "replace assets" functionality
+        public LLUUID ExistsAsset(sbyte type, string name)
+        {
+            LLUUID retVal = LLUUID.Zero;
+
+            lock (ds)
+            {
+                string selectExp = "Type = '" + type.ToString() + "' AND Name = '" + name + "'";
+                DataRow[] match = ds.Tables["assets"].Select(selectExp);
+                if (match.Length > 0)
+                {
+                    retVal = new LLUUID((String)match[0]["UUID"]);
+                }
+            }
+
+            return retVal;
+        }
+
         private void LogAssetLoad(AssetBase asset)
         {
             string temporary = asset.Temporary ? "Temporary" : "Stored";
@@ -133,6 +152,32 @@ namespace OpenSim.Framework.Data.SQLite
             DataRow row = ds.Tables["assets"].Rows.Find(Util.ToRawUuidString(uuid));
             return (row != null);
         }
+
+        // rex, new function
+        public List<AssetBase> GetAssetList(int vAssetType)
+        {
+            List<AssetBase> retvals = new List<AssetBase>();
+            lock (ds)
+            {
+                string selectExp = "InvType = '" + vAssetType.ToString() + "'";
+                DataRow[] allAssets = ds.Tables["assets"].Select(selectExp);
+                foreach (DataRow row in allAssets)
+                {
+                    // Do not use buildAsset(row) because we don't want to return the asset.data - Tuco
+                    AssetBase asset = new AssetBase();
+                    asset.FullID = new LLUUID((String)row["UUID"]);
+                    asset.Name = (String)row["Name"];
+                    asset.Description = (String)row["Description"];
+                    asset.Type = Convert.ToSByte(row["Type"]);
+                    asset.InvType = Convert.ToSByte(row["InvType"]);
+                    asset.Local = Convert.ToBoolean(row["Local"]);
+                    asset.Temporary = Convert.ToBoolean(row["Temporary"]);
+                    retvals.Add(asset);
+                }
+            }
+            return retvals;
+        }
+
 
         public void DeleteAsset(LLUUID uuid)
         {
@@ -171,6 +216,7 @@ namespace OpenSim.Framework.Data.SQLite
             createCol(assets, "UUID", typeof (String));
             createCol(assets, "Name", typeof (String));
             createCol(assets, "Description", typeof (String));
+            createCol(assets, "MediaURL", typeof(String));//rex mediaurl
             createCol(assets, "Type", typeof (Int32));
             createCol(assets, "InvType", typeof (Int32));
             createCol(assets, "Local", typeof (Boolean));
@@ -199,6 +245,14 @@ namespace OpenSim.Framework.Data.SQLite
             asset.FullID = new LLUUID((String) row["UUID"]);
             asset.Name = (String) row["Name"];
             asset.Description = (String) row["Description"];
+            try
+            {
+                asset.MediaURL = (String) row["MediaURL"];//rex mediaurl
+            }
+            catch (Exception)
+            {
+                asset.MediaURL = ""; // fixme, the row returns null which can't be cast to string, happens with old dbs right now. - Tuco
+            }  
             asset.Type = Convert.ToSByte(row["Type"]);
             asset.InvType = Convert.ToSByte(row["InvType"]);
             asset.Local = Convert.ToBoolean(row["Local"]);
@@ -219,6 +273,15 @@ namespace OpenSim.Framework.Data.SQLite
             else
             {
                 row["Description"] = " ";
+            }
+
+            if (asset.MediaURL != null) //rex mediaurl
+            {
+                row["MediaURL"] = asset.MediaURL;
+            }
+            else
+            {
+                row["MediaURL"] = " ";
             }
             row["Type"] = asset.Type;
             row["InvType"] = asset.InvType;

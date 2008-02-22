@@ -78,7 +78,7 @@ namespace OpenSim.Region.Physics.POSPlugin
             // Does nothing right now
         }
 
-        public override PhysicsActor AddAvatar(string avName, PhysicsVector position)
+        public override PhysicsActor AddAvatar(string avName, PhysicsVector position, uint localID)
         {
             POSCharacter act = new POSCharacter();
             act.Position = position;
@@ -112,13 +112,13 @@ namespace OpenSim.Region.Physics.POSPlugin
 */
 
         public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, PhysicsVector position,
-                                                  PhysicsVector size, Quaternion rotation)
+                                                  PhysicsVector size, Quaternion rotation, uint localID)
         {
-            return AddPrimShape(primName, pbs, position, size, rotation, false);
+            return AddPrimShape(primName, pbs, position, size, rotation, false,localID);
         }
 
         public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, PhysicsVector position,
-                                                  PhysicsVector size, Quaternion rotation, bool isPhysical)
+                                                  PhysicsVector size, Quaternion rotation, bool isPhysical, uint localID)
         {
             POSPrim prim = new POSPrim();
             prim.Position = position;

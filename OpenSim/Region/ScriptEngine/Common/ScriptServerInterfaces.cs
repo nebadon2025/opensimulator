@@ -47,10 +47,6 @@ namespace OpenSim.Region.ScriptEngine.Common
         {
             RemoteEvents Events();
         }
-        public interface ScriptEngine
-        {
-            RemoteEvents EventManager();
-        }
 
     }
 }

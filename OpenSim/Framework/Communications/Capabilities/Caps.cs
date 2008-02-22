@@ -47,6 +47,9 @@ namespace OpenSim.Region.Capabilities
 
     public delegate void NewInventoryItem(LLUUID userID, InventoryItemBase item);
 
+    // rex, added for asset replace functionality
+    public delegate bool InventoryAssetCheck(LLUUID userID, LLUUID assetID);
+
     public delegate LLUUID ItemUpdatedCallback(LLUUID userID, LLUUID itemID, byte[] data);
 
     public delegate void TaskScriptUpdatedCallback(LLUUID userID, LLUUID itemID, LLUUID primID,
@@ -72,10 +75,12 @@ namespace OpenSim.Region.Capabilities
         private int m_eventQueueCount = 1;
         private Queue<string> m_capsEventQueue = new Queue<string>();
         private bool m_dumpAssetsToFile;
+        private bool m_replaceAssets;
 
         // These are callbacks which will be setup by the scene so that we can update scene data when we 
         // receive capability calls
         public NewInventoryItem AddNewInventoryItem = null;
+        public InventoryAssetCheck CheckInventoryForAsset = null;
         public ItemUpdatedCallback ItemUpdatedCall = null;
         public TaskScriptUpdatedCallback TaskScriptUpdatedCall = null;
 
@@ -89,6 +94,8 @@ namespace OpenSim.Region.Capabilities
             m_httpListenPort = httpPort;
             m_agentID = agent;
             m_dumpAssetsToFile = dumpAssetsToFile;
+
+            m_replaceAssets = (GlobalSettings.Instance.ConfigSource.Configs["Startup"].GetBoolean("replace_assets", true));
         }
 
         /// <summary>
@@ -374,6 +381,28 @@ namespace OpenSim.Region.Capabilities
             LLUUID parentFolder = llsdRequest.folder_id;
             string uploaderPath = Util.RandomClass.Next(5000, 8000).ToString("0000");
 
+            // rex, modified for "replace assets" functionality
+            if (m_replaceAssets)
+            {
+                // Check for asset replace upload 
+                sbyte assType = 0;
+                sbyte inType = 0;
+                ParseAssetAndInventoryType(llsdRequest.asset_type, llsdRequest.inventory_type, out assType, out inType);
+                LLUUID dupID = m_assetCache.ExistsAsset(assType, llsdRequest.name);
+                if (dupID != LLUUID.Zero)
+                {
+                    // If duplicate (same name and same assettype) found, use old asset UUID
+                    newAsset = dupID;
+                    // If user already has this asset in inventory, create no item
+                    if (CheckInventoryForAsset != null)
+                    {
+                        if (CheckInventoryForAsset(m_agentID, dupID))
+                            newInvItem = LLUUID.Zero;
+                    }
+                }
+            }
+            // rexend
+
             AssetUploader uploader =
                 new AssetUploader(assetName, assetDes, newAsset, newInvItem, parentFolder, llsdRequest.inventory_type,
                                   llsdRequest.asset_type, capsBase + uploaderPath, m_httpListener, m_dumpAssetsToFile);
@@ -402,6 +431,57 @@ namespace OpenSim.Region.Capabilities
             sbyte assType = 0;
             sbyte inType = 0;
 
+            // rex, modified to use extracted method, because needed in multiple places
+            ParseAssetAndInventoryType(assetType, inventoryType, out assType, out inType);
+
+            AssetBase asset;
+            asset = new AssetBase();
+            asset.FullID = assetID;
+            asset.Type = assType;
+            asset.InvType = inType;
+            asset.Name = assetName;
+            asset.Data = data;
+
+            // rex, modified for "replace assets" functionality
+            bool replace = (m_assetCache.ExistsAsset(assetID));
+            if (replace)
+            {
+                m_assetCache.ReplaceAsset(asset);
+            }
+            else
+            {
+                m_assetCache.AddAsset(asset);
+            }
+
+            if (inventoryItem != LLUUID.Zero)
+            {
+                InventoryItemBase item = new InventoryItemBase();
+                item.avatarID = m_agentID;
+                item.creatorsID = m_agentID;
+                item.inventoryID = inventoryItem;
+                item.assetID = asset.FullID;
+                item.inventoryDescription = assetDescription;
+                item.inventoryName = assetName;
+                item.assetType = assType;
+                item.invType = inType;
+                item.parentFolderID = parentFolder;
+                item.inventoryCurrentPermissions = 2147483647;
+                item.inventoryNextPermissions = 2147483647;
+
+                if (AddNewInventoryItem != null)
+                {
+                    AddNewInventoryItem(m_agentID, item);
+                }
+            }
+            // rexend
+        }
+
+        // rex, new function (extracted method) with added Ogre asset support
+        private void ParseAssetAndInventoryType(string assetType, string inventoryType, out sbyte assType, out sbyte inType)
+        {
+            inType = 0;
+            assType = 0;
+
             if (inventoryType == "sound")
             {
                 inType = 1;
@@ -413,33 +493,19 @@ namespace OpenSim.Region.Capabilities
                 assType = 20;
             }
 
-            AssetBase asset;
-            asset = new AssetBase();
-            asset.FullID = assetID;
-            asset.Type = assType;
-            asset.InvType = inType;
-            asset.Name = assetName;
-            asset.Data = data;
-            m_assetCache.AddAsset(asset);
-
-            InventoryItemBase item = new InventoryItemBase();
-            item.avatarID = m_agentID;
-            item.creatorsID = m_agentID;
-            item.inventoryID = inventoryItem;
-            item.assetID = asset.FullID;
-            item.inventoryDescription = assetDescription;
-            item.inventoryName = assetName;
-            item.assetType = assType;
-            item.invType = inType;
-            item.parentFolderID = parentFolder;
-            item.inventoryCurrentPermissions = 2147483647;
-            item.inventoryNextPermissions = 2147483647;
-
-            if (AddNewInventoryItem != null)
+            if (assetType == "ogremesh")
             {
-                AddNewInventoryItem(m_agentID, item);
+                inType = 6;
+                assType = 43;
+            }
+
+            if (assetType == "ogrepart")
+            {
+                inType = 41;
+                assType = 47;
             }
         }
+
 
         /// <summary>
         /// Called when new asset data for an agent inventory item update has been uploaded.

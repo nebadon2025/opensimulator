@@ -147,6 +147,12 @@ namespace OpenSim.Framework
         /// The users last registered agent (filled in on the user server)
         /// </summary>
         public UserAgentData currentAgent;
+
+        /// <summary>
+        /// Authentication address (used in rex mode)
+        /// </summary>
+        public string authenticationAddr;
+
     }
 
     /// <summary>

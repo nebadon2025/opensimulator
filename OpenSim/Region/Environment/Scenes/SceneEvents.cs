@@ -28,6 +28,7 @@
 
 using libsecondlife;
 using System;
+using System.Collections.Generic;
 using OpenSim.Framework;
 using OpenSim.Region.Environment.Interfaces;
 using OpenSim.Region.Environment.LandManagement;
@@ -125,7 +126,25 @@ namespace OpenSim.Region.Environment.Scenes
 
         public event NewGridInstantMessage OnGridInstantMessageToGroupsModule;
 
+        // rex, new events
+        public delegate void OnAddEntityDelegate(uint localID);
+        public event OnAddEntityDelegate OnAddEntity;
 
+        public delegate void OnRemoveEntityDelegate(uint localID);
+        public event OnRemoveEntityDelegate OnRemoveEntity;
+
+        public delegate void OnPythonScriptCommandDelegate(string vCommand);
+        public event OnPythonScriptCommandDelegate OnPythonScriptCommand;
+
+        public delegate void OnChangePythonClassDelegate(uint localID);
+        public event OnChangePythonClassDelegate OnPythonClassChange;
+
+        public delegate void OnRexScriptCommandDelegate(ScenePresence avatar,List<string> vCommands);
+        public event OnRexScriptCommandDelegate OnRexClientScriptCommand;
+
+        public delegate void OnPrimVolumeCollisionDelegate(uint ownID, uint colliderID);
+        public event OnPrimVolumeCollisionDelegate OnPrimVolumeCollision;
+        // rex-end
 
         public void TriggerOnClientMovement(ScenePresence avatar)
         {
@@ -301,5 +320,48 @@ namespace OpenSim.Region.Environment.Scenes
             }
         }
         
+        // rex, new function
+        public void TriggerOnAddEntity(uint localID)
+        {
+            if (OnAddEntity != null)
+                OnAddEntity(localID);
+        }
+
+        // rex, new function
+        public void TriggerOnRemoveEntity(uint localID)
+        {
+            if (OnRemoveEntity != null)
+                OnRemoveEntity(localID);
+        }
+
+        // rex, new function
+        public void TriggerOnPythonScriptCommand(string vCommand)
+        {
+            if (OnPythonScriptCommand != null)
+                OnPythonScriptCommand(vCommand);
+        }
+
+        // rex, new function
+        public void TriggerOnChangePythonClass(uint localID)
+        {
+            if (OnPythonClassChange != null)
+                OnPythonClassChange(localID);
+        }
+
+        // rex, new function
+        public void TriggerOnRexClientScriptCommand(ScenePresence avatar, List<string> vCommands)
+        {
+            if (OnRexClientScriptCommand != null)
+                OnRexClientScriptCommand(avatar, vCommands);
+        }
+
+        // rex, new function
+        public void TriggerOnPrimVolumeCollision(uint ownID,uint colliderID)
+        {
+            if (OnPrimVolumeCollision != null)
+                OnPrimVolumeCollision(ownID, colliderID);
+        }
+
+
     }
 }

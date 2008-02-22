@@ -93,6 +93,8 @@ namespace OpenSim
         public ConsoleCommand CreateAccount = null;
         private bool m_dumpAssetsToFile;
 
+        private bool m_rexMode = false; //rex
+
         private List<IApplicationPlugin> m_plugins = new List<IApplicationPlugin>();
 
         private IniConfigSource m_config;
@@ -153,6 +155,9 @@ namespace OpenSim
             }
 
             ReadConfigSettings();
+            // rex, added globalconfig for easy access to config values outside OpenSimMain without using parameters.
+            GlobalSettings.Instance.ConfigSource = m_config;
+            GlobalSettings.Instance.m_3d_collision_models = m_config.Configs["Startup"].GetBoolean("3d_collision_models", true); // endrex
         }
 
         public static IConfigSource DefaultConfig()
@@ -175,6 +180,10 @@ namespace OpenSim
                 config.Set("shutdown_console_commands_file", "");
                 config.Set("script_engine", "OpenSim.Region.ScriptEngine.DotNetEngine.dll");
                 config.Set("asset_database", "sqlite");
+                config.Set("worldlibraryfolder", true); // rex, added
+                config.Set("replace_assets", true); // rex, added
+				config.Set("rex_mode", false); //rex
+                config.Set("3d_collision_models", true); //rex
             }
 
             if (DefaultConfig.Configs["StandAlone"] == null)
@@ -251,6 +260,7 @@ namespace OpenSim
                 m_assetStorage = startupConfig.GetString("asset_database", "sqlite");
 
                 m_timedScript = startupConfig.GetString("timer_Script", "disabled");
+                m_rexMode = startupConfig.GetBoolean("rex_mode", false);//rex
             }
 
             IConfig standaloneConfig = m_config.Configs["StandAlone"];
@@ -320,10 +330,11 @@ namespace OpenSim
 
                 m_loginService =
                     new LocalLoginService(userService, m_standaloneWelcomeMessage, localComms, m_networkServersInfo,
-                                          m_standaloneAuthenticate);
+                                          m_standaloneAuthenticate, m_rexMode);
                 m_loginService.OnLoginToRegion += backendService.AddNewSession;
 
                 m_httpServer.AddXmlRPCHandler("login_to_simulator", m_loginService.XmlRpcLoginMethod);
+
                 m_httpServer.SetLLSDHandler(m_loginService.LLSDLoginMethod);
 
                 if (m_standaloneAuthenticate)
@@ -432,7 +443,9 @@ namespace OpenSim
             //m_moduleLoader.PickupModules(scene, "ScriptEngines");
             //m_moduleLoader.LoadRegionModules(Path.Combine("ScriptEngines", m_scriptEngine), scene);
             MainLog.Instance.Verbose("MODULES", "Loading scripting engine modules");
-            m_moduleLoader.LoadRegionModules(Path.Combine("ScriptEngines", m_scriptEngine), scene);       
+            m_moduleLoader.LoadRegionModules(Path.Combine("ScriptEngines", m_scriptEngine), scene);
+
+            m_moduleLoader.LoadRegionModules(Path.Combine("ScriptEngines", "OpenSim.Region.RexScriptModule.dll"), scene);  // rex 
 
             m_moduleLoader.InitialiseSharedModules(scene);
             scene.SetModuleInterfaces();
@@ -476,7 +489,8 @@ namespace OpenSim
             return
                 new Scene(regionInfo, circuitManager, permissionManager, m_commsManager, sceneGridService, m_assetCache,
                           storageManager, m_httpServer,
-                          m_moduleLoader, m_dumpAssetsToFile, m_physicalPrim, m_SendChildAgentTaskData);
+                          m_moduleLoader, m_dumpAssetsToFile, m_physicalPrim, m_SendChildAgentTaskData, 
+                          m_rexMode);
         }
 
 
@@ -682,6 +696,7 @@ namespace OpenSim
                     m_log.Error("show uptime - show simulator startup and uptime.");
                     m_log.Error("show users - show info about connected users.");
                     m_log.Error("show modules - shows info aboutloaded modules.");
+                    m_log.Error("status - show status window"); //rex
                     m_log.Error("shutdown - disconnect all clients and shutdown.");
                     m_log.Error("terrain help - show help for terrain commands.");
                     break;
@@ -861,6 +876,22 @@ namespace OpenSim
                     {
                         m_sceneManager.CurrentOrFirstScene.ExportWorldMap("exportmap.jpg");
                     }
+                    break;
+
+                // rex, new console command.
+                case "save-db":
+                    MainLog.Instance.Verbose("COMMANDFILE", "Forced database save started...");
+                    m_sceneManager.ForcedBackupCurrentScene();
+                    MainLog.Instance.Verbose("COMMANDFILE", "Forced database save ended...");
+                    break;
+                // rex, new console command.
+                case "python":
+                    m_sceneManager.SendPythonScriptCommand(cmdparams);
+                    break;
+
+                //rex
+                case "status":
+                    OpenSim.Framework.ServerStatus.ServerStatus.ShowWindow();
                     break;
 
                 default:

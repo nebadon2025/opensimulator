@@ -32,15 +32,22 @@ namespace OpenSim.Framework
 {
     public interface IUserService
     {
-        UserProfileData GetUserProfile(string firstName, string lastName);
+        UserProfileData GetUserProfile(string firstName, string lastName, string authAddr);
+        UserProfileData GetUserProfile(string firstName, string authAddr); // must differentiate this from GetUserProfile call
         //UserProfileData GetUserProfile(string name);
-        UserProfileData GetUserProfile(LLUUID userId);
-        void clearUserAgent(LLUUID avatarID);
+        UserProfileData GetUserProfileByAccount(string account);
+        UserProfileData GetUserProfile(LLUUID userId, string authAddr);
+        void clearUserAgent(LLUUID avatarID, string authAddr);
+        void UpdateUserAgentData(LLUUID agentId, bool agentOnline, LLVector3 currentPos, int logoutTime, string authAddr);
+
+
         List<AvatarPickerAvatar> GenerateAgentPickerRequestResponse(LLUUID QueryID, string Query);
 
         UserProfileData SetupMasterUser(string firstName, string lastName);
         UserProfileData SetupMasterUser(string firstName, string lastName, string password);
         UserProfileData SetupMasterUser(LLUUID userId);
+
+        bool AuthenticateUser(LLUUID agentID, string sessionhash, out string asAddress);//rex
 
         /// <summary>
         /// 

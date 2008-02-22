@@ -78,6 +78,7 @@ namespace OpenSim.Region.Environment.Scenes
         private readonly Mutex updateLock;
         public bool m_physicalPrim;
         public bool m_sendTasksToChild;
+        public bool m_rexMode;//rex
         private int m_RestartTimerCounter;
         private readonly Timer m_restartTimer = new Timer(15000); // Wait before firing
         private int m_incrementsof15seconds = 0;
@@ -126,6 +127,51 @@ namespace OpenSim.Region.Environment.Scenes
         private int m_update_avatars = 1;
 
         #endregion
+
+        #region realXtend
+        //REX
+        public void UpdateAssetMediaURL(IClientAPI remoteClient, LLUUID itemID, string mediaUrl)
+        {
+
+
+            AssetRequestCallback callback = delegate(LLUUID id, AssetBase asset)
+            {
+                UpdateAssetMediaURLRequest(id, asset, mediaUrl);
+            };
+
+            AssetCache.GetAsset(itemID, callback);
+        }
+
+        public void UpdateAssetMediaURLRequest(LLUUID id, AssetBase asset, string mediaUrl)
+        {
+            if (asset != null)
+            {
+                asset.MediaURL = mediaUrl;
+                AssetCache.ReplaceAsset(asset);
+
+                //Send it to all clients
+                ClientManager.ForEachClient(delegate(IClientAPI client)
+                {
+                    client.SendMediaURL(id, mediaUrl);
+                }
+                );
+            }
+            else
+            {
+                MainLog.Instance.Verbose("INVENTORY", "Unable to set MediaURL for " + id + ": texture/asset not found");
+            }
+        }
+        #endregion
+
+        public void ClientTriggeredSound(IClientAPI remoteClient, LLUUID soundID, LLUUID ownerID, LLUUID objectID, LLUUID parentID, ulong handle,  LLVector3 position, float gain)
+        {
+            ClientManager.ForEachClient(delegate(IClientAPI client)
+            {
+                // TODO: some filtering by distance of avatar
+                client.SendTriggeredSound(soundID, ownerID, objectID, parentID, handle, position, gain);
+            }
+            );
+        }
 
         #region Properties
 
@@ -211,8 +257,10 @@ namespace OpenSim.Region.Environment.Scenes
         public Scene(RegionInfo regInfo, AgentCircuitManager authen, PermissionManager permissionManager,
                      CommunicationsManager commsMan, SceneCommunicationService sceneGridService,
                      AssetCache assetCach, StorageManager storeManager, BaseHttpServer httpServer,
-                     ModuleLoader moduleLoader, bool dumpAssetsToFile, bool physicalPrim, bool SendTasksToChild)
+                     ModuleLoader moduleLoader, bool dumpAssetsToFile, bool physicalPrim, bool SendTasksToChild,
+                     bool rexMode)//rex
         {
+            m_rexMode = rexMode;//rex            
             updateLock = new Mutex(false);
 
             m_moduleLoader = moduleLoader;
@@ -722,6 +770,20 @@ namespace OpenSim.Region.Environment.Scenes
             return true;
         }
 
+        // rex, new function
+        public bool ForcedBackup()
+        {
+            List<EntityBase> EntitiesList = GetEntities();
+            foreach (EntityBase ent in EntitiesList)
+            {
+                if (ent is SceneObjectGroup)
+                {
+                    ((SceneObjectGroup)ent).HasChanged = true;
+                }
+            }
+            return Backup();
+        }
+
         #endregion
 
         #region Load Terrain
@@ -907,8 +969,11 @@ namespace OpenSim.Region.Environment.Scenes
                                           rootPart.AbsolutePosition.Z),
                         new PhysicsVector(rootPart.Scale.X, rootPart.Scale.Y, rootPart.Scale.Z),
                         new Quaternion(rootPart.RotationOffset.W, rootPart.RotationOffset.X,
-                                       rootPart.RotationOffset.Y, rootPart.RotationOffset.Z), UsePhysics);
+                                       rootPart.RotationOffset.Y, rootPart.RotationOffset.Z), UsePhysics, rootPart.LocalID);
                 rootPart.DoPhysicsPropertyUpdate(UsePhysics, true);
+                // rex added, load 3d collision model.
+                rootPart.GetRexParameters();
+                rootPart.RexUpdateCollisionMesh();
             }
             
             MainLog.Instance.Verbose("SCENE", "Loaded " + PrimsFromDB.Count.ToString() + " SceneObject(s)");
@@ -1053,14 +1118,58 @@ namespace OpenSim.Region.Environment.Scenes
                         rootPart.Shape,
                         new PhysicsVector(pos.X, pos.Y, pos.Z),
                         new PhysicsVector(shape.Scale.X, shape.Scale.Y, shape.Scale.Z),
-                        new Quaternion(), UsePhysics);
+                        new Quaternion(rootPart.RotationOffset.W, rootPart.RotationOffset.X,
+                                       rootPart.RotationOffset.Y, rootPart.RotationOffset.Z), UsePhysics, rootPart.LocalID); // rex, use rootPart.RotationOffset as rotation
                 // subscribe to physics events.
                 rootPart.DoPhysicsPropertyUpdate(UsePhysics, true);
+                // rex added, load 3d collision model
+                rootPart.GetRexParameters();
+                rootPart.RexUpdateCollisionMesh();
             }
+            EventManager.TriggerOnAddEntity(rootPart.LocalID); // rex, added
         }
 
+        // rex, new function
+        public uint AddNewPrimReturningId(LLUUID ownerID, LLVector3 pos, LLQuaternion rot, PrimitiveBaseShape shape, bool vbTemp, string vPyClass)
+        {
+            SceneObjectGroup sceneOb =
+                new SceneObjectGroup(this, m_regionHandle, ownerID, PrimIDAllocate(), pos, rot, shape, vbTemp, vPyClass);
+            AddEntity(sceneOb);
+            SceneObjectPart rootPart = sceneOb.GetChildPart(sceneOb.UUID);
+            // if grass or tree, make phantom
+            //rootPart.ApplySanePermissions();
+            if ((rootPart.Shape.PCode == 95) || (rootPart.Shape.PCode == 255) || (rootPart.Shape.PCode == 111))
+            {
+                rootPart.AddFlag(LLObject.ObjectFlags.Phantom);
+                //rootPart.ObjectFlags += (uint)LLObject.ObjectFlags.Phantom;
+            }
+            // if not phantom, add to physics
+            bool UsePhysics = (((rootPart.ObjectFlags & (uint)LLObject.ObjectFlags.Physics) > 0) && m_physicalPrim);
+            if ((rootPart.ObjectFlags & (uint)LLObject.ObjectFlags.Phantom) == 0)
+            {
+                rootPart.PhysActor =
+                    PhysicsScene.AddPrimShape(
+                        rootPart.Name,
+                        rootPart.Shape,
+                        new PhysicsVector(pos.X, pos.Y, pos.Z),
+                        new PhysicsVector(shape.Scale.X, shape.Scale.Y, shape.Scale.Z),
+                        new Quaternion(rootPart.RotationOffset.W, rootPart.RotationOffset.X,
+                                       rootPart.RotationOffset.Y, rootPart.RotationOffset.Z), UsePhysics, rootPart.LocalID); // rex, use rootPart.RotationOffset as rotation
+                // subscribe to physics events.
+                rootPart.DoPhysicsPropertyUpdate(UsePhysics, true);
+                // rex added, load 3d collision model
+                rootPart.GetRexParameters();
+                rootPart.RexUpdateCollisionMesh();
+            }
+            EventManager.TriggerOnAddEntity(rootPart.LocalID); // rex, added
+            return rootPart.LocalID;
+        }
+
+
+
+
         public void AddTree(LLVector3 scale, LLQuaternion rotation, LLVector3 position,
-                            Tree treeType, bool newTree)
+                            libsecondlife.Tree treeType, bool newTree)
         {
             PrimitiveBaseShape treeShape = new PrimitiveBaseShape();
             treeShape.PathCurve = 16;
@@ -1137,15 +1246,65 @@ namespace OpenSim.Region.Environment.Scenes
         /// <param name="child"></param>
         public override void AddNewClient(IClientAPI client, bool child)
         {
+            /*
+            String storageaddress;
+
+            if (!CommsManager.UserService.AuthenticateUser(client.AgentId, client.SessionId.ToString(), out storageaddress)) {
+                client.Kick("User authentication failed.");
+            }
+            else { // first authenticate and then do inits //rex
+                SubscribeToClientEvents(client);
+                m_estateManager.sendRegionHandshake(client);
+                if (!m_rexMode) {
+                    CreateAndAddScenePresence(client, child);
+                }
+                else {
+                    CreateAndAddRexScenePresence(client, child, storageaddress);
+                }
+                m_LandManager.sendParcelOverlay(client);
+                string authAddr = m_authenticateHandler.AgentCircuits[client.CircuitCode].authenticationAddr;
+
+                if (m_rexMode)
+                {
+                    CommsManager.UserProfileCacheService.AddNewUser(client.AgentId, authAddr);
+                }
+                else
+                {
+                    CommsManager.UserProfileCacheService.AddNewUser(client.AgentId);
+                }
+
+                CommsManager.TransactionsManager.AddUser(client.AgentId);
+            }/*/
             SubscribeToClientEvents(client);
-
             m_estateManager.sendRegionHandshake(client);
-
-            CreateAndAddScenePresence(client, child);
-
+            if (!m_rexMode)
+            {
+                CreateAndAddScenePresence(client, child);
+            }
+            else
+            {
+                if (!m_authenticateHandler.AgentCircuits.ContainsKey(client.CircuitCode))
+                {
+                    client.Kick("User login failed. No circuit code.");
+                }
+                else
+                {
+                    CreateAndAddRexScenePresence(client, child, m_authenticateHandler.AgentCircuits[client.CircuitCode].asAddress);
+                }
+            }
             m_LandManager.sendParcelOverlay(client);
-            CommsManager.UserProfileCacheService.AddNewUser(client.AgentId);
+            string authAddr = m_authenticateHandler.AgentCircuits[client.CircuitCode].authenticationAddr;
+            if (m_rexMode)
+            {
+                CommsManager.UserProfileCacheService.AddNewUser(client.AgentId, authAddr); 
+            }
+            else
+            {
+                CommsManager.UserProfileCacheService.AddNewUser(client.AgentId);
+            }
+
             CommsManager.TransactionsManager.AddUser(client.AgentId);
+            //*/
         }
 
         protected virtual void SubscribeToClientEvents(IClientAPI client)
@@ -1208,9 +1367,14 @@ namespace OpenSim.Region.Environment.Scenes
             client.OnUpdateInventoryItem += UpdateInventoryItemAsset;
             client.OnCopyInventoryItem += CopyInventoryItem;
             client.OnMoveInventoryItem += MoveInventoryItem;
+            client.OnRemoveInventoryItem += RemoveInventoryItem; // rex
             client.OnAssetUploadRequest += CommsManager.TransactionsManager.HandleUDPUploadRequest;
             client.OnXferReceive += CommsManager.TransactionsManager.HandleXfer;
             client.OnRezScript += RezScript;
+
+            client.OnRezSingleAttachmentFromInv += SingleAttachmentFromInv;
+            client.OnObjectAttach += ObjectAttach;
+            client.OnObjectDetach += ObjectDetach;
 
             client.OnRequestTaskInventory += RequestTaskInventory;
             client.OnRemoveTaskItem += RemoveTaskInventory;
@@ -1219,23 +1383,38 @@ namespace OpenSim.Region.Environment.Scenes
             client.OnGrabObject += ProcessObjectGrab;
             client.OnAvatarPickerRequest += ProcessAvatarPickerRequest;
 
+            client.OnReceiveRexClientScriptCmd += ProcessRexClientScriptCommand; // rex
+            client.OnObjectClickAction += HandleObjectClickAction; // rex
+            client.OnUpdateAssetMediaURL += UpdateAssetMediaURL; // rex
+
+            client.OnTriggerSound += ClientTriggeredSound;
+
             EventManager.TriggerOnNewClient(client);
         }
 
         protected virtual ScenePresence CreateAndAddScenePresence(IClientAPI client, bool child)
         {
-            ScenePresence avatar = null;
-
             AvatarAppearance appearance;
             GetAvatarAppearance(client, out appearance);
+            return CreateAndAddScenePresenceCommon(client, child, appearance);
+        }
 
+        protected virtual ScenePresence CreateAndAddRexScenePresence(IClientAPI client, bool child, string avatarstorage) //rex
+        {
+            AvatarAppearance appearance;
+            appearance = new AvatarAppearance(client.AgentId, avatarstorage);
+            return CreateAndAddScenePresenceCommon(client, child, appearance);
+        }
+
+        private ScenePresence CreateAndAddScenePresenceCommon(IClientAPI client, bool child, AvatarAppearance appearance)
+        {
+            ScenePresence avatar = null;
             avatar = m_innerScene.CreateAndAddScenePresence(client, child, appearance);
-
             if (avatar.IsChildAgent)
             {
                 avatar.OnSignificantClientMovement += m_LandManager.handleSignificantClientMovement;
             }
-
+            EventManager.TriggerOnNewPresence(avatar);//rex
             return avatar;
         }
 
@@ -1258,7 +1437,50 @@ namespace OpenSim.Region.Environment.Scenes
         /// <param name="agentID"></param>
         public override void RemoveClient(LLUUID agentID)
         {
+            CommonRemoveClient(agentID);
+            // Remove client agent from profile, so new logins will work
+
+        }
+
+        /// <summary>
+        /// Called in rex mode 
+        /// </summary>
+        /// <param name="agentID"></param>
+        /// <param name="circuitCode"></param>
+        public override void RemoveClient(LLUUID agentID, uint circuitCode)
+        {
             ScenePresence avatar = GetScenePresence(agentID);
+            string authAddr = m_authenticateHandler.AgentCircuits[circuitCode].authenticationAddr;
+            try
+            {
+
+                float x = Convert.ToSingle(Math.Round(avatar.AbsolutePosition.X));
+                float y = Convert.ToSingle(Math.Round(avatar.AbsolutePosition.Y));
+                float z = Convert.ToSingle(Math.Round(avatar.AbsolutePosition.Z));
+                LLVector3 currentPos = new LLVector3(x, y, z);
+
+                if (authAddr != null)
+                {
+                    CommsManager.UserService.UpdateUserAgentData(agentID, false, currentPos, Util.UnixTimeSinceEpoch(), authAddr);
+                }
+                else
+                {
+                    CommsManager.UserService.UpdateUserAgentData(agentID, false, currentPos, Util.UnixTimeSinceEpoch(), "");
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            CommonRemoveClient(agentID);
+            CommsManager.UserService.clearUserAgent(agentID, authAddr);
+
+        }
+
+        private void CommonRemoveClient(LLUUID agentID)
+        {
+            ScenePresence avatar = GetScenePresence(agentID);
+            
             try
             {
                 if (avatar.IsChildAgent)
@@ -1314,9 +1536,9 @@ namespace OpenSim.Region.Environment.Scenes
                 MainLog.Instance.Error("Scene.cs:RemoveClient exception: " + e.ToString());
             }
 
-            // Remove client agent from profile, so new logins will work
-            CommsManager.UserService.clearUserAgent(agentID);
         }
+
+
 
         public override void CloseAllAgents(uint circuitcode)
         {
@@ -1413,6 +1635,7 @@ namespace OpenSim.Region.Environment.Scenes
                     
                     }
                     cap.AddNewInventoryItem = AddInventoryItem;
+                    cap.CheckInventoryForAsset = CheckInventoryForAsset;
                     cap.ItemUpdatedCall = CapsUpdateInventoryItemAsset;
                     cap.TaskScriptUpdatedCall = CapsUpdateTaskInventoryScriptAsset;
 
@@ -1666,6 +1889,14 @@ namespace OpenSim.Region.Environment.Scenes
             {
                 m_scenePresences[avatarID].ControllingClient.SendLoadURL(objectName, objectID, ownerID, groupOwned,
                                                                          message, url);
+            }
+        }
+
+        public void SendDialogToUser(LLUUID avatarID, string objectName, LLUUID objectID, LLUUID ownerID, string message, LLUUID TextureID, int ch, string[] buttonlabels)
+        {
+            if (m_scenePresences.ContainsKey(avatarID))
+            {
+                m_scenePresences[avatarID].ControllingClient.SendDialog(objectName, objectID, ownerID, message, TextureID, ch, buttonlabels);
             }
         }
 
@@ -1953,6 +2184,22 @@ namespace OpenSim.Region.Environment.Scenes
             }
         }
 
+        //REX
+        public void HandleObjectClickAction(IClientAPI controller, uint objId, byte clickAction)
+        {
+            SceneObjectPart objectPart = GetSceneObjectPart(objId);
+            if (objectPart != null && PermissionsMngr.CanEditObject(controller.AgentId, objectPart.UUID))
+            {
+                objectPart.ClickAction = clickAction;
+                MainLog.Instance.Verbose("SCENE", "Updating clickaction");
+            }
+            else
+            {
+                MainLog.Instance.Verbose("SCENE", "Tried updating clickaction, but object was not found or incorrect permission");
+            }
+        }
+
+
         /// <summary>
         /// 
         /// </summary>
@@ -2162,6 +2409,7 @@ namespace OpenSim.Region.Environment.Scenes
         #endregion
 
         #region InnerScene wrapper methods
+
 
         /// <summary>
         /// 

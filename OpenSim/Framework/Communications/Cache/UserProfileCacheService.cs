@@ -38,11 +38,19 @@ namespace OpenSim.Framework.Communications.Cache
         private readonly Dictionary<LLUUID, CachedUserInfo> m_userProfiles = new Dictionary<LLUUID, CachedUserInfo>();
 
         public LibraryRootFolder libraryRoot = new LibraryRootFolder();
+        public RexWorldAssetsFolder worldlibraryRoot = null; // rex added 
 
         // Methods
         public UserProfileCacheService(CommunicationsManager parent)
         {
             m_parent = parent;
+            // rex, added worldlibrary
+            if (GlobalSettings.Instance.ConfigSource.Configs["Startup"].GetBoolean("worldlibraryfolder", true))
+            {
+                worldlibraryRoot = new RexWorldAssetsFolder(m_parent.AssetCache);
+                libraryRoot.CreateNewSubFolder(new LLUUID("00000112-000f-0000-0000-000100bba005"), "World Library", (ushort)8);
+            }
+            // rexend
         }
 
         /// <summary>
@@ -58,7 +66,7 @@ namespace OpenSim.Framework.Communications.Cache
                 if (!m_userProfiles.ContainsKey(userID))
                 {
                     CachedUserInfo userInfo = new CachedUserInfo(m_parent);
-                    userInfo.UserProfile = m_parent.UserService.GetUserProfile(userID);
+                    userInfo.UserProfile = m_parent.UserService.GetUserProfile(userID, "");
 
                     if (userInfo.UserProfile != null)
                     {
@@ -74,6 +82,39 @@ namespace OpenSim.Framework.Communications.Cache
                 }
             }
         }
+
+        //Rex mode
+        /// <summary>
+        /// A new user has moved into a region in this instance
+        /// so get info from servers
+        /// </summary>
+        /// <param name="userID"></param>
+        public void AddNewUser(LLUUID userID, string authAddr)
+        {
+            // Potential fix - Multithreading issue.
+            lock (m_userProfiles)
+            {
+                if (!m_userProfiles.ContainsKey(userID))
+                {
+                    CachedUserInfo userInfo = new CachedUserInfo(m_parent);
+                    userInfo.UserProfile = m_parent.UserService.GetUserProfile(userID, authAddr);
+
+                    if (userInfo.UserProfile != null)
+                    {
+                        //RequestInventoryForUser(userID, userInfo);
+                        // The request itself will occur when the agent finishes logging on to the region
+                        // so there's no need to do it here.
+                        //RequestInventoryForUser(userID, userInfo);
+                        m_userProfiles.Add(userID, userInfo);
+                    }
+                    else
+                    {
+                        System.Console.WriteLine("CACHE", "User profile for user not found");
+                    }
+                }
+            }
+        }
+
 
         public void UpdateUserInventory(LLUUID userID)
         {
@@ -183,6 +224,29 @@ namespace OpenSim.Framework.Communications.Cache
             // XXX We're not handling sortOrder yet!
 
             InventoryFolderImpl fold = null;
+
+            // rex, added worldassetfolder
+            if (worldlibraryRoot != null)
+            {
+                if (folderID == worldlibraryRoot.folderID)
+                {
+                    remoteClient.SendInventoryFolderDetails(
+                        worldlibraryRoot.agentID, worldlibraryRoot.folderID, worldlibraryRoot.RequestListOfItems(),
+                        worldlibraryRoot.RequestListOfFolders(), fetchFolders, fetchItems);
+                    return;
+                }
+                if ((fold = worldlibraryRoot.HasSubFolder(folderID)) != null)
+                {
+                    worldlibraryRoot.UpdateWorldAssetFolders();
+                    remoteClient.SendInventoryFolderDetails(
+                        worldlibraryRoot.agentID, folderID, fold.RequestListOfItems(),
+                        fold.RequestListOfFolders(), fetchFolders, fetchItems);
+
+                    return;
+                }
+            }
+            // rex-end
+            
             if (folderID == libraryRoot.folderID)
             {
                 remoteClient.SendInventoryFolderDetails(

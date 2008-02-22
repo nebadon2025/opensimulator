@@ -28,15 +28,14 @@
 
 using System.Collections.Generic;
 using OpenSim.Framework.Console;
-using OpenSim.Region.ScriptEngine.Common;
 
-namespace OpenSim.Grid.ScriptServer.ScriptServer
+namespace OpenSim.Grid.ScriptServer
 {
     internal class ScriptEngineManager
     {
         private LogBase m_log;
         private ScriptEngineLoader ScriptEngineLoader;
-        private List<ScriptServerInterfaces.ScriptEngine> scriptEngines = new List<ScriptServerInterfaces.ScriptEngine>();
+        private List<ScriptEngineInterface> scriptEngines = new List<ScriptEngineInterface>();
         private ScriptServerMain m_ScriptServerMain;
 
         // Initialize
@@ -45,21 +44,23 @@ namespace OpenSim.Grid.ScriptServer.ScriptServer
             m_ScriptServerMain = scm;
             m_log = logger;
             ScriptEngineLoader = new ScriptEngineLoader(m_log);
+
+            // Temp - we should not load during initialize... Loading should be done later.
+            LoadEngine("DotNetScriptEngine");
         }
 
         ~ScriptEngineManager()
         {
         }
 
-        public ScriptServerInterfaces.ScriptEngine LoadEngine(string engineName)
+        public void LoadEngine(string engineName)
         {
             // Load and add to list of ScriptEngines
-            ScriptServerInterfaces.ScriptEngine sei = ScriptEngineLoader.LoadScriptEngine(engineName);
+            ScriptEngineInterface sei = ScriptEngineLoader.LoadScriptEngine(engineName);
             if (sei != null)
             {
                 scriptEngines.Add(sei);
             }
-            return sei;
         }
     }
 }

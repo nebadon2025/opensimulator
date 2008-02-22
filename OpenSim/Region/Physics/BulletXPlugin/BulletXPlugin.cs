@@ -408,7 +408,7 @@ namespace OpenSim.Region.Physics.BulletXPlugin
         }
 
 
-        public override PhysicsActor AddAvatar(string avName, PhysicsVector position)
+        public override PhysicsActor AddAvatar(string avName, PhysicsVector position, uint localID)
         {
             PhysicsVector pos = new PhysicsVector();
             pos.X = position.X;
@@ -446,13 +446,13 @@ namespace OpenSim.Region.Physics.BulletXPlugin
         }
 
         public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, PhysicsVector position,
-                                                  PhysicsVector size, AxiomQuaternion rotation)
+                                                  PhysicsVector size, AxiomQuaternion rotation, uint localID)
         {
-            return AddPrimShape(primName, pbs, position, size, rotation, false);
+            return AddPrimShape(primName, pbs, position, size, rotation, false,localID);
         }
 
         public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, PhysicsVector position,
-                                                  PhysicsVector size, AxiomQuaternion rotation, bool isPhysical)
+                                                  PhysicsVector size, AxiomQuaternion rotation, bool isPhysical, uint LocalID)
         {
             PhysicsActor result;
 
@@ -462,17 +462,17 @@ namespace OpenSim.Region.Physics.BulletXPlugin
                     /// support simple box & hollow box now; later, more shapes
                     if (pbs.ProfileHollow == 0)
                     {
-                        result = AddPrim(primName, position, size, rotation, null, null, isPhysical);
+                        result = AddPrim(primName, position, size, rotation, null, null, isPhysical, LocalID);
                     }
                     else
                     {
                         IMesh mesh = mesher.CreateMesh(primName, pbs, size);
-                        result = AddPrim(primName, position, size, rotation, mesh, pbs, isPhysical);
+                        result = AddPrim(primName, position, size, rotation, mesh, pbs, isPhysical, LocalID);
                     }
                     break;
 
                 default:
-                    result = AddPrim(primName, position, size, rotation, null, null, isPhysical);
+                    result = AddPrim(primName, position, size, rotation, null, null, isPhysical, LocalID);
                     break;
             }
 
@@ -480,7 +480,7 @@ namespace OpenSim.Region.Physics.BulletXPlugin
         }
 
         public PhysicsActor AddPrim(String name, PhysicsVector position, PhysicsVector size, AxiomQuaternion rotation,
-                                    IMesh mesh, PrimitiveBaseShape pbs, bool isPhysical)
+                                    IMesh mesh, PrimitiveBaseShape pbs, bool isPhysical, uint localID)
         {
             BulletXPrim newPrim = null;
             lock (BulletXLock)

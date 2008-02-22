@@ -361,7 +361,12 @@ namespace OpenSim.Region.Communications.Local
             agent.InventoryFolder = loginData.InventoryFolder;
             agent.startpos = loginData.StartPos;
 
+            agent.ClientVersion = loginData.ClientVersion; //rex
+
             agent.CapsPath = loginData.CapsPath;
+
+            agent.authenticationAddr = loginData.AuthAddr;
+            agent.asAddress = loginData.asAddress;
 
             TriggerExpectUser(regionHandle, agent);
         }

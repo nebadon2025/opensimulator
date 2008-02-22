@@ -54,7 +54,7 @@ namespace OpenSim.Grid.UserServer
 
         public UserLoginService(
             UserManagerBase userManager, LibraryRootFolder libraryRootFolder, UserConfig config, string welcomeMess)
-            : base(userManager, libraryRootFolder, welcomeMess)
+            : base(userManager, libraryRootFolder, welcomeMess, config.RexMode)
         {
             m_config = config;
         }
@@ -64,7 +64,7 @@ namespace OpenSim.Grid.UserServer
         /// </summary>
         /// <param name="response">The existing response</param>
         /// <param name="theUser">The user profile</param>
-        public override void CustomiseResponse(LoginResponse response, UserProfileData theUser)
+        public override void CustomiseResponse(LoginResponse response, UserProfileData theUser, string ASaddress)
         {
             bool tryDefault = false;
             //CFK: Since the try is always "tried", the "Home Location" message should always appear, so comment this one.
@@ -119,6 +119,12 @@ namespace OpenSim.Grid.UserServer
                 SimParams["startpos_z"] = theUser.currentAgent.currentPos.Z.ToString();
                 SimParams["regionhandle"] = theUser.currentAgent.currentHandle.ToString();
                 SimParams["caps_path"] = capsPath;
+                if (m_rexMode)
+                {
+                    SimParams["auth_addr"] = theUser.authenticationAddr;
+                    SimParams["as_addr"] = ASaddress;
+                }
+
                 ArrayList SendParams = new ArrayList();
                 SendParams.Add(SimParams);
 
@@ -196,6 +202,12 @@ namespace OpenSim.Grid.UserServer
                     SimParams["startpos_z"] = theUser.currentAgent.currentPos.Z.ToString();
                     SimParams["regionhandle"] = theUser.currentAgent.currentHandle.ToString();
                     SimParams["caps_path"] = capsPath;
+                    if (m_rexMode)
+                    {
+                        SimParams["auth_addr"] = theUser.authenticationAddr;
+                        SimParams["as_addr"] = ASaddress;
+                    }
+
                     ArrayList SendParams = new ArrayList();
                     SendParams.Add(SimParams);
 

@@ -74,6 +74,8 @@ namespace OpenSim.Region.ScriptEngine.DotNetEngine
             // Add to queue for all scripts in ObjectID object
             //myScriptEngine.m_logger.Verbose("ScriptEngine", "EventManager Event: touch_start");
             //Console.WriteLine("touch_start localID: " + localID);
+            OpenSim.Region.Environment.Scenes.SceneObjectPart sop = this.myScriptEngine.World.GetSceneObjectPart(localID);
+            sop.TouchedBy = remoteClient.AgentId;
             myScriptEngine.m_EventQueueManager.AddToObjectQueue(localID, "touch_start", new object[] {(int) 1});
         }
 

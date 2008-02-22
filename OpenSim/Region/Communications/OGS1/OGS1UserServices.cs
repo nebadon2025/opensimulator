@@ -47,6 +47,38 @@ namespace OpenSim.Region.Communications.OGS1
             m_parent = parent;
         }
 
+        public void UpdateUserAgentData(LLUUID agentId, bool agentOnline, LLVector3 currentPos, int logoutTime, string authAddr)
+        {
+            try
+            {
+                Hashtable param = new Hashtable();
+                param["agentID"] = agentId.ToString();
+                param["agentOnline"] = agentOnline.ToString();
+                param["logoutTime"] = logoutTime.ToString();
+                param["agent_currentPosX"] = Convert.ToSingle(currentPos.X).ToString();
+                param["agent_currentPosY"] = Convert.ToSingle(currentPos.Y).ToString();
+                param["agent_currentPosZ"] = Convert.ToSingle(currentPos.Z).ToString();
+                param["AuthenticationAddress"] = authAddr;
+                IList parameters = new ArrayList();
+                parameters.Add(param);
+                XmlRpcRequest req = new XmlRpcRequest("update_user_agent", parameters);
+                XmlRpcResponse resp = req.Send(m_parent.NetworkServersInfo.UserURL, 3000);
+                Hashtable respData = (Hashtable)resp.Value;
+
+                if ("success" == (string)respData["update"])
+                {
+                    MainLog.Instance.Verbose("INTERGRID", "Agent updated with agentID : " + agentId);
+                }
+
+            }
+            catch (WebException e)
+            {
+                MainLog.Instance.Warn("Error when trying to fetch profile data by name from remote user server: " +
+                                      e.Message);
+            }
+        }
+
+
         public UserProfileData ConvertXMLRPCDataToUserProfile(Hashtable data)
         {
             if (data.Contains("error_type"))
@@ -130,11 +162,35 @@ namespace OpenSim.Region.Communications.OGS1
             
             return buddylist;
         }
-        
-        public UserProfileData GetUserProfile(string firstName, string lastName)
+
+        public UserProfileData GetUserProfile(string firstName, string lastName, string authAddr)
         {
-            return GetUserProfile(firstName + " " + lastName);
+            return GetUserProfile(firstName + " " + lastName, authAddr);
         }
+
+        public UserProfileData GetUserProfile(string name, string authAddr)
+        {
+            try
+            {
+                Hashtable param = new Hashtable();
+                param["avatar_name"] = name;
+                param["AuthenticationAddress"] = authAddr;
+                IList parameters = new ArrayList();
+                parameters.Add(param);
+                XmlRpcRequest req = new XmlRpcRequest("get_user_by_name", parameters);
+                XmlRpcResponse resp = req.Send(m_parent.NetworkServersInfo.UserURL, 3000);
+                Hashtable respData = (Hashtable)resp.Value;
+
+                return ConvertXMLRPCDataToUserProfile(respData);
+            }
+            catch (WebException e)
+            {
+                MainLog.Instance.Warn("Error when trying to fetch profile data by name from remote user server: " +
+                                      e.Message);
+            }
+            return null;
+        }
+
 
         public List<AvatarPickerAvatar> GenerateAgentPickerRequestResponse(LLUUID queryID, string query)
         {
@@ -161,34 +217,14 @@ namespace OpenSim.Region.Communications.OGS1
             return pickerlist;
         }
 
-        public UserProfileData GetUserProfile(string name)
-        {
-            try
-            {
-                Hashtable param = new Hashtable();
-                param["avatar_name"] = name;
-                IList parameters = new ArrayList();
-                parameters.Add(param);
-                XmlRpcRequest req = new XmlRpcRequest("get_user_by_name", parameters);
-                XmlRpcResponse resp = req.Send(m_parent.NetworkServersInfo.UserURL, 3000);
-                Hashtable respData = (Hashtable) resp.Value;
 
-                return ConvertXMLRPCDataToUserProfile(respData);
-            }
-            catch (WebException e)
-            {
-                MainLog.Instance.Warn("Error when trying to fetch profile data by name from remote user server: " +
-                                      e.Message);
-            }
-            return null;
-        }
-
-        public UserProfileData GetUserProfile(LLUUID avatarID)
+        public UserProfileData GetUserProfile(LLUUID avatarID, string authAddr)
         {
             try
             {
                 Hashtable param = new Hashtable();
                 param["avatar_uuid"] = avatarID.ToString();
+                param["AuthenticationAddress"] = authAddr;
                 IList parameters = new ArrayList();
                 parameters.Add(param);
                 XmlRpcRequest req = new XmlRpcRequest("get_user_by_uuid", parameters);
@@ -205,9 +241,35 @@ namespace OpenSim.Region.Communications.OGS1
             return null;
         }
 
-        public void clearUserAgent(LLUUID avatarID)
+        public UserProfileData GetUserProfileByAccount(string account)
         {
-            // TODO: implement
+            return null;
+        }
+
+        public void clearUserAgent(LLUUID avatarID, string authAddr)
+        {
+            try
+            {
+                Hashtable param = new Hashtable();
+                param["agentID"] = avatarID.ToString();
+                param["AuthenticationAddress"] = authAddr;
+                IList parameters = new ArrayList();
+                parameters.Add(param);
+                XmlRpcRequest req = new XmlRpcRequest("remove_user_agent", parameters);
+                XmlRpcResponse resp = req.Send(m_parent.NetworkServersInfo.UserURL, 3000);
+                Hashtable respData = (Hashtable)resp.Value;
+
+                Hashtable resh = (Hashtable)resp.Value;
+                if ("success" == (string)resh["remove"])
+                {
+                    MainLog.Instance.Verbose("INTERGRID", "Agent removed with agentID : " + avatarID);
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error when trying to remove agent data by uuid from remote user server: " +
+                                  e.Message);
+            }
         }
 
         public UserProfileData SetupMasterUser(string firstName, string lastName)
@@ -217,13 +279,13 @@ namespace OpenSim.Region.Communications.OGS1
 
         public UserProfileData SetupMasterUser(string firstName, string lastName, string password)
         {
-            UserProfileData profile = GetUserProfile(firstName, lastName);
+            UserProfileData profile = GetUserProfile(firstName, lastName, "");
             return profile;
         }
 
         public UserProfileData SetupMasterUser(LLUUID uuid)
         {
-            UserProfileData data = GetUserProfile(uuid);
+            UserProfileData data = GetUserProfile(uuid, "");
             if (data == null)
             {
                 throw new Exception("Unknown master user UUID");
@@ -429,5 +491,12 @@ namespace OpenSim.Region.Communications.OGS1
         }
 
         #endregion
+
+        public virtual bool AuthenticateUser(LLUUID agentId, String sessionhash, out String avatarstorage)
+        {
+            avatarstorage = "";
+            return true;
+        }
+
     }
 }

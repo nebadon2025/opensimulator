@@ -101,6 +101,9 @@ namespace OpenSim.Region.Environment.Scenes
             set { m_localId = value; }
         }
 
+        // rex, added
+        public bool DeleteMe = false;
+
         /// <summary>
         /// Creates a new Entity (should not occur on it's own)
         /// </summary>

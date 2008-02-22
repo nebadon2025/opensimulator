@@ -39,13 +39,15 @@ namespace OpenSim.Region.Environment.Scenes
 {
     public class ScenePresence : EntityBase
     {
-        public static AvatarAnimations Animations;
+        public static AvatarAnimations Animations = null;
         public static byte[] DefaultTexture;
         public LLUUID currentParcelUUID = LLUUID.Zero;
         private List<LLUUID> m_animations = new List<LLUUID>();
         private List<int> m_animationSeqs = new List<int>();
         public Vector3 lastKnownAllowedPosition = new Vector3();
         public bool sentMessageAboutRestrictedParcelFlyingDown = false;
+        public float MovementSpeedMod = 1.0f; // rex
+
 
         private bool m_updateflag = false;
         private byte m_movementflag = 0;
@@ -315,8 +317,11 @@ namespace OpenSim.Region.Environment.Scenes
 
             AbsolutePosition = m_controllingClient.StartPos;
 
-            Animations = new AvatarAnimations();
-            Animations.LoadAnims();
+            if (Animations == null)
+            {
+                Animations = new AvatarAnimations();
+                Animations.LoadAnims();
+            }
 
             // TODO: m_animations and m_animationSeqs should always be of the same length.
             // Move them into an object to (hopefully) avoid threading issues.
@@ -385,7 +390,7 @@ namespace OpenSim.Region.Environment.Scenes
             //{
             lock (m_partsUpdateQueue)
             {
-                m_partsUpdateQueue.Enqueue(part);
+                m_partsUpdateQueue.ObjectUpdated(part);
             }
             // }
         }
@@ -397,11 +402,6 @@ namespace OpenSim.Region.Environment.Scenes
 
         public void SendPrimUpdates()
         {
-            // if (m_scene.QuadTree.GetNodeID(this.AbsolutePosition.X, this.AbsolutePosition.Y) != m_currentQuadNode)
-            //{
-            //  this.UpdateQuadTreeNode();
-            //this.RefreshQuadObject();
-            //}
             if (!m_gotAllObjectsInScene)
             {
                 if (!m_isChildAgent || m_scene.m_sendTasksToChild)
@@ -410,58 +410,54 @@ namespace OpenSim.Region.Environment.Scenes
                     m_gotAllObjectsInScene = true;
                 }
             }
-            if (m_partsUpdateQueue.Count > 0)
+
+            //Report avatar position to let queue sort objects (rex)
+            m_partsUpdateQueue.UpdateAvatarPosition(AbsolutePosition);
+
+            int updateCount = 0;
+            while (m_partsUpdateQueue.HasUpdates() && updateCount < 8)
             {
-                bool runUpdate = true;
-                int updateCount = 0;
-                while (runUpdate)
+                SceneObjectPart part = m_partsUpdateQueue.GetClosestUpdate();
+                if (part != null && m_updateTimes.ContainsKey(part.UUID))
                 {
-                    SceneObjectPart part = m_partsUpdateQueue.Dequeue();
-                    if (m_updateTimes.ContainsKey(part.UUID))
+                    ScenePartUpdate update = m_updateTimes[part.UUID];
+
+                    // Two updates can occur with the same timestamp (especially
+                    // since our timestamp resolution is to the nearest second).  The first
+                    // could have been sent in the last update - we still need to send the 
+                    // second here.
+
+
+                    if (update.LastFullUpdateTime < part.TimeStampFull)
                     {
-                        ScenePartUpdate update = m_updateTimes[part.UUID];
-
-                        // Two updates can occur with the same timestamp (especially
-                        // since our timestamp resolution is to the nearest second).  The first
-                        // could have been sent in the last update - we still need to send the 
-                        // second here.
-
-                        if (update.LastFullUpdateTime < part.TimeStampFull)
-                        {
-                            //need to do a full update
-                            part.SendFullUpdate(ControllingClient, GenerateClientFlags(part.UUID));
-
-                            // We'll update to the part's timestamp rather than the current to 
-                            // avoid the race condition whereby the next tick occurs while we are
-                            // doing this update.  If this happened, then subsequent updates which occurred
-                            // on the same tick or the next tick of the last update would be ignored.
-                            update.LastFullUpdateTime = part.TimeStampFull;
-
-                            updateCount++;
-                        }
-                        else if (update.LastTerseUpdateTime <= part.TimeStampTerse)
-                        {
-                            part.SendTerseUpdate(ControllingClient);
-
-                            update.LastTerseUpdateTime = part.TimeStampTerse;
-                            updateCount++;
-                        }
-                    }
-                    else
-                    {
-                        //never been sent to client before so do full update
+                        //need to do a full update
                         part.SendFullUpdate(ControllingClient, GenerateClientFlags(part.UUID));
-                        ScenePartUpdate update = new ScenePartUpdate();
-                        update.FullID = part.UUID;
+
+                        // We'll update to the part's timestamp rather than the current to 
+                        // avoid the race condition whereby the next tick occurs while we are
+                        // doing this update.  If this happened, then subsequent updates which occurred
+                        // on the same tick or the next tick of the last update would be ignored.
                         update.LastFullUpdateTime = part.TimeStampFull;
-                        m_updateTimes.Add(part.UUID, update);
+
                         updateCount++;
                     }
-
-                    if (m_partsUpdateQueue.Count < 1 || updateCount > 60)
+                    else if (update.LastTerseUpdateTime <= part.TimeStampTerse)
                     {
-                        runUpdate = false;
+                        part.SendTerseUpdate(ControllingClient);
+
+                        update.LastTerseUpdateTime = part.TimeStampTerse;
+                        updateCount++;
                     }
+                }
+                else
+                {
+                    //never been sent to client before so do full update
+                    part.SendFullUpdate(ControllingClient, GenerateClientFlags(part.UUID));
+                    ScenePartUpdate update = new ScenePartUpdate();
+                    update.FullID = part.UUID;
+                    update.LastFullUpdateTime = part.TimeStampFull;
+                    m_updateTimes.Add(part.UUID, update);
+                    updateCount++;
                 }
             }
         }
@@ -752,7 +748,7 @@ namespace OpenSim.Region.Environment.Scenes
                         }
                     }
                 }
-                if ((update_movementflag) || (update_rotation && DCFlagKeyPressed))
+                if ((update_movementflag) || (update_rotation)) // rex, DCFlagKeyPressed removed from update_rotation check, allows turning in place
                 {
                     AddNewMovement(agent_control_v3, q);
                     UpdateMovementAnimations(update_movementflag);
@@ -1096,7 +1092,7 @@ namespace OpenSim.Region.Environment.Scenes
             Vector3 direc = rotation*vec;
             direc.Normalize();
 
-            direc *= 0.03f*128f;
+            direc *= 0.03f * 128f * MovementSpeedMod; // rex, MovementSpeedMod added
             if (m_physicsActor.Flying)
             {
                 direc *= 4;
@@ -1570,7 +1566,7 @@ namespace OpenSim.Region.Environment.Scenes
                 new PhysicsVector(AbsolutePosition.X, AbsolutePosition.Y,
                                   AbsolutePosition.Z);
 
-            m_physicsActor = scene.AddAvatar(Firstname + "." + Lastname, pVec);
+            m_physicsActor = scene.AddAvatar(Firstname + "." + Lastname, pVec,LocalId); // rex, LocalId added
             m_physicsActor.OnRequestTerseUpdate += SendTerseUpdateToAllClients;
             m_physicsActor.OnCollisionUpdate += PhysicsCollisionUpdate;
         }

@@ -89,7 +89,7 @@ namespace OpenSim.Region.Environment.Scenes
                                               rootPart.AbsolutePosition.Z + loadOffset.Z),
                             new PhysicsVector(rootPart.Scale.X, rootPart.Scale.Y, rootPart.Scale.Z),
                             new Quaternion(rootPart.RotationOffset.W, rootPart.RotationOffset.X,
-                                           rootPart.RotationOffset.Y, rootPart.RotationOffset.Z), UsePhysics);
+                                           rootPart.RotationOffset.Y, rootPart.RotationOffset.Z), UsePhysics, rootPart.LocalID);
                         rootPart.DoPhysicsPropertyUpdate(UsePhysics, true);
                     }
                     primCount++;
@@ -162,7 +162,7 @@ namespace OpenSim.Region.Environment.Scenes
                                       rootPart.AbsolutePosition.Z),
                     new PhysicsVector(rootPart.Scale.X, rootPart.Scale.Y, rootPart.Scale.Z),
                     new Quaternion(rootPart.RotationOffset.W, rootPart.RotationOffset.X,
-                                   rootPart.RotationOffset.Y, rootPart.RotationOffset.Z), UsePhysics);
+                                   rootPart.RotationOffset.Y, rootPart.RotationOffset.Z), UsePhysics, rootPart.LocalID);
                 rootPart.DoPhysicsPropertyUpdate(UsePhysics, true);
             }
         }

@@ -57,16 +57,16 @@ namespace OpenSim.Region.Physics.Manager
 
         public abstract void Initialise(IMesher meshmerizer);
 
-        public abstract PhysicsActor AddAvatar(string avName, PhysicsVector position);
+        public abstract PhysicsActor AddAvatar(string avName, PhysicsVector position, uint localID); // rex, localID added
 
         public abstract void RemoveAvatar(PhysicsActor actor);
 
         public abstract void RemovePrim(PhysicsActor prim);
 
         public abstract PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, PhysicsVector position,
-                                                  PhysicsVector size, Quaternion rotation); //To be removed
+                                                  PhysicsVector size, Quaternion rotation, uint localID); //To be removed, rex, localID added
         public abstract PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, PhysicsVector position,
-                                                  PhysicsVector size, Quaternion rotation, bool isPhysical);
+                                                  PhysicsVector size, Quaternion rotation, bool isPhysical, uint localID); // rex, localID added
 
         public abstract void AddPhysicsActorTaint(PhysicsActor prim);
 
@@ -90,7 +90,7 @@ namespace OpenSim.Region.Physics.Manager
                 // Does nothing right now
             }
 
-            public override PhysicsActor AddAvatar(string avName, PhysicsVector position)
+            public override PhysicsActor AddAvatar(string avName, PhysicsVector position, uint localID)
             {
                 MainLog.Instance.Verbose("PHYSICS", "NullPhysicsScene : AddAvatar({0})", position);
                 return PhysicsActor.Null;
@@ -113,13 +113,13 @@ namespace OpenSim.Region.Physics.Manager
 */
 
             public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, PhysicsVector position,
-                                                      PhysicsVector size, Quaternion rotation) //To be removed
+                                                      PhysicsVector size, Quaternion rotation, uint localID) //To be removed
             {
-                return AddPrimShape(primName, pbs, position, size, rotation, false);
+                return AddPrimShape(primName, pbs, position, size, rotation, false, localID);
             }
 
             public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, PhysicsVector position,
-                                                      PhysicsVector size, Quaternion rotation, bool isPhysical)
+                                                      PhysicsVector size, Quaternion rotation, bool isPhysical, uint localID)
             {
                 MainLog.Instance.Verbose("PHYSICS", "NullPhysicsScene : AddPrim({0},{1})", position, size);
                 return PhysicsActor.Null;

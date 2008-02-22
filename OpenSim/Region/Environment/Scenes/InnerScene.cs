@@ -433,7 +433,7 @@ namespace OpenSim.Region.Environment.Scenes
                 }
             }
             return returnResult;
-        }      
+        }
 
         public SceneObjectPart GetSceneObjectPart(uint localID)
         {
@@ -933,6 +933,7 @@ namespace OpenSim.Region.Environment.Scenes
                     }
                     m_numPrim++;
                     copy.ScheduleGroupForFullUpdate();
+                    m_parentScene.EventManager.TriggerOnAddEntity(copy.RootPart.LocalID); // rex, added
                 }
             }
             else

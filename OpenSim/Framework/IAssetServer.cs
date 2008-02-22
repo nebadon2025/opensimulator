@@ -41,6 +41,10 @@ namespace OpenSim.Framework
         void UpdateAsset(AssetBase asset);
         void StoreAndCommitAsset(AssetBase asset);
         void Close();
+        LLUUID ExistsAsset(sbyte type, string name); // rex new function for "replace asset" functionality
+        bool ExistsAsset(LLUUID assetID); // rex added
+        List<AssetBase> GetAssetList(int vAssetType); // rex added
+        AssetBase FetchAsset(LLUUID assetID); // rex added
     }
 
     // could change to delegate?

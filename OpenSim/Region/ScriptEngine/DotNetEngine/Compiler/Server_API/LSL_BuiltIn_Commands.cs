@@ -34,6 +34,7 @@ using System.Threading;
 using Axiom.Math;
 using libsecondlife;
 using OpenSim.Framework;
+using OpenSim.Framework.Communications.Cache;
 using OpenSim.Region.Environment.Interfaces;
 using OpenSim.Region.Environment.Scenes;
 using OpenSim.Region.ScriptEngine.Common;
@@ -59,12 +60,19 @@ namespace OpenSim.Region.ScriptEngine.DotNetEngine.Compiler
     public class LSL_BuiltIn_Commands : MarshalByRefObject, LSL_BuiltIn_Commands_Interface
     {
         private ASCIIEncoding enc = new ASCIIEncoding();
-        private ScriptEngine m_ScriptEngine;
-        private SceneObjectPart m_host;
-        private uint m_localID;
-        private LLUUID m_itemID;
+        protected ScriptEngine m_ScriptEngine;
+        protected SceneObjectPart m_host;
+        protected uint m_localID;
+        protected LLUUID m_itemID;
         private bool throwErrorOnNotImplemented = true;
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="ScriptEngine"></param>
+        /// <param name="host"></param>
+        /// <param name="localID">Item's local id</param>
+        /// <param name="itemID">Item's LLUUID</param>
         public LSL_BuiltIn_Commands(ScriptEngine ScriptEngine, SceneObjectPart host, uint localID, LLUUID itemID)
         {
             m_ScriptEngine = ScriptEngine;
@@ -255,17 +263,17 @@ namespace OpenSim.Region.ScriptEngine.DotNetEngine.Compiler
 
         public LSL_Types.Vector3 llRot2Fwd(LSL_Types.Quaternion r)
         {
-            return new LSL_Types.Vector3();
+            return (new LSL_Types.Vector3(1, 0, 0) * r);
         }
 
         public LSL_Types.Vector3 llRot2Left(LSL_Types.Quaternion r)
         {
-            return new LSL_Types.Vector3();
+            return (new LSL_Types.Vector3(0, 1, 0) * r);
         }
 
         public LSL_Types.Vector3 llRot2Up(LSL_Types.Quaternion r)
         {
-            return new LSL_Types.Vector3();
+            return (new LSL_Types.Vector3(0, 0, 1) * r);
         }
         public LSL_Types.Quaternion llRotBetween(LSL_Types.Vector3 a, LSL_Types.Vector3 b)
         {
@@ -875,12 +883,45 @@ namespace OpenSim.Region.ScriptEngine.DotNetEngine.Compiler
 
         public void llSound()
         {
-            NotImplemented("llSound");
+            // This function has been deprecated
+            // see http://www.lslwiki.net/lslwiki/wakka.php?wakka=llSound
         }
 
         public void llPlaySound(string sound, double volume)
         {
-            NotImplemented("llPlaySound");
+            if (volume > 1)
+                volume = 1;
+            if (volume < 0)
+                volume = 0;
+
+            LLUUID ownerID = m_host.OwnerID;
+            LLUUID objectID = m_host.UUID;
+            LLUUID soundID;
+            byte flags = 0;
+
+            if (!LLUUID.TryParse(sound, out soundID))
+            {
+                soundID = World.AssetCache.ExistsAsset(LSL_BaseClass.INVENTORY_SOUND, sound); // hack
+
+                // search sound file from inventory
+                SceneObjectPart op = World.GetSceneObjectPart(objectID);
+                foreach (KeyValuePair<LLUUID, TaskInventoryItem> item in op.TaskInventory)
+                {
+                    string test = item.Value.type;
+                    if (item.Value.name == sound)
+                    {
+                        soundID = item.Value.item_id;
+                        break;
+                    }
+                }
+            }
+
+            List<ScenePresence> avatarts = World.GetAvatars();
+            foreach (ScenePresence p in avatarts)
+            {
+                // TODO: some filtering by distance of avatar
+                p.ControllingClient.SendPlayAttachedSound(soundID, objectID, ownerID, (float)volume, flags);
+            }
         }
 
         public void llLoopSound(string sound, double volume)
@@ -905,7 +946,41 @@ namespace OpenSim.Region.ScriptEngine.DotNetEngine.Compiler
 
         public void llTriggerSound(string sound, double volume)
         {
-            NotImplemented("llTriggerSound");
+            if (volume > 1)
+                volume = 1;
+            if (volume < 0)
+                volume = 0;
+
+            LLUUID ownerID = m_host.OwnerID;
+            LLUUID objectID = m_host.UUID;
+            LLUUID parentID = this.m_host.GetRootPartUUID();
+            LLUUID soundID;
+            LLVector3 position = this.m_host.AbsolutePosition; // region local
+            ulong regionHandle = World.RegionInfo.RegionHandle;
+
+            if (!LLUUID.TryParse(sound, out soundID))
+            {
+                soundID = World.AssetCache.ExistsAsset(LSL_BaseClass.INVENTORY_SOUND, sound); // hack
+
+                // search sound file from inventory
+                SceneObjectPart op = World.GetSceneObjectPart(objectID);
+                foreach (KeyValuePair<LLUUID, TaskInventoryItem> item in op.TaskInventory)
+                {
+                    string test = item.Value.type;
+                    if (item.Value.name == sound)
+                    {
+                        soundID = item.Value.item_id;
+                        break;
+                    }
+                }
+            }
+
+            List<ScenePresence> avatarts = World.GetAvatars();
+            foreach (ScenePresence p in avatarts)
+            {
+                // TODO: some filtering by distance of avatar
+                p.ControllingClient.SendTriggeredSound(soundID, ownerID, objectID, parentID, regionHandle, position, (float)volume); 
+            }         
         }
 
         public void llStopSound()
@@ -915,7 +990,33 @@ namespace OpenSim.Region.ScriptEngine.DotNetEngine.Compiler
 
         public void llPreloadSound(string sound)
         {
-            NotImplemented("llPreloadSound");
+            LLUUID ownerID = m_host.OwnerID;
+            LLUUID objectID = m_host.UUID;
+            LLUUID soundID;
+
+            if (!LLUUID.TryParse(sound, out soundID))
+            {
+                soundID = World.AssetCache.ExistsAsset(LSL_BaseClass.INVENTORY_SOUND, sound); // hack
+
+                // search sound file from inventory
+                SceneObjectPart op = World.GetSceneObjectPart(objectID);
+                foreach (KeyValuePair<LLUUID, TaskInventoryItem> item in op.TaskInventory)
+                {
+                    string test = item.Value.type;
+                    if (item.Value.name == sound)
+                    {
+                        soundID = item.Value.item_id;
+                        break;
+                    }
+                }
+            }
+
+            List<ScenePresence> avatarts = World.GetAvatars();
+            foreach (ScenePresence p in avatarts)
+            {
+                // TODO: some filtering by distance of avatar
+                p.ControllingClient.SendPreLoadSound(objectID, objectID, soundID );
+            }
         }
 
         public string llGetSubString(string src, int start, int end)
@@ -2231,7 +2332,19 @@ namespace OpenSim.Region.ScriptEngine.DotNetEngine.Compiler
 
         public void llDialog(string avatar, string message, LSL_Types.list buttons, int chat_channel)
         {
-            NotImplemented("llDialog");
+            LLUUID av = new LLUUID();
+            if (!LLUUID.TryParse(avatar, out av))
+            {
+                LSLError("First parameter to llDialog needs to be a key");
+                return;
+            }
+            string[] buts = new string[buttons.Length];
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                buts[i] = buttons.Data[i].ToString();
+            }
+            World.SendDialogToUser(av, m_host.Name, m_host.UUID, m_host.OwnerID, message, new LLUUID("00000000-0000-2222-3333-100000001000"), chat_channel, buts);
+            //NotImplemented("llDialog");
         }
 
         public void llVolumeDetect(int detect)
@@ -2699,7 +2812,10 @@ namespace OpenSim.Region.ScriptEngine.DotNetEngine.Compiler
 
         public void llMapDestination(string simname, LSL_Types.Vector3 pos, LSL_Types.Vector3 look_at)
         {
-            NotImplemented("llMapDestination");
+            libsecondlife.LLVector3 position = new LLVector3((float)pos.x, (float)pos.y, (float)pos.z);
+            libsecondlife.LLVector3 lookAt = new LLVector3((float)look_at.x, (float)look_at.y, (float)look_at.z);
+            ScenePresence user = this.World.GetScenePresence(this.m_host.TouchedBy);
+            user.ControllingClient.SendScriptTeleportRequest(this.m_host.Name, simname, position, lookAt);
         }
 
         public void llAddToLandBanList(string avatar, double hours)

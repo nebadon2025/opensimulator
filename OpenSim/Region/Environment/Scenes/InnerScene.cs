@@ -410,7 +410,7 @@ namespace OpenSim.Region.Environment.Scenes
         public ScenePresence CreateAndAddScenePresence(IClientAPI client, bool child, AvatarAppearance appearance)
         {
             ScenePresence newAvatar = null;
-
+            m_log.Debug("[InnerScene]: Creating avatar");
             newAvatar = new ScenePresence(client, m_parentScene, m_regInfo, appearance);
             newAvatar.IsChildAgent = child;
 

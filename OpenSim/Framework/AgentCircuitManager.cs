@@ -34,6 +34,10 @@ namespace OpenSim.Framework
     {
         public Dictionary<uint, AgentCircuitData> AgentCircuits = new Dictionary<uint, AgentCircuitData>();
 
+        // here be dragons
+        public delegate void CircuitAddedCallback(uint circuitCode, AgentCircuitData agentData);
+        public event CircuitAddedCallback onCircuitAdded;
+
         public AgentCircuitManager()
         {
         }
@@ -83,6 +87,8 @@ namespace OpenSim.Framework
             else
             {
                 AgentCircuits.Add(circuitCode, agentData);
+                if (null != onCircuitAdded)
+                    onCircuitAdded(circuitCode, agentData);
             }
         }
 

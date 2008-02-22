@@ -1342,10 +1342,13 @@ namespace OpenSim.Region.Environment.Scenes
 
             m_estateManager.sendRegionHandshake(client);
 
+            m_log.Debug("[SCENE]: Calling CreateScenePresence");
             CreateAndAddScenePresence(client, child);
-
+            m_log.Debug("[SCENE]: Sending parcel overlay");
             m_LandManager.sendParcelOverlay(client);
+            m_log.Debug("[SCENE]: Adding user to cache.");
             CommsManager.UserProfileCacheService.AddNewUser(client.AgentId);
+            m_log.Debug("[SCENE]: Done with adding new user.");
         }
 
         protected virtual void SubscribeToClientEvents(IClientAPI client)
@@ -1434,7 +1437,7 @@ namespace OpenSim.Region.Environment.Scenes
 
             AvatarAppearance appearance;
             GetAvatarAppearance(client, out appearance);
-
+            m_log.Debug("[SCENE]: Calling plugin CreateAndAddScenePresence");
             avatar = m_innerScene.CreateAndAddScenePresence(client, child, appearance);
 
             if (avatar.IsChildAgent)

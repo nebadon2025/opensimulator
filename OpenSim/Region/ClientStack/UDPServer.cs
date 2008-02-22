@@ -30,6 +30,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using libsecondlife.Packets;
 using OpenSim.Framework;
 using OpenSim.Framework.Communications.Cache;
@@ -59,6 +60,9 @@ namespace OpenSim.Region.ClientStack
         protected IScene m_localScene;
         protected AssetCache m_assetCache;
         protected AgentCircuitManager m_authenticateSessionsClass;
+
+        // temporary queue until I can merge this with userthread rework of packet processing.
+        protected Queue<Packet> CreateUserPacket = new Queue<Packet>();
 
         public PacketServer PacketServer
         {
@@ -92,12 +96,23 @@ namespace OpenSim.Region.ClientStack
             Allow_Alternate_Port = allow_alternate_port;
             m_assetCache = assetCache;
             m_authenticateSessionsClass = authenticateClass;
+            m_authenticateSessionsClass.onCircuitAdded += new AgentCircuitManager.CircuitAddedCallback(m_authenticateSessionsClass_onCircuitAdded);
             CreatePacketServer();
 
             // Return new port
             // This because in Grid mode it is not really important what port the region listens to as long as it is correctly registered.
             // So the option allow_alternate_ports="true" was added to default.xml
             port = listenPort;
+        }
+
+        void m_authenticateSessionsClass_onCircuitAdded(uint circuitCode, AgentCircuitData agentData)
+        {
+            m_log.Debug("Got informed of circuit " + circuitCode.ToString() + " for " + agentData.firstname + " " + agentData.lastname
+            + " using session ID " + agentData.SessionID.ToString());
+
+            // create with afacke endpoint of 0.0.0.0 so that we can tell if it's active and sending packets.
+            EndPoint ep = new IPEndPoint(IPAddress.Any, 0);
+            PacketServer.AddNewClient(circuitCode, agentData, m_assetCache, m_authenticateSessionsClass);
         }
 
         protected virtual void CreatePacketServer()
@@ -271,38 +286,19 @@ namespace OpenSim.Region.ClientStack
                     }
                     if (ret)
                     {
-                        //if so then send packet to the packetserver
-                        //m_log.Warn("[UDPSERVER]: ALREADY HAVE Circuit!");
-                        m_packetServer.InPacket(circuit, packet);
+                        m_packetServer.Enqueue(circuit, packet);
                     }
                     else if (packet.Type == PacketType.UseCircuitCode)
                     {
                         // new client
                         m_log.Debug("[UDPSERVER]: Adding New Client");
-                        AddNewClient(packet);
-                    }
-                    else
-                    {
-                        // invalid client
-                        //CFK: This message seems to have served its usefullness as of 12-15 so I am commenting it out for now
-                        //m_log.Warn("[UDPSERVER]: Got a packet from an invalid client - " + packet.ToString());
-
+                        AddNewClient(packet, epSender);
                     }
                 }
                 catch (Exception ex)
                 {
                     m_log.Error("[UDPSERVER]: Exception in processing packet.");
-                    m_log.Debug("[UDPSERVER]: Adding New Client");
-                    try
-                    {
-                        AddNewClient(packet);
-                    }
-                    catch (Exception e3)
-                    {
-                        m_log.Error("[UDPSERVER]: Adding New Client threw exception " + e3.ToString());
-                        Server.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref epSender,
-                                                    ReceivedData, null);
-                    }
+                    m_log.Error("[UDPSERVER]: " + ex.ToString());
                 }
             }
             
@@ -320,7 +316,7 @@ namespace OpenSim.Region.ClientStack
             }
         }
 
-        protected virtual void AddNewClient(Packet packet)
+        protected virtual void AddNewClient(Packet packet, EndPoint epSender)
         {
             UseCircuitCodePacket useCircuit = (UseCircuitCodePacket) packet;
             lock (clientCircuits)
@@ -337,8 +333,7 @@ namespace OpenSim.Region.ClientStack
                 else
                     m_log.Error("[UDPSERVER]: clientCurcuits_reverse already contains entry for user " + useCircuit.CircuitCode.Code.ToString() + ". NOT adding.");
             }
-
-            PacketServer.AddNewClient(epSender, useCircuit, m_assetCache, m_authenticateSessionsClass);
+            PacketServer.ClaimEndPoint(useCircuit, epSender);
         }
 
         public void ServerListener()
@@ -384,16 +379,18 @@ namespace OpenSim.Region.ClientStack
         }
 
         public virtual void SendPacketTo(byte[] buffer, int size, SocketFlags flags, uint circuitcode)
-            //EndPoint packetSender)
         {
-            // find the endpoint for this circuit
             EndPoint sendto = null;
             lock (clientCircuits_reverse)
             {
                 if (clientCircuits_reverse.TryGetValue(circuitcode, out sendto))
                 {
-                    //we found the endpoint so send the packet to it
+
                     Server.SendTo(buffer, size, flags, sendto);
+                }
+                else
+                {
+                    m_log.Debug("[UDPServer]: Failed to find person to send packet to!");
                 }
             }
         }

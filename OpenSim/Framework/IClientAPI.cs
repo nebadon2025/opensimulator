@@ -528,7 +528,12 @@ namespace OpenSim.Framework
 
         event MoneyBalanceRequest OnMoneyBalanceRequest;
 
-         
+        EndPoint EndPoint
+        {
+            set;
+            get;
+        }
+
         LLVector3 StartPos { get; set; }
 
         LLUUID AgentId { get; }
@@ -645,8 +650,8 @@ namespace OpenSim.Framework
                                   uint flags, LLUUID flImageID, LLUUID imageID, string profileURL, LLUUID partnerID);
 
         byte[] GetThrottlesPacked(float multiplier);
-        
 
+        bool Claim(EndPoint ep, UseCircuitCodePacket usePacket);
         void SetDebug(int newDebug);
         void InPacket(Packet NewPack);
         void Close(bool ShutdownCircuit);

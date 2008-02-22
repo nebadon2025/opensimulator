@@ -115,9 +115,19 @@ namespace OpenSim.Region.ClientStack
         /* public variables */
         protected string m_firstName;
         protected string m_lastName;
-        protected Thread m_clientThread;
+       // protected Thread m_clientThread;
         protected LLVector3 m_startpos;
         protected EndPoint m_userEndPoint;
+
+        /// <summary>
+        /// do we process or wait?
+        /// </summary>
+        protected bool ReadyForPackets = false;
+
+        /// <summary>
+        /// holds packets that were received while paused.
+        /// </summary>
+        protected Queue<Packet> PausedPackets = new Queue<Packet>();
 
         /* Properties */
 
@@ -189,46 +199,62 @@ namespace OpenSim.Region.ClientStack
             get { return m_moneyBalance; }
         }
 
+
+        public EndPoint EndPoint
+        {
+            set { m_userEndPoint = value; }
+            get { return m_userEndPoint; }
+        }
+
         /* METHODS */
 
-        public ClientView(EndPoint remoteEP, IScene scene, AssetCache assetCache, PacketServer packServer,
-                          AgentCircuitManager authenSessions, LLUUID agentId, LLUUID sessionId, uint circuitCode)
+        public ClientView(IScene scene, AssetCache assetCache, PacketServer packServer,
+            AgentCircuitManager authenSessions, AgentCircuitData agentData)
         {
+            m_log.Info("[CLIENT]: Creating new client for SessionID " + agentData.SessionID.ToString());
             m_moneyBalance = 1000;
-
             m_channelVersion = Helpers.StringToField(scene.GetSimulatorVersion());
-
             m_scene = scene;
             m_assetCache = assetCache;
-
             m_networkServer = packServer;
-            // m_inventoryCache = inventoryCache;
             m_authenticateSessionsHandler = authenSessions;
 
-            m_log.Info("[CLIENT]: Started up new client thread to handle incoming request");
+            m_agentId = agentData.AgentID;
+            m_sessionId = agentData.SessionID;
+            m_circuitCode = agentData.circuitcode;
 
-            m_agentId = agentId;
-            m_sessionId = sessionId;
-            m_circuitCode = circuitCode;
-
-            m_userEndPoint = remoteEP;
-
-            m_startpos = m_authenticateSessionsHandler.GetPosition(circuitCode);
-
-            // While working on this, the BlockingQueue had me fooled for a bit.
-            // The Blocking queue causes the thread to stop until there's something 
-            // in it to process.  It's an on-purpose threadlock though because 
-            // without it, the clientloop will suck up all sim resources.
-
-            m_packetQueue = new PacketQueue();
+            m_startpos = m_authenticateSessionsHandler.GetPosition(m_circuitCode);
+            m_packetQueue = new PacketQueue(this);
 
             RegisterLocalPacketHandlers();
+        }
 
-            m_clientThread = new Thread(new ThreadStart(AuthUser));
-            m_clientThread.Name = "ClientThread";
-            m_clientThread.IsBackground = true;
-            m_clientThread.Start();
-            OpenSim.Framework.ThreadTracker.Add(m_clientThread);
+        public bool Claim(EndPoint ep, UseCircuitCodePacket usePacket)
+        {
+            if (usePacket.CircuitCode.Code != m_circuitCode)
+            {
+                m_log.Debug("[ClientView]: Circuit code " + usePacket.CircuitCode.Code.ToString()
+                    + " does NOT match." + m_circuitCode.ToString());
+                return false;
+            }
+            if (0 != usePacket.CircuitCode.SessionID.CompareTo(m_sessionId))
+            {
+                m_log.Debug("[ClientView]: SessionID " + usePacket.CircuitCode.SessionID.ToString()
+                    + " does not match " + m_sessionId.ToString());
+                return false;
+            }
+            // this isnt' really the right name anymore.
+            EndPoint = ep;
+            AuthUser();
+            ack_pack(usePacket);
+            m_log.Debug("[ClientView]: Dealing with " + PausedPackets.Count.ToString() + " packets backlogged.");
+            ReadyForPackets = true;
+            // stuff the paused packets BACK into the thread queue. :)
+            while (PausedPackets.Count > 0)
+            {
+                m_networkServer.Enqueue(m_circuitCode, PausedPackets.Dequeue());
+            }
+            return true;
         }
 
         public void SetDebug(int newDebug)
@@ -254,29 +280,10 @@ namespace OpenSim.Region.ClientStack
             m_packetQueue.Close();
             m_packetQueue.Flush();
 
-            Thread.Sleep(2000);
-
-
-            // Shut down timers
             m_ackTimer.Stop();
             m_clientPingTimer.Stop();
 
-            // This is just to give the client a reasonable chance of
-            // flushing out all it's packets.  There should probably
-            // be a better mechanism here
-
-            // We can't reach into other scenes and close the connection 
-            // We need to do this over grid communications
-            //m_scene.CloseAllAgents(CircuitCode);
-            
-            // If we're not shutting down the circuit, then this is the last time we'll go here.
-            // If we are shutting down the circuit, the UDP Server will come back here with 
-            // ShutDownCircuit = false
-            if (!(ShutdownCircult))
-            {
-                GC.Collect();
-                m_clientThread.Abort();
-            }
+            GC.Collect();
         }
 
         /// <summary>
@@ -287,13 +294,14 @@ namespace OpenSim.Region.ClientStack
         public void Close(bool ShutdownCircult)
         {
             // Pull Client out of Region
-            m_log.Info("[CLIENT]: Close has been called");
+            m_log.Info("[CLIENT]: Close has been called with " + ShutdownCircult.ToString());
 
             //raiseevent on the packet server to Shutdown the circuit
             if (ShutdownCircult)
-                OnConnectionClosed(this);
-
-            CloseCleanup(ShutdownCircult);
+                m_networkServer.CloseClient(this);
+            else
+                CloseCleanup(ShutdownCircult);
+                //OnConnectionClosed(this);
         }
 
         public void Kick(string message)
@@ -402,29 +410,6 @@ namespace OpenSim.Region.ClientStack
             }
         }
 
-        protected virtual void ClientLoop()
-        {
-            m_log.Info("[CLIENT]: Entered loop");
-            while (true)
-            {
-                QueItem nextPacket = m_packetQueue.Dequeue();
-                if (nextPacket.Incoming)
-                {
-                    if (nextPacket.Packet.Type != PacketType.AgentUpdate)
-                    {
-                        m_packetsReceived++;
-                    }
-                    DebugPacket("IN", nextPacket.Packet);
-                    ProcessInPacket(nextPacket.Packet);
-                }
-                else
-                {
-                    DebugPacket("OUT", nextPacket.Packet);
-                    ProcessOutPacket(nextPacket.Packet);
-                }
-            }
-        }
-
         # endregion
 
         protected void CheckClientConnectivity(object sender, ElapsedEventArgs e)
@@ -460,6 +445,7 @@ namespace OpenSim.Region.ClientStack
 
         protected virtual void InitNewClient()
         {
+            m_log.Debug("[ClientView]: Setting up timers");
             //this.UploadAssets = new AgentAssetUpload(this, m_assetCache, m_inventoryCache);
 
             // Establish our two timers.  We could probably get this down to one 
@@ -471,7 +457,7 @@ namespace OpenSim.Region.ClientStack
             m_clientPingTimer.Elapsed += new ElapsedEventHandler(CheckClientConnectivity);
             m_clientPingTimer.Enabled = true;
 
-            m_log.Info("[CLIENT]: Adding viewer agent to scene");
+            m_log.Info("[ClientView]: Adding viewer agent to scene");
             m_scene.AddNewClient(this, true);
         }
 
@@ -487,11 +473,11 @@ namespace OpenSim.Region.ClientStack
                 m_log.Info("[CLIENT]: New user request denied to " + m_userEndPoint.ToString());
                 m_packetQueue.Flush();
                 m_packetQueue.Close();
-                m_clientThread.Abort();
+               // m_clientThread.Abort();
             }
             else
             {
-                m_log.Info("[CLIENT]: Got authenticated connection from " + m_userEndPoint.ToString());
+                m_log.Info("[CLIENT]: Received authenticated connection from " + m_userEndPoint.ToString());
                 //session is authorised
                 m_firstName = sessionInfo.LoginInfo.First;
                 m_lastName = sessionInfo.LoginInfo.Last;
@@ -503,7 +489,7 @@ namespace OpenSim.Region.ClientStack
                 // This sets up all the timers
                 InitNewClient();
 
-                ClientLoop();
+                //ClientLoop();
             }
         }
 
@@ -2458,11 +2444,15 @@ namespace OpenSim.Region.ClientStack
             }
         }
 
-        protected virtual void ProcessOutPacket(Packet Pack)
+        /// <summary>
+        /// processes an outbound packet and sends the data.
+        /// Needs to be public so that throttle can use it.
+        /// </summary>
+        /// <param name="Pack"></param>
+        public virtual void ProcessOutPacket(Packet Pack)
         {
             // Keep track of when this packet was sent out
             Pack.TickCount = System.Environment.TickCount;
-
             if (!Pack.Header.Resent)
             {
                 Pack.Header.Sequence = NextSeqNum();
@@ -2482,6 +2472,8 @@ namespace OpenSim.Region.ClientStack
             // Actually make the byte array and send it
             try
             {
+                //m_log.Debug("[ClientView]: Sending packet " + Pack.Type.ToString() + " to " 
+                //    + m_circuitCode.ToString());
                 byte[] sendbuffer = Pack.ToBytes();
                 PacketPool.Instance.ReturnPacket(Pack);
 
@@ -2489,10 +2481,12 @@ namespace OpenSim.Region.ClientStack
                 {
                     int packetsize = Helpers.ZeroEncode(sendbuffer, sendbuffer.Length, ZeroOutBuffer);
                     m_networkServer.SendPacketTo(ZeroOutBuffer, packetsize, SocketFlags.None, m_circuitCode);
+                  //  m_log.Debug("[ClientView]: Sent to " + m_circuitCode.ToString() + " " + Pack.Type.ToString());
                 }
                 else
                 {
                     m_networkServer.SendPacketTo(sendbuffer, sendbuffer.Length, SocketFlags.None, m_circuitCode);
+                   // m_log.Debug("[ClientView]: sent to " + m_circuitCode.ToString() + " " + Pack.Type.ToString());
                 }
             }
             catch (Exception e)
@@ -2507,72 +2501,96 @@ namespace OpenSim.Region.ClientStack
 
         public virtual void InPacket(Packet NewPack)
         {
-            // Handle appended ACKs
-            if (NewPack != null)
+            // deals with the lags involved on gettign the client setup.
+            // we can't accept packets for the user until after Auth()
+            if (!ReadyForPackets)
             {
-                if (NewPack.Header.AppendedAcks)
-                {
-                    lock (m_needAck)
-                    {
-                        foreach (uint ackedPacketId in NewPack.Header.AckList)
-                        {
-                            Packet ackedPacket;
+                PausedPackets.Enqueue(NewPack);
+                return;
+            }
 
-                            if (m_needAck.TryGetValue(ackedPacketId, out ackedPacket))
+            // lock (m_packetQueue)
+            {
+                // Handle appended ACKs
+                if (NewPack != null)
+                {
+                    if (NewPack.Header.AppendedAcks)
+                    {
+                        lock (m_needAck)
+                        {
+                            foreach (uint ackedPacketId in NewPack.Header.AckList)
                             {
-                                m_unAckedBytes -= ackedPacket.ToBytes().Length;
-                                m_needAck.Remove(ackedPacketId);
+                                Packet ackedPacket;
+
+                                if (m_needAck.TryGetValue(ackedPacketId, out ackedPacket))
+                                {
+                                    m_unAckedBytes -= ackedPacket.ToBytes().Length;
+                                    m_needAck.Remove(ackedPacketId);
+                                }
                             }
                         }
                     }
-                }
 
 
-                // Handle PacketAck packets
-                if (NewPack.Type == PacketType.PacketAck)
-                {
-                    PacketAckPacket ackPacket = (PacketAckPacket)NewPack;
-
-                    lock (m_needAck)
+                    // Handle PacketAck packets
+                    if (NewPack.Type == PacketType.PacketAck)
                     {
-                        foreach (PacketAckPacket.PacketsBlock block in ackPacket.Packets)
+                        PacketAckPacket ackPacket = (PacketAckPacket)NewPack;
+
+                        lock (m_needAck)
                         {
-                            uint ackedPackId = block.ID;
-                            Packet ackedPacket;
-                            if (m_needAck.TryGetValue(ackedPackId, out ackedPacket))
+                            foreach (PacketAckPacket.PacketsBlock block in ackPacket.Packets)
                             {
-                                m_unAckedBytes -= ackedPacket.ToBytes().Length;
-                                m_needAck.Remove(ackedPackId);
+                                uint ackedPackId = block.ID;
+                                Packet ackedPacket;
+                                if (m_needAck.TryGetValue(ackedPackId, out ackedPacket))
+                                {
+                                    m_unAckedBytes -= ackedPacket.ToBytes().Length;
+                                    m_needAck.Remove(ackedPackId);
+                                }
                             }
                         }
                     }
-                }
-                else if ((NewPack.Type == PacketType.StartPingCheck))
-                {
-                    //reply to pingcheck
-                    StartPingCheckPacket startPing = (StartPingCheckPacket)NewPack;
-                    CompletePingCheckPacket endPing = (CompletePingCheckPacket)PacketPool.Instance.GetPacket(PacketType.CompletePingCheck);
-                    endPing.PingID.PingID = startPing.PingID.PingID;
-                    OutPacket(endPing, ThrottleOutPacketType.Task);
-                }
-                else
-                {
-                    QueItem item = new QueItem();
-                    item.Packet = NewPack;
-                    item.Incoming = true;
-                    m_packetQueue.Enqueue(item);
+                    else if ((NewPack.Type == PacketType.StartPingCheck))
+                    {
+                        //reply to pingcheck
+                        StartPingCheckPacket startPing = (StartPingCheckPacket)NewPack;
+                        CompletePingCheckPacket endPing = (CompletePingCheckPacket)PacketPool.Instance.GetPacket(PacketType.CompletePingCheck);
+                        endPing.PingID.PingID = startPing.PingID.PingID;
+                        OutPacket(endPing, ThrottleOutPacketType.Task);
+                    }
+                    else
+                    {
+                        QueItem item = new QueItem();
+                        item.Packet = NewPack;
+                        item.Incoming = true;
+                        //m_packetQueue.Enqueue(item);
+                        ProcessInPacket(NewPack);
+                    }
                 }
             }
         }
 
         public virtual void OutPacket(Packet NewPack, ThrottleOutPacketType throttlePacketType)
         {
-            QueItem item = new QueItem();
-            item.Packet = NewPack;
-            item.Incoming = false;
-            item.throttleType = throttlePacketType; // Packet throttle type
-            m_packetQueue.Enqueue(item);
-            m_packetsSent++;
+            //lock (m_packetQueue)
+            {
+                QueItem item = new QueItem();
+                item.Packet = NewPack;
+                item.Incoming = false;
+                item.throttleType = throttlePacketType; // Packet throttle type
+
+                // if it's unknown, just punt it out. probably an ack.
+                if (throttlePacketType == ThrottleOutPacketType.Unknown)
+                {
+                    ProcessOutPacket(NewPack);
+                }
+                else
+                {
+                    m_packetQueue.Enqueue(item);
+                }
+                m_packetsSent++;
+            }
         }
 
         # region Low Level Packet Methods
@@ -2581,6 +2599,7 @@ namespace OpenSim.Region.ClientStack
         {
             if (Pack.Header.Reliable)
             {
+                //m_log.Debug("[ClientView]: Acking " + Pack.Type.ToString());
                 PacketAckPacket ack_it = (PacketAckPacket)PacketPool.Instance.GetPacket(PacketType.PacketAck);
                 // TODO: don't create new blocks if recycling an old packet
                 ack_it.Packets = new PacketAckPacket.PacketsBlock[1];

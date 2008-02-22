@@ -34,6 +34,7 @@ namespace OpenSim.Framework
     {
         private readonly Queue<T> m_queue = new Queue<T>();
         private readonly object m_queueSync = new object();
+        private readonly object m_dequeueSync = new object();
 
         public void Enqueue(T value)
         {
@@ -50,9 +51,11 @@ namespace OpenSim.Framework
             {
                 if (m_queue.Count < 1)
                 {
-                    Monitor.Wait(m_queueSync);
+                    lock (m_dequeueSync)
+                    {
+                        Monitor.Wait(m_queueSync);
+                    }
                 }
-
                 return m_queue.Dequeue();
             }
         }
@@ -64,10 +67,13 @@ namespace OpenSim.Framework
                 return m_queue.Contains(item);
             }
         }
-        
+
         public int Count()
         {
-            return m_queue.Count;
+            lock (m_queueSync)
+            {
+                return m_queue.Count;
+            }
         }
     }
 }

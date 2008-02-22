@@ -37,9 +37,15 @@ namespace OpenSim.Region.ClientStack
 {
     public class PacketQueue
     {
-        //private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
-        private bool m_enabled = true;
+        private bool m_enabled = false;
+
+        public bool Enable
+        {
+            get { return m_enabled; }
+            set { m_enabled = value; m_log.Debug("[PacketQueue]: Enabled == " + value.ToString()); }
+        }
 
         private BlockingQueue<QueItem> SendQueue;
 
@@ -77,7 +83,12 @@ namespace OpenSim.Region.ClientStack
         // private long ThrottleInterval;
         private Timer throttleTimer;
 
-        public PacketQueue()
+        /// <summary>
+        /// backreference so we can push packets out the client. May be temporary.
+        /// </summary>
+        private ClientView Client;
+
+        public PacketQueue(ClientView client)
         {
             // While working on this, the BlockingQueue had me fooled for a bit.
             // The Blocking queue causes the thread to stop until there's something 
@@ -85,6 +96,8 @@ namespace OpenSim.Region.ClientStack
             // without it, the clientloop will suck up all sim resources.
 
             SendQueue = new BlockingQueue<QueItem>();
+
+            Client = client;
 
             IncomingPacketQueue = new Queue<QueItem>();
             OutgoingPacketQueue = new Queue<QueItem>();
@@ -123,44 +136,49 @@ namespace OpenSim.Region.ClientStack
 
         public void Enqueue(QueItem item)
         {
-            if (!m_enabled)
-            {
-                return;
-            }
+
             // We could micro lock, but that will tend to actually
             // probably be worse than just synchronizing on SendQueue
 
-            lock (this)
+            // enqueue inbound right away. forget throttle checking inbound!
+            if (item.Incoming)
             {
-                switch (item.throttleType)
+                SendQueue.Enqueue(item);
+            }
+            else
+            {
+                lock (this)
                 {
-                    case ThrottleOutPacketType.Resend:
-                        ThrottleCheck(ref ResendThrottle, ref ResendOutgoingPacketQueue, item);
-                        break;
-                    case ThrottleOutPacketType.Texture:
-                        ThrottleCheck(ref TextureThrottle, ref TextureOutgoingPacketQueue, item);
-                        break;
-                    case ThrottleOutPacketType.Task:
-                        ThrottleCheck(ref TaskThrottle, ref TaskOutgoingPacketQueue, item);
-                        break;
-                    case ThrottleOutPacketType.Land:
-                        ThrottleCheck(ref LandThrottle, ref LandOutgoingPacketQueue, item);
-                        break;
-                    case ThrottleOutPacketType.Asset:
-                        ThrottleCheck(ref AssetThrottle, ref AssetOutgoingPacketQueue, item);
-                        break;
-                    case ThrottleOutPacketType.Cloud:
-                        ThrottleCheck(ref CloudThrottle, ref CloudOutgoingPacketQueue, item);
-                        break;
-                    case ThrottleOutPacketType.Wind:
-                        ThrottleCheck(ref WindThrottle, ref WindOutgoingPacketQueue, item);
-                        break;
+                    switch (item.throttleType)
+                    {
+                        case ThrottleOutPacketType.Resend:
+                            ThrottleCheck(ref ResendThrottle, ref ResendOutgoingPacketQueue, item);
+                            break;
+                        case ThrottleOutPacketType.Texture:
+                            ThrottleCheck(ref TextureThrottle, ref TextureOutgoingPacketQueue, item);
+                            break;
+                        case ThrottleOutPacketType.Task:
+                            ThrottleCheck(ref TaskThrottle, ref TaskOutgoingPacketQueue, item);
+                            break;
+                        case ThrottleOutPacketType.Land:
+                            ThrottleCheck(ref LandThrottle, ref LandOutgoingPacketQueue, item);
+                            break;
+                        case ThrottleOutPacketType.Asset:
+                            ThrottleCheck(ref AssetThrottle, ref AssetOutgoingPacketQueue, item);
+                            break;
+                        case ThrottleOutPacketType.Cloud:
+                            ThrottleCheck(ref CloudThrottle, ref CloudOutgoingPacketQueue, item);
+                            break;
+                        case ThrottleOutPacketType.Wind:
+                            ThrottleCheck(ref WindThrottle, ref WindOutgoingPacketQueue, item);
+                            break;
 
-                    default:
-                        // Acknowledgements and other such stuff should go directly to the blocking Queue
-                        // Throttling them may and likely 'will' be problematic
-                        SendQueue.Enqueue(item);
-                        break;
+                        default:
+                            // Acknowledgements and other such stuff should go directly to the blocking Queue
+                            // Throttling them may and likely 'will' be problematic
+                            Client.ProcessOutPacket(item.Packet);
+                            break;
+                    }
                 }
             }
         }
@@ -174,39 +192,34 @@ namespace OpenSim.Region.ClientStack
         {
             lock (this)
             {
-                while (PacketsWaiting())
+                while (ResendOutgoingPacketQueue.Count > 0)
                 {
-                    //Now comes the fun part..   we dump all our elements into m_packetQueue that we've saved up.
-                    if (ResendOutgoingPacketQueue.Count > 0)
-                    {
-                        SendQueue.Enqueue(ResendOutgoingPacketQueue.Dequeue());
-                    }
-                    if (LandOutgoingPacketQueue.Count > 0)
-                    {
-                        SendQueue.Enqueue(LandOutgoingPacketQueue.Dequeue());
-                    }
-                    if (WindOutgoingPacketQueue.Count > 0)
-                    {
-                        SendQueue.Enqueue(WindOutgoingPacketQueue.Dequeue());
-                    }
-                    if (CloudOutgoingPacketQueue.Count > 0)
-                    {
-                        SendQueue.Enqueue(CloudOutgoingPacketQueue.Dequeue());
-                    }
-                    if (TaskOutgoingPacketQueue.Count > 0)
-                    {
-                        SendQueue.Enqueue(TaskOutgoingPacketQueue.Dequeue());
-                    }
-                    if (TextureOutgoingPacketQueue.Count > 0)
-                    {
-                        SendQueue.Enqueue(TextureOutgoingPacketQueue.Dequeue());
-                    }
-                    if (AssetOutgoingPacketQueue.Count > 0)
-                    {
-                        SendQueue.Enqueue(AssetOutgoingPacketQueue.Dequeue());
-                    }
+                    Client.ProcessOutPacket(ResendOutgoingPacketQueue.Dequeue().Packet);
                 }
-                // m_log.Info("[THROTTLE]: Processed " + throttleLoops + " packets");
+                while (LandOutgoingPacketQueue.Count > 0)
+                {
+                    Client.ProcessOutPacket(LandOutgoingPacketQueue.Dequeue().Packet);
+                }
+                while (WindOutgoingPacketQueue.Count > 0)
+                {
+                    Client.ProcessOutPacket(WindOutgoingPacketQueue.Dequeue().Packet);
+                }
+                while (CloudOutgoingPacketQueue.Count > 0)
+                {
+                    Client.ProcessOutPacket(CloudOutgoingPacketQueue.Dequeue().Packet);
+                }
+                while (TaskOutgoingPacketQueue.Count > 0)
+                {
+                    Client.ProcessOutPacket(TaskOutgoingPacketQueue.Dequeue().Packet);
+                }
+                while (TextureOutgoingPacketQueue.Count > 0)
+                {
+                    Client.ProcessOutPacket(TextureOutgoingPacketQueue.Dequeue().Packet);
+                }
+                while (AssetOutgoingPacketQueue.Count > 0)
+                {
+                    Client.ProcessOutPacket(AssetOutgoingPacketQueue.Dequeue().Packet);
+                }
             }
         }
 
@@ -265,7 +278,9 @@ namespace OpenSim.Region.ClientStack
                     {
                         QueItem qpack = ResendOutgoingPacketQueue.Dequeue();
 
-                        SendQueue.Enqueue(qpack);
+                        //SendQueue.Enqueue(qpack);
+                       // m_log.Debug("[PacketQueue]: ThrottleCheck Sending " + qpack.Incoming.ToString() + " packet " + qpack.Packet.Type.ToString());
+                        Client.ProcessOutPacket(qpack.Packet);
                         TotalThrottle.Add(qpack.Packet.ToBytes().Length);
                         ResendThrottle.Add(qpack.Packet.ToBytes().Length);
                     }
@@ -273,7 +288,9 @@ namespace OpenSim.Region.ClientStack
                     {
                         QueItem qpack = LandOutgoingPacketQueue.Dequeue();
 
-                        SendQueue.Enqueue(qpack);
+                        //SendQueue.Enqueue(qpack);
+                       // m_log.Debug("[PacketQueue]: ThrottleCheck Sending " + qpack.Incoming.ToString() + " packet " + qpack.Packet.Type.ToString());
+                        Client.ProcessOutPacket(qpack.Packet);
                         TotalThrottle.Add(qpack.Packet.ToBytes().Length);
                         LandThrottle.Add(qpack.Packet.ToBytes().Length);
                     }
@@ -281,7 +298,9 @@ namespace OpenSim.Region.ClientStack
                     {
                         QueItem qpack = WindOutgoingPacketQueue.Dequeue();
 
-                        SendQueue.Enqueue(qpack);
+                        // SendQueue.Enqueue(qpack);
+                        //m_log.Debug("[PacketQueue]: ThrottleCheck Sending " + qpack.Incoming.ToString() + " packet " + qpack.Packet.Type.ToString());
+                        Client.ProcessOutPacket(qpack.Packet);
                         TotalThrottle.Add(qpack.Packet.ToBytes().Length);
                         WindThrottle.Add(qpack.Packet.ToBytes().Length);
                     }
@@ -289,7 +308,9 @@ namespace OpenSim.Region.ClientStack
                     {
                         QueItem qpack = CloudOutgoingPacketQueue.Dequeue();
 
-                        SendQueue.Enqueue(qpack);
+                        //SendQueue.Enqueue(qpack);
+                      //  m_log.Debug("[PacketQueue]: ThrottleCheck Sending " + qpack.Incoming.ToString() + " packet " + qpack.Packet.Type.ToString());
+                        Client.ProcessOutPacket(qpack.Packet);
                         TotalThrottle.Add(qpack.Packet.ToBytes().Length);
                         CloudThrottle.Add(qpack.Packet.ToBytes().Length);
                     }
@@ -297,7 +318,10 @@ namespace OpenSim.Region.ClientStack
                     {
                         QueItem qpack = TaskOutgoingPacketQueue.Dequeue();
 
-                        SendQueue.Enqueue(qpack);
+                        //SendQueue.Enqueue(qpack);
+                     //   m_log.Debug("[PacketQueue]: ThrottleCheck Sending " + qpack.Incoming.ToString() + " packet " + qpack.Packet.Type.ToString());
+                        Client.ProcessOutPacket(qpack.Packet);
+
                         TotalThrottle.Add(qpack.Packet.ToBytes().Length);
                         TaskThrottle.Add(qpack.Packet.ToBytes().Length);
                     }
@@ -305,7 +329,9 @@ namespace OpenSim.Region.ClientStack
                     {
                         QueItem qpack = TextureOutgoingPacketQueue.Dequeue();
 
-                        SendQueue.Enqueue(qpack);
+                        //SendQueue.Enqueue(qpack);
+                   //     m_log.Debug("[PacketQueue]: ThrottleCheck Sending " + qpack.Incoming.ToString() + " packet " + qpack.Packet.Type.ToString());
+                        Client.ProcessOutPacket(qpack.Packet);
                         TotalThrottle.Add(qpack.Packet.ToBytes().Length);
                         TextureThrottle.Add(qpack.Packet.ToBytes().Length);
                     }
@@ -313,7 +339,9 @@ namespace OpenSim.Region.ClientStack
                     {
                         QueItem qpack = AssetOutgoingPacketQueue.Dequeue();
 
-                        SendQueue.Enqueue(qpack);
+                        //SendQueue.Enqueue(qpack);
+                     //   m_log.Debug("[PacketQueue]: ThrottleCheck Sending " + qpack.Incoming.ToString() + " packet " + qpack.Packet.Type.ToString());
+                        Client.ProcessOutPacket(qpack.Packet);
                         TotalThrottle.Add(qpack.Packet.ToBytes().Length);
                         AssetThrottle.Add(qpack.Packet.ToBytes().Length);
                     }
@@ -337,17 +365,18 @@ namespace OpenSim.Region.ClientStack
             // wait for the timer to fire to put things into the
             // output queue
 
-            if ((q.Count == 0) && (throttle.UnderLimit()))
+            if (m_enabled &&  (q.Count == 0) && (throttle.UnderLimit()))
             {
                 Monitor.Enter(this);
                 throttle.Add(item.Packet.ToBytes().Length);
                 TotalThrottle.Add(item.Packet.ToBytes().Length);
-                SendQueue.Enqueue(item);
+                Client.ProcessOutPacket(item.Packet);
                 Monitor.Pulse(this);
                 Monitor.Exit(this);
             }
             else
             {
+             //   m_log.Debug("[PacketQueue]: ThrottleCheck Queueing " + item.Incoming.ToString() + " packet " + item.Packet.Type.ToString());
                 q.Enqueue(item);
             }
         }

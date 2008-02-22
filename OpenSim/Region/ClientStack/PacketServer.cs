@@ -29,6 +29,9 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
+using System.Collections;
+using System.Collections.Generic;
 using libsecondlife;
 using libsecondlife.Packets;
 using OpenSim.Framework;
@@ -38,11 +41,26 @@ namespace OpenSim.Region.ClientStack
 {
     public class PacketServer
     {
-        //private static readonly log4net.ILog m_log 
-        //    = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly log4net.ILog m_log 
+            = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         private ClientStackNetworkHandler m_networkHandler;
         private IScene m_scene;
+
+        public struct QueuePacket
+        {
+            public Packet Packet;
+            public uint CircuitCode;
+
+            public QueuePacket(Packet p, uint c)
+            {
+                Packet = p;
+                CircuitCode = c;
+            }
+        }
+
+        private List<Thread> Threads = new List<Thread>();
+        private BlockingQueue<QueuePacket> PacketQueue;
 
         //private readonly ClientManager m_clientManager = new ClientManager();
         //public ClientManager ClientManager
@@ -54,6 +72,25 @@ namespace OpenSim.Region.ClientStack
         {
             m_networkHandler = networkHandler;
             m_networkHandler.RegisterPacketServer(this);
+            PacketQueue = new BlockingQueue<QueuePacket>();
+
+            int ThreadCount = 4;
+            m_log.Debug("[PacketServer]: launching " + ThreadCount.ToString() + " threads.");
+            for (int x = 0; x < ThreadCount; x++)
+            {
+                Thread thread = new Thread(PacketRunner);
+                thread.IsBackground = true;
+                thread.Name = "Packet Runner";
+                thread.Start();
+                Threads.Add(thread);
+            }
+        }
+
+        public void Enqueue(uint CircuitCode, Packet packet)
+        {
+            //m_log.Debug("[PacketServer]: Enquing " + packet.Type.ToString() + " from " + CircuitCode.ToString());
+            //lock(PacketQueue)
+                PacketQueue.Enqueue(new QueuePacket(packet, CircuitCode));
         }
 
         public IScene LocalScene
@@ -61,41 +98,57 @@ namespace OpenSim.Region.ClientStack
             set { m_scene = value; }
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="circuitCode"></param>
-        /// <param name="packet"></param>
-        public virtual void InPacket(uint circuitCode, Packet packet)
+        private void PacketRunner()
         {
-            m_scene.ClientManager.InPacket(circuitCode, packet);
+            while (true)
+            {
+                QueuePacket p;
+                // Mantis 641
+                lock(PacketQueue)
+                    p = PacketQueue.Dequeue();
+            
+                if (p.Packet != null)
+                {
+                    m_scene.ClientManager.InPacket(p.CircuitCode, p.Packet);
+                }
+                else
+                {
+                    m_log.Debug("[PacketServer]: Empty packet from queue!");
+                }
+            }
         }
 
-        protected virtual IClientAPI CreateNewClient(EndPoint remoteEP, UseCircuitCodePacket initialcirpack,
-                                                     ClientManager clientManager, IScene scene, AssetCache assetCache,
-                                                     PacketServer packServer, AgentCircuitManager authenSessions,
-                                                     LLUUID agentId, LLUUID sessionId, uint circuitCode)
+        public bool ClaimEndPoint(UseCircuitCodePacket usePacket, EndPoint ep)
         {
-            return
-                new ClientView(remoteEP, scene, assetCache, packServer, authenSessions, agentId, sessionId, circuitCode);
+            IClientAPI client;
+            if (m_scene.ClientManager.TryGetClient(usePacket.CircuitCode.Code, out client))
+            {
+                if (client.Claim(ep, usePacket))
+                {
+                    m_log.Debug("[PacketServer]: Claimed client.");
+                    return true;
+                }
+            }
+            m_log.Debug("[PacketServer]: Failed to claim client.");
+            return false;
         }
 
-        public virtual bool AddNewClient(EndPoint epSender, UseCircuitCodePacket useCircuit, AssetCache assetCache,
-                                         AgentCircuitManager authenticateSessionsClass)
+        public virtual bool AddNewClient(uint circuitCode, AgentCircuitData agentData
+            , AssetCache assetCache, AgentCircuitManager authenticateSessionsClass)
         {
+            m_log.Debug("[PacketServer]: Creating new client for " + circuitCode.ToString());
             IClientAPI newuser;
 
-            if (m_scene.ClientManager.TryGetClient(useCircuit.CircuitCode.Code, out newuser))
+            if (m_scene.ClientManager.TryGetClient(circuitCode, out newuser))
             {
+                m_log.Debug("[PacketServer]: Already have client for code " + circuitCode.ToString());
                 return false;
             }
             else
             {
-                newuser = CreateNewClient(epSender, useCircuit, m_scene.ClientManager, m_scene, assetCache, this,
-                                          authenticateSessionsClass, useCircuit.CircuitCode.ID,
-                                          useCircuit.CircuitCode.SessionID, useCircuit.CircuitCode.Code);
+                newuser = new ClientView(m_scene, assetCache, this, authenticateSessionsClass, agentData);
 
-                m_scene.ClientManager.Add(useCircuit.CircuitCode.Code, newuser);
+                m_scene.ClientManager.Add(circuitCode, newuser);
 
                 newuser.OnViewerEffect += m_scene.ClientManager.ViewerEffectHandler;
                 newuser.OnLogout += LogoutHandler;

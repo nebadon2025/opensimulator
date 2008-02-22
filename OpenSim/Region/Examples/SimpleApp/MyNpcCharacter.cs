@@ -158,6 +158,11 @@ namespace SimpleApp
 
         private LLUUID myID = LLUUID.Random();
 
+        public bool Claim(EndPoint ep, UseCircuitCodePacket packet)
+        {
+            throw new Exception("Unimplemented!");
+        }
+
         public MyNpcCharacter(EventManager eventManager)
         {
             // startPos = new LLVector3(128, (float)(Util.RandomClass.NextDouble()*100), 2);
@@ -204,6 +209,11 @@ namespace SimpleApp
             get { return FirstName + LastName; }
         }
 
+        public EndPoint EndPoint
+        {
+            get { throw new Exception("Unimplemented.");}
+            set { throw new Exception("Unimplemented.");}
+        }
 
         public virtual void OutPacket(Packet newPack, ThrottleOutPacketType packType)
         {

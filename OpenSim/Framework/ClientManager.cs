@@ -93,9 +93,14 @@ namespace OpenSim.Framework
             bool tryGetRet = false;
             lock (m_clients)
                 tryGetRet = m_clients.TryGetValue(circuitCode, out client);
-            if(tryGetRet)
+            if (tryGetRet)
             {
+                //m_log.Debug("[ClientManager]: Processing IN packet " + packet.Type.ToString());
                 client.InPacket(packet);
+            }
+            else
+            {
+                m_log.Debug("[ClientManager]: Failed to find client for " + circuitCode.ToString());
             }
         }
 

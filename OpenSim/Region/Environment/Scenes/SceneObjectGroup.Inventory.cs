@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -38,6 +38,8 @@ namespace OpenSim.Region.Environment.Scenes
 {
     public partial class SceneObjectGroup : EntityBase
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         /// <summary>
         /// Start a given script.
         /// </summary>
@@ -53,23 +55,80 @@ namespace OpenSim.Region.Environment.Scenes
             }
             else
             {
-                MainLog.Instance.Error(
-                    "PRIMINVENTORY",
+                m_log.ErrorFormat(
+                    "[PRIMINVENTORY]: " +
                     "Couldn't find part {0} in object group {1}, {2} to start script with ID {3}",
                     localID, Name, UUID, itemID);
             }            
         }
+        
+//        /// Start a given script.
+//        /// </summary>
+//        /// <param name="localID">
+//        /// A <see cref="System.UInt32"/>
+//        /// </param>
+//        public void StartScript(LLUUID partID, LLUUID itemID)
+//        {
+//            SceneObjectPart part = GetChildPart(partID);
+//            if (part != null)
+//            {
+//                part.StartScript(itemID);
+//            }
+//            else
+//            {
+//                m_log.ErrorFormat(
+//                    "[PRIMINVENTORY]: " +
+//                    "Couldn't find part {0} in object group {1}, {2} to start script with ID {3}",
+//                    localID, Name, UUID, itemID);
+//            }            
+//        }        
         
         /// <summary>
         /// Start the scripts contained in all the prims in this group.
         /// </summary>
         public void StartScripts()
         {
-            foreach (SceneObjectPart part in m_parts.Values)
+            // Don't start scripts if they're turned off in the region!
+            if (!((m_scene.RegionInfo.EstateSettings.regionFlags & Simulator.RegionFlags.SkipScripts) == Simulator.RegionFlags.SkipScripts))
             {
-                part.StartScripts();
-            }            
+                foreach (SceneObjectPart part in m_parts.Values)
+                {
+                    part.StartScripts();
+                }
+            }
         }
+
+        public void StopScripts()
+        {
+            lock (m_parts)
+            {
+                foreach (SceneObjectPart part in m_parts.Values)
+                {
+                    part.StopScripts();
+                }
+            }
+        }
+        
+        /// Start a given script.
+        /// </summary>
+        /// <param name="localID">
+        /// A <see cref="System.UInt32"/>
+        /// </param>
+        public void StopScript(uint partID, LLUUID itemID)
+        {
+            SceneObjectPart part = GetChildPart(partID);
+            if (part != null)
+            {
+                part.StopScript(itemID);
+            }
+            else
+            {
+                m_log.ErrorFormat(
+                    "[PRIMINVENTORY]: " +
+                    "Couldn't find part {0} in object group {1}, {2} to stop script with ID {3}",
+                    partID, Name, UUID, itemID);
+            }            
+        }         
         
         /// <summary>
         /// 
@@ -85,8 +144,8 @@ namespace OpenSim.Region.Environment.Scenes
             }
             else
             {
-                MainLog.Instance.Error(
-                    "PRIMINVENTORY",
+                m_log.ErrorFormat(
+                    "[PRIMINVENTORY]: " +
                     "Couldn't find part {0} in object group {1}, {2} to retreive prim inventory",
                     localID, Name, UUID);
             }
@@ -102,8 +161,8 @@ namespace OpenSim.Region.Environment.Scenes
             }
             else
             {
-                MainLog.Instance.Error(
-                    "PRIMINVENTORY",
+                m_log.ErrorFormat(
+                    "[PRIMINVENTORY]: " +
                     "Couldn't find part {0} in object group {1}, {2} to request inventory data",
                     localID, Name, UUID);
             }
@@ -120,56 +179,92 @@ namespace OpenSim.Region.Environment.Scenes
         public bool AddInventoryItem(IClientAPI remoteClient, uint localID, 
                                      InventoryItemBase item, LLUUID copyItemID)
         {
-            LLUUID newItemId = ((copyItemID != null) ? copyItemID : item.inventoryID);
+            LLUUID newItemId = (!copyItemID.Equals(null)) ? copyItemID : item.inventoryID;
             
             SceneObjectPart part = GetChildPart(localID);
             if (part != null)
             {
                 TaskInventoryItem taskItem = new TaskInventoryItem();
                 
-                taskItem.item_id = newItemId;                
-                taskItem.asset_id = item.assetID;
-                taskItem.name = item.inventoryName;
-                taskItem.desc = item.inventoryDescription;
-                taskItem.owner_id = item.avatarID;
-                taskItem.creator_id = item.creatorsID;
-                taskItem.type = TaskInventoryItem.Types[item.assetType];
-                taskItem.inv_type = TaskInventoryItem.InvTypes[item.invType];
+                taskItem.ItemID = newItemId;                
+                taskItem.AssetID = item.assetID;
+                taskItem.Name = item.inventoryName;
+                taskItem.Description = item.inventoryDescription;
+                taskItem.OwnerID = item.avatarID;
+                taskItem.CreatorID = item.creatorsID;
+                taskItem.Type = item.assetType;
+                taskItem.InvType = item.invType;
                 part.AddInventoryItem(taskItem);
-                
-                // It might seem somewhat crude to update the whole group for a single prim inventory change,
-                // but it's possible that other prim inventory changes will take place before the region 
-                // persistence thread visits this object.  In the future, changes can be signalled at a more
-                // granular level, or we could let the datastore worry about whether prims have really 
-                // changed since they were last persisted.
-                HasChanged = true;
                 
                 return true;
             }
             else
             {
-                MainLog.Instance.Error(
-                    "PRIMINVENTORY",
+                m_log.ErrorFormat(
+                    "[PRIMINVENTORY]: " +
                     "Couldn't find prim local ID {0} in group {1}, {2} to add inventory item ID {3}",
                     localID, Name, UUID, newItemId);
             }
 
             return false;
         }
+        
+        /// <summary>
+        /// Returns an existing inventory item.  Returns the original, so any changes will be live.
+        /// </summary>
+        /// <param name="primID"></param>
+        /// <param name="itemID"></param>
+        /// <returns>null if the item does not exist</returns>
+        public TaskInventoryItem GetInventoryItem(uint primID, LLUUID itemID)
+        {
+            SceneObjectPart part = GetChildPart(primID);
+            if (part != null)
+            {
+                return part.GetInventoryItem(itemID);
+            }
+            else
+            {
+                m_log.ErrorFormat(
+                    "[PRIMINVENTORY]: " +
+                    "Couldn't find prim local ID {0} in prim {1}, {2} to get inventory item ID {3}",
+                    primID, part.Name, part.UUID, itemID);
+            }   
+            
+            return null;
+        }         
+        
+        /// <summary>
+        /// Update an existing inventory item.
+        /// </summary>
+        /// <param name="item">The updated item.  An item with the same id must already exist
+        /// in this prim's inventory</param>
+        /// <returns>false if the item did not exist, true if the update occurred succesfully</returns>
+        public bool UpdateInventoryItem(TaskInventoryItem item)
+        {
+            SceneObjectPart part = GetChildPart(item.ParentPartID);
+            if (part != null)
+            {
+                part.UpdateInventoryItem(item);              
+                
+                return true;
+            }
+            else
+            {
+                m_log.ErrorFormat(
+                    "[PRIMINVENTORY]: " +
+                    "Couldn't find prim ID {0} to update item {1}, {2}",
+                    item.ParentPartID, item.Name, item.ItemID);
+            }   
+            
+            return false;
+        }        
 
-        public int RemoveInventoryItem(IClientAPI remoteClient, uint localID, LLUUID itemID)
+        public int RemoveInventoryItem(uint localID, LLUUID itemID)
         {
             SceneObjectPart part = GetChildPart(localID);
             if (part != null)
             {                
-                int type = part.RemoveInventoryItem(remoteClient, localID, itemID);
-                
-                // It might seem somewhat crude to update the whole group for a single prim inventory change,
-                // but it's possible that other prim inventory changes will take place before the region 
-                // persistence thread visits this object.  In the future, changes can be signalled at a more
-                // granular level, or we could let the datastore worry about whether prims have really 
-                // changed since they were last persisted.
-                HasChanged = true;
+                int type = part.RemoveInventoryItem(itemID);
                 
                 return type;
             }

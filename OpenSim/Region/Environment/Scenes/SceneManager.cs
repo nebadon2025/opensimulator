@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -38,10 +38,17 @@ namespace OpenSim.Region.Environment.Scenes
 
     public class SceneManager
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         public event RestartSim OnRestartSim;
 
         private readonly List<Scene> m_localScenes;
         private Scene m_currentScene = null;
+
+        public List<Scene> Scenes
+        {
+            get { return m_localScenes; }
+        }
 
         public Scene CurrentScene
         {
@@ -98,8 +105,7 @@ namespace OpenSim.Region.Environment.Scenes
 
         public void HandleRestart(RegionInfo rdata)
         {
-            MainLog.Instance.Error("SCENEMANAGER",
-                                   "Got Restart message for region:" + rdata.RegionName + " Sending up to main");
+            m_log.Error("[SCENEMANAGER]: Got Restart message for region:" + rdata.RegionName + " Sending up to main");
             int RegionSceneElement = -1;
             for (int i = 0; i < m_localScenes.Count; i++)
             {
@@ -146,7 +152,7 @@ namespace OpenSim.Region.Environment.Scenes
             }
             else
             {
-                MainLog.Instance.Error("REGION", "Unable to notify Other regions of this Region coming up");
+                m_log.Error("[REGION]: Unable to notify Other regions of this Region coming up");
             }
         }
 
@@ -180,6 +186,12 @@ namespace OpenSim.Region.Environment.Scenes
                     if (!scene.Terrain.RunTerrainCmd(cmdparams, ref result, scene.RegionInfo.RegionName))
                     {
                         success = false;
+                    }
+                    
+                    // Messy way of preventing us printing out the same help text for each scene
+                    if (cmdparams.Length <= 0 || cmdparams[0] == "help")
+                    {
+                        break;
                     }
                 }
 
@@ -297,29 +309,25 @@ namespace OpenSim.Region.Environment.Scenes
             return false;
         }
 
-        public void SetDebugPacketOnCurrentScene(LogBase log, int newDebug)
+        public void SetDebugPacketOnCurrentScene(int newDebug)
         {
             ForEachCurrentScene(delegate(Scene scene)
-                                    {
-                                        List<EntityBase> EntitieList = scene.GetEntities();
+            {
+                List<ScenePresence> scenePresences = scene.GetScenePresences();
 
-                                        foreach (EntityBase entity in EntitieList)
-                                        {
-                                            if (entity is ScenePresence)
-                                            {
-                                                ScenePresence scenePrescence = entity as ScenePresence;
-                                                if (!scenePrescence.IsChildAgent)
-                                                {
-                                                    log.Error(String.Format("Packet debug for {0} {1} set to {2}",
-                                                                            scenePrescence.Firstname,
-                                                                            scenePrescence.Lastname,
-                                                                            newDebug));
+                foreach (ScenePresence scenePresence in scenePresences)
+                {
+                    if (!scenePresence.IsChildAgent)
+                    {
+                        m_log.ErrorFormat("Packet debug for {0} {1} set to {2}",
+                                          scenePresence.Firstname,
+                                          scenePresence.Lastname,
+                                          newDebug);
 
-                                                    scenePrescence.ControllingClient.SetDebug(newDebug);
-                                                }
-                                            }
-                                        }
-                                    });
+                        scenePresence.ControllingClient.SetDebug(newDebug);
+                    }
+                }
+            });
         }
 
         public List<ScenePresence> GetCurrentSceneAvatars()
@@ -327,21 +335,17 @@ namespace OpenSim.Region.Environment.Scenes
             List<ScenePresence> avatars = new List<ScenePresence>();
 
             ForEachCurrentScene(delegate(Scene scene)
-                                    {
-                                        List<EntityBase> EntitieList = scene.GetEntities();
+            {
+                List<ScenePresence> scenePrescences = scene.GetScenePresences();
 
-                                        foreach (EntityBase entity in EntitieList)
-                                        {
-                                            if (entity is ScenePresence)
-                                            {
-                                                ScenePresence scenePrescence = entity as ScenePresence;
-                                                if (!scenePrescence.IsChildAgent)
-                                                {
-                                                    avatars.Add(scenePrescence);
-                                                }
-                                            }
-                                        }
-                                    });
+                foreach (ScenePresence scenePrescence in scenePrescences)
+                {
+                    if (!scenePrescence.IsChildAgent)
+                    {
+                        avatars.Add(scenePrescence);
+                    }
+                }
+            });
 
             return avatars;
         }

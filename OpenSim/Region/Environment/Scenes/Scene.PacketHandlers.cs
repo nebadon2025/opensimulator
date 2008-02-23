@@ -106,7 +106,7 @@ namespace OpenSim.Region.Environment.Scenes
                 {
                     if (((SceneObjectGroup) ent).LocalId == primLocalID)
                     {
-                        ((SceneObjectGroup) ent).GetProperites(remoteClient);
+                        ((SceneObjectGroup) ent).GetProperties(remoteClient);
                         ((SceneObjectGroup) ent).IsSelected = true;
                         LandManager.setPrimsTainted();
                         break;
@@ -138,9 +138,16 @@ namespace OpenSim.Region.Environment.Scenes
             }
         }
 
+        public virtual void ProcessMoneyTransferRequest(LLUUID source, LLUUID destination, int amount, int transactiontype, string description)
+        {
+            EventManager.MoneyTransferArgs args = new EventManager.MoneyTransferArgs(
+                source, destination, amount, transactiontype, description);
+
+            EventManager.TriggerMoneyTransfer(this, args);
+        }
+
         public virtual void ProcessObjectGrab(uint localID, LLVector3 offsetPos, IClientAPI remoteClient)
         {
-            EventManager.TriggerObjectGrab(localID, offsetPos, remoteClient);
 
             List<EntityBase> EntitieList = GetEntities();
 
@@ -150,9 +157,21 @@ namespace OpenSim.Region.Environment.Scenes
                 {
                     SceneObjectGroup obj = ent as SceneObjectGroup;
 
+                    // Is this prim part of the group
                     if (obj.HasChildPrim(localID))
                     {
+                        // Currently only grab/touch for the single prim
+                        // the client handles rez correctly
                         obj.ObjectGrabHandler(localID, offsetPos, remoteClient);
+
+                        // trigger event, one for each prim part in the group
+                        // so that a touch to a non-root prim in a group will still
+                        // trigger a touch_start for a script in the root prim
+                        foreach (SceneObjectPart part in obj.Children.Values)
+                        {
+                            EventManager.TriggerObjectGrab(part.LocalID, part.OffsetPosition, remoteClient);
+                        }
+
                         return;
                     }
                 }
@@ -164,7 +183,7 @@ namespace OpenSim.Region.Environment.Scenes
             //EventManager.TriggerAvatarPickerRequest();
 
             List<AvatarPickerAvatar> AvatarResponses = new List<AvatarPickerAvatar>();
-            AvatarResponses = CommsManager.GenerateAgentPickerRequestResponse(RequestID, query);
+            AvatarResponses = m_sceneGridService.GenerateAgentPickerRequestResponse(RequestID, query);
 
             AvatarPickerReplyPacket replyPacket = (AvatarPickerReplyPacket) PacketPool.Instance.GetPacket(PacketType.AvatarPickerReply);
             // TODO: don't create new blocks if recycling an old packet
@@ -176,7 +195,7 @@ namespace OpenSim.Region.Environment.Scenes
             agentData.AgentID = avatarID;
             agentData.QueryID = RequestID;
             replyPacket.AgentData = agentData;
-            byte[] bytes = new byte[AvatarResponses.Count*32];
+            //byte[] bytes = new byte[AvatarResponses.Count*32];
 
             int i = 0;
             foreach (AvatarPickerAvatar item in AvatarResponses)

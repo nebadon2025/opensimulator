@@ -35,11 +35,23 @@ namespace OpenSim.Region.Environment.Scenes
     public class AvatarAppearance
     {
         protected LLUUID m_scenePresenceID;
+
+        public LLUUID ScenePresenceID
+        {
+            get { return m_scenePresenceID; }
+            set { m_scenePresenceID = value; }
+        }
         protected int m_wearablesSerial = 1;
 
         protected bool m_rexmode; //rex
         protected string m_avatarStorageAddr;
 
+
+        public int WearablesSerial
+        {
+            get { return m_wearablesSerial; }
+            set { m_wearablesSerial = value; }
+        }
 
         protected byte[] m_visualParams;
 

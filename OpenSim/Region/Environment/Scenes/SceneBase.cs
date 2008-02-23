@@ -31,11 +31,14 @@ using OpenSim.Framework;
 using OpenSim.Framework.Communications.Cache;
 using OpenSim.Framework.Console;
 using OpenSim.Region.Terrain;
+using OpenSim.Region.Environment.Interfaces;
 
 namespace OpenSim.Region.Environment.Scenes
 {
     public abstract class SceneBase : IScene
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         #region Events
 
         public event restart OnRestart;
@@ -56,6 +59,7 @@ namespace OpenSim.Region.Environment.Scenes
         protected RegionInfo m_regInfo;
 
         public TerrainEngine Terrain;
+        public ITerrainChannel Heightmap;
 
         protected EventManager m_eventManager;
 
@@ -164,8 +168,10 @@ namespace OpenSim.Region.Environment.Scenes
         /// <param name="seconds"></param>
         public virtual void Restart(int seconds)
         {
-            MainLog.Instance.Error("REGION", "passing Restart Message up the namespace");
-            OnRestart(RegionInfo);
+            m_log.Error("[REGION]: passing Restart Message up the namespace");
+            restart handler001 = OnRestart;
+            if (handler001 != null) 
+                handler001(RegionInfo);
         }
 
         public virtual bool PresenceChildStatus(LLUUID avatarID)
@@ -173,6 +179,11 @@ namespace OpenSim.Region.Environment.Scenes
             return false;
         }
         public abstract bool OtherRegionUp(RegionInfo thisRegion);
+
+        public virtual string GetSimulatorVersion()
+        {
+            return "OpenSimulator v0.5 SVN";
+        }
 
         #endregion
 
@@ -189,7 +200,7 @@ namespace OpenSim.Region.Environment.Scenes
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error("SCENE", "SceneBase.cs: Close() - Failed with exception " + e.ToString());
+                m_log.Error("[SCENE]: SceneBase.cs: Close() - Failed with exception " + e.ToString());
             }
         }
 

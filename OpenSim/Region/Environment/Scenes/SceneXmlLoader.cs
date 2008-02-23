@@ -68,7 +68,7 @@ namespace OpenSim.Region.Environment.Scenes
                                                                 m_regInfo.RegionHandle, aPrimNode.OuterXml);
                     if (newIDS)
                     {
-                        obj.GenerateNewIDs();
+                        obj.ResetIDs();
                     }
                     //if we want this to be a import method then we need new uuids for the object to avoid any clashes
                     //obj.RegenerateFullIDs(); 
@@ -123,6 +123,33 @@ namespace OpenSim.Region.Environment.Scenes
             file.Close();
         }
 
+        public string SavePrimGroupToXML2String(SceneObjectGroup grp)
+        {
+            string returnstring = "";
+            returnstring += "<scene>\n";
+            returnstring += grp.ToXmlString2();
+            returnstring += "</scene>\n";
+            return returnstring;
+
+        }
+
+        public void LoadGroupFromXml2String(string xmlString)
+        {
+            XmlDocument doc = new XmlDocument();
+            XmlNode rootNode;
+           
+            XmlTextReader reader = new XmlTextReader(new StringReader(xmlString));
+            reader.WhitespaceHandling = WhitespaceHandling.None;
+            doc.Load(reader);
+            reader.Close();
+            rootNode = doc.FirstChild;
+            foreach (XmlNode aPrimNode in rootNode.ChildNodes)
+            {
+                CreatePrimFromXml(aPrimNode.OuterXml);
+            }
+         
+        }
+
         public void LoadPrimsFromXml2(string fileName)
         {
             XmlDocument doc = new XmlDocument();
@@ -148,6 +175,8 @@ namespace OpenSim.Region.Environment.Scenes
         public void CreatePrimFromXml(string xmlData)
         {
             SceneObjectGroup obj = new SceneObjectGroup(xmlData);
+            LLVector3 receivedVelocity = obj.RootPart.Velocity;
+            //System.Console.WriteLine(obj.RootPart.Velocity.ToString());
             m_innerScene.AddEntityFromStorage(obj);
 
             SceneObjectPart rootPart = obj.GetChildPart(obj.UUID);
@@ -164,7 +193,10 @@ namespace OpenSim.Region.Environment.Scenes
                     new Quaternion(rootPart.RotationOffset.W, rootPart.RotationOffset.X,
                                    rootPart.RotationOffset.Y, rootPart.RotationOffset.Z), UsePhysics, rootPart.LocalID);
                 rootPart.DoPhysicsPropertyUpdate(UsePhysics, true);
+                rootPart.Velocity = receivedVelocity;                 
             }
+
+            obj.ScheduleGroupForFullUpdate();
         }
 
         public void SavePrimsToXml2(string fileName)

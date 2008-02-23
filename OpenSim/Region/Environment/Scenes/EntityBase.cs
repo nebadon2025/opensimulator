@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -34,8 +34,6 @@ namespace OpenSim.Region.Environment.Scenes
 {
     public abstract class EntityBase
     {
-        protected List<EntityBase> m_children;
-
         protected Scene m_scene;
         
         public Scene Scene
@@ -116,33 +114,17 @@ namespace OpenSim.Region.Environment.Scenes
             Rotation = new Quaternion();
             m_name = "(basic entity)";
             m_rotationalvelocity = new LLVector3(0, 0, 0);
-            m_children = new List<EntityBase>();
         }
 
         /// <summary>
         /// 
         /// </summary>
-        public virtual void UpdateMovement()
-        {
-            foreach (EntityBase child in m_children)
-
-            {
-                child.UpdateMovement();
-            }
-        }
+        public abstract void UpdateMovement();
 
         /// <summary>
-        /// Performs any updates that need to be done at each frame. This function is overridable from it's children.
+        /// Performs any updates that need to be done at each frame.
         /// </summary>
-        public virtual void Update()
-        {
-            // Do any per-frame updates needed that are applicable to every type of entity
-
-            foreach (EntityBase child in m_children)
-            {
-                child.Update();
-            }
-        }
+        public abstract void Update();
 
         /// <summary>
         /// Copies the entity

@@ -44,6 +44,8 @@ namespace OpenSim.Grid.ScriptEngine.DotNetEngine
     [Serializable]
     internal class EventQueueManager
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         /// <summary>
         /// List of threads processing event queue
         /// </summary>
@@ -118,7 +120,7 @@ namespace OpenSim.Grid.ScriptEngine.DotNetEngine
                     }
                     catch (Exception)
                     {
-                        //myScriptEngine.Log.Verbose("ScriptEngine", "EventQueueManager Exception killing worker thread: " + e.ToString());
+                        //myScriptEngine.m_log.Info("[ScriptEngine]: EventQueueManager Exception killing worker thread: " + e.ToString());
                     }
                 }
             }
@@ -132,7 +134,7 @@ namespace OpenSim.Grid.ScriptEngine.DotNetEngine
         /// </summary>
         private void EventQueueThreadLoop()
         {
-            //myScriptEngine.m_logger.Verbose("ScriptEngine", "EventQueueManager Worker thread spawned");
+            //myScriptEngine.m_log.Info("[ScriptEngine]: EventQueueManager Worker thread spawned");
             try
             {
                 QueueItemStruct BlankQIS = new QueueItemStruct();
@@ -151,7 +153,7 @@ namespace OpenSim.Grid.ScriptEngine.DotNetEngine
                         else
                         {
                             // Something in queue, process
-                            //myScriptEngine.m_logger.Verbose("ScriptEngine", "Processing event for localID: " + QIS.localID + ", itemID: " + QIS.itemID + ", FunctionName: " + QIS.FunctionName);
+                            //myScriptEngine.m_log.Info("[ScriptEngine]: Processing event for localID: " + QIS.localID + ", itemID: " + QIS.itemID + ", FunctionName: " + QIS.FunctionName);
 
                             // OBJECT BASED LOCK - TWO THREADS WORKING ON SAME OBJECT IS NOT GOOD
                             lock (queueLock)
@@ -174,8 +176,8 @@ namespace OpenSim.Grid.ScriptEngine.DotNetEngine
                                         GotItem = true;
                                         break;
                                     }
-                                } // go through queue
-                            } // lock
+                                }
+                            }
 
                             if (GotItem == true)
                             {
@@ -223,7 +225,7 @@ namespace OpenSim.Grid.ScriptEngine.DotNetEngine
                                     ReleaseLock(QIS.localID);
                                 }
                             }
-                        } // Something in queue
+                        }
                     }
                     catch (ThreadAbortException tae)
                     {
@@ -233,11 +235,11 @@ namespace OpenSim.Grid.ScriptEngine.DotNetEngine
                     {
                         Console.WriteLine("Exception in EventQueueThreadLoop: " + e.ToString());
                     }
-                } // while
-            } // try
+                }
+            }
             catch (ThreadAbortException)
             {
-                //myScriptEngine.Log.Verbose("ScriptEngine", "EventQueueManager Worker thread killed: " + tae.Message);
+                //myScriptEngine.m_log.Info("[ScriptEngine]: EventQueueManager Worker thread killed: " + tae.Message);
             }
         }
 
@@ -277,7 +279,6 @@ namespace OpenSim.Grid.ScriptEngine.DotNetEngine
             }
         }
 
-
         /// <summary>
         /// Add event to event execution queue
         /// </summary>
@@ -287,7 +288,7 @@ namespace OpenSim.Grid.ScriptEngine.DotNetEngine
         public void AddToObjectQueue(uint localID, string FunctionName, object[] param)
         {
             // Determine all scripts in Object and add to their queue
-            //myScriptEngine.m_logger.Verbose("ScriptEngine", "EventQueueManager Adding localID: " + localID + ", FunctionName: " + FunctionName);
+            //myScriptEngine.m_log.Info("[ScriptEngine]: EventQueueManager Adding localID: " + localID + ", FunctionName: " + FunctionName);
 
 
             // Do we have any scripts in this object at all? If not, return

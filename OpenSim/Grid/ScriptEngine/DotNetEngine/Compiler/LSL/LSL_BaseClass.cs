@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -41,6 +41,8 @@ namespace OpenSim.Grid.ScriptEngine.DotNetEngine.Compiler.LSL
     //[Serializable]
     public class LSL_BaseClass : MarshalByRefObject, LSL_BuiltIn_Commands_Interface, IScript
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         // Object never expires
         public override Object InitializeLifetimeService()
         {
@@ -87,7 +89,7 @@ namespace OpenSim.Grid.ScriptEngine.DotNetEngine.Compiler.LSL
         {
             m_LSL_Functions = LSL_Functions;
 
-            //MainLog.Instance.Notice("ScriptEngine", "LSL_BaseClass.Start() called.");
+            //m_log.Info("[ScriptEngine]: LSL_BaseClass.Start() called.");
 
             // Get this AppDomain's settings and display some of them.
             AppDomainSetup ads = AppDomain.CurrentDomain.SetupInformation;

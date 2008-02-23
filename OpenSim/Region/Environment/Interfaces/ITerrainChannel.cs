@@ -26,17 +26,13 @@
 * 
 */
 
-using Nini.Config;
-using OpenSim.Region.Environment.Scenes;
-
+using System;
 namespace OpenSim.Region.Environment.Interfaces
 {
-    public interface IRegionModule
+    public interface ITerrainChannel
     {
-        void Initialise(Scene scene, IConfigSource source);
-        void PostInitialise();
-        void Close();
-        string Name { get; }
-        bool IsSharedModule { get; }
+        int Height { get; }
+        double this[int x, int y] { get; set; }
+        int Width { get; }
     }
 }

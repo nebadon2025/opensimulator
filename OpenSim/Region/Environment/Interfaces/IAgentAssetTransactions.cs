@@ -1,4 +1,4 @@
-/*
+﻿/*
 * Copyright (c) Contributors, http://opensimulator.org/
 * See CONTRIBUTORS.TXT for a full list of copyright holders.
 *
@@ -26,17 +26,20 @@
 * 
 */
 
-using Nini.Config;
-using OpenSim.Region.Environment.Scenes;
+using libsecondlife;
+using OpenSim.Framework;
 
 namespace OpenSim.Region.Environment.Interfaces
 {
-    public interface IRegionModule
+    public interface IAgentAssetTransactions
     {
-        void Initialise(Scene scene, IConfigSource source);
-        void PostInitialise();
-        void Close();
-        string Name { get; }
-        bool IsSharedModule { get; }
+        void HandleItemUpdateFromTransaction(IClientAPI remoteClient, LLUUID transactionID,
+                                             InventoryItemBase item);
+
+        void HandleItemCreationFromTransaction(IClientAPI remoteClient, LLUUID transactionID, LLUUID folderID,
+                                               uint callbackID, string description, string name, sbyte invType,
+                                               sbyte type, byte wearableType, uint nextOwnerMask);
+
+        void RemoveAgentAssetTransactions(LLUUID userID);
     }
 }

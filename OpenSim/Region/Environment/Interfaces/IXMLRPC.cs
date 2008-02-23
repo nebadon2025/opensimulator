@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -28,6 +28,8 @@
 
 using libsecondlife;
 using OpenSim.Region.Environment.Modules;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace OpenSim.Region.Environment.Interfaces
 {
@@ -36,8 +38,14 @@ namespace OpenSim.Region.Environment.Interfaces
         LLUUID OpenXMLRPCChannel(uint localID, LLUUID itemID);
         void CloseXMLRPCChannel(LLUUID channelKey);
         bool hasRequests();
-        RPCRequestInfo GetNextRequest();
         void RemoteDataReply(string channel, string message_id, string sdata, int idata);
         bool IsEnabled();
+        RPCRequestInfo GetNextCompletedRequest();
+        void RemoveCompletedRequest(LLUUID id);
+        void DeleteChannels(LLUUID itemID);
+        LLUUID SendRemoteData(uint localID, LLUUID itemID, string channel, string dest, int idata, string sdata);
+        SendRemoteDataRequest GetNextCompletedSRDRequest();
+        void RemoveCompletedSRDRequest(LLUUID id);
+        void CancelSRDRequests(LLUUID itemID);
     }
 }

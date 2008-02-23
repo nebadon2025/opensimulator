@@ -26,6 +26,7 @@
 * 
 */
 using System;
+using System.Net;
 using Nini.Config;
 using OpenSim.Framework;
 using OpenSim.Framework.Console;
@@ -34,15 +35,21 @@ namespace OpenSim
 {
     public class Application
     {
+        public static string iniFilePath = "";
+
         //could move our main function into OpenSimMain and kill this class
         [STAThread]
         public static void Main(string[] args)
         {
+            // First line
+            AppDomain.CurrentDomain.UnhandledException += new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
+
+            log4net.Config.XmlConfigurator.Configure();
+
             Console.WriteLine("OpenSim " + VersionInfo.Version + "\n");
 
-
             Console.Write("Performing compatibility checks... ");
-            string supported = "";
+            string supported = String.Empty;
             if (Util.IsEnvironmentSupported(ref supported))
             {
                 Console.WriteLine(" Environment is compatible.\n");
@@ -53,7 +60,7 @@ namespace OpenSim
             }
 
             Console.WriteLine("Starting...\n");
-
+          
             Culture.SetCurrentCulture();
 
             ArgvConfigSource configSource = new ArgvConfigSource(args);
@@ -73,8 +80,57 @@ namespace OpenSim
 
             while (true)
             {
-                MainLog.Instance.MainLogPrompt();
+                MainConsole.Instance.Prompt();
             }
+        }
+
+        private static bool _IsHandlingException = false; // Make sure we don't go recursive on ourself
+        /// <summary>
+        /// Global exception handler -- all unhandlet exceptions end up here :)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            if (_IsHandlingException)
+                return;
+            _IsHandlingException = true;
+            // TODO: Add config option to allow users to turn off error reporting
+            // TODO: Post error report (disabled for now)
+            
+            string msg = String.Empty;
+            msg += "\r\n";
+            msg += "APPLICATION EXCEPTION DETECTED: " + e.ToString() + "\r\n";
+            msg += "\r\n";
+
+            msg += "Exception: " + e.ExceptionObject.ToString() + "\r\n";
+            Exception ex = (Exception)e.ExceptionObject;
+            if (ex.InnerException != null)
+                msg += "InnerException: " + ex.InnerException.ToString() + "\r\n";
+
+            msg += "\r\n";
+            msg += "Application is terminating: " + e.IsTerminating.ToString() + "\r\n";            
+
+            // Do we not always want to see exception messages?
+//            if (e.IsTerminating)
+                MainConsole.Instance.Error("[APPLICATION]: " + msg);
+
+            // Try to post errormessage to an URL
+            try
+            {
+                // DISABLED UNTIL WE CAN DISCUSS IF THIS IS MORALLY RIGHT OR NOT
+                // Note! Needs reference to System.Web 
+                //System.Net.WebClient wc = new WebClient();
+                //wc.DownloadData("http://www.opensimulator.org/ErrorReport.php?Msg=" +
+                //                System.Web.HttpUtility.UrlEncode(msg));
+                //wc.Dispose();
+            }
+            catch (Exception)
+            {
+                // Ignore
+            }
+
+            _IsHandlingException=false;
         }
     }
 }

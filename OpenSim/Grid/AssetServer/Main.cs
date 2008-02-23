@@ -34,29 +34,32 @@ using OpenSim.Framework;
 using OpenSim.Framework.AssetLoader.Filesystem;
 using OpenSim.Framework.Console;
 using OpenSim.Framework.Servers;
+using OpenSim.Framework.Statistics;
 
 namespace OpenSim.Grid.AssetServer
 {
     /// <summary>
     /// An asset server
     /// </summary>
-    public class OpenAsset_Main : conscmd_callback
+    public class OpenAsset_Main : BaseOpenSimServer, conscmd_callback
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         public AssetConfig m_config;
 
-        public static OpenAsset_Main assetserver;
-        
-        private LogBase m_console;        
+        public static OpenAsset_Main assetserver;   
         
         // Temporarily hardcoded - should be a plugin
         protected IAssetLoader assetLoader = new AssetLoaderFileSystem();        
         
-        private IAssetProvider m_assetProvider;
+        private IAssetProvider m_assetProvider;    
 
         [STAThread]
         public static void Main(string[] args)
         {
-            Console.WriteLine("Starting...\n");
+            log4net.Config.XmlConfigurator.Configure();
+
+            m_log.Info("Starting...\n");
 
             assetserver = new OpenAsset_Main();
             assetserver.Startup();
@@ -70,33 +73,31 @@ namespace OpenSim.Grid.AssetServer
 
             while (true)
             {
-                m_console.MainLogPrompt();
+                m_console.Prompt();
             }
         }
 
         private OpenAsset_Main()
         {
-            if (!Directory.Exists(Util.logDir()))
-            {
-                Directory.CreateDirectory(Util.logDir());
-            }
-            m_console =
-                new LogBase((Path.Combine(Util.logDir(), "opengrid-AssetServer-console.log")), "OpenAsset", this, true);
-            MainLog.Instance = m_console;
+            m_console = new ConsoleBase("OpenAsset", this);
+            
+            MainConsole.Instance = m_console;
         }
 
         public void Startup()
         {
             m_config = new AssetConfig("ASSET SERVER", (Path.Combine(Util.configDir(), "AssetServer_Config.xml")));
 
-            m_console.Verbose("ASSET", "Setting up asset DB");
+            m_log.Info("[ASSET]: Setting up asset DB");
             setupDB(m_config);
 
-            m_console.Verbose("ASSET", "Loading default asset set..");
+            m_log.Info("[ASSET]: Loading default asset set..");
             LoadDefaultAssets();
 
-            m_console.Verbose("ASSET", "Starting HTTP process");
+            m_log.Info("[ASSET]: Starting HTTP process");
             BaseHttpServer httpServer = new BaseHttpServer(m_config.HttpPort);
+            
+            StatsManager.StartCollectingAssetStats();
 
             httpServer.AddStreamHandler(new GetAssetStreamHandler(this, m_assetProvider));
             httpServer.AddStreamHandler(new PostAssetStreamHandler(this, m_assetProvider));
@@ -111,7 +112,7 @@ namespace OpenSim.Grid.AssetServer
 
         public IAssetProvider LoadDatabasePlugin(string FileName)
         {
-            MainLog.Instance.Verbose("ASSET SERVER", "LoadDatabasePlugin: Attempting to load " + FileName);
+            m_log.Info("[ASSET SERVER]: LoadDatabasePlugin: Attempting to load " + FileName);
             Assembly pluginAssembly = Assembly.LoadFrom(FileName);
             IAssetProvider assetPlugin = null;
             foreach (Type pluginType in pluginAssembly.GetTypes())
@@ -127,7 +128,7 @@ namespace OpenSim.Grid.AssetServer
                         assetPlugin = plug;
                         assetPlugin.Initialise();
 
-                        MainLog.Instance.Verbose("ASSET SERVER", "Added " + assetPlugin.Name + " " + assetPlugin.Version);
+                        m_log.Info("[ASSET SERVER]: Added " + assetPlugin.Name + " " + assetPlugin.Version);
                         break;
                     }
 
@@ -146,14 +147,14 @@ namespace OpenSim.Grid.AssetServer
                 m_assetProvider = LoadDatabasePlugin(config.DatabaseProvider);
                 if (m_assetProvider == null)
                 {
-                    MainLog.Instance.Error("ASSET", "Failed to load a database plugin, server halting");
+                    m_log.Error("[ASSET]: Failed to load a database plugin, server halting");
                     Environment.Exit(-1);
                 }
             }
             catch (Exception e)
             {
-                MainLog.Instance.Warn("ASSET", "setupDB() - Exception occured");
-                MainLog.Instance.Warn("ASSET", e.ToString());
+                m_log.Warn("[ASSET]: setupDB() - Exception occured");
+                m_log.Warn("[ASSET]: " + e.ToString());
             }
         }
 
@@ -167,12 +168,21 @@ namespace OpenSim.Grid.AssetServer
             m_assetProvider.CreateAsset(asset);
         }
 
-        public void RunCmd(string cmd, string[] cmdparams)
+        public override void RunCmd(string cmd, string[] cmdparams)
         {
+            base.RunCmd(cmd, cmdparams);
+            
             switch (cmd)
             {
                 case "help":
-                    m_console.Notice("shutdown - shutdown this asset server (USE CAUTION!)");
+                    m_console.Notice(
+                        @"shutdown - shutdown this asset server (USE CAUTION!)
+                 stats    - statistical information for this server");                    
+                    
+                    break;                  
+                    
+                case "stats":
+                    m_console.Notice("STATS", Environment.NewLine + StatsManager.AssetStats.Report());
                     break;
 
                 case "shutdown":
@@ -180,10 +190,6 @@ namespace OpenSim.Grid.AssetServer
                     Environment.Exit(0);
                     break;
             }
-        }
-
-        public void Show(string ShowWhat)
-        {
         }
     }
 }

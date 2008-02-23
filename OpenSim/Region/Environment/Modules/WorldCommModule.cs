@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -70,6 +70,7 @@ namespace OpenSim.Region.Environment.Modules
     {
         private Scene m_scene;
         private object CommListLock = new object();
+        private object ListLock = new object();
         private string m_name = "WorldCommModule";
         private ListenerManager m_listenerManager;
         private Queue<ListenerInfo> m_pending;
@@ -83,8 +84,8 @@ namespace OpenSim.Region.Environment.Modules
             m_scene = scene;
             m_scene.RegisterModuleInterface<IWorldComm>(this);
             m_listenerManager = new ListenerManager();
-            m_pending = new Queue<ListenerInfo>();
             m_scene.EventManager.OnNewClient += NewClient;
+            m_pending = new Queue<ListenerInfo>();
         }
 
         public void PostInitialise()
@@ -136,6 +137,18 @@ namespace OpenSim.Region.Environment.Modules
             m_listenerManager.Remove(handle);
         }
 
+        public void DeleteListener(LLUUID itemID)
+        {
+            if (m_listenerManager != null)
+            {
+                lock (ListLock)
+                {
+                    m_listenerManager.DeleteListener(itemID);
+                }
+            }
+
+        }
+
         // This method scans nearby objects and determines if they are listeners,
         // and if so if this message fits the filter.  If it does, then
         // enqueue the message for delivery to the objects listen event handler.
@@ -157,18 +170,18 @@ namespace OpenSim.Region.Environment.Modules
                 // If they are in proximity, then if they are
                 // listeners, if so add them to the pending queue
 
-                lock (m_scene.Entities)
+                foreach (ListenerInfo li in m_listenerManager.GetListeners())
                 {
                     foreach (LLUUID eb in m_scene.Entities.Keys)
                     {
                         EntityBase sPart;
 
-                        m_scene.Entities.TryGetValue(eb, out sPart);
+                    m_scene.Entities.TryGetValue(li.GetHostID(), out sPart);
 
-                        // Dont process if this message is from itself!
-                        if (eb.ToString().Equals(sourceItemID) ||
-                            sPart.UUID.ToString().Equals(sourceItemID))
-                            continue;
+                    // Dont process if this message is from itself!
+                    if (li.GetHostID().ToString().Equals(sourceItemID) ||
+                        sPart.UUID.ToString().Equals(sourceItemID))
+                        continue;
 
                         double dis = 0;
 
@@ -183,10 +196,7 @@ namespace OpenSim.Region.Environment.Modules
 
                                 if ((dis < 10) && (dis > -10))
                                 {
-                                    ListenerInfo isListener = m_listenerManager.IsListenerMatch(
-                                        sourceItemID, sPart.UUID, channel, name, msg
-                                        );
-                                    if (isListener != null)
+                                    lock (CommListLock)
                                     {
                                         m_pending.Enqueue(isListener);
                                     }
@@ -197,10 +207,7 @@ namespace OpenSim.Region.Environment.Modules
 
                                 if ((dis < 30) && (dis > -30))
                                 {
-                                    ListenerInfo isListener = m_listenerManager.IsListenerMatch(
-                                        sourceItemID, sPart.UUID, channel, name, msg
-                                        );
-                                    if (isListener != null)
+                                    lock (CommListLock)
                                     {
                                         m_pending.Enqueue(isListener);
                                     }
@@ -210,25 +217,24 @@ namespace OpenSim.Region.Environment.Modules
                             case ChatTypeEnum.Shout:
                                 if ((dis < 100) && (dis > -100))
                                 {
-                                    ListenerInfo isListener = m_listenerManager.IsListenerMatch(
-                                        sourceItemID, sPart.UUID, channel, name, msg
-                                        );
-                                    if (isListener != null)
+                                    lock (CommListLock)
                                     {
                                         m_pending.Enqueue(isListener);
                                     }
                                 }
                                 break;
 
-                            case ChatTypeEnum.Broadcast:
-                                ListenerInfo isListen =
-                                    m_listenerManager.IsListenerMatch(sourceItemID, eb, channel, name, msg);
-                                if (isListen != null)
+                        case ChatTypeEnum.Broadcast:
+                            ListenerInfo isListen =
+                                m_listenerManager.IsListenerMatch(sourceItemID, li.GetItemID(), channel, name, msg);
+                            if (isListen != null)
+                            {
+                                ListenerInfo isListener = m_listenerManager.IsListenerMatch(
+                                    sourceItemID, sPart.UUID, channel, name, msg
+                                    );
+                                if (isListener != null)
                                 {
-                                    ListenerInfo isListener = m_listenerManager.IsListenerMatch(
-                                        sourceItemID, sPart.UUID, channel, name, msg
-                                        );
-                                    if (isListener != null)
+                                    lock (CommListLock)
                                     {
                                         m_pending.Enqueue(isListener);
                                     }
@@ -242,7 +248,10 @@ namespace OpenSim.Region.Environment.Modules
 
         public bool HasMessages()
         {
-            return (m_pending.Count > 0);
+            if (m_pending != null)
+                return (m_pending.Count > 0);
+            else
+                return false;
         }
 
         public ListenerInfo GetNextMessage()
@@ -256,6 +265,17 @@ namespace OpenSim.Region.Environment.Modules
 
             return li;
         }
+
+        public uint PeekNextMessageLocalID()
+        {
+            return m_pending.Peek().GetLocalID();
+        }
+
+        public LLUUID PeekNextMessageItemID()
+        {
+            return m_pending.Peek().GetItemID();
+        }
+ 
     }
 
     // hostID: the ID of the ScenePart
@@ -272,8 +292,7 @@ namespace OpenSim.Region.Environment.Modules
             m_listeners = new Dictionary<int, ListenerInfo>();
         }
 
-        public int AddListener(uint localID, LLUUID itemID, LLUUID hostID, int channel, string name, string id,
-                               string msg)
+        public int AddListener(uint localID, LLUUID itemID, LLUUID hostID, int channel, string name, string id, string msg)
         {
             if (m_listeners.Count < m_MaxListeners)
             {
@@ -303,6 +322,18 @@ namespace OpenSim.Region.Environment.Modules
         public void Remove(int handle)
         {
             m_listeners.Remove(handle);
+        }
+
+        public void DeleteListener(LLUUID itemID)
+        {
+            foreach (ListenerInfo li in m_listeners.Values)
+            {
+                if (li.GetItemID().Equals(itemID))
+                {
+                    Remove(li.GetHandle());
+                    return;
+                }
+            }
         }
 
         private int GetNewHandle()
@@ -390,6 +421,11 @@ namespace OpenSim.Region.Environment.Modules
             }
             return null;
         }
+
+        public Dictionary<int, ListenerInfo>.ValueCollection GetListeners()
+        {
+            return m_listeners.Values;
+        }
     }
 
     public class ListenerInfo
@@ -405,21 +441,20 @@ namespace OpenSim.Region.Environment.Modules
         private string m_message; // The message
         private bool m_active; // Listener is active or not
 
-        public ListenerInfo(uint localID, int handle, LLUUID ItemID, LLUUID hostID, int channel, string name, LLUUID id,
-                            string message)
+        public ListenerInfo(uint localID, int handle, LLUUID ItemID, LLUUID hostID, int channel, string name, LLUUID id, string message)
         {
             Initialise(localID, handle, ItemID, hostID, channel, name, id, message);
         }
 
         public ListenerInfo(uint localID, int handle, LLUUID ItemID, LLUUID hostID, int channel, string name, LLUUID id,
-                            string message, LLUUID sourceItemID)
+            string message, LLUUID sourceItemID)
         {
             Initialise(localID, handle, ItemID, hostID, channel, name, id, message);
             m_sourceItemID = sourceItemID;
         }
 
         private void Initialise(uint localID, int handle, LLUUID ItemID, LLUUID hostID, int channel, string name,
-                                LLUUID id, string message)
+            LLUUID id, string message)
         {
             m_handle = handle;
             m_channel = channel;
@@ -491,5 +526,6 @@ namespace OpenSim.Region.Environment.Modules
         {
             return m_id;
         }
+
     }
 }

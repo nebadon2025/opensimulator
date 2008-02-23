@@ -26,30 +26,83 @@
 * 
 */
 
-using libsecondlife;
 using Nini.Config;
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using OpenSim.Framework;
+using OpenSim.Framework.Console;
+using OpenSim.Region.Environment.Modules;
 using OpenSim.Region.Environment.Interfaces;
 using OpenSim.Region.Environment.Scenes;
+using libsecondlife;
 
-namespace OpenSim.Region.Environment.Modules
+namespace OpenSim.Region.Environment.Modules.Terrain
 {
-    public class AvatarProfilesModule : IRegionModule
+    /// <summary>
+    /// A new version of the old Channel class, simplified
+    /// </summary>
+    public class TerrainChannel : ITerrainChannel
     {
-        private Scene m_scene;
+        private double[,] map;
 
-        public AvatarProfilesModule()
+        public int Width
         {
+            get { return map.GetLength(0); }
         }
+
+        public int Height
+        {
+            get { return map.GetLength(1); }
+        }
+
+        public TerrainChannel Copy()
+        {
+            TerrainChannel copy = new TerrainChannel(false);
+            copy.map = (double[,])this.map.Clone();
+
+            return copy;
+        }
+
+        public double this[int x, int y]
+        {
+            get
+            {
+                return map[x, y];
+            }
+            set
+            {
+                map[x, y] = value;
+            }
+        }
+
+        public TerrainChannel()
+        {
+            map = new double[Constants.RegionSize, Constants.RegionSize];
+        }
+
+        public TerrainChannel(bool createMap)
+        {
+            if (createMap)
+                map = new double[Constants.RegionSize, Constants.RegionSize];
+        }
+
+        public TerrainChannel(int w, int h)
+        {
+            map = new double[w, h];
+        }
+    }
+
+    public class TerrainModule : IRegionModule
+    {
+        Scene m_scene;
+
+        private IConfigSource m_gConfig;
 
         public void Initialise(Scene scene, IConfigSource config)
         {
             m_scene = scene;
-            m_scene.EventManager.OnNewClient += NewClient;
-        }
-
-        public void PostInitialise()
-        {
+            m_gConfig = config;
         }
 
         public void Close()
@@ -58,7 +111,7 @@ namespace OpenSim.Region.Environment.Modules
 
         public string Name
         {
-            get { return "AvatarProfilesModule"; }
+            get { return "TerrainModule"; }
         }
 
         public bool IsSharedModule
@@ -66,29 +119,8 @@ namespace OpenSim.Region.Environment.Modules
             get { return false; }
         }
 
-        public void NewClient(IClientAPI client)
+        public void PostInitialise()
         {
-            client.OnRequestAvatarProperties += RequestAvatarProperty;
-        }
-
-        public void RemoveClient(IClientAPI client)
-        {
-            client.OnRequestAvatarProperties -= RequestAvatarProperty;
-        }
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="remoteClient"></param>
-        /// <param name="avatarID"></param>
-        public void RequestAvatarProperty(IClientAPI remoteClient, LLUUID avatarID)
-        {
-            string about = "OpenSim crash test dummy";
-            string bornOn = "Before now";
-            string flAbout = "First life? What is one of those? OpenSim is my life!";
-            LLUUID partner = new LLUUID("11111111-1111-0000-0000-000100bba000");
-            remoteClient.SendAvatarProperties(avatarID, about, bornOn, System.String.Empty, flAbout, 0, LLUUID.Zero, LLUUID.Zero, System.String.Empty,
-                                              partner);
         }
     }
 }

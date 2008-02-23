@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -88,7 +88,7 @@ namespace OpenSim.Region.Environment.Modules
         private Queue<HttpRequestClass> rpcQueue = new Queue<HttpRequestClass>();
         private object HttpListLock = new object();
         private string m_name = "HttpScriptRequests";
-        private int httpTimeout = 300;
+        private int httpTimeout = 30000;
 
         // <request id, HttpRequestClass>
         private Dictionary<LLUUID, HttpRequestClass> m_pendingRequests;
@@ -184,13 +184,15 @@ namespace OpenSim.Region.Environment.Modules
 
         public void StopHttpRequest(uint m_localID, LLUUID m_itemID)
         {
-            lock (HttpListLock)
-            {
-                HttpRequestClass tmpReq;
-                if (m_pendingRequests.TryGetValue(m_itemID, out tmpReq))
+            if(m_pendingRequests != null) {
+                lock (HttpListLock)
                 {
-                    tmpReq.Stop();
-                    m_pendingRequests.Remove(m_itemID);
+                    HttpRequestClass tmpReq;
+                    if (m_pendingRequests.TryGetValue(m_itemID, out tmpReq))
+                    {
+                        tmpReq.Stop();
+                        m_pendingRequests.Remove(m_itemID);
+                    }
                 }
             }
         }
@@ -216,7 +218,6 @@ namespace OpenSim.Region.Environment.Modules
                     {
                         if (tmpReq.finished)
                         {
-                            m_pendingRequests.Remove(luid);
                             return tmpReq;
                         }
                     }
@@ -224,6 +225,21 @@ namespace OpenSim.Region.Environment.Modules
             }
             return null;
         }
+
+        public void RemoveCompletedRequest(LLUUID id)
+        {
+            lock (HttpListLock)
+            {
+                HttpRequestClass tmpReq;
+                if (m_pendingRequests.TryGetValue(id, out tmpReq))
+                {
+                    tmpReq.Stop();
+                    tmpReq = null;
+                    m_pendingRequests.Remove(id);
+                }
+            }
+        }
+
     }
 
     //
@@ -269,7 +285,9 @@ namespace OpenSim.Region.Environment.Modules
             httpThread.Name = "HttpRequestThread";
             httpThread.Priority = ThreadPriority.BelowNormal;
             httpThread.IsBackground = true;
+            finished = false;
             httpThread.Start();
+            OpenSim.Framework.ThreadTracker.Add(httpThread);
         }
 
         /*

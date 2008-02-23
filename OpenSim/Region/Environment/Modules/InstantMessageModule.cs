@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -39,12 +39,6 @@ namespace OpenSim.Region.Environment.Modules
     public class InstantMessageModule : IRegionModule
     {
         private List<Scene> m_scenes = new List<Scene>();
-        private LogBase m_log;
-
-        public InstantMessageModule()
-        {
-            m_log = MainLog.Instance;
-        }
 
         public void Initialise(Scene scene, IConfigSource config)
         {
@@ -68,7 +62,6 @@ namespace OpenSim.Region.Environment.Modules
                                       uint ParentEstateID, LLVector3 Position, LLUUID RegionID, 
                                       byte[] binaryBucket)
         {
-            
             bool FriendDialog = ((dialog == (byte)38) || (dialog == (byte)39) || (dialog == (byte)40));
 
             // IM dialogs need to be pre-processed and have their sessionID filled by the server

@@ -41,34 +41,33 @@ using OpenSim.Region.Communications.VoiceChat;
 
 namespace OpenSim.Region.ClientStack
 {
-    public abstract class RegionApplicationBase
+    public abstract class RegionApplicationBase : BaseOpenSimServer
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         protected AssetCache m_assetCache;
         protected Dictionary<EndPoint, uint> m_clientCircuits = new Dictionary<EndPoint, uint>();
-        protected DateTime m_startuptime;
         protected NetworkServersInfo m_networkServersInfo;
 
         protected BaseHttpServer m_httpServer;
         protected uint m_httpServerPort;
 
-        protected LogBase m_log;
         protected CommunicationsManager m_commsManager;
 
         protected SceneManager m_sceneManager = new SceneManager();
 
         protected StorageManager m_storageManager;
         protected string m_storageConnectionString;
+        
+        // An attribute to indicate whether prim inventories should be persisted.
+        // Probably will be temporary until this stops being experimental.
+        protected bool m_storagePersistPrimInventories;
 
         protected VoiceChatServer m_voiceChatServer;
 
         public SceneManager SceneManager
         {
             get { return m_sceneManager; }
-        }
-
-        public RegionApplicationBase()
-        {
-            m_startuptime = DateTime.Now;
         }
 
         public virtual void StartUp()
@@ -81,19 +80,20 @@ namespace OpenSim.Region.ClientStack
 
             m_httpServer = new BaseHttpServer(m_httpServerPort);
 
-            m_log.Status("REGION", "Starting HTTP server");
+            m_log.Info("[REGION]: Starting HTTP server");
+
             m_httpServer.Start();
         }
 
         protected abstract void Initialize();
 
-        protected void StartLog()
+        protected void StartConsole()
         {
-            m_log = CreateLog();
-            MainLog.Instance = m_log;
+            m_console = CreateConsole();
+            MainConsole.Instance = m_console;
         }
 
-        protected abstract LogBase CreateLog();
+        protected abstract ConsoleBase CreateConsole();
         protected abstract PhysicsScene GetPhysicsScene();
         protected abstract StorageManager CreateStorageManager(string connectionstring);
 
@@ -108,7 +108,13 @@ namespace OpenSim.Region.ClientStack
         protected Scene SetupScene(RegionInfo regionInfo, out UDPServer udpServer, bool m_permissions)
         {
             AgentCircuitManager circuitManager = new AgentCircuitManager();
-            udpServer = new UDPServer((uint) regionInfo.InternalEndPoint.Port, m_assetCache, m_log, circuitManager);
+            IPAddress listenIP = regionInfo.InternalEndPoint.Address;
+            //if (!IPAddress.TryParse(regionInfo.InternalEndPoint, out listenIP))
+            //    listenIP = IPAddress.Parse("0.0.0.0");
+
+            uint port = (uint) regionInfo.InternalEndPoint.Port;
+            udpServer = new UDPServer(listenIP, ref port, regionInfo.m_allow_alternate_ports, m_assetCache, circuitManager);
+            regionInfo.InternalEndPoint.Port = (int)port;
 
             Scene scene = CreateScene(regionInfo, m_storageManager, circuitManager);
             m_voiceChatServer = new VoiceChatServer(scene);
@@ -138,12 +144,12 @@ namespace OpenSim.Region.ClientStack
 
             if (masterAvatar != null)
             {
-                m_log.Verbose("PARCEL", "Found master avatar [" + masterAvatar.UUID.ToString() + "]");
+                m_log.Info("[PARCEL]: Found master avatar [" + masterAvatar.UUID.ToString() + "]");
                 scene.RegionInfo.MasterAvatarAssignedUUID = masterAvatar.UUID;
             }
             else
             {
-                m_log.Verbose("PARCEL", "No master avatar found, using null.");
+                m_log.Info("[PARCEL]: No master avatar found, using null.");
                 scene.RegionInfo.MasterAvatarAssignedUUID = LLUUID.Zero;
             }
 

@@ -39,6 +39,8 @@ namespace OpenSim.Region.ClientStack
 {
     public class UDPServer : ClientStackNetworkHandler
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         protected Dictionary<EndPoint, uint> clientCircuits = new Dictionary<EndPoint, uint>();
         public Dictionary<uint, EndPoint> clientCircuits_reverse = new Dictionary<uint, EndPoint>();
         public Socket Server;
@@ -52,9 +54,10 @@ namespace OpenSim.Region.ClientStack
         protected ulong m_regionHandle;
 
         protected uint listenPort;
+        protected bool Allow_Alternate_Port;
+        protected IPAddress listenIP = IPAddress.Parse("0.0.0.0");
         protected IScene m_localScene;
         protected AssetCache m_assetCache;
-        protected LogBase m_log;
         protected AgentCircuitManager m_authenticateSessionsClass;
 
         public PacketServer PacketServer
@@ -82,13 +85,19 @@ namespace OpenSim.Region.ClientStack
         {
         }
 
-        public UDPServer(uint port, AssetCache assetCache, LogBase console, AgentCircuitManager authenticateClass)
+        public UDPServer(IPAddress _listenIP, ref uint port, bool allow_alternate_port, AssetCache assetCache, AgentCircuitManager authenticateClass)
         {
+            listenIP = _listenIP;
             listenPort = port;
+            Allow_Alternate_Port = allow_alternate_port;
             m_assetCache = assetCache;
-            m_log = console;
             m_authenticateSessionsClass = authenticateClass;
             CreatePacketServer();
+
+            // Return new port
+            // This because in Grid mode it is not really important what port the region listens to as long as it is correctly registered.
+            // So the option allow_alternate_ports="true" was added to default.xml
+            port = listenPort;
         }
 
         protected virtual void CreatePacketServer()
@@ -98,11 +107,11 @@ namespace OpenSim.Region.ClientStack
 
         protected virtual void OnReceivedData(IAsyncResult result)
         {
-            ipeSender = new IPEndPoint(IPAddress.Parse("0.0.0.0"), 0);
+            ipeSender = new IPEndPoint(listenIP, 0);
             epSender = (EndPoint) ipeSender;
             Packet packet = null;
 
-            int numBytes;
+            int numBytes = 1;
 
             try
             {
@@ -115,6 +124,7 @@ namespace OpenSim.Region.ClientStack
             {
                 // TODO : Actually only handle those states that we have control over, re-throw everything else,
                 // TODO: implement cases as we encounter them.
+                //m_log.Error("[UDPSERVER]: Connection Error! - " + e.ToString());
                 switch (e.SocketErrorCode)
                 {
                     case SocketError.AlreadyInProgress:
@@ -127,7 +137,7 @@ namespace OpenSim.Region.ClientStack
                         }
                         catch (Exception a)
                         {
-                            MainLog.Instance.Verbose("UDPSERVER", a.ToString());
+                            m_log.Info("[UDPSERVER]: " + a.ToString());
                         }
                         try
                         {
@@ -152,13 +162,13 @@ namespace OpenSim.Region.ClientStack
                         }
                         catch (Exception)
                         {
-                            //MainLog.Instance.Verbose("UDPSERVER", a.ToString());
+                            //m_log.Info("[UDPSERVER]" + a.ToString());
                         }
                         try
                         {
                             Server.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref epSender,
                                                     ReceivedData, null);
-
+  
                             // Ter: For some stupid reason ConnectionReset basically kills our async event structure..  
                             // so therefore..  we've got to tell the server to BeginReceiveFrom again.
                             // This will happen over and over until we've gone through all packets 
@@ -166,8 +176,9 @@ namespace OpenSim.Region.ClientStack
                             // Stupid I know..  
                             // but Flusing the buffer would be even more stupid...  so, we're stuck with this ugly method.
                         }
-                        catch (SocketException)
+                        catch (SocketException e2)
                         {
+                            m_log.Error("[UDPSERVER]: " + e2.ToString());
                         }
 
                         // Here's some reference code!   :D  
@@ -180,86 +191,194 @@ namespace OpenSim.Region.ClientStack
                         break;
                 }
 
-                return;
+                //return;
             }
-            catch (ObjectDisposedException)
+            catch (ObjectDisposedException e)
             {
-                //MainLog.Instance.Debug("UDPSERVER", e.ToString());
-                return;
+                m_log.Debug("[UDPSERVER]: " + e.ToString());
+                try
+                {
+                    Server.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref epSender,
+                                            ReceivedData, null);
+
+                    // Ter: For some stupid reason ConnectionReset basically kills our async event structure..  
+                    // so therefore..  we've got to tell the server to BeginReceiveFrom again.
+                    // This will happen over and over until we've gone through all packets 
+                    // sent to and from this particular user.
+                    // Stupid I know..  
+                    // but Flusing the buffer would be even more stupid...  so, we're stuck with this ugly method.
+                }
+                catch (SocketException e2)
+                {
+                    m_log.Error("[UDPSERVER]: " + e2.ToString());
+                }
+                //return;
             }
 
             int packetEnd = numBytes - 1;
 
             try
             {
-                packet = PacketPool.Instance.GetPacket(RecvBuffer, ref packetEnd, ZeroBuffer);
+               packet = PacketPool.Instance.GetPacket(RecvBuffer, ref packetEnd, ZeroBuffer);
+               
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                //MainLog.Instance.Debug("UDPSERVER", e.ToString());
+                m_log.Debug("[UDPSERVER]: " + e.ToString());
+            }
+
+            try
+            {
+                Server.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref epSender, ReceivedData, null);
+            }
+            catch (SocketException e4)
+            {
+                try
+                {
+                    CloseEndPoint(epSender);
+                }
+                catch (Exception a)
+                {
+                    m_log.Info("[UDPSERVER]: " + a.ToString());
+                }
+                try
+                {
+                    Server.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref epSender,
+                                            ReceivedData, null);
+
+                    // Ter: For some stupid reason ConnectionReset basically kills our async event structure..  
+                    // so therefore..  we've got to tell the server to BeginReceiveFrom again.
+                    // This will happen over and over until we've gone through all packets 
+                    // sent to and from this particular user.
+                    // Stupid I know..  
+                    // but Flusing the buffer would be even more stupid...  so, we're stuck with this ugly method.
+                }
+                catch (SocketException e5)
+                {
+                    m_log.Error("[UDPSERVER]: " + e5.ToString());
+                }
+
             }
 
             if (packet != null)
             {
-                // do we already have a circuit for this endpoint
-                uint circuit;
-                if (clientCircuits.TryGetValue(epSender, out circuit))
+                try
                 {
-                    //if so then send packet to the packetserver
-                    //MainLog.Instance.Warn("UDPSERVER", "ALREADY HAVE Circuit!");
-                    m_packetServer.InPacket(circuit, packet);
+                    // do we already have a circuit for this endpoint
+                    uint circuit;
+
+                    bool ret = false;
+                    lock (clientCircuits)
+                    {
+                        ret = clientCircuits.TryGetValue(epSender, out circuit);
+                    }
+                    if (ret)
+                    {
+                        //if so then send packet to the packetserver
+                        //m_log.Warn("[UDPSERVER]: ALREADY HAVE Circuit!");
+                        m_packetServer.InPacket(circuit, packet);
+                    }
+                    else if (packet.Type == PacketType.UseCircuitCode)
+                    {
+                        // new client
+                        m_log.Debug("[UDPSERVER]: Adding New Client");
+                        AddNewClient(packet);
+                    }
+                    else
+                    {
+                        // invalid client
+                        //CFK: This message seems to have served its usefullness as of 12-15 so I am commenting it out for now
+                        //m_log.Warn("[UDPSERVER]: Got a packet from an invalid client - " + packet.ToString());
+
+                    }
                 }
-                else if (packet.Type == PacketType.UseCircuitCode)
+                catch (Exception ex)
                 {
-                    // new client
-                    MainLog.Instance.Debug("UDPSERVER", "Adding New Client");
-                    AddNewClient(packet);
-                }
-                else
-                {
-                    // invalid client
-                    //CFK: This message seems to have served its usefullness as of 12-15 so I am commenting it out for now
-                    //m_log.Warn("client", "Got a packet from an invalid client - " + epSender.ToString());
+                    m_log.Error("[UDPSERVER]: Exception in processing packet.");
+                    m_log.Debug("[UDPSERVER]: Adding New Client");
+                    try
+                    {
+                        AddNewClient(packet);
+                    }
+                    catch (Exception e3)
+                    {
+                        m_log.Error("[UDPSERVER]: Adding New Client threw exception " + e3.ToString());
+                        Server.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref epSender,
+                                                    ReceivedData, null);
+                    }
                 }
             }
-
-            Server.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref epSender, ReceivedData, null);
+            
         }
 
         private void CloseEndPoint(EndPoint sender)
         {
             uint circuit;
-            if (clientCircuits.TryGetValue(sender, out circuit))
+            lock (clientCircuits)
             {
-                m_packetServer.CloseCircuit(circuit);
+                if (clientCircuits.TryGetValue(sender, out circuit))
+                {
+                    m_packetServer.CloseCircuit(circuit);
+                }
             }
         }
 
         protected virtual void AddNewClient(Packet packet)
         {
             UseCircuitCodePacket useCircuit = (UseCircuitCodePacket) packet;
-            clientCircuits.Add(epSender, useCircuit.CircuitCode.Code);
-            clientCircuits_reverse.Add(useCircuit.CircuitCode.Code, epSender);
+            lock (clientCircuits)
+            {
+                if (!clientCircuits.ContainsKey(epSender))
+                    clientCircuits.Add(epSender, useCircuit.CircuitCode.Code);
+                else
+                    m_log.Error("[UDPSERVER]: clientCircuits already contans entry for user " + useCircuit.CircuitCode.Code.ToString() + ". NOT adding.");
+            }
+            lock (clientCircuits_reverse)
+            {
+                if (!clientCircuits_reverse.ContainsKey(useCircuit.CircuitCode.Code))
+                    clientCircuits_reverse.Add(useCircuit.CircuitCode.Code, epSender);
+                else
+                    m_log.Error("[UDPSERVER]: clientCurcuits_reverse already contains entry for user " + useCircuit.CircuitCode.Code.ToString() + ". NOT adding.");
+            }
 
             PacketServer.AddNewClient(epSender, useCircuit, m_assetCache, m_authenticateSessionsClass);
         }
 
         public void ServerListener()
         {
-            m_log.Verbose("SERVER", "Opening UDP socket on " + listenPort.ToString());
+            uint newPort = listenPort;
+            for (uint i = 0; i < 20; i++)
+            {
+                newPort = listenPort + i;
+                m_log.Info("[SERVER]: Opening UDP socket on " + listenIP.ToString() + " " + newPort + ".");// Allow alternate ports: " + Allow_Alternate_Port.ToString());
+                try
+                {
+                    ServerIncoming = new IPEndPoint(listenIP, (int) newPort);
+                    Server = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                    Server.Bind(ServerIncoming);
+                    listenPort = newPort;
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    // We are not looking for alternate ports?
+                    //if (!Allow_Alternate_Port)
+                        throw (ex);
 
-            ServerIncoming = new IPEndPoint(IPAddress.Parse("0.0.0.0"), (int) listenPort);
-            Server = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            Server.Bind(ServerIncoming);
+                    // We are looking for alternate ports!
+                    m_log.Info("[SERVER]: UDP socket on " + listenIP.ToString() + " " + listenPort.ToString() + " is not available, trying next.");
+                }
+                System.Threading.Thread.Sleep(100); // Wait before we retry socket
+            }
 
-            m_log.Verbose("SERVER", "UDP socket bound, getting ready to listen");
+            m_log.Info("[SERVER]: UDP socket bound, getting ready to listen");
 
-            ipeSender = new IPEndPoint(IPAddress.Parse("0.0.0.0"), 0);
+            ipeSender = new IPEndPoint(listenIP, 0);
             epSender = (EndPoint) ipeSender;
             ReceivedData = new AsyncCallback(OnReceivedData);
             Server.BeginReceiveFrom(RecvBuffer, 0, RecvBuffer.Length, SocketFlags.None, ref epSender, ReceivedData, null);
 
-            m_log.Status("SERVER", "Listening...");
+            m_log.Info("[SERVER]: Listening on port " + newPort);
         }
 
         public virtual void RegisterPacketServer(PacketServer server)
@@ -272,30 +391,12 @@ namespace OpenSim.Region.ClientStack
         {
             // find the endpoint for this circuit
             EndPoint sendto = null;
-            if (clientCircuits_reverse.TryGetValue(circuitcode, out sendto))
+            lock (clientCircuits_reverse)
             {
-                //we found the endpoint so send the packet to it
-                while (true)
+                if (clientCircuits_reverse.TryGetValue(circuitcode, out sendto))
                 {
-                    try
-                    {
-                        Server.SendTo(buffer, size, flags, sendto);
-                        return;
-                    }
-                    catch (SocketException e)
-                    {
-                        if (e.ErrorCode == 10055)
-                        {
-                            //Send buffer full, halt for half second and retry
-                            MainLog.Instance.Warn("SERVER", "Socket send buffer was full, halting for 200ms");
-                            System.Threading.Thread.Sleep(200);
-                        }
-                        else
-                        {
-                            //Rethrow
-                            throw e;
-                        }
-                    }
+                    //we found the endpoint so send the packet to it
+                    Server.SendTo(buffer, size, flags, sendto);
                 }
             }
         }
@@ -303,12 +404,15 @@ namespace OpenSim.Region.ClientStack
         public virtual void RemoveClientCircuit(uint circuitcode)
         {
             EndPoint sendto = null;
-            if (clientCircuits_reverse.TryGetValue(circuitcode, out sendto))
+            lock (clientCircuits_reverse)
             {
-                clientCircuits.Remove(sendto);
+                if (clientCircuits_reverse.TryGetValue(circuitcode, out sendto))
+                {
+                    clientCircuits.Remove(sendto);
 
 
-                clientCircuits_reverse.Remove(circuitcode);
+                    clientCircuits_reverse.Remove(circuitcode);
+                }
             }
         }
     }

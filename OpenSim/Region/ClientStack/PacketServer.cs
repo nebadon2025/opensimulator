@@ -25,6 +25,8 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * 
 */
+
+using System;
 using System.Net;
 using System.Net.Sockets;
 using libsecondlife;
@@ -36,6 +38,9 @@ namespace OpenSim.Region.ClientStack
 {
     public class PacketServer
     {
+        //private static readonly log4net.ILog m_log 
+        //    = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private ClientStackNetworkHandler m_networkHandler;
         private IScene m_scene;
 
@@ -130,9 +135,16 @@ namespace OpenSim.Region.ClientStack
             //m_scene.ClientManager.CloseAllAgents(circuitcode);
         }
 
+        /// <summary>
+        /// Completely close down the given client.
+        /// </summary>
+        /// <param name="client"></param>
         public virtual void CloseClient(IClientAPI client)
         {
+            //m_log.Info("PacketServer:CloseClient()");
+         
             CloseCircuit(client.CircuitCode);
+            m_scene.ClientManager.Remove(client.CircuitCode);                
             client.Close(false);
         }
     }

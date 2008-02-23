@@ -3,9 +3,10 @@ for your effort!)
 
 Add your name in here if you have committed to OpenSim
 
+
 OpenSim Developers 
 
-* MW
+* MW (Tribal Media AB)
 * Adam Frisby 	(DeepThink Pty Ltd)
 * MingChen 	(DeepThink Pty Ltd)
 * lbsa71 (Tribal Media AB)
@@ -19,16 +20,32 @@ OpenSim Developers
 * justincc (International Business Machines Corp.)
 * Teravus (w3z)
 * Johan Berntsson (3Di)
-
-Patches
-
-* Alondria
-* BigFootAg
-* CharlieO
+* Ckrinke (Charles Krinke)
 * Danx0r
 * Dalien
 * Darok
+* chi11ken (3Di)
+* adjohn (3Di)
+* Alondria
+
+
+Patches
+
+* BigFootAg
+* CharlieO
 * jhurliman (LLSD Login)
+* kinoc
+* daTwitch 
+* mikkopa/_someone - RealXtend
+* openlifegrid.com
+* Dr Scofield (International Business Machines Corp.)
+* Daedius
+* alex_carnell
+* webmage (International Business Machines Corp.)
+* jimbo2120 (International Business Machines Corp.)
+* brianw/Sir_Ahzz
+* ChrisDown
+
 
 LSL Devs
 
@@ -36,10 +53,12 @@ LSL Devs
 * CharlieO
 * Tedd
 
+
 Testers
 
 * Ckrinke
 * CharlieO (LSL)
+* openlifegrid.com
 
 
 This software uses components from the following developers:
@@ -52,6 +71,7 @@ This software uses components from the following developers:
 * Russel L. Smith (ODE)
 * Prebuild ( http://sourceforge.net/projects/dnpb/ )
 * LibSecondLife ( http://www.libsecondlife.org/wiki/Main_Page )
+
 
 In addition, we would like to thank:
 * The Mono Project

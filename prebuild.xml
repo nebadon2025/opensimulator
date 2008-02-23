@@ -1,6 +1,7 @@
+<<<<<<< .working
 <?xml version="1.0" encoding="utf-8" ?>
 <Prebuild xmlns="http://dnpb.sourceforge.net/schemas/prebuild-1.7.xsd" version="1.7">
-  <Solution name="OpenSim" activeConfig="Debug" path="./" version="0.4.0-svn">
+  <Solution name="OpenSim" activeConfig="Debug" path="./" version="0.5.0-svn">
     <Configuration name="Debug">
       <Options>
         <CompilerDefines>TRACE;DEBUG</CompilerDefines>
@@ -48,11 +49,12 @@
 
       <ReferencePath>../../../bin/</ReferencePath>
       <Reference name="System" localCopy="false"/>
+      <Reference name="log4net"/>
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
-	
+    
     <Project name="OpenSim.Framework" path="OpenSim/Framework" type="Library">
       <Configuration name="Debug">
         <Options>
@@ -74,15 +76,112 @@
       <Reference name="XMLRPC.dll"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
       <Files>
         <Match pattern="*.cs" recurse="false"/>
+      </Files>
+    </Project>
+
+    <Project name="OpenSim.Tests.Common" path="OpenSim/Tests/Common" type="Library">
+      <Configuration name="Debug">
+        <Options>
+	<OutputPath>../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+	  <OutputPath>../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../../../bin/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Xml"/>
+      <Reference name="System.Data"/>
+      <Reference name="nunit.framework.dll" />
+      <Reference name="libsecondlife.dll"/>
+      <Files>
+        <Match pattern="*.cs" recurse="false"/>
+      </Files>
+    </Project>
+
+    <Project name="OpenSim.Framework.Tests" path="OpenSim/Tests/OpenSim/Framework" type="Library">
+      <Configuration name="Debug">
+        <Options>
+		<OutputPath>../../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+	  <OutputPath>../../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../../../../bin/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="System.Xml"/>
+      <Reference name="System.Data"/>
+      <Reference name="libsecondlife.dll"/>
+      <Reference name="Db4objects.Db4o.dll"/>
+      <Reference name="XMLRPC.dll"/>
+      <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Tests.Common"/>
+      <Reference name="Nini.dll" />
+      <Reference name="nunit.framework.dll" />
+      <Files>
+        <Match pattern="*.cs" recurse="false"/>
+      </Files>
+    </Project>
+
+    <Project name="OpenSim.Framework.Statistics" path="OpenSim/Framework/Statistics" type="Library">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../../../bin/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="libsecondlife.dll"/>
+      <Reference name="OpenSim.Framework"/>
+
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+
+    <Project name="TribalMedia.Framework.Data" path="ThirdParty/TribalMedia/TribalMedia.Framework.Data" type="Library">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../../../bin/</OutputPath>
+          <KeyFile>TribalMedia.Framework.Data.snk</KeyFile>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../../../bin/</OutputPath>
+          <KeyFile>TribalMedia.Framework.Data.snk</KeyFile>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../../../bin/</ReferencePath>
+      <Reference name="System" localCopy="false"/>
+      <Reference name="System.Data"/>
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
 
     <Project name="OpenSim.Framework.Data" path="OpenSim/Framework/Data" type="Library">
       <Configuration name="Debug">
         <Options>
-          <OutputPath>../../../bin/</OutputPath>
+          <OutputPath>../../../bin/</OutputPath>          
         </Options>
       </Configuration>
       <Configuration name="Release">
@@ -98,6 +197,9 @@
       <Reference name="XMLRPC.dll"/>
       <Reference name="libsecondlife.dll"/>
       <Reference name="OpenSim.Framework"/>
+      <Reference name="MySql.Data.dll"/>
+      <Reference name="TribalMedia.Framework.Data"/>
+      <Reference name="log4net"/>
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -129,7 +231,7 @@
       </Files>
     </Project>
 
-	  <Project name="OpenSim.Framework.Configuration.HTTP" path="OpenSim/Framework/Configuration/HTTP" type="Library">
+    <Project name="OpenSim.Framework.Configuration.HTTP" path="OpenSim/Framework/Configuration/HTTP" type="Library">
       <Configuration name="Debug">
         <Options>
           <OutputPath>../../../../bin/</OutputPath>
@@ -151,6 +253,7 @@
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Framework.Configuration.XML"/>
       <Reference name="OpenSim.Framework.Data"/>
+      <Reference name="log4net"/>
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -175,7 +278,7 @@
       <Reference name="OpenSim.Framework"/>
       <Reference name="libsecondlife.dll"/>
       <Reference name="Nini.dll" />
-
+      <Reference name="log4net"/>
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -202,6 +305,7 @@
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -252,12 +356,12 @@
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="libsecondlife.dll"/>
       <Reference name="XMLRPC.dll"/>
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
-
 
     <Project name="OpenSim.Region.Physics.Manager" path="OpenSim/Region/Physics/Manager" type="Library">
       <Configuration name="Debug">
@@ -278,8 +382,10 @@
       <Reference name="Axiom.MathLib.dll" localCopy="false"/>
       <Reference name="OpenSim.Framework" localCopy="false"/>
       <Reference name="OpenSim.Framework.Console" localCopy="false"/>
-	  <Reference name="Nini.dll" />
-	  <Files>
+      <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
+
+      <Files>
         <Match pattern="*.cs" recurse="false"/>
       </Files>
     </Project>
@@ -374,7 +480,9 @@
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Region.Physics.Manager" localCopy="false"/>
       <Reference name="Ode.NET.dll" localCopy="false" />
+      <Reference name="log4net"/>
       <Reference name="RexDotMeshLoader.dll" localCopy="false" />
+
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -396,11 +504,12 @@
       <Reference name="System" localCopy="false"/>
       <Reference name="libsecondlife.dll"/>
       <Reference name="Axiom.MathLib.dll" localCopy="false"/>
-	  <Reference name="OpenSim.Framework"/>
-	  <Reference name="OpenSim.Framework.Console" localCopy="false"/>
-	  <Reference name="OpenSim.Region.Physics.Manager" localCopy="false"/>
+      <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Framework.Console" localCopy="false"/>
+      <Reference name="OpenSim.Region.Physics.Manager" localCopy="false"/>
       <Reference name="Modified.XnaDevRu.BulletX.dll" localCopy="false" />
       <Reference name="MonoXnaCompactMaths.dll" localCopy="false" />
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
@@ -424,9 +533,10 @@
       <Reference name="libsecondlife.dll"/>
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Console"/>
-	  <Reference name="OpenSim.Region.Physics.Manager" localCopy="false"/>
+      <Reference name="OpenSim.Region.Physics.Manager" localCopy="false"/>
+      <Reference name="log4net"/>
 
-	  <Files>
+      <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
@@ -480,6 +590,8 @@
       <Reference name="OpenSim.Framework.Data"/>
       <Reference name="libsecondlife.dll"/>
       <Reference name="Db4objects.Db4o.dll"/>
+      <Reference name="log4net"/>
+
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -507,10 +619,12 @@
       <Reference name="OpenSim.Framework.Data" />
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="OpenSim.Framework.Statistics"/>
       <Reference name="libsecondlife.dll"/>
       <Reference name="Db4objects.Db4o.dll"/>
       <Reference name="Nini.dll" />
       <Reference name="XMLRPC.dll"/>
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
@@ -532,13 +646,15 @@
       <ReferencePath>../../../../bin/</ReferencePath>
       <Reference name="System"/>
       <Reference name="System.Xml"/>
-      <Reference name="OpenSim.Framework.Communications"/>
       <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Framework.Communications"/>
+      <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Framework.Data" />
       <Reference name="OpenSim.Framework.Servers"/>
-      <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="OpenSim.Framework.Statistics"/>
       <Reference name="libsecondlife.dll"/>
       <Reference name="XMLRPC.dll"/>
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
@@ -568,9 +684,9 @@
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="OpenSim.Framework.Communications" />
       <Reference name="OpenSim.Region.Communications.Local" />
-
       <Reference name="libsecondlife.dll"/>
       <Reference name="XMLRPC.dll"/>
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
@@ -606,7 +722,9 @@
       <Reference name="Microsoft.JScript"/>
       <Reference name="XMLRPC.dll"/>
       <Reference name="OpenSim.Framework.Communications"/>
+      <Reference name="TribalMedia.Framework.Data"/>
       <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -638,14 +756,15 @@
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Framework.Communications"/>
+      <Reference name="OpenSim.Framework.Statistics"/>
 	  <Reference name="OpenSim.Framework.ServerStatus"/>
       <Reference name="OpenSim.Region.Communications.Local"/>      
       <Reference name="OpenSim.Region.Physics.Manager"/>
       <Reference name="XMLRPC.dll"/>
       <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
 
-
-	  <Files>
+      <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
@@ -670,38 +789,12 @@
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Region.Environment"/>
       <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="log4net"/>
+
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
-
-
-    <Project name="OpenSim.DataStore.MonoSqlite" path="OpenSim/Region/Storage/OpenSim.DataStore.MonoSqlite" type="Library">
-      <Configuration name="Debug">
-        <Options>
-          <OutputPath>../../../../bin/</OutputPath>
-        </Options>
-      </Configuration>
-      <Configuration name="Release">
-        <Options>
-          <OutputPath>../../../../bin/</OutputPath>
-        </Options>
-      </Configuration>
-
-      <ReferencePath>../../../../bin/</ReferencePath>
-      <Reference name="System" localCopy="false"/>
-      <Reference name="System.Xml"/>
-      <Reference name="System.Data"/>
-      <Reference name="Mono.Data.SqliteClient"/>
-      <Reference name="libsecondlife.dll"/>
-      <Reference name="OpenSim.Framework"/>
-      <Reference name="OpenSim.Region.Environment"/>
-      <Reference name="OpenSim.Framework.Console"/>
-      <Files>
-        <Match pattern="*.cs" recurse="true"/>
-      </Files>
-    </Project>
-
 
     <Project name="OpenSim.DataStore.MSSQL" path="OpenSim/Region/Storage/OpenSim.DataStore.MSSQL" type="Library">
       <Configuration name="Debug">
@@ -724,6 +817,8 @@
       <Reference name="OpenSim.Framework.Data"/>
       <Reference name="OpenSim.Region.Environment"/>
       <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="log4net"/>
+
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -751,6 +846,8 @@
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="Axiom.MathLib.dll"/>
       <Reference name="Nini.dll"/>
+      <Reference name="log4net"/>
+
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -782,6 +879,7 @@
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Region.Physics.Manager"/>
       <Reference name="OpenSim.Framework.Servers"/>
+      <Reference name="OpenSim.Framework.Statistics"/>
       <Reference name="OpenSim.Region.Environment"/>
       <Reference name="OpenSim.Region.ClientStack"/>
       <Reference name="OpenSim.Framework.Communications"/>
@@ -790,6 +888,8 @@
       <Reference name="XMLRPC.dll"/>
       <Reference name="OpenSim.Region.Communications.Local"/>
       <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
+
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -820,6 +920,9 @@
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Framework.RegionLoader.Filesystem"/>
       <Reference name="OpenSim.Framework.RegionLoader.Web"/>
+      <Reference name="OpenSim.Framework.Servers"/>
+      <Reference name="log4net"/>
+
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -850,6 +953,8 @@
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="log4net"/>
+
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
@@ -884,12 +989,14 @@
       <Reference name="OpenSim.Region.Physics.Manager"/>
       <Reference name="XMLRPC.dll"/>
       <Reference name="OpenSim.Framework.Servers"/>
+      <Reference name="OpenSim.Framework.Statistics"/>
       <Reference name="OpenSim.Framework.Communications"/>
       <Reference name="OpenSim.Region.Communications.Local"/>
       <Reference name="OpenSim.Region.ClientStack"/>
       <Reference name="OpenSim.Region.Environment"/>
       <Reference name="OpenSim.Region.Terrain.BasicTerrain"/>
       <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
@@ -914,10 +1021,12 @@
       <Reference name="System.Data"/>
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Data"/>
+      <!--      <Reference name="TribalMedia.Framework.Data"/> -->
       <Reference name="libsecondlife.dll"/>
       <Reference name="MySql.Data.dll"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Region.Environment"/>
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
@@ -945,6 +1054,7 @@
       <Reference name="OpenSim.Framework.Data"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="libsecondlife.dll"/>
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
@@ -972,15 +1082,18 @@
       <Reference name="OpenSim.Framework.Data"/>
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="OpenSim.Region.Environment"/>
       <Reference name="libsecondlife.dll"/>
       <Reference name="Mono.Data.SqliteClient"/>
+      <Reference name="log4net"/>
+
       <Files>
         <Match pattern="*.cs" recurse="true"/>
+        <Match path="Resources" pattern="*.sql" buildAction="EmbeddedResource"/>
       </Files>
     </Project>
 
     <!-- OGS projects -->
-
 
     <Project name="OpenSim.Grid.GridServer" path="OpenSim/Grid/GridServer" type="Exe">
       <Configuration name="Debug">
@@ -1005,6 +1118,7 @@
       <Reference name="libsecondlife.dll"/>
       <Reference name="Db4objects.Db4o.dll"/>
       <Reference name="XMLRPC.dll"/>
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
@@ -1032,7 +1146,9 @@
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="OpenSim.Framework.Communications"/>
+      <Reference name="OpenSim.Framework.Statistics"/>
       <Reference name="libsecondlife.dll"/>
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
@@ -1061,9 +1177,11 @@
       <Reference name="OpenSim.Framework.Communications"/>
       <Reference name="OpenSim.Framework.Data"/>
       <Reference name="OpenSim.Framework.Servers"/>
+      <Reference name="OpenSim.Framework.Statistics"/>
       <Reference name="libsecondlife.dll"/>
       <Reference name="Db4objects.Db4o.dll"/>
       <Reference name="XMLRPC.dll"/>
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
@@ -1092,6 +1210,7 @@
       <Reference name="OpenSim.Framework.Data"/>
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="libsecondlife.dll"/>
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
@@ -1121,6 +1240,7 @@
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="libsecondlife.dll"/>
       <Reference name="XMLRPC.dll"/>
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
@@ -1140,18 +1260,29 @@
       </Configuration>
 
       <ReferencePath>../../../../bin/</ReferencePath>      
-      <ReferencePath>../../../../bin/ScriptEngines/</ReferencePath> 
+      <ReferencePath>../../../../bin/ScriptEngines/</ReferencePath>
       <Reference name="System" localCopy="false"/>
       <Reference name="System.Data" localCopy="false"/>
+      <Reference name="System.Web" localCopy="false"/>
       <Reference name="System.Xml" localCopy="false"/>
       <Reference name="libsecondlife.dll"/>
+      <Reference name="OpenSim" />
       <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Framework.Communications"/>
+      <Reference name="OpenSim.Region.Environment" />
+      <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="Axiom.MathLib.dll" localCopy="false"/>
+      <Reference name="Nini.dll" />
+      <Reference name="RAIL.dll"/>
+      <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="OpenSim.Region.Terrain.BasicTerrain"/>
+      <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
+
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
-
-
 
     <Project name="OpenSim.Region.ScriptEngine.DotNetEngine" path="OpenSim/Region/ScriptEngine/DotNetEngine" type="Library">
       <Configuration name="Debug">
@@ -1171,22 +1302,57 @@
       <Reference name="System.Data" localCopy="false"/>
       <Reference name="System.Xml" localCopy="false"/>
       <Reference name="System.Runtime.Remoting" localCopy="false"/>
-      <Reference name="OpenSim.Region.Environment" />
       <Reference name="libsecondlife.dll"/>
       <Reference name="RAIL.dll"/>
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="OpenSim.Region.Environment" />
       <Reference name="OpenSim.Framework.Communications"/>
       <Reference name="OpenSim.Region.ScriptEngine.Common"/>
       <Reference name="OpenSim.Region.Terrain.BasicTerrain"/>
+      <Reference name="Microsoft.JScript"/>
       <Reference name="Axiom.MathLib.dll" localCopy="false"/>
       <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
+
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
 
+    <Project name="OpenSim.Region.ScriptEngine.LSOEngine" path="OpenSim/Region/ScriptEngine/LSOEngine" type="Library">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../../../../bin/ScriptEngines/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../../../../bin/ScriptEngines/</OutputPath>
+        </Options>
+      </Configuration>
 
+      <ReferencePath>../../../../bin/</ReferencePath>
+      <ReferencePath>../../../../bin/ScriptEngines/</ReferencePath>
+      <Reference name="System" localCopy="false"/>
+      <Reference name="System.Data" localCopy="false"/>
+      <Reference name="System.Xml" localCopy="false"/>
+      <Reference name="System.Runtime.Remoting" localCopy="false"/>
+      <Reference name="libsecondlife.dll"/>
+      <Reference name="RAIL.dll"/>
+      <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="OpenSim.Region.Environment" />
+      <Reference name="OpenSim.Region.ScriptEngine.Common"/>
+      <Reference name="OpenSim.Region.Terrain.BasicTerrain"/>
+      <Reference name="Axiom.MathLib.dll" localCopy="false"/>
+      <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
+
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
 
 
     <Project name="OpenSim.Grid.ScriptServer" path="OpenSim/Grid/ScriptServer" type="Exe">
@@ -1210,13 +1376,17 @@
       <Reference name="OpenSim"/>
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="OpenSim.Framework.Communications"/>
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="OpenSim.Framework.Data"/>
-      <Reference name="OpenSim.Region.Environment"/>
+      <Reference name="OpenSim.Region.Environment" />
       <Reference name="OpenSim.Region.ScriptEngine.Common"/>
+      <Reference name="OpenSim.Region.Terrain.BasicTerrain"/>
       <Reference name="libsecondlife.dll"/>
       <Reference name="Axiom.MathLib.dll" localCopy="false"/>
       <Reference name="XMLRPC.dll"/>
+      <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
@@ -1249,6 +1419,7 @@
       <Reference name="OpenSim.Region.ScriptEngine.Common"/>
       <Reference name="OpenSim.Region.ScriptEngine.DotNetEngine"/>
       <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
       <!-- Reference name="OpenSim.Grid.ScriptServer"/ -->
 
       <Files>
@@ -1269,6 +1440,18 @@
         </Options>
       </Configuration>
 
+    <!-- Tests -->
+    <Project name="OpenSim.Tests.UserServer.Stress" path="OpenSim/Tests/UserServer/Stress" type="Exe">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../../../../bin/tests/stress</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../../../../bin/tests/stress</OutputPath>
+        </Options>
+      </Configuration>
       <ReferencePath>../../../../bin/</ReferencePath>      
       <Reference name="System" localCopy="false"/>
       <Reference name="OpenSim.Region.Environment" />
@@ -1370,6 +1553,7 @@
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Data"/>
       <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="OpenSim.Framework.Statistics"/>
       <Reference name="OpenSim.Region.Physics.Manager"/>
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="OpenSim.Region.Environment"/>
@@ -1379,15 +1563,38 @@
       <Reference name="XMLRPC.dll"/>
       <Reference name="OpenSim.Region.Communications.Local"/>
       <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
 
+    <Project name="pCampBot" path="OpenSim/Tools/pCampBot" type="Exe">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
 
+      <ReferencePath>../../../bin/</ReferencePath>
+      <Reference name="System" localCopy="false"/>
+      <Reference name="libsecondlife.dll"/>
+      <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Framework.Console"/>
+      <Reference name="Nini.dll" />
+      <Reference name="log4net"/>
+
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
 
   </Solution>
-
 
   <!-- Prebuild tool -->
   <Solution name="Prebuild" path="Prebuild/" >
@@ -1409,6 +1616,7 @@
         <SuppressWarnings>1595</SuppressWarnings>
       </Options>
     </Configuration>
+
     <Project name="Prebuild" path="src/" language="C#" assemblyName="Prebuild" icon="App.ico" type="Exe" rootNamespace="Prebuild" startupObject="Prebuild.Prebuild">
       <Configuration name="Debug">
         <Options>
@@ -1441,16 +1649,5 @@
       </Files>
     </Project>
 
-
-
   </Solution>
 </Prebuild>
-
-
-
-
-
-
-
-
-

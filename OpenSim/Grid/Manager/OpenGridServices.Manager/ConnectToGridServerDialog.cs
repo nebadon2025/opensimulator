@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -29,29 +29,26 @@
 using Gtk;
 using System;
 
-namespace OpenGridServices.Manager {
-	public partial class ConnectToGridServerDialog : Gtk.Dialog
-	{
-		
-		public ConnectToGridServerDialog()
-		{
-			this.Build();
-		}
+namespace OpenGridServices.Manager
+{
+    public partial class ConnectToGridServerDialog : Gtk.Dialog
+    {
+        public ConnectToGridServerDialog()
+        {
+            this.Build();
+        }
 
-		protected virtual void OnResponse(object o, Gtk.ResponseArgs args)
-		{
-			switch(args.ResponseId) {
-				case Gtk.ResponseType.Ok:
-					MainClass.PendingOperations.Enqueue("connect_to_gridserver " + this.entry1.Text + " " + this.entry2.Text + " " + this.entry3.Text);
-				break;
-				
-				case Gtk.ResponseType.Cancel:
-				break;
-			}
-			this.Hide();
-			
-		}
-
-	}
-
+        protected virtual void OnResponse(object o, Gtk.ResponseArgs args)
+        {
+            switch(args.ResponseId) {
+                case Gtk.ResponseType.Ok:
+                    MainClass.PendingOperations.Enqueue("connect_to_gridserver " + this.entry1.Text + " " + this.entry2.Text + " " + this.entry3.Text);
+                break;
+                
+                case Gtk.ResponseType.Cancel:
+                break;
+            }
+            this.Hide();
+        }
+    }
 }

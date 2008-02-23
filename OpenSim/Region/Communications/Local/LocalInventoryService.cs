@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -34,6 +34,10 @@ using OpenSim.Framework.Communications.Cache;
 
 namespace OpenSim.Region.Communications.Local
 {
+    /// <summary>
+    /// An implementation of user inventory where the inventory is held locally (e.g. when OpenSim is
+    /// operating in standalone mode. 
+    /// </summary>
     public class LocalInventoryService : InventoryServiceBase
     {
         public override void RequestInventoryForUser(LLUUID userID, InventoryFolderInfo folderCallBack,
@@ -81,6 +85,37 @@ namespace OpenSim.Region.Communications.Local
         public override void DeleteInventoryItem(LLUUID userID, InventoryItemBase item)
         {
             DeleteItem(item);
+        }
+
+        public override bool HasInventoryForUser(LLUUID userID)
+        {
+            InventoryFolderBase root = RequestUsersRoot(userID);
+            if (root == null)
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        public override InventoryFolderBase RequestNamedFolder(LLUUID userID, string folderName)
+        {
+             List<InventoryFolderBase> folders = RequestFirstLevelFolders(userID);
+             InventoryFolderBase requestedFolder = null;
+
+            //need to make sure we send root folder first
+            foreach (InventoryFolderBase folder in folders)
+            {
+                if (folder.name == folderName)
+                {
+                    requestedFolder = folder;
+                    break;
+                }
+            }
+
+            return requestedFolder;
         }
 
         /// <summary>

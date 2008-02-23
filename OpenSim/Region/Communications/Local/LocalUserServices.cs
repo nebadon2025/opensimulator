@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -30,6 +30,7 @@ using System;
 using libsecondlife;
 using OpenSim.Framework;
 using OpenSim.Framework.Communications;
+using OpenSim.Framework.Statistics;
 using OpenSim.Framework.UserManagement;
 
 namespace OpenSim.Region.Communications.Local
@@ -42,6 +43,14 @@ namespace OpenSim.Region.Communications.Local
         private IInventoryServices m_inventoryService;
 
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="serversInfo"></param>
+        /// <param name="defaultHomeLocX"></param>
+        /// <param name="defaultHomeLocY"></param>
+        /// <param name="inventoryService"></param>
+        /// <param name="statsCollector">Can be null if stats collection is not required.</param>
         public LocalUserServices(NetworkServersInfo serversInfo, uint defaultHomeLocX, uint defaultHomeLocY,
                                  IInventoryServices inventoryService)
         {
@@ -55,7 +64,7 @@ namespace OpenSim.Region.Communications.Local
 
         public override UserProfileData SetupMasterUser(string firstName, string lastName)
         {
-            return SetupMasterUser(firstName, lastName, "");
+            return SetupMasterUser(firstName, lastName, String.Empty);
         }
 
         public override UserProfileData SetupMasterUser(string firstName, string lastName, string password)
@@ -88,7 +97,7 @@ namespace OpenSim.Region.Communications.Local
             UserProfileData data = GetUserProfile(uuid, "");
             if (data == null)
             {
-                throw new Exception("Unknown master user UUID");
+                throw new Exception("Unknown master user UUID. Possible reason: UserServer is not running.");
             }
             return data;
         }

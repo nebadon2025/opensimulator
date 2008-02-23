@@ -36,6 +36,8 @@ namespace OpenSim.Region.Communications.Local
 {
     public class LocalBackEndServices : IGridServices, IInterRegionCommunications
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         protected Dictionary<ulong, RegionInfo> m_regions = new Dictionary<ulong, RegionInfo>();
 
         protected Dictionary<ulong, RegionCommsListener> m_regionListeners =
@@ -45,7 +47,19 @@ namespace OpenSim.Region.Communications.Local
 
         private Dictionary<string, string> m_queuedGridSettings = new Dictionary<string, string>();
 
-        public string _gdebugRegionName = "";
+        public string _gdebugRegionName = System.String.Empty;
+
+        bool m_bAvailable=true;
+
+        public void CheckRegion(string address, uint port)
+        {
+            m_bAvailable = true;
+        }
+
+        public bool Available
+        {
+            get { return m_bAvailable; }
+        }
 
         public string gdebugRegionName
         {
@@ -53,7 +67,7 @@ namespace OpenSim.Region.Communications.Local
             set { _gdebugRegionName = value; }
         }
 
-        public string _rdebugRegionName = "";
+        public string _rdebugRegionName = System.String.Empty;
 
         public string rdebugRegionName
         {
@@ -81,8 +95,9 @@ namespace OpenSim.Region.Communications.Local
                 RegionCommsListener regionHost = new RegionCommsListener();
                 if (m_regionListeners.ContainsKey(regionInfo.RegionHandle))
                 {
-                    MainLog.Instance.Error("INTERREGION",
-                                           "Error:Region registered twice as an Events listener for Interregion Communications but not as a listed region.  In Standalone mode this will cause BIG issues.  In grid mode, it means a region went down and came back up.");
+                    m_log.Error("[INTERREGION]: " +
+                                "Error:Region registered twice as an Events listener for Interregion Communications but not as a listed region.  " +
+                                "In Standalone mode this will cause BIG issues.  In grid mode, it means a region went down and came back up.");
                     m_regionListeners.Remove(regionInfo.RegionHandle);
                 }
                 m_regionListeners.Add(regionInfo.RegionHandle, regionHost);
@@ -93,7 +108,7 @@ namespace OpenSim.Region.Communications.Local
             {
                 // Already in our list, so the region went dead and restarted.
                 m_regions.Remove(regionInfo.RegionHandle);
-                MainLog.Instance.Warn("INTERREGION", "Region registered twice. Region went down and came back up.");
+                m_log.Warn("[INTERREGION]: Region registered twice. Region went down and came back up.");
 
                 RegionCommsListener regionHost = new RegionCommsListener();
                 if (m_regionListeners.ContainsKey(regionInfo.RegionHandle))
@@ -191,7 +206,14 @@ namespace OpenSim.Region.Communications.Local
             }
             return mapBlocks;
         }
-
+        public bool TellRegionToCloseChildConnection(ulong regionHandle, LLUUID agentID)
+        {
+            if (m_regionListeners.ContainsKey(regionHandle))
+            {
+                return m_regionListeners[regionHandle].TriggerTellRegionToCloseChildConnection(regionHandle, agentID);
+            }
+            return false;
+        }
 
         public virtual bool RegionUp(SearializableRegionInfo sregion, ulong regionhandle)
         {
@@ -210,7 +232,7 @@ namespace OpenSim.Region.Communications.Local
             {
                 // Console.WriteLine("CommsManager- Informing a region to expect child agent");
                 m_regionListeners[regionHandle].TriggerChildAgentUpdate(regionHandle, cAgentData);
-                //MainLog.Instance.Verbose("INTER", rdebugRegionName + ":Local BackEnd: Got Listener trigginering local event: " + agentData.firstname + " " + agentData.lastname);
+                //m_log.Info("[INTER]: " + rdebugRegionName + ":Local BackEnd: Got Listener trigginering local event: " + agentData.firstname + " " + agentData.lastname);
 
                 return true;
             }
@@ -255,6 +277,14 @@ namespace OpenSim.Region.Communications.Local
             return false;
         }
 
+        public bool TriggerTellRegionToCloseChildConnection(ulong regionHandle, LLUUID agentID)
+        {
+            if (m_regionListeners.ContainsKey(regionHandle))
+            {
+                return m_regionListeners[regionHandle].TriggerTellRegionToCloseChildConnection(regionHandle, agentID);
+            }
+            return false;
+        }
         /// <summary> 
         /// </summary>
         /// <param name="regionHandle"></param>
@@ -265,13 +295,13 @@ namespace OpenSim.Region.Communications.Local
             //should change from agentCircuitData
         {
             //Console.WriteLine("CommsManager- Trying to Inform a region to expect child agent");
-            //MainLog.Instance.Verbose("INTER", rdebugRegionName + ":Local BackEnd: Trying to inform region of child agent: " + agentData.firstname + " " + agentData.lastname);
+            //m_log.Info("[INTER]: " + rdebugRegionName + ":Local BackEnd: Trying to inform region of child agent: " + agentData.firstname + " " + agentData.lastname);
 
             if (m_regionListeners.ContainsKey(regionHandle))
             {
                 // Console.WriteLine("CommsManager- Informing a region to expect child agent");
                 m_regionListeners[regionHandle].TriggerExpectUser(regionHandle, agentData);
-                //MainLog.Instance.Verbose("INTER", rdebugRegionName + ":Local BackEnd: Got Listener trigginering local event: " + agentData.firstname + " " + agentData.lastname);
+                //m_log.Info("[INTER]: " + rdebugRegionName + ":Local BackEnd: Got Listener trigginering local event: " + agentData.firstname + " " + agentData.lastname);
 
                 return true;
             }
@@ -316,13 +346,7 @@ namespace OpenSim.Region.Communications.Local
             return false;
         }
 
-        public void TellRegionToCloseChildConnection(ulong regionHandle, LLUUID agentID)
-        {
-            if (m_regionListeners.ContainsKey(regionHandle))
-            {
-                m_regionListeners[regionHandle].TriggerCloseAgentConnection(regionHandle, agentID);
-            }
-        }
+       
 
         public bool AcknowledgeAgentCrossed(ulong regionHandle, LLUUID agentId)
         {
@@ -373,11 +397,11 @@ namespace OpenSim.Region.Communications.Local
 
         public void TriggerExpectUser(ulong regionHandle, AgentCircuitData agent)
         {
-            //MainLog.Instance.Verbose("INTER", rdebugRegionName + ":Local BackEnd: Other region is sending child agent our way: " + agent.firstname + " " + agent.lastname);
+            //m_log.Info("[INTER]: " + rdebugRegionName + ":Local BackEnd: Other region is sending child agent our way: " + agent.firstname + " " + agent.lastname);
 
             if (m_regionListeners.ContainsKey(regionHandle))
             {
-                //MainLog.Instance.Verbose("INTER", rdebugRegionName + ":Local BackEnd: FoundLocalRegion To send it to: " + agent.firstname + " " + agent.lastname);
+                //m_log.Info("[INTER]: " + rdebugRegionName + ":Local BackEnd: FoundLocalRegion To send it to: " + agent.firstname + " " + agent.lastname);
 
                 m_regionListeners[regionHandle].TriggerExpectUser(regionHandle, agent);
             }
@@ -427,11 +451,11 @@ namespace OpenSim.Region.Communications.Local
 
         public bool IncomingChildAgent(ulong regionHandle, AgentCircuitData agentData)
         {
-            // MainLog.Instance.Verbose("INTER", rdebugRegionName + ":Local BackEnd: Other local region is sending child agent our way: " + agentData.firstname + " " + agentData.lastname);
+            // m_log.Info("[INTER]: " + rdebugRegionName + ":Local BackEnd: Other local region is sending child agent our way: " + agentData.firstname + " " + agentData.lastname);
 
             if (m_regionListeners.ContainsKey(regionHandle))
             {
-                //MainLog.Instance.Verbose("INTER", rdebugRegionName + ":Local BackEnd: found local region to trigger event on: " + agentData.firstname + " " + agentData.lastname);
+                //m_log.Info("[INTER]: " + rdebugRegionName + ":Local BackEnd: found local region to trigger event on: " + agentData.firstname + " " + agentData.lastname);
 
                 TriggerExpectUser(regionHandle, agentData);
                 return true;

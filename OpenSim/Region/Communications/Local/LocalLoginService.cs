@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -34,6 +34,7 @@ using libsecondlife;
 using OpenSim.Framework;
 using OpenSim.Framework.Communications.Cache;
 using OpenSim.Framework.Console;
+using OpenSim.Framework.Statistics;
 using OpenSim.Framework.UserManagement;
 using InventoryFolder=OpenSim.Framework.InventoryFolder;
 
@@ -43,6 +44,8 @@ namespace OpenSim.Region.Communications.Local
 
     public class LocalLoginService : LoginService
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private CommunicationsLocal m_Parent;
 
         private NetworkServersInfo serversInfo;
@@ -52,9 +55,12 @@ namespace OpenSim.Region.Communications.Local
 
         public event LoginToRegionEvent OnLoginToRegion;
 
-        public LocalLoginService(UserManagerBase userManager, string welcomeMess, CommunicationsLocal parent,
-                                 NetworkServersInfo serversInfo, bool authenticate, bool rexMode)
-            : base(userManager, parent.UserProfileCacheService.libraryRoot, welcomeMess, rexMode)
+        private LoginToRegionEvent handler001 = null; // OnLoginToRegion;
+
+        public LocalLoginService(UserManagerBase userManager, string welcomeMess, 
+                                 CommunicationsLocal parent, NetworkServersInfo serversInfo, 
+                                 bool authenticate)
+            : base(userManager, parent.UserProfileCacheService.libraryRoot, welcomeMess)
         {
             m_Parent = parent;
             this.serversInfo = serversInfo;
@@ -75,7 +81,7 @@ namespace OpenSim.Region.Communications.Local
             if (!authUsers)
             {
                 //no current user account so make one
-                MainLog.Instance.Notice("LOGIN", "No user account found so creating a new one.");
+                m_log.Info("[LOGIN]: No user account found so creating a new one.");
 
                 m_userManager.AddUserProfile(firstname, lastname, "test", defaultHomeX, defaultHomeY);
 
@@ -95,20 +101,25 @@ namespace OpenSim.Region.Communications.Local
             if (!authUsers)
             {
                 //for now we will accept any password in sandbox mode
-                MainLog.Instance.Notice("LOGIN", "Authorising user (no actual password check)");
+                m_log.Info("[LOGIN]: Authorising user (no actual password check)");
 
                 return true;
             }
             else
             {
-                MainLog.Instance.Notice(
-                    "LOGIN", "Authenticating " + profile.username + " " + profile.surname);
+                m_log.Info(
+                    "[LOGIN]: Authenticating " + profile.username + " " + profile.surname);
+               
+                if (!password.StartsWith("$1$"))
+                    password = "$1$" + Util.Md5Hash(password);
 
                 password = password.Remove(0, 3); //remove $1$
 
                 string s = Util.Md5Hash(password + ":" + profile.passwordSalt);
 
-                return profile.passwordHash.Equals(s.ToString(), StringComparison.InvariantCultureIgnoreCase);
+                bool loginresult = (profile.passwordHash.Equals(s.ToString(), StringComparison.InvariantCultureIgnoreCase)
+                            || profile.passwordHash.Equals(password, StringComparison.InvariantCultureIgnoreCase));
+                return loginresult;
             }
         }
 
@@ -139,7 +150,7 @@ namespace OpenSim.Region.Communications.Local
                 response.SimAddress = reg.ExternalEndPoint.Address.ToString();
                 response.SimPort = (uint) reg.ExternalEndPoint.Port;
                 response.RegionX = reg.RegionLocX;
-                response.RegionY = reg.RegionLocY;
+                response.RegionY = reg.RegionLocY ;
 
                 response.SeedCapability = "http://" + reg.ExternalHostName + ":" +
                                           serversInfo.HttpListenerPort.ToString() + "/CAPS/" + capsPath + "0000/";
@@ -173,13 +184,15 @@ namespace OpenSim.Region.Communications.Local
                 }
 
                 if (OnLoginToRegion != null)
+                handler001 = OnLoginToRegion;
+                if (handler001 != null)
                 {
-                    OnLoginToRegion(currentRegion, _login);
+                    handler001(currentRegion, _login);
                 }
             }
             else
             {
-                MainLog.Instance.Warn("LOGIN", "Not found region " + currentRegion);
+                m_log.Warn("[LOGIN]: Not found region " + currentRegion);
             }
         }
         private LoginResponse.BuddyList ConvertFriendListItem(List<FriendListItem> LFL)

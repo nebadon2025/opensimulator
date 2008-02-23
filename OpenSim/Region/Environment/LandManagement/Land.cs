@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -31,6 +31,7 @@ using System.Collections.Generic;
 using libsecondlife;
 using libsecondlife.Packets;
 using OpenSim.Framework;
+using OpenSim.Framework.Console;
 using OpenSim.Region.Environment.Scenes;
 using OpenSim.Region.Environment.Interfaces;
 
@@ -45,6 +46,8 @@ namespace OpenSim.Region.Environment.LandManagement
     public class Land
     {
         #region Member Variables
+
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         public LandData landData = new LandData();
         public List<SceneObjectGroup> primsOverMe = new List<SceneObjectGroup>();
@@ -77,7 +80,7 @@ namespace OpenSim.Region.Environment.LandManagement
         /// <returns>Returns true if the piece of land contains the specified point</returns>
         public bool containsPoint(int x, int y)
         {
-            if (x >= 0 && y >= 0 && x <= 256 && x <= 256)
+            if (x >= 0 && y >= 0 && x <= Constants.RegionSize && x <= Constants.RegionSize)
             {
                 return (landBitmap[x/4, y/4] == true);
             }
@@ -281,11 +284,20 @@ namespace OpenSim.Region.Environment.LandManagement
         public void sendLandUpdateToAvatarsOverMe()
         {
             List<ScenePresence> avatars = m_scene.GetAvatars();
+            Land over = null;
             for (int i = 0; i < avatars.Count; i++)
             {
-                Land over =
-                    m_scene.LandManager.getLandObject((int) Math.Round(avatars[i].AbsolutePosition.X),
-                                                      (int) Math.Round(avatars[i].AbsolutePosition.Y));
+                try
+                {
+                    over =
+                        m_scene.LandManager.getLandObject((int)Math.Max(255,Math.Min(0,Math.Round(avatars[i].AbsolutePosition.X))),
+                                                             (int)Math.Max(255,Math.Min(0,Math.Round(avatars[i].AbsolutePosition.Y))));
+                }
+                catch (Exception)
+                {
+                    m_log.Warn("[LAND]: " + "unable to get land at x: " + Math.Round(avatars[i].AbsolutePosition.X) + " y: " + Math.Round(avatars[i].AbsolutePosition.Y));
+                }
+
                 if (over != null)
                 {
                     if (over.landData.localID == landData.localID)
@@ -544,7 +556,7 @@ namespace OpenSim.Region.Environment.LandManagement
         /// <returns></returns>
         public static bool[,] basicFullRegionLandBitmap()
         {
-            return getSquareLandBitmap(0, 0, 256, 256);
+            return getSquareLandBitmap(0, 0, (int)Constants.RegionSize, (int)Constants.RegionSize);
         }
 
         /// <summary>

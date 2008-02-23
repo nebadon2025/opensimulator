@@ -39,20 +39,23 @@ namespace OpenSim.Grid.MessagingServer
 {
     /// <summary>
     /// </summary>
-    public class OpenMessage_Main : conscmd_callback
+    public class OpenMessage_Main : BaseOpenSimServer, conscmd_callback
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private MessageServerConfig Cfg;
 
         //public UserManager m_userManager;
         //public UserLoginService m_loginService;
-
-        private LogBase m_console;
+        
         private LLUUID m_lastCreatedUser = LLUUID.Random();
 
         [STAThread]
         public static void Main(string[] args)
         {
-            Console.WriteLine("Launching MessagingServer...");
+            log4net.Config.XmlConfigurator.Configure();
+
+            m_log.Info("Launching MessagingServer...");
 
             OpenMessage_Main messageserver = new OpenMessage_Main();
 
@@ -62,13 +65,8 @@ namespace OpenSim.Grid.MessagingServer
 
         private OpenMessage_Main()
         {
-            if (!Directory.Exists(Util.logDir()))
-            {
-                Directory.CreateDirectory(Util.logDir());
-            }
-            m_console =
-                new LogBase((Path.Combine(Util.logDir(), "opengrid-messagingserver-console.log")), "OpenMessage", this, true);
-            MainLog.Instance = m_console;
+            m_console = new ConsoleBase("OpenMessage", this);
+            MainConsole.Instance = m_console;
         }
 
         private void Work()
@@ -77,7 +75,7 @@ namespace OpenSim.Grid.MessagingServer
 
             while (true)
             {
-                m_console.MainLogPrompt();
+                m_console.Prompt();
             }
         }
 
@@ -85,9 +83,7 @@ namespace OpenSim.Grid.MessagingServer
         {
             Cfg = new MessageServerConfig("MESSAGING SERVER", (Path.Combine(Util.configDir(), "MessagingServer_Config.xml")));
 
-            
-
-            MainLog.Instance.Verbose("REGION", "Starting HTTP process");
+            m_log.Info("[REGION]: Starting HTTP process");
             BaseHttpServer httpServer = new BaseHttpServer(Cfg.HttpPort);
 
             //httpServer.AddXmlRPCHandler("login_to_simulator", m_loginService.XmlRpcLoginMethod);
@@ -105,9 +101,8 @@ namespace OpenSim.Grid.MessagingServer
                 //new RestStreamHandler("DELETE", "/usersessions/", m_userManager.RestDeleteUserSessionMethod));
 
             httpServer.Start();
-            m_console.Status("SERVER", "Messageserver 0.4 - Startup complete");
+            m_log.Info("[SERVER]: Messageserver 0.5 - Startup complete");
         }
-
 
         public void do_create(string what)
         {
@@ -121,7 +116,7 @@ namespace OpenSim.Grid.MessagingServer
                             //m_userManager.AddUserProfile(tempfirstname, templastname, tempMD5Passwd, regX, regY);
                     } catch (Exception ex)
                     {
-                        m_console.Error("SERVER", "Error creating user: {0}", ex.ToString());
+                        m_console.Error("[SERVER]: Error creating user: {0}", ex.ToString());
                     }
 
                     try
@@ -131,15 +126,17 @@ namespace OpenSim.Grid.MessagingServer
                     }
                     catch (Exception ex)
                     {
-                        m_console.Error("SERVER", "Error creating inventory for user: {0}", ex.ToString());
+                        m_console.Error("[SERVER]: Error creating inventory for user: {0}", ex.ToString());
                     }
-                   // m_lastCreatedUser = userID;
+                    // m_lastCreatedUser = userID;
                     break;
             }
         }
 
-        public void RunCmd(string cmd, string[] cmdparams)
+        public override void RunCmd(string cmd, string[] cmdparams)
         {
+            base.RunCmd(cmd, cmdparams);
+            
             switch (cmd)
             {
                 case "help":

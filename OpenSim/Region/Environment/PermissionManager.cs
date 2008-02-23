@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -37,11 +37,12 @@ namespace OpenSim.Region.Environment
         protected Scene m_scene;
 
         // These are here for testing.  They will be taken out
-        private uint PERM_ALL = (uint) 2147483647;
-        private uint PERM_COPY = (uint) 32768;
-        private uint PERM_MODIFY = (uint) 16384;
-        private uint PERM_MOVE = (uint) 524288;
-        private uint PERM_TRANS = (uint) 8192;
+        private uint PERM_ALL = (uint)2147483647;
+        private uint PERM_COPY = (uint)32768;
+        private uint PERM_MODIFY = (uint)16384;
+        private uint PERM_MOVE = (uint)524288;
+        private uint PERM_TRANS = (uint)8192;
+        private uint PERM_LOCKED = (uint)540672;
         // Bypasses the permissions engine (always returns OK)
         // disable in any production environment
         // TODO: Change this to false when permissions are a desired default
@@ -80,7 +81,13 @@ namespace OpenSim.Region.Environment
                 return true;
             }
 
-            return m_scene.RegionInfo.MasterAvatarAssignedUUID == user;
+            // If there is no master avatar, return false
+            if (m_scene.RegionInfo.MasterAvatarAssignedUUID != null)
+            {
+                return m_scene.RegionInfo.MasterAvatarAssignedUUID == user;
+            }
+
+            return false;
         }
 
         public virtual bool IsEstateManager(LLUUID user)
@@ -89,13 +96,20 @@ namespace OpenSim.Region.Environment
             {
                 return true;
             }
-
-            LLUUID[] estatemanagers = m_scene.RegionInfo.EstateSettings.estateManagers;
-            for (int i = 0; i < estatemanagers.Length; i++)
+            if (user != null)
             {
-                if (estatemanagers[i] == user)
-                    return true;
+                LLUUID[] estatemanagers = m_scene.RegionInfo.EstateSettings.estateManagers;
+                for (int i = 0; i < estatemanagers.Length; i++)
+                {
+                    if (estatemanagers[i] == user)
+                        return true;
+                }
             }
+            // The below is commented out because logically it happens anyway.   It's left in for readability
+            //else
+            //{
+            //return false;
+            //}
 
             return false;
         }
@@ -119,8 +133,8 @@ namespace OpenSim.Region.Environment
             Land land = m_scene.LandManager.getLandObject(position.X, position.Y);
             if (land == null) return false;
 
-            if ((land.landData.landFlags & ((int) Parcel.ParcelFlags.CreateObjects)) ==
-                (int) Parcel.ParcelFlags.CreateObjects)
+            if ((land.landData.landFlags & ((int)Parcel.ParcelFlags.CreateObjects)) ==
+                (int)Parcel.ParcelFlags.CreateObjects)
                 permission = true;
 
             //TODO: check for group rights
@@ -153,6 +167,18 @@ namespace OpenSim.Region.Environment
 
         public virtual uint GenerateClientFlags(LLUUID user, LLUUID objID)
         {
+
+            // Here's the way this works, 
+            // ObjectFlags and Permission flags are two different enumerations
+            // ObjectFlags, however, tells the client to change what it will allow the user to do.
+            // So, that means that all of the permissions type ObjectFlags are /temporary/ and only 
+            // supposed to be set when customizing the objectflags for the client.  
+
+            // These temporary objectflags get computed and added in this function based on the 
+            // Permission mask that's appropriate!
+            // Outside of this method, they should never be added to objectflags!
+            // -teravus
+
             if (!m_scene.Entities.ContainsKey(objID))
             {
                 return 0;
@@ -164,20 +190,42 @@ namespace OpenSim.Region.Environment
                 return 0;
             }
 
-            SceneObjectGroup task = (SceneObjectGroup) m_scene.Entities[objID];
-            LLUUID taskOwner = null;
-            // Added this because at this point in time it wouldn't be wise for 
-            // the administrator object permissions to take effect.
+            SceneObjectGroup task = (SceneObjectGroup)m_scene.Entities[objID];
             LLUUID objectOwner = task.OwnerID;
 
-            //return task.RootPart.ObjectFlags;task.RootPart.ObjectFlags | 
+            uint objflags = task.RootPart.ObjectFlags;
 
-            uint OwnerMask = task.RootPart.ObjectFlags | task.RootPart.OwnerMask;
-            uint GroupMask = task.RootPart.ObjectFlags | task.RootPart.GroupMask;
-            uint EveryoneMask = task.RootPart.ObjectFlags | task.RootPart.EveryoneMask;
+
+            // Remove any of the objectFlags that are temporary.  These will get added back if appropriate 
+            // in the next bit of code
+
+            objflags &= (uint)
+                ~(LLObject.ObjectFlags.ObjectCopy | // Tells client you can copy the object
+                LLObject.ObjectFlags.ObjectModify | // tells client you can modify the object
+                LLObject.ObjectFlags.ObjectMove |   // tells client that you can move the object (only, no mod)
+                LLObject.ObjectFlags.ObjectTransfer | // tells the client that you can /take/ the object if you don't own it
+                LLObject.ObjectFlags.ObjectYouOwner | // Tells client that you're the owner of the object
+                LLObject.ObjectFlags.ObjectYouOfficer // Tells client that you've got group object editing permission. Used when ObjectGroupOwned is set
+                );
+
+            // Creating the three ObjectFlags options for this method to choose from.
+            // Customize the OwnerMask
+            uint objectOwnerMask = ApplyObjectModifyMasks(task.RootPart.OwnerMask, objflags);
+            objectOwnerMask |= (uint)LLObject.ObjectFlags.ObjectYouOwner;
+
+            // Customize the GroupMask
+            uint objectGroupMask = ApplyObjectModifyMasks(task.RootPart.GroupMask, objflags);
+
+            // Customize the EveryoneMask
+            uint objectEveryoneMask = ApplyObjectModifyMasks(task.RootPart.EveryoneMask, objflags);
+
+
+            // Hack to allow collaboration until Groups and Group Permissions are implemented
+            if ((objectEveryoneMask & (uint)LLObject.ObjectFlags.ObjectMove) != 0)
+                objectEveryoneMask |= (uint)LLObject.ObjectFlags.ObjectModify;
 
             if (m_bypassPermissions)
-                return OwnerMask;
+                return objectOwnerMask;
             else //rex
             {
                 EveryoneMask &= ~(uint)LLObject.ObjectFlags.ObjectModify;
@@ -185,45 +233,68 @@ namespace OpenSim.Region.Environment
 
             // Object owners should be able to edit their own content
             if (user == objectOwner)
-                return OwnerMask;
+            {
+                return objectOwnerMask;
+            }
 
             // Users should be able to edit what is over their land.
             Land parcel = m_scene.LandManager.getLandObject(task.AbsolutePosition.X, task.AbsolutePosition.Y);
             if (parcel != null && parcel.landData.ownerID == user)
-                return OwnerMask;
+                return objectOwnerMask;
+
+            // Admin objects should not be editable by the above
+            if (IsAdministrator(objectOwner))
+                return objectEveryoneMask;
 
             // Estate users should be able to edit anything in the sim
             if (IsEstateManager(user))
-                return OwnerMask;
+                return objectOwnerMask;
 
-            // Admin objects should not be editable by the above
-            if (IsAdministrator(taskOwner))
-                return EveryoneMask;
+
 
             // Admin should be able to edit anything in the sim (including admin objects)
             if (IsAdministrator(user))
-                return OwnerMask;
+                return objectOwnerMask;
 
-            if (((EveryoneMask & PERM_MOVE) != 0) || ((EveryoneMask & PERM_COPY) != 0))
-            {
-                if ((EveryoneMask & PERM_MOVE) != 0)
-                    OwnerMask &= ~PERM_MOVE;
 
-                if ((EveryoneMask & PERM_COPY) != 0)
-                    OwnerMask &= ~PERM_COPY;
-
-                OwnerMask &= ~PERM_MODIFY;
-                OwnerMask &= ~PERM_TRANS;
-
-                return OwnerMask;
-            }
-            return EveryoneMask;
+            return objectEveryoneMask;
         }
 
-        protected virtual bool GenericObjectPermission(LLUUID user, LLUUID objId)
+
+
+        private uint ApplyObjectModifyMasks(uint setPermissionMask, uint objectFlagsMask)
+        {
+            // We are adding the temporary objectflags to the object's objectflags based on the 
+            // permission flag given.  These change the F flags on the client.
+
+            if ((setPermissionMask & (uint)PermissionMask.Copy) != 0)
+            {
+                objectFlagsMask |= (uint)LLObject.ObjectFlags.ObjectCopy;
+            }
+
+            if ((setPermissionMask & (uint)PermissionMask.Move) != 0)
+            {
+                objectFlagsMask |= (uint)LLObject.ObjectFlags.ObjectMove;
+            }
+
+            if ((setPermissionMask & (uint)PermissionMask.Modify) != 0)
+            {
+                objectFlagsMask |= (uint)LLObject.ObjectFlags.ObjectModify;
+            }
+
+            if ((setPermissionMask & (uint)PermissionMask.Transfer) != 0)
+            {
+                objectFlagsMask |= (uint)LLObject.ObjectFlags.ObjectTransfer;
+            }
+
+            return objectFlagsMask;
+        }
+
+        protected virtual bool GenericObjectPermission(LLUUID currentUser, LLUUID objId)
         {
             // Default: deny
             bool permission = false;
+            bool locked = false;
 
             if (!m_scene.Entities.ContainsKey(objId))
             {
@@ -231,37 +302,59 @@ namespace OpenSim.Region.Environment
             }
 
             // If it's not an object, we cant edit it.
-            if (!(m_scene.Entities[objId] is SceneObjectGroup))
+            if ((!(m_scene.Entities[objId] is SceneObjectGroup)))
             {
                 return false;
             }
 
-            SceneObjectGroup task = (SceneObjectGroup) m_scene.Entities[objId];
-            LLUUID taskOwner = null;
-            // Added this because at this point in time it wouldn't be wise for 
-            // the administrator object permissions to take effect.
-            LLUUID objectOwner = task.OwnerID;
+
+            SceneObjectGroup group = (SceneObjectGroup)m_scene.Entities[objId];
+
+            LLUUID objectOwner = group.OwnerID;
+            locked = ((group.RootPart.OwnerMask & PERM_LOCKED) == 0);
+
+            // People shouldn't be able to do anything with locked objects, except the Administrator
+            // The 'set permissions' runs through a different permission check, so when an object owner 
+            // sets an object locked, the only thing that they can do is unlock it.
+            //
+            // Nobody but the object owner can set permissions on an object
+            //
+
+            if (locked && (!IsAdministrator(currentUser)))
+            {
+                return false;
+            }
 
             // Object owners should be able to edit their own content
-            if (user == objectOwner)
+            if (currentUser == objectOwner)
+            {
                 permission = true;
+            }
 
             // Users should be able to edit what is over their land.
-            Land parcel = m_scene.LandManager.getLandObject(task.AbsolutePosition.X, task.AbsolutePosition.Y);
-            if (parcel != null && parcel.landData.ownerID == user)
+            Land parcel = m_scene.LandManager.getLandObject(group.AbsolutePosition.X, group.AbsolutePosition.Y);
+            if ((parcel != null) && (parcel.landData.ownerID == currentUser))
+            {
                 permission = true;
+            }
 
             // Estate users should be able to edit anything in the sim
-            if (IsEstateManager(user))
+            if (IsEstateManager(currentUser))
+            {
                 permission = true;
+            }
 
             // Admin objects should not be editable by the above
-            if (IsAdministrator(taskOwner))
+            if (IsAdministrator(objectOwner))
+            {
                 permission = false;
+            }
 
             // Admin should be able to edit anything in the sim (including admin objects)
-            if (IsAdministrator(user))
+            if (IsAdministrator(currentUser))
+            {
                 permission = true;
+            }
 
             return permission;
         }
@@ -292,19 +385,33 @@ namespace OpenSim.Region.Environment
                     return false;
                 }
 
+                // The client 
+                // may request to edit linked parts, and therefore, it needs 
+                // to also check for SceneObjectPart
+
                 // If it's not an object, we cant edit it.
-                if (!(m_scene.Entities[obj] is SceneObjectGroup))
+                if ((!(m_scene.Entities[obj] is SceneObjectGroup)))
                 {
                     return false;
                 }
 
-                SceneObjectGroup task = (SceneObjectGroup) m_scene.Entities[obj];
+
+                SceneObjectGroup task = (SceneObjectGroup)m_scene.Entities[obj];
+
+
                 LLUUID taskOwner = null;
                 // Added this because at this point in time it wouldn't be wise for 
                 // the administrator object permissions to take effect.
                 LLUUID objectOwner = task.OwnerID;
+
+                // Anyone can move
                 if ((task.RootPart.EveryoneMask & PERM_MOVE) != 0)
                     permission = true;
+
+                // Locked
+                if ((task.RootPart.OwnerMask & PERM_LOCKED) != 0)
+                    permission = false;
+
             }
             return permission;
         }
@@ -325,7 +432,7 @@ namespace OpenSim.Region.Environment
                     return false;
                 }
 
-                SceneObjectGroup task = (SceneObjectGroup) m_scene.Entities[obj];
+                SceneObjectGroup task = (SceneObjectGroup)m_scene.Entities[obj];
                 LLUUID taskOwner = null;
                 // Added this because at this point in time it wouldn't be wise for 
                 // the administrator object permissions to take effect.
@@ -391,6 +498,11 @@ namespace OpenSim.Region.Environment
         {
             return IsAdministrator(user);
         }
+
+	public virtual bool CanRunConsoleCommand(LLUUID user)
+	{
+		return IsAdministrator(user);
+	}
 
         public virtual bool CanTerraform(LLUUID user, LLVector3 position)
         {
@@ -463,7 +575,9 @@ namespace OpenSim.Region.Environment
             bool permission = false;
 
             if (parcel.landData.ownerID == user)
+            {
                 permission = true;
+            }
 
             if (parcel.landData.isGroupOwned)
             {
@@ -471,10 +585,14 @@ namespace OpenSim.Region.Environment
             }
 
             if (IsEstateManager(user))
+            {
                 permission = true;
+            }
 
             if (IsAdministrator(user))
+            {
                 permission = true;
+            }
 
             return permission;
         }

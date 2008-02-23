@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -35,6 +35,8 @@ namespace OpenSim.Region.Environment
 {
     public class StorageManager
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private IRegionDataStore m_dataStore;
 
         public IRegionDataStore DataStore
@@ -47,9 +49,9 @@ namespace OpenSim.Region.Environment
             m_dataStore = storage;
         }
 
-        public StorageManager(string dllName, string connectionstring)
+        public StorageManager(string dllName, string connectionstring, bool persistPrimInventories)
         {
-            MainLog.Instance.Verbose("DATASTORE", "Attempting to load " + dllName);
+            m_log.Info("[DATASTORE]: Attempting to load " + dllName);
             Assembly pluginAssembly = Assembly.LoadFrom(dllName);
 
             foreach (Type pluginType in pluginAssembly.GetTypes())
@@ -62,11 +64,11 @@ namespace OpenSim.Region.Environment
                     {
                         IRegionDataStore plug =
                             (IRegionDataStore) Activator.CreateInstance(pluginAssembly.GetType(pluginType.ToString()));
-                        plug.Initialise(connectionstring, false);
+                        plug.Initialise(connectionstring, persistPrimInventories);
 
                         m_dataStore = plug;
 
-                        MainLog.Instance.Verbose("DATASTORE", "Added IRegionDataStore Interface");
+                        m_log.Info("[DATASTORE]: Added IRegionDataStore Interface");
                     }
                 }
             }

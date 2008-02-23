@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -47,6 +47,8 @@ namespace SimpleApp
 
         public event Action<IClientAPI> OnLogout;
         public event ObjectPermissions OnObjectPermissions;
+
+        public event MoneyTransferRequest OnMoneyTransferRequest;
         public event Action<IClientAPI> OnConnectionClosed;
 
         public event ImprovedInstantMessage OnInstantMessage;
@@ -56,6 +58,8 @@ namespace SimpleApp
         public event ModifyTerrain OnModifyTerrain;
         public event SetAppearance OnSetAppearance;
         public event AvatarNowWearing OnAvatarNowWearing;
+        public event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;
+        public event ObjectAttach OnObjectAttach;
         public event StartAnim OnStartAnim;
         public event StopAnim OnStopAnim;
         public event LinkObjects OnLinkObjects;
@@ -85,6 +89,9 @@ namespace SimpleApp
         public event MoveObject OnGrabUpdate;
         public event ViewerEffectEventHandler OnViewerEffect;
 
+        public event FetchInventory OnAgentDataUpdateRequest;
+        public event FetchInventory OnUserInfoRequest;
+        public event TeleportLocationRequest OnSetStartLocationRequest;
 
         public event UpdateShape OnUpdatePrimShape;
         public event ObjectExtraParams OnUpdateExtraParams;
@@ -108,6 +115,8 @@ namespace SimpleApp
         public event CreateInventoryFolder OnCreateNewInventoryFolder;
         public event UpdateInventoryFolder OnUpdateInventoryFolder;
         public event MoveInventoryFolder OnMoveInventoryFolder;
+        public event RemoveInventoryFolder OnRemoveInventoryFolder;
+        public event RemoveInventoryItem OnRemoveInventoryItem;
         public event FetchInventoryDescendents OnFetchInventoryDescendents;
         public event PurgeInventoryDescendents OnPurgeInventoryDescendents;
         public event FetchInventory OnFetchInventory;
@@ -147,6 +156,8 @@ namespace SimpleApp
         public event FriendActionDelegate OnApproveFriendRequest;
         public event FriendActionDelegate OnDenyFriendRequest;
         public event FriendshipTermination OnTerminateFriendship;
+        public event PacketStats OnPacketStats;
+        public event MoneyBalanceRequest OnMoneyBalanceRequest;
 
         public event ReceiveRexClientScriptCmd OnReceiveRexClientScriptCmd; // rex
         public event ObjectClickAction OnObjectClickAction; // rex
@@ -236,6 +247,11 @@ namespace SimpleApp
         {
         }
 
+        public virtual void SendAgentDataUpdate(LLUUID agentid, LLUUID activegroupid, string firstname, string lastname, ulong grouppowers, string groupname, string grouptitle)
+        {
+
+        }
+
         public virtual void SendKillObject(ulong regionHandle, uint localID)
         {
         }
@@ -243,7 +259,12 @@ namespace SimpleApp
         public virtual void SetChildAgentThrottle(byte[] throttle)
         {
         }
+        public byte[] GetThrottlesPacked(float multiplier)
+        {
+            return new byte[0];
+        }
 
+        
         public virtual void SendAnimations(LLUUID[] animations, int[] seqs, LLUUID sourceAgentId)
         {
         }
@@ -307,7 +328,7 @@ namespace SimpleApp
         {
         }
 
-        public virtual void SendTeleportFailed()
+        public virtual void SendTeleportFailed(string reason)
         {
         }
 
@@ -337,6 +358,10 @@ namespace SimpleApp
         {
         }
 
+        public virtual void SendDialog(string objectname, LLUUID objectID, LLUUID ownerID, string msg, LLUUID textureID, int ch, string[] buttonlabels)
+        {
+        }
+
         public virtual void SendPrimitiveToClient(ulong regionHandle, ushort timeDilation, uint localID,
                                                   PrimitiveBaseShape primShape, LLVector3 pos, uint flags,
                                                   LLUUID objectID, LLUUID ownerID, string text, byte[] color,
@@ -344,7 +369,13 @@ namespace SimpleApp
                                                   byte[] particleSystem, LLQuaternion rotation, byte clickAction)
         {
         }
-
+        public virtual void SendPrimitiveToClient(ulong regionHandle, ushort timeDilation, uint localID,
+                                          PrimitiveBaseShape primShape, LLVector3 pos, uint flags,
+                                          LLUUID objectID, LLUUID ownerID, string text, byte[] color,
+                                          uint parentID,
+                                          byte[] particleSystem, LLQuaternion rotation, byte clickAction, byte[] textureanimation)
+        {
+        }
         public virtual void SendPrimTerseUpdate(ulong regionHandle, ushort timeDilation, uint localID,
                                                 LLVector3 position, LLQuaternion rotation)
         {
@@ -400,7 +431,6 @@ namespace SimpleApp
         public void SendTriggeredSound(LLUUID soundID, LLUUID ownerID, LLUUID objectID, LLUUID parentID, ulong handle, LLVector3 position, float gain)
         {
         }
-
 
         public void SendAlertMessage(string message)
         {

@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -51,9 +51,9 @@ namespace SimpleApp
         private string m_userPlugin = "OpenSim.Framework.Data.SQLite.dll";
         private string m_inventoryPlugin = "OpenSim.Framework.Data.SQLite.dll";
 
-        protected override LogBase CreateLog()
+        protected override ConsoleBase CreateConsole()
         {
-            return new LogBase(null, "SimpleApp", this, true);
+            return new ConsoleBase("SimpleApp", this);
         }
 
         protected override void Initialize()
@@ -64,12 +64,12 @@ namespace SimpleApp
 
             LocalAssetServer assetServer = new LocalAssetServer();
 
-            m_assetCache = new AssetCache(assetServer, m_log);
+            m_assetCache = new AssetCache(assetServer);
         }
 
         public void Run()
         {
-            StartLog();
+            StartConsole();
             StartUp();
 
             LocalInventoryService inventoryService = new LocalInventoryService();
@@ -88,12 +88,13 @@ namespace SimpleApp
             m_commsManager = localComms;
 
             LocalLoginService loginService =
-                new LocalLoginService(userService, "", localComms, m_networkServersInfo, false, false);
+                new LocalLoginService(
+                    userService, String.Empty, localComms, m_networkServersInfo, false);
             loginService.OnLoginToRegion += backendService.AddNewSession;
 
             m_httpServer.AddXmlRPCHandler("login_to_simulator", loginService.XmlRpcLoginMethod);
 
-            m_log.Notice(m_log.LineInfo);
+            m_console.Notice(m_console.LineInfo);
 
             IPEndPoint internalEndPoint =
                 new IPEndPoint(IPAddress.Parse("127.0.0.1"), (int) m_networkServersInfo.HttpListenerPort);
@@ -103,7 +104,7 @@ namespace SimpleApp
 
             UDPServer udpServer;
 
-            m_moduleLoader = new ModuleLoader(m_log, m_config);
+            m_moduleLoader = new ModuleLoader(m_config);
             m_moduleLoader.LoadDefaultSharedModules();
 
             Scene scene = SetupScene(regionInfo, out udpServer, false);
@@ -169,8 +170,8 @@ namespace SimpleApp
                 scene.AddEntity(fileObject);
             }
 
-            m_log.Notice("Press enter to quit.");
-            m_log.ReadLine();
+            m_console.Notice("Press enter to quit.");
+            m_console.ReadLine();
         }
 
         protected override Scene CreateScene(RegionInfo regionInfo, StorageManager storageManager,
@@ -181,12 +182,12 @@ namespace SimpleApp
             return
                 new MyWorld(regionInfo, circuitManager, permissionManager, m_commsManager, sceneGridService,
                             m_assetCache, storageManager, m_httpServer,
-                            new ModuleLoader(m_log, m_config), true, false);
+                            new ModuleLoader(m_config), true, false);
         }
 
         protected override StorageManager CreateStorageManager(string connectionstring)
         {
-            return new StorageManager("OpenSim.DataStore.NullStorage.dll", "simpleapp.yap");
+            return new StorageManager("OpenSim.DataStore.NullStorage.dll", "simpleapp.yap", false);
         }
 
         protected override PhysicsScene GetPhysicsScene()
@@ -210,6 +211,8 @@ namespace SimpleApp
 
         private static void Main(string[] args)
         {
+            log4net.Config.XmlConfigurator.Configure();
+
             Program app = new Program();
 
             app.Run();

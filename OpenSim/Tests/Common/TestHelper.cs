@@ -28,21 +28,26 @@
 
 using System;
 using System.Collections.Generic;
-using System.Windows.Forms;
+using System.Text;
 
-namespace OpenSim.GUI
+namespace OpenSim.Tests.Common
 {
-    static class Program
+    public delegate void TestDelegate();
+
+    public class TestHelper
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        [STAThread]
-        static void Main()
+        public static bool AssertThisDelegateCausesArgumentException(TestDelegate d)
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Main());
+            try
+            {
+                d();
+            }
+            catch(ArgumentException e)
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }

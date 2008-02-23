@@ -117,13 +117,4 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="textBox1.Text" xml:space="preserve">
-    <value>What I want here:
-* Region configuration add/disable/modify)
-* OpenSim config: what physics/sql/scriptengine modules
-* Configuration for each of the servers
-* An option of what parts the server will run: "Stand Alone, Grid region, Grid Server, Custom"
-Custom = you can enable/disable one or more services, for example if you only run AssetServer on this machine.
-* User manager (add/remove/lockout/modify) -- maybe a separate form for this?</value>
-  </data>
 </root>

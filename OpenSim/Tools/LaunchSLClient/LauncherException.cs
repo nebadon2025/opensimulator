@@ -28,21 +28,26 @@
 
 using System;
 using System.Collections.Generic;
-using System.Windows.Forms;
+using System.Text;
 
-namespace OpenSim.GUI
+namespace LaunchSLClient
 {
-    static class Program
+    class LauncherException : ApplicationException
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        [STAThread]
-        static void Main()
+        private const string CUSTOMMESSAGE = "The SL Client Launcher has failed with the following error: ";
+
+        private LauncherException() { }
+
+        public LauncherException(string errorMesssage, string source)
+            : base (CUSTOMMESSAGE + errorMesssage)
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Main());
+            base.Source = source;
+        }
+
+        public LauncherException(string errorMessage, string source, Exception innerException)
+            : base(CUSTOMMESSAGE + errorMessage, innerException)
+        {
+            base.Source = source;
         }
     }
 }

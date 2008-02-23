@@ -27,22 +27,31 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Windows.Forms;
+using NUnit.Framework.Constraints;
 
-namespace OpenSim.GUI
+namespace OpenSim.Tests.Common
 {
-    static class Program
+    public abstract class ANumericalToleranceConstraint : Constraint
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        [STAThread]
-        static void Main()
+        protected double _tolerance;
+
+        public ANumericalToleranceConstraint(double tolerance)
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Main());
+            if (tolerance < 0)
+            {
+                throw new ArgumentException("Tolerance cannot be negative.");
+            }
+            _tolerance = tolerance;
+        }
+
+        protected bool IsWithinDoubleConstraint(double doubleValue, double baseValue)
+        {
+            if (doubleValue >= baseValue - _tolerance && doubleValue <= baseValue + _tolerance)
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }

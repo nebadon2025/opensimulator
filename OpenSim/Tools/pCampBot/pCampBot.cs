@@ -28,21 +28,49 @@
 
 using System;
 using System.Collections.Generic;
-using System.Windows.Forms;
+using System.Text;
+using libsecondlife;
+using libsecondlife.Packets;
+using Nini.Config;
+using System.Threading;
+using OpenSim.Framework.Console;
 
-namespace OpenSim.GUI
+namespace pCampBot
 {
-    static class Program
+    /// <summary>
+    /// Event Types from the BOT.  Add new events here
+    /// </summary>
+    public enum EventType:int
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
+        NONE = 0,
+        CONNECTED = 1,
+        DISCONNECTED = 2
+    }
+
+    public class pCampBot
+    {
         [STAThread]
-        static void Main()
+        public static void Main(string[] args)
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Main());
+            //Set up our nifty config..  thanks to nini
+            ArgvConfigSource cs = new ArgvConfigSource(args);
+
+            cs.AddSwitch("Startup", "botcount");
+            cs.AddSwitch("Startup", "loginuri");
+            cs.AddSwitch("Startup", "firstname");
+            cs.AddSwitch("Startup", "lastname");
+            cs.AddSwitch("Startup", "password");
+
+            IConfig ol = cs.Configs["Startup"];
+            int botcount = ol.GetInt("botcount", 1);
+            BotManager bm = new BotManager();
+
+            //startup specified number of bots.  1 is the default
+            bm.dobotStartup(botcount, ol);
+            while (true)
+            {
+                MainConsole.Instance.Prompt();
+            }
         }
     }
 }

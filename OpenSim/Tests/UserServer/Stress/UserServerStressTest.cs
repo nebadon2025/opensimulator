@@ -1,4 +1,4 @@
-/*
+﻿/*
 * Copyright (c) Contributors, http://opensimulator.org/
 * See CONTRIBUTORS.TXT for a full list of copyright holders.
 *
@@ -27,22 +27,19 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Windows.Forms;
 
-namespace OpenSim.GUI
+namespace OpenSim.Tests.UserServer.Stress
 {
-    static class Program
+    /// <summary>
+    /// In the future this class will programatically stress test the user server
+    /// </summary>
+    public class UserServerStressTest
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        [STAThread]
-        static void Main()
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Main());
+        public static void Main(string[] args)
+        {     
+            log4net.Config.XmlConfigurator.Configure();
+
+            System.Console.WriteLine("Aborting - not yet functional");
         }
     }
 }

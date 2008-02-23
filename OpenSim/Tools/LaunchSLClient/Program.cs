@@ -30,7 +30,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
 
-namespace OpenSim.GUI
+namespace LaunchSLClient
 {
     static class Program
     {
@@ -40,9 +40,17 @@ namespace OpenSim.GUI
         [STAThread]
         static void Main()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Main());
+            try
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new Form1());
+            }
+            catch (Exception ex)
+            {
+                // Handles all unhandled errors
+                MessageBox.Show(ex.Message,"Unhandled Error");
+            }
         }
     }
 }

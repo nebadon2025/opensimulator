@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -45,6 +45,8 @@ namespace OpenSim.Region.Communications.OGS1
 
     public delegate bool ChildAgentUpdate(ulong regionHandle, ChildAgentDataUpdate childUpdate);
 
+    public delegate bool TellRegionToCloseChildConnection(ulong regionHandle, LLUUID agentID);
+
     public sealed class InterRegionSingleton
     {
         private static readonly InterRegionSingleton instance = new InterRegionSingleton();
@@ -55,6 +57,15 @@ namespace OpenSim.Region.Communications.OGS1
         public event PrimGroupArrival OnPrimGroupArrival;
         public event RegionUp OnRegionUp;
         public event ChildAgentUpdate OnChildAgentUpdate;
+        public event TellRegionToCloseChildConnection OnTellRegionToCloseChildConnection;
+
+        private InformRegionChild handler001 = null; // OnChildAgent;
+        private ExpectArrival handler002 = null; // OnArrival;
+        private InformRegionPrimGroup handler003 = null; // OnPrimGroupNear;
+        private PrimGroupArrival handler004 = null; // OnPrimGroupArrival;
+        private RegionUp handler005 = null; // OnRegionUp;
+        private ChildAgentUpdate handler006 = null; // OnChildAgentUpdate;
+        private TellRegionToCloseChildConnection handler007 = null; // OnTellRegionToCloseChildConnection;
 
 
         static InterRegionSingleton()
@@ -72,54 +83,70 @@ namespace OpenSim.Region.Communications.OGS1
 
         public bool InformRegionOfChildAgent(ulong regionHandle, AgentCircuitData agentData)
         {
-            if (OnChildAgent != null)
+            handler001 = OnChildAgent;
+            if (handler001 != null)
             {
-                return OnChildAgent(regionHandle, agentData);
+                return handler001(regionHandle, agentData);
             }
             return false;
         }
 
         public bool RegionUp(SearializableRegionInfo sregion, ulong regionhandle)
         {
-            if (OnRegionUp != null)
+            handler005 = OnRegionUp;
+            if (handler005 != null)
             {
-                return OnRegionUp(sregion, regionhandle);
+                return handler005(sregion, regionhandle);
             }
             return false;
         }
 
         public bool ChildAgentUpdate(ulong regionHandle, ChildAgentDataUpdate cAgentUpdate)
         {
-            if (OnChildAgentUpdate != null)
+            handler006 = OnChildAgentUpdate;
+            if (handler006 != null)
             {
-                return OnChildAgentUpdate(regionHandle, cAgentUpdate);
+                return handler006(regionHandle, cAgentUpdate);
             }
             return false;
         }
 
         public bool ExpectAvatarCrossing(ulong regionHandle, LLUUID agentID, LLVector3 position, bool isFlying)
         {
-            if (OnArrival != null)
+            handler002 = OnArrival;
+            if (handler002 != null)
             {
-                return OnArrival(regionHandle, agentID, position, isFlying);
+                return handler002(regionHandle, agentID, position, isFlying);
             }
             return false;
         }
 
         public bool InformRegionPrim(ulong regionHandle, LLUUID primID, LLVector3 position, bool isPhysical)
         {
-            if (OnPrimGroupNear != null)
+            handler003 = OnPrimGroupNear;
+            if (handler003 != null)
             {
-                return OnPrimGroupNear(regionHandle, primID, position, isPhysical);
+                return handler003(regionHandle, primID, position, isPhysical);
             }
             return false;
         }
 
         public bool ExpectPrimCrossing(ulong regionHandle, LLUUID primID, string objData)
         {
-            if (OnPrimGroupArrival != null)
+            handler004 = OnPrimGroupArrival;
+            if (handler004 != null)
             {
-                return OnPrimGroupArrival(regionHandle, primID, objData);
+                return handler004(regionHandle, primID, objData);
+            }
+            return false;
+        }
+
+        public bool TellRegionToCloseChildConnection(ulong regionHandle, LLUUID agentID)
+        {
+            handler007 = OnTellRegionToCloseChildConnection;
+            if (handler007 != null)
+            {
+                return handler007(regionHandle, agentID);
             }
             return false;
         }
@@ -127,6 +154,8 @@ namespace OpenSim.Region.Communications.OGS1
 
     public class OGS1InterRegionRemoting : MarshalByRefObject
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         public OGS1InterRegionRemoting()
         {
         }
@@ -171,6 +200,7 @@ namespace OpenSim.Region.Communications.OGS1
             }
         }
 
+
         public bool ExpectAvatarCrossing(ulong regionHandle, Guid agentID, sLLVector3 position, bool isFlying)
         {
             try
@@ -212,6 +242,19 @@ namespace OpenSim.Region.Communications.OGS1
             catch (RemotingException e)
             {
                 Console.WriteLine("Remoting Error: Unable to connect to remote region.\n" + e.ToString());
+                return false;
+            }
+        }
+
+        public bool TellRegionToCloseChildConnection(ulong regionHandle, Guid agentID)
+        {
+            try
+            {
+                return InterRegionSingleton.Instance.TellRegionToCloseChildConnection(regionHandle, new LLUUID(agentID));
+            }
+            catch (RemotingException)
+            {
+                m_log.Info("[INTERREGION]: Remoting Error: Unable to connect to remote region: " + regionHandle.ToString());
                 return false;
             }
         }

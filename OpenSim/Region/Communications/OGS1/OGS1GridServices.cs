@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -47,15 +47,18 @@ namespace OpenSim.Region.Communications.OGS1
 {
     public class OGS1GridServices : IGridServices, IInterRegionCommunications
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private LocalBackEndServices m_localBackend = new LocalBackEndServices();
         private Dictionary<ulong, RegionInfo> m_remoteRegionInfoCache = new Dictionary<ulong, RegionInfo>();
         private List<SimpleRegionInfo> m_knownRegions = new List<SimpleRegionInfo>();
+        private Dictionary<ulong, int> m_deadRegionCache = new Dictionary<ulong, int>();
         private Dictionary<string, string> m_queuedGridSettings = new Dictionary<string, string>();
 
         public BaseHttpServer httpListener;
         public NetworkServersInfo serversInfo;
         public BaseHttpServer httpServer;
-        public string _gdebugRegionName = "";
+        public string _gdebugRegionName = String.Empty;
 
         public string gdebugRegionName
         {
@@ -63,7 +66,7 @@ namespace OpenSim.Region.Communications.OGS1
             set { _gdebugRegionName = value; }
         }
 
-        public string _rdebugRegionName = "";
+        public string _rdebugRegionName = String.Empty;
 
         public string rdebugRegionName
         {
@@ -72,7 +75,7 @@ namespace OpenSim.Region.Communications.OGS1
         }
 
         /// <summary>
-        /// 
+        /// Contructor.  Adds "expect_user" and "check" xmlrpc method handlers
         /// </summary>
         /// <param name="servers_info"></param>
         /// <param name="httpServe"></param>
@@ -98,6 +101,7 @@ namespace OpenSim.Region.Communications.OGS1
             // Login / Authentication
 
             GridParams["authkey"] = serversInfo.GridSendKey;
+            GridParams["recvkey"] = serversInfo.GridRecvKey;
             GridParams["UUID"] = regionInfo.RegionID.ToString();
             GridParams["sim_ip"] = regionInfo.ExternalHostName;
             GridParams["sim_port"] = regionInfo.InternalEndPoint.Port.ToString();
@@ -107,6 +111,16 @@ namespace OpenSim.Region.Communications.OGS1
             GridParams["http_port"] = serversInfo.HttpListenerPort.ToString();
             GridParams["remoting_port"] = NetworkServersInfo.RemotingListenerPort.ToString();
             GridParams["map-image-id"] = regionInfo.EstateSettings.terrainImageID.ToString();
+
+            // part of an initial brutish effort to provide accurate information (as per the xml region spec)
+            // wrt the ownership of a given region
+            // the (very bad) assumption is that this value is being read and handled inconsistently or
+            // not at all. Current strategy is to put the code in place to support the validity of this information
+            // and to roll forward debugging any issues from that point
+            //
+            // this particular section of the mod attempts to supply a value from the region's xml file to the grid 
+            // server for the UUID of the region's owner (master avatar)
+            GridParams["master_avatar_uuid"] = regionInfo.MasterAvatarAssignedUUID.ToString();
 
             // Package into an XMLRPC Request
             ArrayList SendParams = new ArrayList();
@@ -118,10 +132,10 @@ namespace OpenSim.Region.Communications.OGS1
             try
             {
                 GridReq = new XmlRpcRequest("simulator_login", SendParams);
-                GridResp = GridReq.Send(serversInfo.GridURL, 10000);
+                GridResp = GridReq.Send(serversInfo.GridURL, 16000);
             } catch (Exception ex)
             {
-                MainLog.Instance.Error("Unable to connect to grid. Grid server not running?");
+                m_log.Error("Unable to connect to grid. Grid server not running?");
                 throw(ex);
             }
             Hashtable GridRespData = (Hashtable)GridResp.Value;
@@ -131,7 +145,7 @@ namespace OpenSim.Region.Communications.OGS1
             if (GridRespData.ContainsKey("error"))
             {
                 string errorstring = (string) GridRespData["error"];
-                MainLog.Instance.Error("Unable to connect to grid: " + errorstring);
+                m_log.Error("Unable to connect to grid: " + errorstring);
                 return null;
             }
             else
@@ -313,9 +327,9 @@ namespace OpenSim.Region.Communications.OGS1
                 }
                 catch (WebException)
                 {
-                    MainLog.Instance.Error("GRID",
-                                           "Region lookup failed for: " + regionHandle.ToString() +
-                                           " - Is the GridServer down?");
+                    m_log.Error("[GRID]: " +
+                                "Region lookup failed for: " + regionHandle.ToString() +
+                                " - Is the GridServer down?");
                     return null;
                 }
             }
@@ -374,6 +388,9 @@ namespace OpenSim.Region.Communications.OGS1
             return neighbours;
         }
 
+
+        
+
         /// <summary>
         /// Performs a XML-RPC query against the grid server returning mapblock information in the specified coordinates
         /// </summary>
@@ -401,7 +418,7 @@ namespace OpenSim.Region.Communications.OGS1
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error("MapBlockQuery XMLRPC failure: " + e.ToString());
+                m_log.Error("MapBlockQuery XMLRPC failure: " + e.ToString());
                 return new Hashtable();
             }
         }
@@ -428,13 +445,15 @@ namespace OpenSim.Region.Communications.OGS1
 
         // Grid Request Processing
         /// <summary>
-        /// 
+        /// Received from the user server when a user starts logging in.  This call allows
+        /// the region to prepare for direct communication from the client.  Sends back an empty
+        /// xmlrpc response on completion.
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>
         public XmlRpcResponse ExpectUser(XmlRpcRequest request)
         {
-            Console.WriteLine("Expecting User...");
+            m_log.Debug("[CONNECTION DEBUGGING]: Expect User called, starting agent setup ... ");
             Hashtable requestData = (Hashtable) request.Params[0];
             AgentCircuitData agentData = new AgentCircuitData();
             agentData.SessionID = new LLUUID((string) requestData["session_id"]);
@@ -455,10 +474,12 @@ namespace OpenSim.Region.Communications.OGS1
 
             if (requestData.ContainsKey("child_agent") && requestData["child_agent"].Equals("1"))
             {
+                m_log.Debug("[CONNECTION DEBUGGING]: Child agent detected");
                 agentData.child = true;
             }
             else
             {
+                m_log.Debug("[CONNECTION DEBUGGING]: Main agent detected");
                 agentData.startpos =
                     new LLVector3(Convert.ToUInt32(requestData["startpos_x"]),
                                   Convert.ToUInt32(requestData["startpos_y"]),
@@ -468,9 +489,10 @@ namespace OpenSim.Region.Communications.OGS1
 
             ulong regionHandle = Convert.ToUInt64((string) requestData["regionhandle"]);
 
+            m_log.Debug("[CONNECTION DEBUGGING]: Triggering welcome for " + agentData.AgentID.ToString() + " into " + regionHandle.ToString());
             m_localBackend.TriggerExpectUser(regionHandle, agentData);
 
-            MainLog.Instance.Verbose("GRID", "Welcoming new user...");
+            m_log.Info("[GRID]: Welcoming new user...");
 
             return new XmlRpcResponse();
         }
@@ -482,8 +504,17 @@ namespace OpenSim.Region.Communications.OGS1
         /// </summary>
         private void StartRemoting()
         {
-            TcpChannel ch = new TcpChannel((int) NetworkServersInfo.RemotingListenerPort);
-            ChannelServices.RegisterChannel(ch, false); // Disabled security as Mono doesnt support this.
+            TcpChannel ch;
+            try
+            {
+                ch = new TcpChannel((int)NetworkServersInfo.RemotingListenerPort);
+                ChannelServices.RegisterChannel(ch, false); // Disabled security as Mono doesnt support this.
+            }
+            catch (Exception ex)
+            {
+                m_log.Error("Exception while attempting to listen on TCP port " + (int)NetworkServersInfo.RemotingListenerPort + ".");
+                throw (ex);
+            }
 
             WellKnownServiceTypeEntry wellType =
                 new WellKnownServiceTypeEntry(typeof (OGS1InterRegionRemoting), "InterRegions",
@@ -495,86 +526,107 @@ namespace OpenSim.Region.Communications.OGS1
             InterRegionSingleton.Instance.OnPrimGroupNear += TriggerExpectPrimCrossing;
             InterRegionSingleton.Instance.OnRegionUp += TriggerRegionUp;
             InterRegionSingleton.Instance.OnChildAgentUpdate += TriggerChildAgentUpdate;
-            //InterRegionSingleton.Instance.OnRegionUp += RegionUp;
+            InterRegionSingleton.Instance.OnTellRegionToCloseChildConnection += TriggerTellRegionToCloseChildConnection;
+            
         }
 
         #region Methods called by regions in this instance
 
         public bool ChildAgentUpdate(ulong regionHandle, ChildAgentDataUpdate cAgentData)
         {
-            RegionInfo regInfo = null;
-            try
+            int failures = 0;
+            lock (m_deadRegionCache)
             {
-                if (m_localBackend.ChildAgentUpdate(regionHandle, cAgentData))
+                if (m_deadRegionCache.ContainsKey(regionHandle))
                 {
-                    return true;
+                    failures = m_deadRegionCache[regionHandle];
                 }
-
-                regInfo = RequestNeighbourInfo(regionHandle);
-                if (regInfo != null)
+            }
+            if (failures <= 3)
+            {
+                RegionInfo regInfo = null;
+                try
                 {
-                    //don't want to be creating a new link to the remote instance every time like we are here
-                    bool retValue = false;
-
-
-                    OGS1InterRegionRemoting remObject = (OGS1InterRegionRemoting) Activator.GetObject(
-                                                                                      typeof (OGS1InterRegionRemoting),
-                                                                                      "tcp://" + regInfo.RemotingAddress +
-                                                                                      ":" + regInfo.RemotingPort +
-                                                                                      "/InterRegions");
-
-                    if (remObject != null)
+                    if (m_localBackend.ChildAgentUpdate(regionHandle, cAgentData))
                     {
-                        retValue = remObject.ChildAgentUpdate(regionHandle, cAgentData);
+                        return true;
                     }
-                    else
-                    {
-                        Console.WriteLine("remoting object not found");
-                    }
-                    remObject = null;
-                    MainLog.Instance.Verbose("INTER",
-                                             gdebugRegionName +
-                                             ": OGS1 tried to Update Child Agent data on outside region and got " +
-                                             retValue.ToString());
 
-                    return retValue;
+                    regInfo = RequestNeighbourInfo(regionHandle);
+                    if (regInfo != null)
+                    {
+                        //don't want to be creating a new link to the remote instance every time like we are here
+                        bool retValue = false;
+
+
+                        OGS1InterRegionRemoting remObject = (OGS1InterRegionRemoting)Activator.GetObject(
+                                                                                          typeof(OGS1InterRegionRemoting),
+                                                                                          "tcp://" + regInfo.RemotingAddress +
+                                                                                          ":" + regInfo.RemotingPort +
+                                                                                          "/InterRegions");
+
+                        if (remObject != null)
+                        {
+                            retValue = remObject.ChildAgentUpdate(regionHandle, cAgentData);
+                        }
+                        else
+                        {
+                            Console.WriteLine("remoting object not found");
+                        }
+                        remObject = null;
+                        //m_log.Info("[INTER]: " +
+                                                 //gdebugRegionName +
+                                                 //": OGS1 tried to Update Child Agent data on outside region and got " +
+                                                 //retValue.ToString());
+
+                        return retValue;
+                    }
+                    NoteDeadRegion(regionHandle);
+
+                    return false;
                 }
-
-                return false;
+                catch (RemotingException e)
+                {
+                    NoteDeadRegion(regionHandle);
+                    m_log.Warn("Remoting Error: Unable to connect to adjacent region: " + 
+                                          " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
+                    m_log.Debug(e.ToString());
+                    return false;
+                }
+                catch (SocketException e)
+                {
+                    NoteDeadRegion(regionHandle);
+                    m_log.Warn("Socket Error: Unable to connect to adjacent region: " + " " +
+                                          regInfo.RegionLocX + "," + regInfo.RegionLocY);
+                    m_log.Debug(e.ToString());
+                    return false;
+                }
+                catch (InvalidCredentialException e)
+                {
+                    NoteDeadRegion(regionHandle);
+                    m_log.Warn("Invalid Credentials: Unable to connect to adjacent region: " + 
+                                          " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
+                    m_log.Debug(e.ToString());
+                    return false;
+                }
+                catch (AuthenticationException e)
+                {
+                    NoteDeadRegion(regionHandle);
+                    m_log.Warn("Authentication exception: Unable to connect to adjacent region: " +
+                                          " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
+                    m_log.Debug(e.ToString());
+                    return false;
+                }
+                catch (Exception e)
+                {
+                    NoteDeadRegion(regionHandle);
+                    m_log.Debug(e.ToString());
+                    return false;
+                }
             }
-            catch (RemotingException e)
+            else
             {
-                MainLog.Instance.Warn("Remoting Error: Unable to connect to adjacent region: " + regInfo.RegionName +
-                                      " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
-                return false;
-            }
-            catch (SocketException e)
-            {
-                MainLog.Instance.Warn("Socket Error: Unable to connect to adjacent region: " + regInfo.RegionName + " " +
-                                      regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
-                return false;
-            }
-            catch (InvalidCredentialException e)
-            {
-                MainLog.Instance.Warn("Invalid Credentials: Unable to connect to adjacent region: " + regInfo.RegionName +
-                                      " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
-                return false;
-            }
-            catch (AuthenticationException e)
-            {
-                MainLog.Instance.Warn("Authentication exception: Unable to connect to adjacent region: " +
-                                      regInfo.RegionName + " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
-                return false;
-            }
-            catch (Exception e)
-            {
-                MainLog.Instance.Warn("Unknown exception: Unable to connect to adjacent region: " + regInfo.RegionName +
-                                      " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
+                //m_log.Info("[INTERREGION]: Skipped Sending Child Update to a region because it failed too many times:" + regionHandle.ToString());
                 return false;
             }
         }
@@ -602,64 +654,70 @@ namespace OpenSim.Region.Communications.OGS1
                     bool retValue = false;
 
 
-                    OGS1InterRegionRemoting remObject = (OGS1InterRegionRemoting) Activator.GetObject(
-                                                                                      typeof (OGS1InterRegionRemoting),
-                                                                                      "tcp://" + regInfo.RemotingAddress +
-                                                                                      ":" + regInfo.RemotingPort +
-                                                                                      "/InterRegions");
+                        OGS1InterRegionRemoting remObject = (OGS1InterRegionRemoting)Activator.GetObject(
+                                                                                          typeof(OGS1InterRegionRemoting),
+                                                                                          "tcp://" + regInfo.RemotingAddress +
+                                                                                          ":" + regInfo.RemotingPort +
+                                                                                          "/InterRegions");
 
-                    if (remObject != null)
-                    {
-                        retValue = remObject.InformRegionOfChildAgent(regionHandle, new sAgentCircuitData(agentData));
-                    }
-                    else
-                    {
-                        Console.WriteLine("remoting object not found");
-                    }
-                    remObject = null;
-                    MainLog.Instance.Verbose("INTER",
-                                             gdebugRegionName + ": OGS1 tried to InformRegionOfChildAgent for " +
-                                             agentData.firstname + " " + agentData.lastname + " and got " +
-                                             retValue.ToString());
+                        if (remObject != null)
+                        {
+                            retValue = remObject.InformRegionOfChildAgent(regionHandle, new sAgentCircuitData(agentData));
+                        }
+                        else
+                        {
+                            Console.WriteLine("remoting object not found");
+                        }
+                        remObject = null;
+                        m_log.Info("[INTER]: " +
+                                   gdebugRegionName + ": OGS1 tried to InformRegionOfChildAgent for " +
+                                   agentData.firstname + " " + agentData.lastname + " and got " +
+                                   retValue.ToString());
 
-                    return retValue;
+                        return retValue;
+
                 }
-
+                NoteDeadRegion(regionHandle);
                 return false;
             }
             catch (RemotingException e)
             {
-                MainLog.Instance.Warn("Remoting Error: Unable to connect to adjacent region: " + regInfo.RegionName +
-                                      " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Remoting Error: Unable to connect to adjacent region: " + regInfo.RegionName +
+                           " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
+                m_log.Debug(e.ToString());
                 return false;
             }
             catch (SocketException e)
             {
-                MainLog.Instance.Warn("Socket Error: Unable to connect to adjacent region: " + regInfo.RegionName + " " +
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Socket Error: Unable to connect to adjacent region: " + regInfo.RegionName + " " +
                                       regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
+                m_log.Debug(e.ToString());
                 return false;
             }
             catch (InvalidCredentialException e)
             {
-                MainLog.Instance.Warn("Invalid Credentials: Unable to connect to adjacent region: " + regInfo.RegionName +
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Invalid Credentials: Unable to connect to adjacent region: " + regInfo.RegionName +
                                       " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
+                m_log.Debug(e.ToString());
                 return false;
             }
             catch (AuthenticationException e)
             {
-                MainLog.Instance.Warn("Authentication exception: Unable to connect to adjacent region: " +
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Authentication exception: Unable to connect to adjacent region: " +
                                       regInfo.RegionName + " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
+                m_log.Debug(e.ToString());
                 return false;
             }
             catch (Exception e)
             {
-                MainLog.Instance.Warn("Unknown exception: Unable to connect to adjacent region: " + regInfo.RegionName +
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Unknown exception: Unable to connect to adjacent region: " + regInfo.RegionName +
                                       " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
+                m_log.Debug(e.ToString());
                 return false;
             }
         }
@@ -709,7 +767,7 @@ namespace OpenSim.Region.Communications.OGS1
                             Console.WriteLine("remoting object not found");
                         }
                         remObject = null;
-                        MainLog.Instance.Verbose("INTER", gdebugRegionName + ": OGS1 tried to inform region I'm up");
+                        m_log.Info("[INTER]: " + gdebugRegionName + ": OGS1 tried to inform region I'm up");
 
                         return retValue;
                     }
@@ -726,49 +784,49 @@ namespace OpenSim.Region.Communications.OGS1
             }
             catch (RemotingException e)
             {
-                MainLog.Instance.Warn("Remoting Error: Unable to connect to adjacent region using tcp://" +
-                                      regInfo.RemotingAddress +
-                                      ":" + regInfo.RemotingPort +
-                                      "/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY +
-                                      " - Is this neighbor up?");
-                MainLog.Instance.Debug(e.ToString());
+                m_log.Warn("Remoting Error: Unable to connect to adjacent region using tcp://" +
+                           regInfo.RemotingAddress +
+                           ":" + regInfo.RemotingPort +
+                           "/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY +
+                           " - Is this neighbor up?");
+                m_log.Debug(e.ToString());
                 return false;
             }
             catch (SocketException e)
             {
-                MainLog.Instance.Warn("Socket Error: Unable to connect to adjacent region using tcp://" +
-                                      regInfo.RemotingAddress +
-                                      ":" + regInfo.RemotingPort +
-                                      "/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY +
-                                      " - Is this neighbor up?");
-                MainLog.Instance.Debug(e.ToString());
+                m_log.Warn("Socket Error: Unable to connect to adjacent region using tcp://" +
+                           regInfo.RemotingAddress +
+                           ":" + regInfo.RemotingPort +
+                           "/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY +
+                           " - Is this neighbor up?");
+                m_log.Debug(e.ToString());
                 return false;
             }
             catch (InvalidCredentialException e)
             {
-                MainLog.Instance.Warn("Invalid Credentials: Unable to connect to adjacent region using tcp://" +
-                                      regInfo.RemotingAddress +
-                                      ":" + regInfo.RemotingPort +
-                                      "/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
+                m_log.Warn("Invalid Credentials: Unable to connect to adjacent region using tcp://" +
+                           regInfo.RemotingAddress +
+                           ":" + regInfo.RemotingPort +
+                           "/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
+                m_log.Debug(e.ToString());
                 return false;
             }
             catch (AuthenticationException e)
             {
-                MainLog.Instance.Warn("Authentication exception: Unable to connect to adjacent region using tcp://" +
-                                      regInfo.RemotingAddress +
-                                      ":" + regInfo.RemotingPort +
-                                      "/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
+                m_log.Warn("Authentication exception: Unable to connect to adjacent region using tcp://" +
+                           regInfo.RemotingAddress +
+                           ":" + regInfo.RemotingPort +
+                           "/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
+                m_log.Debug(e.ToString());
                 return false;
             }
             catch (Exception e)
             {
                 // This line errors with a Null Reference Exception..    Why?  @.@
-                //MainLog.Instance.Warn("Unknown exception: Unable to connect to adjacent region using tcp://" + regInfo.RemotingAddress +
+                //m_log.Warn("Unknown exception: Unable to connect to adjacent region using tcp://" + regInfo.RemotingAddress +
                 // ":" + regInfo.RemotingPort +
                 //"/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY + " - This is likely caused by an incompatibility in the protocol between this sim and that one");
-                MainLog.Instance.Debug(e.ToString());
+                m_log.Debug(e.ToString());
                 return false;
             }
         }
@@ -781,76 +839,92 @@ namespace OpenSim.Region.Communications.OGS1
         /// <returns></returns>
         public bool InformRegionOfPrimCrossing(ulong regionHandle, LLUUID primID, string objData)
         {
-            RegionInfo regInfo = null;
-            try
+             int failures = 0;
+            lock (m_deadRegionCache)
             {
-                if (m_localBackend.InformRegionOfPrimCrossing(regionHandle, primID, objData))
+                if (m_deadRegionCache.ContainsKey(regionHandle))
                 {
-                    return true;
+                    failures = m_deadRegionCache[regionHandle];
                 }
-
-                regInfo = RequestNeighbourInfo(regionHandle);
-                if (regInfo != null)
+            }
+            if (failures <= 1)
+            {
+                RegionInfo regInfo = null;
+                try
                 {
-                    //don't want to be creating a new link to the remote instance every time like we are here
-                    bool retValue = false;
-
-
-                    OGS1InterRegionRemoting remObject = (OGS1InterRegionRemoting) Activator.GetObject(
-                                                                                      typeof (OGS1InterRegionRemoting),
-                                                                                      "tcp://" + regInfo.RemotingAddress +
-                                                                                      ":" + regInfo.RemotingPort +
-                                                                                      "/InterRegions");
-
-                    if (remObject != null)
+                    if (m_localBackend.InformRegionOfPrimCrossing(regionHandle, primID, objData))
                     {
-                        retValue = remObject.InformRegionOfPrimCrossing(regionHandle, primID.UUID, objData);
+                        return true;
                     }
-                    else
+
+                    regInfo = RequestNeighbourInfo(regionHandle);
+                    if (regInfo != null)
                     {
-                        Console.WriteLine("remoting object not found");
+                        //don't want to be creating a new link to the remote instance every time like we are here
+                        bool retValue = false;
+
+
+                        OGS1InterRegionRemoting remObject = (OGS1InterRegionRemoting)Activator.GetObject(
+                                                                                          typeof(OGS1InterRegionRemoting),
+                                                                                          "tcp://" + regInfo.RemotingAddress +
+                                                                                          ":" + regInfo.RemotingPort +
+                                                                                          "/InterRegions");
+
+                        if (remObject != null)
+                        {
+                            retValue = remObject.InformRegionOfPrimCrossing(regionHandle, primID.UUID, objData);
+                        }
+                        else
+                        {
+                            Console.WriteLine("remoting object not found");
+                        }
+                        remObject = null;
+
+
+                        return retValue;
                     }
-                    remObject = null;
-
-
-                    return retValue;
+                    NoteDeadRegion(regionHandle);
+                    return false;
                 }
+                catch (RemotingException e)
+                {
+                    NoteDeadRegion(regionHandle);
+                    m_log.Warn("Remoting Error: Unable to connect to adjacent region: " + regionHandle);
+                    m_log.Debug(e.ToString());
+                    return false;
+                }
+                catch (SocketException e)
+                {
+                    NoteDeadRegion(regionHandle);
+                    m_log.Warn("Remoting Error: Unable to connect to adjacent region: " + regionHandle);
+                    m_log.Debug(e.ToString());
+                    return false;
+                }
+                catch (InvalidCredentialException e)
+                {
+                    NoteDeadRegion(regionHandle);
+                    m_log.Warn("Invalid Credential Exception: Invalid Credentials : " + regionHandle);
+                    m_log.Debug(e.ToString());
+                    return false;
+                }
+                catch (AuthenticationException e)
+                {
+                    NoteDeadRegion(regionHandle);
+                    m_log.Warn("Authentication exception: Unable to connect to adjacent region: " + regionHandle);
 
-                return false;
+                    m_log.Debug(e.ToString());
+                    return false;
+                }
+                catch (Exception e)
+                {
+                    NoteDeadRegion(regionHandle);
+                    m_log.Warn("Unknown exception: Unable to connect to adjacent region: " + regionHandle);
+                    m_log.Debug(e.ToString());
+                    return false;
+                }
             }
-            catch (RemotingException e)
+            else
             {
-                MainLog.Instance.Warn("Remoting Error: Unable to connect to adjacent region: " + regInfo.RegionName +
-                                      " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
-                return false;
-            }
-            catch (SocketException e)
-            {
-                MainLog.Instance.Warn("Socket Error: Unable to connect to adjacent region: " + regInfo.RegionName + " " +
-                                      regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
-                return false;
-            }
-            catch (InvalidCredentialException e)
-            {
-                MainLog.Instance.Warn("Invalid Credentials: Unable to connect to adjacent region: " + regInfo.RegionName +
-                                      " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
-                return false;
-            }
-            catch (AuthenticationException e)
-            {
-                MainLog.Instance.Warn("Authentication exception: Unable to connect to adjacent region: " +
-                                      regInfo.RegionName + " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
-                return false;
-            }
-            catch (Exception e)
-            {
-                MainLog.Instance.Warn("Unknown exception: Unable to connect to adjacent region: " + regInfo.RegionName +
-                                      " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
                 return false;
             }
         }
@@ -897,17 +971,20 @@ namespace OpenSim.Region.Communications.OGS1
                 }
                 //TODO need to see if we know about where this region is and use .net remoting 
                 // to inform it. 
+                NoteDeadRegion(regionHandle);
                 return false;
             }
             catch (RemotingException e)
             {
-                MainLog.Instance.Warn("Remoting Error: Unable to connect to adjacent region: " + regInfo.RegionName +
-                                      " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Remoting Error: Unable to connect to adjacent region: " + regInfo.RegionName +
+                           " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
+                m_log.Debug(e.ToString());
                 return false;
             }
             catch
             {
+                NoteDeadRegion(regionHandle);
                 return false;
             }
         }
@@ -947,23 +1024,144 @@ namespace OpenSim.Region.Communications.OGS1
                 }
                 //TODO need to see if we know about where this region is and use .net remoting 
                 // to inform it. 
+                NoteDeadRegion(regionHandle);
                 return false;
             }
             catch (RemotingException e)
             {
-                MainLog.Instance.Warn("Remoting Error: Unable to connect to adjacent region: " + regInfo.RegionName +
-                                      " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
-                MainLog.Instance.Debug(e.ToString());
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Remoting Error: Unable to connect to adjacent region: " + regionHandle);
+                m_log.Debug(e.ToString());
                 return false;
             }
-            catch
+            catch (SocketException e)
             {
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Remoting Error: Unable to connect to adjacent region: " + regionHandle);
+                m_log.Debug(e.ToString());
+                return false;
+            }
+            catch (InvalidCredentialException e)
+            {
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Invalid Credential Exception: Invalid Credentials : " + regionHandle);
+                m_log.Debug(e.ToString());
+                return false;
+            }
+            catch (AuthenticationException e)
+            {
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Authentication exception: Unable to connect to adjacent region: " + regionHandle);
+                         
+                m_log.Debug(e.ToString());
+                return false;
+            }
+            catch (Exception e)
+            {
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Unknown exception: Unable to connect to adjacent region: " + regionHandle);
+                m_log.Debug(e.ToString());
                 return false;
             }
         }
 
-        public void TellRegionToCloseChildConnection(ulong regionHandle, LLUUID agentID)
+        public bool TellRegionToCloseChildConnection(ulong regionHandle, LLUUID agentID)
         {
+            RegionInfo regInfo = null;
+            try
+            {
+                if (m_localBackend.TriggerTellRegionToCloseChildConnection(regionHandle, agentID))
+                {
+                    return true;
+                }
+
+                regInfo = RequestNeighbourInfo(regionHandle);
+                if (regInfo != null)
+                {
+                    bool retValue = false;
+                    OGS1InterRegionRemoting remObject = (OGS1InterRegionRemoting)Activator.GetObject(
+                                                                                      typeof(OGS1InterRegionRemoting),
+                                                                                      "tcp://" + regInfo.RemotingAddress +
+                                                                                      ":" + regInfo.RemotingPort +
+                                                                                      "/InterRegions");
+                    if (remObject != null)
+                    {
+                        retValue =
+                            remObject.TellRegionToCloseChildConnection(regionHandle, agentID.UUID);
+                    }
+                    else
+                    {
+                        Console.WriteLine("remoting object not found");
+                    }
+                    remObject = null;
+
+                    return true;
+                }
+                //TODO need to see if we know about where this region is and use .net remoting 
+                // to inform it. 
+                NoteDeadRegion(regionHandle);
+                return false;
+            }
+            catch (RemotingException)
+            {
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Remoting Error: Unable to connect to adjacent region to tell it to close child agents: " + regInfo.RegionName +
+                                      " " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
+                //m_log.Debug(e.ToString());
+                return false;
+            }
+            
+            catch (SocketException e)
+            {
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Socket Error: Unable to connect to adjacent region using tcp://" +
+                                      regInfo.RemotingAddress +
+                                      ":" + regInfo.RemotingPort +
+                                      "/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY +
+                                      " - Is this neighbor up?");
+                m_log.Debug(e.ToString());
+                return false;
+            }
+            catch (InvalidCredentialException e)
+            {
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Invalid Credentials: Unable to connect to adjacent region using tcp://" +
+                                      regInfo.RemotingAddress +
+                                      ":" + regInfo.RemotingPort +
+                                      "/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
+                m_log.Debug(e.ToString());
+                return false;
+            }
+            catch (AuthenticationException e)
+            {
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("Authentication exception: Unable to connect to adjacent region using tcp://" +
+                                      regInfo.RemotingAddress +
+                                      ":" + regInfo.RemotingPort +
+                                      "/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
+                m_log.Debug(e.ToString());
+                return false;
+            }
+            catch (WebException e)
+            {
+                NoteDeadRegion(regionHandle);
+                m_log.Warn("WebException exception: Unable to connect to adjacent region using tcp://" +
+                                      regInfo.RemotingAddress +
+                                      ":" + regInfo.RemotingPort +
+                                      "/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY);
+                m_log.Debug(e.ToString());
+                return false;
+            }
+            catch (Exception e)
+            {
+                NoteDeadRegion(regionHandle);
+                // This line errors with a Null Reference Exception..    Why?  @.@
+                //m_log.Warn("Unknown exception: Unable to connect to adjacent region using tcp://" + regInfo.RemotingAddress +
+                // ":" + regInfo.RemotingPort +
+                //"/InterRegions - @ " + regInfo.RegionLocX + "," + regInfo.RegionLocY + " - This is likely caused by an incompatibility in the protocol between this sim and that one");
+                m_log.Debug(e.ToString());
+                return false;
+            }
         }
 
         public bool AcknowledgeAgentCrossed(ulong regionHandle, LLUUID agentId)
@@ -988,7 +1186,7 @@ namespace OpenSim.Region.Communications.OGS1
         /// <returns></returns>
         public bool IncomingChildAgent(ulong regionHandle, AgentCircuitData agentData)
         {
-            //MainLog.Instance.Verbose("INTER", gdebugRegionName + ": Incoming OGS1 Agent " + agentData.firstname + " " + agentData.lastname);
+            //m_log.Info("[INTER]: " + gdebugRegionName + ": Incoming OGS1 Agent " + agentData.firstname + " " + agentData.lastname);
 
             try
             {
@@ -996,32 +1194,42 @@ namespace OpenSim.Region.Communications.OGS1
             }
             catch (RemotingException)
             {
-                //MainLog.Instance.Error("Remoting Error: Unable to connect to adjacent region.\n" + e.ToString());
+                //m_log.Error("Remoting Error: Unable to connect to adjacent region.\n" + e.ToString());
                 return false;
             }
         }
 
         public bool TriggerRegionUp(SearializableRegionInfo regionData, ulong regionhandle)
         {
-            MainLog.Instance.Verbose("INTER",
-                                     gdebugRegionName + "Incoming OGS1 RegionUpReport:  " + "(" + regionData.RegionLocX +
-                                     "," + regionData.RegionLocY + ")");
+            m_log.Info("[INTER]: " +
+                       gdebugRegionName + "Incoming OGS1 RegionUpReport:  " + "(" + regionData.RegionLocX +
+                       "," + regionData.RegionLocY + "). Giving this region a fresh set of 'dead' tries");
 
             try
             {
+                lock (m_deadRegionCache)
+                {
+                    if (m_deadRegionCache.ContainsKey(regionData.RegionHandle))
+                    {
+                        
+                        m_deadRegionCache.Remove(regionData.RegionHandle);
+                    }
+                }
+
                 return m_localBackend.TriggerRegionUp(new RegionInfo(regionData), regionhandle);
+                
             }
 
             catch (RemotingException e)
             {
-                MainLog.Instance.Error("Remoting Error: Unable to connect to adjacent region.\n" + e.ToString());
+                m_log.Error("Remoting Error: Unable to connect to adjacent region.\n" + e.ToString());
                 return false;
             }
         }
 
         public bool TriggerChildAgentUpdate(ulong regionHandle, ChildAgentDataUpdate cAgentData)
         {
-            MainLog.Instance.Verbose("INTER", "Incoming OGS1 Child Agent Data Update");
+            //m_log.Info("[INTER]: Incoming OGS1 Child Agent Data Update");
 
             try
             {
@@ -1029,7 +1237,7 @@ namespace OpenSim.Region.Communications.OGS1
             }
             catch (RemotingException e)
             {
-                MainLog.Instance.Error("Remoting Error: Unable to connect to adjacent region.\n" + e.ToString());
+                m_log.Error("Remoting Error: Unable to connect to adjacent region.\n" + e.ToString());
                 return false;
             }
         }
@@ -1045,15 +1253,17 @@ namespace OpenSim.Region.Communications.OGS1
             // Is this necessary?   
             try
             {
-                //return m_localBackend.TriggerExpectPrim(regionHandle,primID, objData);
+                m_localBackend.TriggerExpectPrim(regionHandle, primID, objData);
+                return true;
                 //m_localBackend.
-                return false;
+
             }
             catch (RemotingException e)
             {
-                MainLog.Instance.Error("Remoting Error: Unable to connect to adjacent region.\n" + e.ToString());
+                m_log.Error("Remoting Error: Unable to connect to adjacent region.\n" + e.ToString());
                 return false;
             }
+            return false;
         }
 
         /// <summary>
@@ -1071,7 +1281,7 @@ namespace OpenSim.Region.Communications.OGS1
             }
             catch (RemotingException e)
             {
-                MainLog.Instance.Error("Remoting Error: Unable to connect to adjacent region.\n" + e.ToString());
+                m_log.Error("Remoting Error: Unable to connect to adjacent region.\n" + e.ToString());
                 return false;
             }
         }
@@ -1084,13 +1294,77 @@ namespace OpenSim.Region.Communications.OGS1
             }
             catch (RemotingException e)
             {
-                MainLog.Instance.Error("Remoting Error: Unable to connect to adjacent region.\n" + e.ToString());
+                m_log.Error("Remoting Error: Unable to connect to adjacent region.\n" + e.ToString());
                 return false;
             }
+        }
+
+        public bool TriggerTellRegionToCloseChildConnection(ulong regionHandle, LLUUID agentID)
+        {
+            try
+            {
+                return m_localBackend.TriggerTellRegionToCloseChildConnection(regionHandle, agentID);
+            }
+            catch (RemotingException)
+            {
+                m_log.Info("[INTERREGION]: Remoting Error: Unable to connect to neighbour to tell it to close a child connection");
+                return false;
+            }
+
         }
 
         #endregion
 
         #endregion
+
+        // helper to see if remote region is up
+        bool m_bAvailable = false;
+        int timeOut = 10; //10 seconds
+
+        public void CheckRegion(string address, uint port)
+        {
+            m_bAvailable = false;
+            IPAddress ia = null;
+            IPAddress.TryParse(address, out ia);
+            IPEndPoint m_EndPoint = new IPEndPoint(ia, (int)port);
+            AsyncCallback ConnectedMethodCallback = new AsyncCallback(ConnectedMethod);
+            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            IAsyncResult ar = socket.BeginConnect(m_EndPoint, ConnectedMethodCallback, socket);
+            ar.AsyncWaitHandle.WaitOne(timeOut*1000, false);
+        }
+
+        public bool Available
+        {
+            get { return m_bAvailable; }
+        }
+
+        void ConnectedMethod(IAsyncResult ar)
+        {
+            Socket socket = (Socket)ar.AsyncState;
+            try
+            {
+                socket.EndConnect(ar);
+                m_bAvailable = true;
+            }
+            catch (Exception)
+            {
+            }
+            socket.Close();
+        }
+        public void NoteDeadRegion(ulong regionhandle)
+        {
+            lock (m_deadRegionCache)
+            {
+                if (m_deadRegionCache.ContainsKey(regionhandle))
+                {
+                    m_deadRegionCache[regionhandle] = m_deadRegionCache[regionhandle] + 1;
+                }
+                else
+                {
+                    m_deadRegionCache.Add(regionhandle, 1);
+                }
+            }
+        }
     }
+
 }

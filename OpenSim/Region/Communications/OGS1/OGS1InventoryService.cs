@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -38,6 +38,8 @@ namespace OpenSim.Region.Communications.OGS1
 {
     public class OGS1InventoryService : IInventoryServices
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private string _inventoryServerUrl;
         private Dictionary<LLUUID, InventoryRequest> m_RequestingInventory = new Dictionary<LLUUID, InventoryRequest>();
 
@@ -71,8 +73,8 @@ namespace OpenSim.Region.Communications.OGS1
         {
             try
             {
-                MainLog.Instance.Verbose(
-                    "INVENTORY", "Requesting inventory from {0}/GetInventory/ for user {1}",
+                m_log.InfoFormat(
+                    "[INVENTORY]: Requesting inventory from {0}/GetInventory/ for user {1}",
                     _inventoryServerUrl, userID);
 
                 RestObjectPosterResponse<InventoryCollection> requester
@@ -83,7 +85,7 @@ namespace OpenSim.Region.Communications.OGS1
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error("INVENTORY", e.ToString());
+                m_log.Error("[INVENTORY]: " + e.ToString());
             }
         }
 
@@ -96,9 +98,9 @@ namespace OpenSim.Region.Communications.OGS1
             LLUUID userID = response.UserID;
             if (m_RequestingInventory.ContainsKey(userID))
             {
-                MainLog.Instance.Verbose("INVENTORY",
-                                         "Received inventory response for user {0} containing {1} folders and {2} items",
-                                         userID, response.Folders.Count, response.AllItems.Count);
+                m_log.InfoFormat("[INVENTORY]: " +
+                                 "Received inventory response for user {0} containing {1} folders and {2} items",
+                                 userID, response.Folders.Count, response.AllItems.Count);
 
                 InventoryFolderImpl rootFolder = null;
                 InventoryRequest request = m_RequestingInventory[userID];
@@ -132,8 +134,8 @@ namespace OpenSim.Region.Communications.OGS1
             }
             else
             {
-                MainLog.Instance.Warn(
-                    "INVENTORY",
+                m_log.WarnFormat(
+                    "[INVENTORY]: " +
                     "Received inventory response for {0} for which we do not have a record of requesting!",
                     userID);
             }
@@ -161,6 +163,21 @@ namespace OpenSim.Region.Communications.OGS1
         {
             SynchronousRestObjectPoster.BeginPostObject<InventoryItemBase, bool>(
                 "POST", _inventoryServerUrl + "/DeleteItem/", item);
+        }
+
+        public bool HasInventoryForUser(LLUUID userID)
+        {
+            return false;
+        }
+
+        public InventoryFolderBase RequestRootFolder(LLUUID userID)
+        {
+            return null;
+        }
+
+        public virtual InventoryFolderBase RequestNamedFolder(LLUUID userID, string folderName)
+        {
+            return null;
         }
 
         public void CreateNewUserInventory(LLUUID user)

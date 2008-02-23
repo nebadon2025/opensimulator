@@ -89,6 +89,8 @@ namespace OpenSim.Region.Terrain
         public DateTime lastEdit = DateTime.Now;
 
 
+        private int counter = 0;
+
         /// <summary>
         /// Whether or not the terrain has been modified since it was last saved and sent to the Physics engine.
         /// Counts the number of modifications since the last save. (0 = Untainted)
@@ -123,12 +125,12 @@ namespace OpenSim.Region.Terrain
             tainted++;
         }
 
-        public bool Tainted()
+        public bool IsTainted()
         {
             return (tainted != 0);
         }
 
-        public bool StillEditing()
+        public bool IsUserStillEditing()
         {
             TimeSpan gap = DateTime.Now - lastEdit;
 
@@ -138,7 +140,7 @@ namespace OpenSim.Region.Terrain
             return false;
         }
 
-        public bool Tainted(int x, int y)
+        public bool IsTainted(int x, int y)
         {
             return (heightmap.diff[x/16, y/16] != 0);
         }
@@ -165,7 +167,11 @@ namespace OpenSim.Region.Terrain
         {
             // Shiny.
             double size = (double) (1 << brushsize);
-
+            //System.Console.WriteLine("SIZE:" + size.ToString() + " Seconds:" + seconds.ToString());
+            if (seconds == 1)
+            {
+                seconds = 0.0315f;
+            }
             /*  Okay, so here's the deal
              * This has to handle both when a user draws on the terrain *and* when a user selects 
              * a selection of AABB on terrain and applies whatever routine the client requests
@@ -202,6 +208,8 @@ namespace OpenSim.Region.Terrain
                         {
                             FlattenTerrain(y, x, size, (double) seconds/5.0);
                             lastEdit = DateTime.Now;
+                            //remoteUser.SendLayerData((int)(x / 16), (int)(x / 16), GetHeights1D());
+
                         }
                     }
                     break;
@@ -213,6 +221,7 @@ namespace OpenSim.Region.Terrain
                         {
                             RaiseTerrain(y, x, size, (double) seconds/5.0);
                             lastEdit = DateTime.Now;
+                            //remoteUser.SendLayerData((int)(x / 16), (int)(x / 16), GetHeights1D());
                         }
                     }
                     break;
@@ -224,6 +233,7 @@ namespace OpenSim.Region.Terrain
                         {
                             LowerTerrain(y, x, size, (double) seconds/5.0);
                             lastEdit = DateTime.Now;
+                            //remoteUser.SendLayerData((int)(x / 16), (int)(x / 16), GetHeights1D());
                         }
                     }
                     break;
@@ -280,27 +290,35 @@ namespace OpenSim.Region.Terrain
                     break;
             }
 
-            for (int x = 0; x < 16; x++)
+            counter++;
+            if(counter==2)
             {
-                for (int y = 0; y < 16; y++)
+                counter=0;
+                for (int x = 0; x < 16; x++)
                 {
-                    if (Tainted(x*16, y*16))
+                    for (int y = 0; y < 16; y++)
                     {
-                        remoteUser.SendLayerData(x, y, GetHeights1D());
+                        if (IsTainted(x*16, y*16))
+                        {
+                            remoteUser.SendLayerData(x, y, GetHeights1D());
+                        }
                     }
                 }
             }
+
 
             lastEdit = DateTime.Now;
 
             return;
         }
 
+        
+
 
         /// <summary>
         /// Checks to make sure the terrain is within baked values +/- maxRaise/minLower
         /// </summary>
-        public void CheckHeightValues()
+        private void SetTerrainWithinBounds()
         {
             int x, y;
             for (x = 0; x < w; x++)
@@ -412,7 +430,7 @@ namespace OpenSim.Region.Terrain
                 }
             }
             SaveRevertMap();
-            tainted++;
+            ResetTaint();
         }
 
         /// <summary>
@@ -477,6 +495,7 @@ namespace OpenSim.Region.Terrain
                         resultText += "terrain erode thermal <talus> <rounds> <carry>\n";
                         resultText += "terrain erode hydraulic <rain> <evaporation> <solubility> <frequency> <rounds>\n";
                         resultText += "terrain multiply <val> - multiplies a terrain by <val>\n";
+                        resultText += "terrain elevate <val> - elevates a terrain by <val>\n";
                         resultText += "terrain revert - reverts the terrain to the stored original\n";
                         resultText += "terrain bake - saves the current terrain into the revert map\n";
                         resultText +=
@@ -517,11 +536,15 @@ namespace OpenSim.Region.Terrain
                         return ConsoleHills(args, ref resultText);
 
                     case "regenerate":
-                        HillsGenerator();
+                        SetDefaultTerrain();
                         break;
 
                     case "rescale":
                         SetRange(Convert.ToSingle(args[1]), Convert.ToSingle(args[2]));
+                        break;
+
+                    case "elevate":
+                        Elevate(Convert.ToSingle(args[1]));
                         break;
 
                     case "fill":
@@ -586,6 +609,10 @@ namespace OpenSim.Region.Terrain
                                 LoadFromFileF32(args[2], Convert.ToInt32(args[3]), Convert.ToInt32(args[4]),
                                                 Convert.ToInt32(args[5]), Convert.ToInt32(args[6]));
                                 break;
+                            case "raw":
+                                LoadFromFileSLRAW(args[2], Convert.ToInt32(args[3]), Convert.ToInt32(args[4]),
+                                                Convert.ToInt32(args[5]), Convert.ToInt32(args[6]));
+                                break;
                             case "img":
                                 LoadFromFileIMG(args[2], Convert.ToInt32(args[3]), Convert.ToInt32(args[4]),
                                                 Convert.ToInt32(args[5]), Convert.ToInt32(args[6]));
@@ -613,9 +640,9 @@ namespace OpenSim.Region.Terrain
 
                             case "grdmap":
                                 if (args.Length >= 4)
-                                    ExportImage(filename, args[3]);
+                                    WriteImage(filename, args[3]);
                                 else
-                                    ExportImage(filename, "defaultstripe.png");
+                                    WriteImage(filename, "defaultstripe.png");
                                 break;
 
                             case "png":
@@ -658,7 +685,7 @@ namespace OpenSim.Region.Terrain
                 }
                 return true;
             }
-            catch (Exception e)
+            catch (Exception e) // SEMI-LEGIT: Catching problems caused by user input or scripts
             {
                 resultText = "Error running terrain command: " + e.ToString();
                 return false;
@@ -766,6 +793,16 @@ namespace OpenSim.Region.Terrain
         }
 
         /// <summary>
+        /// Adds meters (positive or negative) to terrain height
+        /// </summary>
+        /// <param name="meters">Positive or negative value to add to new array</param>
+        public void Elevate(float meters)
+        {
+            heightmap.Elevate((double)meters);
+            tainted++;
+        }
+
+        /// <summary>
         /// Loads a file consisting of 256x256 doubles and imports it as an array into the map.
         /// </summary>
         /// <remarks>TODO: Move this to libTerrain itself</remarks>
@@ -780,7 +817,7 @@ namespace OpenSim.Region.Terrain
             {
                 for (x = 0; x < h; x++)
                 {
-                    heightmap.map[x, y] = bs.ReadDouble();
+                    heightmap.Set(x, y, (double) bs.ReadSingle());
                 }
             }
 
@@ -805,7 +842,7 @@ namespace OpenSim.Region.Terrain
             {
                 for (x = 0; x < w; x++)
                 {
-                    heightmap.map[x, y] = (double) bs.ReadSingle();
+                    heightmap.Set(x, y, (double) bs.ReadSingle());
                 }
             }
 
@@ -917,7 +954,7 @@ namespace OpenSim.Region.Terrain
             {
                 for (x = 0; x < w; x++)
                 {
-                    heightmap.map[x, y] = (double) bs.ReadByte()*((double) bs.ReadByte()/127.0);
+                    heightmap.Set(x, y, (double) bs.ReadByte()*((double) bs.ReadByte()/127.0));
                     bs.ReadBytes(11); // Advance the stream to next bytes.
                 }
             }
@@ -926,6 +963,58 @@ namespace OpenSim.Region.Terrain
             s.Close();
 
             tainted++;
+        }
+
+        /// <summary>
+        /// Loads a section of a larger heightmap (RAW)
+        /// </summary>
+        /// <param name="filename">File to load</param>
+        /// <param name="dimensionX">Size of the file</param>
+        /// <param name="dimensionY">Size of the file</param>
+        /// <param name="lowerboundX">Where do the region coords start for this terrain?</param>
+        /// <param name="lowerboundY">Where do the region coords start for this terrain?</param>
+        public void LoadFromFileSLRAW(string filename, int dimensionX, int dimensionY, int lowerboundX, int lowerboundY)
+        {
+            // TODO: Mutex fails to release readlock on folder! --> only one file can be loaded into sim
+            //fileIOLock.WaitOne();
+            //try
+            //{
+                int sectionToLoadX = ((offsetX - lowerboundX)*w);
+                int sectionToLoadY = ((offsetY - lowerboundY)*h);
+
+                double[,] tempMap = new double[dimensionX,dimensionY];
+
+                FileInfo file = new FileInfo(filename);
+                FileStream s = file.Open(FileMode.Open, FileAccess.Read);
+                BinaryReader bs = new BinaryReader(s);
+
+                int x, y;
+                for (x = 0; x < dimensionX; x++)
+                {
+                    for (y = 0; y < dimensionY; y++)
+                    {
+                        tempMap[x, y] = (double) bs.ReadByte()*((double) bs.ReadByte()/127.0);
+                        bs.ReadBytes(11); // Advance the stream to next bytes.
+                    }
+                }
+
+                for (y = 0; y < h; y++)
+                {
+                    for (x = 0; x < w; x++)
+                    {
+                        heightmap.Set(x, y, tempMap[x + sectionToLoadX, y + sectionToLoadY]);
+                    }
+                }
+
+                bs.Close();
+                s.Close();
+
+                tainted++;
+            //}
+            //finally
+            //{
+            //    fileIOLock.ReleaseMutex();
+            //}
         }
 
         /// <summary>
@@ -1257,7 +1346,7 @@ namespace OpenSim.Region.Terrain
         /// <summary>
         /// Generates a simple set of hills in the shape of an island
         /// </summary>
-        public void HillsGenerator()
+        public void SetDefaultTerrain()
         {
             lock (heightmap)
             {
@@ -1302,7 +1391,7 @@ namespace OpenSim.Region.Terrain
         /// </summary>
         /// <param name="filename">The destination filename for the image</param>
         /// <param name="gradientmap">A 1x*height* image which contains the colour gradient to export with. Must be at least 1x2 pixels, 1x256 or more is ideal.</param>
-        public void ExportImage(string filename, string gradientmap)
+        public void WriteImage(string filename, string gradientmap)
         {
             try
             {
@@ -1310,7 +1399,7 @@ namespace OpenSim.Region.Terrain
 
                 bmp.Save(filename, ImageFormat.Png);
             }
-            catch (Exception e)
+            catch (Exception e) // LEGIT: Catching problems caused by OpenJPEG p/invoke
             {
                 Console.WriteLine("Failed generating terrain map: " + e.ToString());
             }
@@ -1320,7 +1409,7 @@ namespace OpenSim.Region.Terrain
         /// Exports the current heightmap in Jpeg2000 format to a byte[]
         /// </summary>
         /// <param name="gradientmap">A 1x*height* image which contains the colour gradient to export with. Must be at least 1x2 pixels, 1x256 or more is ideal.</param>
-        public byte[] ExportJpegImage(string gradientmap)
+        public byte[] WriteJpegImage(string gradientmap)
         {
             byte[] imageData = null;
             try
@@ -1329,7 +1418,7 @@ namespace OpenSim.Region.Terrain
 
                 imageData = OpenJPEG.EncodeFromImage(bmp, true);
             }
-            catch (Exception e)
+            catch (Exception e) // LEGIT: Catching problems caused by OpenJPEG p/invoke
             {
                 Console.WriteLine("Failed generating terrain map: " + e.ToString());
             }

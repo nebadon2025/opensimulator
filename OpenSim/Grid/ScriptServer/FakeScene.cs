@@ -1,4 +1,4 @@
-/*
+﻿/*
 * Copyright (c) Contributors, http://opensimulator.org/
 * See CONTRIBUTORS.TXT for a full list of copyright holders.
 *
@@ -26,35 +26,30 @@
 * 
 */
 
-
 using System;
+using System.Collections.Generic;
+using System.Text;
+using OpenSim.Framework;
+using OpenSim.Framework.Communications;
+using OpenSim.Framework.Communications.Cache;
+using OpenSim.Framework.Servers;
+using OpenSim.Region.Environment;
+using OpenSim.Region.Environment.Scenes;
 
 namespace OpenSim.Grid.ScriptServer
 {
-    internal class OpenScript_Main
+    public class FakeScene: Scene
     {
-        public static ScriptServerMain SE;
-
-        private static void Main(string[] args)
+        public FakeScene(RegionInfo regInfo, AgentCircuitManager authen, PermissionManager permissionManager,
+                         CommunicationsManager commsMan, SceneCommunicationService sceneGridService,
+                         AssetCache assetCach, StorageManager storeManager, BaseHttpServer httpServer,
+                         ModuleLoader moduleLoader, bool dumpAssetsToFile, bool physicalPrim, bool sendTasksToChild)
+            : base(
+                regInfo, authen, permissionManager, commsMan, sceneGridService, assetCach, storeManager, httpServer,
+                moduleLoader, dumpAssetsToFile, physicalPrim, sendTasksToChild)
         {
-            log4net.Config.XmlConfigurator.Configure();
-
-            AppDomain.CurrentDomain.UnhandledException +=
-                new UnhandledExceptionEventHandler(CurrentDomain_UnhandledException);
-
-            // Application is starting
-            SE = new ScriptServerMain();
-
         }
 
-        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
-        {
-            Console.WriteLine(String.Empty);
-            Console.WriteLine("APPLICATION EXCEPTION DETECTED");
-            Console.WriteLine(String.Empty);
-            Console.WriteLine("Application is terminating: " + e.IsTerminating.ToString());
-            //Console.WriteLine("Exception:");
-            //Console.WriteLine(e.ExceptionObject.ToString());
-        }
+        // What does a scene have to do? :P
     }
 }

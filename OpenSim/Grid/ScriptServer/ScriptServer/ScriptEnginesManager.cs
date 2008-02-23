@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -28,39 +28,36 @@
 
 using System.Collections.Generic;
 using OpenSim.Framework.Console;
+using OpenSim.Region.ScriptEngine.Common;
 
-namespace OpenSim.Grid.ScriptServer
+namespace OpenSim.Grid.ScriptServer.ScriptServer
 {
     internal class ScriptEngineManager
     {
-        private LogBase m_log;
         private ScriptEngineLoader ScriptEngineLoader;
-        private List<ScriptEngineInterface> scriptEngines = new List<ScriptEngineInterface>();
+        private List<ScriptServerInterfaces.ScriptEngine> scriptEngines = new List<ScriptServerInterfaces.ScriptEngine>();
         private ScriptServerMain m_ScriptServerMain;
 
         // Initialize
-        public ScriptEngineManager(ScriptServerMain scm, LogBase logger)
+        public ScriptEngineManager(ScriptServerMain scm)
         {
             m_ScriptServerMain = scm;
-            m_log = logger;
-            ScriptEngineLoader = new ScriptEngineLoader(m_log);
-
-            // Temp - we should not load during initialize... Loading should be done later.
-            LoadEngine("DotNetScriptEngine");
+            ScriptEngineLoader = new ScriptEngineLoader();
         }
 
         ~ScriptEngineManager()
         {
         }
 
-        public void LoadEngine(string engineName)
+        public ScriptServerInterfaces.ScriptEngine LoadEngine(string engineName)
         {
             // Load and add to list of ScriptEngines
-            ScriptEngineInterface sei = ScriptEngineLoader.LoadScriptEngine(engineName);
+            ScriptServerInterfaces.ScriptEngine sei = ScriptEngineLoader.LoadScriptEngine(engineName);
             if (sei != null)
             {
                 scriptEngines.Add(sei);
             }
+            return sei;
         }
     }
 }

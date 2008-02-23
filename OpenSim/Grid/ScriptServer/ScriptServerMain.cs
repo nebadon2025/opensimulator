@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -27,56 +27,84 @@
 */
 
 using System.IO;
+using libsecondlife;
+using Nini.Config;
 using OpenSim.Framework;
 using OpenSim.Framework.Console;
+using OpenSim.Framework.Servers;
+using OpenSim.Grid.ScriptServer.ScriptServer;
+using OpenSim.Region.ScriptEngine.Common;
+using OpenSim.Region.ScriptEngine.Common.TRPC;
 
 namespace OpenSim.Grid.ScriptServer
 {
-    public class ScriptServerMain : conscmd_callback
+    public class ScriptServerMain : BaseOpenSimServer, conscmd_callback
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         //
         // Root object. Creates objects used.
         //
-        private int listenPort = 1234;
-        private readonly string m_logFilename = ("region-console.log");
-        private LogBase m_log;
+        private int listenPort = 8010;
+
+        // TEMP
+        public static ScriptServerInterfaces.ScriptEngine Engine;
+        //public static FakeScene m_Scene = new FakeScene(null,null,null,null,null,null,null,null,null,false, false, false);
 
         // Objects we use
         internal RegionCommManager RegionScriptDaemon; // Listen for incoming from region
-        //internal ScriptEngineManager ScriptEngines; // Loads scriptengines
-        internal RemotingServer m_RemotingServer;
+        internal ScriptEngineManager ScriptEngines; // Loads scriptengines
+        //internal RemotingServer m_RemotingServer;
+        internal TCPServer m_TCPServer;
+        internal TRPC_Remote RPC;
 
-        public ScriptServerMain()
+                public ScriptServerMain()
         {
-            m_log = CreateLog();
+            m_console = CreateConsole();
 
-            RegionScriptDaemon = new RegionCommManager(this, m_log);
-            //ScriptEngines = new ScriptEngineManager(this, m_log);
-            m_RemotingServer = new RemotingServer();
-            m_RemotingServer.CreateServer(listenPort, "DotNetEngine");
+            // Set up script engine mananger
+            ScriptEngines = new ScriptEngineManager(this);
+
+            // Load DotNetEngine
+            Engine = ScriptEngines.LoadEngine("DotNetEngine");
+                    IConfigSource config = null;
+            Engine.InitializeEngine(null, null, false, Engine.GetScriptManager());
+                    
+
+            // Set up server
+            //m_RemotingServer = new RemotingServer(listenPort, "DotNetEngine");
+            m_TCPServer = new TCPServer(listenPort);
+            RPC = new TRPC_Remote(m_TCPServer);
+                    RPC.ReceiveCommand += new TRPC_Remote.ReceiveCommandDelegate(RPC_ReceiveCommand);
+            m_TCPServer.StartListen();
+
             System.Console.ReadLine();
+        }
+
+        private void RPC_ReceiveCommand(int ID, string Command, object[] p)
+        {
+            m_log.Info("[SERVER]: Received command: '" + Command + "'");
+            if (p != null)
+            {
+                for (int i = 0; i < p.Length; i++)
+                {
+                    m_log.Info("[SERVER]: Param " + i + ": " + p[i].ToString());
+                }
+            }
+
+            if (Command == "OnRezScript")
+            {
+                Engine.EventManager().OnRezScript((uint)p[0], new LLUUID((string)p[1]), (string)p[2]);
+            }
         }
 
         ~ScriptServerMain()
         {
         }
 
-        protected LogBase CreateLog()
+        protected ConsoleBase CreateConsole()
         {
-            if (!Directory.Exists(Util.logDir()))
-            {
-                Directory.CreateDirectory(Util.logDir());
-            }
-
-            return new LogBase((Path.Combine(Util.logDir(), m_logFilename)), "Region", this, true);
-        }
-
-        public void RunCmd(string command, string[] cmdparams)
-        {
-        }
-
-        public void Show(string ShowWhat)
-        {
+            return new ConsoleBase("ScriptServer", this);
         }
     }
 }

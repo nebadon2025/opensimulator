@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -33,14 +33,12 @@ namespace OpenSim.Grid.ScriptServer
     // Maintains connection and communication to a region
     public class RegionConnectionManager : RegionBase
     {
-        private LogBase m_log;
         private ScriptServerMain m_ScriptServerMain;
         private object m_Connection;
 
-        public RegionConnectionManager(ScriptServerMain scm, LogBase logger, object Connection)
+        public RegionConnectionManager(ScriptServerMain scm, object Connection)
         {
             m_ScriptServerMain = scm;
-            m_log = logger;
             m_Connection = Connection;
         }
 

@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -45,6 +45,8 @@ namespace OpenSim.Region.ExtensionsScriptModule
     /// <remarks>Avoid at all costs. This should ONLY be used for LSL.</remarks>
     internal class ScriptInterpretedAPI
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         protected Key m_object;
         protected Scene m_scene;
 
@@ -109,7 +111,7 @@ namespace OpenSim.Region.ExtensionsScriptModule
             {
                 //Dont do anything!
             }
-            MainLog.Instance.Warn("script",
+            m_log.Warn("[script]: " +
                                   "Unimplemented function called by script: osAddToLandPassList(Key avatar, float hours)");
             return;
         }
@@ -117,7 +119,7 @@ namespace OpenSim.Region.ExtensionsScriptModule
         [Obsolete("Unimplemented")]
         public void osAdjustSoundVolume(float volume)
         {
-            MainLog.Instance.Warn("script", "Unimplemented function called by script: osAdjustSoundVolume(float volume)");
+            m_log.Warn("[script]: Unimplemented function called by script: osAdjustSoundVolume(float volume)");
             return;
         }
 

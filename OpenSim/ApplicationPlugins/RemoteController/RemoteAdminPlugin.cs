@@ -39,25 +39,27 @@ using OpenSim.Framework.Servers;
 using OpenSim.Region.Environment.Scenes;
 
 [assembly : Addin]
-[assembly : AddinDependency("OpenSim", "0.4")]
+[assembly : AddinDependency("OpenSim", "0.5")]
 
 namespace OpenSim.ApplicationPlugins.LoadRegions
 {
     [Extension("/OpenSim/Startup")]
     public class RemoteAdminPlugin : IApplicationPlugin
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private OpenSimMain m_app;
         private BaseHttpServer m_httpd;
-        private string requiredPassword = "";
+        private string requiredPassword = String.Empty;
 
         public void Initialise(OpenSimMain openSim)
         {
             try
             {
-                if (openSim.ConfigSource.Configs["RemoteAdmin"].GetBoolean("enabled", false))
+                if (openSim.ConfigSource.Configs["RemoteAdmin"] != null && openSim.ConfigSource.Configs["RemoteAdmin"].GetBoolean("enabled", false))
                 {
-                    MainLog.Instance.Verbose("RADMIN", "Remote Admin Plugin Enabled");
-                    requiredPassword = openSim.ConfigSource.Configs["RemoteAdmin"].GetString("access_password", "");
+                    m_log.Info("[RADMIN]: Remote Admin Plugin Enabled");
+                    requiredPassword = openSim.ConfigSource.Configs["RemoteAdmin"].GetString("access_password", String.Empty);
 
                     m_app = openSim;
                     m_httpd = openSim.HttpServer;
@@ -66,6 +68,9 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
                     m_httpd.AddXmlRPCHandler("admin_shutdown", XmlRpcShutdownMethod);
                     m_httpd.AddXmlRPCHandler("admin_broadcast", XmlRpcAlertMethod);
                     m_httpd.AddXmlRPCHandler("admin_restart", XmlRpcRestartMethod);
+                    m_httpd.AddXmlRPCHandler("admin_load_heightmap", XmlRpcLoadHeightmapMethod);
+                    m_httpd.AddXmlRPCHandler("admin_create_user", XmlRpcCreateUserMethod);
+                    m_httpd.AddXmlRPCHandler("admin_load_xml", XmlRpcLoadXMLMethod);
                 }
             }
             catch (NullReferenceException)
@@ -82,7 +87,7 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
             LLUUID regionID = new LLUUID((string) requestData["regionID"]);
 
             Hashtable responseData = new Hashtable();
-            if (requiredPassword != "" &&
+            if (requiredPassword != String.Empty &&
                 (!requestData.Contains("password") || (string) requestData["password"] != requiredPassword))
             {
                 responseData["accepted"] = "false";
@@ -115,7 +120,7 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
             Hashtable requestData = (Hashtable) request.Params[0];
 
             Hashtable responseData = new Hashtable();
-            if (requiredPassword != "" &&
+            if (requiredPassword != String.Empty &&
                 (!requestData.Contains("password") || (string) requestData["password"] != requiredPassword))
             {
                 responseData["accepted"] = "false";
@@ -124,7 +129,7 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
             else
             {
                 string message = (string) requestData["message"];
-                MainLog.Instance.Verbose("RADMIN", "Broadcasting: " + message);
+                m_log.Info("[RADMIN]: Broadcasting: " + message);
 
                 responseData["accepted"] = "true";
                 response.Value = responseData;
@@ -135,13 +140,51 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
             return response;
         }
 
+        public XmlRpcResponse XmlRpcLoadHeightmapMethod(XmlRpcRequest request)
+        {
+            XmlRpcResponse response = new XmlRpcResponse();
+            Hashtable requestData = (Hashtable)request.Params[0];
+
+            Hashtable responseData = new Hashtable();
+            if (requiredPassword != String.Empty &&
+                (!requestData.Contains("password") || (string)requestData["password"] != requiredPassword))
+            {
+                responseData["accepted"] = "false";
+                response.Value = responseData;
+            }
+            else
+            {
+                string file = (string)requestData["filename"];
+                LLUUID regionID = LLUUID.Parse((string)requestData["regionid"]);
+                m_log.Info("[RADMIN]: Terrain Loading: " + file);
+
+                responseData["accepted"] = "true";
+
+                Scene region = null;
+
+                if (m_app.SceneManager.TryGetScene(regionID, out region))
+                {
+                    region.LoadWorldMap(file);
+                    responseData["success"] = "true";
+                }
+                else
+                {
+                    responseData["success"] = "false";
+                    responseData["error"] = "1: Unable to get a scene with that name.";
+                }
+                response.Value = responseData;
+            }
+
+            return response;
+        }
+
         public XmlRpcResponse XmlRpcShutdownMethod(XmlRpcRequest request)
         {
-            MainLog.Instance.Verbose("RADMIN", "Received Shutdown Administrator Request");
+            m_log.Info("[RADMIN]: Received Shutdown Administrator Request");
             XmlRpcResponse response = new XmlRpcResponse();
             Hashtable requestData = (Hashtable) request.Params[0];
             Hashtable responseData = new Hashtable();
-            if (requiredPassword != "" &&
+            if (requiredPassword != String.Empty &&
                 (!requestData.Contains("password") || (string) requestData["password"] != requiredPassword))
             {
                 responseData["accepted"] = "false";
@@ -193,11 +236,11 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
 
         public XmlRpcResponse XmlRpcCreateRegionMethod(XmlRpcRequest request)
         {
-            MainLog.Instance.Verbose("RADMIN", "Received Create Region Administrator Request");
+            m_log.Info("[RADMIN]: Received Create Region Administrator Request");
             XmlRpcResponse response = new XmlRpcResponse();
             Hashtable requestData = (Hashtable) request.Params[0];
             Hashtable responseData = new Hashtable();
-            if (requiredPassword != "" &&
+            if (requiredPassword != System.String.Empty &&
                 (!requestData.Contains("password") || (string) requestData["password"] != requiredPassword))
             {
                 responseData["created"] = "false";
@@ -242,9 +285,107 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
             return response;
         }
 
+        public XmlRpcResponse XmlRpcCreateUserMethod(XmlRpcRequest request)
+        {
+            m_log.Info("[RADMIN]: Received Create User Administrator Request");
+            XmlRpcResponse response = new XmlRpcResponse();
+            Hashtable requestData = (Hashtable) request.Params[0];
+            Hashtable responseData = new Hashtable();
+            if (requiredPassword != System.String.Empty &&
+                (!requestData.Contains("password") || (string) requestData["password"] != requiredPassword))
+            {
+                responseData["created"] = "false";
+                response.Value = responseData;
+            }
+            else
+            {
+                try
+                {
+                    string tempfirstname = (string) requestData["user_firstname"];
+                    string templastname  = (string) requestData["user_lastname"];
+                    string tempPasswd    = (string) requestData["user_password"];
+                    uint   regX          = Convert.ToUInt32((Int32) requestData["start_region_x"]);
+                    uint   regY          = Convert.ToUInt32((Int32) requestData["start_region_y"]);
+
+     	            LLUUID tempuserID = m_app.CreateUser(tempfirstname, templastname, tempPasswd, regX, regY);
+
+                    if (tempuserID == LLUUID.Zero)
+                    {
+                        responseData["created"]     = "false";
+                        responseData["error"]       = "Error creating user";
+                        responseData["avatar_uuid"] = LLUUID.Zero;
+                        response.Value              = responseData;
+                        m_log.Error("[RADMIN]: Error creating user (" + tempfirstname + " " + templastname + ") :");
+                    }
+                    else
+                    {
+                        responseData["created"]     = "true";
+                        responseData["avatar_uuid"] = tempuserID;
+                        response.Value              = responseData;
+                        m_log.Info("[RADMIN]: User " + tempfirstname + " " + templastname + " created. Userid " + tempuserID + " assigned.");
+                    }  
+                }
+                catch (Exception e)
+                {
+                    responseData["created"] = "false";
+                    responseData["error"]   = e.ToString();
+                    responseData["avatar_uuid"] = LLUUID.Zero;
+                    response.Value          = responseData;
+                }
+            }
+
+            return response;
+        }
+
+        public XmlRpcResponse XmlRpcLoadXMLMethod(XmlRpcRequest request)
+        {
+            m_log.Info("[RADMIN]: Received Load XML Administrator Request");
+            XmlRpcResponse response = new XmlRpcResponse();
+            Hashtable requestData = (Hashtable) request.Params[0];
+            Hashtable responseData = new Hashtable();
+            if (requiredPassword != System.String.Empty &&
+                (!requestData.Contains("password") || (string) requestData["password"] != requiredPassword))
+            {
+                responseData["loaded"] = "false";
+                responseData["switched"] = "false";
+                response.Value = responseData;
+            }
+            else
+            {
+                try
+                {
+                    string region_name     = (string) requestData["region_name"];
+                    string filename        = (string) requestData["filename"];
+                    
+                    if (m_app.SceneManager.TrySetCurrentScene(region_name))
+                    {
+                        m_log.Info("[RADMIN] Switched to region "+region_name);
+                        responseData["switched"] = "true";
+                        m_app.SceneManager.LoadCurrentSceneFromXml(filename, true, new LLVector3(0, 0, 0));
+                        responseData["loaded"]   = "true";
+                        response.Value           = responseData;
+                    }
+                    else
+                    {
+                        m_log.Info("[RADMIN] Failed to switch to region "+region_name);
+                        responseData["loaded"] = "false";
+                        responseData["switched"] = "false";
+                        response.Value = responseData;
+                    }
+                }
+                catch (Exception e)
+                {
+                    responseData["loaded"]  = "false";
+                    responseData["error"]   = e.ToString();
+                    response.Value          = responseData;
+                }
+            }
+            
+            return response;
+        }
+
         public void Close()
         {
         }
-
     }
 }

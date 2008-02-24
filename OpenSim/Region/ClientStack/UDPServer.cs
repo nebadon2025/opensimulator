@@ -388,10 +388,10 @@ namespace OpenSim.Region.ClientStack
 
                     Server.SendTo(buffer, size, flags, sendto);
                 }
-                else
-                {
-                    m_log.Debug("[UDPServer]: Failed to find person to send packet to!");
-                }
+                //else
+                //{
+                //    m_log.Debug("[UDPServer]: Failed to find person to send packet to!");
+                //}
             }
         }
 

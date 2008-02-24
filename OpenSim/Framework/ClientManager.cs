@@ -95,7 +95,6 @@ namespace OpenSim.Framework
                 tryGetRet = m_clients.TryGetValue(circuitCode, out client);
             if (tryGetRet)
             {
-                //m_log.Debug("[ClientManager]: Processing IN packet " + packet.Type.ToString());
                 client.InPacket(packet);
             }
             else

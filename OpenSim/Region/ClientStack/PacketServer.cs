@@ -88,9 +88,8 @@ namespace OpenSim.Region.ClientStack
 
         public void Enqueue(uint CircuitCode, Packet packet)
         {
-            //m_log.Debug("[PacketServer]: Enquing " + packet.Type.ToString() + " from " + CircuitCode.ToString());
-            //lock(PacketQueue)
-                PacketQueue.Enqueue(new QueuePacket(packet, CircuitCode));
+            IClientAPI client;
+            PacketQueue.Enqueue(new QueuePacket(packet, CircuitCode));
         }
 
         public IScene LocalScene

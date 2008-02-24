@@ -129,14 +129,14 @@ namespace OpenSim.Region.ScriptEngine.Common.ScriptEngineBase
             if (PrivateThread)
             {
                 // Assign one thread per region
-                scriptLoadUnloadThread = StartScriptLoadUnloadThread();
+                //scriptLoadUnloadThread = StartScriptLoadUnloadThread();
             }
             else
             {
                 // Shared thread - make sure one exist, then assign it to the private
                 if (staticScriptLoadUnloadThread == null)
                 {
-                    staticScriptLoadUnloadThread = StartScriptLoadUnloadThread();
+                    //staticScriptLoadUnloadThread = StartScriptLoadUnloadThread();
                 }
                 scriptLoadUnloadThread = staticScriptLoadUnloadThread;
             }
@@ -169,15 +169,12 @@ namespace OpenSim.Region.ScriptEngine.Common.ScriptEngineBase
             // Abort load/unload thread
             try
             {
-                PleaseShutdown = true;
-                Thread.Sleep(100);
-                if (scriptLoadUnloadThread != null)
+                //PleaseShutdown = true;
+                //Thread.Sleep(100);
+                if (scriptLoadUnloadThread != null && scriptLoadUnloadThread.IsAlive == true)
                 {
-                    if (scriptLoadUnloadThread.IsAlive == true)
-                    {
-                        scriptLoadUnloadThread.Abort();
-                        scriptLoadUnloadThread.Join();
-                    }
+                    scriptLoadUnloadThread.Abort();
+                    //scriptLoadUnloadThread.Join();
                 }
             }
             catch
@@ -197,23 +194,9 @@ namespace OpenSim.Region.ScriptEngine.Common.ScriptEngineBase
                 {
                     if (LUQueue.Count == 0)
                         Thread.Sleep(scriptLoadUnloadThread_IdleSleepms);
-                    if (PleaseShutdown)
-                        return;
-                    if (LUQueue.Count > 0)
-                    {
-                        LUStruct item = LUQueue.Dequeue();
-                        lock (startStopLock)        // Lock so we have only 1 thread working on loading/unloading of scripts
-                        {
-                            if (item.Action == LUType.Unload)
-                            {
-                                _StopScript(item.localID, item.itemID);
-                            }
-                            if (item.Action == LUType.Load)
-                            {
-                                _StartScript(item.localID, item.itemID, item.script);
-                            }
-                        }
-                    }
+                    //if (PleaseShutdown)
+                    //    return;
+                    DoScriptLoadUnload();
                 }
             }
             catch (ThreadAbortException tae)
@@ -222,6 +205,26 @@ namespace OpenSim.Region.ScriptEngine.Common.ScriptEngineBase
                 a = String.Empty;
                 // Expected
             }
+        }
+
+        public void DoScriptLoadUnload()
+        {
+            if (LUQueue.Count > 0)
+            {
+                LUStruct item = LUQueue.Dequeue();
+                lock (startStopLock)        // Lock so we have only 1 thread working on loading/unloading of scripts
+                {
+                    if (item.Action == LUType.Unload)
+                    {
+                        _StopScript(item.localID, item.itemID);
+                    }
+                    if (item.Action == LUType.Load)
+                    {
+                        _StartScript(item.localID, item.itemID, item.script);
+                    }
+                }
+            }
+
         }
 
         #endregion
@@ -282,7 +285,7 @@ namespace OpenSim.Region.ScriptEngine.Common.ScriptEngineBase
 
         public abstract void _StartScript(uint localID, LLUUID itemID, string Script);
         public abstract void _StopScript(uint localID, LLUUID itemID);
-        
+
 
         #endregion
 
@@ -297,10 +300,10 @@ namespace OpenSim.Region.ScriptEngine.Common.ScriptEngineBase
         /// <param name="args">Arguments to pass to function</param>
         internal void ExecuteEvent(uint localID, LLUUID itemID, string FunctionName, EventQueueManager.Queue_llDetectParams_Struct qParams, object[] args)
         {
-//cfk 2-7-08 dont need this right now and the default Linux build has DEBUG defined
-///#if DEBUG
-///            Console.WriteLine("ScriptEngine: Inside ExecuteEvent for event " + FunctionName);
-///#endif
+            //cfk 2-7-08 dont need this right now and the default Linux build has DEBUG defined
+            ///#if DEBUG
+            ///            Console.WriteLine("ScriptEngine: Inside ExecuteEvent for event " + FunctionName);
+            ///#endif
             // Execute a function in the script
             //m_scriptEngine.Log.Info("[" + ScriptEngineName + "]: Executing Function localID: " + localID + ", itemID: " + itemID + ", FunctionName: " + FunctionName);
             //ScriptBaseInterface Script = (ScriptBaseInterface)GetScript(localID, itemID);
@@ -309,10 +312,10 @@ namespace OpenSim.Region.ScriptEngine.Common.ScriptEngineBase
             {
                 return;
             }
-//cfk 2-7-08 dont need this right now and the default Linux build has DEBUG defined
-///#if DEBUG
-///            Console.WriteLine("ScriptEngine: Executing event: " + FunctionName);
-///#endif
+            //cfk 2-7-08 dont need this right now and the default Linux build has DEBUG defined
+            ///#if DEBUG
+            ///            Console.WriteLine("ScriptEngine: Executing event: " + FunctionName);
+            ///#endif
             // Must be done in correct AppDomain, so leaving it up to the script itself
             Script.llDetectParams = qParams;
             Script.Exec.ExecuteEvent(FunctionName, args);
@@ -418,15 +421,15 @@ namespace OpenSim.Region.ScriptEngine.Common.ScriptEngineBase
 
         #endregion
 
-        /// <summary>
-        /// If set to true then threads and stuff should try to make a graceful exit
-        /// </summary>
-        public bool PleaseShutdown
-        {
-            get { return _PleaseShutdown; }
-            set { _PleaseShutdown = value; }
-        }
-        private bool _PleaseShutdown = false;
+        ///// <summary>
+        ///// If set to true then threads and stuff should try to make a graceful exit
+        ///// </summary>
+        //public bool PleaseShutdown
+        //{
+        //    get { return _PleaseShutdown; }
+        //    set { _PleaseShutdown = value; }
+        //}
+        //private bool _PleaseShutdown = false;
 
     }
 }

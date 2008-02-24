@@ -147,6 +147,7 @@
 
       <ReferencePath>../../../bin/</ReferencePath>
       <Reference name="System"/>
+      <Reference name="libsecondlife.dll"/>
       <Reference name="OpenSim.Framework"/>
 
       <Files>
@@ -380,6 +381,7 @@
       <Reference name="Axiom.MathLib.dll" localCopy="false"/>
       <Reference name="OpenSim.Framework" localCopy="false"/>
       <Reference name="OpenSim.Framework.Console" localCopy="false"/>
+      <Reference name="nunit.framework.dll" />
       <Reference name="Nini.dll" />
       <Reference name="log4net"/>
 
@@ -478,6 +480,7 @@
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Region.Physics.Manager" localCopy="false"/>
       <Reference name="Ode.NET.dll" localCopy="false" />
+      <Reference name="nunit.framework.dll" />
       <Reference name="log4net"/>
 
       <Files>
@@ -752,6 +755,7 @@
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Framework.Communications"/>
+      <Reference name="OpenSim.Framework.Statistics"/>
       <Reference name="OpenSim.Region.Communications.Local"/>      
       <Reference name="OpenSim.Region.Physics.Manager"/>
       <Reference name="XMLRPC.dll"/>
@@ -1506,36 +1510,6 @@
       </Files>
     </Project>
 
-    <Project name="LaunchSLClient" path="OpenSim/Tools/LaunchSLClient" type="Exe">
-      <Configuration name="Debug">
-        <Options>
-          <OutputPath>../../../bin/</OutputPath>
-        </Options>
-      </Configuration>
-      <Configuration name="Release">
-        <Options>
-          <OutputPath>../../../bin/</OutputPath>
-        </Options>
-      </Configuration>
-
-      <ReferencePath>../../../bin/</ReferencePath>
-      <Reference name="System" localCopy="false"/>
-      <Reference name="System.IO" localCopy="false"/>
-      <Reference name="System.Collections" localCopy="false"/>
-      <Reference name="System.Collections.Generic" localCopy="false"/>
-      <Reference name="System.ComponentModel" localCopy="false"/>
-      <Reference name="System.Data" localCopy="false"/>
-      <Reference name="System.Diagnostics" localCopy="false"/>
-      <Reference name="System.Drawing" localCopy="false"/>
-      <Reference name="System.Text" localCopy="false"/>
-      <Reference name="System.Text.RegularExpressions" localCopy="false"/>
-      <Reference name="System.Windows.Forms" localCopy="false"/>
-      <Reference name="Microsoft.Win32" localCopy="false"/>
-
-      <Files>
-        <Match pattern="*.cs" recurse="true"/>
-      </Files>
-    </Project>
   </Solution>
 
   <!-- Prebuild tool -->

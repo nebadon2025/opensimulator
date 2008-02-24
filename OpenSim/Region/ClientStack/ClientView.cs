@@ -224,6 +224,7 @@ namespace OpenSim.Region.ClientStack
         private UpdateVector handler089 = null; //OnUpdatePrimGroupPosition;
         private UpdatePrimRotation handler090 = null; //OnUpdatePrimGroupRotation;
         private UpdatePrimGroupRotation handler091 = null; //OnUpdatePrimGroupMouseRotation;
+        private PacketStats handler093 = null; // OnPacketStats;
 
 
         /* Properties */
@@ -346,6 +347,7 @@ namespace OpenSim.Region.ClientStack
             ack_pack(usePacket);
             m_log.Debug("[ClientView]: Dealing with " + PausedPackets.Count.ToString() + " packets backlogged.");
             ReadyForPackets = true;
+            
             // stuff the paused packets BACK into the thread queue. :)
             while (PausedPackets.Count > 0)
             {
@@ -2065,7 +2067,11 @@ namespace OpenSim.Region.ClientStack
             SetDefaultPrimPacketValues(objupdate);
             objupdate.UpdateFlags = flags;
             SetPrimPacketShapeData(objupdate, primShape);
-
+            if ((primShape.PCode == 111) || (primShape.PCode == 255))
+            {
+                objupdate.Data = new byte[1];
+                objupdate.Data[0] = primShape.State;
+            }
             return objupdate;
         }
 
@@ -2655,7 +2661,7 @@ namespace OpenSim.Region.ClientStack
                 PausedPackets.Enqueue(NewPack);
                 return;
             }
-
+            m_packetsReceived++;
             // lock (m_packetQueue)
             {
                 // Handle appended ACKs
@@ -2833,9 +2839,10 @@ namespace OpenSim.Region.ClientStack
 
         protected void SendPacketStats()
         {
-            if (OnPacketStats != null)
+            handler093 = OnPacketStats;
+            if (handler093 != null)
             {
-                OnPacketStats(m_packetsReceived - m_lastPacketsReceivedSentToScene, m_packetsSent - m_lastPacketsSentSentToScene, m_unAckedBytes);
+                handler093(m_packetsReceived - m_lastPacketsReceivedSentToScene, m_packetsSent - m_lastPacketsSentSentToScene, m_unAckedBytes);
                 m_lastPacketsReceivedSentToScene = m_packetsReceived;
                 m_lastPacketsSentSentToScene = m_packetsSent;
             }

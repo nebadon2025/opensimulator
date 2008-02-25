@@ -38,6 +38,8 @@ namespace OpenSim.Region.Physics.Manager
     /// </summary>
     public class PhysicsPluginManager
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private Dictionary<string, IPhysicsPlugin> _PhysPlugins = new Dictionary<string, IPhysicsPlugin>();
         private Dictionary<string, IMeshingPlugin> _MeshPlugins = new Dictionary<string, IMeshingPlugin>();
 
@@ -60,25 +62,25 @@ namespace OpenSim.Region.Physics.Manager
             IMesher meshEngine = null;
             if (_MeshPlugins.ContainsKey(meshEngineName))
             {
-                MainLog.Instance.Verbose("PHYSICS", "creating meshing engine " + meshEngineName);
+                m_log.Info("[PHYSICS]: creating meshing engine " + meshEngineName);
                 meshEngine = _MeshPlugins[meshEngineName].GetMesher();
             }
             else
             {
-                MainLog.Instance.Warn("PHYSICS", "couldn't find meshingEngine: {0}", meshEngineName);
+                m_log.WarnFormat("[PHYSICS]: couldn't find meshingEngine: {0}", meshEngineName);
                 throw new ArgumentException(String.Format("couldn't find meshingEngine: {0}", meshEngineName));
             }
 
             if (_PhysPlugins.ContainsKey(physEngineName))
             {
-                MainLog.Instance.Verbose("PHYSICS", "creating " + physEngineName);
+                m_log.Info("[PHYSICS]: creating " + physEngineName);
                 PhysicsScene result = _PhysPlugins[physEngineName].GetScene();
                 result.Initialise(meshEngine);
                 return result;
             }
             else
             {
-                MainLog.Instance.Warn("PHYSICS", "couldn't find physicsEngine: {0}", physEngineName);
+                m_log.WarnFormat("[PHYSICS]: couldn't find physicsEngine: {0}", physEngineName);
                 throw new ArgumentException(String.Format("couldn't find physicsEngine: {0}", physEngineName));
             }
         }
@@ -89,7 +91,7 @@ namespace OpenSim.Region.Physics.Manager
             IMeshingPlugin plugHard;
             plugHard = new ZeroMesherPlugin();
             _MeshPlugins.Add(plugHard.GetName(), plugHard);
-            MainLog.Instance.Verbose("PHYSICS", "Added meshing engine: " + plugHard.GetName());
+            m_log.Info("[PHYSICS]: Added meshing engine: " + plugHard.GetName());
 
             // And now walk all assemblies (DLLs effectively) and see if they are home 
             // of a plugin that is of interest for us
@@ -104,9 +106,15 @@ namespace OpenSim.Region.Physics.Manager
 
         private void AddPlugin(string FileName)
         {
-            try
-            {
-                Assembly pluginAssembly = Assembly.LoadFrom(FileName);
+            // TODO / NOTE
+            // The assembly named 'OpenSim.Region.Physics.BasicPhysicsPlugin' was loaded from 
+            // 'file:///C:/OpenSim/trunk2/bin/Physics/OpenSim.Region.Physics.BasicPhysicsPlugin.dll'
+            // using the LoadFrom context. The use of this context can result in unexpected behavior
+            // for serialization, casting and dependency resolution. In almost all cases, it is recommended 
+            // that the LoadFrom context be avoided. This can be done by installing assemblies in the 
+            // Global Assembly Cache or in the ApplicationBase directory and using Assembly.
+            // Load when explicitly loading assemblies.
+            Assembly pluginAssembly = Assembly.LoadFrom(FileName);
 
                 foreach (Type pluginType in pluginAssembly.GetTypes())
                 {
@@ -114,7 +122,12 @@ namespace OpenSim.Region.Physics.Manager
                     {
                         if (!pluginType.IsAbstract)
                         {
-                            Type physTypeInterface = pluginType.GetInterface("IPhysicsPlugin", true);
+                            IPhysicsPlugin plug =
+                                (IPhysicsPlugin) Activator.CreateInstance(pluginAssembly.GetType(pluginType.ToString()));
+                            plug.Init();
+                            _PhysPlugins.Add(plug.GetName(), plug);
+                            m_log.Info("[PHYSICS]: Added physics engine: " + plug.GetName());
+                        }
 
                             if (physTypeInterface != null)
                             {
@@ -125,18 +138,12 @@ namespace OpenSim.Region.Physics.Manager
                                 MainLog.Instance.Verbose("PHYSICS", "Added physics engine: " + plug.GetName());
                             }
 
-                            Type meshTypeInterface = pluginType.GetInterface("IMeshingPlugin", true);
-
-                            if (meshTypeInterface != null)
-                            {
-                                IMeshingPlugin plug =
-                                    (IMeshingPlugin) Activator.CreateInstance(pluginAssembly.GetType(pluginType.ToString()));
-                                _MeshPlugins.Add(plug.GetName(), plug);
-                                MainLog.Instance.Verbose("PHYSICS", "Added meshing engine: " + plug.GetName());
-                            }
-
-                            physTypeInterface = null;
-                            meshTypeInterface = null;
+                        if (meshTypeInterface != null)
+                        {
+                            IMeshingPlugin plug =
+                                (IMeshingPlugin) Activator.CreateInstance(pluginAssembly.GetType(pluginType.ToString()));
+                            _MeshPlugins.Add(plug.GetName(), plug);
+                            m_log.Info("[PHYSICS]: Added meshing engine: " + plug.GetName());
                         }
                     }
                 }
@@ -154,11 +161,11 @@ namespace OpenSim.Region.Physics.Manager
         {
             if (isWarning)
             {
-                MainLog.Instance.Warn("PHYSICS", message);
+                m_log.Warn("[PHYSICS]: " + message);
             }
             else
             {
-                MainLog.Instance.Verbose("PHYSICS", message);
+                m_log.Info("[PHYSICS]: " + message);
             }
         }
 

@@ -88,9 +88,12 @@ namespace OpenSim.Region.Physics.PhysXPlugin
         {
             // Does nothing right now
         }
+        public override void Dispose()
+        {
 
+        }
 
-        public override PhysicsActor AddAvatar(string avName, PhysicsVector position, uint localID)
+        public override PhysicsActor AddAvatar(string avName, PhysicsVector position, PhysicsVector size)
         {
             Vec3 pos = new Vec3();
             pos.X = position.X;
@@ -224,6 +227,16 @@ namespace OpenSim.Region.Physics.PhysXPlugin
             set { return; }
         }
 
+        public override bool Grabbed
+        {
+            set { return; }
+        }
+
+        public override bool Selected
+        {
+            set { return; }
+        }
+
         public override bool IsPhysical
         {
             get { return false; }
@@ -264,6 +277,11 @@ namespace OpenSim.Region.Physics.PhysXPlugin
         {
             get { return m_rotationalVelocity; }
             set { m_rotationalVelocity = value; }
+        }
+
+        public override bool Stopped
+        {
+            get { return false; }
         }
 
         public override PhysicsVector Position
@@ -310,6 +328,11 @@ namespace OpenSim.Region.Physics.PhysXPlugin
         {
             get { return _velocity; }
             set { _velocity = value; }
+        }
+
+        public override float CollisionScore
+        {
+            get { return 0f; }
         }
 
         public override bool Kinematic
@@ -375,6 +398,10 @@ namespace OpenSim.Region.Physics.PhysXPlugin
             _position.Y = vec.Y;
             _position.Z = vec.Z;
         }
+        public override void CrossingFailure()
+        {
+
+        }
     }
 
 
@@ -407,6 +434,16 @@ namespace OpenSim.Region.Physics.PhysXPlugin
         public override bool SetAlwaysRun
         {
             get { return false; }
+            set { return; }
+        }
+
+        public override bool Grabbed
+        {
+            set { return; }
+        }
+
+        public override bool Selected
+        {
             set { return; }
         }
 
@@ -447,6 +484,11 @@ namespace OpenSim.Region.Physics.PhysXPlugin
             set { return; }
         }
 
+        public override bool Stopped
+        {
+            get { return false; }
+        }
+
         public override PhysicsVector Position
         {
             get
@@ -478,6 +520,11 @@ namespace OpenSim.Region.Physics.PhysXPlugin
         {
             get { return _velocity; }
             set { _velocity = value; }
+        }
+
+        public override float CollisionScore
+        {
+            get { return 0f; }
         }
 
         public override bool Kinematic
@@ -543,6 +590,10 @@ namespace OpenSim.Region.Physics.PhysXPlugin
         public override PhysicsVector GeometricCenter
         {
             get { return PhysicsVector.Zero; }
+        }
+        public override void CrossingFailure()
+        {
+
         }
     }
 }

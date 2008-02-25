@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -26,11 +26,16 @@
 * 
 */
 
+using OpenSim.Region.ScriptEngine.Common.ScriptEngineBase;
+
 namespace OpenSim.Region.ScriptEngine.Common
 {
     public interface IScript
     {
-        string State();
-        Executor Exec { get; }
+        string State { get; set; }
+        ExecutorBase Exec { get; }
+        string Source { get; set; }
+        void Start(LSL_BuiltIn_Commands_Interface BuiltIn_Commands);
+        EventQueueManager.Queue_llDetectParams_Struct llDetectParams { get; set; }
     }
 }

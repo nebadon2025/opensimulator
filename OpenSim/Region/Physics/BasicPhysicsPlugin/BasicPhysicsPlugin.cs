@@ -69,13 +69,17 @@ namespace OpenSim.Region.Physics.BasicPhysicsPlugin
         public BasicScene()
         {
         }
-
+        
         public override void Initialise(IMesher meshmerizer)
         {
             // Does nothing right now
         }
 
         public override PhysicsActor AddAvatar(string avName, PhysicsVector position, uint localID)
+        {
+
+        }
+        public override PhysicsActor AddAvatar(string avName, PhysicsVector position, PhysicsVector size)
         {
             BasicActor act = new BasicActor();
             act.Position = position;
@@ -133,7 +137,7 @@ namespace OpenSim.Region.Physics.BasicPhysicsPlugin
                 {
                     actor.Position.Y = 0.1F;
                 }
-                else if (actor.Position.Y >= 256)
+                else if (actor.Position.Y >= Constants.RegionSize)
                 {
                     actor.Position.Y = 255.9F;
                 }
@@ -142,16 +146,16 @@ namespace OpenSim.Region.Physics.BasicPhysicsPlugin
                 {
                     actor.Position.X = 0.1F;
                 }
-                else if (actor.Position.X >= 256)
+                else if (actor.Position.X >= Constants.RegionSize)
                 {
                     actor.Position.X = 255.9F;
                 }
 
-                float height = _heightMap[(int) actor.Position.Y*256 + (int) actor.Position.X] + 1.0f;
+                float height = _heightMap[(int)actor.Position.Y * Constants.RegionSize + (int)actor.Position.X] + 1.0f;
                 if (actor.Flying)
                 {
                     if (actor.Position.Z + (actor.Velocity.Z*timeStep) <
-                        _heightMap[(int) actor.Position.Y*256 + (int) actor.Position.X] + 2)
+                        _heightMap[(int)actor.Position.Y * Constants.RegionSize + (int)actor.Position.X] + 2)
                     {
                         actor.Position.Z = height;
                         actor.Velocity.Z = 0;
@@ -224,6 +228,16 @@ namespace OpenSim.Region.Physics.BasicPhysicsPlugin
             set { return; }
         }
 
+        public override bool Grabbed
+        {
+            set { return; }
+        }
+
+        public override bool Selected
+        {
+            set { return; }
+        }
+
         public override bool IsPhysical
         {
             get { return false; }
@@ -259,6 +273,12 @@ namespace OpenSim.Region.Physics.BasicPhysicsPlugin
             get { return false; }
             set { return; }
         }
+
+        public override bool Stopped
+        {
+            get { return false; }
+        }
+
 
         public override PhysicsVector Position
         {
@@ -303,6 +323,11 @@ namespace OpenSim.Region.Physics.BasicPhysicsPlugin
             set { _velocity = value; }
         }
 
+        public override float CollisionScore
+        {
+            get { return 0f; }
+        }
+
         public override Quaternion Orientation
         {
             get { return Quaternion.Identity; }
@@ -331,6 +356,10 @@ namespace OpenSim.Region.Physics.BasicPhysicsPlugin
 
         public override void SetMomentum(PhysicsVector momentum)
         {
+        }
+        public override void CrossingFailure()
+        {
+
         }
     }
 }

@@ -25,7 +25,7 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * 
 */
-/* Original code: Tedd Hansen */
+
 using System.Collections.Generic;
 
 namespace OpenSim.Region.ScriptEngine.Common
@@ -35,7 +35,7 @@ namespace OpenSim.Region.ScriptEngine.Common
 
         // Interface used for loading and executing scripts
 
-        string State();
+        string State { get; set; }
 
         double llSin(double f);
         double llCos(double f);
@@ -354,6 +354,7 @@ namespace OpenSim.Region.ScriptEngine.Common
         //wiki: integer llList2Integer(list src, integer index)
         int llList2Integer(LSL_Types.list src, int index);
         //wiki: double llList2double(list src, integer index)
+        double llList2Float(LSL_Types.list src, int index);
         double osList2Double(LSL_Types.list src, int index);
         //wiki: string llList2String(list src, integer index)
         string llList2String(LSL_Types.list src, int index);
@@ -409,7 +410,7 @@ namespace OpenSim.Region.ScriptEngine.Common
 
         //wiki: llEjectFromLand(key pest)
         void llEjectFromLand(string pest);
-        void llParseString2List();
+        LSL_Types.list llParseString2List(string str, LSL_Types.list separators, LSL_Types.list spacers);
         //wiki: integer llOverMyLand(key id)
         int llOverMyLand(string id);
         //wiki: key llGetLandOwnerAt(vector pos)
@@ -439,7 +440,7 @@ namespace OpenSim.Region.ScriptEngine.Common
         //wiki: double llGetRegionFPS()
         double llGetRegionFPS();
         //wiki: llParticleSystem(List<Object> rules
-        void llParticleSystem(List<object> rules);
+        void llParticleSystem(LSL_Types.list rules);
         //wiki: llGroundRepel(double height, integer water, double tau)
         void llGroundRepel(double height, int water, double tau);
         void llGiveInventoryList();
@@ -633,8 +634,13 @@ namespace OpenSim.Region.ScriptEngine.Common
         int llGetParcelMaxPrims(LSL_Types.Vector3 pos, int sim_wide);
         //wiki list llGetParcelDetails(vector pos, list params)
         LSL_Types.list llGetParcelDetails(LSL_Types.Vector3 pos, LSL_Types.list param);
-
+        string llStringTrim(string src, int type);
         //OpenSim functions
         string osSetDynamicTextureURL(string dynamicID, string contentType, string url, string extraParams, int timer);
+        double osTerrainGetHeight(int x, int y);
+        int osTerrainSetHeight(int x, int y, double val);
+        int osRegionRestart(double seconds);
+        void osRegionNotice(string msg);
+	bool osConsoleCommand(string Command);
     }
 }

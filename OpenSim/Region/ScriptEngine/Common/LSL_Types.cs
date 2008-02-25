@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -28,6 +28,7 @@
 
 using System;
 using System.Text.RegularExpressions;
+using System.Collections;
 
 namespace OpenSim.Region.ScriptEngine.Common
 {
@@ -78,6 +79,11 @@ namespace OpenSim.Region.ScriptEngine.Common
             public override string ToString()
             {
                 return "<" + x.ToString() + ", " + y.ToString() + ", " + z.ToString() + ">";
+            }
+
+            public static explicit operator string(Vector3 vec)
+            {
+                return "<" + vec.x.ToString() + ", " + vec.y.ToString() + ", " + vec.z.ToString() + ">";
             }
 
             public static bool operator ==(Vector3 lhs, Vector3 rhs)
@@ -300,6 +306,11 @@ namespace OpenSim.Region.ScriptEngine.Common
                 return "<" + x.ToString() + ", " + y.ToString() + ", " + z.ToString() + ", " + s.ToString() + ">";
             }
 
+            public static explicit operator string(Quaternion r)
+            {
+                return "<" + r.x.ToString() + ", " + r.y.ToString() + ", " + r.z.ToString() + ", " + r.s.ToString() + ">";
+            }
+
             public static bool operator ==(Quaternion lhs, Quaternion rhs)
             {
                 // Return true if the fields match:
@@ -354,6 +365,29 @@ namespace OpenSim.Region.ScriptEngine.Common
                 return new list(tmp);
             }
 
+            public void Add(object o)
+            {
+                object[] tmp;
+                tmp = new object[m_data.Length + 1];
+                m_data.CopyTo(tmp, 0);
+                tmp[m_data.Length] = o;
+                m_data = tmp;
+            }
+
+            public bool Contains(object o)
+            {
+                bool ret = false;
+                foreach (object i in Data)
+                {
+                    if (i == o)
+                    {
+                        ret = true;
+                        break;
+                    }
+                }
+                return ret;
+            }
+
             public list GetSublist(int start, int end)
             {
                 Console.WriteLine("GetSublist(" + start.ToString() + "," + end.ToString() + ")");
@@ -402,6 +436,199 @@ namespace OpenSim.Region.ScriptEngine.Common
                 }
             }
 
+            #region CSV Methods
+
+            public static list FromCSV(string csv)
+            {
+                return new list(csv.Split(','));
+            }
+
+            public string ToCSV()
+            {
+                string ret = "";
+                foreach(object o in this.Data)
+                {
+                    if(ret == "")
+                    {
+                        ret = o.ToString();
+                    }
+                    else
+                    {
+                        ret = ret + ", " + o.ToString();
+                    }
+                }
+                return ret;
+            }
+            #endregion
+
+            #region Statistic Methods
+
+            public double Min()
+            {
+                double minimum = double.PositiveInfinity;
+                double entry;
+                for (int i = 0; i < Data.Length; i++)
+                {
+                    if (double.TryParse(Data[i].ToString(), out entry))
+                    {
+                        if (entry < minimum) minimum = entry;
+                    }
+                }
+                return minimum;
+            }
+
+            public double Max()
+            {
+                double maximum = double.NegativeInfinity;
+                double entry;
+                for (int i = 0; i < Data.Length; i++)
+                {
+                    if (double.TryParse(Data[i].ToString(), out entry))
+                    {
+                        if (entry > maximum) maximum = entry;
+                    }
+                }
+                return maximum;
+            }
+
+            public double Range()
+            {
+                return (this.Max() / this.Min());
+            }
+
+            public int NumericLength()
+            {
+                int count = 0;
+                double entry;
+                for (int i = 0; i < Data.Length; i++)
+                {
+                    if (double.TryParse(Data[i].ToString(), out entry))
+                    {
+                        count++;
+                    }
+                }
+                return count;
+            }
+
+            public static list ToDoubleList(list src)
+            {
+                list ret = new list();
+                double entry;
+                for (int i = 0; i < src.Data.Length - 1; i++)
+                {
+                    if (double.TryParse(src.Data[i].ToString(), out entry))
+                    {
+                        ret.Add(entry);
+                    }
+                }
+                return ret;
+            }
+
+            public double Sum()
+            {
+                double sum = 0;
+                double entry;
+                for (int i = 0; i < Data.Length; i++)
+                {
+                    if (double.TryParse(Data[i].ToString(), out entry))
+                    {
+                        sum = sum + entry;
+                    }
+                }
+                return sum;
+            }
+
+            public double SumSqrs()
+            {
+                double sum = 0;
+                double entry;
+                for (int i = 0; i < Data.Length; i++)
+                {
+                    if (double.TryParse(Data[i].ToString(), out entry))
+                    {
+                        sum = sum + Math.Pow(entry, 2);
+                    }
+                }
+                return sum;
+            }
+
+            public double Mean()
+            {
+                return (this.Sum() / this.NumericLength());
+            }
+
+            public void NumericSort()
+            {
+                IComparer Numeric = new NumericComparer();
+                Array.Sort(Data, Numeric);
+            }
+
+            public void AlphaSort()
+            {
+                IComparer Alpha = new AlphaCompare();
+                Array.Sort(Data, Alpha);
+            }
+
+            public double Median()
+            {
+                return Qi(0.5);
+            }
+
+            public double GeometricMean()
+            {
+                double ret = 1.0;
+                list nums = list.ToDoubleList(this);
+                for (int i = 0; i < nums.Data.Length; i++)
+                {
+                    ret *= (double)nums.Data[i];
+                }
+                return Math.Exp(Math.Log(ret) / (double)nums.Data.Length);
+            }
+
+            public double HarmonicMean()
+            {
+                double ret = 0.0;
+                list nums = list.ToDoubleList(this);
+                for (int i = 0; i < nums.Data.Length; i++)
+                {
+                    ret += 1.0 / (double)nums.Data[i];
+                }
+                return ((double)nums.Data.Length / ret);
+            }
+
+            public double Variance()
+            {
+                double s = 0;
+                list num = list.ToDoubleList(this);
+                for (int i = 0; i < num.Data.Length; i++)
+                {
+                    s += Math.Pow((double)num.Data[i], 2);
+                }
+                return (s - num.Data.Length * Math.Pow(num.Mean(), 2)) / (num.Data.Length - 1);
+            }
+
+            public double StdDev()
+            {
+                return Math.Sqrt(this.Variance());
+            }
+
+            public double Qi(double i)
+            {
+                list j = this;
+                j.NumericSort();
+                double ret;
+                if (Math.Ceiling(this.Length * i) == this.Length * i)
+                {
+                    return (double)((double)j.Data[(int)(this.Length * i - 1)] + (double)j.Data[(int)(this.Length * i)]) / 2;
+                }
+                else
+                {
+                    return (double)j.Data[((int)(Math.Ceiling(this.Length * i))) - 1];
+                }
+            }
+
+            #endregion 
+
             public string ToPrettyString()
             {
                 string output;
@@ -426,13 +653,50 @@ namespace OpenSim.Region.ScriptEngine.Common
                 return output;
             }
 
+            public class AlphaCompare : IComparer
+            {
+                int IComparer.Compare(object x, object y)
+                {
+                    return string.Compare(x.ToString(), y.ToString());
+                }
+            }
+
+            public class NumericComparer : IComparer
+            {
+                int IComparer.Compare(object x, object y)
+                {
+                    double a;
+                    double b;
+                    if (!double.TryParse(x.ToString(), out a))
+                    {
+                        a = 0.0;
+                    }
+                    if (!double.TryParse(y.ToString(), out b))
+                    {
+                        b = 0.0;
+                    }
+                    if (a < b)
+                    {
+                        return -1;
+                    }
+                    else if (a == b)
+                    {
+                        return 0;
+                    }
+                    else
+                    {
+                        return 1;
+                    }
+                }
+            }
+
             public override string ToString()
             {
                 string output;
-                output = "";
+                output = String.Empty;
                 if (m_data.Length == 0)
                 {
-                    return "";
+                    return String.Empty;
                 }
                 foreach (object o in m_data)
                 {
@@ -442,6 +706,20 @@ namespace OpenSim.Region.ScriptEngine.Common
 
             }
 
+            public static explicit operator string(list l)
+            {
+                string output;
+                output = String.Empty;
+                if (l.m_data.Length == 0)
+                {
+                    return String.Empty;
+                }
+                foreach (object o in l.m_data)
+                {
+                    output = output + o.ToString();
+                }
+                return output;
+            }
         }
 
         //

@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -81,6 +81,8 @@ namespace OpenSim.Region.Physics.BulletXPlugin
     /// </summary>
     public class BulletXMaths
     {
+        //private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         //Vector3
         public static Vector3 PhysicsVectorToXnaVector3(PhysicsVector physicsVector)
         {
@@ -311,9 +313,8 @@ namespace OpenSim.Region.Physics.BulletXPlugin
 
             bool needsCollision = base.NeedsCollision(bodyA, bodyB);
 
-            MainLog.Instance.Debug("BulletX", "A collision was detected between {0} and {1} --> {2}", nameA, nameB,
-                                   needsCollision);
-
+            //m_log.DebugFormat("[BulletX]: A collision was detected between {0} and {1} --> {2}", nameA, nameB,
+                                   //needsCollision);
 
             return needsCollision;
         }
@@ -334,7 +335,7 @@ namespace OpenSim.Region.Physics.BulletXPlugin
 
         private const int minXY = 0;
         private const int minZ = 0;
-        private const int maxXY = 256;
+        private const int maxXY = (int)Constants.RegionSize;
         private const int maxZ = 4096;
         private const int maxHandles = 32766; //Why? I don't know
         private const float gravity = 9.8f;
@@ -407,8 +408,11 @@ namespace OpenSim.Region.Physics.BulletXPlugin
             mesher = meshmerizer;
         }
 
+        public override void Dispose()
+        {
 
-        public override PhysicsActor AddAvatar(string avName, PhysicsVector position, uint localID)
+        }
+        public override PhysicsActor AddAvatar(string avName, PhysicsVector position, PhysicsVector size)
         {
             PhysicsVector pos = new PhysicsVector();
             pos.X = position.X;
@@ -725,6 +729,11 @@ namespace OpenSim.Region.Physics.BulletXPlugin
             _name = name;
         }
 
+        public override bool Stopped
+        {
+            get { return false; }
+        }
+
         public override PhysicsVector Position
         {
             get { return _position; }
@@ -764,7 +773,10 @@ namespace OpenSim.Region.Physics.BulletXPlugin
                 }
             }
         }
-
+        public override float CollisionScore
+        {
+            get { return 0f; }
+        }
         public override PhysicsVector Size
         {
             get { return _size; }
@@ -883,6 +895,16 @@ namespace OpenSim.Region.Physics.BulletXPlugin
             set { return; }
         }
 
+        public override bool Grabbed
+        {
+            set { return; }
+        }
+
+        public override bool Selected
+        {
+            set { return; }
+        }
+
         public virtual void SetAcceleration(PhysicsVector accel)
         {
             lock (BulletXScene.BulletXLock)
@@ -968,6 +990,11 @@ namespace OpenSim.Region.Physics.BulletXPlugin
         }
 
         #endregion
+
+        public override void CrossingFailure()
+        {
+
+        }
     }
 
     /// <summary>
@@ -976,7 +1003,7 @@ namespace OpenSim.Region.Physics.BulletXPlugin
     public class BulletXCharacter : BulletXActor
     {
         public BulletXCharacter(BulletXScene parent_scene, PhysicsVector pos)
-            : this("", parent_scene, pos)
+            : this(String.Empty, parent_scene, pos)
         {
         }
 

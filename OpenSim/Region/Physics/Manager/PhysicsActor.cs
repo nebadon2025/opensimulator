@@ -118,9 +118,17 @@ namespace OpenSim.Region.Physics.Manager
             get { return new NullPhysicsActor(); }
         }
 
+        public abstract bool Stopped { get; }
+
         public abstract PhysicsVector Size { get; set; }
 
         public abstract PrimitiveBaseShape Shape { set; }
+
+        public abstract bool Grabbed { set; }
+
+        public abstract bool Selected { set; }
+
+        public abstract void CrossingFailure();
 
         public virtual void RequestPhysicsterseUpdate()
         {
@@ -128,9 +136,12 @@ namespace OpenSim.Region.Physics.Manager
             // a race condition if the last subscriber unsubscribes
             // immediately after the null check and before the event is raised.
             RequestTerseUpdate handler = OnRequestTerseUpdate;
+            
             if (handler != null)
             {
-                OnRequestTerseUpdate();
+                
+                    handler();
+               
             }
         }
 
@@ -142,15 +153,19 @@ namespace OpenSim.Region.Physics.Manager
             OutOfBounds handler = OnOutOfBounds;
             if (handler != null)
             {
-                OnOutOfBounds(pos);
+                    handler(pos);
             }
         }
 
         public virtual void SendCollisionUpdate(EventArgs e)
         {
-            // CollisionUpdate handler = OnCollisionUpdate;
-            if (OnCollisionUpdate != null)
-                OnCollisionUpdate(e);            
+            CollisionUpdate handler = OnCollisionUpdate;
+      
+            if (handler != null)
+            { 
+                    handler(e);
+            }
+            
         }
 
 
@@ -165,6 +180,8 @@ namespace OpenSim.Region.Physics.Manager
         public abstract PhysicsVector CenterOfMass { get; }
 
         public abstract PhysicsVector Velocity { get; set; }
+
+        public abstract float CollisionScore { get;}
 
         public abstract PhysicsVector Acceleration { get; }
 
@@ -197,6 +214,11 @@ namespace OpenSim.Region.Physics.Manager
 
     public class NullPhysicsActor : PhysicsActor
     {
+        public override bool Stopped 
+        { 
+            get{ return false; } 
+        }
+
         public override PhysicsVector Position
         {
             get { return PhysicsVector.Zero; }
@@ -208,6 +230,17 @@ namespace OpenSim.Region.Physics.Manager
             get { return false; }
             set { return; }
         }
+
+        public override bool Grabbed
+        {
+            set { return; }
+        }
+
+        public override bool Selected
+        {
+            set { return; }
+        }
+
 
         public override bool CollidingGround
         {
@@ -257,6 +290,17 @@ namespace OpenSim.Region.Physics.Manager
             get { return PhysicsVector.Zero; }
             set { return; }
         }
+
+        public override float CollisionScore 
+        {
+            get { return 0f; }
+        }
+
+        public override void CrossingFailure()
+        {
+
+        }
+
 
         public override Quaternion Orientation
         {

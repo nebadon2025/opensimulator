@@ -25,6 +25,7 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * 
 */
+using System;
 using Axiom.Math;
 using OpenSim.Framework;
 using OpenSim.Framework.Console;
@@ -35,6 +36,8 @@ namespace OpenSim.Region.Physics.Manager
 
     public abstract class PhysicsScene
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         // The only thing that should register for this event is the InnerScene
         // Anything else could cause problems.
 
@@ -57,7 +60,7 @@ namespace OpenSim.Region.Physics.Manager
 
         public abstract void Initialise(IMesher meshmerizer);
 
-        public abstract PhysicsActor AddAvatar(string avName, PhysicsVector position, uint localID); // rex, localID added
+        public abstract PhysicsActor AddAvatar(string avName, PhysicsVector position, PhysicsVector size);
 
         public abstract void RemoveAvatar(PhysicsActor actor);
 
@@ -78,6 +81,8 @@ namespace OpenSim.Region.Physics.Manager
 
         public abstract void DeleteTerrain();
 
+        public abstract void Dispose();
+
         public abstract bool IsThreaded { get; }
 
         private class NullPhysicsScene : PhysicsScene
@@ -90,9 +95,9 @@ namespace OpenSim.Region.Physics.Manager
                 // Does nothing right now
             }
 
-            public override PhysicsActor AddAvatar(string avName, PhysicsVector position, uint localID)
+            public override PhysicsActor AddAvatar(string avName, PhysicsVector position, PhysicsVector size)
             {
-                MainLog.Instance.Verbose("PHYSICS", "NullPhysicsScene : AddAvatar({0})", position);
+                m_log.InfoFormat("[PHYSICS]: NullPhysicsScene : AddAvatar({0})", position);
                 return PhysicsActor.Null;
             }
 
@@ -107,7 +112,7 @@ namespace OpenSim.Region.Physics.Manager
 /*
             public override PhysicsActor AddPrim(PhysicsVector position, PhysicsVector size, Quaternion rotation)
             {
-                MainLog.Instance.Verbose("NullPhysicsScene : AddPrim({0},{1})", position, size);
+                m_log.InfoFormat("NullPhysicsScene : AddPrim({0},{1})", position, size);
                 return PhysicsActor.Null;
             }
 */
@@ -121,7 +126,7 @@ namespace OpenSim.Region.Physics.Manager
             public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, PhysicsVector position,
                                                       PhysicsVector size, Quaternion rotation, bool isPhysical, uint localID)
             {
-                MainLog.Instance.Verbose("PHYSICS", "NullPhysicsScene : AddPrim({0},{1})", position, size);
+                m_log.InfoFormat("[PHYSICS]: NullPhysicsScene : AddPrim({0},{1})", position, size);
                 return PhysicsActor.Null;
             }
 
@@ -131,20 +136,19 @@ namespace OpenSim.Region.Physics.Manager
 
             public override float Simulate(float timeStep)
             {
-                m_workIndicator = (m_workIndicator + 1)%10;
+                m_workIndicator = (m_workIndicator + 1) % 10;
 
-                //MainLog.Instance.SetStatus(m_workIndicator.ToString());
                 return 0f;
             }
 
             public override void GetResults()
             {
-                MainLog.Instance.Verbose("PHYSICS", "NullPhysicsScene : GetResults()");
+                m_log.Info("[PHYSICS]: NullPhysicsScene : GetResults()");
             }
 
             public override void SetTerrain(float[] heightMap)
             {
-                MainLog.Instance.Verbose("PHYSICS", "NullPhysicsScene : SetTerrain({0} items)", heightMap.Length);
+                m_log.InfoFormat("[PHYSICS]: NullPhysicsScene : SetTerrain({0} items)", heightMap.Length);
             }
 
             public override void DeleteTerrain()
@@ -154,6 +158,10 @@ namespace OpenSim.Region.Physics.Manager
             public override bool IsThreaded
             {
                 get { return false; }
+            }
+            public override void Dispose()
+            {
+
             }
         }
     }

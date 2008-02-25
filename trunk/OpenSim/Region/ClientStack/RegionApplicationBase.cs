@@ -37,6 +37,7 @@ using OpenSim.Framework.Servers;
 using OpenSim.Region.Environment;
 using OpenSim.Region.Environment.Scenes;
 using OpenSim.Region.Physics.Manager;
+using OpenSim.Region.Communications.VoiceChat;
 
 namespace OpenSim.Region.ClientStack
 {
@@ -61,6 +62,8 @@ namespace OpenSim.Region.ClientStack
         // An attribute to indicate whether prim inventories should be persisted.
         // Probably will be temporary until this stops being experimental.
         protected bool m_storagePersistPrimInventories;
+
+        protected VoiceChatServer m_voiceChatServer;
 
         public SceneManager SceneManager
         {
@@ -114,6 +117,7 @@ namespace OpenSim.Region.ClientStack
             regionInfo.InternalEndPoint.Port = (int)port;
 
             Scene scene = CreateScene(regionInfo, m_storageManager, circuitManager);
+            m_voiceChatServer = new VoiceChatServer(scene);
             
             udpServer.LocalScene = scene;
 

@@ -752,7 +752,8 @@
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Framework.Communications"/>
-      <Reference name="OpenSim.Region.Communications.Local"/>      
+      <Reference name="OpenSim.Region.Communications.Local"/>
+      <Reference name="OpenSim.Region.Communications.VoiceChat"/>
       <Reference name="OpenSim.Region.Physics.Manager"/>
       <Reference name="XMLRPC.dll"/>
       <Reference name="Nini.dll" />
@@ -1532,6 +1533,34 @@
       <Reference name="System.Windows.Forms" localCopy="false"/>
       <Reference name="Microsoft.Win32" localCopy="false"/>
 
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
+    
+    
+    
+    <!-- Rex VoiceChat -->
+    <Project name="OpenSim.Region.Communications.VoiceChat" path="OpenSim/Region/Communications/VoiceChat" type="Library">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../../../../bin/</ReferencePath>      
+      <Reference name="System" localCopy="false"/>
+      <Reference name="OpenSim.Region.Environment" />
+      <Reference name="OpenSim.Framework"/>
+      <Reference name="Axiom.MathLib.dll" localCopy="false"/>
+      <Reference name="System.Web.Services"/>
+      <Reference name="libsecondlife.dll"/>
+      <Reference name="log4net"/>
       <Files>
         <Match pattern="*.cs" recurse="true"/>
       </Files>

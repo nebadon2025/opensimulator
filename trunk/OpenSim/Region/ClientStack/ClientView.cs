@@ -516,8 +516,6 @@ namespace OpenSim.Region.ClientStack
         public event GenericCall2 OnRequestWearables;
         public event SetAppearance OnSetAppearance;
         public event AvatarNowWearing OnAvatarNowWearing;
-        public event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;
-        public event ObjectAttach OnObjectAttach;
         public event GenericCall2 OnCompleteMovementToRegion;
         public event UpdateAgent OnAgentUpdate;
         public event AgentRequestSit OnAgentRequestSit;
@@ -580,6 +578,10 @@ namespace OpenSim.Region.ClientStack
         public event RezScript OnRezScript;
         public event UpdateTaskInventory OnUpdateTaskInventory;
         public event RemoveTaskInventory OnRemoveTaskItem;
+
+        public event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;
+        public event ObjectAttach OnObjectAttach;
+        public event ObjectDetach OnObjectDetach;
 
         public event UUIDNameRequest OnNameFromUUIDRequest;
 
@@ -2865,21 +2867,6 @@ namespace OpenSim.Region.ClientStack
                             OnAvatarNowWearing(this, wearingArgs);
                         }
                         break;
-                    case PacketType.RezSingleAttachmentFromInv:
-                        if (OnRezSingleAttachmentFromInv != null)
-                        {
-                            RezSingleAttachmentFromInvPacket rez = (RezSingleAttachmentFromInvPacket) Pack;
-                            OnRezSingleAttachmentFromInv(this, rez.ObjectData.ItemID, 
-                                        rez.ObjectData.AttachmentPt, rez.ObjectData.ItemFlags, rez.ObjectData.NextOwnerMask);
-                        }
-                        break; 
-                    case PacketType.ObjectAttach:
-                        if (OnObjectAttach != null)
-                        {
-                           ObjectAttachPacket att = (ObjectAttachPacket) Pack;
-                           OnObjectAttach(this, att.ObjectData[0].ObjectLocalID, att.AgentData.AttachmentPoint, att.ObjectData[0].Rotation);
-                        }
-                        break; 
                     case PacketType.SetAlwaysRun:
                         SetAlwaysRunPacket run = (SetAlwaysRunPacket)Pack;
 
@@ -3782,11 +3769,48 @@ namespace OpenSim.Region.ClientStack
                         // TODO: handle this packet
                         m_log.Warn("[CLIENT]: unhandled InventoryDescent packet");
                         break;
+
+
+                    #endregion
+
+                    #region realXtend
+                    //Attachments
+                    case PacketType.RezSingleAttachmentFromInv:
+                        {
+                            RezSingleAttachmentFromInvPacket packet = (RezSingleAttachmentFromInvPacket)Pack;
+
+                            OnRezSingleAttachmentFromInv(this, packet.ObjectData.ItemID, packet.ObjectData.OwnerID,
+                                                         packet.ObjectData.ItemFlags, packet.ObjectData.AttachmentPt);
+                            break;
+                        }
+
+                    case PacketType.ObjectDetach:
+                        {
+                            ObjectDetachPacket packet = (ObjectDetachPacket)Pack;
+
+                            foreach (ObjectDetachPacket.ObjectDataBlock block in packet.ObjectData)
+                            {
+                                OnObjectDetach(this, block.ObjectLocalID);
+                            }
+                            break;
+                        }
+
+                    case PacketType.ObjectAttach:
+                        {
+                            ObjectAttachPacket packet = (ObjectAttachPacket)Pack;
+
+                            foreach (ObjectAttachPacket.ObjectDataBlock block in packet.ObjectData)
+                            {
+                                OnObjectAttach(this, block.ObjectLocalID, block.Rotation, packet.AgentData.AttachmentPoint);
+                            }
+                            //OutPacket(packet, ThrottleOutPacketType.Task);
+
+                            break;
+                        }
+                    #endregion realXtend
                     default:
                         m_log.Warn("[CLIENT]: unhandled packet " + Pack.ToString());
                         break;
-
-                    #endregion
                 }
             }
 

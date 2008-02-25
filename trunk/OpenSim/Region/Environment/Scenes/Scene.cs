@@ -1358,8 +1358,6 @@ namespace OpenSim.Region.Environment.Scenes
             client.OnGrabUpdate += m_innerScene.MoveObject;
             client.OnDeRezObject += DeRezObject;
             client.OnRezObject += RezObject;
-            client.OnRezSingleAttachmentFromInv += RezSingleAttachment;
-            client.OnObjectAttach += m_innerScene.AttachObject;
             client.OnNameFromUUIDRequest += CommsManager.HandleUUIDNameRequest;
             client.OnObjectDescription += m_innerScene.PrimDescription;
             client.OnObjectName += m_innerScene.PrimName;
@@ -1411,6 +1409,11 @@ namespace OpenSim.Region.Environment.Scenes
             client.OnMoneyTransferRequest += ProcessMoneyTransferRequest;
             client.OnAvatarPickerRequest += ProcessAvatarPickerRequest;
             client.OnPacketStats += AddPacketStats;
+
+
+            client.OnRezSingleAttachmentFromInv += SingleAttachmentFromInv;
+            client.OnObjectAttach += ObjectAttach;
+            client.OnObjectDetach += ObjectDetach;
 
             EventManager.TriggerOnNewClient(client);
         }

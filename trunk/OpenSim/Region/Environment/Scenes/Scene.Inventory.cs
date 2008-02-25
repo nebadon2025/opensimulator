@@ -37,6 +37,7 @@ using System.IO;
 using System.Text;
 using System.Xml;
 using OpenSim.Region.Environment.Interfaces;
+using Axiom.Math;
 
 
 namespace OpenSim.Region.Environment.Scenes
@@ -824,10 +825,84 @@ namespace OpenSim.Region.Environment.Scenes
                 }
             }
         }
-        public void RezSingleAttachment(IClientAPI remoteClient, LLUUID itemID, uint AttachmentPt,
-                                    uint ItemFlags, uint NextOwnerMask)
+        protected void ObjectAttach(IClientAPI remoteClient, uint localID, LLQuaternion rotation, byte attachPoint)
         {
-            System.Console.WriteLine("RezSingleAttachment: unimplemented yet");
+            System.Console.WriteLine("Attaching object " + localID + " to " + attachPoint);
+            SceneObjectPart p = GetSceneObjectPart(localID);
+            ScenePresence av = null;
+            if (TryGetAvatar(remoteClient.AgentId, out av))
+            {
+                p.AttachToAvatar(remoteClient.AgentId, av, attachPoint, rotation, m_regInfo);
+            }
+        }
+
+        protected void ObjectDetach(IClientAPI remoteClient, uint localID)
+        {
+            ScenePresence av = null;
+            if (TryGetAvatar(remoteClient.AgentId, out av))
+            {
+                SceneObjectPart p = GetSceneObjectPart(localID);
+
+                //Place the object in front of the avatar
+                Vector3 vecDir = new Vector3(1, 0, 0);
+                float dist = p.Scale.X + 0.1f;
+                vecDir = (av.Rotation * vecDir) * dist;
+
+                p.ParentGroup.AbsolutePosition = av.AbsolutePosition + new LLVector3(vecDir.x, vecDir.y, vecDir.z);
+                p.RotationOffset = new LLQuaternion(av.Rotation.x, av.Rotation.y, av.Rotation.z, av.Rotation.w);
+                p.Detach();
+            }
+            else
+            {
+               // MainLog.Instance.Warn("SCENE", "Object detach - Unable to find avatar " + remoteClient.FirstName + " " + remoteClient.LastName);
+            }
+        }
+
+        protected void SingleAttachmentFromInv(IClientAPI remoteClient, LLUUID itemID, LLUUID ownerID,
+                                               uint itemFlags, byte attachPoint)
+        {
+        //    MainLog.Instance.Verbose("SCENE", "SingleAttachmentFromInv for " + remoteClient.FirstName + " " + remoteClient.LastName + ": " +
+          //                                    "itemID=" + itemID + " ownerID=" + ownerID + " itemFlags=" + itemFlags +
+            //                                  "attachPoint=" + attachPoint);
+            CachedUserInfo userInfo = CommsManager.UserProfileCacheService.GetUserDetails(remoteClient.AgentId);
+            if (userInfo != null)
+            {
+                if (userInfo.RootFolder != null)
+                {
+                    InventoryItemBase item = userInfo.RootFolder.HasItem(itemID);
+                    if (item != null)
+                    {
+                        AssetBase rezAsset = AssetCache.GetAsset(item.assetID, false);
+                        if (rezAsset != null)
+                        {
+                           // MainLog.Instance.Verbose("SCENE", "Adding inventory item to scene");
+                            ScenePresence presence = GetScenePresence(remoteClient.AgentId);
+
+                            SceneObjectGroup group = new SceneObjectGroup(this, m_regionHandle, Helpers.FieldToUTF8String(rezAsset.Data));
+                            group.RegenerateFullIDs();
+                            AddEntity(group);
+
+                            group.AbsolutePosition = presence.AbsolutePosition;
+                            SceneObjectPart rootPart = group.GetChildPart(group.UUID);
+                            rootPart.RotationOffset = new LLQuaternion(presence.Rotation.x, presence.Rotation.y, presence.Rotation.z, presence.Rotation.w);
+                           // MainLog.Instance.Verbose("SCENE", "Attaching it to a scene presence");
+                            rootPart.AttachToAvatar(remoteClient.AgentId, presence, attachPoint, new LLQuaternion(0, 0, 0, 1), m_regInfo);
+                        }
+                    }
+                    else
+                    {
+                        //MainLog.Instance.Warn("SCENE", "RezAttach - Item not found from folder");
+                    }
+                }
+                else
+                {
+                    //MainLog.Instance.Warn("SCENE", "RezAttach - No root folder found");
+                }
+            }
+            else
+            {
+                //MainLog.Instance.Warn("SCENE", "RezAttach - Unable to get userInfo for " + remoteClient.FirstName + " " + remoteClient.LastName);
+            }
         }
 
 

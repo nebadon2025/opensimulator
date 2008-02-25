@@ -234,10 +234,11 @@ namespace OpenSim.Framework
                                     uint EveryoneMask, uint GroupMask, uint NextOwnerMask, uint ItemFlags, 
                                     bool RezSelected, bool RemoveItem, LLUUID fromTaskID );
 
-    public delegate void RezSingleAttachmentFromInv(IClientAPI remoteClient, LLUUID itemID, uint AttachmentPt,
-                                    uint ItemFlags, uint NextOwnerMask);
-
-    public delegate void ObjectAttach(IClientAPI remoteClient, uint objectLocalID, uint AttachmentPt, LLQuaternion rot);
+    //Attachments
+    public delegate void RezSingleAttachmentFromInv(IClientAPI remoteClient, LLUUID itemID, LLUUID ownerID,
+                                                    uint itemFlags, byte attachPoint);
+    public delegate void ObjectAttach(IClientAPI remoteClient, uint localID, LLQuaternion rotation, byte attachPoint);
+    public delegate void ObjectDetach(IClientAPI remoteClient, uint localID);
 
     public delegate void ModifyTerrain(
         float height, float seconds, byte size, byte action, float north, float west, float south, float east,
@@ -419,6 +420,9 @@ namespace OpenSim.Framework
 
     public delegate void ObjectPermissions(IClientAPI controller, LLUUID agentID, LLUUID sessionID, byte field, uint localId, uint mask, byte set);
 
+
+
+
     public interface IClientAPI
     {
         event ImprovedInstantMessage OnInstantMessage;
@@ -428,8 +432,6 @@ namespace OpenSim.Framework
         event ModifyTerrain OnModifyTerrain;
         event SetAppearance OnSetAppearance;
         event AvatarNowWearing OnAvatarNowWearing;
-        event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;
-        event ObjectAttach OnObjectAttach;
         event StartAnim OnStartAnim;
         event StopAnim OnStopAnim;
         event LinkObjects OnLinkObjects;
@@ -499,6 +501,10 @@ namespace OpenSim.Framework
         event RezScript OnRezScript;
         event UpdateTaskInventory OnUpdateTaskInventory;
         event RemoveTaskInventory OnRemoveTaskItem;
+
+        event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;
+        event ObjectAttach OnObjectAttach;
+        event ObjectDetach OnObjectDetach;
 
         event UUIDNameRequest OnNameFromUUIDRequest;
 

@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -42,6 +42,8 @@ namespace OpenSim.Framework.UserManagement
     /// </summary>
     public class LoginResponse
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private Hashtable loginFlagsHash;
         private Hashtable globalTexturesHash;
         private Hashtable loginError;
@@ -130,7 +132,7 @@ namespace OpenSim.Framework.UserManagement
             defaultXmlRpcResponse = new XmlRpcResponse();
 
             SetDefaultValues();
-        } // LoginServer
+        }
 
         public void SetDefaultValues()
         {
@@ -152,8 +154,8 @@ namespace OpenSim.Framework.UserManagement
             ErrorMessage = "You have entered an invalid name/password combination.  Check Caps/lock.";
             ErrorReason = "key";
             welcomeMessage = "Welcome to OpenSim!";
-            seedCapability = "";
-            home = "{'region_handle':[r" + (1000*256).ToString() + ",r" + (1000*256).ToString() + "], 'position':[r" +
+            seedCapability = String.Empty;
+            home = "{'region_handle':[r" + (1000*Constants.RegionSize).ToString() + ",r" + (1000*Constants.RegionSize).ToString() + "], 'position':[r" +
                    userProfile.homepos.X.ToString() + ",r" + userProfile.homepos.Y.ToString() + ",r" +
                    userProfile.homepos.Z.ToString() + "], 'look_at':[r" + userProfile.homelookat.X.ToString() + ",r" +
                    userProfile.homelookat.Y.ToString() + ",r" + userProfile.homelookat.Z.ToString() + "]}";
@@ -183,7 +185,7 @@ namespace OpenSim.Framework.UserManagement
             InitialOutfitHash["folder_name"] = "Nightclub Female";
             InitialOutfitHash["gender"] = "female";
             initialOutfit.Add(InitialOutfitHash);
-        } // SetDefaultValues
+        }
 
         #region Login Failure Methods
 
@@ -201,7 +203,7 @@ namespace OpenSim.Framework.UserManagement
             loginError["login"] = login;
             xmlRpcResponse.Value = loginError;
             return (xmlRpcResponse);
-        } // GenerateResponse
+        }
 
         public LLSD GenerateFailureResponseLLSD(string reason, string message, string login)
         {
@@ -221,7 +223,7 @@ namespace OpenSim.Framework.UserManagement
         public XmlRpcResponse CreateFailedResponse()
         {
             return (CreateLoginFailedResponse());
-        } // CreateErrorConnectingToGridResponse()
+        }
 
         public LLSD CreateFailedResponseLLSD()
         {
@@ -234,7 +236,7 @@ namespace OpenSim.Framework.UserManagement
                 (GenerateFailureResponse("key",
                                          "Could not authenticate your avatar. Please check your username and password, and check the grid if problems persist.",
                                          "false"));
-        } // LoginFailedResponse
+        }
 
         public LLSD CreateLoginFailedResponseLLSD()
         {
@@ -250,7 +252,7 @@ namespace OpenSim.Framework.UserManagement
                 (GenerateFailureResponse("presence",
                                          "You appear to be already logged in, if this is not the case please wait for your session to timeout, if this takes longer than a few minutes please contact the grid owner",
                                          "false"));
-        } // CreateAlreadyLoggedInResponse()
+        }
 
         public LLSD CreateAlreadyLoggedInResponseLLSD()
         {
@@ -350,8 +352,8 @@ namespace OpenSim.Framework.UserManagement
                 responseData["home"] = home;
                 responseData["look_at"] = lookAt;
                 responseData["message"] = welcomeMessage;
-                responseData["region_x"] = (Int32) RegionX*256;
-                responseData["region_y"] = (Int32) RegionY*256;
+                responseData["region_x"] = (Int32)(RegionX * Constants.RegionSize);
+                responseData["region_y"] = (Int32)(RegionY * Constants.RegionSize);
 
                 responseData["version"] = clientVersion; //rex
 
@@ -369,13 +371,11 @@ namespace OpenSim.Framework.UserManagement
             }
             catch (Exception e)
             {
-                MainLog.Instance.Warn(
-                    "CLIENT",
-                    "LoginResponse: Error creating XML-RPC Response: " + e.Message
-                    );
+                m_log.Warn("[CLIENT]: LoginResponse: Error creating XML-RPC Response: " + e.Message);
+
                 return (GenerateFailureResponse("Internal Error", "Error generating Login Response", "false"));
             }
-        } // ToXmlRpcResponse
+        }
 
         public LLSD ToLLSDResponse()
         {
@@ -454,8 +454,8 @@ namespace OpenSim.Framework.UserManagement
                 map["home"] = LLSD.FromString(home);
                 map["look_at"] = LLSD.FromString(lookAt);
                 map["message"] = LLSD.FromString(welcomeMessage);
-                map["region_x"] = LLSD.FromInteger(RegionX * 256);
-                map["region_y"] = LLSD.FromInteger(RegionY * 256);
+                map["region_x"] = LLSD.FromInteger(RegionX * Constants.RegionSize);
+                map["region_y"] = LLSD.FromInteger(RegionY * Constants.RegionSize);
 
                 map["version"] = LLSD.FromString(clientVersion); //rex
 
@@ -470,10 +470,8 @@ namespace OpenSim.Framework.UserManagement
             }
             catch (Exception e)
             {
-                MainLog.Instance.Warn(
-                    "CLIENT",
-                    "LoginResponse: Error creating XML-RPC Response: " + e.Message
-                    );
+                m_log.Warn("[CLIENT]: LoginResponse: Error creating XML-RPC Response: " + e.Message);
+
                 return GenerateFailureResponseLLSD("Internal Error", "Error generating Login Response", "false");
             }
         }
@@ -489,12 +487,12 @@ namespace OpenSim.Framework.UserManagement
         {
             //  this.eventCategoriesHash[category] = value;
             //TODO
-        } // SetEventCategories
+        }
 
         public void AddToUIConfig(string itemName, string item)
         {
             uiConfigHash[itemName] = item;
-        } // SetUIConfig
+        }
 
         public void AddClassifiedCategory(Int32 ID, string categoryName)
         {
@@ -503,7 +501,7 @@ namespace OpenSim.Framework.UserManagement
             hash["category_id"] = ID;
             classifiedCategories.Add(hash);
             // this.classifiedCategoriesHash.Clear();
-        } // SetClassifiedCategory
+        }
 
         #region Properties
 
@@ -511,109 +509,109 @@ namespace OpenSim.Framework.UserManagement
         {
             get { return login; }
             set { login = value; }
-        } // Login
+        }
 
         public string DST
         {
             get { return dst; }
             set { dst = value; }
-        } // DST
+        }
 
         public string StipendSinceLogin
         {
             get { return stipendSinceLogin; }
             set { stipendSinceLogin = value; }
-        } // StipendSinceLogin
+        }
 
         public string Gendered
         {
             get { return gendered; }
             set { gendered = value; }
-        } // Gendered
+        }
 
         public string EverLoggedIn
         {
             get { return everLoggedIn; }
             set { everLoggedIn = value; }
-        } // EverLoggedIn
+        }
 
         public uint SimPort
         {
             get { return simPort; }
             set { simPort = value; }
-        } // SimPort
+        }
 
         public string SimAddress
         {
             get { return simAddress; }
             set { simAddress = value; }
-        } // SimAddress
+        }
 
         public LLUUID AgentID
         {
             get { return agentID; }
             set { agentID = value; }
-        } // AgentID
+        }
 
         public LLUUID SessionID
         {
             get { return sessionID; }
             set { sessionID = value; }
-        } // SessionID
+        }
 
         public LLUUID SecureSessionID
         {
             get { return secureSessionID; }
             set { secureSessionID = value; }
-        } // SecureSessionID
+        }
 
         public Int32 CircuitCode
         {
             get { return circuitCode; }
             set { circuitCode = value; }
-        } // CircuitCode
+        }
 
         public uint RegionX
         {
             get { return regionX; }
             set { regionX = value; }
-        } // RegionX
+        }
 
         public uint RegionY
         {
             get { return regionY; }
             set { regionY = value; }
-        } // RegionY
+        }
 
         public string SunTexture
         {
             get { return sunTexture; }
             set { sunTexture = value; }
-        } // SunTexture
+        }
 
         public string CloudTexture
         {
             get { return cloudTexture; }
             set { cloudTexture = value; }
-        } // CloudTexture
+        }
 
         public string MoonTexture
         {
             get { return moonTexture; }
             set { moonTexture = value; }
-        } // MoonTexture
+        }
 
         public string Firstname
         {
             get { return firstname; }
             set { firstname = value; }
-        } // Firstname
+        }
 
         public string Lastname
         {
             get { return lastname; }
             set { lastname = value; }
-        } // Lastname
+        }
 
         public string ClientVersion
         {
@@ -631,7 +629,7 @@ namespace OpenSim.Framework.UserManagement
         {
             get { return startLocation; }
             set { startLocation = value; }
-        } // StartLocation
+        }
 
         public string LookAt
         {
@@ -643,19 +641,19 @@ namespace OpenSim.Framework.UserManagement
         {
             get { return seedCapability; }
             set { seedCapability = value; }
-        } // SeedCapability
+        }
 
         public string ErrorReason
         {
             get { return errorReason; }
             set { errorReason = value; }
-        } // ErrorReason
+        }
 
         public string ErrorMessage
         {
             get { return errorMessage; }
             set { errorMessage = value; }
-        } // ErrorMessage
+        }
 
         public ArrayList InventoryRoot
         {

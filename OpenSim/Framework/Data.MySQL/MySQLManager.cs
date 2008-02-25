@@ -29,6 +29,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlClient;
 using System.IO;
 using System.Reflection;
 using libsecondlife;
@@ -42,6 +43,8 @@ namespace OpenSim.Framework.Data.MySQL
     /// </summary>
     internal class MySQLManager
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         /// <summary>
         /// The database connection object
         /// </summary>
@@ -69,9 +72,16 @@ namespace OpenSim.Framework.Data.MySQL
                                    username + ";Password=" + password + ";Pooling=" + cpooling + ";";
                 dbcon = new MySqlConnection(connectionString);
 
-                dbcon.Open();
+                try
+                {
+                    dbcon.Open();
+                }
+                catch(Exception e)
+                {
+                    throw new Exception( "Connection error while using connection string ["+connectionString+"]", e );
+                }
 
-                MainLog.Instance.Verbose("MYSQL", "Connection established");
+                m_log.Info("[MYSQL]: Connection established");
             }
             catch (Exception e)
             {
@@ -113,7 +123,7 @@ namespace OpenSim.Framework.Data.MySQL
                 }
                 catch (Exception e)
                 {
-                    MainLog.Instance.Error("Unable to reconnect to database " + e.ToString());
+                    m_log.Error("Unable to reconnect to database " + e.ToString());
                 }
             }
         }
@@ -190,11 +200,13 @@ namespace OpenSim.Framework.Data.MySQL
                             string tableName = (string) tables["TABLE_NAME"];
                             string comment = (string) tables["TABLE_COMMENT"];
                             if (tableList.ContainsKey(tableName))
+                            {
                                 tableList[tableName] = comment;
+                            }
                         }
                         catch (Exception e)
                         {
-                            MainLog.Instance.Error(e.ToString());
+                            m_log.Error(e.ToString());
                         }
                     }
                     tables.Close();
@@ -245,7 +257,7 @@ namespace OpenSim.Framework.Data.MySQL
                     }
                     catch (Exception e)
                     {
-                        MainLog.Instance.Error("Unable to reconnect to database " + e.ToString());
+                        m_log.Error("Unable to reconnect to database " + e.ToString());
                     }
 
                     // Run the query again
@@ -263,7 +275,7 @@ namespace OpenSim.Framework.Data.MySQL
                     catch (Exception e)
                     {
                         // Return null if it fails.
-                        MainLog.Instance.Error("Failed during Query generation: " + e.ToString());
+                        m_log.Error("Failed during Query generation: " + e.ToString());
                         return null;
                     }
                 }
@@ -324,13 +336,30 @@ namespace OpenSim.Framework.Data.MySQL
 
                 // World Map Addition
                 string tempRegionMap = reader["regionMapTexture"].ToString();
-                if (tempRegionMap != "")
+                if (tempRegionMap != String.Empty)
                 {
                     retval.regionMapTextureID = new LLUUID(tempRegionMap);
                 }
                 else
                 {
                     retval.regionMapTextureID = LLUUID.Zero;
+                }
+
+                // part of an initial brutish effort to provide accurate information (as per the xml region spec)
+                // wrt the ownership of a given region
+                // the (very bad) assumption is that this value is being read and handled inconsistently or
+                // not at all. Current strategy is to put the code in place to support the validity of this information
+                // and to roll forward debugging any issues from that point
+                //
+                // this particular section of the mod attempts to supply a value from the region table to the caller of 'readSimRow()' 
+                // for the UUID of the region's owner (master avatar)
+                try
+                {
+                    retval.owner_uuid = new LLUUID((string)reader["owner_uuid"]);
+                }
+                catch
+                {
+                    retval.owner_uuid = LLUUID.Zero;
                 }
             }
             else
@@ -447,7 +476,15 @@ namespace OpenSim.Framework.Data.MySQL
 
                 retval.profileImage = new LLUUID((string) reader["profileImage"]);
                 retval.profileFirstImage = new LLUUID((string) reader["profileFirstImage"]);
-                retval.webLoginKey = new LLUUID((string)reader["webLoginKey"]);
+                
+                if( reader.IsDBNull( reader.GetOrdinal( "webLoginKey" ) ) )
+                {
+                    retval.webLoginKey = LLUUID.Zero;
+                }
+                else
+                {
+                    retval.webLoginKey = new LLUUID((string)reader["webLoginKey"]);
+                }
             }
             else
             {
@@ -494,7 +531,7 @@ namespace OpenSim.Framework.Data.MySQL
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return false;
             }
 
@@ -565,12 +602,12 @@ namespace OpenSim.Framework.Data.MySQL
             parameters["?homeLookAtZ"] = homeLookAtZ.ToString();
             parameters["?created"] = created.ToString();
             parameters["?lastLogin"] = lastlogin.ToString();
-            parameters["?userInventoryURI"] = "";
-            parameters["?userAssetURI"] = "";
+            parameters["?userInventoryURI"] = String.Empty;
+            parameters["?userAssetURI"] = String.Empty;
             parameters["?profileCanDoMask"] = "0";
             parameters["?profileWantDoMask"] = "0";
-            parameters["?profileAboutText"] = "";
-            parameters["?profileFirstText"] = "";
+            parameters["?profileAboutText"] = String.Empty;
+            parameters["?profileFirstText"] = String.Empty;
             parameters["?profileImage"] = LLUUID.Zero.ToString();
             parameters["?profileFirstImage"] = LLUUID.Zero.ToString();
             parameters["?webLoginKey"] = LLUUID.Random().ToString();
@@ -588,7 +625,7 @@ namespace OpenSim.Framework.Data.MySQL
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return false;
             }
 
@@ -605,7 +642,7 @@ namespace OpenSim.Framework.Data.MySQL
         {
             bool GRID_ONLY_UPDATE_NECESSARY_DATA = false;
 
-            string sql = "";
+            string sql = String.Empty;
             if (GRID_ONLY_UPDATE_NECESSARY_DATA)
             {
                 sql += "INSERT INTO ";
@@ -618,18 +655,28 @@ namespace OpenSim.Framework.Data.MySQL
             sql += "regions (regionHandle, regionName, uuid, regionRecvKey, regionSecret, regionSendKey, regionDataURI, ";
             sql +=
                 "serverIP, serverPort, serverURI, locX, locY, locZ, eastOverrideHandle, westOverrideHandle, southOverrideHandle, northOverrideHandle, regionAssetURI, regionAssetRecvKey, ";
+
+            // part of an initial brutish effort to provide accurate information (as per the xml region spec)
+            // wrt the ownership of a given region
+            // the (very bad) assumption is that this value is being read and handled inconsistently or
+            // not at all. Current strategy is to put the code in place to support the validity of this information
+            // and to roll forward debugging any issues from that point
+            //
+            // this particular section of the mod attempts to implement the commit of a supplied value
+            // server for the UUID of the region's owner (master avatar). It consists of the addition of the column and value to the relevant sql,
+            // as well as the related parameterization
             sql +=
-                "regionAssetSendKey, regionUserURI, regionUserRecvKey, regionUserSendKey, regionMapTexture, serverHttpPort, serverRemotingPort) VALUES ";
+                "regionAssetSendKey, regionUserURI, regionUserRecvKey, regionUserSendKey, regionMapTexture, serverHttpPort, serverRemotingPort, owner_uuid) VALUES ";
 
             sql += "(?regionHandle, ?regionName, ?uuid, ?regionRecvKey, ?regionSecret, ?regionSendKey, ?regionDataURI, ";
             sql +=
                 "?serverIP, ?serverPort, ?serverURI, ?locX, ?locY, ?locZ, ?eastOverrideHandle, ?westOverrideHandle, ?southOverrideHandle, ?northOverrideHandle, ?regionAssetURI, ?regionAssetRecvKey, ";
             sql +=
-                "?regionAssetSendKey, ?regionUserURI, ?regionUserRecvKey, ?regionUserSendKey, ?regionMapTexture, ?serverHttpPort, ?serverRemotingPort)";
+                "?regionAssetSendKey, ?regionUserURI, ?regionUserRecvKey, ?regionUserSendKey, ?regionMapTexture, ?serverHttpPort, ?serverRemotingPort, ?owner_uuid)";
 
             if (GRID_ONLY_UPDATE_NECESSARY_DATA)
             {
-                sql += "ON DUPLICATE KEY UPDATE serverIP = ?serverIP, serverPort = ?serverPort, serverURI = ?serverURI;";
+                sql += "ON DUPLICATE KEY UPDATE serverIP = ?serverIP, serverPort = ?serverPort, serverURI = ?serverURI, owner_uuid - ?owner_uuid;";
             }
             else
             {
@@ -664,6 +711,8 @@ namespace OpenSim.Framework.Data.MySQL
             parameters["?regionMapTexture"] = regiondata.regionMapTextureID.ToString();
             parameters["?serverHttpPort"] = regiondata.httpPort.ToString();
             parameters["?serverRemotingPort"] = regiondata.remotingPort.ToString();
+            parameters["?owner_uuid"] = regiondata.owner_uuid.ToString();
+
             bool returnval = false;
 
             try
@@ -680,7 +729,7 @@ namespace OpenSim.Framework.Data.MySQL
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return false;
             }
 

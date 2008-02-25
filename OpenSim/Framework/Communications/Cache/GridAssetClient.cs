@@ -36,6 +36,8 @@ namespace OpenSim.Framework.Communications.Cache
 {
     public class GridAssetClient : AssetServerBase
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private string _assetServerUrl;
 
         public GridAssetClient(string serverUrl)
@@ -50,7 +52,9 @@ namespace OpenSim.Framework.Communications.Cache
             Stream s = null;
             try
             {
-                MainLog.Instance.Debug("ASSETCACHE", "Querying for {0}", req.AssetID.ToString());
+                #if DEBUG
+                //m_log.DebugFormat("[GRID ASSET CLIENT]: Querying for {0}", req.AssetID.ToString());
+                #endif
 
                 RestClient rc = new RestClient(_assetServerUrl);
                 rc.AddResourcePath("assets");
@@ -70,9 +74,9 @@ namespace OpenSim.Framework.Communications.Cache
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error("ASSETCACHE", e.Message);
-                MainLog.Instance.Debug("ASSETCACHE", "Getting asset {0}", req.AssetID.ToString());
-                MainLog.Instance.Error("ASSETCACHE", e.StackTrace);
+                m_log.Error("[GRID ASSET CLIENT]: " + e.Message);
+                m_log.DebugFormat("[GRID ASSET CLIENT]: Getting asset {0}", req.AssetID.ToString());
+                m_log.Error("[GRID ASSET CLIENT]: " + e.StackTrace);
             }
 
             return null;
@@ -93,17 +97,19 @@ namespace OpenSim.Framework.Communications.Cache
                 // XmlSerializer xs = new XmlSerializer(typeof(AssetBase));
                 //   xs.Serialize(s, asset);
                 //  RestClient rc = new RestClient(_assetServerUrl);
-                MainLog.Instance.Verbose("ASSET", "Storing asset");
+                m_log.Info("[GRID ASSET CLIENT]: Storing asset");
                 //rc.AddResourcePath("assets");
+
                 // rc.RequestMethod = "POST";
                 //  rc.Request(s);
-                //MainLog.Instance.Verbose("ASSET", "Stored {0}", rc);
-                MainLog.Instance.Verbose("ASSET", "Sending to " + _assetServerUrl + "/assets/");
+                //m_log.InfoFormat("[ASSET]: Stored {0}", rc);
+                m_log.Info("[GRID ASSET CLIENT]: Sending to " + _assetServerUrl + "/assets/");
                 RestObjectPoster.BeginPostObject<AssetBase>(_assetServerUrl + "/assets/", asset);
+
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error("ASSETS", e.Message);
+                m_log.Error("[GRID ASSET CLIENT]: " + e.Message);
             }
         }
 

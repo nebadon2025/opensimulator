@@ -31,6 +31,7 @@ using System.Net.Sockets;
 using System.Xml;
 using libsecondlife;
 using Nini.Config;
+using OpenSim.Framework.Console;
 
 namespace OpenSim.Framework
 {
@@ -67,6 +68,7 @@ namespace OpenSim.Framework
             m_internalEndPoint = ConvertFrom.InternalEndPoint;
             m_externalHostName = ConvertFrom.ExternalHostName;
             m_remotingPort = ConvertFrom.RemotingPort;
+            m_allow_alternate_ports = ConvertFrom.m_allow_alternate_ports;
             RemotingAddress = ConvertFrom.RemotingAddress;
             RegionID = LLUUID.Zero;
         }
@@ -80,6 +82,7 @@ namespace OpenSim.Framework
             get { return m_remotingPort; }
             set { m_remotingPort = value; }
         }
+        public bool m_allow_alternate_ports;
 
         public string RemotingAddress;
 
@@ -125,6 +128,8 @@ namespace OpenSim.Framework
             set { m_externalHostName = value; }
         }
 
+        protected bool Allow_Alternate_Ports;
+
         protected IPEndPoint m_internalEndPoint;
 
         public IPEndPoint InternalEndPoint
@@ -151,23 +156,25 @@ namespace OpenSim.Framework
 
         public ulong RegionHandle
         {
-            get { return Util.UIntsToLong((RegionLocX*256), (RegionLocY*256)); }
+            get { return Util.UIntsToLong((RegionLocX * (uint)Constants.RegionSize), (RegionLocY * (uint)Constants.RegionSize)); }
         }
     }
 
     public class RegionInfo : SimpleRegionInfo
     {
-        public string RegionName = "";
+        public string RegionName = String.Empty;
 
-        public string DataStore = "";
+        public string DataStore = String.Empty;
         public bool isSandbox = false;
         public bool commFailTF = false;
 
+//        public bool m_allow_alternate_ports;
+
         public LLUUID MasterAvatarAssignedUUID = LLUUID.Zero;
         public LLUUID CovenantID = LLUUID.Zero;
-        public string MasterAvatarFirstName = "";
-        public string MasterAvatarLastName = "";
-        public string MasterAvatarSandboxPassword = "";
+        public string MasterAvatarFirstName = String.Empty;
+        public string MasterAvatarLastName = String.Empty;
+        public string MasterAvatarSandboxPassword = String.Empty;
 
         public LLUUID SkyboxFront = null;
         public LLUUID SkyboxBack = null;
@@ -177,7 +184,7 @@ namespace OpenSim.Framework
         public LLUUID SkyboxBottom = null;
 
         // Apparently, we're applying the same estatesettings regardless of whether it's local or remote.
-        private static EstateSettings m_estateSettings;
+        private EstateSettings m_estateSettings;
 
         public EstateSettings EstateSettings
         {
@@ -197,7 +204,7 @@ namespace OpenSim.Framework
         public RegionInfo(string description, string filename, bool skipConsoleConfig)
         {
             configMember =
-                new ConfigurationMember(filename, description, loadConfigurationOptions, handleIncomingConfiguration,!skipConsoleConfig);
+                new ConfigurationMember(filename, description, loadConfigurationOptions, handleIncomingConfiguration, !skipConsoleConfig);
             configMember.performConfigurationRetrieve();
         }
 
@@ -224,6 +231,7 @@ namespace OpenSim.Framework
             m_internalEndPoint = ConvertFrom.InternalEndPoint;
             m_externalHostName = ConvertFrom.ExternalHostName;
             m_remotingPort = ConvertFrom.RemotingPort;
+            m_allow_alternate_ports = ConvertFrom.m_allow_alternate_ports;
             RemotingAddress = ConvertFrom.RemotingAddress;
             RegionID = LLUUID.Zero;
         }
@@ -235,6 +243,7 @@ namespace OpenSim.Framework
             m_internalEndPoint = ConvertFrom.InternalEndPoint;
             m_externalHostName = ConvertFrom.ExternalHostName;
             m_remotingPort = ConvertFrom.RemotingPort;
+            m_allow_alternate_ports = ConvertFrom.m_allow_alternate_ports;
             RemotingAddress = ConvertFrom.RemotingAddress;
             RegionID = LLUUID.Zero;
         }
@@ -248,7 +257,7 @@ namespace OpenSim.Framework
         //not in use, should swap to nini though.
         public void LoadFromNiniSource(IConfigSource source, string sectionName)
         {
-            string errorMessage = "";
+            string errorMessage = String.Empty;
             RegionID = new LLUUID(source.Configs[sectionName].GetString("Region_ID", LLUUID.Random().ToString()));
             RegionName = source.Configs[sectionName].GetString("sim_name", "OpenSim Test");
             m_regionLocX = Convert.ToUInt32(source.Configs[sectionName].GetString("sim_location_x", "1000"));
@@ -282,7 +291,7 @@ namespace OpenSim.Framework
             MasterAvatarLastName = source.Configs[sectionName].GetString("master_avatar_last", "User");
             MasterAvatarSandboxPassword = source.Configs[sectionName].GetString("master_avatar_pass", "test");
 
-            if (errorMessage != "")
+            if (errorMessage != String.Empty)
             {
                 // a error 
             }
@@ -307,6 +316,9 @@ namespace OpenSim.Framework
             configMember.addConfigurationOption("internal_ip_port", ConfigurationOption.ConfigurationTypes.TYPE_INT32,
                                                 "Internal IP Port for incoming UDP client connections",
                                                 NetworkServersInfo.DefaultHttpListenerPort.ToString(), false);
+            configMember.addConfigurationOption("allow_alternate_ports", ConfigurationOption.ConfigurationTypes.TYPE_BOOLEAN,
+                                                "Allow sim to find alternate UDP ports when ports are in use?",
+                                                "false", true);
             configMember.addConfigurationOption("external_host_name",
                                                 ConfigurationOption.ConfigurationTypes.TYPE_STRING_NOT_EMPTY,
                                                 "External Host Name", "127.0.0.1", false);
@@ -364,7 +376,10 @@ namespace OpenSim.Framework
                     m_internalEndPoint = new IPEndPoint(address, 0);
                     break;
                 case "internal_ip_port":
-                    m_internalEndPoint.Port = (int) configuration_result;
+                    m_internalEndPoint.Port = (int)configuration_result;
+                    break;
+                case "allow_alternate_ports":
+                    m_allow_alternate_ports = (bool)configuration_result;
                     break;
                 case "external_host_name":
                     if ((string) configuration_result != "SYSTEMIP")
@@ -391,7 +406,7 @@ namespace OpenSim.Framework
                     break;
                 case "master_avatar_pass":
                     string tempMD5Passwd = (string) configuration_result;
-                    MasterAvatarSandboxPassword = Util.Md5Hash(Util.Md5Hash(tempMD5Passwd) + ":" + "");
+                    MasterAvatarSandboxPassword = Util.Md5Hash(Util.Md5Hash(tempMD5Passwd) + ":" + String.Empty);
                     break;
             }
 

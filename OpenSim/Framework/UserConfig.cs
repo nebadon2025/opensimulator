@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -26,6 +26,9 @@
 * 
 */
 
+using System;
+using OpenSim.Framework.Console;
+
 namespace OpenSim.Framework
 {
     /// <summary>
@@ -33,14 +36,14 @@ namespace OpenSim.Framework
     /// </summary>
     public class UserConfig
     {
-        public string DefaultStartupMsg = "";
-        public string GridServerURL = "";
-        public string GridSendKey = "";
-        public string GridRecvKey = "";
+        public string DefaultStartupMsg = String.Empty;
+        public string GridServerURL = String.Empty;
+        public string GridSendKey = String.Empty;
+        public string GridRecvKey = String.Empty;
 
-        public string InventoryUrl = "";
+        public string InventoryUrl = String.Empty;
 
-        public string DatabaseProvider = "";
+        public string DatabaseProvider = String.Empty;
 
         public static uint DefaultHttpPort = 8002;
         public static bool DefaultHttpSSL = false;

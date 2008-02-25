@@ -57,6 +57,8 @@ namespace OpenSim.Region.Capabilities
 
     public class Caps
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private string m_httpListenerHostName;
         private uint m_httpListenPort;
 
@@ -103,7 +105,7 @@ namespace OpenSim.Region.Capabilities
         /// </summary>
         public void RegisterHandlers()
         {
-            MainLog.Instance.Verbose("CAPS", "Registering CAPS handlers");
+            m_log.Info("[CAPS]: Registering CAPS handlers");
             string capsBase = "/CAPS/" + m_capsObjectPath;
             try
             {
@@ -122,7 +124,7 @@ namespace OpenSim.Region.Capabilities
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error("CAPS", e.ToString());
+                m_log.Error("[CAPS]: " + e.ToString());
             }
         }
 
@@ -204,7 +206,7 @@ namespace OpenSim.Region.Capabilities
         {
             Console.WriteLine("texture request " + request);
             // Needs implementing (added to remove compiler warning)
-            return "";
+            return String.Empty;
         }
 
         #region EventQueue (Currently not enabled)
@@ -218,7 +220,7 @@ namespace OpenSim.Region.Capabilities
         /// <returns></returns>
         public string ProcessEventQueue(string request, string path, string param)
         {
-            string res = "";
+            string res = String.Empty;
 
             if (m_capsEventQueue.Count > 0)
             {
@@ -282,7 +284,7 @@ namespace OpenSim.Region.Capabilities
         {
             try
             {
-//                MainLog.Instance.Debug("CAPS", "request: {0}, path: {1}, param: {2}", request, path, param);
+//                m_log.DebugFormat("[CAPS]: request: {0}, path: {1}, param: {2}", request, path, param);
 
                 Hashtable hash = (Hashtable) LLSD.LLSDDeserialize(Helpers.StringToField(request));
                 LLSDTaskScriptUpdate llsdUpdateRequest = new LLSDTaskScriptUpdate();
@@ -310,16 +312,15 @@ namespace OpenSim.Region.Capabilities
                 uploadResponse.uploader = uploaderURL;
                 uploadResponse.state = "upload";
 
-//                MainLog.Instance.Verbose(
-//                    "CAPS", 
-//                    "ScriptTaskInventory response: {0}", 
-//                    LLSDHelpers.SerialiseLLSDReply(uploadResponse));
+//                m_log.InfoFormat("[CAPS]: " +
+//                                 "ScriptTaskInventory response: {0}",
+//                                 LLSDHelpers.SerialiseLLSDReply(uploadResponse)));
 
                 return LLSDHelpers.SerialiseLLSDReply(uploadResponse);
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error("CAPS", e.ToString());
+                m_log.Error("[CAPS]: " + e.ToString());
             }
 
             return null;
@@ -356,10 +357,9 @@ namespace OpenSim.Region.Capabilities
             uploadResponse.uploader = uploaderURL;
             uploadResponse.state = "upload";
 
-//            MainLog.Instance.Verbose(
-//                "CAPS", 
-//                "NoteCardAgentInventory response: {0}", 
-//                LLSDHelpers.SerialiseLLSDReply(uploadResponse));
+//            m_log.InfoFormat("[CAPS]: " +
+//                             "NoteCardAgentInventory response: {0}",
+//                             LLSDHelpers.SerialiseLLSDReply(uploadResponse)));
 
             return LLSDHelpers.SerialiseLLSDReply(uploadResponse);
         }
@@ -541,18 +541,19 @@ namespace OpenSim.Region.Capabilities
         public class AssetUploader
         {
             public event UpLoadedAsset OnUpLoad;
+            private UpLoadedAsset handler001 = null;
 
-            private string uploaderPath = "";
+            private string uploaderPath = String.Empty;
             private LLUUID newAssetID;
             private LLUUID inventoryItemID;
             private LLUUID parentFolder;
             private BaseHttpServer httpListener;
             private bool m_dumpAssetsToFile;
-            private string m_assetName = "";
-            private string m_assetDes = "";
+            private string m_assetName = String.Empty;
+            private string m_assetDes = String.Empty;
 
-            private string m_invType = "";
-            private string m_assetType = "";
+            private string m_invType = String.Empty;
+            private string m_assetType = String.Empty;
 
             public AssetUploader(string assetName, string description, LLUUID assetID, LLUUID inventoryItem,
                                  LLUUID parentFolderID, string invType, string assetType, string path,
@@ -580,7 +581,7 @@ namespace OpenSim.Region.Capabilities
             public string uploaderCaps(byte[] data, string path, string param)
             {
                 LLUUID inv = inventoryItemID;
-                string res = "";
+                string res = String.Empty;
                 LLSDAssetUploadComplete uploadComplete = new LLSDAssetUploadComplete();
                 uploadComplete.new_asset = newAssetID.ToString();
                 uploadComplete.new_inventory_item = inv;
@@ -594,10 +595,10 @@ namespace OpenSim.Region.Capabilities
                 {
                     SaveAssetToFile(m_assetName + ".jp2", data);
                 }
-
-                if (OnUpLoad != null)
+                handler001 = OnUpLoad;
+                if (handler001 != null)
                 {
-                    OnUpLoad(m_assetName, m_assetDes, newAssetID, inv, parentFolder, data, m_invType, m_assetType);
+                    handler001(m_assetName, m_assetDes, newAssetID, inv, parentFolder, data, m_invType, m_assetType);
                 }
 
                 return res;
@@ -634,7 +635,9 @@ namespace OpenSim.Region.Capabilities
         {
             public event UpdateItem OnUpLoad;
 
-            private string uploaderPath = "";
+            private UpdateItem handler001 = null;
+
+            private string uploaderPath = String.Empty;
             private LLUUID inventoryItemID;
             private BaseHttpServer httpListener;
             private bool m_dumpAssetToFile;
@@ -658,13 +661,13 @@ namespace OpenSim.Region.Capabilities
             public string uploaderCaps(byte[] data, string path, string param)
             {
                 LLUUID inv = inventoryItemID;
-                string res = "";
+                string res = String.Empty;
                 LLSDAssetUploadComplete uploadComplete = new LLSDAssetUploadComplete();
                 LLUUID assetID = LLUUID.Zero;
-
-                if (OnUpLoad != null)
+                handler001 = OnUpLoad;
+                if (handler001 != null)
                 {
-                    assetID = OnUpLoad(inv, data);
+                    assetID = handler001(inv, data);
                 }
 
                 uploadComplete.new_asset = assetID.ToString();
@@ -714,7 +717,9 @@ namespace OpenSim.Region.Capabilities
         {
             public event UpdateTaskScript OnUpLoad;
 
-            private string uploaderPath = "";
+            private UpdateTaskScript handler001 = null;
+
+            private string uploaderPath = String.Empty;
             private LLUUID inventoryItemID;
             private LLUUID primID;
             private bool isScriptRunning;
@@ -747,17 +752,17 @@ namespace OpenSim.Region.Capabilities
             {
                 try
                 {
-//                    MainLog.Instance.Verbose(
-//                        "CAPS", 
-//                        "TaskInventoryScriptUpdater received data: {0}, path: {1}, param: {2}", 
-//                        data, path, param);
+//                    m_log.InfoFormat("[CAPS]: " + 
+//                                     "TaskInventoryScriptUpdater received data: {0}, path: {1}, param: {2}",
+//                                     data, path, param));
 
-                    string res = "";
+                    string res = String.Empty;
                     LLSDTaskInventoryUploadComplete uploadComplete = new LLSDTaskInventoryUploadComplete();
 
-                    if (OnUpLoad != null)
+                    handler001 = OnUpLoad;
+                    if (handler001 != null)
                     {
-                        OnUpLoad(inventoryItemID, primID, isScriptRunning, data);
+                        handler001(inventoryItemID, primID, isScriptRunning, data);
                     }
 
                     uploadComplete.item_id = inventoryItemID;
@@ -773,13 +778,13 @@ namespace OpenSim.Region.Capabilities
                         SaveAssetToFile("updatedtaskscript" + Util.RandomClass.Next(1, 1000) + ".dat", data);
                     }
 
-//                    MainLog.Instance.Verbose("CAPS", "TaskInventoryScriptUpdater.uploaderCaps res: {0}", res);
+//                    m_log.InfoFormat("[CAPS]: TaskInventoryScriptUpdater.uploaderCaps res: {0}", res);
 
                     return res;
                 }
                 catch (Exception e)
                 {
-                    MainLog.Instance.Error("CAPS", e.ToString());
+                    m_log.Error("[CAPS]: " + e.ToString());
                 }
 
                 // XXX Maybe this should be some meaningful error packet

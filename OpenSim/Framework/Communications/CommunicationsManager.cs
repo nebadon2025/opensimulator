@@ -36,6 +36,8 @@ namespace OpenSim.Framework.Communications
 {
     public class CommunicationsManager
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         protected IUserService m_userService;
 
         public IUserService UserService
@@ -71,12 +73,12 @@ namespace OpenSim.Framework.Communications
             get { return m_userProfileCacheService; }
         }
 
-        protected AssetTransactionManager m_transactionsManager;
+      //  protected AgentAssetTransactionsManager m_transactionsManager;
 
-        public AssetTransactionManager TransactionsManager
-        {
-            get { return m_transactionsManager; }
-        }
+       // public AgentAssetTransactionsManager TransactionsManager
+      //  {
+      //      get { return m_transactionsManager; }
+      //  }
 
         protected AssetCache m_assetCache;
 
@@ -98,7 +100,7 @@ namespace OpenSim.Framework.Communications
             m_networkServersInfo = serversInfo;
             m_assetCache = assetCache;
             m_userProfileCacheService = new UserProfileCacheService(this);
-            m_transactionsManager = new AssetTransactionManager(this, dumpAssetsToFile);
+         //   m_transactionsManager = new AgentAssetTransactionsManager(this, dumpAssetsToFile);
         }
 
         public void doCreate(string[] cmmdParams)
@@ -114,11 +116,11 @@ namespace OpenSim.Framework.Communications
 
                     if (cmmdParams.Length < 2)
                     {
-                        firstName = MainLog.Instance.CmdPrompt("First name", "Default");
-                        lastName = MainLog.Instance.CmdPrompt("Last name", "User");
-                        password = MainLog.Instance.PasswdPrompt("Password");
-                        regX = Convert.ToUInt32(MainLog.Instance.CmdPrompt("Start Region X", "1000"));
-                        regY = Convert.ToUInt32(MainLog.Instance.CmdPrompt("Start Region Y", "1000"));
+                        firstName = MainConsole.Instance.CmdPrompt("First name", "Default");
+                        lastName = MainConsole.Instance.CmdPrompt("Last name", "User");
+                        password = MainConsole.Instance.PasswdPrompt("Password");
+                        regX = Convert.ToUInt32(MainConsole.Instance.CmdPrompt("Start Region X", "1000"));
+                        regY = Convert.ToUInt32(MainConsole.Instance.CmdPrompt("Start Region Y", "1000"));
                     }
                     else
                     {
@@ -129,14 +131,30 @@ namespace OpenSim.Framework.Communications
                         regY = Convert.ToUInt32(cmmdParams[5]);
                     }
 
-                    AddUser(firstName, lastName, password, regX, regY);
+                    if (null == m_userService.GetUserProfile(firstName, lastName))
+                    {
+                        AddUser(firstName, lastName, password, regX, regY);
+                    }
+                    else
+                    {
+                        m_log.ErrorFormat("[USERS]: A user with the name {0} {1} already exists!", firstName, lastName);
+                    }
                     break;
             }
         }
 
+        /// <summary>
+        /// Persistently adds a user to OpenSim.
+        /// </summary>
+        /// <param name="firstName"></param>
+        /// <param name="lastName"></param>
+        /// <param name="password"></param>
+        /// <param name="regX"></param>
+        /// <param name="regY"></param>
+        /// <returns>The UUID of the added user.  Returns null if the add was unsuccessful</returns>
         public LLUUID AddUser(string firstName, string lastName, string password, uint regX, uint regY)
         {
-            string md5PasswdHash = Util.Md5Hash(Util.Md5Hash(password) + ":" + "");
+            string md5PasswdHash = Util.Md5Hash(Util.Md5Hash(password) + ":" + String.Empty);
 
             m_userService.AddUserProfile(firstName, lastName, md5PasswdHash, regX, regY);
             UserProfileData userProf = UserService.GetUserProfile(firstName, lastName, "");
@@ -147,7 +165,7 @@ namespace OpenSim.Framework.Communications
             else
             {
                 m_inventoryService.CreateNewUserInventory(userProf.UUID);
-                System.Console.WriteLine("Created new inventory set for " + firstName + " " + lastName);
+                System.Console.WriteLine("[USERS]: Created new inventory set for " + firstName + " " + lastName);
                 return userProf.UUID;
             }
         }
@@ -162,6 +180,20 @@ namespace OpenSim.Framework.Communications
         public void AddNewUserFriend(LLUUID friendlistowner, LLUUID friend, uint perms)
         {
             m_userService.AddNewUserFriend(friendlistowner, friend, perms);
+        }
+        /// <summary>
+        /// Logs off a user and does the appropriate communications
+        /// </summary>
+        /// <param name="userid"></param>
+        /// <param name="regionid"></param>
+        /// <param name="regionhandle"></param>
+        /// <param name="posx"></param>
+        /// <param name="posy"></param>
+        /// <param name="posz"></param>
+        public void LogOffUser(LLUUID userid, LLUUID regionid, ulong regionhandle, float posx, float posy, float posz)
+        {
+            m_userService.LogOffUser(userid, regionid, regionhandle, posx, posy, posz);
+
         }
 
         /// <summary>

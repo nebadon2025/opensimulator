@@ -88,6 +88,12 @@ namespace OpenSim.Framework
         UserAgentData GetAgentByName(string fname, string lname);
 
         /// <summary>
+        /// Stores new web-login key for user during web page login
+        /// </summary>
+        /// <param name="webLoginKey"></param>
+        void StoreWebLoginKey(LLUUID agentID, LLUUID webLoginKey);
+
+        /// <summary>
         /// Adds a new User profile to the database 
         /// </summary>
         /// <param name="user">UserProfile to add</param>
@@ -105,12 +111,6 @@ namespace OpenSim.Framework
         /// <param name="avatarid">User Region the Avatar is IN</param>
         /// <param name="retionuuid">User Region the Avatar is IN</param>
         void UpdateUserCurrentRegion(LLUUID avatarid, LLUUID regionuuid);
-
-        /// <summary>
-        /// Log User Off
-        /// </summary>
-        /// <param name="avatarid">avatar to log off</param>
-        void LogOffUser(LLUUID avatarid);
 
         /// <summary>
         /// Adds a new agent to the database

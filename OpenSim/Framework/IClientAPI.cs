@@ -65,7 +65,7 @@ namespace OpenSim.Framework
         Task = 4,
         Texture = 5,
         Asset = 6,
-        Unknown = 7,
+        Unknown = 7, // Also doubles as 'do not throttle'
         Back = 8
     }
 
@@ -234,6 +234,11 @@ namespace OpenSim.Framework
                                     uint EveryoneMask, uint GroupMask, uint NextOwnerMask, uint ItemFlags, 
                                     bool RezSelected, bool RemoveItem, LLUUID fromTaskID );
 
+    public delegate void RezSingleAttachmentFromInv(IClientAPI remoteClient, LLUUID itemID, uint AttachmentPt,
+                                    uint ItemFlags, uint NextOwnerMask);
+
+    public delegate void ObjectAttach(IClientAPI remoteClient, uint objectLocalID, uint AttachmentPt, LLQuaternion rot);
+
     public delegate void ModifyTerrain(
         float height, float seconds, byte size, byte action, float north, float west, float south, float east,
         IClientAPI remoteClient);
@@ -380,7 +385,10 @@ namespace OpenSim.Framework
         IClientAPI remoteClient, LLUUID folderID, LLUUID itemID, int length, string newName);
 
     public delegate void RemoveInventoryItem(
-        IClientAPI remoteClient, LLUUID itemID); // rex
+        IClientAPI remoteClient, LLUUID itemID);
+
+    public delegate void RemoveInventoryFolder(
+        IClientAPI remoteClient, LLUUID folderID);
 
     public delegate void RezScript(IClientAPI remoteClient, LLUUID itemID, uint localID);
 
@@ -403,7 +411,14 @@ namespace OpenSim.Framework
     public delegate void FriendshipTermination(IClientAPI remoteClient,LLUUID agentID, LLUUID ExID);
 
     public delegate void ReceiveRexClientScriptCmd(IClientAPI remoteClient,LLUUID agentID,List<string> vParams); // rex
+    public delegate void PacketStats(int inPackets, int outPackets, int unAckedBytes);
+    
+    public delegate void MoneyTransferRequest(LLUUID sourceID, LLUUID destID, int amount, int transactionType, string description);
+    
+    // We keep all this information for fraud purposes in the future.
+    public delegate void MoneyBalanceRequest(IClientAPI remoteClient, LLUUID agentID, LLUUID sessionID, LLUUID TransactionID);
 
+    public delegate void ObjectPermissions(IClientAPI controller, LLUUID agentID, LLUUID sessionID, byte field, uint localId, uint mask, byte set);
     //Attachments
     public delegate void RezSingleAttachmentFromInv(IClientAPI remoteClient, LLUUID itemID, LLUUID ownerID,
                                                     uint itemFlags, byte attachPoint);
@@ -433,6 +448,8 @@ namespace OpenSim.Framework
         event ModifyTerrain OnModifyTerrain;
         event SetAppearance OnSetAppearance;
         event AvatarNowWearing OnAvatarNowWearing;
+        event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;
+        event ObjectAttach OnObjectAttach;
         event StartAnim OnStartAnim;
         event StopAnim OnStopAnim;
         event LinkObjects OnLinkObjects;
@@ -453,6 +470,10 @@ namespace OpenSim.Framework
         event AvatarPickerRequest OnAvatarPickerRequest;
         event Action<IClientAPI> OnRequestAvatarsData;
         event AddNewPrim OnAddPrim;
+
+        event FetchInventory OnAgentDataUpdateRequest;
+        event FetchInventory OnUserInfoRequest;
+        event TeleportLocationRequest OnSetStartLocationRequest;
 
         event RequestGodlikePowers OnRequestGodlikePowers;
         event GodKickUser OnGodKickUser;
@@ -493,7 +514,8 @@ namespace OpenSim.Framework
         event UpdateInventoryItem OnUpdateInventoryItem;
         event CopyInventoryItem OnCopyInventoryItem;
         event MoveInventoryItem OnMoveInventoryItem;
-        event RemoveInventoryItem OnRemoveInventoryItem; // rex
+        event RemoveInventoryFolder OnRemoveInventoryFolder;
+        event RemoveInventoryItem OnRemoveInventoryItem;
         event UDPAssetUploadRequest OnAssetUploadRequest;
         event XferReceive OnXferReceive;
         event RequestXfer OnRequestXfer;
@@ -523,6 +545,12 @@ namespace OpenSim.Framework
         event FriendActionDelegate OnApproveFriendRequest;
         event FriendActionDelegate OnDenyFriendRequest;
         event FriendshipTermination OnTerminateFriendship;
+        event PacketStats OnPacketStats;
+
+        // Financial packets
+        event MoneyTransferRequest OnMoneyTransferRequest;
+
+        event MoneyBalanceRequest OnMoneyBalanceRequest;
 
         event ReceiveRexClientScriptCmd OnReceiveRexClientScriptCmd; // rex
         event ObjectClickAction OnObjectClickAction; // rex
@@ -583,7 +611,7 @@ namespace OpenSim.Framework
         void SendRegionTeleport(ulong regionHandle, byte simAccess, IPEndPoint regionExternalEndPoint, uint locationID,
                                 uint flags, string capsURL);
 
-        void SendTeleportFailed();
+        void SendTeleportFailed(string reason);
         void SendTeleportLocationStart();
         void SendMoneyBalance(LLUUID transaction, bool success, byte[] description, int balance);
 
@@ -598,6 +626,10 @@ namespace OpenSim.Framework
         void AttachObject(uint localID, LLQuaternion rotation, byte attachPoint);
         void SetChildAgentThrottle(byte[] throttle);
 
+        void SendPrimitiveToClient(ulong regionHandle, ushort timeDilation, uint localID, PrimitiveBaseShape primShape,
+                                   LLVector3 pos, uint flags, LLUUID objectID, LLUUID ownerID, string text, byte[] color,
+                                   uint parentID, byte[] particleSystem, LLQuaternion rotation, byte clickAction, byte[] textureanimation);
+        
         void SendPrimitiveToClient(ulong regionHandle, ushort timeDilation, uint localID, PrimitiveBaseShape primShape,
                                    LLVector3 pos, uint flags, LLUUID objectID, LLUUID ownerID, string text, byte[] color,
                                    uint parentID, byte[] particleSystem, LLQuaternion rotation, byte clickAction);
@@ -625,6 +657,8 @@ namespace OpenSim.Framework
         void SendXferPacket(ulong xferID, uint packet, byte[] data);
         void SendAvatarPickerReply(AvatarPickerReplyPacket Pack);
 
+        void SendAgentDataUpdate(LLUUID agentid, LLUUID activegroupid, string firstname, string lastname, ulong grouppowers, string groupname, string grouptitle);
+
         void SendPreLoadSound(LLUUID objectID, LLUUID ownerID, LLUUID soundID);
         void SendPlayAttachedSound(LLUUID soundID, LLUUID objectID, LLUUID ownerID, float gain, byte flags);
         void SendTriggeredSound(LLUUID soundID, LLUUID ownerID, LLUUID objectID, LLUUID parentID, ulong handle, LLVector3 position, float gain);
@@ -643,6 +677,8 @@ namespace OpenSim.Framework
         void SendAvatarProperties(LLUUID avatarID, string aboutText, string bornOn, string charterMember, string flAbout,
                                   uint flags, LLUUID flImageID, LLUUID imageID, string profileURL, LLUUID partnerID);
 
+        byte[] GetThrottlesPacked(float multiplier);
+        
         void SendScriptTeleportRequest(string objectName, string simName, LLVector3 simPosition, LLVector3 lookAt);
 
         void SetDebug(int newDebug);

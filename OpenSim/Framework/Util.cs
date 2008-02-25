@@ -80,7 +80,12 @@ namespace OpenSim.Framework
         private static Dictionary<LLUUID, string> capsURLS = new Dictionary<LLUUID, string>();
 
      #region Vector Equasions
-
+        /// <summary>
+        /// Get the distance between two 3d vectors
+        /// </summary>
+        /// <param name="a">A 3d vector</param>
+        /// <param name="b">A 3d vector</param>
+        /// <returns>The distance between the two vectors</returns>
         public static double GetDistanceTo(LLVector3 a, LLVector3 b)
         {
             float dx = a.X - b.X;
@@ -88,14 +93,43 @@ namespace OpenSim.Framework
             float dz = a.Z - b.Z;
             return Math.Sqrt(dx*dx + dy*dy + dz*dz);
         }
+
+        /// <summary>
+        /// Get the magnitude of a 3d vector
+        /// </summary>
+        /// <param name="a">A 3d vector</param>
+        /// <returns>The magnitude of the vector</returns>
         public static double GetMagnitude(LLVector3 a) {
             return Math.Sqrt((a.X * a.X) + (a.Y * a.Y) + (a.Z * a.Z));
         }
-        public static LLVector3 GetNormal(LLVector3 a)
+
+        /// <summary>
+        /// Get a normalized form of a 3d vector
+        /// </summary>
+        /// <param name="a">A 3d vector</param>
+        /// <returns>A new vector which is normalized form of the vector</returns>
+        /// <remarks>The vector paramater cannot be <0,0,0></remarks>
+        public static LLVector3 GetNormalizedVector(LLVector3 a)
         {
+            if (IsZeroVector(a))
+                throw new ArgumentException("Vector paramater cannot be a zero vector.");
+
             float Mag = (float)GetMagnitude(a);
             return new LLVector3(a.X / Mag, a.Y / Mag, a.Z / Mag);
+        }
 
+        /// <summary>
+        /// Returns if a vector is a zero vector (has all zero components)
+        /// </summary>
+        /// <returns></returns>
+        public static bool IsZeroVector( LLVector3 v )
+        {
+            if( v.X == 0 && v.Y == 0 && v.Z == 0)
+            {
+                return true;
+            }
+                
+            return false;
         }
      # endregion
 
@@ -255,7 +289,7 @@ namespace OpenSim.Framework
                     output.Append(": ");
                 }
 
-				output.Append(CleanString(UTF8Encoding.UTF8.GetString(bytes, 0, bytes.Length - 1)));
+                output.Append(CleanString(UTF8Encoding.UTF8.GetString(bytes, 0, bytes.Length - 1)));
             }
             else
             {
@@ -389,7 +423,7 @@ namespace OpenSim.Framework
             {
                 return capsURLS[userID];
             }
-            return "";
+            return String.Empty;
         }
 
         public static void SetCapsURL(LLUUID userID, string url)
@@ -447,30 +481,52 @@ namespace OpenSim.Framework
             return lluuid.UUID.ToString("n");
         }
 
-		public static string CleanString(string input)
-		{
-			if(input.Length == 0)
-				return input;
+        public static string CleanString(string input)
+        {
+            if(input.Length == 0)
+                return input;
 
-			int clip=input.Length;
+            int clip=input.Length;
 
-			// Test for ++ string terminator
-			int pos=input.IndexOf("\0");
-			if(pos != -1 && pos < clip)
-				clip=pos;
+            // Test for ++ string terminator
+            int pos=input.IndexOf("\0");
+            if(pos != -1 && pos < clip)
+                clip=pos;
 
-			// Test for CR
-			pos=input.IndexOf("\r");
-			if(pos != -1 && pos < clip)
-				clip=pos;
+            // Test for CR
+            pos=input.IndexOf("\r");
+            if(pos != -1 && pos < clip)
+                clip=pos;
 
-			// Test for LF
-			pos=input.IndexOf("\n");
-			if(pos != -1 && pos < clip)
-				clip=pos;
+            // Test for LF
+            pos=input.IndexOf("\n");
+            if(pos != -1 && pos < clip)
+                clip=pos;
 
-			// Truncate string before first end-of-line character found
-			return input.Substring(0, clip);
-		}
+            // Truncate string before first end-of-line character found
+            return input.Substring(0, clip);
+        }
+
+        /// <summary>
+        /// returns the contents of /etc/issue on Unix Systems
+        /// Use this for where it's absolutely necessary to implement platform specific stuff
+        /// ( like the ODE library :P
+        /// </summary>
+        /// <returns></returns>
+        public static string ReadEtcIssue()
+        {
+            try
+            {
+                StreamReader sr = new StreamReader("/etc/issue.net");
+                string issue = sr.ReadToEnd();
+                sr.Close();
+                return issue;
+            }
+            catch (System.Exception)
+            {
+                return "";
+            }
+
+        }
     }
 }

@@ -31,7 +31,9 @@ using System.Collections.Generic;
 using System.Threading;
 using libsecondlife;
 using libsecondlife.Packets;
+
 using OpenSim.Framework.Console;
+using OpenSim.Framework.Statistics;
 
 namespace OpenSim.Framework.Communications.Cache
 {
@@ -39,47 +41,142 @@ namespace OpenSim.Framework.Communications.Cache
 
     /// <summary>
     /// Manages local cache of assets and their sending to viewers.
+    /// 
+    /// This class actually encapsulates two largely separate mechanisms.  One mechanism fetches assets either
+    /// synchronously or async and passes the data back to the requester.  The second mechanism fetches assets and
+    /// sends packetised data directly back to the client.  The only point where they meet is AssetReceived() and
+    /// AssetNotFound(), which means they do share the same asset and texture caches.
+    /// 
+    /// TODO  Assets in this cache are effectively immortal (they are never disposed off through old age).
+    /// This is not a huge problem at the moment since other memory use usually dwarfs that used by assets
+    /// but it's something to bear in mind.
     /// </summary>
     public class AssetCache : IAssetReceiver
     {
-        public Dictionary<LLUUID, AssetInfo> Assets;
-        public Dictionary<LLUUID, TextureImage> Textures;
+        private static readonly log4net.ILog m_log 
+            = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
-        public List<AssetRequest> AssetRequests = new List<AssetRequest>(); //assets ready to be sent to viewers
-        public List<AssetRequest> TextureRequests = new List<AssetRequest>(); //textures ready to be sent
+        /// <summary>
+        /// The cache of assets.  This does not include textures.
+        /// </summary>
+        private Dictionary<LLUUID, AssetInfo> Assets;
+        
+        /// <summary>
+        /// The cache of textures.
+        /// </summary>
+        private Dictionary<LLUUID, TextureImage> Textures;
 
-        public Dictionary<LLUUID, AssetRequest> RequestedAssets = new Dictionary<LLUUID, AssetRequest>();
-        //Assets requested from the asset server
+        /// <summary>
+        /// Assets requests which are waiting for asset server data.  This includes texture requests
+        /// </summary>
+        private Dictionary<LLUUID, AssetRequest> RequestedAssets;
+        
+        /// <summary>
+        /// Asset requests with data which are ready to be sent back to requesters.  This includes textures.
+        /// </summary>
+        private List<AssetRequest> AssetRequests;
 
-        public Dictionary<LLUUID, AssetRequest> RequestedTextures = new Dictionary<LLUUID, AssetRequest>();
-        //Textures requested from the asset server
-
-        public Dictionary<LLUUID, AssetRequestsList> RequestLists = new Dictionary<LLUUID, AssetRequestsList>();
+        /// <summary>
+        /// Until the asset request is fulfilled, each asset request is associated with a list of requesters
+        /// </summary>
+        private Dictionary<LLUUID, AssetRequestsList> RequestLists;
 
         private readonly IAssetServer m_assetServer;
 
         private readonly Thread m_assetCacheThread;
-        private readonly LogBase m_log;
 
         /// <summary>
-        /// 
+        /// Report statistical data.
         /// </summary>
-        public AssetCache(IAssetServer assetServer, LogBase log)
+        public void ShowState()
         {
-            log.Verbose("ASSETSTORAGE", "Creating Asset cache");
-            m_assetServer = assetServer;
-            m_assetServer.SetReceiver(this);
-            Assets = new Dictionary<LLUUID, AssetInfo>();
-            Textures = new Dictionary<LLUUID, TextureImage>();
-            m_assetCacheThread = new Thread(new ThreadStart(RunAssetManager));
-            m_assetCacheThread.IsBackground = true;
-            m_assetCacheThread.Start();
+            m_log.InfoFormat("Assets:{0}  Textures:{1}  AssetRequests:{2}  RequestedAssets:{3}  RequestLists:{4}",
+                Assets.Count,
+                Textures.Count,
+                AssetRequests.Count,
+                RequestedAssets.Count,
+                RequestLists.Count);
 
-            m_log = log;
+            int temporaryImages = 0;
+            int temporaryAssets = 0;
+
+            long imageBytes = 0;
+            long assetBytes = 0;
+
+            foreach (TextureImage texture in Textures.Values)
+            {
+                if (texture.Temporary)
+                {
+                    temporaryImages++;
+                }
+
+                imageBytes += texture.Data.GetLongLength(0);
+            }
+
+            foreach (AssetInfo asset in Assets.Values)
+            {
+                if (asset.Temporary)
+                {
+                    temporaryAssets++;
+                }
+
+                assetBytes += asset.Data.GetLongLength(0);
+            }
+
+            m_log.InfoFormat("Temporary Images: {0}  Temporary Assets: {1}",
+                temporaryImages,
+                temporaryAssets);
+
+            m_log.InfoFormat("Image data: {0}kb  Asset data: {1}kb",
+                imageBytes / 1024,
+                assetBytes / 1024);
+
         }
 
         /// <summary>
-        /// 
+        /// Clear the asset cache.
+        /// </summary>
+        public void Clear()
+        {
+            m_log.Info("[ASSET CACHE]: Clearing Asset cache");
+            Initialize();
+        }
+
+        /// <summary>
+        /// Initialize the cache.
+        /// </summary>
+        private void Initialize()
+        {
+            Assets = new Dictionary<LLUUID, AssetInfo>();
+            Textures = new Dictionary<LLUUID, TextureImage>();
+            AssetRequests = new List<AssetRequest>();
+   
+            RequestedAssets = new Dictionary<LLUUID, AssetRequest>();
+            RequestLists = new Dictionary<LLUUID, AssetRequestsList>();
+        }
+
+        /// <summary>
+        /// Constructor.  Initialize will need to be called separately.
+        /// </summary>
+        /// <param name="assetServer"></param>
+        public AssetCache(IAssetServer assetServer)
+        {
+            m_log.Info("[ASSET CACHE]: Creating Asset cache");
+            Initialize();
+
+            m_assetServer = assetServer;
+            m_assetServer.SetReceiver(this);
+
+            m_assetCacheThread = new Thread(new ThreadStart(RunAssetManager));
+            m_assetCacheThread.Name = "AssetCacheThread";
+            m_assetCacheThread.IsBackground = true;
+            m_assetCacheThread.Start();
+            OpenSim.Framework.ThreadTracker.Add(m_assetCacheThread);
+        }
+
+        /// <summary>
+        /// Process the asset queue which holds data which is packeted up and sent
+        /// directly back to the client.
         /// </summary>
         public void RunAssetManager()
         {
@@ -92,7 +189,7 @@ namespace OpenSim.Framework.Communications.Cache
                 }
                 catch (Exception e)
                 {
-                    m_log.Error("ASSETCACHE", e.ToString());
+                    m_log.Error("[ASSET CACHE]: " + e.ToString());
                 }
             }
         }
@@ -100,70 +197,94 @@ namespace OpenSim.Framework.Communications.Cache
         /// <summary>
         /// Only get an asset if we already have it in the cache.
         /// </summary>
-        /// <param name="assetID"></param></param>
+        /// <param name="assetId"></param></param>
         /// <returns></returns>
-        private AssetBase GetCachedAsset(LLUUID assetID)
-        {
-            AssetBase asset = null;
-            if (Textures.ContainsKey(assetID))
-            {
-                asset = Textures[assetID];
-            }
-            else if (Assets.ContainsKey(assetID))
-            {
-                asset = Assets[assetID];
-            }
-            return asset;
-        }
+        //private AssetBase GetCachedAsset(LLUUID assetId)
+        //{
+        //    AssetBase asset = null;
 
-        public void GetAsset(LLUUID assetID, AssetRequestCallback callback)
+        //    if (Textures.ContainsKey(assetId))
+        //    {
+        //        asset = Textures[assetId];
+        //    }
+        //    else if (Assets.ContainsKey(assetId))
+        //    {
+        //        asset = Assets[assetId];
+        //    }
+
+        //    return asset;
+        //}
+
+        private bool TryGetCachedAsset(LLUUID assetId, out AssetBase asset)
         {
-            AssetBase asset = null;
-            if (Textures.ContainsKey(assetID))
+            if (Textures.ContainsKey(assetId))
             {
-                asset = Textures[assetID];
+                asset = Textures[assetId];
+                return true;
             }
-            else if (Assets.ContainsKey(assetID))
+            else if (Assets.ContainsKey(assetId))
             {
-                asset = Assets[assetID];
+                asset = Assets[assetId];
+                return true;
             }
 
-            if (asset != null)
-            {
-                callback(assetID, asset);
-            }
-            else
-            {
-                NewAssetRequest req = new NewAssetRequest(assetID, callback);
-                if (RequestLists.ContainsKey(assetID))
-                {
-                    lock (RequestLists)
-                    {
-                        RequestLists[assetID].Requests.Add(req);
-                    }
-                }
-                else
-                {
-                    AssetRequestsList reqList = new AssetRequestsList(assetID);
-                    reqList.Requests.Add(req);
-                    lock (RequestLists)
-                    {
-                        RequestLists.Add(assetID, reqList);
-                    }
-                }
-                m_assetServer.RequestAsset(assetID, false);
-            }
+            asset = null;
+            return false;
         }
 
         /// <summary>
-        /// Get an asset.  If the asset isn't in the cache, a request will be made to the persistent store to
+        /// Asynchronously retrieve an asset.
+        /// </summary>
+        /// <param name="assetId"></param>
+        /// <param name="callback">
+        /// A callback invoked when the asset has either been found or not found.
+        /// If the asset was found this is called with the asset UUID and the asset data
+        /// If the asset was not found this is still called with the asset UUID but with a null asset data reference</param>
+        public void GetAsset(LLUUID assetId, AssetRequestCallback callback, bool isTexture)
+        {
+            AssetBase asset;
+
+            if (TryGetCachedAsset(assetId, out asset))
+            {
+                callback(assetId, asset);
+            }
+            else
+            {
+                #if DEBUG
+                //m_log.DebugFormat("[ASSET CACHE]: Adding request for {0} {1}", isTexture ? "texture" : "asset", assetId);
+                #endif
+            
+                NewAssetRequest req = new NewAssetRequest(assetId, callback);
+
+                // Make sure we always have a request list to which to add the asset
+                AssetRequestsList requestList;
+                lock (RequestLists)
+                {
+                    if (RequestLists.TryGetValue(assetId, out requestList))
+                    {
+                    }
+                    else
+                    {
+                        requestList = new AssetRequestsList(assetId);
+                        RequestLists.Add(assetId, requestList);
+                    }
+                }
+
+                requestList.Requests.Add(req);
+
+                m_assetServer.RequestAsset(assetId, isTexture);
+            }            
+        }
+
+        /// <summary>
+        /// Synchronously retreive an asset.  If the asset isn't in the cache, a request will be made to the persistent store to
         /// load it into the cache.  
         /// 
         /// XXX We'll keep polling the cache until we get the asset or we exceed
         /// the allowed number of polls.  This isn't a very good way of doing things since a single thread
         /// is processing inbound packets, so if the asset server is slow, we could block this for up to
         /// the timeout period.  What we might want to do is register asynchronous callbacks on asset
-        /// receipt in the same manner as the nascent (but not yet active) TextureDownloadModule.  Of course,
+        /// receipt in the same manner as the TextureDownloadModule.  Of course,
         /// a timeout before asset receipt usually isn't fatal, the operation will work on the retry when the
         /// asset is much more likely to have made it into the cache.
         /// </summary>
@@ -177,29 +298,31 @@ namespace OpenSim.Framework.Communications.Cache
             int pollPeriod = 200;
             int maxPolls = 15;
 
-            AssetBase asset = GetCachedAsset(assetID);
-            if (asset != null)
+            AssetBase asset;
+
+            if (TryGetCachedAsset(assetID, out asset))
             {
                 return asset;
             }
-
-            m_assetServer.RequestAsset(assetID, isTexture);
-
-            do
+            else
             {
-                Thread.Sleep(pollPeriod);
+                m_assetServer.RequestAsset(assetID, isTexture);
 
-                asset = GetCachedAsset(assetID);
-                if (asset != null)
+                do
                 {
-                    return asset;
-                }
-            } while (--maxPolls > 0);
+                    Thread.Sleep(pollPeriod);
 
-            MainLog.Instance.Warn(
-                "ASSETCACHE", "Asset {0} was not received before the retrieval timeout was reached");
+                    if (TryGetCachedAsset(assetID, out asset))
+                    {
+                        return asset;
+                    }
+                } while (--maxPolls > 0);
 
-            return null;
+                m_log.WarnFormat("[ASSET CACHE]: {0} {1} was not received before the retrieval timeout was reached", 
+                                 isTexture ? "texture" : "asset", assetID.ToString());
+
+                return null;
+            }
         }
 
         // rex, new function
@@ -220,7 +343,7 @@ namespace OpenSim.Framework.Communications.Cache
         /// <param name="asset"></param>
         public void AddAsset(AssetBase asset)
         {
-            string temporary = asset.Temporary ? "temporary" : "";
+            string temporary = asset.Temporary ? "temporary" : String.Empty;
             string type = asset.Type == 0 ? "texture" : "asset";
 
             string result = "Ignored";
@@ -235,6 +358,10 @@ namespace OpenSim.Framework.Communications.Cache
                 {
                     TextureImage textur = new TextureImage(asset);
                     Textures.Add(textur.FullID, textur);
+
+                    if (StatsManager.SimExtraStats != null)
+                        StatsManager.SimExtraStats.AddTexture(textur);
+
                     if (asset.Temporary)
                     {
                         result = "Added to cache";
@@ -256,6 +383,10 @@ namespace OpenSim.Framework.Communications.Cache
                 {
                     AssetInfo assetInf = new AssetInfo(asset);
                     Assets.Add(assetInf.FullID, assetInf);
+
+                    if (StatsManager.SimExtraStats != null)
+                        StatsManager.SimExtraStats.AddAsset(assetInf);
+
                     if (asset.Temporary)
                     {
                         result = "Added to cache";
@@ -267,8 +398,9 @@ namespace OpenSim.Framework.Communications.Cache
                     }
                 }
             }
-
-            m_log.Verbose("ASSETCACHE", "Adding {0} {1} [{2}]: {3}.", temporary, type, asset.FullID, result);
+            #if DEBUG
+            //m_log.DebugFormat("[ASSET CACHE]: Adding {0} {1} [{2}]: {3}.", temporary, type, asset.FullID, result);
+            #endif
         }
 
         // rex, new function for "replace asset" functionality
@@ -372,25 +504,13 @@ namespace OpenSim.Framework.Communications.Cache
         }
 
         public void DeleteAsset(LLUUID assetID)
-        {
-            //  this.m_assetServer.DeleteAsset(assetID);
-
-            //Todo should delete it from memory too
-        }
-
-        public AssetBase CopyAsset(LLUUID assetID)
-        {
-            AssetBase asset = GetCachedAsset(assetID);
-            if (asset == null)
-                return null;
-
-            asset.FullID = LLUUID.Random(); // TODO: check for conflicts
-            AddAsset(asset);
-            return asset;
-        }
-
+        // See IAssetReceiver
         public void AssetReceived(AssetBase asset, bool IsTexture)
         {
+            #if DEBUG
+            m_log.DebugFormat("[ASSET CACHE]: Received {0} [{1}]", IsTexture ? "texture" : "asset", asset.FullID);
+            #endif
+
             if (asset.FullID != LLUUID.Zero) // if it is set to zero then the asset wasn't found by the server
             {
                 //check if it is a texture or not
@@ -400,51 +520,68 @@ namespace OpenSim.Framework.Communications.Cache
 
                 if (IsTexture)
                 {
-                    //Console.WriteLine("asset received from asset server");
-
                     TextureImage image = new TextureImage(asset);
-                    if (!Textures.ContainsKey(image.FullID))
+                    if (Textures.ContainsKey(image.FullID))
+                    {
+                        #if DEBUG                        
+                        //m_log.DebugFormat("[ASSET CACHE]: There's already an texture {0} in memory. Skipping.", asset.FullID);
+                        #endif
+                    }
+                    else
                     {
                         Textures.Add(image.FullID, image);
-                        if (RequestedTextures.ContainsKey(image.FullID))
+
+                        if (StatsManager.SimExtraStats != null)
                         {
-                            AssetRequest req = RequestedTextures[image.FullID];
-                            req.ImageInfo = image;
-
-                            req.NumPackets = CalculateNumPackets(image.Data);
-
-                            RequestedTextures.Remove(image.FullID);
-                            TextureRequests.Add(req);
+                            StatsManager.SimExtraStats.AddTexture(image);
                         }
                     }
                 }
                 else
                 {
                     AssetInfo assetInf = new AssetInfo(asset);
-                    if (!Assets.ContainsKey(assetInf.FullID))
+                    if (Assets.ContainsKey(assetInf.FullID))
+                    {
+                        #if DEBUG
+                        //m_log.DebugFormat("[ASSET CACHE]: There's already an asset {0} in memory. Skipping.", asset.FullID);
+                        #endif
+                    }
+                    else
                     {
                         Assets.Add(assetInf.FullID, assetInf);
+
+                        if (StatsManager.SimExtraStats != null)
+                        {
+                            StatsManager.SimExtraStats.AddAsset(assetInf);
+                        }
+
                         if (RequestedAssets.ContainsKey(assetInf.FullID))
                         {
+                            #if DEBUG
+                            //m_log.DebugFormat("[ASSET CACHE]: Moving {0} from RequestedAssets to AssetRequests", asset.FullID);
+                            #endif
+
                             AssetRequest req = RequestedAssets[assetInf.FullID];
                             req.AssetInf = assetInf;
                             req.NumPackets = CalculateNumPackets(assetInf.Data);
+
                             RequestedAssets.Remove(assetInf.FullID);
                             AssetRequests.Add(req);
                         }
                     }
                 }
 
+                // Notify requesters for this asset
                 if (RequestLists.ContainsKey(asset.FullID))
-                {
-                    AssetRequestsList reqList = RequestLists[asset.FullID];
-                    foreach (NewAssetRequest req in reqList.Requests)
-                    {
-                        req.Callback(asset.FullID, asset);
-                    }
-
+                {                  
                     lock (RequestLists)
                     {
+                        AssetRequestsList reqList = RequestLists[asset.FullID];
+                        foreach (NewAssetRequest req in reqList.Requests)
+                        {
+                            req.Callback(asset.FullID, asset);
+                        }
+
                         RequestLists.Remove(asset.FullID);
                         reqList.Requests.Clear();
                     }
@@ -452,23 +589,52 @@ namespace OpenSim.Framework.Communications.Cache
             }
         }
 
+        // See IAssetReceiver
         public void AssetNotFound(LLUUID assetID)
         {
-            //if (this.RequestedTextures.ContainsKey(assetID))
-            //{
-            //    MainLog.Instance.Warn("ASSET CACHE", "sending image not found for {0}", assetID);
-            //    AssetRequest req = this.RequestedTextures[assetID];
-            //    ImageNotInDatabasePacket notFound = new ImageNotInDatabasePacket();
-            //    notFound.ImageID.ID = assetID;
-            //    req.RequestUser.OutPacket(notFound);
-            //    this.RequestedTextures.Remove(assetID);
-            //}
-            //else
-            //{
-            //    MainLog.Instance.Error("ASSET CACHE", "Cound not send image not found for {0}", assetID);
-            //}
+            //m_log.ErrorFormat("[ASSET CACHE]: AssetNotFound for {0}", assetID);
+    
+            // The 'image not found' packet needs to happen, but RequestedTextures is not actually used (should be cleaned up)
+            // It might also be better to do this in the TextureDownloadModule
+            /*
+             * 
+            AssetRequest req;
+            
+            if (RequestedTextures.TryGetValue(assetID, out req))
+            {
+                m_log.WarnFormat("[ASSET CACHE]: sending image not found for {0}", assetID);                
+                ImageNotInDatabasePacket notFound = new ImageNotInDatabasePacket();
+                notFound.ImageID.ID = assetID;
+                req.RequestUser.OutPacket(notFound, ThrottleOutPacketType.Unknown);
+                RequestedTextures.Remove(assetID);
+            }
+            else
+            {
+                m_log.ErrorFormat("[ASSET CACHE]: Asset [{0}] not found, but couldn't find any users to send to ", assetID);
+            }
+            */
+            
+            // Notify requesters for this asset 
+            lock (RequestLists)
+            {
+                if (RequestLists.ContainsKey(assetID))
+                {
+                    AssetRequestsList reqList = RequestLists[assetID];
+                    foreach (NewAssetRequest req in reqList.Requests)
+                    {
+                        req.Callback(assetID, null);
+                    }
+    
+                    RequestLists.Remove(assetID);
+                }
+            }            
         }
 
+        /// <summary>
+        /// Calculate the number of packets required to send the asset to the client.
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
         private int CalculateNumPackets(byte[] data)
         {
             const uint m_maxPacketSize = 600;
@@ -478,17 +644,15 @@ namespace OpenSim.Framework.Communications.Cache
             {
                 // over max number of bytes so split up file
                 long restData = data.LongLength - m_maxPacketSize;
-                int restPackets = (int) ((restData + m_maxPacketSize - 1)/m_maxPacketSize);
+                int restPackets = (int)((restData + m_maxPacketSize - 1) / m_maxPacketSize);
                 numPackets += restPackets;
             }
 
             return numPackets;
         }
 
-        #region Assets
-
         /// <summary>
-        /// 
+        /// Make an asset request the result of which will be packeted up and sent directly back to the client.
         /// </summary>
         /// <param name="userInfo"></param>
         /// <param name="transferRequest"></param>
@@ -512,7 +676,7 @@ namespace OpenSim.Framework.Communications.Cache
             //Console.WriteLine("asset request " + requestID);
             if (!Assets.ContainsKey(requestID))
             {
-                //not found asset	
+                //not found asset
                 // so request from asset server
                 if (!RequestedAssets.ContainsKey(requestID))
                 {
@@ -543,7 +707,7 @@ namespace OpenSim.Framework.Communications.Cache
         }
 
         /// <summary>
-        /// 
+        /// Process the asset queue which sends packets directly back to the client.
         /// </summary>
         private void ProcessAssetQueue()
         {
@@ -559,7 +723,7 @@ namespace OpenSim.Framework.Communications.Cache
             AssetRequest req;
             for (int i = 0; i < num; i++)
             {
-                req = (AssetRequest) AssetRequests[i];
+                req = (AssetRequest)AssetRequests[i];
                 //Console.WriteLine("sending asset " + req.RequestAssetID);
                 TransferInfoPacket Transfer = new TransferInfoPacket();
                 Transfer.TransferInfo.ChannelType = 2;
@@ -569,7 +733,7 @@ namespace OpenSim.Framework.Communications.Cache
                 {
                     Transfer.TransferInfo.Params = new byte[20];
                     Array.Copy(req.RequestAssetID.GetBytes(), 0, Transfer.TransferInfo.Params, 0, 16);
-                    int assType = (int) req.AssetInf.Type;
+                    int assType = (int)req.AssetInf.Type;
                     Array.Copy(Helpers.IntToBytes(assType), 0, Transfer.TransferInfo.Params, 16, 4);
                 }
                 else if (req.AssetRequestSource == 3)
@@ -579,7 +743,7 @@ namespace OpenSim.Framework.Communications.Cache
                     //Array.Copy(req.RequestUser.AgentId.GetBytes(), 0, Transfer.TransferInfo.Params, 0, 16);
                     //Array.Copy(req.RequestUser.SessionId.GetBytes(), 0, Transfer.TransferInfo.Params, 16, 16);
                 }
-                Transfer.TransferInfo.Size = (int) req.AssetInf.Data.Length;
+                Transfer.TransferInfo.Size = (int)req.AssetInf.Data.Length;
                 Transfer.TransferInfo.TransferID = req.TransferRequestID;
                 req.RequestUser.OutPacket(Transfer, ThrottleOutPacketType.Asset);
 
@@ -597,7 +761,7 @@ namespace OpenSim.Framework.Communications.Cache
                 {
                     int processedLength = 0;
                     // libsecondlife hardcodes 1500 as the maximum data chunk size
-                    int maxChunkSize = 1500;
+                    int maxChunkSize = 1250;
                     int packetNumber = 0;
 
                     while (processedLength < req.AssetInf.Data.Length)
@@ -637,8 +801,6 @@ namespace OpenSim.Framework.Communications.Cache
                 AssetRequests.RemoveAt(0);
             }
         }
-
-        #endregion
 
         public class AssetRequest
         {
@@ -697,7 +859,6 @@ namespace OpenSim.Framework.Communications.Cache
                 MediaURL = aBase.MediaURL; //rex
             }
         }
-
 
         public class AssetRequestsList
         {

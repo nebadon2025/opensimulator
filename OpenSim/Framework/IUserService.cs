@@ -34,6 +34,7 @@ namespace OpenSim.Framework
     {
         UserProfileData GetUserProfile(string firstName, string lastName, string authAddr);
         UserProfileData GetUserProfile(string firstName, string authAddr); // must differentiate this from GetUserProfile call
+        
         //UserProfileData GetUserProfile(string name);
         UserProfileData GetUserProfileByAccount(string account);
         UserProfileData GetUserProfile(LLUUID userId, string authAddr);
@@ -78,6 +79,16 @@ namespace OpenSim.Framework
         /// <param name="friend">The agent that is getting or loosing permissions</param>
         /// <param name="perms">A uint bit vector for set perms that the friend being added has; 0 = none, 1=This friend can see when they sign on, 2 = map, 4 edit objects </param>
         void UpdateUserFriendPerms(LLUUID friendlistowner, LLUUID friend, uint perms);
+
+        /// <summary>
+        /// Logs off a user on the user server
+        /// </summary>
+        /// <param name="UserID">UUID of the user</param>
+        /// <param name="regionData">UUID of the Region</param>
+        /// <param name="posx">final position x</param>
+        /// <param name="posy">final position y</param>
+        /// <param name="posz">final position z</param>
+        void LogOffUser(LLUUID userid, LLUUID regionid, ulong regionhandle, float posx, float posy, float posz);
 
         /// <summary>
         /// Returns a list of FriendsListItems that describe the friends and permissions in the friend relationship for LLUUID friendslistowner

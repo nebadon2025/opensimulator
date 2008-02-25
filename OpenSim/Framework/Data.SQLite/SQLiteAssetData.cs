@@ -40,82 +40,97 @@ namespace OpenSim.Framework.Data.SQLite
     /// </summary>
     public class SQLiteAssetData : SQLiteBase, IAssetProvider
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         /// <summary>
         /// The database manager
         /// </summary>
         /// <summary>
         /// Artificial constructor called upon plugin load
         /// </summary>
+        private const string SelectAssetSQL = "select * from assets where UUID=:UUID";
+        private const string DeleteAssetSQL = "delete from assets where UUID=:UUID";
+        private const string InsertAssetSQL = "insert into assets(UUID, Name, Description, Type, InvType, Local, Temporary, Data) values(:UUID, :Name, :Description, :Type, :InvType, :Local, :Temporary, :Data)";
+        private const string UpdateAssetSQL = "update assets set Name=:Name, Description=:Description, Type=:Type, InvType=:InvType, Local=:Local, Temporary=:Temporary, Data=:Data where UUID=:UUID"; 
         private const string assetSelect = "select * from assets";
 
-        private DataSet ds;
-        private SqliteDataAdapter da;
+        private SqliteConnection m_conn;
 
         public void Initialise(string dbfile, string dbname)
         {
-            SqliteConnection conn = new SqliteConnection("URI=file:" + dbfile + ",version=3");
-            TestTables(conn);
-
-            ds = new DataSet();
-            da = new SqliteDataAdapter(new SqliteCommand(assetSelect, conn));
-
-            lock (ds)
-            {
-                ds.Tables.Add(createAssetsTable());
-
-                setupAssetCommands(da, conn);
-                try
-                {
-                    da.Fill(ds.Tables["assets"]);
-                }
-                catch (Exception e)
-                {
-                    MainLog.Instance.Verbose("SQLITE", e.ToString());
-                }
-            }
-
+            m_conn = new SqliteConnection("URI=file:" + dbfile + ",version=3");
+            m_conn.Open();
+            TestTables(m_conn);
             return;
         }
 
         public AssetBase FetchAsset(LLUUID uuid)
         {
-            AssetBase asset = new AssetBase();
-            DataRow row = ds.Tables["assets"].Rows.Find(Util.ToRawUuidString(uuid));
-            if (row != null)
+            
+            using (SqliteCommand cmd = new SqliteCommand(SelectAssetSQL, m_conn))
             {
-                return buildAsset(row);
-            }
-            else
-            {
-                return null;
+                cmd.Parameters.Add(new SqliteParameter(":UUID", Util.ToRawUuidString(uuid)));
+                using (IDataReader reader = cmd.ExecuteReader()) 
+                {
+                    if (reader.Read())
+                    {
+                        AssetBase asset = buildAsset(reader);
+                        reader.Close();
+                        return asset;
+                    }
+                    else
+                    {
+                        reader.Close();
+                        return null;
+                    }
+                }
             }
         }
 
         public void CreateAsset(AssetBase asset)
         {
-            // no difference for now
-            UpdateAsset(asset);
+            m_log.Info("[SQLITE]: Creating Asset " + Util.ToRawUuidString(asset.FullID));
+            if (ExistsAsset(asset.FullID))
+            {
+                m_log.Info("[SQLITE]: Asset exists, updating instead.  You should fix the caller for this!");
+                UpdateAsset(asset);
+            }
+            else 
+            {
+                using (SqliteCommand cmd = new SqliteCommand(InsertAssetSQL, m_conn))
+                {
+                    cmd.Parameters.Add(new SqliteParameter(":UUID", Util.ToRawUuidString(asset.FullID)));
+                    cmd.Parameters.Add(new SqliteParameter(":Name", asset.Name));
+                    cmd.Parameters.Add(new SqliteParameter(":Description", asset.Description));
+                    cmd.Parameters.Add(new SqliteParameter(":Type", asset.Type));
+                    cmd.Parameters.Add(new SqliteParameter(":InvType", asset.InvType));
+                    cmd.Parameters.Add(new SqliteParameter(":Local", asset.Local));
+                    cmd.Parameters.Add(new SqliteParameter(":Temporary", asset.Temporary));
+                    cmd.Parameters.Add(new SqliteParameter(":Data", asset.Data));
+                    
+                    cmd.ExecuteNonQuery();
+                }
+            }
         }
 
         public void UpdateAsset(AssetBase asset)
         {
             LogAssetLoad(asset);
-
-            DataTable assets = ds.Tables["assets"];
-            lock (ds)
+            
+            using (SqliteCommand cmd = new SqliteCommand(UpdateAssetSQL, m_conn))
             {
-                DataRow row = assets.Rows.Find(Util.ToRawUuidString(asset.FullID));
-                if (row == null)
-                {
-                    row = assets.NewRow();
-                    fillAssetRow(row, asset);
-                    assets.Rows.Add(row);
-                }
-                else
-                {
-                    fillAssetRow(row, asset);
-                }
+                cmd.Parameters.Add(new SqliteParameter(":UUID", Util.ToRawUuidString(asset.FullID)));
+                cmd.Parameters.Add(new SqliteParameter(":Name", asset.Name));
+                cmd.Parameters.Add(new SqliteParameter(":Description", asset.Description));
+                cmd.Parameters.Add(new SqliteParameter(":Type", asset.Type));
+                cmd.Parameters.Add(new SqliteParameter(":InvType", asset.InvType));
+                cmd.Parameters.Add(new SqliteParameter(":Local", asset.Local));
+                cmd.Parameters.Add(new SqliteParameter(":Temporary", asset.Temporary));
+                cmd.Parameters.Add(new SqliteParameter(":Data", asset.Data));
+                
+                cmd.ExecuteNonQuery();
             }
+
         }
 
         // rex new function for "replace assets" functionality
@@ -141,7 +156,7 @@ namespace OpenSim.Framework.Data.SQLite
             string temporary = asset.Temporary ? "Temporary" : "Stored";
             string local = asset.Local ? "Local" : "Remote";
 
-            MainLog.Instance.Verbose("SQLITE",
+            m_log.Info("[SQLITE]: " +
                                      string.Format("Loaded {6} {5} Asset: [{0}][{3}/{4}] \"{1}\":{2} ({7} bytes)",
                                                    asset.FullID, asset.Name, asset.Description, asset.Type,
                                                    asset.InvType, temporary, local, asset.Data.Length));
@@ -149,8 +164,23 @@ namespace OpenSim.Framework.Data.SQLite
 
         public bool ExistsAsset(LLUUID uuid)
         {
-            DataRow row = ds.Tables["assets"].Rows.Find(Util.ToRawUuidString(uuid));
-            return (row != null);
+            using (SqliteCommand cmd = new SqliteCommand(SelectAssetSQL, m_conn))
+            {
+                cmd.Parameters.Add(new SqliteParameter(":UUID", Util.ToRawUuidString(uuid)));
+                using (IDataReader reader = cmd.ExecuteReader()) 
+                {
+                    if(reader.Read())
+                    {
+                        reader.Close();
+                        return true;
+                    }
+                    else 
+                    {
+                        reader.Close();
+                        return false;
+                    }
+                }
+            }
         }
 
         // rex, new function
@@ -181,24 +211,22 @@ namespace OpenSim.Framework.Data.SQLite
 
         public void DeleteAsset(LLUUID uuid)
         {
-            lock (ds)
+            using (SqliteCommand cmd = new SqliteCommand(DeleteAssetSQL, m_conn))
             {
-                DataRow row = ds.Tables["assets"].Rows.Find(Util.ToRawUuidString(uuid));
-                if (row != null)
-                {
-                    row.Delete();
-                }
+                cmd.Parameters.Add(new SqliteParameter(":UUID", Util.ToRawUuidString(uuid)));
+                
+                cmd.ExecuteNonQuery();
             }
         }
 
         public void CommitAssets() // force a sync to the database
         {
-            MainLog.Instance.Verbose("SQLITE", "Attempting commit");
-            lock (ds)
-            {
-                da.Update(ds, "assets");
-                ds.AcceptChanges();
-            }
+            m_log.Info("[SQLITE]: Attempting commit");
+            // lock (ds)
+            //             {
+            //                 da.Update(ds, "assets");
+            //                 ds.AcceptChanges();
+            // }
         }
 
         /***********************************************************************
@@ -235,7 +263,7 @@ namespace OpenSim.Framework.Data.SQLite
          *
          **********************************************************************/
 
-        private AssetBase buildAsset(DataRow row)
+        private AssetBase buildAsset(IDataReader row)
         {
             // TODO: this doesn't work yet because something more
             // interesting has to be done to actually get these values
@@ -308,27 +336,11 @@ namespace OpenSim.Framework.Data.SQLite
          *
          **********************************************************************/
 
-        private void setupAssetCommands(SqliteDataAdapter da, SqliteConnection conn)
-        {
-            da.InsertCommand = createInsertCommand("assets", ds.Tables["assets"]);
-            da.InsertCommand.Connection = conn;
-
-            da.UpdateCommand = createUpdateCommand("assets", "UUID=:UUID", ds.Tables["assets"]);
-            da.UpdateCommand.Connection = conn;
-
-            SqliteCommand delete = new SqliteCommand("delete from assets where UUID = :UUID");
-            delete.Parameters.Add(createSqliteParameter("UUID", typeof (String)));
-            delete.Connection = conn;
-            da.DeleteCommand = delete;
-        }
-
         private void InitDB(SqliteConnection conn)
         {
             string createAssets = defineTable(createAssetsTable());
             SqliteCommand pcmd = new SqliteCommand(createAssets, conn);
-            conn.Open();
             pcmd.ExecuteNonQuery();
-            conn.Close();
         }
 
         private bool TestTables(SqliteConnection conn)
@@ -342,7 +354,7 @@ namespace OpenSim.Framework.Data.SQLite
             }
             catch (SqliteSyntaxException)
             {
-                MainLog.Instance.Verbose("SQLITE", "SQLite Database doesn't exist... creating");
+                m_log.Info("[SQLITE]: SQLite Database doesn't exist... creating");
                 InitDB(conn);
             }
             return true;

@@ -37,12 +37,18 @@ namespace OpenSim.Framework.Data.MSSQL
     /// <summary>
     /// A database interface class to a user profile storage system
     /// </summary>
-    internal class MSSQLUserData : IUserData
+    public class MSSQLUserData : IUserData
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         /// <summary>
         /// Database manager for MySQL
         /// </summary>
         public MSSQLManager database;
+
+        private string m_agentsTableName;
+        private string m_usersTableName;
+        private string m_userFriendsTableName;
 
         /// <summary>
         /// Loads and initialises the MySQL storage plugin
@@ -51,18 +57,74 @@ namespace OpenSim.Framework.Data.MSSQL
         {
             // Load from an INI file connection details
             // TODO: move this to XML?
-            IniFile GridDataMySqlFile = new IniFile("mssql_connection.ini");
-            string settingDataSource = GridDataMySqlFile.ParseFileReadValue("data_source");
-            string settingInitialCatalog = GridDataMySqlFile.ParseFileReadValue("initial_catalog");
-            string settingPersistSecurityInfo = GridDataMySqlFile.ParseFileReadValue("persist_security_info");
-            string settingUserId = GridDataMySqlFile.ParseFileReadValue("user_id");
-            string settingPassword = GridDataMySqlFile.ParseFileReadValue("password");
+            IniFile iniFile = new IniFile("mssql_connection.ini");
+            string settingDataSource = iniFile.ParseFileReadValue("data_source");
+            string settingInitialCatalog = iniFile.ParseFileReadValue("initial_catalog");
+            string settingPersistSecurityInfo = iniFile.ParseFileReadValue("persist_security_info");
+            string settingUserId = iniFile.ParseFileReadValue("user_id");
+            string settingPassword = iniFile.ParseFileReadValue("password");
+
+            m_usersTableName = iniFile.ParseFileReadValue("userstablename");
+            if (m_usersTableName == null)
+            {
+                m_usersTableName = "users";
+            }
+
+            m_userFriendsTableName = iniFile.ParseFileReadValue("userfriendstablename");
+            if (m_userFriendsTableName == null)
+            {
+                m_userFriendsTableName = "userfriends";
+            }
+
+            m_agentsTableName = iniFile.ParseFileReadValue("agentstablename");
+            if (m_agentsTableName == null)
+            {
+                m_agentsTableName = "agents";
+            }
 
             database =
                 new MSSQLManager(settingDataSource, settingInitialCatalog, settingPersistSecurityInfo, settingUserId,
                                  settingPassword);
+
+            TestTables();
         }
 
+        private bool TestTables()
+        {
+            IDbCommand cmd;
+
+            cmd = database.Query("select top 1 * from " + m_usersTableName, new Dictionary<string, string>());
+            try
+            {
+                cmd.ExecuteNonQuery();
+            }
+            catch
+            {
+                database.ExecuteResourceSql("Mssql-users.sql");
+            }
+       
+            cmd = database.Query("select top 1 * from " + m_agentsTableName, new Dictionary<string, string>());
+            try
+            {
+                cmd.ExecuteNonQuery();
+            }
+            catch
+            {
+                database.ExecuteResourceSql("Mssql-agents.sql");
+            }
+
+            cmd = database.Query("select top 1 * from " + m_userFriendsTableName, new Dictionary<string, string>());
+            try
+            {
+                cmd.ExecuteNonQuery();
+            }
+            catch
+            {
+                database.ExecuteResourceSql("CreateUserFriendsTable.sql");
+            }
+
+            return true;
+        }
         /// <summary>
         /// Searches the database for a specified user profile by name components
         /// </summary>
@@ -80,7 +142,7 @@ namespace OpenSim.Framework.Data.MSSQL
                     param["second"] = last;
 
                     IDbCommand result =
-                        database.Query("SELECT * FROM users WHERE username = @first AND lastname = @second", param);
+                        database.Query("SELECT * FROM " + m_usersTableName + " WHERE username = @first AND lastname = @second", param);
                     IDataReader reader = result.ExecuteReader();
 
                     UserProfileData row = database.readUserRow(reader);
@@ -94,7 +156,7 @@ namespace OpenSim.Framework.Data.MSSQL
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return null;
             }
         }
@@ -103,36 +165,165 @@ namespace OpenSim.Framework.Data.MSSQL
 
         public void AddNewUserFriend(LLUUID friendlistowner, LLUUID friend, uint perms)
         {
-            MainLog.Instance.Verbose("FRIEND", "Stub AddNewUserFriend called");
+            int dtvalue = Util.UnixTimeSinceEpoch();
+
+            Dictionary<string, string> param = new Dictionary<string, string>();
+            param["@ownerID"] = friendlistowner.UUID.ToString();
+            param["@friendID"] = friend.UUID.ToString();
+            param["@friendPerms"] = perms.ToString();
+            param["@datetimestamp"] = dtvalue.ToString();
+
+            try
+            {
+                lock (database)
+                {
+                    IDbCommand adder =
+                        database.Query(
+                        "INSERT INTO " + m_userFriendsTableName + " " +
+                        "(ownerID,friendID,friendPerms,datetimestamp) " +
+                        "VALUES " +
+                        "(@ownerID,@friendID,@friendPerms,@datetimestamp)",
+                            param);
+
+                    adder.ExecuteNonQuery();
+
+                    adder =
+                        database.Query(
+                        "INSERT INTO " + m_userFriendsTableName + " " +
+                        "(ownerID,friendID,friendPerms,datetimestamp) " +
+                        "VALUES " +
+                        "(@friendID,@ownerID,@friendPerms,@datetimestamp)",
+                            param);
+                    adder.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception e)
+            {
+                database.Reconnect();
+                m_log.Error(e.ToString());
+                return;
+            }
         }
 
         public void RemoveUserFriend(LLUUID friendlistowner, LLUUID friend)
         {
-            MainLog.Instance.Verbose("FRIEND", "Stub RemoveUserFriend called");
+            Dictionary<string, string> param = new Dictionary<string, string>();
+            param["@ownerID"] = friendlistowner.UUID.ToString();
+            param["@friendID"] = friend.UUID.ToString();
+
+
+            try
+            {
+                lock (database)
+                {
+                    IDbCommand updater =
+                        database.Query(
+                        "delete from " + m_userFriendsTableName + " where ownerID = @ownerID and friendID = @friendID",
+                            param);
+                    updater.ExecuteNonQuery();
+
+                    updater =
+                        database.Query(
+                        "delete from " + m_userFriendsTableName + " where ownerID = @friendID and friendID = @ownerID",
+                            param);
+                    updater.ExecuteNonQuery();
+
+                }
+            }
+            catch (Exception e)
+            {
+                database.Reconnect();
+                m_log.Error(e.ToString());
+                return;
+            }
         }
+
         public void UpdateUserFriendPerms(LLUUID friendlistowner, LLUUID friend, uint perms)
         {
-            MainLog.Instance.Verbose("FRIEND", "Stub UpdateUserFriendPerms called");
+            Dictionary<string, string> param = new Dictionary<string, string>();
+            param["@ownerID"] = friendlistowner.UUID.ToString();
+            param["@friendID"] = friend.UUID.ToString();
+            param["@friendPerms"] = perms.ToString();
+
+
+            try
+            {
+                lock (database)
+                {
+                    IDbCommand updater =
+                        database.Query(
+                        "update " + m_userFriendsTableName +
+                        " SET friendPerms = @friendPerms " +
+                        "where ownerID = @ownerID and friendID = @friendID",
+                            param);
+
+                    updater.ExecuteNonQuery();
+                }
+            }
+            catch (Exception e)
+            {
+                database.Reconnect();
+                m_log.Error(e.ToString());
+                return;
+            }
         }
 
 
         public List<FriendListItem> GetUserFriendList(LLUUID friendlistowner)
         {
-            MainLog.Instance.Verbose("FRIEND", "Stub GetUserFriendList called");
-            return new List<FriendListItem>();
+            List<FriendListItem> Lfli = new List<FriendListItem>();
+
+            Dictionary<string, string> param = new Dictionary<string, string>();
+            param["@ownerID"] = friendlistowner.UUID.ToString();
+
+            try
+            {
+                lock (database)
+                {
+                    //Left Join userfriends to itself
+                    IDbCommand result =
+                        database.Query(
+                        "select a.ownerID,a.friendID,a.friendPerms,b.friendPerms as ownerperms from " + m_userFriendsTableName + " as a, " + m_userFriendsTableName + " as b" +
+                        " where a.ownerID = @ownerID and b.ownerID = a.friendID and b.friendID = a.ownerID",
+                            param);
+                    IDataReader reader = result.ExecuteReader();
+
+
+                    while (reader.Read())
+                    {
+                        FriendListItem fli = new FriendListItem();
+                        fli.FriendListOwner = new LLUUID((string)reader["ownerID"]);
+                        fli.Friend = new LLUUID((string)reader["friendID"]);
+                        fli.FriendPerms = (uint)Convert.ToInt32(reader["friendPerms"]);
+
+                        // This is not a real column in the database table, it's a joined column from the opposite record
+                        fli.FriendListOwnerPerms = (uint)Convert.ToInt32(reader["ownerperms"]);
+
+                        Lfli.Add(fli);
+                    }
+                    reader.Close();
+                    result.Dispose();
+                }
+            }
+            catch (Exception e)
+            {
+                database.Reconnect();
+                m_log.Error(e.ToString());
+                return Lfli;
+            }
+
+            return Lfli;
         }
 
         #endregion
 
         public void UpdateUserCurrentRegion(LLUUID avatarid, LLUUID regionuuid)
         {
-            MainLog.Instance.Verbose("USER", "Stub UpdateUserCUrrentRegion called");
+            m_log.Info("[USER]: Stub UpdateUserCUrrentRegion called");
         }
 
-        public void LogOffUser(LLUUID avatarid)
-        {
-            MainLog.Instance.Verbose("USER", "Stub LogOffUser called");
-        }
+
 
         public List<Framework.AvatarPickerAvatar> GeneratePickerResults(LLUUID queryID, string query)
         {
@@ -151,7 +342,7 @@ namespace OpenSim.Framework.Data.MSSQL
 
                         IDbCommand result =
                             database.Query(
-                                "SELECT UUID,username,surname FROM users WHERE username = @first AND lastname = @second",
+                                "SELECT UUID,username,lastname FROM " + m_usersTableName + " WHERE username = @first AND lastname = @second",
                                 param);
                         IDataReader reader = result.ExecuteReader();
 
@@ -159,9 +350,9 @@ namespace OpenSim.Framework.Data.MSSQL
                         while (reader.Read())
                         {
                             Framework.AvatarPickerAvatar user = new Framework.AvatarPickerAvatar();
-                            user.AvatarID = new LLUUID((string) reader["UUID"]);
-                            user.firstName = (string) reader["username"];
-                            user.lastName = (string) reader["surname"];
+                            user.AvatarID = new LLUUID((string)reader["UUID"]);
+                            user.firstName = (string)reader["username"];
+                            user.lastName = (string)reader["lastname"];
                             returnlist.Add(user);
                         }
                         reader.Close();
@@ -171,7 +362,7 @@ namespace OpenSim.Framework.Data.MSSQL
                 catch (Exception e)
                 {
                     database.Reconnect();
-                    MainLog.Instance.Error(e.ToString());
+                    m_log.Error(e.ToString());
                     return returnlist;
                 }
             }
@@ -183,11 +374,10 @@ namespace OpenSim.Framework.Data.MSSQL
                     {
                         Dictionary<string, string> param = new Dictionary<string, string>();
                         param["first"] = querysplit[0];
-                        param["second"] = querysplit[1];
 
                         IDbCommand result =
                             database.Query(
-                                "SELECT UUID,username,surname FROM users WHERE username = @first OR lastname = @second",
+                                "SELECT UUID,username,lastname FROM " + m_usersTableName + " WHERE username = @first OR lastname = @first",
                                 param);
                         IDataReader reader = result.ExecuteReader();
 
@@ -195,9 +385,9 @@ namespace OpenSim.Framework.Data.MSSQL
                         while (reader.Read())
                         {
                             Framework.AvatarPickerAvatar user = new Framework.AvatarPickerAvatar();
-                            user.AvatarID = new LLUUID((string) reader["UUID"]);
-                            user.firstName = (string) reader["username"];
-                            user.lastName = (string) reader["surname"];
+                            user.AvatarID = new LLUUID((string)reader["UUID"]);
+                            user.firstName = (string)reader["username"];
+                            user.lastName = (string)reader["lastname"];
                             returnlist.Add(user);
                         }
                         reader.Close();
@@ -207,7 +397,7 @@ namespace OpenSim.Framework.Data.MSSQL
                 catch (Exception e)
                 {
                     database.Reconnect();
-                    MainLog.Instance.Error(e.ToString());
+                    m_log.Error(e.ToString());
                     return returnlist;
                 }
             }
@@ -224,7 +414,7 @@ namespace OpenSim.Framework.Data.MSSQL
                     Dictionary<string, string> param = new Dictionary<string, string>();
                     param["uuid"] = uuid.ToString();
 
-                    IDbCommand result = database.Query("SELECT * FROM users WHERE UUID = @uuid", param);
+                    IDbCommand result = database.Query("SELECT * FROM " + m_usersTableName + " WHERE UUID = @uuid", param);
                     IDataReader reader = result.ExecuteReader();
 
                     UserProfileData row = database.readUserRow(reader);
@@ -238,7 +428,7 @@ namespace OpenSim.Framework.Data.MSSQL
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return null;
             }
         }
@@ -321,7 +511,7 @@ namespace OpenSim.Framework.Data.MSSQL
                     Dictionary<string, string> param = new Dictionary<string, string>();
                     param["uuid"] = uuid.ToString();
 
-                    IDbCommand result = database.Query("SELECT * FROM agents WHERE UUID = @uuid", param);
+                    IDbCommand result = database.Query("SELECT * FROM " + m_agentsTableName + " WHERE UUID = @uuid", param);
                     IDataReader reader = result.ExecuteReader();
 
                     UserAgentData row = database.readAgentRow(reader);
@@ -335,11 +525,17 @@ namespace OpenSim.Framework.Data.MSSQL
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return null;
             }
         }
+        public void StoreWebLoginKey(LLUUID AgentID, LLUUID WebLoginKey)
+        {
+            UserProfileData user = GetUserByUUID(AgentID);
+            user.webLoginKey = WebLoginKey;
+            UpdateUserProfile(user);
 
+        }
         /// <summary>
         /// Creates a new users profile
         /// </summary>
@@ -350,21 +546,114 @@ namespace OpenSim.Framework.Data.MSSQL
             {
                 lock (database)
                 {
-                    database.insertUserRow(user.UUID, user.username, user.surname, user.passwordHash, user.passwordSalt,
+                    InsertUserRow(user.UUID, user.username, user.surname, user.passwordHash, user.passwordSalt,
                                            user.homeRegion, user.homeLocation.X, user.homeLocation.Y,
                                            user.homeLocation.Z,
                                            user.homeLookAt.X, user.homeLookAt.Y, user.homeLookAt.Z, user.created,
                                            user.lastLogin, user.userInventoryURI, user.userAssetURI,
                                            user.profileCanDoMask, user.profileWantDoMask,
                                            user.profileAboutText, user.profileFirstText, user.profileImage,
-                                           user.profileFirstImage,user.webLoginKey);
+                                           user.profileFirstImage, user.webLoginKey);
                 }
             }
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
             }
+        }
+
+        /// <summary>
+        /// Creates a new user and inserts it into the database
+        /// </summary>
+        /// <param name="uuid">User ID</param>
+        /// <param name="username">First part of the login</param>
+        /// <param name="lastname">Second part of the login</param>
+        /// <param name="passwordHash">A salted hash of the users password</param>
+        /// <param name="passwordSalt">The salt used for the password hash</param>
+        /// <param name="homeRegion">A regionHandle of the users home region</param>
+        /// <param name="homeLocX">Home region position vector</param>
+        /// <param name="homeLocY">Home region position vector</param>
+        /// <param name="homeLocZ">Home region position vector</param>
+        /// <param name="homeLookAtX">Home region 'look at' vector</param>
+        /// <param name="homeLookAtY">Home region 'look at' vector</param>
+        /// <param name="homeLookAtZ">Home region 'look at' vector</param>
+        /// <param name="created">Account created (unix timestamp)</param>
+        /// <param name="lastlogin">Last login (unix timestamp)</param>
+        /// <param name="inventoryURI">Users inventory URI</param>
+        /// <param name="assetURI">Users asset URI</param>
+        /// <param name="canDoMask">I can do mask</param>
+        /// <param name="wantDoMask">I want to do mask</param>
+        /// <param name="aboutText">Profile text</param>
+        /// <param name="firstText">Firstlife text</param>
+        /// <param name="profileImage">UUID for profile image</param>
+        /// <param name="firstImage">UUID for firstlife image</param>
+        /// <returns>Success?</returns>
+        private bool InsertUserRow(LLUUID uuid, string username, string lastname, string passwordHash,
+                                  string passwordSalt, UInt64 homeRegion, float homeLocX, float homeLocY, float homeLocZ,
+                                  float homeLookAtX, float homeLookAtY, float homeLookAtZ, int created, int lastlogin,
+                                  string inventoryURI, string assetURI, uint canDoMask, uint wantDoMask,
+                                  string aboutText, string firstText,
+                                  LLUUID profileImage, LLUUID firstImage, LLUUID webLoginKey)
+        {
+            string sql = "INSERT INTO "+m_usersTableName;
+            sql += " ([UUID], [username], [lastname], [passwordHash], [passwordSalt], [homeRegion], ";
+            sql +=
+                "[homeLocationX], [homeLocationY], [homeLocationZ], [homeLookAtX], [homeLookAtY], [homeLookAtZ], [created], ";
+            sql +=
+                "[lastLogin], [userInventoryURI], [userAssetURI], [profileCanDoMask], [profileWantDoMask], [profileAboutText], ";
+            sql += "[profileFirstText], [profileImage], [profileFirstImage], [webLoginKey]) VALUES ";
+
+            sql += "(@UUID, @username, @lastname, @passwordHash, @passwordSalt, @homeRegion, ";
+            sql +=
+                "@homeLocationX, @homeLocationY, @homeLocationZ, @homeLookAtX, @homeLookAtY, @homeLookAtZ, @created, ";
+            sql +=
+                "@lastLogin, @userInventoryURI, @userAssetURI, @profileCanDoMask, @profileWantDoMask, @profileAboutText, ";
+            sql += "@profileFirstText, @profileImage, @profileFirstImage, @webLoginKey);";
+
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            parameters["UUID"] = uuid.ToString();
+            parameters["username"] = username.ToString();
+            parameters["lastname"] = lastname.ToString();
+            parameters["passwordHash"] = passwordHash.ToString();
+            parameters["passwordSalt"] = passwordSalt.ToString();
+            parameters["homeRegion"] = homeRegion.ToString();
+            parameters["homeLocationX"] = homeLocX.ToString();
+            parameters["homeLocationY"] = homeLocY.ToString();
+            parameters["homeLocationZ"] = homeLocZ.ToString();
+            parameters["homeLookAtX"] = homeLookAtX.ToString();
+            parameters["homeLookAtY"] = homeLookAtY.ToString();
+            parameters["homeLookAtZ"] = homeLookAtZ.ToString();
+            parameters["created"] = created.ToString();
+            parameters["lastLogin"] = lastlogin.ToString();
+            parameters["userInventoryURI"] = String.Empty;
+            parameters["userAssetURI"] = String.Empty;
+            parameters["profileCanDoMask"] = "0";
+            parameters["profileWantDoMask"] = "0";
+            parameters["profileAboutText"] = String.Empty;
+            parameters["profileFirstText"] = String.Empty;
+            parameters["profileImage"] = LLUUID.Zero.ToString();
+            parameters["profileFirstImage"] = LLUUID.Zero.ToString();
+            parameters["webLoginKey"] = LLUUID.Random().ToString();
+
+            bool returnval = false;
+
+            try
+            {
+                IDbCommand result = database.Query(sql, parameters);
+
+                if (result.ExecuteNonQuery() == 1)
+                    returnval = true;
+
+                result.Dispose();
+            }
+            catch (Exception e)
+            {
+                m_log.Error(e.ToString());
+                return false;
+            }
+
+            return returnval;
         }
 
         /// <summary>
@@ -379,7 +668,7 @@ namespace OpenSim.Framework.Data.MSSQL
 
         public bool UpdateUserProfile(UserProfileData user)
         {
-            SqlCommand command = new SqlCommand("UPDATE users set UUID = @uuid, " +
+            SqlCommand command = new SqlCommand("UPDATE " + m_usersTableName + " set UUID = @uuid, " +
                                                 "username = @username, " +
                                                 "lastname = @lastname," +
                                                 "passwordHash = @passwordHash," +
@@ -400,7 +689,8 @@ namespace OpenSim.Framework.Data.MSSQL
                                                 "profileAboutText = @profileAboutText," +
                                                 "profileFirstText = @profileFirstText," +
                                                 "profileImage = @profileImage," +
-                                                "profileFirstImage = @profileFirstImage where " +
+                                                "profileFirstImage = @profileFirstImage, " +
+                                                "webLoginKey = @webLoginKey  where " +
                                                 "UUID = @keyUUUID;", database.getConnection());
             SqlParameter param1 = new SqlParameter("@uuid", user.UUID.ToString());
             SqlParameter param2 = new SqlParameter("@username", user.username);
@@ -425,6 +715,7 @@ namespace OpenSim.Framework.Data.MSSQL
             SqlParameter param21 = new SqlParameter("@profileImage", LLUUID.Zero.ToString());
             SqlParameter param22 = new SqlParameter("@profileFirstImage", LLUUID.Zero.ToString());
             SqlParameter param23 = new SqlParameter("@keyUUUID", user.UUID.ToString());
+            SqlParameter param24 = new SqlParameter("@webLoginKey", user.webLoginKey.UUID.ToString());
             command.Parameters.Add(param1);
             command.Parameters.Add(param2);
             command.Parameters.Add(param3);
@@ -448,6 +739,7 @@ namespace OpenSim.Framework.Data.MSSQL
             command.Parameters.Add(param21);
             command.Parameters.Add(param22);
             command.Parameters.Add(param23);
+            command.Parameters.Add(param24);
             try
             {
                 int affected = command.ExecuteNonQuery();
@@ -462,7 +754,7 @@ namespace OpenSim.Framework.Data.MSSQL
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
             }
             return false;
         }

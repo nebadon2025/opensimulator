@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -26,20 +26,22 @@
 * 
 */
 
+using System;
+
 namespace OpenSim.Region.Capabilities
 {
     [LLSDType("MAP")]
     public class LLSDCapsDetails
     {
-        public string MapLayer = "";
-        public string NewFileAgentInventory = "";
-        //public string EventQueueGet = "";
-        // public string RequestTextureDownload = "";
-        // public string ChatSessionRequest = "";
-        public string UpdateNotecardAgentInventory = "";
-        public string UpdateScriptAgentInventory = "";
-        public string UpdateScriptTaskInventory = "";
-        // public string ParcelVoiceInfoRequest = "";
+        public string MapLayer = String.Empty;
+        public string NewFileAgentInventory = String.Empty;
+        //public string EventQueueGet = String.Empty;
+        // public string RequestTextureDownload = String.Empty;
+        // public string ChatSessionRequest = String.Empty;
+        public string UpdateNotecardAgentInventory = String.Empty;
+        public string UpdateScriptAgentInventory = String.Empty;
+        public string UpdateScriptTaskInventory = String.Empty;
+        // public string ParcelVoiceInfoRequest = String.Empty;
 
         public LLSDCapsDetails()
         {

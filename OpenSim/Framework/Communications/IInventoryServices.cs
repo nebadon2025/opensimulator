@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -36,20 +36,65 @@ namespace OpenSim.Framework.Communications
 
     public delegate void InventoryItemInfo(LLUUID userID, InventoryItemBase itemInfo);
 
+    /// <summary>
+    /// Defines all the operations one can perform on a user's inventory.
+    /// </summary>
     public interface IInventoryServices
     {
         void RequestInventoryForUser(LLUUID userID, InventoryFolderInfo folderCallBack, InventoryItemInfo itemCallBack);
+        
+        /// <summary>
+        /// Add a new folder to the given user's inventory
+        /// </summary>
+        /// <param name="userID"></param>
+        /// <param name="folder"></param>
         void AddNewInventoryFolder(LLUUID userID, InventoryFolderBase folder);
+        
         void MoveInventoryFolder(LLUUID userID, InventoryFolderBase folder);
+        
+        /// <summary>
+        /// Add a new item to the given user's inventory
+        /// </summary>
+        /// <param name="userID"></param>
+        /// <param name="item"></param>
         void AddNewInventoryItem(LLUUID userID, InventoryItemBase item);
+        
+        /// <summary>
+        /// Delete an item from the given user's inventory
+        /// </summary>
+        /// <param name="userID"></param>
+        /// <param name="item"></param>
         void DeleteInventoryItem(LLUUID userID, InventoryItemBase item);
+        
+        /// <summary>
+        /// Create a new inventory for the given user
+        /// </summary>
+        /// <param name="user"></param>
         void CreateNewUserInventory(LLUUID user);
+        
+        bool HasInventoryForUser(LLUUID userID);
+
+        /// <summary>
+        /// Retrieve the root inventory folder for the given user.
+        /// </summary>
+        /// <param name="userID"></param>
+        /// <returns>null if no root folder was found</returns>
+        InventoryFolderBase RequestRootFolder(LLUUID userID);
 
         /// <summary>
         /// Returns the root folder plus any folders in root (so down one level in the Inventory folders tree)
+        /// for the given user.
         /// </summary>
         /// <param name="userID"></param>
         /// <returns></returns>
         List<InventoryFolderBase> RequestFirstLevelFolders(LLUUID userID);
+
+        /// <summary>
+        /// Returns the named folder in that users inventory, returns null if folder is not found.
+        /// </summary>
+        /// <param name="userID"></param>
+        /// <param name="folderName"></param>
+        /// <returns></returns>
+        InventoryFolderBase RequestNamedFolder(LLUUID userID, string folderName);
     }
 }

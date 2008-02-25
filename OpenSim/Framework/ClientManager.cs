@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -26,6 +26,7 @@
 * 
 */
 
+using System;
 using System.Collections.Generic;
 using libsecondlife;
 using libsecondlife.Packets;
@@ -36,11 +37,12 @@ namespace OpenSim.Framework
 
     public class ClientManager
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private Dictionary<uint, IClientAPI> m_clients;
 
         public void ForEachClient(ForEachClientDelegate whatToDo)
         {
-
             // Wasteful, I know
             IClientAPI[] LocalClients = new IClientAPI[0];
             lock (m_clients)
@@ -57,7 +59,7 @@ namespace OpenSim.Framework
                 }
                 catch (System.Exception e)
                 {
-                    OpenSim.Framework.Console.MainLog.Instance.Warn("CLIENT", "Unable to do ForEachClient for one of the clients" + "\n Reason: " + e.ToString());
+                    m_log.Warn("[CLIENT]: Unable to do ForEachClient for one of the clients" + "\n Reason: " + e.ToString());
                 }
             }
         }
@@ -67,21 +69,31 @@ namespace OpenSim.Framework
             m_clients = new Dictionary<uint, IClientAPI>();
         }
 
-        private void Remove(uint id)
+        public void Remove(uint id)
         {
-            m_clients.Remove(id);
+            //m_log.InfoFormat("[CLIENT]: Removing client with code {0}, current count {1}", id, m_clients.Count);            
+            lock (m_clients)
+            {
+                m_clients.Remove(id);
+            }
+            m_log.InfoFormat("[CLIENT]: Removed client with code {0}, new client count {1}", id, m_clients.Count);
         }
 
         public void Add(uint id, IClientAPI client)
         {
-            m_clients.Add(id, client);
+            lock (m_clients)
+            {
+                m_clients.Add(id, client);
+            }
         }
 
         public void InPacket(uint circuitCode, Packet packet)
         {
             IClientAPI client;
-
-            if (m_clients.TryGetValue(circuitCode, out client))
+            bool tryGetRet = false;
+            lock (m_clients)
+                tryGetRet = m_clients.TryGetValue(circuitCode, out client);
+            if(tryGetRet)
             {
                 client.InPacket(packet);
             }
@@ -90,8 +102,10 @@ namespace OpenSim.Framework
         public void CloseAllAgents(uint circuitCode)
         {
             IClientAPI client;
-
-            if (m_clients.TryGetValue(circuitCode, out client))
+            bool tryGetRet = false;
+            lock (m_clients)
+                tryGetRet = m_clients.TryGetValue(circuitCode, out client);
+            if (tryGetRet) 
             {
                 CloseAllCircuits(client.AgentId);
             }
@@ -107,8 +121,10 @@ namespace OpenSim.Framework
                 IClientAPI client;
                 try
                 {
-
-                    if (m_clients.TryGetValue(circuits[i], out client))
+                    bool tryGetRet = false;
+                    lock (m_clients)
+                        tryGetRet = m_clients.TryGetValue(circuits[i], out client);
+                    if(tryGetRet)
                     {
                         Remove(client.CircuitCode);
                         client.Close(false);
@@ -116,11 +132,9 @@ namespace OpenSim.Framework
                 }
                 catch (System.Exception e)
                 {
-                    OpenSim.Framework.Console.MainLog.Instance.Error("CLIENT", string.Format("Unable to shutdown circuit for: {0}\n Reason: {1}", agentId, e));
+                    m_log.Error(string.Format("[CLIENT]: Unable to shutdown circuit for: {0}\n Reason: {1}", agentId, e));
                 }
             }
-
-            
         }
 
         private uint[] GetAllCircuits(LLUUID agentId)
@@ -133,7 +147,6 @@ namespace OpenSim.Framework
                 LocalClients = new IClientAPI[m_clients.Count];
                 m_clients.Values.CopyTo(LocalClients, 0);
             }
-
 
             for (int i = 0; i < LocalClients.Length; i++ )
             {
@@ -160,13 +173,13 @@ namespace OpenSim.Framework
                 m_clients.Values.CopyTo(LocalClients, 0);
             }
 
-
             for (int i = 0; i < LocalClients.Length; i++)
             {
                 if (LocalClients[i].AgentId != sender.AgentId)
                 {
                     packet.AgentData.AgentID = LocalClients[i].AgentId;
                     packet.AgentData.SessionID = LocalClients[i].SessionId;
+                    packet.Header.Reliable = false;
                     LocalClients[i].OutPacket(packet, ThrottleOutPacketType.Task);
                 }
 
@@ -175,7 +188,10 @@ namespace OpenSim.Framework
 
         public bool TryGetClient(uint circuitId, out IClientAPI user)
         {
-            return m_clients.TryGetValue(circuitId, out user);
+            lock (m_clients)
+            {
+                return m_clients.TryGetValue(circuitId, out user);
+            }
         }
     }
 }

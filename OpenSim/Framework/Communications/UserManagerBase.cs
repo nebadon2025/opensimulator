@@ -34,6 +34,7 @@ using libsecondlife;
 using libsecondlife.StructuredData;
 using Nwc.XmlRpc;
 using OpenSim.Framework.Console;
+using OpenSim.Framework.Statistics;
 
 namespace OpenSim.Framework.UserManagement
 {
@@ -42,6 +43,8 @@ namespace OpenSim.Framework.UserManagement
     /// </summary>
     public abstract class UserManagerBase : IUserService
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         public UserConfig _config;
         private Dictionary<string, IUserData> _plugins = new Dictionary<string, IUserData>();
         public bool RexMode = false; // _config is not initiated in local mode
@@ -54,10 +57,10 @@ namespace OpenSim.Framework.UserManagement
         {
             if (!String.IsNullOrEmpty(FileName))
             {
-                MainLog.Instance.Verbose("USERSTORAGE", "Attempting to load " + FileName);
+                m_log.Info("[USERSTORAGE]: Attempting to load " + FileName);
                 Assembly pluginAssembly = Assembly.LoadFrom(FileName);
 
-                MainLog.Instance.Verbose("USERSTORAGE", "Found " + pluginAssembly.GetTypes().Length + " interfaces.");
+                m_log.Info("[USERSTORAGE]: Found " + pluginAssembly.GetTypes().Length + " interfaces.");
                 foreach (Type pluginType in pluginAssembly.GetTypes())
                 {
                     if (!pluginType.IsAbstract)
@@ -79,16 +82,29 @@ namespace OpenSim.Framework.UserManagement
         {
             plug.Initialise();
             _plugins.Add(plug.getName(), plug);
-            MainLog.Instance.Verbose("USERSTORAGE", "Added IUserData Interface");
+            m_log.Info("[USERSTORAGE]: Added IUserData Interface");
         }
 
         #region Get UserProfile 
 
-        /// <summary>
-        /// Loads a user profile from a database by UUID
-        /// </summary>
-        /// <param name="uuid">The target UUID</param>
-        /// <returns>A user profile.  Returns null if no user profile is found.</returns>
+        // see IUserService
+        public UserProfileData GetUserProfile(string fname, string lname)
+        {
+            foreach (KeyValuePair<string, IUserData> plugin in _plugins)
+            {
+                UserProfileData profile = plugin.Value.GetUserByName(fname, lname);
+
+                if (profile != null)
+                {
+                    profile.currentAgent = getUserAgent(profile.UUID);
+                    return profile;
+                }
+            }
+
+            return null;
+        }
+        
+        // see IUserService        
         public UserProfileData GetUserProfile(LLUUID uuid, string authAddr)
         {
             if (!RexMode)
@@ -180,8 +196,7 @@ namespace OpenSim.Framework.UserManagement
                 }
                 catch (Exception)
                 {
-                    MainLog.Instance.Verbose("USERSTORAGE",
-                                             "Unable to generate AgentPickerData via  " + plugin.Key + "(" + query + ")");
+                    m_log.Info("[USERSTORAGE]: Unable to generate AgentPickerData via  " + plugin.Key + "(" + query + ")");
                     return new List<AvatarPickerAvatar>();
                 }
             }
@@ -262,8 +277,7 @@ namespace OpenSim.Framework.UserManagement
                 }
                 catch (Exception e)
                 {
-                    MainLog.Instance.Verbose("USERSTORAGE",
-                                             "Unable to set user via " + plugin.Key + "(" + e.ToString() + ")");
+                    m_log.Info("[USERSTORAGE]: Unable to set user via " + plugin.Key + "(" + e.ToString() + ")");
                 }
             }
 
@@ -289,8 +303,7 @@ namespace OpenSim.Framework.UserManagement
                 }
                 catch (Exception e)
                 {
-                    MainLog.Instance.Verbose("USERSTORAGE",
-                                             "Unable to find user via " + plugin.Key + "(" + e.ToString() + ")");
+                    m_log.Info("[USERSTORAGE]: Unable to find user via " + plugin.Key + "(" + e.ToString() + ")");
                 }
             }
 
@@ -313,13 +326,28 @@ namespace OpenSim.Framework.UserManagement
                 }
                 catch (Exception e)
                 {
-                    MainLog.Instance.Verbose("USERSTORAGE",
-                                             "Unable to GetUserFriendList via " + plugin.Key + "(" + e.ToString() + ")");
+                    m_log.Info("[USERSTORAGE]: Unable to GetUserFriendList via " + plugin.Key + "(" + e.ToString() + ")");
                 }
             }
 
             return null;
 
+        }
+
+        public void StoreWebLoginKey(LLUUID agentID, LLUUID webLoginKey)
+        {
+
+            foreach (KeyValuePair<string, IUserData> plugin in _plugins)
+            {
+                try
+                {
+                    plugin.Value.StoreWebLoginKey(agentID, webLoginKey);
+                }
+                catch (Exception e)
+                {
+                    m_log.Info("[USERSTORAGE]: Unable to Store WebLoginKey via " + plugin.Key + "(" + e.ToString() + ")");
+                }
+            }
         }
 
         public void AddNewUserFriend(LLUUID friendlistowner, LLUUID friend, uint perms)
@@ -332,8 +360,7 @@ namespace OpenSim.Framework.UserManagement
                 }
                 catch (Exception e)
                 {
-                    MainLog.Instance.Verbose("USERSTORAGE",
-                                             "Unable to AddNewUserFriend via " + plugin.Key + "(" + e.ToString() + ")");
+                    m_log.Info("[USERSTORAGE]: Unable to AddNewUserFriend via " + plugin.Key + "(" + e.ToString() + ")");
                 }
             }
 
@@ -350,8 +377,7 @@ namespace OpenSim.Framework.UserManagement
                 }
                 catch (Exception e)
                 {
-                    MainLog.Instance.Verbose("USERSTORAGE",
-                                             "Unable to RemoveUserFriend via " + plugin.Key + "(" + e.ToString() + ")");
+                    m_log.Info("[USERSTORAGE]: Unable to RemoveUserFriend via " + plugin.Key + "(" + e.ToString() + ")");
                 }
             }
         }
@@ -366,8 +392,7 @@ namespace OpenSim.Framework.UserManagement
                 }
                 catch (Exception e)
                 {
-                    MainLog.Instance.Verbose("USERSTORAGE",
-                                             "Unable to UpdateUserFriendPerms via " + plugin.Key + "(" + e.ToString() + ")");
+                    m_log.Info("[USERSTORAGE]: Unable to UpdateUserFriendPerms via " + plugin.Key + "(" + e.ToString() + ")");
                 }
             }
         }
@@ -386,8 +411,7 @@ namespace OpenSim.Framework.UserManagement
                 }
                 catch (Exception e)
                 {
-                    MainLog.Instance.Verbose("USERSTORAGE",
-                                             "Unable to find user via " + plugin.Key + "(" + e.ToString() + ")");
+                    m_log.Info("[USERSTORAGE]: Unable to find user via " + plugin.Key + "(" + e.ToString() + ")");
                 }
             }
 
@@ -443,8 +467,7 @@ namespace OpenSim.Framework.UserManagement
                 }
                 catch (Exception e)
                 {
-                    MainLog.Instance.Verbose("USERSTORAGE",
-                                             "Unable to find user via " + plugin.Key + "(" + e.ToString() + ")");
+                    m_log.Info("[USERSTORAGE]: Unable to find user via " + plugin.Key + "(" + e.ToString() + ")");
                 }
             }
 
@@ -518,7 +541,64 @@ namespace OpenSim.Framework.UserManagement
 
             profile.currentAgent = agent;
         }
+        
+        /// <summary>
+        /// Process a user logoff from OpenSim.
+        /// </summary>
+        /// <param name="userid"></param>
+        /// <param name="regionid"></param>
+        /// <param name="regionhandle"></param>
+        /// <param name="posx"></param>
+        /// <param name="posy"></param>
+        /// <param name="posz"></param>
+        public void LogOffUser(LLUUID userid, LLUUID regionid, ulong regionhandle, float posx, float posy, float posz)
+        {
+            if (StatsManager.UserStats != null)
+                StatsManager.UserStats.AddLogout();
+            
+            UserProfileData userProfile;
+            UserAgentData userAgent;
+            LLVector3 currentPos = new LLVector3(posx, posy, posz);
 
+            userProfile = GetUserProfile(userid);
+
+            if (userProfile != null)
+            {
+                // This line needs to be in side the above if statement or the UserServer will crash on some logouts.
+                m_log.Info("[LOGOUT]: " + userProfile.username + " " + userProfile.surname + " from " + regionhandle + "(" + posx + "," + posy + "," + posz + ")");
+                
+                userAgent = userProfile.currentAgent;
+                if (userAgent != null)
+                {
+                    userAgent.agentOnline = false;
+                    userAgent.logoutTime = Util.UnixTimeSinceEpoch();
+                    userAgent.sessionID = LLUUID.Zero;
+                    if (regionid != null)
+                    {
+                        userAgent.currentRegion = regionid;
+                    }
+                    userAgent.currentHandle = regionhandle;
+
+                    userAgent.currentPos = currentPos;
+
+                    userProfile.currentAgent = userAgent;
+
+
+                    CommitAgent(ref userProfile);
+                }
+                else
+                {
+                    // If currentagent is null, we can't reference it here or the UserServer crashes!
+                    m_log.Info("[LOGOUT]: didn't save logout position: " + userid.ToString());
+                }
+                
+            }
+            else
+            {
+                m_log.Warn("[LOGOUT]: Unknown User logged out");
+            }
+        }
+        
         public void CreateAgent(UserProfileData profile, LLSD request)
         {
             UserAgentData agent = new UserAgentData();
@@ -579,7 +659,7 @@ namespace OpenSim.Framework.UserManagement
             user.username = firstName;
             user.surname = lastName;
             user.passwordHash = pass;
-            user.passwordSalt = "";
+            user.passwordSalt = String.Empty;
             user.created = Util.UnixTimeSinceEpoch();
             user.homeLookAt = new LLVector3(100, 100, 100);
             user.homeRegionX = regX;
@@ -594,8 +674,7 @@ namespace OpenSim.Framework.UserManagement
                 }
                 catch (Exception e)
                 {
-                    MainLog.Instance.Verbose("USERSTORAGE",
-                                             "Unable to add user via " + plugin.Key + "(" + e.ToString() + ")");
+                    m_log.Info("[USERSTORAGE]: Unable to add user via " + plugin.Key + "(" + e.ToString() + ")");
                 }
             }
 

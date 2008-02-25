@@ -40,7 +40,7 @@ namespace OpenSim.Framework
         public LLUUID InventoryFolder;
         public LLUUID BaseFolder;
         public uint CircuitCode;
-        public string CapsPath = "";
+        public string CapsPath = System.String.Empty;
         public LLVector3 StartPos;
 
         public string AuthAddr = "";

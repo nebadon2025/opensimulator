@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -37,6 +37,8 @@ namespace OpenSim.Framework.Data.MySQL
 {
     internal class MySQLAssetData : IAssetProvider
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private MySQLManager _dbConnection;
 
         #region IAssetProvider Members
@@ -46,7 +48,7 @@ namespace OpenSim.Framework.Data.MySQL
             // null as the version, indicates that the table didn't exist
             if (oldVersion == null)
             {
-                MainLog.Instance.Notice("ASSETS", "Creating new database tables");
+                m_log.Info("[ASSETS]: Creating new database tables");
                 _dbConnection.ExecuteResourceSql("CreateAssetsTable.sql");
                 return;
             }
@@ -76,6 +78,7 @@ namespace OpenSim.Framework.Data.MySQL
                         _dbConnection.Connection);
                 MySqlParameter p = cmd.Parameters.Add("?id", MySqlDbType.Binary, 16);
                 p.Value = assetID.GetBytes();
+                
                 try
                 {
                     using (MySqlDataReader dbReader = cmd.ExecuteReader(CommandBehavior.SingleRow))
@@ -95,36 +98,53 @@ namespace OpenSim.Framework.Data.MySQL
                         cmd.Dispose();
                     }
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    MainLog.Instance.Warn("ASSETS", "MySql failure fetching asset");
+                    m_log.ErrorFormat(
+                        "[ASSETS]: MySql failure fetching asset {0}" + Environment.NewLine + e.ToString()
+                        + Environment.NewLine + "Attempting reconnection", assetID);
+                    _dbConnection.Reconnect();
                 }
             }
             return asset;
         }
 
         public void CreateAsset(AssetBase asset)
-        {
-            MySqlCommand cmd =
-                new MySqlCommand(
-                    "REPLACE INTO assets(id, name, description, assetType, invType, local, temporary, data)" +
-                    "VALUES(?id, ?name, ?description, ?assetType, ?invType, ?local, ?temporary, ?data)",
-                    _dbConnection.Connection);
-
-            // need to ensure we dispose
-            using (cmd)
+        {            
+            lock (_dbConnection)
             {
-                MySqlParameter p = cmd.Parameters.Add("?id", MySqlDbType.Binary, 16);
-                p.Value = asset.FullID.GetBytes();
-                cmd.Parameters.AddWithValue("?name", asset.Name);
-                cmd.Parameters.AddWithValue("?description", asset.Description);
-                cmd.Parameters.AddWithValue("?assetType", asset.Type);
-                cmd.Parameters.AddWithValue("?invType", asset.InvType);
-                cmd.Parameters.AddWithValue("?local", asset.Local);
-                cmd.Parameters.AddWithValue("?temporary", asset.Temporary);
-                cmd.Parameters.AddWithValue("?data", asset.Data);
-                cmd.ExecuteNonQuery();
-                cmd.Dispose();
+                MySqlCommand cmd =
+                    new MySqlCommand(
+                        "REPLACE INTO assets(id, name, description, assetType, invType, local, temporary, data)" +
+                        "VALUES(?id, ?name, ?description, ?assetType, ?invType, ?local, ?temporary, ?data)",
+                        _dbConnection.Connection);
+            
+                // need to ensure we dispose
+                try
+                {            
+                    using (cmd)
+                    {
+                        MySqlParameter p = cmd.Parameters.Add("?id", MySqlDbType.Binary, 16);
+                        p.Value = asset.FullID.GetBytes();
+                        cmd.Parameters.AddWithValue("?name", asset.Name);
+                        cmd.Parameters.AddWithValue("?description", asset.Description);
+                        cmd.Parameters.AddWithValue("?assetType", asset.Type);
+                        cmd.Parameters.AddWithValue("?invType", asset.InvType);
+                        cmd.Parameters.AddWithValue("?local", asset.Local);
+                        cmd.Parameters.AddWithValue("?temporary", asset.Temporary);
+                        cmd.Parameters.AddWithValue("?data", asset.Data);
+                        cmd.ExecuteNonQuery();
+                        cmd.Dispose();
+                    }
+                }
+                catch (Exception e)
+                {
+                    m_log.ErrorFormat(
+                        "[ASSETS]: " +
+                        "MySql failure creating asset {0} with name {1}" + Environment.NewLine + e.ToString()
+                        + Environment.NewLine + "Attempting reconnection", asset.FullID, asset.Name);
+                    _dbConnection.Reconnect();
+                }   
             }
         }
 

@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -29,6 +29,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Text.RegularExpressions;
 using System.Threading;
 using libsecondlife;
 using libsecondlife.StructuredData;
@@ -36,14 +38,17 @@ using Nwc.XmlRpc;
 
 using OpenSim.Framework.Communications.Cache;
 using OpenSim.Framework.Console;
+using OpenSim.Framework.Statistics;
 
 namespace OpenSim.Framework.UserManagement
 {
     public class LoginService
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         protected string m_welcomeMessage = "Welcome to OpenSim";
         protected UserManagerBase m_userManager = null;
-        protected Mutex m_loginMutex = new Mutex(false);
+        protected Mutex m_loginMutex = new Mutex(false);     
         protected Boolean m_rexMode;
         protected RexLoginHandler m_rexLoginHandler;
 
@@ -63,7 +68,7 @@ namespace OpenSim.Framework.UserManagement
             if (m_rexMode)
                 m_rexLoginHandler = new RexLoginHandler(this, m_userManager);
 
-            if (welcomeMess != "")
+            if (welcomeMess != String.Empty)
             {
                 m_welcomeMessage = welcomeMess;
             }
@@ -80,55 +85,67 @@ namespace OpenSim.Framework.UserManagement
             m_loginMutex.WaitOne();
             try
             {
-                if (!m_rexMode)
-                {
-                    //CFK: CustomizeResponse contains sufficient strings to alleviate the need for this.
-                    //CKF: MainLog.Instance.Verbose("LOGIN", "Attempting login now...");
-                    XmlRpcResponse response = new XmlRpcResponse();
-                    Hashtable requestData = (Hashtable) request.Params[0];
+                //CFK: CustomizeResponse contains sufficient strings to alleviate the need for this.
+                //CKF: m_log.Info("[LOGIN]: Attempting login now...");
+                XmlRpcResponse response = new XmlRpcResponse();
+                Hashtable requestData = (Hashtable) request.Params[0];
 
-                    bool GoodXML = (requestData.Contains("first") && requestData.Contains("last") &&
-                                    requestData.Contains("passwd"));
-                    bool GoodLogin = false;
+                bool GoodXML = (requestData.Contains("first") && requestData.Contains("last") &&
+                                (requestData.Contains("passwd") || requestData.Contains("web_login_key")));
+                bool GoodLogin = false;
 
                     UserProfileData userProfile;
                     LoginResponse logResponse = new LoginResponse();
 
-                    if (GoodXML)
+                if (GoodXML)
+                {
+                    string firstname = (string) requestData["first"];
+                    string lastname = (string) requestData["last"];
+
+                    if( requestData.Contains("version"))
                     {
-                        string firstname = (string) requestData["first"];
-                        string lastname = (string) requestData["last"];
-                        string passwd = (string) requestData["passwd"];
-
-                        userProfile = GetTheUser(firstname, lastname, "");
-                        if (userProfile == null)
-                        {
-                            MainLog.Instance.Verbose(
-                                "LOGIN",
-                                "Could not find a profile for " + firstname + " " + lastname);
-
-                            return logResponse.CreateLoginFailedResponse();
-                        }
-
-                        GoodLogin = AuthenticateUser(userProfile, passwd);
+                        string clientversion = (string)requestData["version"];
+                        m_log.Info("[LOGIN]: Client Version " + clientversion + " for " + firstname + " " + lastname);
                     }
-                    else
+                    
+
+                    userProfile = GetTheUser(firstname, lastname);
+                    if (userProfile == null)
                     {
-                        return logResponse.CreateGridErrorResponse();
-                    }
+                        m_log.Info("[LOGIN]: Could not find a profile for " + firstname + " " + lastname);
 
                     if (!GoodLogin)
                     {
                         return logResponse.CreateLoginFailedResponse();
                     }
+                    if (requestData.Contains("passwd"))
+                    {
+                        string passwd = (string)requestData["passwd"];
+                        GoodLogin = AuthenticateUser(userProfile, passwd);
+                    }
+                    else if (requestData.Contains("web_login_key"))
+                    {
+                        LLUUID webloginkey = null;
+                        try
+                        {
+                            webloginkey = new LLUUID((string)requestData["web_login_key"]);
+                        }
+                        catch (System.Exception)
+                        {
+                            return logResponse.CreateFailedResponse();
+                        }
+                        GoodLogin = AuthenticateUser(userProfile, webloginkey);
+
+                    }
                     else
                     {
-                        // If we already have a session...
-
-                        if (userProfile.currentAgent != null && userProfile.currentAgent.agentOnline)
-                        {
-                            userProfile.currentAgent = null;
-                            m_userManager.CommitAgent(ref userProfile);
+                        return logResponse.CreateFailedResponse();
+                    }
+                }
+                else
+                {
+                    return logResponse.CreateGridErrorResponse();
+                }
 
                             // Reject the login
                             return logResponse.CreateAlreadyLoggedInResponse();
@@ -204,9 +221,25 @@ namespace OpenSim.Framework.UserManagement
                         {
                             MainLog.Instance.Verbose("LOGIN", E.ToString());
                         }
-                        //}
+                        catch (Exception e)
+                        {
+                            m_log.Info("[LOGIN]: " + e.ToString());
+                            return logResponse.CreateDeadRegionResponse();
+                            //return logResponse.ToXmlRpcResponse();
+                        }
+                        CommitAgent(ref userProfile);
+                        
+                        // If we reach this point, then the login has successfully logged onto the grid
+                        if (StatsManager.UserStats != null)
+                            StatsManager.UserStats.AddSuccessfulLogin();
+                        
+                        return logResponse.ToXmlRpcResponse();
                     }
-                    return response;
+                    catch (Exception e)
+                    {
+                        m_log.Info("[LOGIN]: " + e.ToString());
+                    }
+                    //}
                 }
                 else
                 {
@@ -241,9 +274,7 @@ namespace OpenSim.Framework.UserManagement
 
                         if (map.ContainsKey("first") && map.ContainsKey("last") && map.ContainsKey("passwd"))
                         {
-                            string firstname = map["first"].AsString();
-                            string lastname = map["last"].AsString();
-                            string passwd = map["passwd"].AsString();
+                            m_log.Info("[LOGIN]: Could not find a profile for " + firstname + " " + lastname);
 
                             //REX: Client version
                             if (map.ContainsKey("version"))
@@ -347,7 +378,7 @@ namespace OpenSim.Framework.UserManagement
                         }
                         catch (Exception ex)
                         {
-                            MainLog.Instance.Verbose("LOGIN", ex.ToString());
+                            m_log.Info("[LOGIN]: " + ex.ToString());
                             return logResponse.CreateFailedResponseLLSD();
                         }
                     }
@@ -363,6 +394,10 @@ namespace OpenSim.Framework.UserManagement
                 m_loginMutex.ReleaseMutex();
             }
         }
+                        
+                        // If we reach this point, then the login has successfully logged onto the grid
+                        if (StatsManager.UserStats != null)
+                            StatsManager.UserStats.AddSuccessfulLogin();                        
 
         /*
         /// <summary>
@@ -398,10 +433,8 @@ namespace OpenSim.Framework.UserManagement
 
                     if (user != null)
                     {
-                        ClearUserAgent(ref user, user.authenticationAddr);
-                        MainLog.Instance.Verbose("REMOVE AGENT", "Success. Agent removed from database. UUID = " + user.UUID);
-                        return logResponse.GenerateAgentRemoveSuccessResponse();
-
+                        m_log.Info("[LOGIN]: " + ex.ToString());
+                        return logResponse.CreateFailedResponseLLSD();
                     }
                 }
 
@@ -432,6 +465,211 @@ namespace OpenSim.Framework.UserManagement
         /// <param name="theUser">The user profile</param>
         public virtual void CustomiseResponse(LoginResponse response, UserProfileData theUser, string ASaddress)
         {
+        }
+
+        public Hashtable ProcessHTMLLogin(Hashtable keysvals)
+        {
+
+            // Matches all unspecified characters
+            // Currently specified,; lowercase letters, upper case letters, numbers, underline
+            //    period, space, parens, and dash.
+
+            Regex wfcut = new Regex("[^a-zA-Z0-9_\\.\\$ \\(\\)\\-]");
+            
+            Hashtable returnactions = new Hashtable();
+            int statuscode = 200;
+
+            string firstname = String.Empty;
+            string lastname = String.Empty;
+            string location = String.Empty;
+            string region =String.Empty;
+            string grid = String.Empty;
+            string channel = String.Empty;
+            string version = String.Empty;
+            string lang = String.Empty;
+            string password = String.Empty;
+            string errormessages = String.Empty;
+
+            // the client requires the HTML form field be named 'username'
+            // however, the data it sends when it loads the first time is 'firstname'
+            // another one of those little nuances.
+
+            
+            if (keysvals.Contains("firstname"))
+                firstname = wfcut.Replace((string)keysvals["firstname"],String.Empty,99999);
+            if (keysvals.Contains("username"))
+                firstname = wfcut.Replace((string)keysvals["username"],String.Empty,99999);
+
+            if (keysvals.Contains("lastname"))
+                lastname = wfcut.Replace((string)keysvals["lastname"],String.Empty,99999);
+
+            if (keysvals.Contains("location"))
+                location = wfcut.Replace((string)keysvals["location"],String.Empty,99999);
+
+            if (keysvals.Contains("region"))
+                region = wfcut.Replace((string)keysvals["region"],String.Empty,99999);
+
+            if (keysvals.Contains("grid"))
+                grid = wfcut.Replace((string)keysvals["grid"],String.Empty,99999);
+
+            if (keysvals.Contains("channel"))
+                channel = wfcut.Replace((string)keysvals["channel"],String.Empty,99999);
+
+            if (keysvals.Contains("version"))
+                version = wfcut.Replace((string)keysvals["version"],String.Empty,99999);
+
+            if (keysvals.Contains("lang"))
+                lang = wfcut.Replace((string)keysvals["lang"],String.Empty,99999);
+           
+            if (keysvals.Contains("password"))
+                password = wfcut.Replace((string)keysvals["password"], String.Empty, 99999);
+
+            
+            // load our login form.
+            string loginform = GetLoginForm(firstname,lastname,location,region,grid,channel,version,lang,password,errormessages);
+
+            if (keysvals.ContainsKey("show_login_form"))
+            {
+                
+                UserProfileData user = GetTheUser(firstname, lastname);
+                bool goodweblogin = false;
+
+                if (user != null)
+                    goodweblogin = AuthenticateUser(user, password);
+
+                if (goodweblogin)
+                {
+                    LLUUID webloginkey = LLUUID.Random();
+                    m_userManager.StoreWebLoginKey(user.UUID, webloginkey);
+                    statuscode = 301;
+
+                    string redirectURL = "about:blank?redirect-http-hack=" + System.Web.HttpUtility.UrlEncode("secondlife:///app/login?first_name=" + firstname + "&last_name=" +
+                                                lastname +
+                                                "&location=" + location + "&grid=Other&web_login_key=" + webloginkey.ToString());
+                    //m_log.Info("[WEB]: R:" + redirectURL);
+                    returnactions["int_response_code"] = statuscode;
+                    returnactions["str_redirect_location"] = redirectURL;
+                    returnactions["str_response_string"] = "<HTML><BODY>GoodLogin</BODY></HTML>";
+                }
+                else
+                {
+                    errormessages = "The Username and password supplied did not match our records. Check your caps lock and try again";
+
+                    loginform = GetLoginForm(firstname, lastname, location, region, grid, channel, version, lang, password, errormessages);
+                    returnactions["int_response_code"] = statuscode;
+                    returnactions["str_response_string"] = loginform;
+
+                }
+
+                
+
+            }
+            else
+            {
+                returnactions["int_response_code"] = statuscode;
+                returnactions["str_response_string"] = loginform;
+            }
+            return returnactions;
+             
+        }
+
+        public string GetLoginForm(string firstname, string lastname, string location, string region, 
+                                    string grid, string channel, string version, string lang, 
+                                    string password, string errormessages)
+        {
+            // inject our values in the form at the markers
+
+            string loginform=String.Empty;
+            string file = Path.Combine(Util.configDir(), "http_loginform.html");
+            if (!File.Exists(file))
+            {
+                loginform = GetDefaultLoginForm();
+            }
+            else
+            {
+                StreamReader sr = File.OpenText(file);
+                loginform = sr.ReadToEnd();
+                sr.Close();
+            }
+            
+            loginform = loginform.Replace("[$firstname]", firstname);
+            loginform = loginform.Replace("[$lastname]", lastname);
+            loginform = loginform.Replace("[$location]", location);
+            loginform = loginform.Replace("[$region]", region);
+            loginform = loginform.Replace("[$grid]", grid);
+            loginform = loginform.Replace("[$channel]", channel);
+            loginform = loginform.Replace("[$version]", version);
+            loginform = loginform.Replace("[$lang]", lang);
+            loginform = loginform.Replace("[$password]", password);
+            loginform = loginform.Replace("[$errors]", errormessages);
+            return loginform;
+        }
+
+        public string GetDefaultLoginForm()
+        {
+            string responseString =
+           "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">";
+                responseString = responseString + "<html xmlns=\"http://www.w3.org/1999/xhtml\">";
+                responseString = responseString + "<head>";
+                responseString = responseString +
+                                 "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" />";
+                responseString = responseString + "<meta http-equiv=\"cache-control\" content=\"no-cache\">";
+                responseString = responseString + "<meta http-equiv=\"Pragma\" content=\"no-cache\">";
+                responseString = responseString + "<title>OpenSim Login</title>";
+                responseString = responseString + "<body><br />";
+                responseString = responseString + "<div id=\"login_box\">";
+                
+                responseString = responseString + "<form action=\"/go.cgi\" method=\"GET\" id=\"login-form\">";
+
+                responseString = responseString + "<div id=\"message\">[$errors]</div>";
+                responseString = responseString + "<fieldset id=\"firstname\">";
+                responseString = responseString + "<legend>First Name:</legend>";
+                responseString = responseString + "<input type=\"text\" id=\"firstname_input\" size=\"15\" maxlength=\"100\" name=\"username\" value=\"[$firstname]\" />";
+                responseString = responseString + "</fieldset>";
+                responseString = responseString + "<fieldset id=\"lastname\">";
+                responseString = responseString + "<legend>Last Name:</legend>";
+                responseString = responseString + "<input type=\"text\" size=\"15\" maxlength=\"100\" name=\"lastname\" value=\"[$lastname]\" />";
+                responseString = responseString + "</fieldset>";
+                responseString = responseString + "<fieldset id=\"password\">";
+                responseString = responseString + "<legend>Password:</legend>";
+                responseString = responseString + "<table cellspacing=\"0\" cellpadding=\"0\" border=\"0\">";
+                responseString = responseString + "<tr>";
+                responseString = responseString + "<td colspan=\"2\"><input type=\"password\" size=\"15\" maxlength=\"100\" name=\"password\" value=\"[$password]\" /></td>";
+                responseString = responseString + "</tr>";
+                responseString = responseString + "<tr>";
+                responseString = responseString + "<td valign=\"middle\"><input type=\"checkbox\" name=\"remember_password\" id=\"remember_password\" [$remember_password] style=\"margin-left:0px;\"/></td>";
+                responseString = responseString + "<td><label for=\"remember_password\">Remember password</label></td>";
+                responseString = responseString + "</tr>";
+                responseString = responseString + "</table>";
+                responseString = responseString + "</fieldset>";
+                responseString = responseString + "<input type=\"hidden\" name=\"show_login_form\" value=\"FALSE\" />";
+                responseString = responseString + "<input type=\"hidden\" name=\"method\" value=\"login\" />";
+                responseString = responseString + "<input type=\"hidden\" id=\"grid\" name=\"grid\" value=\"[$grid]\" />";
+                responseString = responseString + "<input type=\"hidden\" id=\"region\" name=\"region\" value=\"[$region]\" />";
+                responseString = responseString + "<input type=\"hidden\" id=\"location\" name=\"location\" value=\"[$location]\" />";
+                responseString = responseString + "<input type=\"hidden\" id=\"channel\" name=\"channel\" value=\"[$channel]\" />";
+                responseString = responseString + "<input type=\"hidden\" id=\"version\" name=\"version\" value=\"[$version]\" />";
+                responseString = responseString + "<input type=\"hidden\" id=\"lang\" name=\"lang\" value=\"[$lang]\" />";
+                responseString = responseString + "<div id=\"submitbtn\">";
+                responseString = responseString + "<input class=\"input_over\" type=\"submit\" value=\"Connect\" />";
+                responseString = responseString + "</div>";
+                responseString = responseString + "<div id=\"connecting\" style=\"visibility:hidden\"> Connecting...</div>";
+
+                responseString = responseString + "<div id=\"helplinks\">";
+                responseString = responseString + "<a href=\"#join now link\" target=\"_blank\"></a> | ";
+                responseString = responseString + "<a href=\"#forgot password link\" target=\"_blank\"></a>";
+                responseString = responseString + "</div>";
+
+                responseString = responseString + "<div id=\"channelinfo\"> [$channel] | [$version]=[$lang]</div>";
+                responseString = responseString + "</form>";
+                responseString = responseString + "<script language=\"JavaScript\">";
+                responseString = responseString + "document.getElementById('firstname_input').focus();";
+                responseString = responseString + "</script>";
+                responseString = responseString + "</div>";
+                responseString = responseString + "</div>";
+                responseString = responseString + "</body>";
+                responseString = responseString + "</html>";
+            return responseString;
         }
 
         /// <summary>
@@ -466,14 +704,38 @@ namespace OpenSim.Framework.UserManagement
         /// <returns>Authenticated?</returns>
         public virtual bool AuthenticateUser(UserProfileData profile, string password)
         {
-            MainLog.Instance.Verbose(
-                "LOGIN", "Authenticating {0} {1} ({2})", profile.username, profile.surname, profile.UUID);
+            bool passwordSuccess = false;
+            m_log.InfoFormat("[LOGIN]: Authenticating {0} {1} ({2})", profile.username, profile.surname, profile.UUID);
+
+            // Web Login method seems to also occasionally send the hashed password itself
+
+            // we do this to get our hash in a form that the server password code can consume
+            // when the web-login-form submits the password in the clear (supposed to be over SSL!)
+            if (!password.StartsWith("$1$"))
+                password = "$1$" + Util.Md5Hash(password);
 
             password = password.Remove(0, 3); //remove $1$
-
+            
             string s = Util.Md5Hash(password + ":" + profile.passwordSalt);
+            // Testing...    
+            //m_log.Info("[LOGIN]: SubHash:" + s + " userprofile:" + profile.passwordHash);
+            //m_log.Info("[LOGIN]: userprofile:" + profile.passwordHash + " SubCT:" + password);
 
-            return profile.passwordHash.Equals(s.ToString(), StringComparison.InvariantCultureIgnoreCase);
+            passwordSuccess = (profile.passwordHash.Equals(s.ToString(), StringComparison.InvariantCultureIgnoreCase) 
+                            || profile.passwordHash.Equals(password,StringComparison.InvariantCultureIgnoreCase));
+
+            return passwordSuccess;
+        }
+
+        public virtual bool AuthenticateUser(UserProfileData profile, LLUUID webloginkey)
+        {
+            bool passwordSuccess = false;
+            m_log.InfoFormat("[LOGIN]: Authenticating {0} {1} ({2})", profile.username, profile.surname, profile.UUID);
+
+            // Match web login key unless it's the default weblogin key LLUUID.Zero
+            passwordSuccess = ((profile.webLoginKey==webloginkey) && profile.webLoginKey != LLUUID.Zero);
+
+            return passwordSuccess;
         }
 
         /// <summary>

@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -37,6 +37,8 @@ namespace OpenSim.Framework.Data.MSSQL
 {
     internal class MSSQLAssetData : IAssetProvider
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private MSSQLManager database;
 
         #region IAssetProvider Members
@@ -46,7 +48,7 @@ namespace OpenSim.Framework.Data.MSSQL
             // null as the version, indicates that the table didn't exist
             if (tableName == null)
             {
-                MainLog.Instance.Notice("ASSETS", "Creating new database tables");
+                m_log.Info("[ASSETS]: Creating new database tables");
                 database.ExecuteResourceSql("CreateAssetsTable.sql");
                 return;
             }
@@ -168,7 +170,7 @@ namespace OpenSim.Framework.Data.MSSQL
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
             }
         }
 

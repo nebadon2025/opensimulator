@@ -62,7 +62,7 @@ namespace OpenSim.Framework
         public bool child;
         public LLUUID InventoryFolder;
         public LLUUID BaseFolder;
-        public string CapsPath = "";
+        public string CapsPath = String.Empty;
         public string ClientVersion = "not set"; //rex
         public string authenticationAddr;
         public string asAddress = "";
@@ -105,7 +105,7 @@ namespace OpenSim.Framework
         public bool child;
         public Guid InventoryFolder;
         public Guid BaseFolder;
-        public string CapsPath = "";
+        public string CapsPath = String.Empty;
         public string ClientVersion = "not set"; //rex
     }
 }

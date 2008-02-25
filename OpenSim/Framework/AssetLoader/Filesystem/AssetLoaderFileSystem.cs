@@ -44,6 +44,8 @@ namespace OpenSim.Framework.AssetLoader.Filesystem
 { 
     public class AssetLoaderFileSystem : IAssetLoader
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         protected AssetBase CreateAsset(string assetIdStr, string name, string path, bool isImage)
         {
             AssetBase asset = new AssetBase(
@@ -53,13 +55,13 @@ namespace OpenSim.Framework.AssetLoader.Filesystem
 
             if (!String.IsNullOrEmpty(path))
             {
-                MainLog.Instance.Verbose("ASSETS", "Loading: [{0}][{1}]", name, path);
+                m_log.InfoFormat("[ASSETS]: Loading: [{0}][{1}]", name, path);
 
                 LoadAsset(asset, isImage, path);
             }
             else
             {
-                MainLog.Instance.Verbose("ASSETS", "Instantiated: [{0}]", name);
+                m_log.InfoFormat("[ASSETS]: Instantiated: [{0}]", name);
             }
 
             return asset;
@@ -99,21 +101,19 @@ namespace OpenSim.Framework.AssetLoader.Filesystem
                     
                     for (int i = 0; i < source.Configs.Count; i++)
                     {
-                        assetSetPath = source.Configs[i].GetString("file", "");
+                        assetSetPath = source.Configs[i].GetString("file", String.Empty);
                         
                         LoadXmlAssetSet(Path.Combine(Util.assetsDir(), assetSetPath), assets);
                     }
                 }
                 catch (XmlException e)
                 {
-                    MainLog.Instance.Error("ASSETS", "Error loading {0} : {1}", assetSetPath, e);
+                    m_log.ErrorFormat("[ASSETS]: Error loading {0} : {1}", assetSetPath, e);
                 }                
             }
             else
             {
-                MainLog.Instance.Error(
-                    "ASSETS", 
-                    "Asset set control file assets/AssetSets.xml does not exist!  No assets loaded.");
+                m_log.Error("[ASSETS]: Asset set control file assets/AssetSets.xml does not exist!  No assets loaded.");
             }
                                         
             assets.ForEach(action);
@@ -126,7 +126,7 @@ namespace OpenSim.Framework.AssetLoader.Filesystem
         /// <param name="assets"></param>
         protected void LoadXmlAssetSet(string assetSetPath, List<AssetBase> assets)
         {
-            MainLog.Instance.Verbose("ASSETS", "Loading asset set {0}", assetSetPath);
+            m_log.InfoFormat("[ASSETS]: Loading asset set {0}", assetSetPath);
             
             if (File.Exists(assetSetPath))
             {
@@ -138,10 +138,10 @@ namespace OpenSim.Framework.AssetLoader.Filesystem
                     for (int i = 0; i < source.Configs.Count; i++)
                     {
                         string assetIdStr = source.Configs[i].GetString("assetID", LLUUID.Random().ToString());
-                        string name = source.Configs[i].GetString("name", "");
+                        string name = source.Configs[i].GetString("name", String.Empty);
                         sbyte type = (sbyte) source.Configs[i].GetInt("assetType", 0);
                         sbyte invType = (sbyte) source.Configs[i].GetInt("inventoryType", 0);
-                        string assetPath = Path.Combine(dir, source.Configs[i].GetString("fileName", ""));
+                        string assetPath = Path.Combine(dir, source.Configs[i].GetString("fileName", String.Empty));
 
                         AssetBase newAsset = CreateAsset(assetIdStr, name, assetPath, false);
 
@@ -152,12 +152,12 @@ namespace OpenSim.Framework.AssetLoader.Filesystem
                 }
                 catch (XmlException e)
                 {
-                    MainLog.Instance.Error("ASSETS", "Error loading {0} : {1}", assetSetPath, e);
+                    m_log.ErrorFormat("[ASSETS]: Error loading {0} : {1}", assetSetPath, e);
                 }
             }
             else
             {
-                MainLog.Instance.Error("ASSETS", "Asset set file {0} does not exist!", assetSetPath);
+                m_log.ErrorFormat("[ASSETS]: Asset set file {0} does not exist!", assetSetPath);
             }
         }        
     }

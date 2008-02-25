@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -25,6 +25,8 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 * 
 */
+
+using System;
 
 namespace OpenSim.Framework
 {
@@ -52,9 +54,9 @@ namespace OpenSim.Framework
             TYPE_DOUBLE
         } ;
 
-        public string configurationKey = "";
-        public string configurationQuestion = "";
-        public string configurationDefault = "";
+        public string configurationKey = String.Empty;
+        public string configurationQuestion = String.Empty;
+        public string configurationDefault = String.Empty;
 
         public ConfigurationTypes configurationType = ConfigurationTypes.TYPE_STRING;
         public bool configurationUseDefaultNoPrompt = false;

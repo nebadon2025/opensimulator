@@ -38,6 +38,9 @@ namespace OpenSim.Framework.Data.MySQL
     /// </summary>
     public class MySQLInventoryData : IInventoryData
     {
+        private static readonly log4net.ILog m_log 
+            = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         /// <summary>
         /// The database manager
         /// </summary>
@@ -104,8 +107,8 @@ namespace OpenSim.Framework.Data.MySQL
             tableList["inventoryitems"] = null;
 
             database.GetTableVersion(tableList);
-            MainLog.Instance.Verbose("MYSQL", "Inventory Folder Version: " + tableList["inventoryfolders"]);
-            MainLog.Instance.Verbose("MYSQL", "Inventory Items Version: " + tableList["inventoryitems"]);
+            m_log.Info("[MYSQL]: Inventory Folder Version: " + tableList["inventoryfolders"]);
+            m_log.Info("[MYSQL]: Inventory Items Version: " + tableList["inventoryitems"]);
 
             UpgradeFoldersTable(tableList["inventoryfolders"]);
             UpgradeItemsTable(tableList["inventoryitems"]);
@@ -170,7 +173,7 @@ namespace OpenSim.Framework.Data.MySQL
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return null;
             }
         }
@@ -208,7 +211,7 @@ namespace OpenSim.Framework.Data.MySQL
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return null;
             }
         }
@@ -254,7 +257,7 @@ namespace OpenSim.Framework.Data.MySQL
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return null;
             }
         }
@@ -292,7 +295,7 @@ namespace OpenSim.Framework.Data.MySQL
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return null;
             }
         }
@@ -325,7 +328,7 @@ namespace OpenSim.Framework.Data.MySQL
             }
             catch (MySqlException e)
             {
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
             }
 
             return null;
@@ -362,7 +365,7 @@ namespace OpenSim.Framework.Data.MySQL
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
             }
             return null;
         }
@@ -387,7 +390,7 @@ namespace OpenSim.Framework.Data.MySQL
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
             }
 
             return null;
@@ -421,7 +424,7 @@ namespace OpenSim.Framework.Data.MySQL
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return null;
             }
         }
@@ -459,7 +462,7 @@ namespace OpenSim.Framework.Data.MySQL
             }
             catch (MySqlException e)
             {
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
             }
         }
 
@@ -488,7 +491,7 @@ namespace OpenSim.Framework.Data.MySQL
             catch (MySqlException e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
             }
         }
 
@@ -512,11 +515,14 @@ namespace OpenSim.Framework.Data.MySQL
 
             try
             {
-                cmd.ExecuteNonQuery();
+                lock (database)
+                {
+                    cmd.ExecuteNonQuery();
+                }
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
             }
         }
 
@@ -541,14 +547,16 @@ namespace OpenSim.Framework.Data.MySQL
             cmd.Parameters.AddWithValue("?folderID", folder.folderID.ToString());
             cmd.Parameters.AddWithValue("?parentFolderID", folder.parentID.ToString());
 
-
             try
             {
-                cmd.ExecuteNonQuery();
+                lock (database)
+                {
+                    cmd.ExecuteNonQuery();
+                }
             }
             catch (Exception e)
             {
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
             }
         }
 
@@ -584,16 +592,20 @@ namespace OpenSim.Framework.Data.MySQL
         protected void deleteOneFolder(LLUUID folderID)
         {
             try
-            {
+            {                
                 MySqlCommand cmd =
                     new MySqlCommand("DELETE FROM inventoryfolders WHERE folderID=?uuid", database.Connection);
                 cmd.Parameters.AddWithValue("?uuid", folderID.ToString());
-                cmd.ExecuteNonQuery();
+                
+                lock (database)
+                {
+                    cmd.ExecuteNonQuery();
+                }
             }
             catch (MySqlException e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
             }
         }
 
@@ -604,12 +616,16 @@ namespace OpenSim.Framework.Data.MySQL
                 MySqlCommand cmd =
                     new MySqlCommand("DELETE FROM inventoryitems WHERE parentFolderID=?uuid", database.Connection);
                 cmd.Parameters.AddWithValue("?uuid", folderID.ToString());
-                cmd.ExecuteNonQuery();
+                
+                lock (database)
+                {
+                    cmd.ExecuteNonQuery();
+                }
             }
             catch (MySqlException e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
             }
         }
 
@@ -620,21 +636,18 @@ namespace OpenSim.Framework.Data.MySQL
         /// <param name="folderId">Id of folder to delete</param>
         public void deleteInventoryFolder(LLUUID folderID)
         {
-            lock (database)
+            List<InventoryFolderBase> subFolders = getFolderHierarchy(folderID);
+
+            //Delete all sub-folders
+            foreach (InventoryFolderBase f in subFolders)
             {
-                List<InventoryFolderBase> subFolders = getFolderHierarchy(folderID);
-
-                //Delete all sub-folders
-                foreach (InventoryFolderBase f in subFolders)
-                {
-                    deleteOneFolder(f.folderID);
-                    deleteItemsInFolder(f.folderID);
-                }
-
-                //Delete the actual row
-                deleteOneFolder(folderID);
-                deleteItemsInFolder(folderID);
+                deleteOneFolder(f.folderID);
+                deleteItemsInFolder(f.folderID);
             }
+
+            //Delete the actual row
+            deleteOneFolder(folderID);
+            deleteItemsInFolder(folderID);
         }
     }
 }

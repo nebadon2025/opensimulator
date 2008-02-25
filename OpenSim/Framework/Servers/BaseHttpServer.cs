@@ -41,6 +41,8 @@ namespace OpenSim.Framework.Servers
 {
     public class BaseHttpServer
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         protected Thread m_workerThread;
         protected HttpListener m_httpListener;
         protected Dictionary<string, XmlRpcMethod> m_rpcHandlers = new Dictionary<string, XmlRpcMethod>();
@@ -228,6 +230,13 @@ namespace OpenSim.Framework.Servers
                 return true;
             }
         }
+        
+        /// <summary>
+        /// Try all the registered xmlrpc handlers when an xmlrpc request is received.
+        /// Sends back an XMLRPC unknown request response if no handler is registered for the requested method.
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="response"></param>
         private void HandleXmlRpcRequests(HttpListenerRequest request, HttpListenerResponse response)
         {
             Stream requestStream = request.InputStream;
@@ -266,12 +275,8 @@ namespace OpenSim.Framework.Servers
                     else
                     {
                         xmlRpcResponse = new XmlRpcResponse();
-                        Hashtable unknownMethodError = new Hashtable();
-                        unknownMethodError["reason"] = "XmlRequest";
-                        ;
-                        unknownMethodError["message"] = "Unknown Rpc Request [" + methodName + "]";
-                        unknownMethodError["login"] = "false";
-                        xmlRpcResponse.Value = unknownMethodError;
+                        // Code set in accordance with http://xmlrpc-epi.sourceforge.net/specs/rfc.fault_codes.php
+                        xmlRpcResponse.SetFault(-32601, String.Format("Requested method [{0}] not found", methodName));
                     }
 
                     responseString = XmlRpcResponseSerializer.Singleton.Serialize(xmlRpcResponse);
@@ -296,7 +301,7 @@ namespace OpenSim.Framework.Servers
             }
             catch (Exception ex)
             {
-                MainLog.Instance.Warn("HTTPD", "Error - " + ex.Message);
+                m_log.Warn("[HTTPD]: Error - " + ex.Message);
             }
             finally
             {
@@ -327,7 +332,7 @@ namespace OpenSim.Framework.Servers
             LLSD llsdResponse = null;
 
             try { llsdRequest = LLSDParser.DeserializeXml(requestBody); }
-            catch (Exception ex) { MainLog.Instance.Warn("HTTPD", "Error - " + ex.Message); }
+            catch (Exception ex) { m_log.Warn("[HTTPD]: Error - " + ex.Message); }
 
             if (llsdRequest != null && m_llsdHandler != null)
             {
@@ -356,7 +361,7 @@ namespace OpenSim.Framework.Servers
             }
             catch (Exception ex)
             {
-                MainLog.Instance.Warn("HTTPD", "Error - " + ex.Message);
+                m_log.Warn("[HTTPD]: Error - " + ex.Message);
             }
             finally
             {
@@ -374,6 +379,20 @@ namespace OpenSim.Framework.Servers
 
         public void HandleHTTPRequest(HttpListenerRequest request, HttpListenerResponse response)
         {
+            switch( request.HttpMethod )
+            {
+                case "OPTIONS":
+                    response.StatusCode = 200;
+                    return;
+
+                default:
+                    HandleContentVerbs(request, response);
+                    return;
+            }
+        }
+
+        private void HandleContentVerbs(HttpListenerRequest request, HttpListenerResponse response)
+        {
             // This is a test.  There's a workable alternative..  as this way sucks.
             // We'd like to put this into a text file parhaps that's easily editable.
             // 
@@ -385,6 +404,8 @@ namespace OpenSim.Framework.Servers
             // I depend on show_login_form being in the secondlife.exe parameters to figure out
             // to display the form, or process it.
             // a better way would be nifty.
+
+
             Stream requestStream = request.InputStream;
 
             Encoding encoding = Encoding.UTF8;
@@ -397,6 +418,8 @@ namespace OpenSim.Framework.Servers
             string responseString = String.Empty;
 
             Hashtable keysvals = new Hashtable();
+            Hashtable headervals = new Hashtable();
+            string host = String.Empty;
 
             string[] querystringkeys = request.QueryString.AllKeys;
             string[] rHeaders = request.Headers.AllKeys;
@@ -405,17 +428,25 @@ namespace OpenSim.Framework.Servers
             foreach (string queryname in querystringkeys)
             {
                 keysvals.Add(queryname, request.QueryString[queryname]);
-                MainLog.Instance.Warn("HTTP", queryname + "=" + request.QueryString[queryname]);
+                
             }
-            //foreach (string headername in rHeaders)
-            //{
-            //MainLog.Instance.Warn("HEADER", headername + "=" + request.Headers[headername]);
-            //}
+
+            foreach (string headername in rHeaders)
+            {
+                //m_log.Warn("[HEADER]: " + headername + "=" + request.Headers[headername]);
+                headervals[headername] = request.Headers[headername];
+            }
+
+            if (headervals.Contains("Host"))
+            {
+                host = (string)headervals["Host"];
+            }
+
             if (keysvals.Contains("method"))
             {
-                MainLog.Instance.Warn("HTTP", "Contains Method");
+                //m_log.Warn("[HTTP]: Contains Method");
                 string method = (string) keysvals["method"];
-                MainLog.Instance.Warn("HTTP", requestBody);
+                //m_log.Warn("[HTTP]: " + requestBody);
                 GenericHTTPMethod requestprocessor;
                 bool foundHandler = TryGetHTTPHandler(method, out requestprocessor);
                 if (foundHandler)
@@ -423,19 +454,19 @@ namespace OpenSim.Framework.Servers
                     Hashtable responsedata = requestprocessor(keysvals);
                     DoHTTPGruntWork(responsedata,response);
                        
-                        //SendHTML500(response);
+                    //SendHTML500(response);
                     
                 }
                 else
                 {
-                    MainLog.Instance.Warn("HTTP", "Handler Not Found");
-                    SendHTML404(response);
+                    //m_log.Warn("[HTTP]: Handler Not Found");
+                    SendHTML404(response, host);
                 }
             }
             else
             {
-                MainLog.Instance.Warn("HTTP", "No Method specified");
-                SendHTML404(response);
+                //m_log.Warn("[HTTP]: No Method specified");
+                SendHTML404(response, host);
             }
         }
 
@@ -467,7 +498,7 @@ namespace OpenSim.Framework.Servers
             }
             catch (Exception ex)
             {
-                MainLog.Instance.Warn("HTTPD", "Error - " + ex.Message);
+                m_log.Warn("[HTTPD]: Error - " + ex.Message);
             }
             finally
             {
@@ -476,13 +507,13 @@ namespace OpenSim.Framework.Servers
 
 
         }
-        public void SendHTML404(HttpListenerResponse response)
+        public void SendHTML404(HttpListenerResponse response, string host)
         {
             // I know this statuscode is dumb, but the client doesn't respond to 404s and 500s
             response.StatusCode = 200;
             response.AddHeader("Content-type", "text/html");
 
-            string responseString = GetHTTP404();
+            string responseString = GetHTTP404(host);
             byte[] buffer = Encoding.UTF8.GetBytes(responseString);
 
             response.SendChunked = false;
@@ -494,7 +525,7 @@ namespace OpenSim.Framework.Servers
             }
             catch (Exception ex)
             {
-                MainLog.Instance.Warn("HTTPD", "Error - " + ex.Message);
+                m_log.Warn("[HTTPD]: Error - " + ex.Message);
             }
             finally
             {
@@ -519,7 +550,7 @@ namespace OpenSim.Framework.Servers
             }
             catch (Exception ex)
             {
-                MainLog.Instance.Warn("HTTPD", "Error - " + ex.Message);
+                m_log.Warn("[HTTPD]: Error - " + ex.Message);
             }
             finally
             {
@@ -529,18 +560,20 @@ namespace OpenSim.Framework.Servers
 
         public void Start()
         {
-            MainLog.Instance.Verbose("HTTPD", "Starting up HTTP Server");
+            m_log.Info("[HTTPD]: Starting up HTTP Server");
 
             m_workerThread = new Thread(new ThreadStart(StartHTTP));
+            m_workerThread.Name = "HttpThread";
             m_workerThread.IsBackground = true;
             m_workerThread.Start();
+            OpenSim.Framework.ThreadTracker.Add(m_workerThread);
         }
 
         private void StartHTTP()
         {
             try
             {
-                MainLog.Instance.Verbose("HTTPD", "Spawned main thread OK");
+                m_log.Info("[HTTPD]: Spawned main thread OK");
                 m_httpListener = new HttpListener();
 
                 if (!m_ssl)
@@ -562,7 +595,8 @@ namespace OpenSim.Framework.Servers
             }
             catch (Exception e)
             {
-                MainLog.Instance.Warn("HTTPD", "Error - " + e.Message);
+                m_log.Warn("[HTTPD]: Error - " + e.Message);
+                m_log.Warn("Tip: Do you have permission to listen on port " + m_port + "?");
             }
         }
 
@@ -577,11 +611,11 @@ namespace OpenSim.Framework.Servers
             m_HTTPHandlers.Remove(GetHandlerKey(httpMethod, path));
         }
         
-        public string GetHTTP404()
+        public string GetHTTP404(string host)
         {
             string file = Path.Combine(Util.configDir(), "http_404.html");
             if (!File.Exists(file))
-                return getDefaultHTTP404();
+                return getDefaultHTTP404(host);
 
             StreamReader sr = File.OpenText(file);
             string result = sr.ReadToEnd();
@@ -602,9 +636,9 @@ namespace OpenSim.Framework.Servers
         }
 
         // Fallback HTTP responses in case the HTTP error response files don't exist
-        private string getDefaultHTTP404()
+        private string getDefaultHTTP404(string host)
         {
-            return "<HTML><HEAD><TITLE>404 Page not found</TITLE><BODY><BR /><H1>Ooops!</H1><P>The page you requested has been obsconded with by knomes. Find hippos quick!</P></BODY></HTML>";
+            return "<HTML><HEAD><TITLE>404 Page not found</TITLE><BODY><BR /><H1>Ooops!</H1><P>The page you requested has been obsconded with by knomes. Find hippos quick!</P><P>If you are trying to log-in, your link parameters should have: &quot;-loginpage http://" + host + "/?method=login -loginuri http://" + host + "/&quot; in your link </P></BODY></HTML>";
         }
 
         private string getDefaultHTTP500()

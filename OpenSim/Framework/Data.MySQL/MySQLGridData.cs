@@ -42,6 +42,8 @@ namespace OpenSim.Framework.Data.MySQL
     /// </summary>
     public class MySQLGridData : IGridData
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         /// <summary>
         /// MySQL Database Manager
         /// </summary>
@@ -168,7 +170,7 @@ namespace OpenSim.Framework.Data.MySQL
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return null;
             }
         }
@@ -200,95 +202,11 @@ namespace OpenSim.Framework.Data.MySQL
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return null;
             }
         }
-
-        /// <summary>
-        /// // Returns a list of avatar and UUIDs that match the query
-        /// </summary>
-        public List<AvatarPickerAvatar> GeneratePickerResults(LLUUID queryID, string query)
-        {
-            List<AvatarPickerAvatar> returnlist = new List<AvatarPickerAvatar>();
-
-            Regex objAlphaNumericPattern = new Regex("[^a-zA-Z0-9]");
-
-            string[] querysplit;
-            querysplit = query.Split(' ');
-            if (querysplit.Length == 2)
-            {
-                Dictionary<string, string> param = new Dictionary<string, string>();
-                param["?first"] = objAlphaNumericPattern.Replace(querysplit[0], "") + "%";
-                param["?second"] = objAlphaNumericPattern.Replace(querysplit[1], "") + "%";
-                try
-                {
-                    lock (database)
-                    {
-                        IDbCommand result =
-                            database.Query(
-                                "SELECT UUID,username,surname FROM users WHERE username like ?first AND lastname like ?second LIMIT 100",
-                                param);
-                        IDataReader reader = result.ExecuteReader();
-
-
-                        while (reader.Read())
-                        {
-                            AvatarPickerAvatar user = new AvatarPickerAvatar();
-                            user.AvatarID = new LLUUID((string) reader["UUID"]);
-                            user.firstName = (string) reader["username"];
-                            user.lastName = (string) reader["surname"];
-                            returnlist.Add(user);
-                        }
-                        reader.Close();
-                        result.Dispose();
-                    }
-                }
-                catch (Exception e)
-                {
-                    database.Reconnect();
-                    MainLog.Instance.Error(e.ToString());
-                    return returnlist;
-                }
-            }
-            else if (querysplit.Length == 1)
-            {
-                try
-                {
-                    lock (database)
-                    {
-                        Dictionary<string, string> param = new Dictionary<string, string>();
-                        param["?first"] = objAlphaNumericPattern.Replace(querysplit[0], "") + "%";
-
-                        IDbCommand result =
-                            database.Query(
-                                "SELECT UUID,username,surname FROM users WHERE username like ?first OR lastname like ?second",
-                                param);
-                        IDataReader reader = result.ExecuteReader();
-
-
-                        while (reader.Read())
-                        {
-                            AvatarPickerAvatar user = new AvatarPickerAvatar();
-                            user.AvatarID = new LLUUID((string) reader["UUID"]);
-                            user.firstName = (string) reader["username"];
-                            user.lastName = (string) reader["surname"];
-                            returnlist.Add(user);
-                        }
-                        reader.Close();
-                        result.Dispose();
-                    }
-                }
-                catch (Exception e)
-                {
-                    database.Reconnect();
-                    MainLog.Instance.Error(e.ToString());
-                    return returnlist;
-                }
-            }
-            return returnlist;
-        }
-
+       
         /// <summary>
         /// Returns a sim profile from it's UUID
         /// </summary>
@@ -316,7 +234,7 @@ namespace OpenSim.Framework.Data.MySQL
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return null;
             }
         }
@@ -405,7 +323,7 @@ namespace OpenSim.Framework.Data.MySQL
             catch (Exception e)
             {
                 database.Reconnect();
-                MainLog.Instance.Error(e.ToString());
+                m_log.Error(e.ToString());
                 return null;
             }
         }

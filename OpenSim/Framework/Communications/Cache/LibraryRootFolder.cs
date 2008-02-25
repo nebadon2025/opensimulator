@@ -13,7 +13,7 @@
 *       names of its contributors may be used to endorse or promote products
 *       derived from this software without specific prior written permission.
 *
-* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS AS IS AND ANY
+* THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
 * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
 * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
@@ -26,12 +26,12 @@
 * 
 */
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Xml;
 using libsecondlife;
 using Nini.Config;
-
 using OpenSim.Framework.Console;
 
 namespace OpenSim.Framework.Communications.Cache
@@ -42,6 +42,8 @@ namespace OpenSim.Framework.Communications.Cache
     /// </summary>
     public class LibraryRootFolder : InventoryFolderImpl
     {
+        private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         private LLUUID libOwner = new LLUUID("11111111-1111-0000-0000-000100bba000");
         
         /// <summary>
@@ -53,7 +55,7 @@ namespace OpenSim.Framework.Communications.Cache
 
         public LibraryRootFolder()
         {
-            MainLog.Instance.Verbose("LIBRARYINVENTORY", "Loading library inventory");
+            m_log.Info("[LIBRARY INVENTORY]: Loading library inventory");
             
             agentID = libOwner;
             folderID = new LLUUID("00000112-000f-0000-0000-000100bba000");
@@ -138,8 +140,8 @@ namespace OpenSim.Framework.Communications.Cache
         /// <param name="assets"></param>
         protected void LoadLibraries(string librariesControlPath)
         {
-            MainLog.Instance.Verbose(
-                "LIBRARYINVENTORY", "Loading libraries control file {0}", librariesControlPath);
+            m_log.InfoFormat(
+                "[LIBRARY INVENTORY]: Loading libraries control file {0}", librariesControlPath);
             
             LoadFromFile(librariesControlPath, "Libraries control", ReadLibraryFromConfig);
         }
@@ -152,13 +154,13 @@ namespace OpenSim.Framework.Communications.Cache
         {
             string foldersPath 
                 = Path.Combine(
-                    Util.inventoryDir(), config.GetString("foldersFile", ""));
+                    Util.inventoryDir(), config.GetString("foldersFile", System.String.Empty));
             
             LoadFromFile(foldersPath, "Library folders", ReadFolderFromConfig);
             
             string itemsPath 
                 = Path.Combine(
-                    Util.inventoryDir(), config.GetString("itemsFile", ""));
+                    Util.inventoryDir(), config.GetString("itemsFile", System.String.Empty));
             
             LoadFromFile(itemsPath, "Library items", ReadItemFromConfig);
         }
@@ -185,15 +187,13 @@ namespace OpenSim.Framework.Communications.Cache
                 
                 libraryFolders.Add(folderInfo.folderID, folderInfo);
                 parentFolder.SubFolders.Add(folderInfo.folderID, folderInfo);
-                
-//                    MainLog.Instance.Verbose(
-//                        "LIBRARYINVENTORY", "Adding folder {0} ({1})", folderInfo.name, folderInfo.folderID);
+
+//                 m_log.InfoFormat("[LIBRARY INVENTORY]: Adding folder {0} ({1})", folderInfo.name, folderInfo.folderID);
             }
             else
             {
-                MainLog.Instance.Warn(
-                    "LIBRARYINVENTORY", 
-                    "Couldn't add folder {0} ({1}) since parent folder with ID {2} does not exist!",
+                m_log.WarnFormat(
+                    "[LIBRARY INVENTORY]: Couldn't add folder {0} ({1}) since parent folder with ID {2} does not exist!",
                     folderInfo.name, folderInfo.folderID, folderInfo.parentID);
             }
         }
@@ -210,8 +210,8 @@ namespace OpenSim.Framework.Communications.Cache
             item.inventoryID = new LLUUID(config.GetString("inventoryID", folderID.ToString()));
             item.assetID = new LLUUID(config.GetString("assetID", LLUUID.Random().ToString()));
             item.parentFolderID = new LLUUID(config.GetString("folderID", folderID.ToString()));
-            item.inventoryDescription = config.GetString("description", "");
-            item.inventoryName = config.GetString("name", "");
+            item.inventoryDescription = config.GetString("description", System.String.Empty);
+            item.inventoryName = config.GetString("name", System.String.Empty);
             item.assetType = config.GetInt("assetType", 0);
             item.invType = config.GetInt("inventoryType", 0);
             item.inventoryCurrentPermissions = (uint)config.GetLong("currentPermissions", 0x7FFFFFFF);
@@ -227,9 +227,8 @@ namespace OpenSim.Framework.Communications.Cache
             }
             else
             {
-                MainLog.Instance.Warn(
-                    "LIBRARYINVENTORY", 
-                    "Couldn't add item {0} ({1}) since parent folder with ID {2} does not exist!",
+                m_log.WarnFormat(
+                    "[LIBRARY INVENTORY]: Couldn't add item {0} ({1}) since parent folder with ID {2} does not exist!",
                     item.inventoryName, item.inventoryID, item.parentFolderID);
             }                
         }
@@ -257,14 +256,12 @@ namespace OpenSim.Framework.Communications.Cache
                 }
                 catch (XmlException e)
                 {
-                    MainLog.Instance.Error(
-                        "LIBRARYINVENTORY", "Error loading {0} : {1}", path, e);
+                    m_log.ErrorFormat("[LIBRARY INVENTORY]: Error loading {0} : {1}", path, e);
                 }                
             }
             else
             {
-                MainLog.Instance.Error(
-                    "LIBRARYINVENTORY", "{0} file {1} does not exist!", fileDescription, path);
+                m_log.ErrorFormat("[LIBRARY INVENTORY]: {0} file {1} does not exist!", fileDescription, path);
             }            
         }
         

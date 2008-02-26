@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Net.Sockets;
 using OpenSim.Region.Environment.Scenes;
+using OpenSim.Framework.ServerStatus;
 using libsecondlife;
 
 namespace OpenSim.Region.Communications.VoiceChat
@@ -162,8 +163,7 @@ namespace OpenSim.Region.Communications.VoiceChat
         {
             if (m_authenticated)
             {
-                //ServerStatus.ReportOutPacketTcp(m_socket.Send(data));
-                m_socket.Send(data);
+                ServerStatus.ReportOutPacketTcp(m_socket.Send(data));
             }
         }
     }

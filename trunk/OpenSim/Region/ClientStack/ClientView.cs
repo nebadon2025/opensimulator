@@ -38,8 +38,10 @@ using libsecondlife.Packets;
 using OpenSim.Framework;
 using OpenSim.Framework.Communications.Cache;
 using OpenSim.Framework.Console;
+using OpenSim.Framework.ServerStatus;
 using OpenSim.Region.Environment.Scenes;
 using Timer = System.Timers.Timer;
+
 
 namespace OpenSim.Region.ClientStack
 {
@@ -2464,10 +2466,16 @@ namespace OpenSim.Region.ClientStack
                 {
                     int packetsize = Helpers.ZeroEncode(sendbuffer, sendbuffer.Length, ZeroOutBuffer);
                     m_networkServer.SendPacketTo(ZeroOutBuffer, packetsize, SocketFlags.None, m_circuitCode);
+                    
+                    ServerStatus.ReportOutPacketUdp(packetsize, Pack.Header.Resent);
+                    ServerStatus.ReportProcessedOutPacket(Pack.Type.ToString(), packetsize, Pack.Header.Resent);
                 }
                 else
                 {
                     m_networkServer.SendPacketTo(sendbuffer, sendbuffer.Length, SocketFlags.None, m_circuitCode);
+                    
+                    ServerStatus.ReportOutPacketUdp(sendbuffer.Length, Pack.Header.Resent);
+                    ServerStatus.ReportProcessedOutPacket(Pack.Type.ToString(), sendbuffer.Length, Pack.Header.Resent);
                 }
             }
             catch (Exception e)
@@ -2671,6 +2679,10 @@ namespace OpenSim.Region.ClientStack
         protected void ProcessInPacket(Packet Pack)
         {
             ack_pack(Pack);
+
+            int packetLength = Pack.ToBytes().Length;
+            ServerStatus.ReportProcessedInPacket(Pack.Type.ToString(), packetLength);
+            ServerStatus.ReportInPacketUdp(packetLength);
 
             if (ProcessPacketMethod(Pack))
             {

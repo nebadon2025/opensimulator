@@ -752,6 +752,7 @@
       <Reference name="OpenSim.Framework.Servers"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Framework.Communications"/>
+      <Reference name="OpenSim.Framework.ServerStatus"/>
       <Reference name="OpenSim.Region.Communications.Local"/>
       <Reference name="OpenSim.Region.Communications.VoiceChat"/>
       <Reference name="OpenSim.Region.Physics.Manager"/>
@@ -874,6 +875,7 @@
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Region.Physics.Manager"/>
       <Reference name="OpenSim.Framework.Servers"/>
+      <Reference name="OpenSim.Framework.ServerStatus"/>
       <Reference name="OpenSim.Framework.Statistics"/>
       <Reference name="OpenSim.Region.Environment"/>
       <Reference name="OpenSim.Region.ClientStack"/>
@@ -1557,6 +1559,7 @@
       <Reference name="System" localCopy="false"/>
       <Reference name="OpenSim.Region.Environment" />
       <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Framework.ServerStatus"/>
       <Reference name="Axiom.MathLib.dll" localCopy="false"/>
       <Reference name="System.Web.Services"/>
       <Reference name="libsecondlife.dll"/>
@@ -1565,7 +1568,35 @@
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
+    
+    	<!-- Rex ServerStatus -->
+    <Project name="OpenSim.Framework.ServerStatus" path="OpenSim/Framework/ServerStatus" type="Library">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../../../bin/</ReferencePath>
+      <Reference name="OpenSim.Framework"/>
+      <Reference name="System"/>
+      <Reference name="System.Data"/>
+      <Reference name="System.Drawing"/>
+      <Reference name="System.Web"/>
+      <Reference name="System.Windows.Forms"/>
+
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+      </Files>
+    </Project>
   </Solution>
+  
+
 
   <!-- Prebuild tool -->
   <Solution name="Prebuild" path="Prebuild/" >

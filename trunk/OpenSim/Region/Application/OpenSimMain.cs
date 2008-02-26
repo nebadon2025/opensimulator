@@ -722,6 +722,7 @@ namespace OpenSim
                     m_console.Notice("show modules - shows info about loaded modules.");
                     m_console.Notice("show stats - statistical information for this server not displayed in the client");
                     m_console.Notice("shutdown - disconnect all clients and shutdown.");
+                    m_console.Notice("status - open server status window");
                     m_console.Notice("config set section field value - set a config value");
                     m_console.Notice("config get section field - get a config value");
                     m_console.Notice("config save - save OpenSim.ini");
@@ -991,6 +992,9 @@ namespace OpenSim
                     }
 
                     break;                    
+                case "status":
+                    Framework.ServerStatus.ServerStatus.ShowWindow();
+                    break;
                     /*
                      * Temporarily disabled but it would be good to have this - needs to be levered
                      * in to BaseOpenSimServer (which requires a RunCmd method restrcuture probably)

@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Net;
 using OpenSim.Region.Environment.Scenes;
 using OpenSim.Framework;
+using OpenSim.Framework.ServerStatus;
 using libsecondlife;
 
 namespace OpenSim.Region.Communications.VoiceChat
@@ -13,6 +14,8 @@ namespace OpenSim.Region.Communications.VoiceChat
     public class VoiceChatServer
     {
         private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
+        int m_dummySocketPort = 53134;
 
         Thread m_listenerThread;
         Thread m_mainThread;
@@ -53,7 +56,7 @@ namespace OpenSim.Region.Communications.VoiceChat
 
             Thread.Sleep(500);
             m_selectCancel = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            m_selectCancel.Connect("localhost", 59214);
+            m_selectCancel.Connect("localhost", m_dummySocketPort);
         }
 
         public void NewClient(IClientAPI client)
@@ -132,7 +135,7 @@ namespace OpenSim.Region.Communications.VoiceChat
         void ListenIncomingConnections()
         {
             m_log.Info("[VOICECHAT]: Listening connections...");
-            //ServerStatus.ReportThreadName("VoiceChat: Connection listener");
+            ServerStatus.ReportThreadName("VoiceChat: Connection listener");
 
             byte[] dummyBuffer = new byte[1];
 
@@ -157,7 +160,7 @@ namespace OpenSim.Region.Communications.VoiceChat
 
         Socket ListenLoopbackSocket()
         {
-            IPEndPoint listenEndPoint = new IPEndPoint(IPAddress.Parse("0.0.0.0"), 59214);
+            IPEndPoint listenEndPoint = new IPEndPoint(IPAddress.Parse("0.0.0.0"), m_dummySocketPort);
             Socket dummyListener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             dummyListener.Bind(listenEndPoint);
             dummyListener.Listen(1);
@@ -169,7 +172,7 @@ namespace OpenSim.Region.Communications.VoiceChat
         void RunVoiceChat()
         {
             m_log.Info("[VOICECHAT]: Connection handler started...");
-            //ServerStatus.ReportThreadName("VoiceChat: Connection handler");
+            ServerStatus.ReportThreadName("VoiceChat: Connection handler");
 
             //Listen a loopback socket for aborting select call
             Socket dummySocket = ListenLoopbackSocket();
@@ -194,7 +197,14 @@ namespace OpenSim.Region.Communications.VoiceChat
                 }
                 sockets.Add(dummySocket);
 
-                Socket.Select(sockets, null, null, 200000);
+                try
+                {
+                    Socket.Select(sockets, null, null, 200000);
+                }
+                catch (SocketException e)
+                {
+                    m_log.Warn("[VOICECHAT]: " + e.Message);
+                }
 
                 foreach (Socket s in sockets)
                 {
@@ -203,6 +213,15 @@ namespace OpenSim.Region.Communications.VoiceChat
                         if (s.RemoteEndPoint != dummySocket.RemoteEndPoint)
                         {
                             ReceiveFromSocket(s, buffer);
+                        }
+                        else
+                        {
+                            //Receive data and check if there was an error with select abort socket
+                            if (s.Receive(buffer) <= 0)
+                            {
+                                //Just give a warning for now
+                                m_log.Error("[VOICECHAT]: Select abort socket was closed");
+                            }
                         }
                     }
                     catch(ObjectDisposedException e)
@@ -234,7 +253,7 @@ namespace OpenSim.Region.Communications.VoiceChat
             }
             else
             {
-                //ServerStatus.ReportInPacketTcp(byteCount);
+                ServerStatus.ReportInPacketTcp(byteCount);
                 lock (m_clients)
                 {
                     if (m_clients.ContainsKey(s))

@@ -641,6 +641,17 @@ namespace OpenSim.Region.Environment.Scenes
             // Stop updating the scene objects and agents.
             //m_heartbeatTimer.Close();
             shuttingdown = true;
+
+            m_log.Debug("[SCENE]: Persisting changed objects");
+            List<EntityBase> entities = GetEntities();
+            foreach (EntityBase entity in entities)
+            {
+                if (!entity.IsDeleted && entity is SceneObjectGroup && ((SceneObjectGroup)entity).HasGroupChanged)
+                {
+                    ((SceneObjectGroup)entity).ProcessBackup(m_storageManager.DataStore);
+                }
+            }
+
             // close the inner scene
             m_innerScene.Close();
             // De-register with region communications (events cleanup)

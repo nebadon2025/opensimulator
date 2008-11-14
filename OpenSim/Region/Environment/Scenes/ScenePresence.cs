@@ -492,7 +492,7 @@ namespace OpenSim.Region.Environment.Scenes
             m_scene = world;
             m_uuid = client.AgentId;
             m_regionInfo = reginfo;
-            m_localId = m_scene.AllocateLocalId();
+            m_localId = m_scene.NextAvatarLocalId;
 
             IGroupsModule gm = m_scene.RequestModuleInterface<IGroupsModule>();
             if (gm != null)
@@ -2214,6 +2214,8 @@ namespace OpenSim.Region.Environment.Scenes
 
                     CrossAttachmentsIntoNewRegion(neighbourHandle, true);
 
+//                    m_scene.SendKillObject(m_localId);
+
                     m_scene.NotifyMyCoarseLocationChange();
                     // the user may change their profile information in other region,
                     // so the userinfo in UserProfileCache is not reliable any more, delete it
@@ -2263,6 +2265,7 @@ namespace OpenSim.Region.Environment.Scenes
         /// </summary>
         public void ChildAgentDataUpdate(ChildAgentDataUpdate cAgentData, uint tRegionX, uint tRegionY, uint rRegionX, uint rRegionY)
         {
+            //
             if (!IsChildAgent)
                 return;
 

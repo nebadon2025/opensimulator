@@ -599,7 +599,7 @@ namespace OpenSim.Framework.Communications.Cache
 
             // It has an entry in our cache
             AssetInfo asset = Assets[requestID];
-
+            
             // FIXME: We never tell the client about assets which do not exist when requested by this transfer mechanism, which can't be right.
             if (null == asset)
             {

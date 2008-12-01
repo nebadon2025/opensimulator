@@ -470,6 +470,11 @@ namespace OpenSim.Framework.Servers
             {
                 m_log.ErrorFormat("[BASE HTTP SERVER]: HandleRequest() threw {0}", e);
             }
+            catch (InvalidOperationException e)
+            {
+                m_log.ErrorFormat("[BASE HTTP SERVER]: HandleRequest() threw {0}", e);
+                SendHTML500(response);
+            }
         }
 
         private bool TryGetStreamHandler(string handlerKey, out IRequestHandler streamHandler)

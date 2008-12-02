@@ -542,7 +542,7 @@ namespace OpenSim
         /// <summary>
         /// Performs any last-minute sanity checking and shuts down the region server
         /// </summary>
-        protected override void ShutdownSpecific()
+        public override void ShutdownSpecific()
         {
             if (proxyUrl.Length > 0)
             {

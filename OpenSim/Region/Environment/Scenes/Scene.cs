@@ -4047,7 +4047,7 @@ namespace OpenSim.Region.Environment.Scenes
             return m_innerScene.TryGetAvatarByName(avatarName, out avatar);
         }
 
-        internal void ForEachClient(Action<IClientAPI> action)
+        public void ForEachClient(Action<IClientAPI> action)
         {
             m_innerScene.ForEachClient(action);
         }

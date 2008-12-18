@@ -41,7 +41,7 @@ using OpenSim.Framework.Statistics;
 using OpenSim.Region.Environment.Interfaces;
 using OpenSim.Region.Environment.Scenes;
 using OpenSim.Region.Environment.Modules.Avatar.Inventory.Archiver;
-using Timer=System.Timers.Timer;
+using Timer = System.Timers.Timer;
 
 namespace OpenSim
 {
@@ -63,7 +63,8 @@ namespace OpenSim
         /// </summary>
         private static List<ConsolePluginCommand> m_PluginCommandInfos = new List<ConsolePluginCommand>();
 
-        public OpenSim(IConfigSource configSource) : base(configSource)
+        public OpenSim(IConfigSource configSource)
+            : base(configSource)
         {
         }
 
@@ -98,7 +99,7 @@ namespace OpenSim
             base.StartupSpecific();
 
             //Run Startup Commands
-            if (String.IsNullOrEmpty( m_startupCommandsFile ))
+            if (String.IsNullOrEmpty(m_startupCommandsFile))
             {
                 m_log.Info("[STARTUP]: No startup command script specified. Moving on...");
             }
@@ -121,7 +122,7 @@ namespace OpenSim
             RegisterCmd("kickuser", KickUserCommand, "kickuser [first] [last] - attempts to log off a user from any region we are serving");
 
             // For now, start at the 'root' level by default
-            ChangeSelectedRegion(new string[] {"root"});
+            ChangeSelectedRegion(new string[] { "root" });
         }
 
         private void RunAutoTimerScript(object sender, EventArgs e)
@@ -138,7 +139,7 @@ namespace OpenSim
         {
             for (int i = 0; i < cmdparams.Length; i++)
             {
-                m_log.Info("[EchoTest]:  <arg" + i + ">"+cmdparams[i]+"</arg" + i + ">");
+                m_log.Info("[EchoTest]:  <arg" + i + ">" + cmdparams[i] + "</arg" + i + ">");
             }
         }
 
@@ -216,7 +217,7 @@ namespace OpenSim
         public override void RunCmd(string command, string[] cmdparams)
         {
             base.RunCmd(command, cmdparams);
-            RunPluginCommands(command , cmdparams);
+            RunPluginCommands(command, cmdparams);
 
             switch (command)
             {
@@ -373,9 +374,9 @@ namespace OpenSim
                                 }
                                 else
                                 {
-                                   // IConfig c = DefaultConfig().Configs[cmdparams[1]];
-                                   // if (c == null)
-                                   //     c = DefaultConfig().AddConfig(cmdparams[1]);
+                                    // IConfig c = DefaultConfig().Configs[cmdparams[1]];
+                                    // if (c == null)
+                                    //     c = DefaultConfig().AddConfig(cmdparams[1]);
                                     IConfig c;
                                     IConfigSource source = new IniConfigSource();
                                     c = source.AddConfig(cmdparams[1]);
@@ -466,10 +467,10 @@ namespace OpenSim
                         m_commsManager.AddInventoryService(cmdparams[0]);
                     }
                     break;
-                                    
+
                 case "reset":
                     Reset(cmdparams);
-                    break;                
+                    break;
 
                 default:
                     string[] tmpPluginArgs = new string[cmdparams.Length + 1];
@@ -520,7 +521,7 @@ namespace OpenSim
                     break;
             }
         }
-        
+
         /// <summary>
         /// Execute switch for some of the reset commands
         /// </summary>
@@ -533,17 +534,17 @@ namespace OpenSim
             switch (args[0])
             {
                 case "user":
-                
+
                     switch (args[1])
                     {
                         case "password":
                             ResetUserPassword(args);
                             break;
                     }
-                
+
                     break;
             }
-        }        
+        }
 
         /// <summary>
         /// Turn on some debugging values for OpenSim.
@@ -728,7 +729,47 @@ namespace OpenSim
                                              scene.RegionInfo.RegionLocY + " , Region Port: " + scene.RegionInfo.InternalEndPoint.Port.ToString());
                         });
                     break;
+                case "queues":
+                    Notice(GetQueuesReport());
+                    break;
+
             }
+        }
+
+        private string GetQueuesReport()
+        {
+            string report = String.Empty;
+
+            m_sceneManager.ForEachScene(delegate(Scene scene)
+                                            {
+                                                scene.ForEachClient(delegate(IClientAPI client)
+                                                                         {
+                                                                             if (client is IStatsCollector)
+                                                                             {
+                                                                                 report = report + client.FirstName +
+                                                                                          " " + client.LastName + "\n";
+
+                                                                                 IStatsCollector stats =
+                                                                                     (IStatsCollector)client;
+
+                                                                                 report = report + string.Format("{0,7} {1,7} {2,7} {3,7} {4,7} {5,7} {6,7} {7,7} {8,7} {9,7}\n",
+                                  "Send",
+                                  "In",
+                                  "Out",
+                                  "Resend",
+                                  "Land",
+                                  "Wind",
+                                  "Cloud",
+                                  "Task",
+                                  "Texture",
+                                  "Asset");
+                                                                                 report = report + stats.Report() +
+                                                                                          "\n\n";
+                                                                             }
+                                                                         });
+                                            });
+
+            return report;
         }
 
         /// <summary>
@@ -747,19 +788,19 @@ namespace OpenSim
                 firstName = MainConsole.Instance.CmdPrompt("First name", "Default");
             else firstName = cmdparams[1];
 
-            if ( cmdparams.Length < 3 )
+            if (cmdparams.Length < 3)
                 lastName = MainConsole.Instance.CmdPrompt("Last name", "User");
             else lastName = cmdparams[2];
 
-            if ( cmdparams.Length < 4 )
+            if (cmdparams.Length < 4)
                 password = MainConsole.Instance.PasswdPrompt("Password");
             else password = cmdparams[3];
 
-            if ( cmdparams.Length < 5 )
+            if (cmdparams.Length < 5)
                 regX = Convert.ToUInt32(MainConsole.Instance.CmdPrompt("Start Region X", regX.ToString()));
             else regX = Convert.ToUInt32(cmdparams[4]);
 
-            if ( cmdparams.Length < 6 )
+            if (cmdparams.Length < 6)
                 regY = Convert.ToUInt32(MainConsole.Instance.CmdPrompt("Start Region Y", regY.ToString()));
             else regY = Convert.ToUInt32(cmdparams[5]);
 
@@ -772,7 +813,7 @@ namespace OpenSim
                 m_log.ErrorFormat("[CONSOLE]: A user with the name {0} {1} already exists!", firstName, lastName);
             }
         }
-        
+
         /// <summary>
         /// Reset a user password.
         /// </summary>
@@ -782,21 +823,21 @@ namespace OpenSim
             string firstName;
             string lastName;
             string newPassword;
-            
+
             if (cmdparams.Length < 3)
                 firstName = MainConsole.Instance.CmdPrompt("First name");
             else firstName = cmdparams[2];
 
-            if ( cmdparams.Length < 4 )
+            if (cmdparams.Length < 4)
                 lastName = MainConsole.Instance.CmdPrompt("Last name");
             else lastName = cmdparams[3];
 
-            if ( cmdparams.Length < 5 )
+            if (cmdparams.Length < 5)
                 newPassword = MainConsole.Instance.PasswdPrompt("New password");
             else newPassword = cmdparams[4];
-            
+
             m_commsManager.ResetUserPassword(firstName, lastName, newPassword);
-        }                        
+        }
 
         protected void SaveXml(string[] cmdparams)
         {
@@ -828,14 +869,14 @@ namespace OpenSim
                     }
                     if (cmdparams.Length > 2)
                     {
-                        loadOffset.X = (float) Convert.ToDecimal(cmdparams[2]);
+                        loadOffset.X = (float)Convert.ToDecimal(cmdparams[2]);
                         if (cmdparams.Length > 3)
                         {
-                            loadOffset.Y = (float) Convert.ToDecimal(cmdparams[3]);
+                            loadOffset.Y = (float)Convert.ToDecimal(cmdparams[3]);
                         }
                         if (cmdparams.Length > 4)
                         {
-                            loadOffset.Z = (float) Convert.ToDecimal(cmdparams[4]);
+                            loadOffset.Z = (float)Convert.ToDecimal(cmdparams[4]);
                         }
                         m_console.Error("loadOffsets <X,Y,Z> = <" + loadOffset.X + "," + loadOffset.Y + "," +
                                         loadOffset.Z + ">");
@@ -904,7 +945,7 @@ namespace OpenSim
                 m_sceneManager.SaveCurrentSceneToArchive(DEFAULT_OAR_BACKUP_FILENAME);
             }
         }
-        
+
         /// <summary>
         /// Load inventory from an inventory file archive
         /// </summary>
@@ -917,16 +958,16 @@ namespace OpenSim
                 m_log.Error("[CONSOLE]: usage is load-inv <first name> <last name> <inventory path> [<load file path>]");
                 return;
             }
-            
+
             string firstName = cmdparams[0];
             string lastName = cmdparams[1];
             string invPath = cmdparams[2];
             string loadPath = (cmdparams.Length > 3 ? cmdparams[3] : DEFAULT_INV_BACKUP_FILENAME);
-            
+
             new InventoryArchiveReadRequest(
                 m_sceneManager.CurrentOrFirstScene, m_commsManager).execute(
                     firstName, lastName, invPath, loadPath);
-        }        
+        }
 
         /// <summary>
         /// Save inventory to a file archive
@@ -940,17 +981,17 @@ namespace OpenSim
                 m_log.Error("[CONSOLE]: usage is save-inv <first name> <last name> <inventory path> [<save file path>]");
                 return;
             }
-            
+
             string firstName = cmdparams[0];
             string lastName = cmdparams[1];
             string invPath = cmdparams[2];
             string savePath = (cmdparams.Length > 3 ? cmdparams[3] : DEFAULT_INV_BACKUP_FILENAME);
-            
+
             new InventoryArchiveWriteRequest(
-                m_sceneManager.CurrentOrFirstScene,m_commsManager).execute(
+                m_sceneManager.CurrentOrFirstScene, m_commsManager).execute(
                     firstName, lastName, invPath, savePath);
         }
-        
+
         private static string CombineParams(string[] commandParams, int pos)
         {
             string result = String.Empty;
@@ -971,7 +1012,7 @@ namespace OpenSim
         {
             ConsolePluginCommand bestMatch = null;
             int bestLength = 0;
-            String cmdWithParams = cmd + " " + String.Join(" ",withParams);
+            String cmdWithParams = cmd + " " + String.Join(" ", withParams);
             foreach (ConsolePluginCommand cmdinfo in m_PluginCommandInfos)
             {
                 int matchLen = cmdinfo.matchLength(cmdWithParams);
@@ -982,7 +1023,7 @@ namespace OpenSim
                 }
             }
             if (bestMatch == null) return false;
-            bestMatch.Run(cmd,withParams);//.Substring(bestLength));
+            bestMatch.Run(cmd, withParams);//.Substring(bestLength));
             return true;
         }
 

@@ -171,6 +171,10 @@ namespace OpenSim.Data.MSSQL
             {
                 return SqlDbType.Float;
             }
+            if (type == typeof(Single))
+            {
+                return SqlDbType.Float;
+            }
             if (type == typeof(int))
             {
                 return SqlDbType.Int;
@@ -185,7 +189,7 @@ namespace OpenSim.Data.MSSQL
             }
             if (type == typeof(sbyte))
             {
-                return SqlDbType.TinyInt;
+                return SqlDbType.Int;
             }
             if (type == typeof(Byte[]))
             {
@@ -215,11 +219,19 @@ namespace OpenSim.Data.MSSQL
             {
                 return value.ToString();
             }
+            if (valueType == typeof(OpenMetaverse.UUID))
+            {
+                return value.ToString();
+            }
             if (valueType == typeof(bool))
             {
                 return (bool)value ? 1 : 0;
             }
             if (valueType == typeof(Byte[]))
+            {
+                return value;
+            }
+            if (valueType == typeof(int))
             {
                 return value;
             }
@@ -269,6 +281,11 @@ namespace OpenSim.Data.MSSQL
 
         private static readonly Dictionary<string, string> emptyDictionary = new Dictionary<string, string>();
 
+        /// <summary>
+        /// Run a query and return a sql db command
+        /// </summary>
+        /// <param name="sql">The SQL query.</param>
+        /// <returns></returns>
         internal AutoClosingSqlCommand Query(string sql)
         {
             return Query(sql, emptyDictionary);

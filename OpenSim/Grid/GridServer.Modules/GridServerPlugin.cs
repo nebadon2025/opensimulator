@@ -33,7 +33,7 @@ namespace OpenSim.Grid.GridServer.Modules
         public void Initialise(GridServerBase gridServer)
         {
             m_core = gridServer;
-            m_config = gridServer.Config;
+            m_config = gridServer.GConfig;
             m_version = gridServer.Version;
             m_console = MainConsole.Instance;
 
@@ -67,7 +67,7 @@ namespace OpenSim.Grid.GridServer.Modules
         {
            // m_log.Info("[DATA]: Connecting to Storage Server");
             m_gridDBService = new GridDBService();
-            m_gridDBService.AddPlugin(m_config.DatabaseProvider, m_config.DatabaseConnect);
+            //m_gridDBService.AddPlugin(m_config.DatabaseProvider, m_config.DatabaseConnect);
 
             //Register the database access service so modules can fetch it
             // RegisterInterface<GridDBService>(m_gridDBService);

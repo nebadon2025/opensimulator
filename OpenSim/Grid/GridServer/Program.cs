@@ -26,6 +26,7 @@
  */
 
 using log4net.Config;
+using Nini.Config;
 
 namespace OpenSim.Grid.GridServer
 {
@@ -35,7 +36,18 @@ namespace OpenSim.Grid.GridServer
         {
             XmlConfigurator.Configure();
 
-            GridServerBase app = new GridServerBase();
+            ArgvConfigSource configSource = new ArgvConfigSource(args);
+
+            configSource.Alias.AddAlias("On", true);
+            configSource.Alias.AddAlias("Off", false);
+            configSource.Alias.AddAlias("True", true);
+            configSource.Alias.AddAlias("False", false);
+
+            configSource.AddSwitch("Startup", "inifile");
+            configSource.AddSwitch("Startup", "inimaster");
+            configSource.AddSwitch("Startup", "inidirectory");
+
+            GridServerBase app = new GridServerBase(configSource);
 
 //            if (args.Length > 0 && args[0] == "-setuponly")
 //            {

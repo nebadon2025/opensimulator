@@ -54,20 +54,7 @@ namespace OpenSim.Grid.UserServer
 
         protected UserConfig Cfg;
 
-        protected UserDataBaseService m_userDataBaseService;
-
-        public UserManager m_userManager;
-
-        protected UserServerAvatarAppearanceModule m_avatarAppearanceModule;
-        protected UserServerFriendsModule m_friendsModule;
-
-        public UserLoginService m_loginService;
-        public MessageServersConnector m_messagesService;
-
-        protected GridInfoServiceModule m_gridInfoService;
-
-        protected UserServerCommandModule m_consoleCommandModule;
-        protected UserServerEventDispatchModule m_eventDispatcher;
+        protected UserServerPlugin m_serverPlugin;
 
         public static void Main(string[] args)
         {
@@ -99,126 +86,23 @@ namespace OpenSim.Grid.UserServer
 
         protected override void StartupSpecific()
         {
-            IInterServiceInventoryServices inventoryService = StartupCoreComponents();
+            Cfg = new UserConfig("USER SERVER", (Path.Combine(Util.configDir(), "UserServer_Config.xml")));
 
             m_stats = StatsManager.StartCollectingUserStats();
 
-            //setup services/modules
-            StartupUserServerModules();
+            m_httpServer = new BaseHttpServer(Cfg.HttpPort);
 
-            StartOtherComponents(inventoryService);
-
-            //PostInitialise the modules
-            PostInitialiseModules();
-
-            //register http handlers and start http server
-            m_log.Info("[STARTUP]: Starting HTTP process");
-            RegisterHttpHandlers();
+            m_serverPlugin = new UserServerPlugin();
+            m_serverPlugin.Initialise(m_httpServer, this, Cfg);
+            
             m_httpServer.Start();
 
             base.StartupSpecific();
         }
 
-        protected virtual IInterServiceInventoryServices StartupCoreComponents()
-        {
-            Cfg = new UserConfig("USER SERVER", (Path.Combine(Util.configDir(), "UserServer_Config.xml")));
-
-            m_httpServer = new BaseHttpServer(Cfg.HttpPort);
-
-            RegisterInterface<ConsoleBase>(m_console);
-            RegisterInterface<UserConfig>(Cfg);
-
-            //Should be in modules?
-            IInterServiceInventoryServices inventoryService = new OGS1InterServiceInventoryService(Cfg.InventoryUrl);
-            // IRegionProfileRouter regionProfileService = new RegionProfileServiceProxy();
-
-            RegisterInterface<IInterServiceInventoryServices>(inventoryService);
-            // RegisterInterface<IRegionProfileRouter>(regionProfileService);
-
-            return inventoryService;
-        }
-
-        /// <summary>
-        /// Start up the user manager
-        /// </summary>
-        /// <param name="inventoryService"></param>
-        protected virtual void StartupUserServerModules()
-        {
-            m_log.Info("[STARTUP]: Establishing data connection");
-            //setup database access service, for now this has to be created before the other modules.
-            m_userDataBaseService = new UserDataBaseService();
-            m_userDataBaseService.Initialise(this);
-
-            //TODO: change these modules so they fetch the databaseService class in the PostInitialise method
-            m_userManager = new UserManager(m_userDataBaseService);
-            m_userManager.Initialise(this);
-
-            m_avatarAppearanceModule = new UserServerAvatarAppearanceModule(m_userDataBaseService);
-            m_avatarAppearanceModule.Initialise(this);
-
-            m_friendsModule = new UserServerFriendsModule(m_userDataBaseService);
-            m_friendsModule.Initialise(this);
-
-            m_consoleCommandModule = new UserServerCommandModule();
-            m_consoleCommandModule.Initialise(this);
-
-            m_messagesService = new MessageServersConnector();
-            m_messagesService.Initialise(this);
-
-            m_gridInfoService = new GridInfoServiceModule();
-            m_gridInfoService.Initialise(this);
-        }
-
-        protected virtual void StartOtherComponents(IInterServiceInventoryServices inventoryService)
-        {
-            StartupLoginService(inventoryService);
-            //
-            // Get the minimum defaultLevel to access to the grid
-            //
-            m_loginService.setloginlevel((int)Cfg.DefaultUserLevel);
-
-            RegisterInterface<UserLoginService>(m_loginService); //TODO: should be done in the login service
-
-            m_eventDispatcher = new UserServerEventDispatchModule(m_userManager, m_messagesService, m_loginService);
-            m_eventDispatcher.Initialise(this);
-        }
-
-        /// <summary>
-        /// Start up the login service
-        /// </summary>
-        /// <param name="inventoryService"></param>
-        protected virtual void StartupLoginService(IInterServiceInventoryServices inventoryService)
-        {
-            m_loginService = new UserLoginService(
-                m_userDataBaseService, inventoryService, new LibraryRootFolder(Cfg.LibraryXmlfile), Cfg, Cfg.DefaultStartupMsg, new RegionProfileServiceProxy());
-        }
-
-        protected virtual void PostInitialiseModules()
-        {
-            m_consoleCommandModule.PostInitialise(); //it will register its Console command handlers in here
-            m_userDataBaseService.PostInitialise();
-            m_messagesService.PostInitialise();
-            m_eventDispatcher.PostInitialise(); //it will register event handlers in here
-            m_gridInfoService.PostInitialise();
-            m_userManager.PostInitialise();
-            m_avatarAppearanceModule.PostInitialise();
-            m_friendsModule.PostInitialise();
-        }
-
-        protected virtual void RegisterHttpHandlers()
-        {
-            m_loginService.RegisterHandlers(m_httpServer, Cfg.EnableLLSDLogin, true);
-
-            m_userManager.RegisterHandlers(m_httpServer);
-            m_friendsModule.RegisterHandlers(m_httpServer);
-            m_avatarAppearanceModule.RegisterHandlers(m_httpServer);
-            m_messagesService.RegisterHandlers(m_httpServer);
-            m_gridInfoService.RegisterHandlers(m_httpServer);
-        }
-
         public override void ShutdownSpecific()
         {
-            m_eventDispatcher.Close();
+           
         }
 
         #region IUGAIMCore
@@ -262,9 +146,5 @@ namespace OpenSim.Grid.UserServer
         }
         #endregion
 
-        public void TestResponse(List<InventoryFolderBase> resp)
-        {
-            m_console.Notice("response got");
-        }
     }
 }

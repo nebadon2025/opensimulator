@@ -26,6 +26,7 @@
  */
 
 using System;
+using Nini.Config;
 
 namespace OpenSim.Framework
 {
@@ -49,11 +50,21 @@ namespace OpenSim.Framework
         public string UserRecvKey = String.Empty;
         public string UserSendKey = String.Empty;
 
+        public GridConfig()
+        {
+
+        }
+
         public GridConfig(string description, string filename)
         {
             configMember =
                 new ConfigurationMember(filename, description, loadConfigurationOptions, handleIncomingConfiguration, true);
             configMember.performConfigurationRetrieve();
+        }
+
+        public void LoadConfigurationFromNini(IConfigSource configSource)
+        {
+
         }
 
         public void loadConfigurationOptions()

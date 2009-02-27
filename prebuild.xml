@@ -955,6 +955,7 @@
       <Reference name="OpenSim.Framework.Statistics"/>
       <Reference name="OpenSim.Grid.Framework"/>
       <Reference name="OpenSim.Grid.Communications.OGS1"/>
+      <Reference name="OpenSim.Grid.GridServer"/>
       <Reference name="OpenMetaverseTypes.dll"/>
       <Reference name="OpenMetaverse.StructuredData.dll"/>
       <Reference name="XMLRPC.dll"/>
@@ -963,6 +964,7 @@
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>
+        <Match path="Resources" pattern="*.addin.xml" buildAction="EmbeddedResource" recurse="true" />
       </Files>
     </Project>
 
@@ -992,6 +994,7 @@
       <Reference name="OpenSim.Framework.Statistics"/>
       <Reference name="OpenSim.Grid.Communications.OGS1"/>
       <Reference name="OpenSim.Grid.Framework"/>
+      <Reference name="OpenSim.Grid.GridServer"/>
       <Reference name="OpenSim.Grid.UserServer.Modules"/>
       <Reference name="OpenMetaverseTypes.dll"/>
       <Reference name="OpenMetaverse.StructuredData.dll"/>

@@ -27,6 +27,7 @@
 
 using System;
 using System.IO;
+using Nini.Config;
 
 namespace OpenSim.Framework
 {
@@ -89,6 +90,11 @@ namespace OpenSim.Framework
             configMember =
                 new ConfigurationMember(filename, description, loadConfigurationOptions, handleIncomingConfiguration, true);
             configMember.performConfigurationRetrieve();
+        }
+
+        public void LoadConfigurationFromNini(IConfigSource configSource)
+        {
+
         }
 
         public void loadConfigurationOptions()

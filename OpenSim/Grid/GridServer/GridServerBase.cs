@@ -31,6 +31,7 @@ using System.IO;
 using System.Reflection;
 using System.Timers;
 using log4net;
+using Nini.Config;
 using OpenSim.Framework;
 using OpenSim.Framework.Console;
 using OpenSim.Framework.Servers;
@@ -44,11 +45,25 @@ namespace OpenSim.Grid.GridServer
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        protected GridConfig m_config;
+        protected GridConfig m_gconfig;
+        protected UserConfig m_uconfig;
 
-        public GridConfig Config
+        protected GridConfigurationLoader m_configLoader;
+        protected OpenSimConfigSource m_configSource;
+
+        public OpenSimConfigSource ConfigSource
         {
-            get { return m_config; }
+            get { return m_configSource; }
+        }
+
+        public GridConfig GConfig
+        {
+            get { return m_gconfig; }
+        }
+
+        public UserConfig UConfig
+        {
+            get { return m_uconfig; }
         }
 
         public string Version
@@ -68,18 +83,31 @@ namespace OpenSim.Grid.GridServer
             }
         }
 
-        public GridServerBase()
+        public GridServerBase(IConfigSource configSource)
         {
             m_console = new ConsoleBase("Grid");
             MainConsole.Instance = m_console;
+
+            m_configLoader = new GridConfigurationLoader();
+            m_configSource = m_configLoader.LoadConfigSettings(configSource);
         }
 
         protected override void StartupSpecific()
         {
-            m_config = new GridConfig("GRID SERVER", (Path.Combine(Util.configDir(), "GridServer_Config.xml")));
+            uint httpPort = 8051;
+
+            m_gconfig = new GridConfig("GRID SERVER", (Path.Combine(Util.configDir(), "GridServer_Config.xml")));
+
+            m_uconfig = new UserConfig("USER SERVER", (Path.Combine(Util.configDir(), "UserServer_Config.xml")));
+
+            IConfig startupConfig = m_configSource.Source.Configs["Startup"];
+            if (startupConfig != null)
+            {
+                Convert.ToUInt32(startupConfig.GetString("HttpPort", "8051"));
+            }
 
             m_log.Info("[GRID]: Starting HTTP process");
-            m_httpServer = new BaseHttpServer(m_config.HttpPort);
+            m_httpServer = new BaseHttpServer(httpPort);
 
             LoadPlugins();
 

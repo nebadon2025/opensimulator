@@ -944,15 +944,15 @@ namespace OpenSim.Framework
                 {
                     fieldInfo.SetValue(settingsClass, config.Get(fieldInfo.Name, (string)fieldInfo.GetValue(settingsClass)));
                 }
-                if (fieldInfo.FieldType == typeof(System.Boolean))
+                else if (fieldInfo.FieldType == typeof(System.Boolean))
                 {
                     fieldInfo.SetValue(settingsClass, config.GetBoolean(fieldInfo.Name, (bool)fieldInfo.GetValue(settingsClass)));
                 }
-                if (fieldInfo.FieldType == typeof(System.Int32))
+                else if (fieldInfo.FieldType == typeof(System.Int32))
                 {
                     fieldInfo.SetValue(settingsClass, config.GetInt(fieldInfo.Name, (int)fieldInfo.GetValue(settingsClass)));
                 }
-                if (fieldInfo.FieldType == typeof(System.Single))
+                else if (fieldInfo.FieldType == typeof(System.Single))
                 {
                     fieldInfo.SetValue(settingsClass, config.GetFloat(fieldInfo.Name, (float)fieldInfo.GetValue(settingsClass)));
                 }
@@ -967,15 +967,15 @@ namespace OpenSim.Framework
                     {
                         propInfo.SetValue(settingsClass, config.Get(propInfo.Name, (string)propInfo.GetValue(settingsClass, null)), null);
                     }
-                    if (propInfo.PropertyType == typeof(System.Boolean))
+                    else if (propInfo.PropertyType == typeof(System.Boolean))
                     {
                         propInfo.SetValue(settingsClass, config.GetBoolean(propInfo.Name, (bool)propInfo.GetValue(settingsClass, null)), null);
                     }
-                    if (propInfo.PropertyType == typeof(System.Int32))
+                    else if (propInfo.PropertyType == typeof(System.Int32))
                     {
                         propInfo.SetValue(settingsClass, config.GetInt(propInfo.Name, (int)propInfo.GetValue(settingsClass, null)), null);
                     }
-                    if (propInfo.PropertyType == typeof(System.Single))
+                    else if (propInfo.PropertyType == typeof(System.Single))
                     {
                         propInfo.SetValue(settingsClass, config.GetFloat(propInfo.Name, (float)propInfo.GetValue(settingsClass, null)), null);
                     }

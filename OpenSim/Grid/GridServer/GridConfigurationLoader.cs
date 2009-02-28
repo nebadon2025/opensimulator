@@ -196,7 +196,7 @@ namespace OpenSim.Grid.GridServer
                 if (null == config)
                     config = defaultConfig.AddConfig("Startup");
 
-                config.Set("LoadPlugins", "GridServerPlugin;UserServerPlugin");
+                config.Set("LoadPlugins", "GridServerPlugin,UserServerPlugin");
                 config.Set("HttpPort", "8051");
             }
 

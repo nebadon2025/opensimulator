@@ -26,6 +26,7 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.IO;
@@ -930,6 +931,58 @@ namespace OpenSim.Framework
             displayConnectionString += connectionString.Substring(passEndPosition, connectionString.Length - passEndPosition);
 
             return displayConnectionString;
+        }
+
+        public static T ReadSettingsFromIniFile<T>(IConfig config, T settingsClass)
+        {
+            Type settingsType = settingsClass.GetType();
+
+            FieldInfo[] fieldInfos = settingsType.GetFields();
+            foreach (FieldInfo fieldInfo in fieldInfos)
+            {
+                if (fieldInfo.FieldType == typeof(System.String))
+                {
+                    fieldInfo.SetValue(settingsClass, config.Get(fieldInfo.Name, (string)fieldInfo.GetValue(settingsClass)));
+                }
+                if (fieldInfo.FieldType == typeof(System.Boolean))
+                {
+                    fieldInfo.SetValue(settingsClass, config.GetBoolean(fieldInfo.Name, (bool)fieldInfo.GetValue(settingsClass)));
+                }
+                if (fieldInfo.FieldType == typeof(System.Int32))
+                {
+                    fieldInfo.SetValue(settingsClass, config.GetInt(fieldInfo.Name, (int)fieldInfo.GetValue(settingsClass)));
+                }
+                if (fieldInfo.FieldType == typeof(System.Single))
+                {
+                    fieldInfo.SetValue(settingsClass, config.GetFloat(fieldInfo.Name, (float)fieldInfo.GetValue(settingsClass)));
+                }
+            }
+
+            PropertyInfo[] propertyInfos = settingsType.GetProperties();
+            foreach (PropertyInfo propInfo in propertyInfos)
+            {
+                if ((propInfo.CanRead) && (propInfo.CanWrite))
+                {
+                    if (propInfo.PropertyType == typeof(System.String))
+                    {
+                        propInfo.SetValue(settingsClass, config.Get(propInfo.Name, (string)propInfo.GetValue(settingsClass, null)), null);
+                    }
+                    if (propInfo.PropertyType == typeof(System.Boolean))
+                    {
+                        propInfo.SetValue(settingsClass, config.GetBoolean(propInfo.Name, (bool)propInfo.GetValue(settingsClass, null)), null);
+                    }
+                    if (propInfo.PropertyType == typeof(System.Int32))
+                    {
+                        propInfo.SetValue(settingsClass, config.GetInt(propInfo.Name, (int)propInfo.GetValue(settingsClass, null)), null);
+                    }
+                    if (propInfo.PropertyType == typeof(System.Single))
+                    {
+                        propInfo.SetValue(settingsClass, config.GetFloat(propInfo.Name, (float)propInfo.GetValue(settingsClass, null)), null);
+                    }
+                }
+            }
+
+            return settingsClass;
         }
     }
 }

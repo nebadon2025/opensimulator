@@ -155,7 +155,9 @@ namespace OpenSim.Grid.UserServer.Modules
 
         protected virtual void StartOtherComponents(IInterServiceInventoryServices inventoryService)
         {
-            StartupLoginService(inventoryService);
+            m_loginService = new UserLoginService(
+              m_userDataBaseService, inventoryService, new LibraryRootFolder(m_cfg.LibraryXmlfile), m_cfg, m_cfg.DefaultStartupMsg, new RegionProfileServiceProxy());
+
             //
             // Get the minimum defaultLevel to access to the grid
             //
@@ -165,16 +167,6 @@ namespace OpenSim.Grid.UserServer.Modules
 
             m_eventDispatcher = new UserServerEventDispatchModule(m_userManager, m_messagesService, m_loginService);
             m_eventDispatcher.Initialise(m_core);
-        }
-
-        /// <summary>
-        /// Start up the login service
-        /// </summary>
-        /// <param name="inventoryService"></param>
-        protected virtual void StartupLoginService(IInterServiceInventoryServices inventoryService)
-        {
-            m_loginService = new UserLoginService(
-                m_userDataBaseService, inventoryService, new LibraryRootFolder(m_cfg.LibraryXmlfile), m_cfg, m_cfg.DefaultStartupMsg, new RegionProfileServiceProxy());
         }
 
         protected virtual void PostInitialiseModules()

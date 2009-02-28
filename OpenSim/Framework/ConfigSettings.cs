@@ -200,6 +200,7 @@ namespace OpenSim.Framework
                 m_librariesXMLFile = value;
             }
         }
+
         protected string m_assetSetsXMLFile;
         public string AssetSetsXMLFile
         {

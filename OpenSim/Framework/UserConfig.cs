@@ -94,7 +94,11 @@ namespace OpenSim.Framework
 
         public void LoadConfigurationFromNini(IConfigSource configSource)
         {
-
+            IConfig config = configSource.Configs["UserServerConfig"];
+            if (config != null)
+            {
+                Util.ReadSettingsFromIniFile<UserConfig>(config, this);
+            }
         }
 
         public void loadConfigurationOptions()

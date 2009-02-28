@@ -64,7 +64,11 @@ namespace OpenSim.Framework
 
         public void LoadConfigurationFromNini(IConfigSource configSource)
         {
-
+            IConfig config = configSource.Configs["GridServerConfig"];
+            if (config != null)
+            {
+                Util.ReadSettingsFromIniFile<GridConfig>(config, this);
+            }
         }
 
         public void loadConfigurationOptions()

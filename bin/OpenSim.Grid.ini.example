@@ -1,0 +1,30 @@
+[Startup]
+ HttpPort = 8001
+ LoadPlugins = "GridServerPlugin,UserServerPlugin"
+
+[UserServerConfig]
+ DatabaseProvider = "OpenSim.Data.MySql.dll"
+ DatabaseConnect = ""
+ DefaultStartupMsg = "Welcome to opensim"
+ DefaultX = 1000
+ DefaultY = 1000
+ GridRecvKey = "key"
+ GridSendKey = "key"
+ HttpSSL = false
+ DefaultUserLevel = 0
+ LibraryXmlfile = ".\inventory\Libraries.xml"
+ InventoryUrl =  "http://127.0.0.1:8004/"
+ GridServerURL = "http://127.0.0.1:8001/"
+ EnableLLSDLogin = true
+
+[GridServerConfig]
+ DatabaseProvider = "OpenSim.Data.MySql.dll"
+ DatabaseConnect = ""
+ DefaultAssetServer = "http://127.0.0.1:8003/"
+ DefaultUserServer = "http://127.0.0.1:8001/"
+ SimRecvKey = "key"
+ SimSendKey = "key"
+ UserRecvKey = "key"
+ UserSendKey = "key"
+ AssetRecvKey = "key"
+ AssetSendKey = "key"

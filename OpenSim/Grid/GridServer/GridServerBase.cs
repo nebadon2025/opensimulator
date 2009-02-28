@@ -96,23 +96,42 @@ namespace OpenSim.Grid.GridServer
         {
             uint httpPort = 8051;
 
-            m_gconfig = new GridConfig("GRID SERVER", (Path.Combine(Util.configDir(), "GridServer_Config.xml")));
+           // m_gconfig = new GridConfig("GRID SERVER", (Path.Combine(Util.configDir(), "GridServer_Config.xml")));
 
-            m_uconfig = new UserConfig("USER SERVER", (Path.Combine(Util.configDir(), "UserServer_Config.xml")));
+            //m_uconfig = new UserConfig("USER SERVER", (Path.Combine(Util.configDir(), "UserServer_Config.xml")));
+
+            m_uconfig = new UserConfig();
+            m_uconfig.LoadConfigurationFromNini(m_configSource.Source);
+
+            m_gconfig = new GridConfig();
+            m_gconfig.LoadConfigurationFromNini(m_configSource.Source);
+
+            Console.WriteLine("grid server  database provider is {0} ", m_gconfig.DatabaseProvider);
 
             IConfig startupConfig = m_configSource.Source.Configs["Startup"];
             if (startupConfig != null)
             {
                 Convert.ToUInt32(startupConfig.GetString("HttpPort", "8051"));
+
+                m_log.Info("[GRID]: Starting HTTP process");
+                m_httpServer = new BaseHttpServer(httpPort);
+
+                string pluginsToLoad = startupConfig.GetString("LoadPlugins", "");
+
+                if (!String.IsNullOrEmpty(pluginsToLoad))
+                {
+                    LoadPlugins(pluginsToLoad);
+                }
+                else
+                {
+                    LoadPlugins();
+                }
+
+                m_httpServer.Start();
+
             }
-
-            m_log.Info("[GRID]: Starting HTTP process");
-            m_httpServer = new BaseHttpServer(httpPort);
-
-            LoadPlugins();
-
-            m_httpServer.Start();
-
+           
+           
             base.StartupSpecific();
         }
 
@@ -122,6 +141,18 @@ namespace OpenSim.Grid.GridServer
                 new PluginLoader<IGridPlugin>(new GridPluginInitialiser(this));
 
             loader.Load("/OpenSim/GridServer");
+            m_plugins = loader.Plugins;
+        }
+
+        protected virtual void LoadPlugins(string pluginNames)
+        {
+            PluginLoader<IGridPlugin> loader =
+                new PluginLoader<IGridPlugin>(new GridPluginInitialiser(this));
+
+            PluginIdFilter filer = new PluginIdFilter(pluginNames);
+            loader.Add("/OpenSim/GridServer", filer);
+
+            loader.Load();
             m_plugins = loader.Plugins;
         }
 

@@ -956,6 +956,10 @@ namespace OpenSim.Framework
                 {
                     fieldInfo.SetValue(settingsClass, config.GetFloat(fieldInfo.Name, (float)fieldInfo.GetValue(settingsClass)));
                 }
+                else if (fieldInfo.FieldType == typeof(System.UInt32))
+                {
+                    fieldInfo.SetValue(settingsClass, System.Convert.ToUInt32(config.Get(fieldInfo.Name, ((uint)fieldInfo.GetValue(settingsClass)).ToString())));
+                }
             }
 
             PropertyInfo[] propertyInfos = settingsType.GetProperties();
@@ -978,6 +982,10 @@ namespace OpenSim.Framework
                     else if (propInfo.PropertyType == typeof(System.Single))
                     {
                         propInfo.SetValue(settingsClass, config.GetFloat(propInfo.Name, (float)propInfo.GetValue(settingsClass, null)), null);
+                    }
+                    if (propInfo.PropertyType == typeof(System.UInt32))
+                    {
+                        propInfo.SetValue(settingsClass, System.Convert.ToUInt32(config.Get(propInfo.Name, ((uint)propInfo.GetValue(settingsClass, null)).ToString())), null);
                     }
                 }
             }

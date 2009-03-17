@@ -215,7 +215,7 @@ namespace OpenSim
 
         }
 
-        private void LoadXmlLinkFile(string[] cmdparams)
+        public void LoadXmlLinkFile(string[] cmdparams)
         {
             try
             {

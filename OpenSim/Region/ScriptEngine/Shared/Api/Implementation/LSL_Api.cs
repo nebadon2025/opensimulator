@@ -7822,6 +7822,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (!World.Permissions.CanEditParcel(m_host.ObjectOwner, landObject)) return;
 
             bool update = false; // send a ParcelMediaUpdate (and possibly change the land's media URL)? 
+            byte loop = 0;
 
             LandData landData = landObject.landData;
             string url = landData.MediaURL;
@@ -7860,7 +7861,17 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         break;
 
                     case ParcelMediaCommandEnum.Loop:
+                        loop = 1;
+                        commandToSend = command;
+                        update = true; //need to send the media update packet to set looping
+                        break;
+
                     case ParcelMediaCommandEnum.Play:
+                        loop = 0;
+                        commandToSend = command;
+                        update = true; //need to send the media update packet to make sure it doesn't loop
+                        break;
+
                     case ParcelMediaCommandEnum.Pause:
                     case ParcelMediaCommandEnum.Stop:
                     case ParcelMediaCommandEnum.Unload:
@@ -7994,7 +8005,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                                                                       mediaType,
                                                                       description,
                                                                       width, height,
-                                                                      1); // TODO do some LOOP logic here
+                                                                      loop); // TODO do some LOOP logic here
                     }
                 }
                 else if (!presence.IsChildAgent)
@@ -8006,7 +8017,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                                                                      mediaType,
                                                                      description,
                                                                      width, height,
-                                                                     1); // TODO do some LOOP logic here
+                                                                     loop); // TODO do some LOOP logic here
                 }
             }
 

@@ -36,30 +36,32 @@ using OpenSim.Framework;
 using OpenSim.Framework.Communications;
 using OpenSim.Framework.Servers;
 using OpenSim.Grid.Framework;
+using OpenSim.Grid.GridServer;
 
 namespace OpenSim.Grid.UserServer.Modules
 {
-    public class UserServerFriendsModule
+    public class UserServerFriendsModule : IGridServiceModule
     {
-        //private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private UserDataBaseService m_userDataBaseService;
 
         private BaseHttpServer m_httpServer;
+        private IGridServiceCore m_core;
 
-        public UserServerFriendsModule(UserDataBaseService userDataBaseService)
+        public UserServerFriendsModule()
         {
-            m_userDataBaseService = userDataBaseService;
         }
 
         public void Initialise(IGridServiceCore core)
         {
-
+            m_core = core;
         }
 
         public void PostInitialise()
         {
-
+            if (!m_core.TryGet<UserDataBaseService>(out m_userDataBaseService))
+                m_log.Error("[UserServerFriendsModule]: Failed to fetch database plugin");
         }
 
         public void RegisterHandlers(BaseHttpServer httpServer)
@@ -169,6 +171,15 @@ namespace OpenSim.Grid.UserServer.Modules
             }
 
             return FriendListItemListtoXmlRPCResponse(returndata);
+        }
+
+        public void Close()
+        {
+        }
+
+        public string Name
+        {
+            get { return "UserServerFriendsModule"; }
         }
     }
 }

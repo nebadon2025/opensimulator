@@ -41,7 +41,7 @@ namespace OpenSim.Grid.UserServer.Modules
 {
     public delegate void logOffUser(UUID AgentID);
 
-    public class UserManager 
+    public class UserManager : IGridServiceModule
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -50,24 +50,22 @@ namespace OpenSim.Grid.UserServer.Modules
 
         private UserDataBaseService m_userDataBaseService;
         private BaseHttpServer m_httpServer;
+        private IGridServiceCore m_core;
         
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="userDataBaseService"></param>
-        public UserManager( UserDataBaseService userDataBaseService)
+        public UserManager()
         {
-            m_userDataBaseService = userDataBaseService;
         }
 
         public void Initialise(IGridServiceCore core)
         {
-
+            m_core = core;
+            m_core.RegisterInterface<UserManager>(this);
         }
 
         public void PostInitialise()
         {
-
+            if (!m_core.TryGet<UserDataBaseService>(out m_userDataBaseService))
+                m_log.Error("[UserManager]: Failed to fetch database plugin");
         }
 
         public void RegisterHandlers(BaseHttpServer httpServer)
@@ -685,6 +683,15 @@ namespace OpenSim.Grid.UserServer.Modules
         public void HandleRegionShutdown(UUID regionID)
         {
             m_userDataBaseService.LogoutUsers(regionID);
-        }   
+        }
+
+        public void Close()
+        {
+        }
+
+        public string Name
+        {
+            get { return "UserManager"; }
+        }
     }
 }

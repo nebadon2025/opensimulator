@@ -53,24 +53,15 @@ namespace OpenSim.Grid.UserServer.Modules
 
         protected UserDataBaseService m_userDataBaseService;
 
-        public UserManager m_userManager;
-
-        protected UserServerAvatarAppearanceModule m_avatarAppearanceModule;
-        protected UserServerFriendsModule m_friendsModule;
-
         public UserLoginService m_loginService;
-        public MessageServersConnector m_messagesService;
-
-        protected GridInfoServiceModule m_gridInfoService;
-
-        protected UserServerCommandModule m_consoleCommandModule;
-        protected UserServerEventDispatchModule m_eventDispatcher;
 
         protected BaseHttpServer m_httpServer;
 
         protected IGridServiceCore m_core;
 
         protected ConsoleBase m_console;
+
+        protected List<IGridServiceModule> m_modules;
 
 
         public UserServerPlugin()
@@ -133,24 +124,21 @@ namespace OpenSim.Grid.UserServer.Modules
             m_userDataBaseService = new UserDataBaseService();
             m_userDataBaseService.Initialise(m_core);
 
-            //TODO: change these modules so they fetch the databaseService class in the PostInitialise method
-            m_userManager = new UserManager(m_userDataBaseService);
-            m_userManager.Initialise(m_core);
+            //DONE: change these modules so they fetch the databaseService class in the PostInitialise method
 
-            m_avatarAppearanceModule = new UserServerAvatarAppearanceModule(m_userDataBaseService);
-            m_avatarAppearanceModule.Initialise(m_core);
+            GridModuleLoader<IGridServiceModule> moduleLoader = new GridModuleLoader<IGridServiceModule>();
 
-            m_friendsModule = new UserServerFriendsModule(m_userDataBaseService);
-            m_friendsModule.Initialise(m_core);
+            m_modules = moduleLoader.PickupModules(".");
 
-            m_consoleCommandModule = new UserServerCommandModule();
-            m_consoleCommandModule.Initialise(m_core);
+            InitializeModules();
+        }
 
-            m_messagesService = new MessageServersConnector();
-            m_messagesService.Initialise(m_core);
-
-            m_gridInfoService = new GridInfoServiceModule();
-            m_gridInfoService.Initialise(m_core);
+        private void InitializeModules()
+        {
+            foreach (IGridServiceModule module in m_modules)
+            {
+                module.Initialise(m_core);
+            }
         }
 
         protected virtual void StartOtherComponents(IInterServiceInventoryServices inventoryService)
@@ -164,32 +152,24 @@ namespace OpenSim.Grid.UserServer.Modules
             m_loginService.setloginlevel((int)m_cfg.DefaultUserLevel);
 
            m_core.RegisterInterface<UserLoginService>(m_loginService); //TODO: should be done in the login service
-
-            m_eventDispatcher = new UserServerEventDispatchModule(m_userManager, m_messagesService, m_loginService);
-            m_eventDispatcher.Initialise(m_core);
         }
 
         protected virtual void PostInitialiseModules()
         {
-            m_consoleCommandModule.PostInitialise(); //it will register its Console command handlers in here
-            m_userDataBaseService.PostInitialise();
-            m_messagesService.PostInitialise();
-            m_eventDispatcher.PostInitialise(); //it will register event handlers in here
-            m_gridInfoService.PostInitialise();
-            m_userManager.PostInitialise();
-            m_avatarAppearanceModule.PostInitialise();
-            m_friendsModule.PostInitialise();
+            foreach (IGridServiceModule module in m_modules)
+            {
+                module.PostInitialise();
+            }
         }
 
         protected virtual void RegisterHttpHandlers()
         {
             m_loginService.RegisterHandlers(m_httpServer, m_cfg.EnableLLSDLogin, true);
 
-            m_userManager.RegisterHandlers(m_httpServer);
-            m_friendsModule.RegisterHandlers(m_httpServer);
-            m_avatarAppearanceModule.RegisterHandlers(m_httpServer);
-            m_messagesService.RegisterHandlers(m_httpServer);
-            m_gridInfoService.RegisterHandlers(m_httpServer);
+            foreach (IGridServiceModule module in m_modules)
+            {
+                module.RegisterHandlers(m_httpServer);
+            }
         }
 
         #region IPlugin Members
@@ -215,7 +195,10 @@ namespace OpenSim.Grid.UserServer.Modules
 
         public void Dispose()
         {
-            throw new NotImplementedException();
+            foreach (IGridServiceModule module in m_modules)
+            {
+                module.Close();
+            }
         }
 
         #endregion

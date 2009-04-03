@@ -66,7 +66,7 @@ namespace OpenSim.Grid.UserServer.Modules
     public delegate void RegionShutdownDelegate(UUID regionID);
 
 
-    public class MessageServersConnector
+    public class MessageServersConnector : IGridServiceModule
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -508,5 +508,15 @@ namespace OpenSim.Grid.UserServer.Modules
             response.Value = result;
             return response;
         }
+
+        public void Close()
+        {
+        }
+
+        public string Name
+        {
+            get { return "MessageServersConnector"; }
+        }
+
     }
 }

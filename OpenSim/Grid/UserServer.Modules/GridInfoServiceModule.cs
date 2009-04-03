@@ -41,7 +41,7 @@ using OpenSim.Grid.Framework;
 
 namespace OpenSim.Grid.UserServer.Modules
 {
-    public class GridInfoServiceModule
+    public class GridInfoServiceModule : IGridServiceModule
     {
         protected IGridServiceCore m_core;
         protected GridInfoService m_gridInfoService;
@@ -72,6 +72,11 @@ namespace OpenSim.Grid.UserServer.Modules
 
         public void Close()
         {
+        }
+
+        public string Name
+        {
+            get { return "GridInfoServiceModule"; }
         }
     }
 }

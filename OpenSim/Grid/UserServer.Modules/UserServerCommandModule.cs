@@ -44,7 +44,7 @@ using OpenSim.Grid.Framework;
 
 namespace OpenSim.Grid.UserServer.Modules
 {
-    public class UserServerCommandModule
+    public class UserServerCommandModule : IGridServiceModule
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -368,6 +368,16 @@ namespace OpenSim.Grid.UserServer.Modules
                     break;
             }
         }
-    }
+
         #endregion
+
+        public void Close()
+        {
+        }
+
+        public string Name
+        {
+            get { return "UserServerCommandModule"; }
+        }
+    }
 }

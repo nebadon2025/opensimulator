@@ -46,32 +46,38 @@ namespace OpenSim.Grid.UserServer.Modules
 {
     //Do we actually need these event dispatchers? 
     //shouldn't the other modules just directly register event handlers to each other?
-    public class UserServerEventDispatchModule
+    public class UserServerEventDispatchModule : IGridServiceModule
     {
         protected UserManager m_userManager;
         protected MessageServersConnector m_messagesService;
         protected UserLoginService m_loginService;
 
-        public UserServerEventDispatchModule(UserManager userManager, MessageServersConnector messagesService, UserLoginService loginService)
+        private IGridServiceCore m_core;
+
+        public UserServerEventDispatchModule()
         {
-            m_userManager = userManager;
-            m_messagesService = messagesService;
-            m_loginService = loginService;
         }
 
         public void Initialise(IGridServiceCore core)
         {
+            m_core = core;
         }
 
         public void PostInitialise()
         {
-            m_loginService.OnUserLoggedInAtLocation += NotifyMessageServersUserLoggedInToLocation;
-            m_userManager.OnLogOffUser += NotifyMessageServersUserLoggOff;
+            if (m_core.TryGet<UserManager>(out m_userManager) &&
+                m_core.TryGet<MessageServersConnector>(out m_messagesService) &&
+                m_core.TryGet<UserLoginService>(out m_loginService))
+            {
 
-            m_messagesService.OnAgentLocation += HandleAgentLocation;
-            m_messagesService.OnAgentLeaving += HandleAgentLeaving;
-            m_messagesService.OnRegionStartup += HandleRegionStartup;
-            m_messagesService.OnRegionShutdown += HandleRegionShutdown;
+                m_loginService.OnUserLoggedInAtLocation += NotifyMessageServersUserLoggedInToLocation;
+                m_userManager.OnLogOffUser += NotifyMessageServersUserLoggOff;
+
+                m_messagesService.OnAgentLocation += HandleAgentLocation;
+                m_messagesService.OnAgentLeaving += HandleAgentLeaving;
+                m_messagesService.OnRegionStartup += HandleRegionStartup;
+                m_messagesService.OnRegionShutdown += HandleRegionShutdown;
+            }
         }
 
         public void RegisterHandlers(BaseHttpServer httpServer)
@@ -136,5 +142,10 @@ namespace OpenSim.Grid.UserServer.Modules
             m_messagesService.TellMessageServersAboutRegionShutdown(regionID);
         }
         #endregion
+
+        public string Name
+        {
+            get { return "UserServerEventDispatchModule"; }
+        }
     }
 }

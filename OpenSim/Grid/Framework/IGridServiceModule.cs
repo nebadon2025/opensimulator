@@ -9,5 +9,6 @@ namespace OpenSim.Grid.Framework
         void Initialise(IGridServiceCore core);
         void PostInitialise();
         void RegisterHandlers(BaseHttpServer httpServer);
+        string Name { get; }
     }
 }

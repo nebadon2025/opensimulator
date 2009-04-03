@@ -39,26 +39,27 @@ using OpenSim.Grid.Framework;
 
 namespace OpenSim.Grid.UserServer.Modules
 {
-    public class UserServerAvatarAppearanceModule
+    public class UserServerAvatarAppearanceModule : IGridServiceModule
     {
-        //private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private UserDataBaseService m_userDataBaseService;
         private BaseHttpServer m_httpServer;
+        private IGridServiceCore m_core;
 
-        public UserServerAvatarAppearanceModule(UserDataBaseService userDataBaseService)
+        public UserServerAvatarAppearanceModule()
         {
-            m_userDataBaseService = userDataBaseService;
         }
 
         public void Initialise(IGridServiceCore core)
         {
-
+            m_core = core;
         }
 
         public void PostInitialise()
         {
-
+            if (!m_core.TryGet<UserDataBaseService>(out m_userDataBaseService))
+                m_log.Error("[UserServerAvatarAppearanceModule]: Failed to fetch database plugin");
         }
 
         public void RegisterHandlers(BaseHttpServer httpServer)
@@ -120,6 +121,15 @@ namespace OpenSim.Grid.UserServer.Modules
             }
             response.Value = responseData;
             return response;
+        }
+
+        public void Close()
+        {
+        }
+
+        public string Name
+        {
+            get { return "UserServerAvatarAppearanceModule"; }
         }
     }
 }

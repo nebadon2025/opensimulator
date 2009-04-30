@@ -90,11 +90,6 @@ namespace OpenSim.Grid.UserServer.Modules
             StartupUserServerModules();
 
             StartOtherComponents(inventoryService);
-
-            //PostInitialise the modules
-            PostInitialiseModules();
-
-            RegisterHttpHandlers();
         }
 
         protected virtual IInterServiceInventoryServices StartupCoreComponents()
@@ -123,22 +118,6 @@ namespace OpenSim.Grid.UserServer.Modules
             //setup database access service, for now this has to be created before the other modules.
             m_userDataBaseService = new UserDataBaseService();
             m_userDataBaseService.Initialise(m_core);
-
-            //DONE: change these modules so they fetch the databaseService class in the PostInitialise method
-
-            GridModuleLoader<IGridServiceModule> moduleLoader = new GridModuleLoader<IGridServiceModule>();
-
-            m_modules = moduleLoader.PickupModules(".");
-
-            InitializeModules();
-        }
-
-        private void InitializeModules()
-        {
-            foreach (IGridServiceModule module in m_modules)
-            {
-                module.Initialise(m_core);
-            }
         }
 
         protected virtual void StartOtherComponents(IInterServiceInventoryServices inventoryService)
@@ -152,24 +131,8 @@ namespace OpenSim.Grid.UserServer.Modules
             m_loginService.setloginlevel((int)m_cfg.DefaultUserLevel);
 
            m_core.RegisterInterface<UserLoginService>(m_loginService); //TODO: should be done in the login service
-        }
 
-        protected virtual void PostInitialiseModules()
-        {
-            foreach (IGridServiceModule module in m_modules)
-            {
-                module.PostInitialise();
-            }
-        }
-
-        protected virtual void RegisterHttpHandlers()
-        {
-            m_loginService.RegisterHandlers(m_httpServer, m_cfg.EnableLLSDLogin, true);
-
-            foreach (IGridServiceModule module in m_modules)
-            {
-                module.RegisterHandlers(m_httpServer);
-            }
+           m_loginService.RegisterHandlers(m_httpServer, m_cfg.EnableLLSDLogin, true);
         }
 
         #region IPlugin Members
@@ -195,10 +158,6 @@ namespace OpenSim.Grid.UserServer.Modules
 
         public void Dispose()
         {
-            foreach (IGridServiceModule module in m_modules)
-            {
-                module.Close();
-            }
         }
 
         #endregion

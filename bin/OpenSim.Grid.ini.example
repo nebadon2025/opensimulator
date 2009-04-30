@@ -1,6 +1,6 @@
 [Startup]
  HttpPort = 8001
- LoadPlugins = "GridServerPlugin,UserServerPlugin"
+ LoadPlugins = "GridServerPlugin,UserServerPlugin,GridModuleLoaderPlugin"
 
 [UserServerConfig]
  DatabaseProvider = "OpenSim.Data.MySql.dll"

@@ -41,7 +41,7 @@ using OpenSim.Grid.Framework;
 
 namespace OpenSim.Grid.GridServer.Modules
 {
-    public class GridRestModule
+    public class GridRestModule : IGridServiceModule
     {
          private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -67,24 +67,34 @@ namespace OpenSim.Grid.GridServer.Modules
         {
         }
 
-        public void Initialise(string opensimVersion, GridDBService gridDBService, IGridServiceCore gridCore, GridConfig config)
+        #region IGridServiceModule Members
+
+        public void Close()
         {
-            //m_opensimVersion = opensimVersion;
-            m_gridDBService = gridDBService;
-            m_gridCore = gridCore;
-            m_config = config;
-            RegisterHandlers();
+            throw new NotImplementedException();
+        }
+
+        public void Initialise(IGridServiceCore core)
+        {
+            m_gridCore = core;
         }
 
         public void PostInitialise()
         {
-
+            IRegionProfileService dbService;
+            if (m_gridCore.TryGet<IRegionProfileService>(out dbService) &&
+                m_gridCore.TryGet<GridConfig>(out m_config))
+            {
+                if (dbService is GridDBService)
+                    m_gridDBService = (GridDBService)dbService;
+            }
+            else
+                m_log.Warn("[GridRestModule]: Could not get modules from core");
         }
 
-        public void RegisterHandlers()
+        public void RegisterHandlers(BaseHttpServer httpServer)
         {
-            //have these in separate method as some servers restart the http server and reregister all the handlers.
-            m_httpServer = m_gridCore.GetHttpServer();
+            m_httpServer = httpServer;
 
             m_httpServer.AddStreamHandler(new RestStreamHandler("GET", "/sims/", RestGetSimMethod));
             m_httpServer.AddStreamHandler(new RestStreamHandler("POST", "/sims/", RestSetSimMethod));
@@ -92,6 +102,13 @@ namespace OpenSim.Grid.GridServer.Modules
             m_httpServer.AddStreamHandler(new RestStreamHandler("GET", "/regions/", RestGetRegionMethod));
             m_httpServer.AddStreamHandler(new RestStreamHandler("POST", "/regions/", RestSetRegionMethod));
         }
+
+        public string Name
+        {
+            get { return "GridRestModule"; }
+        }
+
+        #endregion
 
         /// <summary>
         /// Performs a REST Get Operation

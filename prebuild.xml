@@ -784,6 +784,32 @@
       </Files>
     </Project>
 
+    <Project name="OpenSim.Grid.GridServer.ModuleLoader" path="OpenSim/Grid/GridServer.ModuleLoader" type="Library">
+      <Configuration name="Debug">
+        <Options>
+          <OutputPath>../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+      <Configuration name="Release">
+        <Options>
+          <OutputPath>../../../bin/</OutputPath>
+        </Options>
+      </Configuration>
+
+      <ReferencePath>../../../bin/</ReferencePath>
+      <Reference name="System"/>
+      <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Framework.Servers"/>
+      <Reference name="OpenSim.Grid.Framework"/>
+      <Reference name="OpenSim.Grid.GridServer"/>
+      <Reference name="log4net.dll"/>
+
+      <Files>
+        <Match pattern="*.cs" recurse="true"/>
+        <Match pattern="*.addin.xml" path="Resources" buildAction="EmbeddedResource" recurse="true"/>
+      </Files>
+    </Project>
+
 
     <Project name="OpenSim.Grid.AssetServer" path="OpenSim/Grid/AssetServer" type="Exe">
       <Configuration name="Debug">

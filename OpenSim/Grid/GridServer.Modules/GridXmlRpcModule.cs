@@ -42,7 +42,7 @@ using OpenSim.Grid.Framework;
 
 namespace OpenSim.Grid.GridServer.Modules
 {
-    public class GridXmlRpcModule
+    public class GridXmlRpcModule : IGridServiceModule
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -69,28 +69,27 @@ namespace OpenSim.Grid.GridServer.Modules
         {
         }
 
-        public void Initialise(string opensimVersion, IRegionProfileService gridDBService, IGridServiceCore gridCore, GridConfig config)
+        #region IGridServiceModule Members
+
+        public void Initialise(IGridServiceCore core)
         {
-            m_opensimVersion = opensimVersion;
-            m_gridDBService = gridDBService;
-            m_gridCore = gridCore;
-            m_config = config;
-            RegisterHandlers();
+            m_gridCore = core;
         }
 
         public void PostInitialise()
         {
             IMessagingServerDiscovery messagingModule;
-            if (m_gridCore.TryGet<IMessagingServerDiscovery>(out messagingModule))
+            if (m_gridCore.TryGet<IMessagingServerDiscovery>(out messagingModule) &&
+                m_gridCore.TryGet<IRegionProfileService>(out m_gridDBService) &&
+                m_gridCore.TryGet<GridConfig>(out m_config))
             {
                 m_messagingServerMapper = messagingModule;
             }
         }
 
-        public void RegisterHandlers()
+        public void RegisterHandlers(BaseHttpServer httpServer)
         {
-            //have these in separate method as some servers restart the http server and reregister all the handlers.
-            m_httpServer = m_gridCore.GetHttpServer();
+            m_httpServer = httpServer;
 
             m_httpServer.AddXmlRPCHandler("simulator_login", XmlRpcSimulatorLoginMethod);
             m_httpServer.AddXmlRPCHandler("simulator_data_request", XmlRpcSimulatorDataRequestMethod);
@@ -98,6 +97,17 @@ namespace OpenSim.Grid.GridServer.Modules
             m_httpServer.AddXmlRPCHandler("map_block", XmlRpcMapBlockMethod);
             m_httpServer.AddXmlRPCHandler("search_for_region_by_name", XmlRpcSearchForRegionMethod);
         }
+
+        public string Name
+        {
+            get { return "GridXmlRpcModule"; }
+        }
+
+        public void Close()
+        {
+        }
+
+        #endregion
 
         /// <summary>
         /// Returns a XML String containing a list of the neighbouring regions

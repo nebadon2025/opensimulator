@@ -962,6 +962,10 @@ namespace OpenSim.Framework
                     {
                         fieldInfo.SetValue(settingsClass, System.Convert.ToUInt32(config.Get(fieldInfo.Name, ((uint)fieldInfo.GetValue(settingsClass)).ToString())));
                     }
+                    else if (fieldInfo.FieldType == typeof(System.Uri))
+                    {
+                        fieldInfo.SetValue(settingsClass, new Uri(config.Get(fieldInfo.Name, (string)fieldInfo.GetValue(settingsClass))));
+                    }
                 }
             }
 
@@ -986,9 +990,13 @@ namespace OpenSim.Framework
                     {
                         propInfo.SetValue(settingsClass, config.GetFloat(propInfo.Name, (float)propInfo.GetValue(settingsClass, null)), null);
                     }
-                    if (propInfo.PropertyType == typeof(System.UInt32))
+                    else if (propInfo.PropertyType == typeof(System.UInt32))
                     {
                         propInfo.SetValue(settingsClass, System.Convert.ToUInt32(config.Get(propInfo.Name, ((uint)propInfo.GetValue(settingsClass, null)).ToString())), null);
+                    }
+                    else if (propInfo.PropertyType == typeof(System.Uri))
+                    {
+                        propInfo.SetValue(settingsClass, new Uri(config.Get(propInfo.Name, (string)propInfo.GetValue(settingsClass, null))), null);
                     }
                 }
             }

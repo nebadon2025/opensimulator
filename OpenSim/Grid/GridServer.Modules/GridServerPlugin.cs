@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 using log4net;
+using OpenSim.Data;
 using OpenSim.Framework;
 using OpenSim.Framework.Console;
 using OpenSim.Grid.Framework;
@@ -71,19 +72,8 @@ namespace OpenSim.Grid.GridServer.Modules
 
             //Register the database access service so modules can fetch it
             // RegisterInterface<GridDBService>(m_gridDBService);
-
-            m_gridMessageModule = new GridMessagingModule();
-            m_gridMessageModule.Initialise(m_version, m_gridDBService, m_core, m_config);
-
-            m_gridXmlRpcModule = new GridXmlRpcModule();
-            m_gridXmlRpcModule.Initialise(m_version, m_gridDBService, m_core, m_config);
-
-            m_gridRestModule = new GridRestModule();
-            m_gridRestModule.Initialise(m_version, m_gridDBService, m_core, m_config);
-
-            m_gridMessageModule.PostInitialise();
-            m_gridXmlRpcModule.PostInitialise();
-            m_gridRestModule.PostInitialise();
+            m_core.RegisterInterface<IRegionProfileService>(m_gridDBService);
+            m_core.RegisterInterface<GridConfig>(m_config);
         }
 
         #region Console Command Handlers

@@ -39,9 +39,9 @@ using OpenSim.Grid.Framework;
 
 namespace OpenSim.Grid.GridServer.Modules
 {
-    public class GridMessagingModule : IMessagingServerDiscovery
+    public class GridMessagingModule : IMessagingServerDiscovery, IGridServiceModule
     {
-        //private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         protected IRegionProfileService m_gridDBService;
         protected IGridServiceCore m_gridCore;
@@ -62,27 +62,28 @@ namespace OpenSim.Grid.GridServer.Modules
         { 
         }
 
-        public void Initialise(string opensimVersion, IRegionProfileService gridDBService, IGridServiceCore gridCore, GridConfig config)
+        public void Initialise(IGridServiceCore core)
         {
-            //m_opensimVersion = opensimVersion;
-            m_gridDBService = gridDBService;
-            m_gridCore = gridCore;
-            m_config = config;
-
+            m_gridCore = core;
             m_gridCore.RegisterInterface<IMessagingServerDiscovery>(this);
-
-            RegisterHandlers();
         }
 
         public void PostInitialise()
         {
-
+            if (m_gridCore.TryGet<IRegionProfileService>(out m_gridDBService) &&
+                m_gridCore.TryGet<GridConfig>(out m_config))
+            {
+                ;
+            }
+            else
+            {
+                m_log.Error("[GridMessagingModule] Failed to post initialize module");
+            }
         }
 
-        public void RegisterHandlers()
+        public void RegisterHandlers(BaseHttpServer httpServer)
         {
-            //have these in separate method as some servers restart the http server and reregister all the handlers.
-            m_httpServer = m_gridCore.GetHttpServer();
+            m_httpServer = httpServer;
 
             // Message Server ---> Grid Server
             m_httpServer.AddXmlRPCHandler("register_messageserver", XmlRPCRegisterMessageServer);
@@ -157,6 +158,15 @@ namespace OpenSim.Grid.GridServer.Modules
                 if (m_messageServers.Contains(m))
                     m_messageServers.Remove(m);
             }
+        }
+
+        public void Close()
+        {
+        }
+
+        public string Name
+        {
+            get { return "GridMessagingModule"; }
         }
     }
 }

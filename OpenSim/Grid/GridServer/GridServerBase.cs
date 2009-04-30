@@ -111,10 +111,11 @@ namespace OpenSim.Grid.GridServer
             IConfig startupConfig = m_configSource.Source.Configs["Startup"];
             if (startupConfig != null)
             {
-                Convert.ToUInt32(startupConfig.GetString("HttpPort", "8051"));
+                httpPort = Convert.ToUInt32(startupConfig.GetString("HttpPort", "8051"));
 
-                m_log.Info("[GRID]: Starting HTTP process");
+                m_log.InfoFormat("[GRID]: Starting HTTP process on port {0}", httpPort);
                 m_httpServer = new BaseHttpServer(httpPort);
+                RegisterInterface<BaseHttpServer>(m_httpServer);
 
                 string pluginsToLoad = startupConfig.GetString("LoadPlugins", "");
 

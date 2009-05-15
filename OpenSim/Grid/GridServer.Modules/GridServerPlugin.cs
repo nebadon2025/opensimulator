@@ -43,6 +43,10 @@ namespace OpenSim.Grid.GridServer.Modules
             SetupGridServices();
         }
 
+        public void PostInitialise()
+        {
+        }
+
         #endregion
 
         #region IPlugin Members

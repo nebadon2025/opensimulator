@@ -20,7 +20,10 @@ namespace OpenSim.Grid.GridServer.ModuleLoader
         public void Initialise(GridServerBase gridServer)
         {
             m_core = gridServer;
+        }
 
+        public void PostInitialise()
+        {
             GridModuleLoader<IGridServiceModule> moduleLoader = new GridModuleLoader<IGridServiceModule>();
 
             m_modules = moduleLoader.PickupModules(".");

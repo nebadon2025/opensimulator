@@ -75,6 +75,11 @@ namespace OpenSim.Grid.UserServer.Modules
             Initialise(gridServer.HttpServer, gridServer, gridServer.UConfig);
         }
 
+        public void PostInitialise()
+        {
+
+        }
+
         #endregion
 
         public void Initialise(BaseHttpServer httpServer, IGridServiceCore core, UserConfig config)

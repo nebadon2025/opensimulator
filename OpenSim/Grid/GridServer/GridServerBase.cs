@@ -128,6 +128,11 @@ namespace OpenSim.Grid.GridServer
                     LoadPlugins();
                 }
 
+                foreach (IGridPlugin plugin in m_plugins)
+                {
+                    plugin.PostInitialise();
+                }
+
                 m_httpServer.Start();
 
             }

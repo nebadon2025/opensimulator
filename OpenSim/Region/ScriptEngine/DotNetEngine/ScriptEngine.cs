@@ -84,7 +84,7 @@ namespace OpenSim.Region.ScriptEngine.DotNetEngine
 
         public IConfigSource ConfigSource
         {
-            get { return ConfigSource; }
+            get { return m_ConfigSource; }
         }
 
         // How many seconds between re-reading config-file.

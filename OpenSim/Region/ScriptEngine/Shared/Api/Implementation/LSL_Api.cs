@@ -7935,11 +7935,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public void llSetObjectPermMask(int mask, int value)
         {
             m_host.AddScriptLPS(1);
-            IConfigSource config = new IniConfigSource(Application.iniFilePath);
-            if (config.Configs["XEngine"] == null)
-                config.AddConfig("XEngine");
 
-            if (config.Configs["XEngine"].GetBoolean("AllowGodFunctions", false))
+            if (m_ScriptEngine.Config.GetBoolean("AllowGodFunctions", false))
             {
                 if (World.Permissions.CanRunConsoleCommand(m_host.OwnerID))
                 {
@@ -8947,7 +8944,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             Dictionary<string, string> httpHeaders = new Dictionary<string, string>();
 
             string shard = "OpenSim";
-            IConfigSource config = new IniConfigSource(Application.iniFilePath);
+            IConfigSource config = m_ScriptEngine.ConfigSource;
             if (config.Configs["Network"] != null)
             {
                 shard 

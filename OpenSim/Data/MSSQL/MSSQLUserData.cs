@@ -576,8 +576,7 @@ namespace OpenSim.Data.MSSQL
         /// <param name="user">the used UUID</param>
         /// <param name="appearance">the appearence</param>
         override public void UpdateUserAppearance(UUID user, AvatarAppearance appearance)
-        {
-            m_log.Error("[USER DB] updating user appearance for user ID " + user.Guid);
+        {            
             string sql = String.Empty;
             sql += "DELETE FROM avatarappearance WHERE owner=@owner ";
             sql += "INSERT INTO avatarappearance ";
@@ -1113,6 +1112,10 @@ ELSE
                 retval.ID = new UUID((Guid)reader["UUID"]);
                 retval.FirstName = (string)reader["username"];
                 retval.SurName = (string)reader["lastname"];
+                if (reader.IsDBNull(reader.GetOrdinal("email")))
+                    retval.Email = "";
+                else
+                    retval.Email = (string)reader["email"];
 
                 retval.PasswordHash = (string)reader["passwordHash"];
                 retval.PasswordSalt = (string)reader["passwordSalt"];
@@ -1127,6 +1130,11 @@ ELSE
                     Convert.ToSingle(reader["homeLookAtY"].ToString()),
                     Convert.ToSingle(reader["homeLookAtZ"].ToString()));
 
+                if (reader.IsDBNull(reader.GetOrdinal("homeRegionID")))                
+                    retval.HomeRegionID = UUID.Zero;               
+                else                
+                    retval.HomeRegionID = new UUID((Guid)reader["homeRegionID"]);                
+
                 retval.Created = Convert.ToInt32(reader["created"].ToString());
                 retval.LastLogin = Convert.ToInt32(reader["lastLogin"].ToString());
 
@@ -1136,12 +1144,42 @@ ELSE
                 retval.CanDoMask = Convert.ToUInt32(reader["profileCanDoMask"].ToString());
                 retval.WantDoMask = Convert.ToUInt32(reader["profileWantDoMask"].ToString());
 
-                retval.AboutText = (string)reader["profileAboutText"];
-                retval.FirstLifeAboutText = (string)reader["profileFirstText"];
+                if (reader.IsDBNull(reader.GetOrdinal("profileAboutText")))                
+                    retval.AboutText = "";               
+                else                
+                    retval.AboutText = (string)reader["profileAboutText"];                
 
-                retval.Image = new UUID((Guid)reader["profileImage"]);
-                retval.FirstLifeImage = new UUID((Guid)reader["profileFirstImage"]);
-                retval.WebLoginKey = new UUID((Guid)reader["webLoginKey"]);
+                if (reader.IsDBNull(reader.GetOrdinal("profileFirstText")))                
+                    retval.FirstLifeAboutText = "";               
+                else                
+                    retval.FirstLifeAboutText = (string)reader["profileFirstText"];                
+
+                if (reader.IsDBNull(reader.GetOrdinal("profileImage")))                
+                    retval.Image = UUID.Zero;               
+                else                
+                    retval.Image = new UUID((Guid)reader["profileImage"]);                
+
+                if (reader.IsDBNull(reader.GetOrdinal("profileFirstImage")))               
+                    retval.Image = UUID.Zero;               
+                else                
+                    retval.FirstLifeImage = new UUID((Guid)reader["profileFirstImage"]);                
+
+                if (reader.IsDBNull(reader.GetOrdinal("webLoginKey")))                
+                    retval.WebLoginKey = UUID.Zero;              
+                else               
+                    retval.WebLoginKey = new UUID((Guid)reader["webLoginKey"]);                            
+
+                retval.UserFlags = Convert.ToInt32(reader["userFlags"].ToString());
+                retval.GodLevel = Convert.ToInt32(reader["godLevel"].ToString());
+                if (reader.IsDBNull(reader.GetOrdinal("customType")))
+                    retval.CustomType = "";
+                else
+                    retval.CustomType = reader["customType"].ToString();
+
+                if (reader.IsDBNull(reader.GetOrdinal("partner")))                
+                    retval.Partner = UUID.Zero;                
+                else                
+                    retval.Partner = new UUID((Guid)reader["partner"]);                
             }
             else
             {

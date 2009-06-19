@@ -381,7 +381,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Friends
             client.OnLogout += OnLogout;
         }
 
-        private void ClientClosed(UUID AgentId)
+        private void ClientClosed(UUID AgentId, Scene scene)
         {
             // agent's client was closed. As we handle logout in OnLogout, this here has only to handle
             // TPing away (root agent is closed) or TPing/crossing in a region far enough away (client

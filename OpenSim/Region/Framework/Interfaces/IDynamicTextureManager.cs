@@ -30,8 +30,10 @@ using OpenMetaverse;
 
 namespace OpenSim.Region.Framework.Interfaces
 {
+
     public interface IDynamicTextureManager
     {
+
         void RegisterRender(string handleType, IDynamicTextureRender render);
         void ReturnData(UUID id, byte[] data);
 

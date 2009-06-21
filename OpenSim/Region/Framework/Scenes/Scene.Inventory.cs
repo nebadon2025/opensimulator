@@ -1528,10 +1528,14 @@ namespace OpenSim.Region.Framework.Scenes
                     return;
 
                 if (part.OwnerID != remoteClient.AgentId)
-                    return;
-
-                if ((part.OwnerMask & (uint)PermissionMask.Modify) == 0)
-                    return;
+		{
+		    // Group permissions
+		    if ( (part.GroupID == UUID.Zero) || (remoteClient.GetGroupPowers(part.GroupID) == 0) || ((part.GroupMask & (uint)PermissionMask.Modify) == 0) )
+			return;
+		} else {
+		    if ((part.OwnerMask & (uint)PermissionMask.Modify) == 0)
+			return;
+		}
 
                 if (!Permissions.CanCreateObjectInventory(
                     itemBase.InvType, part.UUID, remoteClient.AgentId))
@@ -1600,13 +1604,18 @@ namespace OpenSim.Region.Framework.Scenes
                         destId);
                 return;
             }
-
+	    
             // Must own the object, and have modify rights
             if (srcPart.OwnerID != destPart.OwnerID)
-                return;
-
-            if ((destPart.OwnerMask & (uint)PermissionMask.Modify) == 0)
-                return;
+	    {
+		// Group permissions
+		if ( (destPart.GroupID == UUID.Zero) || (destPart.GroupID != srcPart.GroupID) ||
+		((destPart.GroupMask & (uint)PermissionMask.Modify) == 0) )
+		    return;
+	    } else {
+		if ((destPart.OwnerMask & (uint)PermissionMask.Modify) == 0)
+		    return;
+	    }
 
             if (destPart.ScriptAccessPin != pin)
             {
@@ -2675,16 +2684,48 @@ namespace OpenSim.Region.Framework.Scenes
         void ObjectOwner(IClientAPI remoteClient, UUID ownerID, UUID groupID, List<uint> localIDs)
         {
             if (!Permissions.IsGod(remoteClient.AgentId))
-                return;
+            {
+                if (ownerID != UUID.Zero)
+                    return;
+                
+                if (!Permissions.CanDeedObject(remoteClient.AgentId, groupID))
+                    return;
+            }
+
+            List<SceneObjectGroup> groups = new List<SceneObjectGroup>();
 
             foreach (uint localID in localIDs)
             {
                 SceneObjectPart part = GetSceneObjectPart(localID);
-                if (part != null && part.ParentGroup != null)
+                if (!groups.Contains(part.ParentGroup))
+                    groups.Add(part.ParentGroup);
+            }
+
+            foreach (SceneObjectGroup sog in groups)
+            {
+                if (ownerID != null)
                 {
-                    part.ParentGroup.SetOwnerId(ownerID);
-                    part.Inventory.ChangeInventoryOwner(ownerID);
-                    part.ParentGroup.SetGroup(groupID, remoteClient);
+                    sog.SetOwnerId(ownerID);
+                    sog.SetGroup(groupID, remoteClient);
+
+                    foreach (SceneObjectPart child in sog.Children.Values)
+                        child.Inventory.ChangeInventoryOwner(ownerID);
+                }
+                else
+                {
+                    if (!Permissions.CanEditObject(sog.UUID, remoteClient.AgentId))
+                        continue;
+
+                    if (sog.GroupID != groupID)
+                        continue;
+
+                    foreach (SceneObjectPart child in sog.Children.Values)
+                    {
+                        child.LastOwnerID = child.OwnerID;
+                        child.Inventory.ChangeInventoryOwner(groupID);
+                    }
+
+                    sog.SetOwnerId(groupID);
                 }
             }
         }

@@ -2703,7 +2703,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             foreach (SceneObjectGroup sog in groups)
             {
-                if (ownerID != null)
+                if (ownerID != UUID.Zero)
                 {
                     sog.SetOwnerId(ownerID);
                     sog.SetGroup(groupID, remoteClient);
@@ -2728,6 +2728,12 @@ namespace OpenSim.Region.Framework.Scenes
                     sog.SetOwnerId(groupID);
                     sog.ApplyNextOwnerPermissions();
                 }
+            }
+
+            foreach (uint localID in localIDs)
+            {
+                SceneObjectPart part = GetSceneObjectPart(localID);
+                part.GetProperties(remoteClient);
             }
         }
     }

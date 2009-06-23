@@ -8626,6 +8626,10 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
                         while (true)
                         {
+                            int blockCount = members.Count;
+                            if (blockCount > 40)
+                                blockCount = 40;
+
                             GroupMembersReplyPacket groupMembersReply = (GroupMembersReplyPacket)PacketPool.Instance.GetPacket(PacketType.GroupMembersReply);
 
                             groupMembersReply.AgentData =
@@ -8634,7 +8638,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                                 new GroupMembersReplyPacket.GroupDataBlock();
                             groupMembersReply.MemberData =
                                 new GroupMembersReplyPacket.MemberDataBlock[
-                                    members.Count];
+                                    blockCount];
 
                             groupMembersReply.AgentData.AgentID = AgentId;
                             groupMembersReply.GroupData.GroupID =
@@ -8643,7 +8647,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                                 groupMembersRequestPacket.GroupData.RequestID;
                             groupMembersReply.GroupData.MemberCount = members.Count;
 
-                            for (int i = 0 ; i < 60 && members.Count > 0 ; i++)
+                            for (int i = 0 ; i < blockCount ; i++)
                             {
                                 GroupMembersData m = members[0];
                                 members.RemoveAt(0);

@@ -1276,8 +1276,16 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             {
                 SceneObjectGroup task = (SceneObjectGroup)m_scene.Entities[objectID];
 
-                if ((task.GetEffectivePermissions() & (PERM_COPY | PERM_TRANS)) != (PERM_COPY | PERM_TRANS))
-                    permission = false;
+                if (task.OwnerID != userID)
+                {
+                    if ((task.GetEffectivePermissions() & (PERM_COPY | PERM_TRANS)) != (PERM_COPY | PERM_TRANS))
+                        permission = false;
+                }
+                else
+                {
+                    if ((task.GetEffectivePermissions() & PERM_COPY) != PERM_COPY)
+                        permission = false;
+                }
             }
             
             return permission;

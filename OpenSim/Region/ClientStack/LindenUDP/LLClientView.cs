@@ -11026,5 +11026,15 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         }
 
         #endregion
+
+        public void SendRebakeAvatarTextures(UUID textureID)
+        {
+            RebakeAvatarTexturesPacket pack =
+                (RebakeAvatarTexturesPacket)PacketPool.Instance.GetPacket(PacketType.RebakeAvatarTextures);
+
+            pack.TextureData = new RebakeAvatarTexturesPacket.TextureDataBlock();
+            pack.TextureData.TextureID = textureID;
+            OutPacket(pack, ThrottleOutPacketType.Task);
+        }
     }
 }

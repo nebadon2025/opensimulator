@@ -91,29 +91,35 @@ namespace OpenSim.Framework.Serialization.External
             landData.OwnerID        = UUID.Parse(                      xtr.ReadElementString("OwnerID"));
 
             landData.ParcelAccessList = new List<ParcelManager.ParcelAccessEntry>();
-            xtr.ReadStartElement("ParcelAccessList");
-            while (xtr.Read() && xtr.NodeType != XmlNodeType.EndElement)
+            xtr.Read();
+            if (xtr.Name != "ParcelAccessList")
+                throw new XmlException(String.Format("Expected \"ParcelAccessList\" element but got \"{0}\"", xtr.Name));
+
+            if (!xtr.IsEmptyElement)
             {
-                ParcelManager.ParcelAccessEntry pae;
+                while (xtr.Read() && xtr.NodeType != XmlNodeType.EndElement)
+                {
+                    ParcelManager.ParcelAccessEntry pae = new ParcelManager.ParcelAccessEntry();
 
-                xtr.ReadStartElement("ParcelAccessEntry");
-                pae.AgentID    = UUID.Parse(                           xtr.ReadElementString("AgentID"));
-                pae.Time       = Convert.ToDateTime(                   xtr.ReadElementString("Time"));
-                pae.Flags      = (AccessList)Convert.ToUInt32(         xtr.ReadElementString("AccessList"));
-                xtr.ReadEndElement();
-
-                landData.ParcelAccessList.Add(pae);
+                    xtr.ReadStartElement("ParcelAccessEntry");
+                    pae.AgentID    = UUID.Parse(                           xtr.ReadElementString("AgentID"));
+                    pae.Time       = Convert.ToDateTime(                   xtr.ReadElementString("Time"));
+                    pae.Flags      = (AccessList)Convert.ToUInt32(         xtr.ReadElementString("AccessList"));
+                    xtr.ReadEndElement();
+                    
+                    landData.ParcelAccessList.Add(pae);
+                }
             }
-            xtr.ReadEndElement();
+            xtr.Read();
 
-            landData.PassHours      = Convert.ToSingle(                xtr.ReadElementString("PassHours"));
-            landData.PassPrice      = Convert.ToInt32(                 xtr.ReadElementString("PassPrice"));
-            landData.SalePrice      = Convert.ToInt32(                 xtr.ReadElementString("SalePrice"));
-            landData.SnapshotID     = UUID.Parse(                      xtr.ReadElementString("SnapshotID"));
-            landData.UserLocation   = Vector3.Parse(                   xtr.ReadElementString("UserLocation"));
-            landData.UserLookAt     = Vector3.Parse(                   xtr.ReadElementString("UserLookAt"));
-            landData.Dwell          = Convert.ToInt32(                 xtr.ReadElementString("Dwell"));
-            landData.OtherCleanTime = Convert.ToInt32(                 xtr.ReadElementString("OtherCleanTime"));
+            landData.PassHours      = Convert.ToSingle(                    xtr.ReadElementString("PassHours"));
+            landData.PassPrice      = Convert.ToInt32(                     xtr.ReadElementString("PassPrice"));
+            landData.SalePrice      = Convert.ToInt32(                     xtr.ReadElementString("SalePrice"));
+            landData.SnapshotID     = UUID.Parse(                          xtr.ReadElementString("SnapshotID"));
+            landData.UserLocation   = Vector3.Parse(                       xtr.ReadElementString("UserLocation"));
+            landData.UserLookAt     = Vector3.Parse(                       xtr.ReadElementString("UserLookAt"));
+            landData.Dwell          = Convert.ToInt32(                     xtr.ReadElementString("Dwell"));
+            landData.OtherCleanTime = Convert.ToInt32(                     xtr.ReadElementString("OtherCleanTime"));
 
             xtr.ReadEndElement();
             
@@ -132,47 +138,47 @@ namespace OpenSim.Framework.Serialization.External
             xtw.WriteStartDocument();
             xtw.WriteStartElement("LandData");
             
-            xtw.WriteElementString("Area", landData.Area.ToString());            
-            xtw.WriteElementString("AuctionID", landData.AuctionID.ToString());
-            xtw.WriteElementString("AuthBuyerID", landData.AuthBuyerID.ToString());
-            xtw.WriteElementString("Category", landData.Category.ToString());
-            xtw.WriteElementString("ClaimDate", landData.ClaimDate.ToString());
-            xtw.WriteElementString("ClaimPrice", landData.ClaimPrice.ToString());
-            xtw.WriteElementString("GlobalID", landData.GlobalID.ToString());
-            xtw.WriteElementString("GroupID", landData.GroupID.ToString());
-            xtw.WriteElementString("IsGroupOwned", landData.IsGroupOwned.ToString());
-            xtw.WriteElementString("Bitmap", landData.Bitmap.ToString());
-            xtw.WriteElementString("Description", landData.Description);
-            xtw.WriteElementString("Flags", landData.Flags.ToString());
-            xtw.WriteElementString("LandingType", landData.LandingType.ToString());
-            xtw.WriteElementString("Name", landData.Name);
-            xtw.WriteElementString("Status", landData.Status.ToString());
-            xtw.WriteElementString("LocalID", landData.LocalID.ToString());
-            xtw.WriteElementString("MediaAutoScale", landData.MediaAutoScale.ToString());
-            xtw.WriteElementString("MediaID", landData.MediaID.ToString());
-            xtw.WriteElementString("MediaURL", landData.MediaURL.ToString());
-            xtw.WriteElementString("MusicURL", landData.MusicURL.ToString());
-            xtw.WriteElementString("OwnerID", landData.OwnerID.ToString());
+            xtw.WriteElementString("Area",           Convert.ToString(landData.Area));            
+            xtw.WriteElementString("AuctionID",      Convert.ToString(landData.AuctionID));
+            xtw.WriteElementString("AuthBuyerID",    landData.AuthBuyerID.ToString());
+            xtw.WriteElementString("Category",       Convert.ToString((sbyte)landData.Category));
+            xtw.WriteElementString("ClaimDate",      Convert.ToString(landData.ClaimDate));
+            xtw.WriteElementString("ClaimPrice",     Convert.ToString(landData.ClaimPrice));
+            xtw.WriteElementString("GlobalID",       landData.GlobalID.ToString());
+            xtw.WriteElementString("GroupID",        landData.GroupID.ToString());
+            xtw.WriteElementString("IsGroupOwned",   Convert.ToString(landData.IsGroupOwned));
+            xtw.WriteElementString("Bitmap",         Convert.ToBase64String(landData.Bitmap));
+            xtw.WriteElementString("Description",    landData.Description);
+            xtw.WriteElementString("Flags",          Convert.ToString((uint)landData.Flags));
+            xtw.WriteElementString("LandingType",    Convert.ToString((byte)landData.LandingType));
+            xtw.WriteElementString("Name",           landData.Name);
+            xtw.WriteElementString("Status",         Convert.ToString((sbyte)landData.Status));
+            xtw.WriteElementString("LocalID",        landData.LocalID.ToString());
+            xtw.WriteElementString("MediaAutoScale", Convert.ToString(landData.MediaAutoScale));
+            xtw.WriteElementString("MediaID",        landData.MediaID.ToString());
+            xtw.WriteElementString("MediaURL",       landData.MediaURL);
+            xtw.WriteElementString("MusicURL",       landData.MusicURL);
+            xtw.WriteElementString("OwnerID",        landData.OwnerID.ToString());
 
             xtw.WriteStartElement("ParcelAccessList");
             foreach (ParcelManager.ParcelAccessEntry pal in landData.ParcelAccessList)
             {
                 xtw.WriteStartElement("ParcelAccessEntry");
-                xtw.WriteElementString("AgentID", pal.AgentID.ToString());
-                xtw.WriteElementString("Time", pal.Time.ToString());
-                xtw.WriteElementString("AccessList", pal.Flags.ToString());
+                xtw.WriteElementString("AgentID",     pal.AgentID.ToString());
+                xtw.WriteElementString("Time",        pal.Time.ToString("s"));
+                xtw.WriteElementString("AccessList",  Convert.ToString((uint)pal.Flags));
                 xtw.WriteEndElement();
             }
             xtw.WriteEndElement();
             
-            xtw.WriteElementString("PassHours", landData.PassHours.ToString());
-            xtw.WriteElementString("PassPrice", landData.PassPrice.ToString());
-            xtw.WriteElementString("SalePrice", landData.SalePrice.ToString());
-            xtw.WriteElementString("SnapshotID", landData.SnapshotID.ToString());
-            xtw.WriteElementString("UserLocation", landData.UserLocation.ToString());
-            xtw.WriteElementString("UserLookAt", landData.UserLookAt.ToString());
-            xtw.WriteElementString("Dwell", landData.Dwell.ToString());
-            xtw.WriteElementString("OtherCleanTime", landData.OtherCleanTime.ToString());
+            xtw.WriteElementString("PassHours",       Convert.ToString(landData.PassHours));
+            xtw.WriteElementString("PassPrice",       Convert.ToString(landData.PassPrice));
+            xtw.WriteElementString("SalePrice",       Convert.ToString(landData.SalePrice));
+            xtw.WriteElementString("SnapshotID",      landData.SnapshotID.ToString());
+            xtw.WriteElementString("UserLocation",    landData.UserLocation.ToString());
+            xtw.WriteElementString("UserLookAt",      landData.UserLookAt.ToString());
+            xtw.WriteElementString("Dwell",           Convert.ToString(landData.Dwell));
+            xtw.WriteElementString("OtherCleanTime",  Convert.ToString(landData.OtherCleanTime));
 
             xtw.WriteEndElement();
 

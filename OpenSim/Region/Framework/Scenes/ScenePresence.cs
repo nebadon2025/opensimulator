@@ -3390,8 +3390,15 @@ namespace OpenSim.Region.Framework.Scenes
         // Event called by the physics plugin to tell the avatar about a collision.
         private void PhysicsCollisionUpdate(EventArgs e)
         {
-            if ((e == null) || m_invulnerable)
+            if (e == null)
                 return;
+
+            if ((Math.Abs(Velocity.X) > 0.05f) || (Math.Abs(Velocity.Y) > 0.05f))
+                UpdateMovementAnimations();
+
+            if (m_invulnerable)
+                return;
+            
             CollisionEventUpdate collisionData = (CollisionEventUpdate)e;
             Dictionary<uint, float> coldata = collisionData.m_objCollisionList;
             float starthealth = Health;

@@ -58,7 +58,7 @@ LocalServiceModule = "OpenSim.Services.FreeswitchService.dll:FreeswitchService"
 AuthenticationServiceModule = "OpenSim.Services.AuthenticationService.dll:PasswordAuthenticationService"
 StorageProvider = "OpenSim.Data.MySQL.dll"
 ConnectionString = "Data Source=localhost;Database=grid;User ID=grid;Password=grid;"
-; Realm = "auth"
+; Realm = "users"
 
 ; * This is the new style user service.
 ; * "Realm" is the table that is used for user lookup.

@@ -98,6 +98,18 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         /// <summary>The measured resolution of Environment.TickCount</summary>
         public readonly float TickCountResolution;
+        /// <summary>Number of terse prim updates to put on the queue each time the
+        /// OnQueueEmpty event is triggered for updates</summary>
+        public readonly int PrimTerseUpdatesPerPacket;
+        /// <summary>Number of terse avatar updates to put on the queue each time the
+        /// OnQueueEmpty event is triggered for updates</summary>
+        public readonly int AvatarTerseUpdatesPerPacket;
+        /// <summary>Number of full prim updates to put on the queue each time the
+        /// OnQueueEmpty event is triggered for updates</summary>
+        public readonly int PrimFullUpdatesPerPacket;
+        /// <summary>Number of texture packets to put on the queue each time the
+        /// OnQueueEmpty event is triggered for textures</summary>
+        public readonly int TextureSendLimit;
 
         /// <summary>Handlers for incoming packets</summary>
         //PacketEventDictionary packetEvents = new PacketEventDictionary();
@@ -172,6 +184,18 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 m_asyncPacketHandling = config.GetBoolean("async_packet_handling", false);
                 m_recvBufferSize = config.GetInt("client_socket_rcvbuf_size", 0);
                 sceneThrottleBps = config.GetInt("scene_throttle_max_bps", 0);
+
+                PrimTerseUpdatesPerPacket = config.GetInt("PrimTerseUpdatesPerPacket", 25);
+                AvatarTerseUpdatesPerPacket = config.GetInt("AvatarTerseUpdatesPerPacket", 10);
+                PrimFullUpdatesPerPacket = config.GetInt("PrimFullUpdatesPerPacket", 100);
+                TextureSendLimit = config.GetInt("TextureSendLimit", 20);
+            }
+            else
+            {
+                PrimTerseUpdatesPerPacket = 25;
+                AvatarTerseUpdatesPerPacket = 10;
+                PrimFullUpdatesPerPacket = 100;
+                TextureSendLimit = 20;
             }
 
             m_throttle = new TokenBucket(null, sceneThrottleBps, sceneThrottleBps);
@@ -790,6 +814,10 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             // on to en-US to avoid number parsing issues
             Culture.SetCurrentCulture();
 
+            // Typecast the function to an Action<IClientAPI> once here to avoid allocating a new
+            // Action generic every round
+            Action<IClientAPI> clientPacketHandler = ClientOutgoingPacketHandler;
+
             while (base.IsRunning)
             {
                 try
@@ -838,7 +866,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
                     // Handle outgoing packets, resends, acknowledgements, and pings for each
                     // client. m_packetSent will be set to true if a packet is sent
-                    m_scene.ClientManager.ForEachSync(ClientOutgoingPacketHandler);
+                    m_scene.ClientManager.ForEachSync(clientPacketHandler);
 
                     // If nothing was sent, sleep for the minimum amount of time before a
                     // token bucket could get more tokens

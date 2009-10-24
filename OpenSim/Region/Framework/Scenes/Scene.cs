@@ -61,6 +61,7 @@ namespace OpenSim.Region.Framework.Scenes
             Time = 0,
             Distance = 1,
             SimpleAngularDistance = 2,
+            FrontBack = 3,
         }
 
         public delegate void SynchronizeSceneHandler(Scene scene);
@@ -540,6 +541,9 @@ namespace OpenSim.Region.Framework.Scenes
                         case "simpleangulardistance":
                             m_update_prioritization_scheme = UpdatePrioritizationSchemes.SimpleAngularDistance;
                             break;
+                        case "frontback":
+                            m_update_prioritization_scheme = UpdatePrioritizationSchemes.FrontBack;
+                            break;
                         default:
                             m_log.Warn("[SCENE]: UpdatePrioritizationScheme was not recognized, setting to default settomg of Time");
                             m_update_prioritization_scheme = UpdatePrioritizationSchemes.Time;
@@ -887,6 +891,9 @@ namespace OpenSim.Region.Framework.Scenes
         {
             m_log.InfoFormat("[SCENE]: Closing down the single simulator: {0}", RegionInfo.RegionName);
 
+            m_restartTimer.Stop();
+            m_restartTimer.Close();
+
             // Kick all ROOT agents with the message, 'The simulator is going down'
             ForEachScenePresence(delegate(ScenePresence avatar)
                                  {
@@ -1219,10 +1226,7 @@ namespace OpenSim.Region.Framework.Scenes
             if (!m_backingup)
             {
                 m_backingup = true;
-
-                System.ComponentModel.BackgroundWorker backupWorker = new System.ComponentModel.BackgroundWorker();
-                backupWorker.DoWork += delegate(object sender, System.ComponentModel.DoWorkEventArgs e) { Backup(); };
-                backupWorker.RunWorkerAsync();
+                Util.FireAndForget(BackupWaitCallback);
             }
         }
 
@@ -1232,6 +1236,14 @@ namespace OpenSim.Region.Framework.Scenes
         private void UpdateEvents()
         {
             m_eventManager.TriggerOnFrame();
+        }
+
+        /// <summary>
+        /// Wrapper for Backup() that can be called with Util.FireAndForget()
+        /// </summary>
+        private void BackupWaitCallback(object o)
+        {
+            Backup();
         }
 
         /// <summary>

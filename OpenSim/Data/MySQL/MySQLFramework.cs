@@ -44,12 +44,12 @@ namespace OpenSim.Data.MySQL
                 log4net.LogManager.GetLogger(
                 System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
-        protected MySqlConnection m_Connection;
+        protected string m_connectionString;
+        protected object m_dbLock = new object();
 
         protected MySqlFramework(string connectionString)
         {
-            m_Connection = new MySqlConnection(connectionString);
-            m_Connection.Open();
+            m_connectionString = connectionString;
         }
 
         //////////////////////////////////////////////////////////////
@@ -59,40 +59,16 @@ namespace OpenSim.Data.MySQL
         //
         protected int ExecuteNonQuery(MySqlCommand cmd)
         {
-            lock (m_Connection)
+            lock (m_dbLock)
             {
-                cmd.Connection = m_Connection;
-
-                bool errorSeen = false;
-
-                while (true)
+                using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
                 {
+                    dbcon.Open();
+                    cmd.Connection = dbcon;
+
                     try
                     {
                         return cmd.ExecuteNonQuery();
-                    }
-                    catch (MySqlException e)
-                    {
-                        m_log.Error(e.Message, e);
-                        if (errorSeen)
-                            throw;
-
-                        // This is "Server has gone away" and "Server lost"
-                        if (e.Number == 2006 || e.Number == 2013)
-                        {
-                            errorSeen = true;
-
-                            m_Connection.Close();
-                            MySqlConnection newConnection =
-                                    (MySqlConnection)((ICloneable)m_Connection).Clone();
-                            m_Connection.Dispose();
-                            m_Connection = newConnection;
-                            m_Connection.Open();
-
-                            cmd.Connection = m_Connection;
-                        }
-                        else
-                            throw;
                     }
                     catch (Exception e)
                     {
@@ -101,23 +77,6 @@ namespace OpenSim.Data.MySQL
                     }
                 }
             }
-        }
-        
-        protected IDataReader ExecuteReader(MySqlCommand cmd)
-        {
-            MySqlConnection newConnection =
-                    (MySqlConnection)((ICloneable)m_Connection).Clone();
-            newConnection.Open();
-
-            cmd.Connection = newConnection;
-            return cmd.ExecuteReader();
-        }
-
-        protected void CloseDBConnection(IDataReader reader, MySqlCommand cmd)
-        {
-            reader.Close();
-            cmd.Connection.Close();
-            cmd.Connection.Dispose();
         }
     }
 }

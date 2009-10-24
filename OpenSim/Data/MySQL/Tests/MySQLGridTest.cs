@@ -65,9 +65,13 @@ namespace OpenSim.Data.MySQL.Tests
 
             // This actually does the roll forward assembly stuff
             Assembly assem = GetType().Assembly;
-            Migration m = new Migration(database.Connection, assem, "GridStore");
 
-            m.Update();
+            using (MySql.Data.MySqlClient.MySqlConnection dbcon = new MySql.Data.MySqlClient.MySqlConnection(connect))
+            {
+                dbcon.Open();
+                Migration m = new Migration(dbcon, assem, "GridStore");
+                m.Update();
+            }
         }
 
         [TestFixtureTearDown]

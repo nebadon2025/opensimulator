@@ -38,16 +38,21 @@ namespace OpenSim.Data.MySQL
     public class MySqlUserAccountData : MySqlFramework, IUserAccountData
     {
         private string m_Realm;
-        private List<string> m_ColumnNames = null;
-//        private int m_LastExpire = 0;
+        private List<string> m_ColumnNames;
+        private string m_connectionString;
 
         public MySqlUserAccountData(string connectionString, string realm)
                 : base(connectionString)
         {
             m_Realm = realm;
+            m_connectionString = connectionString;
 
-            Migration m = new Migration(m_Connection, GetType().Assembly, "UserStore");
-            m.Update();
+            using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
+            {
+                dbcon.Open();
+                Migration m = new Migration(dbcon, GetType().Assembly, "UserStore");
+                m.Update();
+            }
         }
 
         public List<UserAccountData> Query(UUID principalID, UUID scopeID, string query)
@@ -64,46 +69,48 @@ namespace OpenSim.Data.MySQL
             if (scopeID != UUID.Zero)
                 command += " and ScopeID = ?scopeID";
 
-            MySqlCommand cmd = new MySqlCommand(command);
-
-            cmd.Parameters.AddWithValue("?principalID", principalID.ToString());
-            cmd.Parameters.AddWithValue("?scopeID", scopeID.ToString());
-
-            IDataReader result = ExecuteReader(cmd);
-
-            if (result.Read())
+            using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
             {
-                ret.PrincipalID = principalID;
-                UUID scope;
-                UUID.TryParse(result["ScopeID"].ToString(), out scope);
-                ret.ScopeID = scope;
+                dbcon.Open();
+                MySqlCommand cmd = new MySqlCommand(command, dbcon);
 
-                if (m_ColumnNames == null)
+                cmd.Parameters.AddWithValue("?principalID", principalID.ToString());
+                cmd.Parameters.AddWithValue("?scopeID", scopeID.ToString());
+
+                IDataReader result = cmd.ExecuteReader();
+
+                if (result.Read())
                 {
-                    m_ColumnNames = new List<string>();
+                    ret.PrincipalID = principalID;
+                    UUID scope;
+                    UUID.TryParse(result["ScopeID"].ToString(), out scope);
+                    ret.ScopeID = scope;
 
-                    DataTable schemaTable = result.GetSchemaTable();
-                    foreach (DataRow row in schemaTable.Rows)
-                        m_ColumnNames.Add(row["ColumnName"].ToString());
+                    if (m_ColumnNames == null)
+                    {
+                        m_ColumnNames = new List<string>();
+
+                        DataTable schemaTable = result.GetSchemaTable();
+                        foreach (DataRow row in schemaTable.Rows)
+                            m_ColumnNames.Add(row["ColumnName"].ToString());
+                    }
+
+                    foreach (string s in m_ColumnNames)
+                    {
+                        if (s == "UUID")
+                            continue;
+                        if (s == "ScopeID")
+                            continue;
+
+                        ret.Data[s] = result[s].ToString();
+                    }
+
+                    return ret;
                 }
-
-                foreach (string s in m_ColumnNames)
+                else
                 {
-                    if (s == "UUID")
-                        continue;
-                    if (s == "ScopeID")
-                        continue;
-
-                    ret.Data[s] = result[s].ToString();
+                    return null;
                 }
-
-                CloseDBConnection(result, cmd);
-                return ret;
-            }
-            else
-            {
-                CloseDBConnection(result, cmd);
-                return null;
             }
         }
 

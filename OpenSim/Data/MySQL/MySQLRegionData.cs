@@ -38,16 +38,21 @@ namespace OpenSim.Data.MySQL
     public class MySqlRegionData : MySqlFramework, IRegionData
     {
         private string m_Realm;
-        private List<string> m_ColumnNames = null;
-//        private int m_LastExpire = 0;
+        private List<string> m_ColumnNames;
+        private string m_connectionString;
 
         public MySqlRegionData(string connectionString, string realm)
                 : base(connectionString)
         {
             m_Realm = realm;
+            m_connectionString = connectionString;
 
-            Migration m = new Migration(m_Connection, GetType().Assembly, "GridStore");
-            m.Update();
+            using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
+            {
+                dbcon.Open();
+                Migration m = new Migration(dbcon, GetType().Assembly, "GridStore");
+                m.Update();
+            }
         }
 
         public List<RegionData> Get(string regionName, UUID scopeID)
@@ -126,57 +131,61 @@ namespace OpenSim.Data.MySQL
         {
             List<RegionData> retList = new List<RegionData>();
 
-            using (IDataReader result = ExecuteReader(cmd))
+            using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
             {
-                while (result.Read())
+                dbcon.Open();
+                cmd.Connection = dbcon;
+
+                using (IDataReader result = cmd.ExecuteReader())
                 {
-                    RegionData ret = new RegionData();
-                    ret.Data = new Dictionary<string, object>();
-
-                    UUID regionID;
-                    UUID.TryParse(result["uuid"].ToString(), out regionID);
-                    ret.RegionID = regionID;
-                    UUID scope;
-                    UUID.TryParse(result["ScopeID"].ToString(), out scope);
-                    ret.ScopeID = scope;
-                    ret.RegionName = result["regionName"].ToString();
-                    ret.posX = Convert.ToInt32(result["locX"]);
-                    ret.posY = Convert.ToInt32(result["locY"]);
-                    ret.sizeX = Convert.ToInt32(result["sizeX"]);
-                    ret.sizeY = Convert.ToInt32(result["sizeY"]);
-
-                    if (m_ColumnNames == null)
+                    while (result.Read())
                     {
-                        m_ColumnNames = new List<string>();
+                        RegionData ret = new RegionData();
+                        ret.Data = new Dictionary<string, object>();
 
-                        DataTable schemaTable = result.GetSchemaTable();
-                        foreach (DataRow row in schemaTable.Rows)
+                        UUID regionID;
+                        UUID.TryParse(result["uuid"].ToString(), out regionID);
+                        ret.RegionID = regionID;
+                        UUID scope;
+                        UUID.TryParse(result["ScopeID"].ToString(), out scope);
+                        ret.ScopeID = scope;
+                        ret.RegionName = result["regionName"].ToString();
+                        ret.posX = Convert.ToInt32(result["locX"]);
+                        ret.posY = Convert.ToInt32(result["locY"]);
+                        ret.sizeX = Convert.ToInt32(result["sizeX"]);
+                        ret.sizeY = Convert.ToInt32(result["sizeY"]);
+
+                        if (m_ColumnNames == null)
                         {
-                            if (row["ColumnName"] != null)
-                                m_ColumnNames.Add(row["ColumnName"].ToString());
+                            m_ColumnNames = new List<string>();
+
+                            DataTable schemaTable = result.GetSchemaTable();
+                            foreach (DataRow row in schemaTable.Rows)
+                            {
+                                if (row["ColumnName"] != null)
+                                    m_ColumnNames.Add(row["ColumnName"].ToString());
+                            }
                         }
+
+                        foreach (string s in m_ColumnNames)
+                        {
+                            if (s == "uuid")
+                                continue;
+                            if (s == "ScopeID")
+                                continue;
+                            if (s == "regionName")
+                                continue;
+                            if (s == "locX")
+                                continue;
+                            if (s == "locY")
+                                continue;
+
+                            ret.Data[s] = result[s].ToString();
+                        }
+
+                        retList.Add(ret);
                     }
-
-                    foreach (string s in m_ColumnNames)
-                    {
-                        if (s == "uuid")
-                            continue;
-                        if (s == "ScopeID")
-                            continue;
-                        if (s == "regionName")
-                            continue;
-                        if (s == "locX")
-                            continue;
-                        if (s == "locY")
-                            continue;
-
-                        ret.Data[s] = result[s].ToString();
-                    }
-
-                    retList.Add(ret);
                 }
-
-                CloseDBConnection(result, cmd);
             }
 
             return retList;

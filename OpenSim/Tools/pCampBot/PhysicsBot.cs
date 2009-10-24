@@ -271,7 +271,7 @@ namespace pCampBot
                 string[] bodyparts = Directory.GetFiles(saveDir, "*.bodypart", SearchOption.TopDirectoryOnly);
                 InventoryFolder clothfolder = FindClothingFolder();
                 UUID transid = UUID.Random();
-                List<InventoryBase> listwearables = new List<InventoryBase>();
+                List<InventoryItem> listwearables = new List<InventoryItem>();
                 
                 for (int i = 0; i < clothing.Length; i++)
                 {
@@ -324,7 +324,7 @@ namespace pCampBot
                 else
                 {
                     MainConsole.Instance.Output(String.Format("Sending {0} wearables...",listwearables.Count));
-                    client.Appearance.WearOutfit(listwearables, false);
+                    client.Appearance.AddToOutfit(listwearables);
                 }
             }
             catch (Exception ex)

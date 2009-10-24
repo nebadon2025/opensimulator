@@ -354,7 +354,10 @@
     ; Set this to true to process incoming packets asynchronously. Networking is
     ; already separated from packet handling with a queue, so this will only
     ; affect whether networking internals such as packet decoding and 
-    ; acknowledgement accounting are done synchronously or asynchronously
+    ; acknowledgement accounting are done synchronously or asynchronously. Mono
+    ; has been reported to perform better with this option disabled, while
+    ; a multi-core Windows/.NET environment should do better with async packet
+    ; handling enabled
     ;
     ;async_packet_handling = false
     

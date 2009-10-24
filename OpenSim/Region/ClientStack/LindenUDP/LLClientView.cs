@@ -307,6 +307,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         /// <summary>Used to adjust Sun Orbit values so Linden based viewers properly position sun</summary>
         private const float m_sunPainDaHalfOrbitalCutoff = 4.712388980384689858f;
 
+        private static readonly byte[] EmptyColor = new byte[4];
+
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         protected static Dictionary<PacketType, PacketMethod> PacketHandlers = new Dictionary<PacketType, PacketMethod>(); //Global/static handlers for all clients
 
@@ -4344,7 +4346,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             update.ProfileEnd = data.primShape.ProfileEnd;
             update.ProfileHollow = data.primShape.ProfileHollow;
             update.PSBlock = data.particleSystem ?? Utils.EmptyBytes;
-            update.TextColor = data.color ?? Color4.Black.GetBytes(true);
+            update.TextColor = data.color ?? EmptyColor;
             update.TextureAnim = data.textureanim ?? Utils.EmptyBytes;
             update.TextureEntry = data.primShape.TextureEntry ?? Utils.EmptyBytes;
             update.Scale = data.primShape.Scale;
@@ -4370,14 +4372,9 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 default:
                     // TODO: Support ScratchPad
                     //if (prim.ScratchPad != null)
-                    //{
-                    //    update.Data = new byte[prim.ScratchPad.Length];
-                    //    Buffer.BlockCopy(prim.ScratchPad, 0, update.Data, 0, update.Data.Length);
-                    //}
+                    //    update.Data = prim.ScratchPad;
                     //else
-                    //{
                     //    update.Data = Utils.EmptyBytes;
-                    //}
                     update.Data = Utils.EmptyBytes;
                     break;
             }

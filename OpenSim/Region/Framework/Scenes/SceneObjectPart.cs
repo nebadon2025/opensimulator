@@ -1260,11 +1260,11 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void AddFullUpdateToAllAvatars()
         {
-            ScenePresence[] avatars = m_parentGroup.Scene.GetScenePresences();
-            for (int i = 0; i < avatars.Length; i++)
-            {
-                avatars[i].SceneViewer.QueuePartForUpdate(this);
-            }
+            // REGION SYNC
+            if (m_parentGroup.Scene.IsSyncedServer())
+                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate(this);
+
+            m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar) { avatar.SceneViewer.QueuePartForUpdate(this); });
         }
 
         public void AddFullUpdateToAvatar(ScenePresence presence)
@@ -1285,11 +1285,10 @@ namespace OpenSim.Region.Framework.Scenes
         /// Terse updates
         public void AddTerseUpdateToAllAvatars()
         {
-            ScenePresence[] avatars = m_parentGroup.Scene.GetScenePresences();
-            for (int i = 0; i < avatars.Length; i++)
-            {
-                avatars[i].SceneViewer.QueuePartForUpdate(this);
-            }
+            if (m_parentGroup.Scene.IsSyncedServer())
+                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate(this);
+
+            m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar) { avatar.SceneViewer.QueuePartForUpdate(this); });
         }
 
         public void AddTerseUpdateToAvatar(ScenePresence presence)
@@ -2877,11 +2876,10 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void SendFullUpdateToAllClients()
         {
-            ScenePresence[] avatars = m_parentGroup.Scene.GetScenePresences();
-            for (int i = 0; i < avatars.Length; i++)
+            m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
             {
-                SendFullUpdate(avatars[i].ControllingClient, avatars[i].GenerateClientFlags(UUID));
-            }
+                SendFullUpdate(avatar.ControllingClient, avatar.GenerateClientFlags(UUID));
+            });
         }
 
         /// <summary>
@@ -2890,13 +2888,12 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="agentID"></param>
         public void SendFullUpdateToAllClientsExcept(UUID agentID)
         {
-            ScenePresence[] avatars = m_parentGroup.Scene.GetScenePresences();
-            for (int i = 0; i < avatars.Length; i++)
+            m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
             {
                 // Ugly reference :(
-                if (avatars[i].UUID != agentID)
-                    SendFullUpdate(avatars[i].ControllingClient, avatars[i].GenerateClientFlags(UUID));
-            }
+                if (avatar.UUID != agentID)
+                    SendFullUpdate(avatar.ControllingClient, avatar.GenerateClientFlags(UUID));
+            });
         }
 
         /// <summary>
@@ -3096,11 +3093,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void SendTerseUpdateToAllClients()
         {
-            ScenePresence[] avatars = m_parentGroup.Scene.GetScenePresences();
-            for (int i = 0; i < avatars.Length; i++)
-            {
-                SendTerseUpdateToClient(avatars[i].ControllingClient);
-            }
+            m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar) { SendTerseUpdateToClient(avatar.ControllingClient); });
         }
 
         public void SetAttachmentPoint(uint AttachmentPoint)

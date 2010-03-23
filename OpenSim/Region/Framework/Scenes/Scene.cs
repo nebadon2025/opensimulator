@@ -319,6 +319,33 @@ namespace OpenSim.Region.Framework.Scenes
         protected IDialogModule m_dialogModule;
         protected IEntityTransferModule m_teleportModule;
 
+        protected IRegionSyncServerModule m_regionSyncServerModule;
+        protected IRegionSyncClientModule m_regionSyncClientModule;
+
+        public Object regionSyncLock = new Object();
+
+        public IRegionSyncServerModule RegionSyncServerModule
+        {
+            get { return m_regionSyncServerModule; }
+	    set { m_regionSyncServerModule = value; }
+        }
+
+        public IRegionSyncClientModule RegionSyncClientModule
+        {
+            get { return m_regionSyncClientModule; }
+            set { m_regionSyncClientModule = value; }
+        }
+
+        public bool IsSyncedClient()
+        {
+            return (m_regionSyncClientModule != null && m_regionSyncClientModule.Active && m_regionSyncClientModule.Synced);
+        }
+
+        public bool IsSyncedServer()
+        {
+            return (m_regionSyncServerModule != null && m_regionSyncServerModule.Active && m_regionSyncServerModule.Synced);
+        }
+
         protected ICapabilitiesModule m_capsModule;
         public ICapabilitiesModule CapsModule
         {
@@ -1219,6 +1246,8 @@ namespace OpenSim.Region.Framework.Scenes
             m_dialogModule = RequestModuleInterface<IDialogModule>();
             m_capsModule = RequestModuleInterface<ICapabilitiesModule>();
             m_teleportModule = RequestModuleInterface<IEntityTransferModule>();
+            RegionSyncServerModule = RequestModuleInterface<IRegionSyncServerModule>();
+            RegionSyncClientModule = RequestModuleInterface<IRegionSyncClientModule>();
         }
 
         #endregion
@@ -1289,6 +1318,9 @@ namespace OpenSim.Region.Framework.Scenes
                     // Presence updates and queued object updates for each presence are sent to clients
                     if (m_frame % m_update_presences == 0)
                         m_sceneGraph.UpdatePresences();
+
+                    if (IsSyncedServer())
+                        m_regionSyncServerModule.SendUpdates();
 
                     int tmpPhysicsMS2 = Util.EnvironmentTickCount();
                     if ((m_frame % m_update_physics == 0) && m_physics_enabled)
@@ -2449,9 +2481,15 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="client"></param>
         public override void AddNewClient(IClientAPI client)
         {
+            AddNewClient2(client, true);
+        }
+        public void AddNewClient2(IClientAPI client, bool managed)
+        {
+
             bool vialogin = false;
 
-            m_clientManager.Add(client);
+            if(managed)
+                m_clientManager.Add(client);
 
             CheckHeartbeat();
             SubscribeToClientEvents(client);
@@ -3069,21 +3107,28 @@ namespace OpenSim.Region.Framework.Scenes
                 }
 
                 m_eventManager.TriggerOnRemovePresence(agentID);
-                ForEachClient(
-                    delegate(IClientAPI client)
-                    {
-                        //We can safely ignore null reference exceptions.  It means the avatar is dead and cleaned up anyway
-                        try { client.SendKillObject(avatar.RegionHandle, avatar.LocalId); }
-                        catch (NullReferenceException) { }
-                    });
 
-                ForEachScenePresence(
-                    delegate(ScenePresence presence) { presence.CoarseLocationChange(); });
-
-                IAgentAssetTransactions agentTransactions = this.RequestModuleInterface<IAgentAssetTransactions>();
-                if (agentTransactions != null)
+                if(IsSyncedServer())
+                    RegionSyncServerModule.DeleteObject(avatar.RegionHandle, avatar.LocalId);
+                else
                 {
-                    agentTransactions.RemoveAgentAssetTransactions(agentID);
+                    ForEachClient(
+                        delegate(IClientAPI client)
+                        {
+                            //We can safely ignore null reference exceptions.  It means the avatar is dead and cleaned up anyway
+                            try { client.SendKillObject(avatar.RegionHandle, avatar.LocalId); }
+                            catch (NullReferenceException) { }
+                        });
+
+
+                    ForEachScenePresence(
+                        delegate(ScenePresence presence) { presence.CoarseLocationChange(); });
+
+                    IAgentAssetTransactions agentTransactions = this.RequestModuleInterface<IAgentAssetTransactions>();
+                    if (agentTransactions != null)
+                    {
+                        agentTransactions.RemoveAgentAssetTransactions(agentID);
+                    }
                 }
 
                 // Remove the avatar from the scene
@@ -3154,7 +3199,12 @@ namespace OpenSim.Region.Framework.Scenes
                         return;
                 }
             }
-            ForEachClient(delegate(IClientAPI client) { client.SendKillObject(m_regionHandle, localID); });
+
+            // REGION SYNC
+            if( IsSyncedServer() )
+                RegionSyncServerModule.DeleteObject(m_regionHandle, localID);
+            else
+                ForEachClient(delegate(IClientAPI client) { client.SendKillObject(m_regionHandle, localID); });
         }
 
         #endregion
@@ -4198,8 +4248,11 @@ namespace OpenSim.Region.Framework.Scenes
         ///
         /// </summary>
         /// <param name="action"></param>
+        static int s_ForEachPresenceCounter = 0;
         public void ForEachScenePresence(Action<ScenePresence> action)
         {
+            if (IsSyncedServer())
+                return;
             // We don't want to try to send messages if there are no avatars.
             if (m_sceneGraph != null)
             {
@@ -4289,11 +4342,18 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void ForEachClient(Action<IClientAPI> action)
         {
+            // REGION SYNC
+            if (IsSyncedServer())
+                return;
+
             ForEachClient(action, m_useAsyncWhenPossible);
         }
 
         public void ForEachClient(Action<IClientAPI> action, bool doAsynchronous)
         {
+            // REGION SYNC
+            if (IsSyncedServer())
+                return;
             // FIXME: Asynchronous iteration is disabled until we have a threading model that
             // can support calling this function from an async packet handler without
             // potentially deadlocking

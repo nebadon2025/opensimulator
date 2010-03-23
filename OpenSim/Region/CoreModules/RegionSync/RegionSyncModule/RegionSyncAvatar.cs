@@ -28,33 +28,20 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Reflection;
-using System.Threading;
-using log4net;
 using OpenMetaverse;
 using OpenMetaverse.Packets;
 using OpenSim.Framework;
-using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
-using OpenSim.Framework.Client;
 
-namespace OpenSim.Tests.Common.Mock
+namespace OpenSim.Region.Examples.RegionSyncModule
 {
-    public class TestClient : IClientAPI, IClientCore
+    public class RegionSyncAvatar : IClientAPI
     {
-        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
-        // Mock testing variables
-        public List<ImageDataPacket> sentdatapkt = new List<ImageDataPacket>();
-        public List<ImagePacketPacket> sentpktpkt = new List<ImagePacketPacket>();
-        EventWaitHandle wh = new EventWaitHandle (false, EventResetMode.AutoReset, "Crossing");
-
-        // TODO: This is a really nasty (and temporary) means of telling the test client which scene to invoke setup
-        // methods on when a teleport is requested
-        public Scene TeleportTargetScene;
-        private TestClient TeleportSceneClient;
-
-        private IScene m_scene;
+        private uint movementFlag = 0;
+        private short flyState = 0;
+        private Quaternion bodyDirection = Quaternion.Identity;
+        private short count = 0;
+        private short frame = 0;
 
 // disable warning: public events, part of the public API
 #pragma warning disable 67
@@ -98,8 +85,8 @@ namespace OpenSim.Tests.Common.Mock
         public event GenericCall2 OnRequestWearables;
         public event GenericCall1 OnCompleteMovementToRegion;
         public event UpdateAgent OnPreAgentUpdate;
-        public event UpdateAgentRaw OnAgentUpdateRaw;
         public event UpdateAgent OnAgentUpdate;
+        public event UpdateAgentRaw OnAgentUpdateRaw;
         public event AgentRequestSit OnAgentRequestSit;
         public event AgentSit OnAgentSit;
         public event AvatarPickerRequest OnAvatarPickerRequest;
@@ -122,8 +109,8 @@ namespace OpenSim.Tests.Common.Mock
         public event UpdateShape OnUpdatePrimShape;
         public event ObjectExtraParams OnUpdateExtraParams;
         public event RequestObjectPropertiesFamily OnRequestObjectPropertiesFamily;
-        public event ObjectSelect OnObjectSelect;
         public event ObjectRequest OnObjectRequest;
+        public event ObjectSelect OnObjectSelect;
         public event GenericCall7 OnObjectDescription;
         public event GenericCall7 OnObjectName;
         public event GenericCall7 OnObjectClickAction;
@@ -133,8 +120,8 @@ namespace OpenSim.Tests.Common.Mock
         public event UpdateVector OnUpdatePrimGroupPosition;
         public event UpdateVector OnUpdatePrimSinglePosition;
         public event UpdatePrimRotation OnUpdatePrimGroupRotation;
-        public event UpdatePrimSingleRotation OnUpdatePrimSingleRotation;
         public event UpdatePrimSingleRotationPosition OnUpdatePrimSingleRotationPosition;
+        public event UpdatePrimSingleRotation OnUpdatePrimSingleRotation;
         public event UpdatePrimGroupRotation OnUpdatePrimGroupMouseRotation;
         public event UpdateVector OnUpdatePrimScale;
         public event UpdateVector OnUpdatePrimGroupScale;
@@ -245,7 +232,7 @@ namespace OpenSim.Tests.Common.Mock
         public event ActivateGesture OnActivateGesture;
         public event DeactivateGesture OnDeactivateGesture;
         public event ObjectOwner OnObjectOwner;
-
+ 
         public event DirPlacesQuery OnDirPlacesQuery;
         public event DirFindQuery OnDirFindQuery;
         public event DirLandQuery OnDirLandQuery;
@@ -259,7 +246,6 @@ namespace OpenSim.Tests.Common.Mock
         public event OfferCallingCard OnOfferCallingCard;
         public event AcceptCallingCard OnAcceptCallingCard;
         public event DeclineCallingCard OnDeclineCallingCard;
-
         public event SoundTrigger OnSoundTrigger;
 
         public event StartLure OnStartLure;
@@ -276,7 +262,6 @@ namespace OpenSim.Tests.Common.Mock
         public event EventGodDelete OnEventGodDelete;
 
         public event ParcelDwellRequest OnParcelDwellRequest;
-
         public event UserInfoRequest OnUserInfoRequest;
         public event UpdateUserInfo OnUpdateUserInfo;
 
@@ -292,7 +277,7 @@ namespace OpenSim.Tests.Common.Mock
         public event AvatarInterestUpdate OnAvatarInterestUpdate;
 
         public event PlacesQuery OnPlacesQuery;
-        
+
         public event FindAgentUpdate OnFindAgent;
         public event TrackAgentUpdate OnTrackAgent;
         public event NewUserReport OnUserReport;
@@ -315,27 +300,52 @@ namespace OpenSim.Tests.Common.Mock
 
 #pragma warning restore 67
 
-        /// <value>
-        /// This agent's UUID
-        /// </value>
-        private UUID m_agentId;
+        private Scene m_scene;
+        private UUID m_agentID;
+        private string m_firstName;
+        private string m_lastName;
+        private Vector3 m_startPos;
 
-        /// <value>
-        /// The last caps seed url that this client was given.
-        /// </value>
-        public string CapsSeedUrl;
+        /*
+                            // Throw away duplicate or insignificant updates
+                if (!m_bodyRot.ApproxEquals(m_lastRotation, ROTATION_TOLERANCE) ||
+                    !Velocity.ApproxEquals(m_lastVelocity, VELOCITY_TOLERANCE) ||
+                    !m_pos.ApproxEquals(m_lastPosition, POSITION_TOLERANCE))
+         * */
 
-        private Vector3 startPos = new Vector3(((int)Constants.RegionSize * 0.5f), ((int)Constants.RegionSize * 0.5f), 2);
+        public RegionSyncAvatar(Scene scene, UUID agentID, string first, string last, Vector3 startPos)
+        {
+            m_scene = scene;
+            m_agentID = agentID;
+            m_firstName = first;
+            m_lastName = last;
+            m_startPos = startPos;
+            
+            //m_scene.EventManager.OnFrame += Update;
+        }
+
+        public bool AgentUpdate(AgentUpdateArgs arg)
+        {
+            UpdateAgent handlerAgentUpdate = OnAgentUpdate;
+            if (handlerAgentUpdate != null)
+            {
+                OnAgentUpdate(this, arg);
+                handlerAgentUpdate = null;
+                return true;
+            }
+            handlerAgentUpdate = null;
+            return false;
+        }
 
         public virtual Vector3 StartPos
         {
-            get { return startPos; }
+            get { return m_startPos; }
             set { }
         }
 
         public virtual UUID AgentId
         {
-            get { return m_agentId; }
+            get { return m_agentID; }
         }
 
         public UUID SessionId
@@ -352,17 +362,15 @@ namespace OpenSim.Tests.Common.Mock
         {
             get { return m_firstName; }
         }
-        private string m_firstName;
 
         public virtual string LastName
         {
             get { return m_lastName; }
         }
-        private string m_lastName;
 
         public virtual String Name
         {
-            get { return FirstName + " " + LastName; }
+            get { return FirstName + LastName; }
         }
 
         public bool IsActive
@@ -370,11 +378,7 @@ namespace OpenSim.Tests.Common.Mock
             get { return true; }
             set { }
         }
-        public bool IsLoggingOut
-        {
-            get { return false; }
-            set { }
-        }
+
         public UUID ActiveGroupId
         {
             get { return UUID.Zero; }
@@ -413,50 +417,6 @@ namespace OpenSim.Tests.Common.Mock
         public bool SendLogoutPacketWhenClosing
         {
             set { }
-        }
-
-        private uint m_circuitCode;
-
-        public uint CircuitCode
-        {
-            get { return m_circuitCode; }
-            set { m_circuitCode = value; }
-        }
-
-        public IPEndPoint RemoteEndPoint
-        {
-            get { return new IPEndPoint(IPAddress.Loopback, (ushort)m_circuitCode); }
-        }
-
-        /// <summary>
-        /// Constructor
-        /// </summary>
-        /// <param name="agentData"></param>
-        /// <param name="scene"></param>
-        public TestClient(AgentCircuitData agentData, IScene scene)
-        {
-            m_agentId = agentData.AgentID;
-            m_firstName = agentData.firstname;
-            m_lastName = agentData.lastname;
-            m_circuitCode = agentData.circuitcode;
-            m_scene = scene;
-            CapsSeedUrl = agentData.CapsPath;
-        }
-
-        /// <summary>
-        /// Attempt a teleport to the given region.
-        /// </summary>
-        /// <param name="regionHandle"></param>
-        /// <param name="position"></param>
-        /// <param name="lookAt"></param>
-        public void Teleport(ulong regionHandle, Vector3 position, Vector3 lookAt)
-        {
-            OnTeleportLocationRequest(this, regionHandle, position, lookAt, 16);
-        }
-
-        public void CompleteMovement()
-        {
-            OnCompleteMovementToRegion(this);
         }
 
         public virtual void ActivateGesture(UUID assetId, UUID gestureId)
@@ -517,7 +477,7 @@ namespace OpenSim.Tests.Common.Mock
 
         public void SendInstantMessage(GridInstantMessage im)
         {
-
+            
         }
 
         public void SendGenericMessage(string method, List<string> message)
@@ -544,62 +504,18 @@ namespace OpenSim.Tests.Common.Mock
         {
         }
 
-        public virtual AgentCircuitData RequestClientInfo()
-        {
-            AgentCircuitData agentData = new AgentCircuitData();
-            agentData.AgentID = AgentId;
-            agentData.SessionID = UUID.Zero;
-            agentData.SecureSessionID = UUID.Zero;
-            agentData.circuitcode = m_circuitCode;
-            agentData.child = false;
-            agentData.firstname = m_firstName;
-            agentData.lastname = m_lastName;
-
-            ICapabilitiesModule capsModule = m_scene.RequestModuleInterface<ICapabilitiesModule>();
-            agentData.CapsPath = capsModule.GetCapsPath(m_agentId);
-            agentData.ChildrenCapSeeds = new Dictionary<ulong, string>(capsModule.GetChildrenSeeds(m_agentId));
-
-            return agentData;
-        }
-
         public virtual void InformClientOfNeighbour(ulong neighbourHandle, IPEndPoint neighbourExternalEndPoint)
         {
-            m_log.DebugFormat("[TEST CLIENT]: Processing inform client of neighbour");
-
-            // In response to this message, we are going to make a teleport to the scene we've previous been told
-            // about by test code (this needs to be improved).
-            AgentCircuitData newAgent = RequestClientInfo();
-
-            // Stage 2: add the new client as a child agent to the scene
-            TeleportSceneClient = new TestClient(newAgent, TeleportTargetScene);
-            TeleportTargetScene.AddNewClient(TeleportSceneClient);
         }
 
-        public virtual void SendRegionTeleport(ulong regionHandle, byte simAccess, IPEndPoint regionExternalEndPoint,
-                                               uint locationID, uint flags, string capsURL)
+        public virtual AgentCircuitData RequestClientInfo()
         {
-            m_log.DebugFormat("[TEST CLIENT]: Received SendRegionTeleport");
-
-            CapsSeedUrl = capsURL;
-
-            TeleportSceneClient.CompleteMovement();
-            //TeleportTargetScene.AgentCrossing(newAgent.AgentID, new Vector3(90, 90, 90), false);
-        }
-
-        public virtual void SendTeleportFailed(string reason)
-        {
-            m_log.DebugFormat("[TEST CLIENT]: Teleport failed with reason {0}", reason);
+            return new AgentCircuitData();
         }
 
         public virtual void CrossRegion(ulong newRegionHandle, Vector3 pos, Vector3 lookAt,
                                         IPEndPoint newRegionExternalEndPoint, string capsURL)
         {
-            // This is supposed to send a packet to the client telling it's ready to start region crossing.
-            // Instead I will just signal I'm ready, mimicking the communication behavior.
-            // It's ugly, but avoids needless communication setup. This is used in ScenePresenceTests.cs.
-            // Arthur V.
-
-            wh.Set();
         }
 
         public virtual void SendMapBlock(List<MapBlockData> mapBlocks, uint flag)
@@ -607,6 +523,15 @@ namespace OpenSim.Tests.Common.Mock
         }
 
         public virtual void SendLocalTeleport(Vector3 position, Vector3 lookAt, uint flags)
+        {
+        }
+
+        public virtual void SendRegionTeleport(ulong regionHandle, byte simAccess, IPEndPoint regionExternalEndPoint,
+                                               uint locationID, uint flags, string capsURL)
+        {
+        }
+
+        public virtual void SendTeleportFailed(string reason)
         {
         }
 
@@ -661,7 +586,7 @@ namespace OpenSim.Tests.Common.Mock
         public virtual void SendInventoryFolderDetails(UUID ownerID, UUID folderID,
                                                        List<InventoryItemBase> items,
                                                        List<InventoryFolderBase> folders,
-                                                       int version, 
+                                                       int version,
                                                        bool fetchFolders,
                                                        bool fetchItems)
         {
@@ -705,8 +630,8 @@ namespace OpenSim.Tests.Common.Mock
             int PriceParcelClaim, float PriceParcelClaimFactor, int PriceParcelRent, int PricePublicObjectDecay,
             int PricePublicObjectDelete, int PriceRentLight, int PriceUpload, int TeleportMinPrice, float TeleportPriceExponent)
         {
-        }
 
+        }
         public virtual void SendNameReply(UUID profileId, string firstname, string lastname)
         {
         }
@@ -776,34 +701,16 @@ namespace OpenSim.Tests.Common.Mock
 
         public void SendImageFirstPart(ushort numParts, UUID ImageUUID, uint ImageSize, byte[] ImageData, byte imageCodec)
         {
-            ImageDataPacket im = new ImageDataPacket();
-            im.Header.Reliable = false;
-            im.ImageID.Packets = numParts;
-            im.ImageID.ID = ImageUUID;
-
-            if (ImageSize > 0)
-                im.ImageID.Size = ImageSize;
-
-            im.ImageData.Data = ImageData;
-            im.ImageID.Codec = imageCodec;
-            im.Header.Zerocoded = true;
-            sentdatapkt.Add(im);
         }
-
+        
         public void SendImageNextPart(ushort partNumber, UUID imageUuid, byte[] imageData)
         {
-            ImagePacketPacket im = new ImagePacketPacket();
-            im.Header.Reliable = false;
-            im.ImageID.Packet = partNumber;
-            im.ImageID.ID = imageUuid;
-            im.ImageData.Data = imageData;
-            sentpktpkt.Add(im);
         }
-
+         
         public void SendImageNotFound(UUID imageid)
         {
         }
-
+        
         public void SendShutdownConnectionNotice()
         {
         }
@@ -852,6 +759,60 @@ namespace OpenSim.Tests.Common.Mock
 
         }
 
+        private void Update()
+        {
+            frame++;
+            if (frame > 20)
+            {
+                frame = 0;
+                if (OnAgentUpdate != null)
+                {
+                    AgentUpdateArgs pack = new AgentUpdateArgs();
+                    pack.ControlFlags = movementFlag;
+                    pack.BodyRotation = bodyDirection;
+
+                    OnAgentUpdate(this, pack);
+                }
+                if (flyState == 0)
+                {
+                    movementFlag = (uint)AgentManager.ControlFlags.AGENT_CONTROL_FLY |
+                                   (uint)AgentManager.ControlFlags.AGENT_CONTROL_UP_NEG;
+                    flyState = 1;
+                }
+                else if (flyState == 1)
+                {
+                    movementFlag = (uint)AgentManager.ControlFlags.AGENT_CONTROL_FLY |
+                                   (uint)AgentManager.ControlFlags.AGENT_CONTROL_UP_POS;
+                    flyState = 2;
+                }
+                else
+                {
+                    movementFlag = (uint)AgentManager.ControlFlags.AGENT_CONTROL_FLY;
+                    flyState = 0;
+                }
+
+                if (count >= 10)
+                {
+                    if (OnChatFromClient != null)
+                    {
+                        OSChatMessage args = new OSChatMessage();
+                        args.Message = "Hey You! Get out of my Home. This is my Region";
+                        args.Channel = 0;
+                        args.From = FirstName + " " + LastName;
+                        args.Scene = m_scene;
+                        args.Position = new Vector3(128, 128, 26);
+                        args.Sender = this;
+                        args.Type = ChatTypeEnum.Shout;
+
+                        OnChatFromClient(this, args);
+                    }
+                    count = -1;
+                }
+
+                count++;
+            }
+        }
+
         public bool AddMoney(int debit)
         {
             return false;
@@ -860,7 +821,7 @@ namespace OpenSim.Tests.Common.Mock
         public void SendSunPos(Vector3 sunPos, Vector3 sunVel, ulong time, uint dlen, uint ylen, float phase)
         {
         }
-
+        
         public void SendViewerEffect(ViewerEffectPacket.EffectBlock[] effectBlocks)
         {
         }
@@ -889,15 +850,27 @@ namespace OpenSim.Tests.Common.Mock
 
         public void Close()
         {
-            m_scene.RemoveClient(AgentId);
         }
 
         public void Start()
         {
         }
-
+        
         public void Stop()
         {
+        }
+
+        private uint m_circuitCode;
+
+        public uint CircuitCode
+        {
+            get { return m_circuitCode; }
+            set { m_circuitCode = value; }
+        }
+
+        public IPEndPoint RemoteEndPoint
+        {
+            get { return new IPEndPoint(IPAddress.Loopback, (ushort)m_circuitCode); }
         }
 
         public void SendBlueBoxMessage(UUID FromAvatarID, String FromAvatarName, String Message)
@@ -933,7 +906,7 @@ namespace OpenSim.Tests.Common.Mock
         {
         }
 
-        public void SendEstateList(UUID invoice, int code, UUID[] Data, uint estateID)
+        public void SendEstateManagersList(UUID invoice, UUID[] EstateManagers, uint estateID)
         {
         }
 
@@ -944,11 +917,11 @@ namespace OpenSim.Tests.Common.Mock
         public void SendRegionInfoToEstateMenu(RegionInfoForEstateMenuArgs args)
         {
         }
-
+        
         public void SendEstateCovenantInformation(UUID covenant)
         {
         }
-
+        
         public void SendDetailedEstateData(UUID invoice, string estateName, uint estateID, uint parentEstate, uint estateFlags, uint sunPosition, UUID covenant, string abuseEmail, UUID estateOwner)
         {
         }
@@ -956,23 +929,24 @@ namespace OpenSim.Tests.Common.Mock
         public void SendLandProperties(int sequence_id, bool snap_selection, int request_result, LandData landData, float simObjectBonusFactor, int parcelObjectCapacity, int simObjectCapacity, uint regionFlags)
         {
         }
-
+        
         public void SendLandAccessListData(List<UUID> avatars, uint accessFlag, int localLandID)
         {
         }
-
+        
         public void SendForceClientSelectObjects(List<uint> objectIDs)
+        {
+        }
+        
+        public void SendLandObjectOwners(LandData land, List<UUID> groups, Dictionary<UUID, int> ownersAndCount)
         {
         }
 
         public void SendCameraConstraint(Vector4 ConstraintPlane)
         {
-        }
 
-        public void SendLandObjectOwners(LandData land, List<UUID> groups, Dictionary<UUID, int> ownersAndCount)
-        {
         }
-
+        
         public void SendLandParcelOverlay(byte[] data, int sequence_id)
         {
         }
@@ -1108,10 +1082,12 @@ namespace OpenSim.Tests.Common.Mock
         {
         }
 
+        #region IClientAPI Members
+
+
         public bool AddGenericPacketHandler(string MethodName, GenericMessage handler)
         {
-            //throw new NotImplementedException();
-            return false;
+            return true;
         }
 
         public void SendAvatarClassifiedReply(UUID targetID, UUID[] classifiedID, string[] name)
@@ -1161,64 +1137,65 @@ namespace OpenSim.Tests.Common.Mock
         public void SendMuteListUpdate(string filename)
         {
         }
-        
+
         public void SendPickInfoReply(UUID pickID,UUID creatorID, bool topPick, UUID parcelID, string name, string desc, UUID snapshotID, string user, string originalName, string simName, Vector3 posGlobal, int sortOrder, bool enabled)
         {
         }
-
-        public bool TryGet<T>(out T iface)
-        {
-            iface = default(T);
-            return false;
-        }
-
-        public T Get<T>()
-        {
-            return default(T);
-        }
-
-        public void Disconnect(string reason)
-        {
-        }
-
-        public void Disconnect() 
-        {
-        }
-
+        #endregion
+        
         public void SendRebakeAvatarTextures(UUID textureID)
         {
         }
-        
+
+        public bool IsLoggingOut
+        {
+            get { return false; }
+            set { }
+        }
         public void SendAvatarInterestsReply(UUID avatarID, uint wantMask, string wantText, uint skillsMask, string skillsText, string languages)
         {
+            throw new System.NotImplementedException();
         }
-        
-        public void SendGroupAccountingDetails(IClientAPI sender,UUID groupID, UUID transactionID, UUID sessionID, int amt)
+
+        public void SendGroupAccountingDetails(IClientAPI sender, UUID groupID, UUID transactionID, UUID sessionID, int amt)
         {
+            throw new System.NotImplementedException();
         }
-        
-        public void SendGroupAccountingSummary(IClientAPI sender,UUID groupID, uint moneyAmt, int totalTier, int usedTier)
+
+        public void SendGroupAccountingSummary(IClientAPI sender, UUID groupID, uint moneyAmt, int totalTier, int usedTier)
         {
+            throw new System.NotImplementedException();
         }
-        
-        public void SendGroupTransactionsSummaryDetails(IClientAPI sender,UUID groupID, UUID transactionID, UUID sessionID,int amt)
+
+        public void SendGroupTransactionsSummaryDetails(IClientAPI sender, UUID groupID, UUID transactionID, UUID sessionID, int amt)
         {
+            throw new System.NotImplementedException();
         }
 
         public void SendGroupVoteHistory(UUID groupID, UUID transactionID, GroupVoteHistory[] Votes)
         {
+            throw new System.NotImplementedException();
         }
 
         public void SendGroupActiveProposals(UUID groupID, UUID transactionID, GroupActiveProposals[] Proposals)
         {
+            throw new System.NotImplementedException();
         }
 
         public void SendChangeUserRights(UUID agentID, UUID friendID, int rights)
         {
+            throw new System.NotImplementedException();
         }
 
         public void SendTextBoxRequest(string message, int chatChannel, string objectname, string ownerFirstName, string ownerLastName, UUID objectId)
         {
+            throw new System.NotImplementedException();
         }
+
+        public void SendEstateList(UUID invoice, int code, UUID[] Data, uint estateID)
+        {
+            throw new System.NotImplementedException();
+        }
+
     }
 }

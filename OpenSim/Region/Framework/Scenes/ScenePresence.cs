@@ -688,9 +688,12 @@ namespace OpenSim.Region.Framework.Scenes
             AbsolutePosition = posLastSignificantMove = m_CameraCenter =
                 m_lastCameraCenter = m_controllingClient.StartPos;
 
-            m_reprioritization_timer = new Timer(world.ReprioritizationInterval);
-            m_reprioritization_timer.Elapsed += new ElapsedEventHandler(Reprioritize);
-            m_reprioritization_timer.AutoReset = false;
+            if (!m_scene.IsSyncedServer())
+            {
+                m_reprioritization_timer = new Timer(world.ReprioritizationInterval);
+                m_reprioritization_timer.Elapsed += new ElapsedEventHandler(Reprioritize);
+                m_reprioritization_timer.AutoReset = false;
+            }
 
             AdjustKnownSeeds();
 
@@ -730,7 +733,10 @@ namespace OpenSim.Region.Framework.Scenes
             m_controllingClient.OnSetAppearance += SetAppearance;
             m_controllingClient.OnCompleteMovementToRegion += CompleteMovement;
             //m_controllingClient.OnCompleteMovementToRegion += SendInitialData;
-            m_controllingClient.OnAgentUpdate += HandleAgentUpdate;
+
+            // REGION SYNC
+            if(!m_scene.IsSyncedClient())
+                m_controllingClient.OnAgentUpdate += HandleAgentUpdate;
             m_controllingClient.OnAgentRequestSit += HandleAgentRequestSit;
             m_controllingClient.OnAgentSit += HandleAgentSit;
             m_controllingClient.OnSetAlwaysRun += HandleSetAlwaysRun;
@@ -912,14 +918,11 @@ namespace OpenSim.Region.Framework.Scenes
 
             m_isChildAgent = false;
 
-            ScenePresence[] animAgents = m_scene.GetScenePresences();
-            for (int i = 0; i < animAgents.Length; i++)
+            m_scene.ForEachScenePresence(delegate(ScenePresence presence)
             {
-                ScenePresence presence = animAgents[i];
-
                 if (presence != this)
                     presence.Animator.SendAnimPackToClient(ControllingClient);
-            }
+            });
 
             m_scene.EventManager.TriggerOnMakeRootAgent(this);
         }

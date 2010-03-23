@@ -38,6 +38,7 @@ namespace OpenSim.Framework
     public delegate void ViewerEffectEventHandler(IClientAPI sender, List<ViewerEffectEventHandlerArg> args);
 
     public delegate void ChatMessage(Object sender, OSChatMessage e);
+    public delegate void ChatMessageRaw(Object sender, byte[] chatData);
 
     public delegate void GenericMessage(Object sender, string method, List<String> args);
 
@@ -149,6 +150,7 @@ namespace OpenSim.Framework
     public delegate void NewAvatar(IClientAPI remoteClient, UUID agentID, bool status);
 
     public delegate void UpdateAgent(IClientAPI remoteClient, AgentUpdateArgs agentData);
+    public delegate void UpdateAgentRaw(IClientAPI remoteClient, byte[] agentData);
 
     public delegate void AgentRequestSit(IClientAPI remoteClient, UUID agentID, UUID targetID, Vector3 offset);
 
@@ -848,6 +850,7 @@ namespace OpenSim.Framework
         event ImprovedInstantMessage OnInstantMessage;
         // [Obsolete("LLClientView Specific - Replace with more bare-bones arguments. Rename OnChat.")]
         event ChatMessage OnChatFromClient;
+        event ChatMessageRaw OnChatFromClientRaw;
         // [Obsolete("LLClientView Specific - Replace with more bare-bones arguments.")]
         event TextureRequest OnRequestTexture;
         // [Obsolete("LLClientView Specific - Remove bitbuckets. Adam, can you be more specific here..  as I don't see any bit buckets.")]
@@ -883,6 +886,7 @@ namespace OpenSim.Framework
         event GenericCall1 OnCompleteMovementToRegion;
         event UpdateAgent OnPreAgentUpdate;
         event UpdateAgent OnAgentUpdate;
+        event UpdateAgentRaw OnAgentUpdateRaw;
         event AgentRequestSit OnAgentRequestSit;
         event AgentSit OnAgentSit;
         event AvatarPickerRequest OnAvatarPickerRequest;

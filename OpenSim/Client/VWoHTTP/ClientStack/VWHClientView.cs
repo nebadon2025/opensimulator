@@ -219,6 +219,7 @@ namespace OpenSim.Client.VWoHTTP.ClientStack
         public event GenericMessage OnGenericMessage = delegate { };
         public event ImprovedInstantMessage OnInstantMessage = delegate { };
         public event ChatMessage OnChatFromClient = delegate { };
+        public event ChatMessageRaw OnChatFromClientRaw = delegate { };
         public event TextureRequest OnRequestTexture = delegate { };
         public event RezObject OnRezObject = delegate { };
         public event ModifyTerrain OnModifyTerrain = delegate { };
@@ -249,6 +250,7 @@ namespace OpenSim.Client.VWoHTTP.ClientStack
         public event GenericCall1 OnCompleteMovementToRegion = delegate { };
         public event UpdateAgent OnPreAgentUpdate;
         public event UpdateAgent OnAgentUpdate = delegate { };
+        public event UpdateAgentRaw OnAgentUpdateRaw = delegate { };
         public event AgentRequestSit OnAgentRequestSit = delegate { };
         public event AgentSit OnAgentSit = delegate { };
         public event AvatarPickerRequest OnAvatarPickerRequest = delegate { };

@@ -163,6 +163,7 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         public event GenericMessage OnGenericMessage;
         public event ImprovedInstantMessage OnInstantMessage;
         public event ChatMessage OnChatFromClient;
+        public event ChatMessageRaw OnChatFromClientRaw;
         public event TextureRequest OnRequestTexture;
         public event RezObject OnRezObject;
         public event ModifyTerrain OnModifyTerrain;
@@ -192,6 +193,7 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         public event GenericCall1 OnCompleteMovementToRegion;
         public event UpdateAgent OnPreAgentUpdate;
         public event UpdateAgent OnAgentUpdate;
+        public event UpdateAgentRaw OnAgentUpdateRaw;
         public event AgentRequestSit OnAgentRequestSit;
         public event AgentSit OnAgentSit;
         public event AvatarPickerRequest OnAvatarPickerRequest;

@@ -48,6 +48,7 @@ using OpenSim.Services.Interfaces;
 using Timer = System.Timers.Timer;
 using AssetLandmark = OpenSim.Framework.AssetLandmark;
 using Nini.Config;
+using System.Linq;
 
 namespace OpenSim.Region.ClientStack.LindenUDP
 {
@@ -112,6 +113,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         public event ViewerEffectEventHandler OnViewerEffect;
         public event ImprovedInstantMessage OnInstantMessage;
         public event ChatMessage OnChatFromClient;
+        public event ChatMessageRaw OnChatFromClientRaw;
         public event TextureRequest OnRequestTexture;
         public event RezObject OnRezObject;
         public event DeRezObject OnDeRezObject;
@@ -129,6 +131,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         public event GenericCall1 OnCompleteMovementToRegion;
         public event UpdateAgent OnPreAgentUpdate;
         public event UpdateAgent OnAgentUpdate;
+        public event UpdateAgentRaw OnAgentUpdateRaw;
         public event AgentRequestSit OnAgentRequestSit;
         public event AgentSit OnAgentSit;
         public event AvatarPickerRequest OnAvatarPickerRequest;
@@ -356,7 +359,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         private int m_moneyBalance;
         private int m_animationSequenceNumber = 1;
         private bool m_SendLogoutPacketWhenClosing = true;
-        private AgentUpdateArgs lastarg;
+        private byte[] m_lastAgentUpdate;
         private bool m_IsActive = true;
         private bool m_IsLoggingOut = false;
 
@@ -4836,9 +4839,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         private bool HandleAgentUpdate(IClientAPI sener, Packet Pack)
         {
-            if (OnAgentUpdate != null)
+            if (OnAgentUpdate != null || OnAgentUpdateRaw != null)
             {
-                bool update = false;
                 AgentUpdatePacket agenUpdate = (AgentUpdatePacket)Pack;
 
                 #region Packet Session and User Check
@@ -4847,60 +4849,68 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 #endregion
 
                 AgentUpdatePacket.AgentDataBlock x = agenUpdate.AgentData;
+                byte[] xb = new byte[x.Length];
+                int i = 0;
+                x.ToBytes(xb, ref i);
 
-                // We can only check when we have something to check
-                // against.
+                // If there was a previous update and this update is exactly the same, skip it
+                if (m_lastAgentUpdate != null && Enumerable.SequenceEqual(xb, m_lastAgentUpdate))
+                    return true;
 
-                if (lastarg != null)
+                /*
+                // What is different?? (only interesting for client managers)
+                if(m_scene.IsSyncedClient() && m_lastAgentUpdate != null)
                 {
-                    update =
-                       (
-                        (x.BodyRotation != lastarg.BodyRotation) ||
-                        (x.CameraAtAxis != lastarg.CameraAtAxis) ||
-                        (x.CameraCenter != lastarg.CameraCenter) ||
-                        (x.CameraLeftAxis != lastarg.CameraLeftAxis) ||
-                        (x.CameraUpAxis != lastarg.CameraUpAxis) ||
-                        (x.ControlFlags != lastarg.ControlFlags) ||
-                        (x.Far != lastarg.Far) ||
-                        (x.Flags != lastarg.Flags) ||
-                        (x.State != lastarg.State) ||
-                        (x.HeadRotation != lastarg.HeadRotation) ||
-                        (x.SessionID != lastarg.SessionID) ||
-                        (x.AgentID != lastarg.AgentID)
-                       );
+                    AgentUpdatePacket.AgentDataBlock lastarg = new AgentUpdatePacket.AgentDataBlock();
+                    i = 0;
+                    lastarg.FromBytes(m_lastAgentUpdate, ref i);
+
+                    if(x.BodyRotation != lastarg.BodyRotation) m_log.Warn("BodyRotation");
+                    if(x.CameraAtAxis != lastarg.CameraAtAxis) m_log.Warn("CameraAtAxis");
+                    if(x.CameraCenter != lastarg.CameraCenter) m_log.Warn("CameraCenter");
+                    if(x.CameraLeftAxis != lastarg.CameraLeftAxis) m_log.Warn("CameraLeftAxis");
+                    if(x.CameraUpAxis != lastarg.CameraUpAxis) m_log.Warn("CameraUpAxis");
+                    if(x.ControlFlags != lastarg.ControlFlags) m_log.Warn("ControlFlags");
+                    if(x.Far != lastarg.Far) m_log.Warn("Far");
+                    if(x.Flags != lastarg.Flags) m_log.Warn("Flags");
+                    if(x.State != lastarg.State) m_log.Warn("State");
+                    if(x.HeadRotation != lastarg.HeadRotation) m_log.Warn("HeadRotation");
+                    if(x.SessionID != lastarg.SessionID) m_log.Warn("SessionID");
+                    if(x.AgentID != lastarg.AgentID) m_log.Warn("AgentID");
                 }
-                else
-                    update = true;
+                 * */
 
-                // These should be ordered from most-likely to
-                // least likely to change. I've made an initial
-                // guess at that.
+                // save this set of arguments for next time
+                m_lastAgentUpdate = xb;
 
-                if (update)
+                // If we have a raw handler, call it
+                UpdateAgentRaw handlerAgentUpdateRaw = OnAgentUpdateRaw;
+                if (handlerAgentUpdateRaw != null)
                 {
-                    AgentUpdateArgs arg = new AgentUpdateArgs();
-                    arg.AgentID = x.AgentID;
-                    arg.BodyRotation = x.BodyRotation;
-                    arg.CameraAtAxis = x.CameraAtAxis;
-                    arg.CameraCenter = x.CameraCenter;
-                    arg.CameraLeftAxis = x.CameraLeftAxis;
-                    arg.CameraUpAxis = x.CameraUpAxis;
-                    arg.ControlFlags = x.ControlFlags;
-                    arg.Far = x.Far;
-                    arg.Flags = x.Flags;
-                    arg.HeadRotation = x.HeadRotation;
-                    arg.SessionID = x.SessionID;
-                    arg.State = x.State;
-                    UpdateAgent handlerAgentUpdate = OnAgentUpdate;
-                    lastarg = arg; // save this set of arguments for nexttime
-                    if (handlerAgentUpdate != null)
-                    {
-                        OnPreAgentUpdate(this, arg);
-                        OnAgentUpdate(this, arg);
-                    }
-
-                    handlerAgentUpdate = null;
+                    handlerAgentUpdateRaw(this, xb);
+                    handlerAgentUpdateRaw = null;
+                    return true;
                 }
+
+                AgentUpdateArgs arg = new AgentUpdateArgs();
+                arg.AgentID = x.AgentID;
+                arg.BodyRotation = x.BodyRotation;
+                arg.CameraAtAxis = x.CameraAtAxis;
+                arg.CameraCenter = x.CameraCenter;
+                arg.CameraLeftAxis = x.CameraLeftAxis;
+                arg.CameraUpAxis = x.CameraUpAxis;
+                arg.ControlFlags = x.ControlFlags;
+                arg.Far = x.Far;
+                arg.Flags = x.Flags;
+                arg.HeadRotation = x.HeadRotation;
+                arg.SessionID = x.SessionID;
+                arg.State = x.State;
+
+                UpdateAgent handlerAgentUpdate = OnAgentUpdate;
+                if (handlerAgentUpdate != null)
+                    OnAgentUpdate(this, arg);
+
+                handlerAgentUpdate = null;
             }
 
             return true;
@@ -5155,6 +5165,19 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
             int channel = inchatpack.ChatData.Channel;
 
+            // If we have a raw handler, call it
+            ChatMessageRaw handlerChatFromClientRaw = OnChatFromClientRaw;
+            if (handlerChatFromClientRaw != null)
+            {
+                ChatFromViewerPacket.ChatDataBlock x = inchatpack.ChatData;
+                byte[] xb = new byte[x.Length];
+                int i = 0;
+                x.ToBytes(xb, ref i);
+
+                handlerChatFromClientRaw(this, xb);
+                handlerChatFromClientRaw = null;
+                return true;
+            }
             if (OnChatFromClient != null)
             {
                 OSChatMessage args = new OSChatMessage();

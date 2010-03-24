@@ -414,12 +414,8 @@ namespace OpenSim.Region.Framework.Scenes
             ForEachCurrentScene(
                 delegate(Scene scene)
                 {
-                    ScenePresence[] scenePresences = scene.GetScenePresences();
-
-                    for (int i = 0; i < scenePresences.Length; i++)
+                    scene.ForEachScenePresence(delegate(ScenePresence scenePresence)
                     {
-                        ScenePresence scenePresence = scenePresences[i];
-
                         if (!scenePresence.IsChildAgent)
                         {
                             m_log.DebugFormat("Packet debug for {0} {1} set to {2}",
@@ -429,7 +425,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                             scenePresence.ControllingClient.SetDebugPacketLevel(newDebug);
                         }
-                    }
+                    });
                 }
             );
         }
@@ -441,14 +437,11 @@ namespace OpenSim.Region.Framework.Scenes
             ForEachCurrentScene(
                 delegate(Scene scene)
                 {
-                    ScenePresence[] scenePresences = scene.GetScenePresences();
-
-                    for (int i = 0; i < scenePresences.Length; i++)
+                    scene.ForEachScenePresence(delegate(ScenePresence scenePresence)
                     {
-                        ScenePresence scenePresence = scenePresences[i];
                         if (!scenePresence.IsChildAgent)
                             avatars.Add(scenePresence);
-                    }
+                    });
                 }
             );
 
@@ -461,8 +454,10 @@ namespace OpenSim.Region.Framework.Scenes
 
             ForEachCurrentScene(delegate(Scene scene)
             {
-                ScenePresence[] scenePresences = scene.GetScenePresences();
-                presences.AddRange(scenePresences);
+                scene.ForEachScenePresence(delegate(ScenePresence sp)
+                {
+                    presences.Add(sp);
+                });
             });
 
             return presences;
@@ -491,11 +486,11 @@ namespace OpenSim.Region.Framework.Scenes
             ForEachCurrentScene(delegate(Scene scene) { scene.HandleEditCommand(cmdparams); });
         }
 
-        public bool TryGetAvatar(UUID avatarId, out ScenePresence avatar)
+        public bool TryGetScenePresence(UUID avatarId, out ScenePresence avatar)
         {
             foreach (Scene scene in m_localScenes)
             {
-                if (scene.TryGetAvatar(avatarId, out avatar))
+                if (scene.TryGetScenePresence(avatarId, out avatar))
                 {
                     return true;
                 }
@@ -510,7 +505,7 @@ namespace OpenSim.Region.Framework.Scenes
             ScenePresence avatar = null;
             foreach (Scene mScene in m_localScenes)
             {
-                if (mScene.TryGetAvatar(avatarId, out avatar))
+                if (mScene.TryGetScenePresence(avatarId, out avatar))
                 {
                     scene = mScene;
                     return true;

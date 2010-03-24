@@ -707,36 +707,37 @@ namespace OpenSim.Region.RegionCombinerModule
                     return;
             }
 
-            List<ScenePresence> avatars = connectiondata.RegionScene.GetAvatars();
             List<Vector3> CoarseLocations = new List<Vector3>();
             List<UUID> AvatarUUIDs = new List<UUID>();
-            for (int i = 0; i < avatars.Count; i++)
+            connectiondata.RegionScene.ForEachScenePresence(delegate(ScenePresence sp)
             {
-                if (avatars[i].UUID != presence.UUID)
+                if (sp.IsChildAgent)
+                    return;
+                if (sp.UUID != presence.UUID)
                 {
-                    if (avatars[i].ParentID != 0)
+                    if (sp.ParentID != 0)
                     {
                         // sitting avatar
-                        SceneObjectPart sop = connectiondata.RegionScene.GetSceneObjectPart(avatars[i].ParentID);
+                        SceneObjectPart sop = connectiondata.RegionScene.GetSceneObjectPart(sp.ParentID);
                         if (sop != null)
                         {
-                            CoarseLocations.Add(sop.AbsolutePosition + avatars[i].AbsolutePosition);
-                            AvatarUUIDs.Add(avatars[i].UUID);
+                            CoarseLocations.Add(sop.AbsolutePosition + sp.AbsolutePosition);
+                            AvatarUUIDs.Add(sp.UUID);
                         }
                         else
                         {
                             // we can't find the parent..  ! arg!
-                            CoarseLocations.Add(avatars[i].AbsolutePosition);
-                            AvatarUUIDs.Add(avatars[i].UUID);
+                            CoarseLocations.Add(sp.AbsolutePosition);
+                            AvatarUUIDs.Add(sp.UUID);
                         }
                     }
                     else
                     {
-                        CoarseLocations.Add(avatars[i].AbsolutePosition);
-                        AvatarUUIDs.Add(avatars[i].UUID);
+                        CoarseLocations.Add(sp.AbsolutePosition);
+                        AvatarUUIDs.Add(sp.UUID);
                     }
                 }
-            }
+            });
             DistributeCourseLocationUpdates(CoarseLocations, AvatarUUIDs, connectiondata, presence);
         }
 
@@ -1004,7 +1005,7 @@ namespace OpenSim.Region.RegionCombinerModule
             VirtualRegion.Permissions.OnIssueEstateCommand += BigRegion.PermissionModule.CanIssueEstateCommand; //FULLY IMPLEMENTED
             VirtualRegion.Permissions.OnMoveObject += BigRegion.PermissionModule.CanMoveObject; //MAYBE FULLY IMPLEMENTED
             VirtualRegion.Permissions.OnObjectEntry += BigRegion.PermissionModule.CanObjectEntry;
-            VirtualRegion.Permissions.OnReturnObject += BigRegion.PermissionModule.CanReturnObject; //NOT YET IMPLEMENTED
+            VirtualRegion.Permissions.OnReturnObjects += BigRegion.PermissionModule.CanReturnObjects; //NOT YET IMPLEMENTED
             VirtualRegion.Permissions.OnRezObject += BigRegion.PermissionModule.CanRezObject; //MAYBE FULLY IMPLEMENTED
             VirtualRegion.Permissions.OnRunConsoleCommand += BigRegion.PermissionModule.CanRunConsoleCommand;
             VirtualRegion.Permissions.OnRunScript += BigRegion.PermissionModule.CanRunScript; //NOT YET IMPLEMENTED
@@ -1030,7 +1031,6 @@ namespace OpenSim.Region.RegionCombinerModule
             VirtualRegion.Permissions.OnEditUserInventory += BigRegion.PermissionModule.CanEditUserInventory; //NOT YET IMPLEMENTED
             VirtualRegion.Permissions.OnDeleteUserInventory += BigRegion.PermissionModule.CanDeleteUserInventory; //NOT YET IMPLEMENTED
             VirtualRegion.Permissions.OnTeleport += BigRegion.PermissionModule.CanTeleport; //NOT YET IMPLEMENTED
-            VirtualRegion.Permissions.OnUseObjectReturn += BigRegion.PermissionModule.CanUseObjectReturn; //NOT YET IMPLEMENTED
         }
 
         #region console commands

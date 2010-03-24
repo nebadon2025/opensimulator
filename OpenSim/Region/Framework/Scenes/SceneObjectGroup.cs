@@ -1274,7 +1274,6 @@ namespace OpenSim.Region.Framework.Scenes
                         Scene.RegionSyncServerModule.DeleteObject(part.RegionHandle, part.LocalId);
                         return;
                     }
-
                     Scene.ForEachScenePresence(delegate(ScenePresence avatar)
                     {
                         if (avatar.ParentID == LocalId)

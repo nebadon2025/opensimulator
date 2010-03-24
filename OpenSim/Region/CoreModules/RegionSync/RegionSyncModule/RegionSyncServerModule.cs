@@ -427,7 +427,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         private void EventManager_OnRemovePresence(UUID agentID)
         {
             ScenePresence avatar;
-            if (m_scene.TryGetAvatar(agentID, out avatar))
+            if (m_scene.TryGetScenePresence(agentID, out avatar))
             {
                 m_log.WarnFormat("[REGION SYNC SERVER MODULE] Avatar \"{0}\" (1) {2} has left the scene", avatar.Firstname + " " + avatar.Lastname, agentID.ToString(), avatar.UUID.ToString());
             }

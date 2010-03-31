@@ -462,7 +462,7 @@ namespace OpenSim.Region.Examples.SimpleModule
             
         }
 
-        public void SendGenericMessage(string method, List<string> message)
+        public void SendGenericMessage(string method, List<byte[]> message)
         {
 
         }

@@ -662,6 +662,8 @@ namespace OpenSim.Region.Framework.Scenes
 
                             int estateID = estateIDs[0];
 
+                            m_regInfo.EstateSettings = m_storageManager.EstateDataStore.LoadEstateSettings(estateID);
+
                             if (m_storageManager.EstateDataStore.LinkRegion(m_regInfo.RegionID, estateID))
                                 break;
 
@@ -1287,7 +1289,7 @@ namespace OpenSim.Region.Framework.Scenes
             //
             // TODO: Find a better place for this
             //
-            while (m_regInfo.EstateSettings.EstateOwner == UUID.Zero)
+            while (m_regInfo.EstateSettings.EstateOwner == UUID.Zero && MainConsole.Instance != null)
             {
                 MainConsole.Instance.Output("The current estate has no owner set.");
                 string first = MainConsole.Instance.CmdPrompt("Estate owner first name", "Test");
@@ -1297,6 +1299,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if (account == null)
                 {
+                    // Create a new account
                     account = new UserAccount(m_regInfo.ScopeID, first, last, String.Empty);
                     if (account.ServiceURLs == null || (account.ServiceURLs != null && account.ServiceURLs.Count == 0))
                     {
@@ -1354,7 +1357,8 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 else
                 {
-                    MainConsole.Instance.Output("You appear to be connected to a grid and can't create users from here. Please enter the name of an existing user");
+                    m_regInfo.EstateSettings.EstateOwner = account.PrincipalID;
+                    m_regInfo.EstateSettings.Save();
                 }
             }
         }
@@ -1741,6 +1745,19 @@ namespace OpenSim.Region.Framework.Scenes
         public void SaveTerrain()
         {
             m_storageManager.DataStore.StoreTerrain(Heightmap.GetDoubles(), RegionInfo.RegionID);
+        }
+
+        public void StoreWindlightProfile(RegionLightShareData wl)
+        {
+            m_regInfo.WindlightSettings = wl;
+            m_storageManager.DataStore.StoreRegionWindlightSettings(wl);
+            m_eventManager.TriggerOnSaveNewWindlightProfile();
+        }
+
+        public void LoadWindlightProfile()
+        {
+            m_regInfo.WindlightSettings = m_storageManager.DataStore.LoadRegionWindlightSettings(RegionInfo.RegionID);
+            m_eventManager.TriggerOnSaveNewWindlightProfile();
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -25,43 +25,52 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-using System.Collections.Generic;
+using System;
+using System.Runtime.Remoting.Lifetime;
+using System.Threading;
 using System.Reflection;
-using log4net;
-using OpenSim.Framework.Servers.HttpServer;
+using System.Collections;
+using System.Collections.Generic;
+using OpenSim.Framework;
+using OpenSim.Region.Framework.Interfaces;
+using OpenSim.Region.ScriptEngine.Interfaces;
+using OpenSim.Region.ScriptEngine.Shared.Api.Interfaces;
+using integer = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLInteger;
+using vector = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Vector3;
+using rotation = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Quaternion;
+using key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
+using LSL_List = OpenSim.Region.ScriptEngine.Shared.LSL_Types.list;
+using LSL_String = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
+using LSL_Float = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLFloat;
+using LSL_Integer = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLInteger;
 
-namespace OpenSim.Framework
+namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
 {
-    public class MainServer
+    public partial class ScriptBaseClass : MarshalByRefObject
     {
-        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-        
-        private static BaseHttpServer instance = null;
-        private static Dictionary<uint, BaseHttpServer> m_Servers =
-                new Dictionary<uint, BaseHttpServer>();
+        public ICM_Api m_CM_Functions;
 
-        public static BaseHttpServer Instance
+        public void ApiTypeCM(IScriptApi api)
         {
-            get { return instance; }
-            set { instance = value; }
+            if (!(api is ICM_Api))
+                return;
+
+            m_CM_Functions = (ICM_Api)api;
         }
 
-        public static IHttpServer GetHttpServer(uint port)
+        public LSL_List cmGetWindlightScene(LSL_List rules)
         {
-            if (port == 0)
-                return Instance;
-            if (instance != null && port == Instance.Port)
-                return Instance;
+            return m_CM_Functions.cmGetWindlightScene(rules);
+        }
 
-            if (m_Servers.ContainsKey(port))
-                return m_Servers[port];
+        public int cmSetWindlightScene(LSL_List rules)
+        {
+            return m_CM_Functions.cmSetWindlightScene(rules);
+        }
 
-            m_Servers[port] = new BaseHttpServer(port);
-
-            m_log.InfoFormat("[MAIN HTTP SERVER]: Starting main http server on port {0}", port);
-            m_Servers[port].Start();
-
-            return m_Servers[port];
+        public int cmSetWindlightSceneTargeted(LSL_List rules, key target)
+        {
+            return m_CM_Functions.cmSetWindlightSceneTargeted(rules, target);
         }
     }
 }

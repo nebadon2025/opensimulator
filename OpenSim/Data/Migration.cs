@@ -131,9 +131,10 @@ namespace OpenSim.Data
             m_log.InfoFormat("[MIGRATIONS] Upgrading {0} to latest revision {1}.", _type, migrations.Keys[migrations.Count - 1]);
             m_log.Info("[MIGRATIONS] NOTE: this may take a while, don't interupt this process!");
 
-            DbCommand cmd = _conn.CreateCommand();
             foreach (KeyValuePair<int, string> kvp in migrations)
             {
+                DbCommand cmd = _conn.CreateCommand();
+
                 int newversion = kvp.Key;
                 cmd.CommandText = kvp.Value;
                 // we need to up the command timeout to infinite as we might be doing long migrations.

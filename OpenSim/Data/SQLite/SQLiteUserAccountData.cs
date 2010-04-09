@@ -31,7 +31,7 @@ using System.Collections.Generic;
 using System.Data;
 using OpenMetaverse;
 using OpenSim.Framework;
-using Mono.Data.SqliteClient;
+using Mono.Data.Sqlite;
 
 namespace OpenSim.Data.SQLite
 {

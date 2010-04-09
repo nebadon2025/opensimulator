@@ -2194,7 +2194,6 @@
       <Reference name="System"/>
       <Reference name="System.Xml"/>
       <Reference name="System.Data"/>
-      <Reference name="System.Data.SQLite.dll"/>
       <Reference name="OpenSim.Data"/>
       <Reference name="System.Drawing"/>
       <Reference name="OpenSim.Framework"/>
@@ -2202,7 +2201,7 @@
       <Reference name="OpenSim.Region.Framework"/>
       <Reference name="OpenMetaverseTypes.dll"/>
       <Reference name="OpenMetaverse.dll"/>
-      <Reference name="Mono.Data.SqliteClient"/>
+      <Reference name="Mono.Data.Sqlite"/>
       <Reference name="Mono.Addins.dll" />
       <Reference name="log4net.dll"/>
 
@@ -2509,7 +2508,7 @@
       <Reference name="OpenSim.Framework.Servers.HttpServer"/>
       <Reference name="OpenSim.Framework.Statistics"/>
       <Reference name="OpenSim.Region.Physics.Manager"/>
-      <Reference name="Mono.Data.SqliteClient"/>
+      <Reference name="Mono.Data.Sqlite"/>
       <Reference name="Mono.Addins"/>
 
       <!-- For scripting in funny languages by default -->
@@ -2841,7 +2840,6 @@
       <Reference name="System"/>
       <Reference name="System.Xml"/>
       <Reference name="System.Data"/>
-      <Reference name="System.Data.SQLite.dll"/>
       <Reference name="OpenSim.Data"/>
       <Reference name="OpenSim.Data.Tests"/>
       <Reference name="OpenSim.Tests.Common"/>
@@ -2852,7 +2850,7 @@
       <Reference name="OpenSim.Region.Framework"/>
       <Reference name="OpenMetaverseTypes.dll"/>
       <Reference name="OpenMetaverse.dll"/>
-      <Reference name="Mono.Data.SqliteClient"/>
+      <Reference name="Mono.Data.Sqlite"/>
       <Reference name="Mono.Addins.dll" />
       <Reference name="log4net.dll"/>
       <Reference name="nunit.framework.dll" />

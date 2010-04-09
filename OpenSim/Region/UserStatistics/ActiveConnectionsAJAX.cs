@@ -30,7 +30,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
-using Mono.Data.SqliteClient;
+using Mono.Data.Sqlite;
 using OpenMetaverse;
 using OpenSim.Framework;
 using OpenSim.Region.Framework.Scenes;

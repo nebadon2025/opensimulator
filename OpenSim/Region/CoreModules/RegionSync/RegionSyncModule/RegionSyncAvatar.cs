@@ -1177,6 +1177,11 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             throw new System.NotImplementedException();
         }
 
+        public void SendGenericMessage(string method, List<byte[]> message)
+        {
+            throw new System.NotImplementedException();
+        }
+
         public void SendGroupActiveProposals(UUID groupID, UUID transactionID, GroupActiveProposals[] Proposals)
         {
             throw new System.NotImplementedException();

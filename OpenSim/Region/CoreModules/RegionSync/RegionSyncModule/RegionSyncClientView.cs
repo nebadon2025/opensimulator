@@ -140,28 +140,6 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                         Send(new RegionSyncMessage(RegionSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString()));
                         return HandlerSuccess(msg, "Terrain sent");
                     }
-                case RegionSyncMessage.MsgType.GetRegionArchive:
-                    {
-                        IRegionArchiverModule archiver = m_scene.RequestModuleInterface<IRegionArchiverModule>();
-                        if (archiver == null)
-                        {
-                            return HandlerFailure(msg, "Could not retrieve archiver module from scene");
-                        }
-                        MemoryStream ms = new MemoryStream();
-                        // Remember the last time we archived this region to the ClientSyncServer
-                        // Any updates after this time cannot be assumed to be in the archive stream
-                        m_archive_time = DateTime.Now.Ticks;
-                        archiver.ArchiveRegion(ms, Guid.Empty);
-                        // ***
-                        // The call to ArchiveRegion is asynchronous. We need a better way to know when it's done.
-                        // For now, just sleep for 1 second. That will support a vary large region to be archived.
-                        // Since this command is typically only executed when a new RegionSyncClient connects and
-                        // is done on a RegionSyncServer thread, it should not impact other RegionSyncClients the 
-                        // RegionSyncServer, or the sim.
-                        Thread.Sleep(1000);
-                        Send(new RegionSyncMessage(RegionSyncMessage.MsgType.RegionArchive, ms.ToArray()));
-                        return HandlerSuccess(msg, "Region archive sent");
-                    }
                 case RegionSyncMessage.MsgType.AgentAdd:
                     {
                         OSDMap data = OSDParser.DeserializeJson(Encoding.ASCII.GetString(msg.Data)) as OSDMap;

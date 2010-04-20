@@ -166,17 +166,6 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                         m_scene.Heightmap.LoadFromXmlString(Encoding.ASCII.GetString(msg.Data));
                         return HandlerSuccess(msg, "Syncrhonized terrain");
                     }
-                case RegionSyncMessage.MsgType.RegionArchive:
-                    {
-                        IRegionArchiverModule archiver = m_scene.RequestModuleInterface<IRegionArchiverModule>();
-                        if (archiver == null)
-                        {
-                            return HandlerFailure(msg, "Could not retrieve archiver module.");
-                        }
-                        MemoryStream ms = new MemoryStream(msg.Data);
-                        archiver.DearchiveRegion(ms);
-                        return HandlerSuccess(msg,"Synchronized region");
-                    }
                 case RegionSyncMessage.MsgType.AddObject:
                 case RegionSyncMessage.MsgType.UpdateObject:
                     {
@@ -201,7 +190,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                             Vector3 vel = data["vel"].AsVector3();
                             Quaternion rot = data["rot"].AsQuaternion();
 
-                            // We get the UUID of the object to be deleted, find it in the scene
+                            // We get the UUID of the avatar to be updated, find it in the scene
                             if (agentID != UUID.Zero)
                             {
                                 ScenePresence presence = m_scene.GetScenePresence(agentID);
@@ -313,7 +302,6 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             m_scene.DeleteAllSceneObjects();
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetTerrain));
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetObjects));
-            //Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetRegionArchive));
             // Register for events which will be forwarded to authoritative scene
             m_scene.EventManager.OnNewClient += EventManager_OnNewClient;
         }

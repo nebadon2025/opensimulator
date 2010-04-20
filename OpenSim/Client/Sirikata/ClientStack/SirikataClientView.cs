@@ -290,6 +290,7 @@ namespace OpenSim.Client.Sirikata.ClientStack
         public event Action<UUID> OnRemoveAvatar;
         public event ObjectPermissions OnObjectPermissions;
         public event CreateNewInventoryItem OnCreateNewInventoryItem;
+        public event LinkInventoryItem OnLinkInventoryItem;
         public event CreateInventoryFolder OnCreateNewInventoryFolder;
         public event UpdateInventoryFolder OnUpdateInventoryFolder;
         public event MoveInventoryFolder OnMoveInventoryFolder;

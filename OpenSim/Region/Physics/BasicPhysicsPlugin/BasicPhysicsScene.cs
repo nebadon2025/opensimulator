@@ -24,10 +24,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+    
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using Nini.Config;
+using log4net;
 using OpenMetaverse;
 using OpenSim.Framework;
 using OpenSim.Region.Physics.Manager;
@@ -36,6 +38,8 @@ namespace OpenSim.Region.Physics.BasicPhysicsPlugin
 {
     public class BasicScene : PhysicsScene
     {
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
         private List<BasicActor> _actors = new List<BasicActor>();
         private float[] _heightMap;
 
@@ -129,7 +133,16 @@ namespace OpenSim.Region.Physics.BasicPhysicsPlugin
                     actorPosition.X = ((int)Constants.RegionSize - 0.1f);
                 }
 
-                float height = _heightMap[(int)actor.Position.Y * Constants.RegionSize + (int)actor.Position.X] + actor.Size.Z;
+                float height = 25.0F;
+                try
+                {
+                    height = _heightMap[(int)actor.Position.Y * Constants.RegionSize + (int)actor.Position.X] + actor.Size.Z;
+                }
+                catch (OverflowException)
+                {
+                    m_log.WarnFormat("[BASICPHYSICS]: Actor out of range: {0}", actor.SOPName, actor.Position.ToString());
+                }
+
                 if (actor.Flying)
                 {
                     if (actor.Position.Z + (actor.Velocity.Z*timeStep) <

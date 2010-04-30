@@ -1259,13 +1259,13 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void AddFullUpdateToAllAvatars()
         {
-            // REGION SYNC
-            if (m_parentGroup.Scene.IsSyncedServer())
-                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate(this);
             m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
             {
                 avatar.SceneViewer.QueuePartForUpdate(this);
             });
+            // REGION SYNC
+            if (m_parentGroup.Scene.IsSyncedServer())
+                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate(this);
         }
 
         public void AddFullUpdateToAvatar(ScenePresence presence)
@@ -1286,12 +1286,13 @@ namespace OpenSim.Region.Framework.Scenes
         /// Terse updates
         public void AddTerseUpdateToAllAvatars()
         {
-            if (m_parentGroup.Scene.IsSyncedServer())
-                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate(this);
             m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
             {
                 avatar.SceneViewer.QueuePartForUpdate(this);
             });
+            // REGION SYNC
+            if (m_parentGroup.Scene.IsSyncedServer())
+                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate(this);
         }
 
         public void AddTerseUpdateToAvatar(ScenePresence presence)

@@ -4901,32 +4901,38 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 int i = 0;
                 x.ToBytes(xb, ref i);
 
+                
                 // If there was a previous update and this update is exactly the same, skip it
-                if (m_lastAgentUpdate != null && Enumerable.SequenceEqual(xb, m_lastAgentUpdate))
+                if (m_scene.IsSyncedClient() && m_lastAgentUpdate != null && Enumerable.SequenceEqual(xb, m_lastAgentUpdate))
+                {
+                    //m_log.Warn("LLClientView: HandleAgentUpdate (IDENTICAL TO LAST)");
                     return true;
-
-                /*
+                }
+                
                 // What is different?? (only interesting for client managers)
+                /*
                 if(m_scene.IsSyncedClient() && m_lastAgentUpdate != null)
                 {
                     AgentUpdatePacket.AgentDataBlock lastarg = new AgentUpdatePacket.AgentDataBlock();
                     i = 0;
                     lastarg.FromBytes(m_lastAgentUpdate, ref i);
-
-                    if(x.BodyRotation != lastarg.BodyRotation) m_log.Warn("BodyRotation");
-                    if(x.CameraAtAxis != lastarg.CameraAtAxis) m_log.Warn("CameraAtAxis");
-                    if(x.CameraCenter != lastarg.CameraCenter) m_log.Warn("CameraCenter");
-                    if(x.CameraLeftAxis != lastarg.CameraLeftAxis) m_log.Warn("CameraLeftAxis");
-                    if(x.CameraUpAxis != lastarg.CameraUpAxis) m_log.Warn("CameraUpAxis");
-                    if(x.ControlFlags != lastarg.ControlFlags) m_log.Warn("ControlFlags");
-                    if(x.Far != lastarg.Far) m_log.Warn("Far");
-                    if(x.Flags != lastarg.Flags) m_log.Warn("Flags");
-                    if(x.State != lastarg.State) m_log.Warn("State");
-                    if(x.HeadRotation != lastarg.HeadRotation) m_log.Warn("HeadRotation");
-                    if(x.SessionID != lastarg.SessionID) m_log.Warn("SessionID");
-                    if(x.AgentID != lastarg.AgentID) m_log.Warn("AgentID");
+                    m_log.WarnFormat("LLClientView: HandleAgentUpdate |{0}{1}{2}{3}{4}{5}{6}{7}{8}{9}{10}{11}|",
+                        (x.BodyRotation != lastarg.BodyRotation) ? "X" : " ",
+                        (x.CameraAtAxis != lastarg.CameraAtAxis) ? "X" : " ",
+                        (x.CameraCenter != lastarg.CameraCenter) ? "X" : " ",
+                        (x.CameraLeftAxis != lastarg.CameraLeftAxis) ? "X" : " ",
+                        (x.CameraUpAxis != lastarg.CameraUpAxis) ? "X" : " ",
+                        (x.ControlFlags != lastarg.ControlFlags) ? "X" : " ",
+                        (x.Far != lastarg.Far) ? "X" : " ",
+                        (x.Flags != lastarg.Flags) ? "X" : " ",
+                        (x.State != lastarg.State) ? "X" : " ",
+                        (x.HeadRotation != lastarg.HeadRotation) ? "X" : " ",
+                        (x.SessionID != lastarg.SessionID) ? "X" : " ",
+                        (x.AgentID != lastarg.AgentID) ? "X" : " ");
                 }
                  * */
+                
+                
 
                 // save this set of arguments for next time
                 m_lastAgentUpdate = xb;

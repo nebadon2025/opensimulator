@@ -101,6 +101,11 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         #endregion
 
         #region IRegionSyncClientModule members
+        public void SendCoarseLocations()
+        {
+            m_client.SendCoarseLocations();
+        }
+
         public bool Active
         {
             get { return m_active; }
@@ -126,6 +131,8 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         private ILog m_log;
         private Object m_client_lock = new Object();
         private RegionSyncClient m_client = null;
+
+
         #endregion
 
         #region Event Handlers

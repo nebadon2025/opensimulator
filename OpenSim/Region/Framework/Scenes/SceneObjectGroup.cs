@@ -1272,7 +1272,7 @@ namespace OpenSim.Region.Framework.Scenes
                     if (Scene.IsSyncedServer())
                     {
                         Scene.RegionSyncServerModule.DeleteObject(part.RegionHandle, part.LocalId);
-                        return;
+                        //return;
                     }
                     Scene.ForEachScenePresence(delegate(ScenePresence avatar)
                     {

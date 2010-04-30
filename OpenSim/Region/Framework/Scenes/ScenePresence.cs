@@ -383,6 +383,18 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_allowMovement = value; }
         }
 
+        // Added for region sync module. 
+        // Should not rely on a physics actor like so many of these params seem to
+        public bool Flying
+        {
+            get
+            {
+                if (PhysicsActor != null)
+                    return PhysicsActor.Flying;
+                return false;
+            }
+        }
+
         public bool SetAlwaysRun
         {
             get
@@ -688,12 +700,9 @@ namespace OpenSim.Region.Framework.Scenes
             AbsolutePosition = posLastSignificantMove = m_CameraCenter =
                 m_lastCameraCenter = m_controllingClient.StartPos;
 
-            if (!m_scene.IsSyncedServer())
-            {
-                m_reprioritization_timer = new Timer(world.ReprioritizationInterval);
-                m_reprioritization_timer.Elapsed += new ElapsedEventHandler(Reprioritize);
-                m_reprioritization_timer.AutoReset = false;
-            }
+            m_reprioritization_timer = new Timer(world.ReprioritizationInterval);
+            m_reprioritization_timer.Elapsed += new ElapsedEventHandler(Reprioritize);
+            m_reprioritization_timer.AutoReset = false;
 
             AdjustKnownSeeds();
 
@@ -1194,6 +1203,39 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                 }
             }
+        }
+
+        // Move the avatar to a specific position, velocity and rotation and mark it as changed
+        // Mostly copied from HandleAgentUpdate
+        public void MoveTo(Vector3 pos, Vector3 vel, Quaternion rot)
+        {
+            ++m_movementUpdateCount;
+            if (m_movementUpdateCount < 1)
+                m_movementUpdateCount = 1;
+            #region Sanity Checking
+
+            // This is irritating.  Really.
+            if (!AbsolutePosition.IsFinite())
+            {
+                RemoveFromPhysicalScene();
+                m_log.Error("[AVATAR]: NonFinite Avatar position detected... Reset Position. Mantis this please. Error #9999902");
+
+                m_pos = m_LastFinitePos;
+                if (!m_pos.IsFinite())
+                {
+                    m_pos.X = 127f;
+                    m_pos.Y = 127f;
+                    m_pos.Z = 127f;
+                    m_log.Error("[AVATAR]: NonFinite Avatar position detected... Reset Position. Mantis this please. Error #9999903");
+                }
+
+                AddToPhysicalScene(false);
+            }
+            else
+            {
+                m_LastFinitePos = m_pos;
+            }
+            #endregion Sanity Checking
         }
 
         /// <summary>
@@ -2324,6 +2366,10 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     SendTerseUpdateToAllClients();
 
+                    // REGION SYNC
+                    if(m_scene.IsSyncedServer())
+                        m_scene.RegionSyncServerModule.QueuePresenceForTerseUpdate(this);
+
                     // Update the "last" values
                     m_lastPosition = m_pos;
                     m_lastRotation = m_bodyRot;
@@ -2382,6 +2428,19 @@ namespace OpenSim.Region.Framework.Scenes
             m_scene.StatsReporter.AddAgentTime(Util.EnvironmentTickCountSubtract(m_perfMonMS));
         }
 
+        /// <summary>
+        /// Send a location/velocity/accelleration update to all agents in a list
+        /// </summary>
+        public void SendTerseUpdateToClientList(List<IClientAPI> clients)
+        {
+            m_perfMonMS = Util.EnvironmentTickCount();
+            foreach( IClientAPI client in clients)
+            {
+                SendTerseUpdateToClient(client);
+            }
+            m_scene.StatsReporter.AddAgentTime(Util.EnvironmentTickCountSubtract(m_perfMonMS));
+        }
+
         public void SendCoarseLocations()
         {
             SendCourseLocationsMethod d = m_sendCourseLocationsMethod;
@@ -2400,39 +2459,12 @@ namespace OpenSim.Region.Framework.Scenes
         public void SendCoarseLocationsDefault(UUID sceneId, ScenePresence p)
         {
             m_perfMonMS = Util.EnvironmentTickCount();
-
-            List<Vector3> CoarseLocations = new List<Vector3>();
             List<UUID> AvatarUUIDs = new List<UUID>();
-            m_scene.ForEachScenePresence(delegate(ScenePresence sp)
-            {
-                if (sp.IsChildAgent)
-                    return;
-
-                if (sp.ParentID != 0)
-                {
-                    // sitting avatar
-                    SceneObjectPart sop = m_scene.GetSceneObjectPart(sp.ParentID);
-                    if (sop != null)
-                    {
-                        CoarseLocations.Add(sop.AbsolutePosition + sp.m_pos);
-                        AvatarUUIDs.Add(sp.UUID);
-                    }
-                    else
-                    {
-                        // we can't find the parent..  ! arg!
-                        CoarseLocations.Add(sp.m_pos);
-                        AvatarUUIDs.Add(sp.UUID);
-                    }
-                }
-                else
-                {
-                    CoarseLocations.Add(sp.m_pos);
-                    AvatarUUIDs.Add(sp.UUID);
-                }
-            });
-
+            List<Vector3> CoarseLocations = new List<Vector3>();
+            // This is not cheap to compile this list of locations.
+            // It should ideally be done once and then sent to every client rather than compiled for each client
+            m_scene.GetCoarseLocations(out AvatarUUIDs, out CoarseLocations);
             m_controllingClient.SendCoarseLocationUpdate(AvatarUUIDs, CoarseLocations);
-
             m_scene.StatsReporter.AddAgentTime(Util.EnvironmentTickCountSubtract(m_perfMonMS));
         }
 

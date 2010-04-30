@@ -24,7 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-    
+
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Nini.Config;
@@ -32,6 +33,7 @@ using OpenMetaverse;
 using OpenMetaverse.StructuredData;
 using OpenSim.Framework;
 using OpenSim.Framework.Client;
+using OpenSim.Region.CoreModules.Framework.InterfaceCommander;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Framework.Scenes.Serialization;
@@ -42,7 +44,7 @@ using System.Threading;
 
 namespace OpenSim.Region.Examples.RegionSyncModule
 {
-    public class RegionSyncServerModule : IRegionModule, IRegionSyncServerModule
+    public class RegionSyncServerModule : IRegionModule, IRegionSyncServerModule, ICommandableModule
     {
         #region IRegionModule Members
         public void Initialise(Scene scene, IConfigSource config)
@@ -60,6 +62,11 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             m_serverport = syncConfig.GetInt("ServerPort", 13000);
             m_scene = scene;
             m_scene.RegisterModuleInterface<IRegionSyncServerModule>(this);
+
+            // Setup the command line interface
+            m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
+            InstallInterfaces();
+
             m_log.Warn("[REGION SYNC SERVER MODULE] Initialised");
         }
 
@@ -67,20 +74,21 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         {
             if (!m_active)
                 return;
-            
+
             //m_scene.EventManager.OnObjectBeingRemovedFromScene += new EventManager.ObjectBeingRemovedFromScene(EventManager_OnObjectBeingRemovedFromScene);
-            //m_scene.EventManager.OnNewClient +=new EventManager.OnNewClientDelegate(EventManager_OnNewClient);
-            //m_scene.EventManager.OnNewPresence +=new EventManager.OnNewPresenceDelegate(EventManager_OnNewPresence);
+
             //m_scene.EventManager.OnAvatarEnteringNewParcel += new EventManager.AvatarEnteringNewParcel(EventManager_OnAvatarEnteringNewParcel);
             //m_scene.EventManager.OnClientMovement += new EventManager.ClientMovement(EventManager_OnClientMovement);
             //m_scene.EventManager.OnLandObjectAdded += new EventManager.LandObjectAdded(EventManager_OnLandObjectAdded);
             //m_scene.EventManager.OnLandObjectRemoved += new EventManager.LandObjectRemoved(EventManager_OnLandObjectRemoved);
+            m_scene.EventManager.OnNewClient += new EventManager.OnNewClientDelegate(EventManager_OnNewClient);
+            //m_scene.EventManager.OnNewPresence += new EventManager.OnNewPresenceDelegate(EventManager_OnNewPresence);
             m_scene.EventManager.OnRemovePresence += new EventManager.OnRemovePresenceDelegate(EventManager_OnRemovePresence);
             m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(SceneGraph_OnObjectCreate);
             m_scene.SceneGraph.OnObjectDuplicate += new ObjectDuplicateDelegate(SceneGraph_OnObjectDuplicate);
             //m_scene.SceneGraph.OnObjectRemove += new ObjectDeleteDelegate(SceneGraph_OnObjectRemove);
             //m_scene.StatsReporter.OnSendStatsResult += new SimStatsReporter.SendStatResult(StatsReporter_OnSendStatsResult);
-            
+
             m_log.Warn("[REGION SYNC SERVER MODULE] Starting RegionSyncServer");
             // Start the server and listen for RegionSyncClients
             m_server = new RegionSyncServer(m_scene, m_serveraddr, m_serverport);
@@ -103,7 +111,15 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         {
             get { return false; }
         }
-#endregion 
+        #endregion
+
+        #region ICommandableModule Members
+        private readonly Commander m_commander = new Commander("sync");
+        public ICommander CommandInterface
+        {
+            get { return m_commander; }
+        }
+        #endregion
 
         #region IRegionSyncServerModule members
         // Lock is used to synchronize access to the update status and both update queues
@@ -116,7 +132,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         {
             if (!Active || !Synced)
                 return;
-            lock (m_primUpdates)
+            lock (m_updateLock)
             {
                 m_primUpdates[part.ParentGroup.UUID] = part.ParentGroup;
             }
@@ -127,7 +143,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         {
             if (!Active || !Synced)
                 return;
-            lock (m_presenceUpdates)
+            lock (m_updateLock)
             {
                 m_presenceUpdates[presence.UUID] = presence;
             }
@@ -148,10 +164,14 @@ namespace OpenSim.Region.Examples.RegionSyncModule
 
             List<SceneObjectGroup> primUpdates;
             List<ScenePresence> presenceUpdates;
-            primUpdates = new List<SceneObjectGroup>(m_primUpdates.Values);
-            presenceUpdates = new List<ScenePresence>(m_presenceUpdates.Values);
-            m_primUpdates.Clear();
-            m_presenceUpdates.Clear();
+
+            lock (m_updateLock)
+            {
+                primUpdates = new List<SceneObjectGroup>(m_primUpdates.Values);
+                presenceUpdates = new List<ScenePresence>(m_presenceUpdates.Values);
+                m_primUpdates.Clear();
+                m_presenceUpdates.Clear();
+            }
 
             // This could be another thread for sending outgoing messages or just have the Queue functions
             // create and queue the messages directly into the outgoing server thread.
@@ -164,20 +184,27 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                     if (!sog.IsDeleted)
                     {
                         string sogxml = SceneObjectSerializer.ToXml2Format(sog);
-                        m_server.Broadcast(new RegionSyncMessage(RegionSyncMessage.MsgType.UpdateObject, sogxml));
+                        m_server.Broadcast(new RegionSyncMessage(RegionSyncMessage.MsgType.UpdatedObject, sogxml));
                     }
                 }
                 foreach (ScenePresence presence in presenceUpdates)
                 {
                     if (!presence.IsDeleted)
                     {
-                        OSDMap data = new OSDMap(4);
+                        OSDMap data = new OSDMap(5);
                         data["id"] = OSD.FromUUID(presence.UUID);
                         // Do not include offset for appearance height. That will be handled by RegionSyncClient before sending to viewers
-                        data["pos"] = OSD.FromVector3(presence.AbsolutePosition); 
-                        data["vel"] = OSD.FromVector3(presence.Velocity);
+                        if(presence.AbsolutePosition.IsFinite())
+                            data["pos"] = OSD.FromVector3(presence.AbsolutePosition);
+                        else
+                            data["pos"] = OSD.FromVector3(Vector3.Zero);
+                        if(presence.Velocity.IsFinite())
+                            data["vel"] = OSD.FromVector3(presence.Velocity);
+                        else
+                            data["vel"] = OSD.FromVector3(Vector3.Zero);
                         data["rot"] = OSD.FromQuaternion(presence.Rotation);
-                        RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.UpdateAvatarTerse, OSDParser.SerializeJsonString(data));
+                        data["fly"] = OSD.FromBoolean(presence.Flying);
+                        RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.UpdatedAvatar, OSDParser.SerializeJsonString(data));
                         m_server.Broadcast(rsm);
                     }
                 }
@@ -193,7 +220,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             OSDMap data = new OSDMap(2);
             data["regionHandle"] = OSD.FromULong(regionHandle);
             data["localID"] = OSD.FromUInteger(localID);
-            RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemoveObject, OSDParser.SerializeJsonString(data));
+            RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
             m_server.Broadcast(rsm);
         }
 
@@ -255,7 +282,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
              * */
         }
 #endif
-        #endregion 
+        #endregion
         #endregion
 
         #region RegionSyncServerModule members
@@ -272,10 +299,12 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         #region Event Handlers
         private void SceneGraph_OnObjectCreate(EntityBase entity)
         {
+            if (!Synced)
+                return;
             if (entity is SceneObjectGroup)
             {
                 string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)entity);
-                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.AddObject, sogxml);
+                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.NewObject, sogxml);
                 m_server.Broadcast(rsm);
             }
             else
@@ -286,10 +315,12 @@ namespace OpenSim.Region.Examples.RegionSyncModule
 
         private void SceneGraph_OnObjectDuplicate(EntityBase original, EntityBase copy)
         {
+            if (!Synced)
+                return;
             if (original is SceneObjectGroup && copy is SceneObjectGroup)
             {
                 string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)copy);
-                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.AddObject, sogxml);
+                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.NewObject, sogxml);
                 m_server.Broadcast(rsm);
             }
             else
@@ -300,10 +331,12 @@ namespace OpenSim.Region.Examples.RegionSyncModule
 
         private void SceneGraph_OnObjectRemove(EntityBase entity)
         {
+            if (!Synced)
+                return;
             if (entity is SceneObjectGroup)
             {
                 // No reason to send the entire object, just send the UUID to be deleted
-                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemoveObject, entity.UUID.ToString());
+                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedObject, entity.UUID.ToString());
                 m_server.Broadcast(rsm);
             }
             else
@@ -315,6 +348,8 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         // A ficticious event
         public void Scene_AddNewPrim(SceneObjectGroup sog)
         {
+            if (!Synced)
+                return;
         }
 
         /*
@@ -384,17 +419,14 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         }
 
         void EventManager_OnClientMovement(ScenePresence client)
-        {
-            
+        {  
             m_moveCounter++;
             if (m_moveCounter % 100 == 0)
             {
-                string msg = (string.Format("EventManager_OnClientMovement - Event has been triggered 100 times"));
                 m_server.Broadcast(msg);
                 m_log.Warn("REGION SYNC SERVER MODULE] " + msg);
             }
         }
-
 
         void EventManager_OnAvatarEnteringNewParcel(ScenePresence avatar, int localLandID, UUID regionID)
         {
@@ -402,30 +434,33 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             DebugSceneStats();
         }
 
+        */
+        private void EventManager_OnNewPresence(ScenePresence presence)
+        {
+            if (!Synced)
+                return;
+            m_log.WarnFormat("[REGION SYNC SERVER MODULE] (OneNewPresence) \"{0}\"", presence.Name);
+        }
 
         private void EventManager_OnNewClient(IClientAPI client)
         {
-            ScenePresence presence = m_scene.GetScenePresence(client.AgentId);
-            if (presence != null)
-            {
-                m_log.WarnFormat("[REGION SYNC SERVER MODULE] (OnNewClient) \"{0}\"", presence.Name);
-                DebugSceneStats();
-            }
-            else
-            {
-                m_log.WarnFormat("[REGION SYNC SERVER MODULE] (OnNewClient) A new client connected but module could not get ScenePresence");
-            }
+            if (!Synced)
+                return;
+            m_log.WarnFormat("[REGION SYNC SERVER MODULE] Agent \"{0}\" (1) has joined the scene", client.FirstName + " " + client.LastName, client.AgentId.ToString());
+            // Let the client managers know that a new agent has connected
+            OSDMap data = new OSDMap(1);
+            data["agentID"] = OSD.FromUUID(client.AgentId);
+            data["first"] = OSD.FromString(client.FirstName);
+            data["last"] = OSD.FromString(client.LastName);
+            data["startPos"] = OSD.FromVector3(client.StartPos);
+            m_server.Broadcast(new RegionSyncMessage(RegionSyncMessage.MsgType.NewAvatar, OSDParser.SerializeJsonString(data)));
         }
-
-        private void EventManager_OnNewPresence(ScenePresence presence)
-        {
-            m_log.WarnFormat("[REGION SYNC SERVER MODULE] Avatar \"{0}\" (1) {2} has joined the scene", presence.Firstname + " " + presence.Lastname, presence.ControllingClient.AgentId.ToString(), presence.UUID.ToString());
-            DebugSceneStats();
-        }
-         * */
 
         private void EventManager_OnRemovePresence(UUID agentID)
         {
+            if (!Synced)
+                return;
+            /*
             ScenePresence avatar;
             if (m_scene.TryGetScenePresence(agentID, out avatar))
             {
@@ -435,39 +470,61 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             {
                 m_log.WarnFormat("[REGION SYNC SERVER MODULE] Avatar \"unknown\" has left the scene");
             }
-            OSDArray data = new OSDArray();
-            data.Add(OSD.FromULong(avatar.RegionHandle));
-            data.Add(OSD.FromUInteger(avatar.LocalId));
-            RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemoveAvatar, data.ToString());
-            m_server.Broadcast(rsm);
+             * */
+            OSDMap data = new OSDMap();
+            data["agentID"] = OSD.FromUUID(agentID);
+            m_server.Broadcast(new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedAvatar, OSDParser.SerializeJsonString(data)));
         }
 
         #endregion
 
-
-        /*
-        private void DebugSceneStats()
+        #region Console Command Interface
+        private void InstallInterfaces()
         {
-            List<ScenePresence> avatars = m_scene.GetAvatars(); 
-            List<EntityBase> entities = m_scene.GetEntities();
-            m_log.WarnFormat("There are {0} avatars and {1} entities in the scene", avatars.Count, entities.Count);
-        }
+            Command cmdSyncStats = new Command("stats", CommandIntentions.COMMAND_HAZARDOUS, SyncStats, "Reports stats for the RegionSyncServer.");
+            m_commander.RegisterCommand("stats", cmdSyncStats);
 
-        public IClientAPI ClientAggregator
-        {
-            get {return m_clientAggregator;}
-        }
-
-        private void AddAvatars()
-        {
-            for (int i = 0; i < 1; i++)
+            lock (m_scene)
             {
-                MyNpcCharacter m_character = new MyNpcCharacter(m_scene, this);
-                m_scene.AddNewClient(m_character);
-                
-                m_scene.AgentCrossing(m_character.AgentId, m_character.StartPos, false);
+                // Add this to our scene so scripts can call these functions
+                m_scene.RegisterModuleCommander(m_commander);
             }
         }
-         */
+
+
+        /// <summary>
+        /// Processes commandline input. Do not call directly.
+        /// </summary>
+        /// <param name="args">Commandline arguments</param>
+        private void EventManager_OnPluginConsole(string[] args)
+        {
+            if (args[0] == "sync")
+            {
+                if (args.Length == 1)
+                {
+                    m_commander.ProcessConsoleCommand("help", new string[0]);
+                    return;
+                }
+
+                string[] tmpArgs = new string[args.Length - 2];
+                int i;
+                for (i = 2; i < args.Length; i++)
+                    tmpArgs[i - 2] = args[i];
+
+                m_commander.ProcessConsoleCommand(args[1], tmpArgs);
+            }
+        }
+
+        private void SyncStats(Object[] args)
+        {
+            if (Synced)
+                m_server.ReportStats();
+            else if (m_server != null)
+                m_log.Error("No RegionSyncClients connected");
+            else
+                m_log.Error("The RegionSyncServer is not running!");
+        }
+        #endregion
     }
+
 }

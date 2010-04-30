@@ -35,5 +35,6 @@ namespace OpenSim.Region.Framework.Interfaces
     {
         bool Active { get; }
         bool Synced { get; }
+        void SendCoarseLocations();
     }
 }

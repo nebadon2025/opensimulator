@@ -21,6 +21,13 @@ namespace OpenSim.Region.Examples.RegionSyncModule
     public class RegionSyncClientView
     {
         #region RegionSyncClientView members
+
+        object stats = new object();
+        private long msgsIn;
+        private long msgsOut;
+        private long bytesIn;
+        private long bytesOut;
+
         // The TcpClient this view uses to communicate with its RegionSyncClient
         private TcpClient m_tcpclient;
         // Set the addr and port for TcpListener
@@ -32,15 +39,12 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         Dictionary<UUID, RegionSyncAvatar> m_syncedAvatars = new Dictionary<UUID, RegionSyncAvatar>();
 
         // A queue for incoming and outgoing traffic
-        private Queue<string> m_inQ = new Queue<string>();
-        private Queue<string> m_outQ = new Queue<string>();
+        private OpenMetaverse.BlockingQueue<RegionSyncMessage> inbox = new OpenMetaverse.BlockingQueue<RegionSyncMessage>();
 
         private ILog m_log;
 
         private Thread m_receive_loop;
-        
-        // The last time the entire region was sent to this RegionSyncClient
-        private long m_archive_time;
+        private Thread m_handler;
 
         // A string of the format [REGION SYNC CLIENT VIEW #X] for use in log headers
         private string LogHeader
@@ -52,6 +56,12 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         public string Description
         {
             get { return String.Format("RegionSyncClientView #{0}", m_connection_number); }
+        }
+
+        public string GetStats()
+        {
+            lock(stats)
+                return String.Format("{0},{1},{2},{3}", msgsIn, msgsOut, bytesIn, bytesOut);
         }
 
         // Check if the client is connected
@@ -96,12 +106,17 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                 while (true)
                 {
                     RegionSyncMessage msg = GetMessage();
+                    lock (stats)
+                    {
+                        msgsIn++;
+                        bytesIn += msg.Length;
+                    }
                     HandleMessage(msg);
                 }
             }
             catch (Exception e)
             {
-                m_log.WarnFormat("{0} RegionSyncClient has disconnected.", LogHeader);
+                m_log.WarnFormat("{0} RegionSyncClient has disconnected: {1}", LogHeader, e.Message);
             }
         }
 
@@ -110,9 +125,29 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         {
             // Get a RegionSyncMessager from the incoming stream
             RegionSyncMessage msg = new RegionSyncMessage(m_tcpclient.GetStream());
-            m_log.WarnFormat("{0} Received {1}", LogHeader, msg.ToString());
+            //m_log.WarnFormat("{0} Received {1}", LogHeader, msg.ToString());
             return msg;
         }
+
+        HashSet<string> exceptions = new HashSet<string>();
+        private OSDMap DeserializeMessage(RegionSyncMessage msg)
+        {
+            OSDMap data = null;
+            try
+            {
+                data = OSDParser.DeserializeJson(Encoding.ASCII.GetString(msg.Data)) as OSDMap;
+            }
+            catch(Exception e)
+            {
+                lock(exceptions)
+                    // If this is a new message, then print the underlying data that caused it
+                    if(!exceptions.Contains(e.Message))
+                        m_log.Error(LogHeader + " " + Encoding.ASCII.GetString(msg.Data));
+                data = null;
+            }
+            return data;
+        }
+
 
         // Handle an incoming message
         // *** Perhaps this should not be synchronous with the receive
@@ -122,6 +157,11 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             //string handlerMessage = "";
             switch (msg.Type)
             {
+                case RegionSyncMessage.MsgType.GetTerrain:
+                    {
+                        Send(new RegionSyncMessage(RegionSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString()));
+                        return HandlerSuccess(msg, "Terrain sent");
+                    }
                 case RegionSyncMessage.MsgType.GetObjects:
                     {
                         List<EntityBase> entities = m_scene.GetEntities();
@@ -130,19 +170,28 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                             if (e is SceneObjectGroup)
                             {
                                 string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)e);
-                                Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AddObject, sogxml));
+                                Send(new RegionSyncMessage(RegionSyncMessage.MsgType.NewObject, sogxml));
                             }
                         }
                         return HandlerSuccess(msg, "Sent all scene objects");
                     }
-                case RegionSyncMessage.MsgType.GetTerrain:
+                case RegionSyncMessage.MsgType.GetAvatars:
                     {
-                        Send(new RegionSyncMessage(RegionSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString()));
-                        return HandlerSuccess(msg, "Terrain sent");
+                        m_scene.ForEachScenePresence(delegate(ScenePresence presence)
+                        {
+                            // Let the client managers know about this avatar
+                            OSDMap data = new OSDMap(1);
+                            data["agentID"] = OSD.FromUUID(presence.ControllingClient.AgentId);
+                            data["first"] = OSD.FromString(presence.ControllingClient.FirstName);
+                            data["last"] = OSD.FromString(presence.ControllingClient.LastName);
+                            data["startPos"] = OSD.FromVector3(presence.ControllingClient.StartPos);
+                            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.NewAvatar, OSDParser.SerializeJsonString(data)));
+                        });
+                        return HandlerSuccess(msg, "Sent all scene avatars");
                     }
                 case RegionSyncMessage.MsgType.AgentAdd:
                     {
-                        OSDMap data = OSDParser.DeserializeJson(Encoding.ASCII.GetString(msg.Data)) as OSDMap;
+                        OSDMap data = DeserializeMessage(msg);
                         if (data != null)
                         {
                             UUID agentID = data["agentID"].AsUUID();
@@ -165,7 +214,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                                 return HandlerSuccess(msg, String.Format("Handled AddAgent for UUID {0}", agentID));
                             }
                         }
-                        return HandlerFailure(msg, "Could not parse AddAgent parameters");
+                        return HandlerFailure(msg, "Could not deserialize JSON data.");
                         
                     }
                 case RegionSyncMessage.MsgType.AgentUpdate:
@@ -204,6 +253,42 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                         else
                             return HandlerFailure(msg, String.Format("Could not handle AgentUpdate UUID {0}", agentID));
                     }
+                case RegionSyncMessage.MsgType.AgentRemove:
+                    {
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data != null)
+                        {
+                            UUID agentID = data["agentID"].AsUUID();
+
+                            if (agentID != null && agentID != UUID.Zero)
+                            {
+                                lock (m_syncedAvatars)
+                                {
+                                    if (m_syncedAvatars.ContainsKey(agentID))
+                                    {
+                                        m_syncedAvatars.Remove(agentID);
+                                        ScenePresence presence;
+                                        if (m_scene.TryGetScenePresence(agentID, out presence))
+                                        {
+                                            string name = presence.Name;
+                                            m_scene.RemoveClient(agentID);
+                                            return HandlerSuccess(msg, String.Format("Agent \"{0}\" ({1}) was removed from scene.", name, agentID));
+                                        }
+                                        else
+                                        {
+                                            return HandlerFailure(msg, String.Format("Agent {0} not found in the scene.", agentID));
+                                        }
+                                    }
+                                    else
+                                    {
+                                        return HandlerFailure(msg, String.Format("Agent {0} not in the list of synced avatars.", agentID));
+                                    }
+                                }
+                            }
+                        }
+                        return HandlerFailure(msg, "Could not deserialize JSON data.");
+
+                    }
                 default:
                     {
                         m_log.WarnFormat("{0} Unable to handle unsupported message type", LogHeader);
@@ -212,9 +297,15 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             }
         }
 
+        private bool HandlerDebug(RegionSyncMessage msg, string handlerMessage)
+        {
+            m_log.WarnFormat("{0} DBG ({1}): {2}", LogHeader, msg.ToString(), handlerMessage);
+            return true;
+        }
+
         private bool HandlerSuccess(RegionSyncMessage msg, string handlerMessage)
         {
-            m_log.WarnFormat("{0} Handled {1}: {2}", LogHeader, msg.ToString(), handlerMessage);
+            //m_log.WarnFormat("{0} Handled {1}: {2}", LogHeader, msg.ToString(), handlerMessage);
             return true;
         }
 
@@ -236,6 +327,11 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             {
                 try
                 {
+                    lock (stats)
+                    {
+                        msgsOut++;
+                        bytesOut += data.Length;
+                    }
                     m_tcpclient.GetStream().Write(data, 0, data.Length);
                 }
                 catch (IOException e)

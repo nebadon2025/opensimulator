@@ -19,6 +19,8 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         // Set the addr and port for TcpListener
         private IPAddress m_addr;
         private Int32 m_port;
+
+        private int clientCounter;
  
         // The local scene.
         private Scene m_scene;
@@ -36,27 +38,50 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         private Thread m_listenerThread;
 
         // The list of clients and the threads handling IO for each client
-        // Lock should be used when client managers connect or disconnect
-        // while modifying the client list.
-        private Object clientLock = new Object();
-        private List<RegionSyncClientView> m_client_views = new List<RegionSyncClientView>();
+        // The list is read most of the time and only updated when a new client manager
+        // connects, so we just replace the list when it changes. Iterators on this
+        // list need to be able to handle if an element is shutting down.
+        private HashSet<RegionSyncClientView> m_client_views = new HashSet<RegionSyncClientView>();
 
         // Check if any of the client views are in a connected state
         public bool Synced
         {
             get
             {
-                lock (clientLock)
-                {
-                    foreach (RegionSyncClientView cv in m_client_views)
-                    {
-                        if (cv.Connected)
-                            return true;
-                    }
-                    return false;
-                }
+                return (m_client_views.Count > 0);
             }
         }
+
+        // Add the client view to the list and increment synced client counter
+        public void AddSyncedClient(RegionSyncClientView rscv)
+        {
+            HashSet<RegionSyncClientView> newlist = new HashSet<RegionSyncClientView>(m_client_views);
+            newlist.Add(rscv);
+            // Threads holding the previous version of the list can keep using it since
+            // they will not hold it for long and get a new copy next time they need to iterate
+            Interlocked.Exchange<HashSet<RegionSyncClientView>>(ref m_client_views, newlist);
+        }
+
+        // Remove the client view from the list and decrement synced client counter
+        public void RemoveSyncedClient(RegionSyncClientView rscv)
+        {
+            HashSet<RegionSyncClientView> newlist = new HashSet<RegionSyncClientView>(m_client_views);
+            newlist.Remove(rscv);
+            // Threads holding the previous version of the list can keep using it since
+            // they will not hold it for long and get a new copy next time they need to iterate
+            Interlocked.Exchange<HashSet<RegionSyncClientView>>(ref m_client_views, newlist);
+        }
+
+        public void ReportStats()
+        {
+            // We should be able to safely iterate over our reference to the list since
+            // the only places which change it will replace it with an updated version
+            foreach (RegionSyncClientView rscv in m_client_views)
+            {
+                m_log.ErrorFormat("{0}: {1}", rscv.Description, rscv.GetStats());
+            }
+        }
+
         #endregion
 
         // Constructor
@@ -82,19 +107,18 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         // Stop the server and disconnect all RegionSyncClients
         public void Shutdown()
         {
-            lock (clientLock)
+            // Stop the listener and listening thread so no new clients are accepted
+            m_listener.Stop();
+            m_listenerThread.Abort();
+            m_listenerThread = null;
+
+            // Stop all existing client views and clear client list
+            HashSet<RegionSyncClientView> list = new HashSet<RegionSyncClientView>(m_client_views);
+            foreach (RegionSyncClientView rscv in list)
             {
-                // Stop the listener and listening thread so no new clients are accepted
-                m_listener.Stop();
-                m_listenerThread.Abort();
-                m_listenerThread = null;
-                // Stop all existing client views and clear client list
-                foreach (RegionSyncClientView cv in m_client_views)
-                {
-                    // Each client view will clean up after itself
-                    cv.Shutdown();
-                }
-                m_client_views.Clear();
+                // Each client view will clean up after itself
+                rscv.Shutdown();
+                RemoveSyncedClient(rscv);
             }
         }
 
@@ -117,16 +141,13 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                     TcpClient tcpclient = m_listener.AcceptTcpClient();
                     IPAddress addr = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Address;
                     int port = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Port;
-                    lock (clientLock)
-                    {
-                        // Add the RegionSyncClientView to the list of clients
-                        // *** Need to work on the timing order of starting the client view and adding to the server list
-                        // so that messages coming from the scene do not get lost before the client view is added but
-                        // not sent before it is ready to process them.
-                        RegionSyncClientView rscv = new RegionSyncClientView(m_client_views.Count, m_scene, tcpclient);
-                        m_log.WarnFormat("[REGION SYNC SERVER] New connection from {0}", rscv.Description);
-                        m_client_views.Add(rscv);
-                    }
+                    // Add the RegionSyncClientView to the list of clients
+                    // *** Need to work on the timing order of starting the client view and adding to the server list
+                    // so that messages coming from the scene do not get lost before the client view is added but
+                    // not sent before it is ready to process them.
+                    RegionSyncClientView rscv = new RegionSyncClientView(++clientCounter, m_scene, tcpclient);
+                    m_log.WarnFormat("[REGION SYNC SERVER] New connection from {0}", rscv.Description);
+                    AddSyncedClient(rscv);
                 }
             }
             catch (SocketException e)
@@ -138,22 +159,30 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         // Broadcast a message to all connected RegionSyncClients
         public void Broadcast(RegionSyncMessage msg)
         {
-            List<RegionSyncClientView> clients = new List<RegionSyncClientView>();
-            lock (clientLock)
-            {
-                foreach (RegionSyncClientView client in m_client_views)
-                {
-                    if (client.Connected)
-                        clients.Add(client);
-                }
-            }
-
-            if(clients.Count > 0 )
+            List<RegionSyncClientView> closed = null;
+            //lock (m_client_views)
             {
                 //m_log.WarnFormat("[REGION SYNC SERVER] Broadcasting {0} to all connected RegionSyncClients", msg.ToString());
-                foreach( RegionSyncClientView client in clients)
+                foreach (RegionSyncClientView client in m_client_views)
                 {
-                    client.Send(msg);
+                    // If connected, send the message.
+                    if (client.Connected)
+                    {
+                        client.Send(msg);
+                    }
+                    // Else, remove the client view from the list
+                    else
+                    {
+                        if (closed == null)
+                            closed = new List<RegionSyncClientView>();
+                        closed.Add(client);
+                    }
+                }
+                if (closed != null)
+                {
+                    foreach (RegionSyncClientView rscv in closed)
+                        RemoveSyncedClient(rscv);
+                        //m_client_views.Remove(rscv);
                 }
             }
         }

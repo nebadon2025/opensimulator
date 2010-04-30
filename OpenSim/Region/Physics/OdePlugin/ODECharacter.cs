@@ -906,10 +906,9 @@ namespace OpenSim.Region.Physics.OdePlugin
             d.Vector3 localpos = d.BodyGetPosition(Body);
             Vector3 localPos = new Vector3(localpos.X, localpos.Y, localpos.Z);
             
-            if (!localPos.IsFinite())
+            if (!localPos.IsFinite() || localpos.X < 0.0 || localpos.X > 256.0 || localpos.Y < 0.0 || localpos.Y > 256.0 || localpos.Z < 0.0)
             {
-
-                m_log.Warn("[PHYSICS]: Avatar Position is non-finite!");
+                m_log.Warn("[PHYSICS]: Avatar Position is non-finite or out of bounds!");
                 defects.Add(this);
                 // _parent_scene.RemoveCharacter(this);
 

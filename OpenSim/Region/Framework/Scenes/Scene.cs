@@ -1429,27 +1429,56 @@ namespace OpenSim.Region.Framework.Scenes
 
                     // Run through all ScenePresences looking for updates
                     // Presence updates and queued object updates for each presence are sent to clients
-                    if (m_frame % m_update_presences == 0)
-                        m_sceneGraph.UpdatePresences();
+                    // If it's a synced client, just send prim updates
+                    // This will get fixed later to only send to locally logged in presences rather than all presences
+                    // but requires pulling apart the concept of a client from the concept of a presence/avatar
+                    if (IsSyncedClient())
+                    {
+                        ForEachScenePresence(delegate(ScenePresence sp) { sp.SendPrimUpdates(); });
+                        RegionSyncClientModule.SendCoarseLocations();
+                    }
+                    else
+                    {
+                        if (m_frame % m_update_presences == 0)
+                            m_sceneGraph.UpdatePresences();
+                    }
 
+                    // REGION SYNC
+                    // If this is a synced server, send updates to client managers at this time
+                    // This batches updates, but the client manager will forward on to clients without
+                    // additional delay
                     if (IsSyncedServer())
+                    {
                         m_regionSyncServerModule.SendUpdates();
+                    }
 
                     int tmpPhysicsMS2 = Util.EnvironmentTickCount();
-                    if ((m_frame % m_update_physics == 0) && m_physics_enabled)
-                        m_sceneGraph.UpdatePreparePhysics();
+                    // Do not simulate physics locally if this is a synced client
+                    if (!IsSyncedClient())
+                    {
+                        if ((m_frame % m_update_physics == 0) && m_physics_enabled)
+                            m_sceneGraph.UpdatePreparePhysics();
+                    }
                     physicsMS2 = Util.EnvironmentTickCountSubtract(tmpPhysicsMS2);
 
-                    if (m_frame % m_update_entitymovement == 0)
-                        m_sceneGraph.UpdateScenePresenceMovement();
+                    // Do not simulate physics locally if this is a synced client
+                    if (!IsSyncedClient())
+                    {
+                        if (m_frame % m_update_entitymovement == 0)
+                            m_sceneGraph.UpdateScenePresenceMovement();
+                    }
 
                     int tmpPhysicsMS = Util.EnvironmentTickCount();
-                    if (m_frame % m_update_physics == 0)
+                    // Do not simulate physics locally if this is a synced client
+                    if (!IsSyncedClient())
                     {
-                        if (m_physics_enabled)
-                            physicsFPS = m_sceneGraph.UpdatePhysics(Math.Max(SinceLastFrame.TotalSeconds, m_timespan));
-                        if (SynchronizeScene != null)
-                            SynchronizeScene(this);
+                        if (m_frame % m_update_physics == 0)
+                        {
+                            if (m_physics_enabled)
+                                physicsFPS = m_sceneGraph.UpdatePhysics(Math.Max(SinceLastFrame.TotalSeconds, m_timespan));
+                            if (SynchronizeScene != null)
+                                SynchronizeScene(this);
+                        }
                     }
                     physicsMS = Util.EnvironmentTickCountSubtract(tmpPhysicsMS);
 
@@ -1562,7 +1591,46 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        
+        public void GetCoarseLocations(out List<UUID> ids, out List<Vector3> locations)
+        {
+            List<UUID> resultIds = new List<UUID>();
+            List<Vector3> resultLocations = new List<Vector3>();
+
+            ForEachScenePresence(delegate(ScenePresence sp)
+            {
+                if (sp.IsChildAgent)
+                    return;
+                resultIds.Add(sp.UUID);
+                resultLocations.Add(sp.AbsolutePosition);
+            });
+            ids = resultIds;
+            locations = resultLocations;
+
+                /*
+                if (sp.ParentID != 0)
+                {
+                    // sitting avatar
+                    SceneObjectPart sop = GetSceneObjectPart(sp.ParentID);
+                    if (sop != null)
+                    {
+                        locations.Add(sop.AbsolutePosition + sp.m_pos);
+                        ids.Add(sp.UUID);
+                    }
+                    else
+                    {
+                        // we can't find the parent..  ! arg!
+                        locations.Add(sp.m_pos);
+                        ids.Add(sp.UUID);
+                    }
+                }
+                else
+                {
+                    locations.Add(sp.m_pos);
+                    ids.Add(sp.UUID);
+                }
+            });
+                 */
+        }
 
         public void AddGroupTarget(SceneObjectGroup grp)
         {
@@ -3233,9 +3301,9 @@ namespace OpenSim.Region.Framework.Scenes
 
                 m_eventManager.TriggerOnRemovePresence(agentID);
 
-                if(IsSyncedServer())
-                    RegionSyncServerModule.DeleteObject(avatar.RegionHandle, avatar.LocalId);
-                else
+                // Don't try to send kills to clients if this is a synced server.
+                // The client closed event will trigger the broadcast to client managers
+                //if(!IsSyncedServer())
                 {
                     ForEachClient(
                         delegate(IClientAPI client)
@@ -3325,11 +3393,11 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
 
+            ForEachClient(delegate(IClientAPI client) { client.SendKillObject(m_regionHandle, localID); });
+
             // REGION SYNC
             if( IsSyncedServer() )
                 RegionSyncServerModule.DeleteObject(m_regionHandle, localID);
-            else
-                ForEachClient(delegate(IClientAPI client) { client.SendKillObject(m_regionHandle, localID); });
         }
 
         #endregion
@@ -4365,11 +4433,10 @@ namespace OpenSim.Region.Framework.Scenes
         /// Performs action on all scene presences.
         /// </summary>
         /// <param name="action"></param>
-        static int s_ForEachPresenceCounter = 0;
         public void ForEachScenePresence(Action<ScenePresence> action)
         {
-            if (IsSyncedServer())
-                return;
+            //if (IsSyncedServer())
+            //    return;
             // We don't want to try to send messages if there are no avatars.
             if (m_sceneGraph != null)
             {
@@ -4450,7 +4517,7 @@ namespace OpenSim.Region.Framework.Scenes
         public void ForEachClient(Action<IClientAPI> action)
         {
             // REGION SYNC
-            if (IsSyncedServer())
+            if (false)//IsSyncedServer())
                 return;
             m_clientManager.ForEachSync(action);
         }

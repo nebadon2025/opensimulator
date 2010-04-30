@@ -19,6 +19,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             // CM -> SIM
             AgentAdd,       
             AgentUpdate,
+            AgentRemove,
             GetTerrain,
             GetObjects,
             SubscribeObjects,
@@ -27,12 +28,12 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             ChatFromClient,
             // SIM -> CM
             Terrain,
-            AddObject,
-            UpdateObject,
-            RemoveObject,
-            AddAvatarResponse,
-            UpdateAvatarTerse,
-            RemoveAvatar,
+            NewObject,       // objects
+            UpdatedObject,   // objects
+            RemovedObject,   // objects
+            NewAvatar,       // avatars
+            UpdatedAvatar,   // avatars
+            RemovedAvatar,   // avatars
             ChatFromSim,
             // BIDIR
             EchoRequest,

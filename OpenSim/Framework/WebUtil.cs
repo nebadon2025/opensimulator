@@ -41,6 +41,39 @@ using OpenMetaverse.StructuredData;
 namespace OpenSim.Framework
 {
     /// <summary>
+    /// A generic HTTP request handler
+    /// </summary>
+    public class HttpStreamHandler : IStreamHandler
+    {
+        public delegate void HttpStreamCallback(OSHttpRequest httpRequest, OSHttpResponse httpResponse);
+
+        private string m_contentType;
+        private string m_httpMethod;
+        private string m_path;
+        private HttpStreamCallback m_callback;
+
+        public string ContentType { get { return m_contentType; } }
+        public string HttpMethod { get { return m_httpMethod; } }
+        public string Path { get { return m_path; } }
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public HttpStreamHandler(string contentType, string httpMethod, string path, HttpStreamCallback callback)
+        {
+            m_contentType = contentType;
+            m_httpMethod = httpMethod;
+            m_path = path;
+            m_callback = callback;
+        }
+
+        public void Handle(string path, Stream request, Stream response, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
+        {
+            m_callback(httpRequest, httpResponse);
+        }
+    }
+
+    /// <summary>
     /// Miscellaneous static methods and extension methods related to the web
     /// </summary>
     public static class WebUtil
@@ -174,6 +207,16 @@ namespace OpenSim.Framework
             }
 
             return new OSDMap { { "Message", OSD.FromString("Service request failed. " + errorMessage) } };
+        }
+
+        /// <summary>
+        /// Encodes a URL string
+        /// </summary>
+        /// <param name="str">Unencoded string to encode</param>
+        /// <returns>URL-encoded string</returns>
+        public static string UrlEncode(string str)
+        {
+            return HttpUtility.UrlEncode(str).Replace("+", "%20");
         }
 
         #region Uri

@@ -646,6 +646,10 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
 
+            MainConsole.Instance.Commands.AddCommand("region", false, "reload estate",
+                                          "reload estate",
+                                          "Reload the estate data", HandleReloadEstate);
+
             //Bind Storage Manager functions to some land manager functions for this scene
             EventManager.OnLandObjectAdded +=
                 new EventManager.LandObjectAdded(m_storageManager.DataStore.StoreLandObject);
@@ -5074,6 +5078,62 @@ namespace OpenSim.Region.Framework.Scenes
         private Vector3 GetPositionAtGround(float x, float y)
         {
             return new Vector3(x, y, GetGroundHeight(x, y));
+        }
+
+        public List<UUID> GetEstateRegions(int estateID)
+        {
+            if (m_storageManager.EstateDataStore == null)
+                return new List<UUID>();
+
+            return m_storageManager.EstateDataStore.GetRegions(estateID);
+        }
+
+        public void ReloadEstateData()
+        {
+            m_regInfo.EstateSettings = m_storageManager.EstateDataStore.LoadEstateSettings(m_regInfo.RegionID, false);
+
+            TriggerEstateSunUpdate();
+        }
+
+        public void TriggerEstateSunUpdate()
+        {
+            float sun;
+            if (RegionInfo.RegionSettings.UseEstateSun)
+            {
+                sun = (float)RegionInfo.EstateSettings.SunPosition;
+                if (RegionInfo.EstateSettings.UseGlobalTime)
+                {
+                    sun = EventManager.GetCurrentTimeAsSunLindenHour() - 6.0f;
+                }
+
+                // 
+                EventManager.TriggerEstateToolsSunUpdate(
+                        RegionInfo.RegionHandle,
+                        RegionInfo.EstateSettings.FixedSun,
+                        RegionInfo.RegionSettings.UseEstateSun,
+                        sun);
+            }
+            else
+            {
+                // Use the Sun Position from the Region Settings
+                sun = (float)RegionInfo.RegionSettings.SunPosition - 6.0f;
+
+                EventManager.TriggerEstateToolsSunUpdate(
+                        RegionInfo.RegionHandle,
+                        RegionInfo.RegionSettings.FixedSun,
+                        RegionInfo.RegionSettings.UseEstateSun,
+                        sun);
+            }
+        }
+
+        private void HandleReloadEstate(string module, string[] cmd)
+        {
+            if (MainConsole.Instance.ConsoleScene == null ||
+                (MainConsole.Instance.ConsoleScene is Scene &&
+                (Scene)MainConsole.Instance.ConsoleScene == this))
+            {
+                ReloadEstateData();
+            }
         }
     }
 }

@@ -48,6 +48,9 @@ namespace OpenSim.Region.CoreModules.World.Estate
 
         private EstateTerrainXferHandler TerrainUploader;
 
+        public event ChangeDelegate OnRegionInfoChange;
+        public event ChangeDelegate OnEstateInfoChange;
+
         #region Packet Data Responders
 
         private void sendDetailedEstateData(IClientAPI remote_client, UUID invoice)
@@ -137,6 +140,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                 m_scene.RegionInfo.RegionSettings.AllowLandJoinDivide = false;
 
             m_scene.RegionInfo.RegionSettings.Save();
+            TriggerRegionInfoChange();
 
             sendRegionInfoPacketToAll();
         }
@@ -162,6 +166,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                     break;
             }
             m_scene.RegionInfo.RegionSettings.Save();
+            TriggerRegionInfoChange();
             sendRegionInfoPacketToAll();
         }
 
@@ -187,6 +192,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                     break;
             }
             m_scene.RegionInfo.RegionSettings.Save();
+            TriggerRegionInfoChange();
             sendRegionInfoPacketToAll();
         }
 
@@ -212,13 +218,14 @@ namespace OpenSim.Region.CoreModules.World.Estate
             m_scene.RegionInfo.RegionSettings.FixedSun = UseFixedSun;
             m_scene.RegionInfo.RegionSettings.SunPosition = SunHour;
 
-            TriggerEstateToolsSunUpdate();
+            m_scene.TriggerEstateSunUpdate();
 
             //m_log.Debug("[ESTATE]: UFS: " + UseFixedSun.ToString());
             //m_log.Debug("[ESTATE]: SunHour: " + SunHour.ToString());
 
             sendRegionInfoPacketToAll();
             m_scene.RegionInfo.RegionSettings.Save();
+            TriggerRegionInfoChange();
         }
 
         private void handleEstateRestartSimRequest(IClientAPI remoteClient, int timeInSeconds)
@@ -230,6 +237,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
         {
             m_scene.RegionInfo.RegionSettings.Covenant = estateCovenantID;
             m_scene.RegionInfo.RegionSettings.Save();
+            TriggerRegionInfoChange();
         }
 
         private void handleEstateAccessDeltaRequest(IClientAPI remote_client, UUID invoice, int estateAccessType, UUID user)
@@ -245,6 +253,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                 {
                     m_scene.RegionInfo.EstateSettings.AddEstateUser(user);
                     m_scene.RegionInfo.EstateSettings.Save();
+                    TriggerEstateInfoChange();
                     remote_client.SendEstateList(invoice, (int)Constants.EstateAccessCodex.AccessOptions, m_scene.RegionInfo.EstateSettings.EstateAccess, m_scene.RegionInfo.EstateSettings.EstateID);
                 }
                 else
@@ -259,6 +268,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                 {
                     m_scene.RegionInfo.EstateSettings.RemoveEstateUser(user);
                     m_scene.RegionInfo.EstateSettings.Save();
+                    TriggerEstateInfoChange();
 
                     remote_client.SendEstateList(invoice, (int)Constants.EstateAccessCodex.AccessOptions, m_scene.RegionInfo.EstateSettings.EstateAccess, m_scene.RegionInfo.EstateSettings.EstateID);
                 }
@@ -273,6 +283,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                 {
                     m_scene.RegionInfo.EstateSettings.AddEstateGroup(user);
                     m_scene.RegionInfo.EstateSettings.Save();
+                    TriggerEstateInfoChange();
                     remote_client.SendEstateList(invoice, (int)Constants.EstateAccessCodex.AllowedGroups, m_scene.RegionInfo.EstateSettings.EstateGroups, m_scene.RegionInfo.EstateSettings.EstateID);
                 }
                 else
@@ -286,6 +297,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                 {
                     m_scene.RegionInfo.EstateSettings.RemoveEstateGroup(user);
                     m_scene.RegionInfo.EstateSettings.Save();
+                    TriggerEstateInfoChange();
 
                     remote_client.SendEstateList(invoice, (int)Constants.EstateAccessCodex.AllowedGroups, m_scene.RegionInfo.EstateSettings.EstateGroups, m_scene.RegionInfo.EstateSettings.EstateID);
                 }
@@ -323,6 +335,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
 
                         m_scene.RegionInfo.EstateSettings.AddBan(item);
                         m_scene.RegionInfo.EstateSettings.Save();
+                        TriggerEstateInfoChange();
 
                         ScenePresence s = m_scene.GetScenePresence(user);
                         if (s != null)
@@ -370,6 +383,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                     {
                         m_scene.RegionInfo.EstateSettings.RemoveBan(listitem.BannedUserID);
                         m_scene.RegionInfo.EstateSettings.Save();
+                        TriggerEstateInfoChange();
                     }
                     else
                     {
@@ -389,6 +403,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                 {
                     m_scene.RegionInfo.EstateSettings.AddEstateManager(user);
                     m_scene.RegionInfo.EstateSettings.Save();
+                    TriggerEstateInfoChange();
                     remote_client.SendEstateList(invoice, (int)Constants.EstateAccessCodex.EstateManagers, m_scene.RegionInfo.EstateSettings.EstateManagers, m_scene.RegionInfo.EstateSettings.EstateID);
                 }
                 else
@@ -402,6 +417,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                 {
                     m_scene.RegionInfo.EstateSettings.RemoveEstateManager(user);
                     m_scene.RegionInfo.EstateSettings.Save();
+                    TriggerEstateInfoChange();
 
                     remote_client.SendEstateList(invoice, (int)Constants.EstateAccessCodex.EstateManagers, m_scene.RegionInfo.EstateSettings.EstateManagers, m_scene.RegionInfo.EstateSettings.EstateID);
                 }
@@ -449,6 +465,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
 
 
             m_scene.RegionInfo.RegionSettings.Save();
+            TriggerRegionInfoChange();
 
             m_scene.SetSceneCoreDebug(scripted, collisionEvents, physics);
         }
@@ -860,8 +877,9 @@ namespace OpenSim.Region.CoreModules.World.Estate
                 m_scene.RegionInfo.EstateSettings.DenyMinors = false;
 
             m_scene.RegionInfo.EstateSettings.Save();
+            TriggerEstateInfoChange();
 
-            TriggerEstateToolsSunUpdate();
+            m_scene.TriggerEstateSunUpdate();
 
             sendDetailedEstateData(remoteClient, invoice);
         }
@@ -927,6 +945,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                             break;
                     }
                     m_scene.RegionInfo.RegionSettings.Save();
+                    TriggerRegionInfoChange();
                     sendRegionInfoPacketToAll();
 
                 }
@@ -972,6 +991,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                             break;
                     }
                     m_scene.RegionInfo.RegionSettings.Save();
+                    TriggerRegionInfoChange();
                     sendRegionHandshakeToAll();
                 }
             }
@@ -983,7 +1003,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
         {
             // Sets up the sun module based no the saved Estate and Region Settings
             // DO NOT REMOVE or the sun will stop working
-            TriggerEstateToolsSunUpdate();
+            m_scene.TriggerEstateSunUpdate();
         }
 
         public void Close()
@@ -1003,40 +1023,6 @@ namespace OpenSim.Region.CoreModules.World.Estate
         #endregion
 
         #region Other Functions
-
-        private void TriggerEstateToolsSunUpdate()
-        {
-            float sun;
-            if (m_scene.RegionInfo.RegionSettings.UseEstateSun)
-            {
-                sun = (float)m_scene.RegionInfo.EstateSettings.SunPosition;
-                if (m_scene.RegionInfo.EstateSettings.UseGlobalTime)
-                {
-                    sun = m_scene.EventManager.GetCurrentTimeAsSunLindenHour() - 6.0f;
-                }
-
-                // 
-                m_scene.EventManager.TriggerEstateToolsSunUpdate(
-                        m_scene.RegionInfo.RegionHandle,
-                        m_scene.RegionInfo.EstateSettings.FixedSun,
-                        m_scene.RegionInfo.RegionSettings.UseEstateSun, 
-                        sun);
-            }
-            else
-            {
-                // Use the Sun Position from the Region Settings
-                sun = (float)m_scene.RegionInfo.RegionSettings.SunPosition - 6.0f;
-
-                m_scene.EventManager.TriggerEstateToolsSunUpdate(
-                        m_scene.RegionInfo.RegionHandle,
-                        m_scene.RegionInfo.RegionSettings.FixedSun,
-                        m_scene.RegionInfo.RegionSettings.UseEstateSun, 
-                        sun);
-            }
-
-
-        }
-
 
         public void changeWaterHeight(float height)
         {
@@ -1174,6 +1160,22 @@ namespace OpenSim.Region.CoreModules.World.Estate
                 return true;
 
             return false;
+        }
+
+        protected void TriggerRegionInfoChange()
+        {
+            ChangeDelegate change = OnRegionInfoChange;
+
+            if (change != null)
+                change(m_scene.RegionInfo.RegionID);
+        }
+
+        protected void TriggerEstateInfoChange()
+        {
+            ChangeDelegate change = OnEstateInfoChange;
+
+            if (change != null)
+                change(m_scene.RegionInfo.RegionID);
         }
     }
 }

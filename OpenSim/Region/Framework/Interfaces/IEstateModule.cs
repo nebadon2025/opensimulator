@@ -29,8 +29,13 @@ using OpenMetaverse;
 
 namespace OpenSim.Region.Framework.Interfaces
 {
+    public delegate void ChangeDelegate(UUID regionID);
+
     public interface IEstateModule : IRegionModule
     {
+        event ChangeDelegate OnRegionInfoChange;
+        event ChangeDelegate OnEstateInfoChange;
+
         uint GetRegionFlags();
         bool IsManager(UUID avatarID);
         

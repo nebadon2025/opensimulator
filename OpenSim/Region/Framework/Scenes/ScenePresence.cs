@@ -67,7 +67,7 @@ namespace OpenSim.Region.Framework.Scenes
 
     public delegate void SendCourseLocationsMethod(UUID scene, ScenePresence presence);
 
-    public class ScenePresence : EntityBase
+    public class ScenePresence : EntityBase, ISceneEntity
     {
 //        ~ScenePresence()
 //        {
@@ -477,6 +477,12 @@ namespace OpenSim.Region.Framework.Scenes
                 m_pos = value;
                 m_parentPosition = Vector3.Zero;
             }
+        }
+
+        public Vector3 OffsetPosition
+        {
+            get { return m_pos; }
+            set { m_pos = value; }
         }
 
         /// <summary>
@@ -1032,8 +1038,9 @@ namespace OpenSim.Region.Framework.Scenes
                 AbsolutePosition = AbsolutePosition + new Vector3(0f, 0f, (1.56f / 6f));
             }
 
-            ControllingClient.SendAvatarTerseUpdate(new SendAvatarTerseData(m_rootRegionHandle, (ushort)(m_scene.TimeDilation * ushort.MaxValue), LocalId,
-                    AbsolutePosition, Velocity, Vector3.Zero, m_bodyRot, new Vector4(0,0,1,AbsolutePosition.Z - 0.5f), m_uuid, null, GetUpdatePriority(ControllingClient)));
+            CollisionPlane = new Vector4(0f, 0f, 1f, AbsolutePosition.Z - 0.5f);
+
+            ControllingClient.SendEntityUpdate(GetUpdatePriority(ControllingClient), this, PrimUpdateFlags.Position | PrimUpdateFlags.Velocity);
         }
 
         public void AddNeighbourRegion(ulong regionHandle, string cap)
@@ -2356,8 +2363,8 @@ namespace OpenSim.Region.Framework.Scenes
 
                 //m_log.DebugFormat("[SCENEPRESENCE]: TerseUpdate: Pos={0} Rot={1} Vel={2}", m_pos, m_bodyRot, m_velocity);
 
-                remoteClient.SendAvatarTerseUpdate(new SendAvatarTerseData(m_rootRegionHandle, (ushort)(m_scene.TimeDilation * ushort.MaxValue), LocalId,
-                    pos, velocity, Vector3.Zero, m_bodyRot, CollisionPlane, m_uuid, null, GetUpdatePriority(remoteClient)));
+                remoteClient.SendEntityUpdate(GetUpdatePriority(remoteClient), this, PrimUpdateFlags.Position | PrimUpdateFlags.Rotation | 
+                    PrimUpdateFlags.Velocity | PrimUpdateFlags.Acceleration | PrimUpdateFlags.AngularVelocity | PrimUpdateFlags.CollisionPlane);
 
                 m_scene.StatsReporter.AddAgentTime(Util.EnvironmentTickCountSubtract(m_perfMonMS));
                 m_scene.StatsReporter.AddAgentUpdates(1);
@@ -2453,9 +2460,8 @@ namespace OpenSim.Region.Framework.Scenes
             Vector3 pos = m_pos;
             pos.Z += m_appearance.HipOffset;
 
-            remoteAvatar.m_controllingClient.SendAvatarData(new SendAvatarData(m_regionInfo.RegionHandle, m_firstname, m_lastname, m_grouptitle, m_uuid,
-                                                            LocalId, pos, m_appearance.Texture.GetBytes(),
-                                                            m_parentID, m_bodyRot));
+            remoteAvatar.m_controllingClient.SendEntityUpdate(GetUpdatePriority(remoteAvatar.m_controllingClient), this, PrimUpdateFlags.FullUpdate);
+
             m_scene.StatsReporter.AddAgentUpdates(1);
         }
 
@@ -2523,8 +2529,7 @@ namespace OpenSim.Region.Framework.Scenes
             Vector3 pos = m_pos;
             pos.Z += m_appearance.HipOffset;
 
-            m_controllingClient.SendAvatarData(new SendAvatarData(m_regionInfo.RegionHandle, m_firstname, m_lastname, m_grouptitle, m_uuid, LocalId,
-                                               pos, m_appearance.Texture.GetBytes(), m_parentID, m_bodyRot));
+            m_controllingClient.SendEntityUpdate(GetUpdatePriority(m_controllingClient), this, PrimUpdateFlags.FullUpdate);
 
             SendInitialFullUpdateToAllClients();
             SendAppearanceToAllOtherAgents();
@@ -2634,9 +2639,7 @@ namespace OpenSim.Region.Framework.Scenes
             Vector3 pos = m_pos;
             pos.Z += m_appearance.HipOffset;
 
-            m_controllingClient.SendAvatarData(new SendAvatarData(m_regionInfo.RegionHandle, m_firstname, m_lastname, m_grouptitle, m_uuid, LocalId,
-                pos, m_appearance.Texture.GetBytes(), m_parentID, m_bodyRot));
-
+            m_controllingClient.SendEntityUpdate(GetUpdatePriority(m_controllingClient), this, PrimUpdateFlags.Textures);
         }
 
         public void SetWearable(int wearableId, AvatarWearable wearable)
@@ -3902,7 +3905,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         private void Reprioritize(object sender, ElapsedEventArgs e)
         {
-            m_controllingClient.ReprioritizeUpdates(StateUpdateTypes.All, UpdatePriority);
+            m_controllingClient.ReprioritizeUpdates(UpdatePriority);
 
             lock (m_reprioritization_timer)
             {

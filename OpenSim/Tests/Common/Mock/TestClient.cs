@@ -621,15 +621,11 @@ namespace OpenSim.Tests.Common.Mock
         {
         }
 
-        public virtual void SendAvatarData(SendAvatarData data)
-        {
-        }
-
-        public virtual void SendAvatarTerseUpdate(SendAvatarTerseData data)
-        {
-        }
-
         public virtual void SendCoarseLocationUpdate(List<UUID> users, List<Vector3> CoarseLocations)
+        {
+        }
+
+        public virtual void SendEntityUpdate(double priority, ISceneEntity entity, PrimUpdateFlags updateFlags)
         {
         }
 
@@ -641,15 +637,7 @@ namespace OpenSim.Tests.Common.Mock
         {
         }
 
-        public virtual void SendPrimitiveToClient(SendPrimitiveData data)
-        {
-        }
-
-        public virtual void SendPrimTerseUpdate(SendPrimitiveTerseData data)
-        {
-        }
-
-        public virtual void ReprioritizeUpdates(StateUpdateTypes type, UpdatePriorityHandler handler)
+        public virtual void ReprioritizeUpdates(UpdatePriorityHandler handler)
         {
         }
 

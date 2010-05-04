@@ -1045,19 +1045,13 @@ namespace OpenSim.Region.OptionalModules.Agent.InternetRelayClientView.Server
             
         }
 
-        public void SendAvatarData(SendAvatarData data)
-        {
-            
-        }
-
-        public void SendAvatarTerseUpdate(SendAvatarTerseData data)
-        {
-            
-        }
-
         public void SendCoarseLocationUpdate(List<UUID> users, List<Vector3> CoarseLocations)
         {
             
+        }
+
+        public void SendEntityUpdate(double priority, ISceneEntity entity, PrimUpdateFlags updateFlags)
+        {
         }
 
         public void AttachObject(uint localID, Quaternion rotation, byte attachPoint, UUID ownerID)
@@ -1070,17 +1064,7 @@ namespace OpenSim.Region.OptionalModules.Agent.InternetRelayClientView.Server
             
         }
 
-        public void SendPrimitiveToClient(SendPrimitiveData data)
-        {
-            
-        }
-
-        public void SendPrimTerseUpdate(SendPrimitiveTerseData data)
-        {
-            
-        }
-
-        public void ReprioritizeUpdates(StateUpdateTypes type, UpdatePriorityHandler handler)
+        public void ReprioritizeUpdates(UpdatePriorityHandler handler)
         {
 
         }

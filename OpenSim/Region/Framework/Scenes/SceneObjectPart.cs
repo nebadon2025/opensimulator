@@ -104,7 +104,7 @@ namespace OpenSim.Region.Framework.Scenes
 
     #endregion Enumerations
 
-    public class SceneObjectPart : IScriptHost
+    public class SceneObjectPart : ISceneEntity, IScriptHost
     {
         /// <value>
         /// Denote all sides of the prim
@@ -708,6 +708,24 @@ namespace OpenSim.Region.Framework.Scenes
                         // Tell the physics engines that this prim changed.
                         m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
                     }
+                }
+            }
+        }
+
+        public Vector3 RelativePosition
+        {
+            get
+            {
+                if (IsRoot)
+                {
+                    if (IsAttachment)
+                        return AttachedPos;
+                    else
+                        return AbsolutePosition;
+                }
+                else
+                {
+                    return OffsetPosition;
                 }
             }
         }
@@ -2830,34 +2848,6 @@ namespace OpenSim.Region.Framework.Scenes
 //            m_parentGroup.SendPartFullUpdate(remoteClient, this, clientFlags);
 //        }
 
-
-        /// <summary>
-        /// Send a full update to the client for the given part
-        /// </summary>
-        /// <param name="remoteClient"></param>
-        /// <param name="clientFlags"></param>
-        protected internal void SendFullUpdate(IClientAPI remoteClient, uint clientFlags)
-        {
-//            m_log.DebugFormat(
-//                "[SOG]: Sendinging part full update to {0} for {1} {2}", remoteClient.Name, part.Name, part.LocalId);
-            
-            if (IsRoot)
-            {
-                if (IsAttachment)
-                {
-                    SendFullUpdateToClient(remoteClient, AttachedPos, clientFlags);
-                }
-                else
-                {
-                    SendFullUpdateToClient(remoteClient, AbsolutePosition, clientFlags);
-                }
-            }
-            else
-            {
-                SendFullUpdateToClient(remoteClient, clientFlags);
-            }
-        }
-
         /// <summary>
         /// Send a full update for this part to all clients.
         /// </summary>
@@ -2865,7 +2855,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
             {
-                SendFullUpdate(avatar.ControllingClient, avatar.GenerateClientFlags(UUID));
+                SendFullUpdateToClient(avatar.ControllingClient, avatar.GenerateClientFlags(UUID), PrimUpdateFlags.FullUpdate);
             });
         }
 
@@ -2879,20 +2869,8 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 // Ugly reference :(
                 if (avatar.UUID != agentID)
-                    SendFullUpdate(avatar.ControllingClient, avatar.GenerateClientFlags(UUID));
+                    SendFullUpdateToClient(avatar.ControllingClient, avatar.GenerateClientFlags(UUID), PrimUpdateFlags.FullUpdate);
             });
-        }
-
-        /// <summary>
-        /// Sends a full update to the client
-        /// </summary>
-        /// <param name="remoteClient"></param>
-        /// <param name="clientFlags"></param>
-        public void SendFullUpdateToClient(IClientAPI remoteClient, uint clientflags)
-        {
-            Vector3 lPos;
-            lPos = OffsetPosition;
-            SendFullUpdateToClient(remoteClient, lPos, clientflags);
         }
 
         /// <summary>
@@ -2901,7 +2879,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="remoteClient"></param>
         /// <param name="lPos"></param>
         /// <param name="clientFlags"></param>
-        public void SendFullUpdateToClient(IClientAPI remoteClient, Vector3 lPos, uint clientFlags)
+        public void SendFullUpdateToClient(IClientAPI remoteClient, uint clientFlags, PrimUpdateFlags updateFlags)
         {
             // Suppress full updates during attachment editing
             //
@@ -2925,11 +2903,33 @@ namespace OpenSim.Region.Framework.Scenes
             //if (LocalId != ParentGroup.RootPart.LocalId)
                 //isattachment = ParentGroup.RootPart.IsAttachment;
 
-            byte[] color = new byte[] {m_color.R, m_color.G, m_color.B, m_color.A};
-            remoteClient.SendPrimitiveToClient(new SendPrimitiveData(m_regionHandle, m_parentGroup.GetTimeDilation(), LocalId, m_shape,
-                                               lPos, Velocity, Acceleration, RotationOffset, AngularVelocity, clientFlags, m_uuid, _ownerID,
-                                               m_text, color, _parentID, m_particleSystem, m_clickAction, (byte)m_material, m_TextureAnimation, IsAttachment,
-                                               AttachmentPoint,FromItemID, Sound, SoundGain, SoundFlags, SoundRadius, ParentGroup.GetUpdatePriority(remoteClient)));
+            remoteClient.SendEntityUpdate(ParentGroup.GetUpdatePriority(remoteClient), this, updateFlags);
+        }
+
+        public void SendTerseUpdateToClient(IClientAPI remoteClient)
+        {
+            if (ParentGroup == null || ParentGroup.IsDeleted)
+                return;
+
+            Vector3 lPos = OffsetPosition;
+
+            if (IsAttachment)
+            {
+                if (ParentGroup.RootPart != this)
+                    return;
+
+                lPos = ParentGroup.RootPart.AttachedPos;
+            }
+            else
+            {
+                if (ParentGroup.RootPart == this)
+                    lPos = AbsolutePosition;
+            }
+
+            // Causes this thread to dig into the Client Thread Data.
+            // Remember your locking here!
+            remoteClient.SendEntityUpdate(ParentGroup.GetUpdatePriority(remoteClient), this, PrimUpdateFlags.Position | PrimUpdateFlags.Rotation | 
+                PrimUpdateFlags.Velocity | PrimUpdateFlags.Acceleration | PrimUpdateFlags.AngularVelocity);
         }
 
         /// <summary>
@@ -4617,35 +4617,6 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         #endregion Public Methods
-
-        public void SendTerseUpdateToClient(IClientAPI remoteClient)
-        {
-            if (ParentGroup == null || ParentGroup.IsDeleted)
-                return;
-
-            Vector3 lPos = OffsetPosition;
-
-            if (IsAttachment)
-            {
-                if (ParentGroup.RootPart != this)
-                    return;
-
-                lPos = ParentGroup.RootPart.AttachedPos;
-            }
-            else
-            {
-                if (ParentGroup.RootPart == this)
-                    lPos = AbsolutePosition;
-            }
-            
-            // Causes this thread to dig into the Client Thread Data.
-            // Remember your locking here!
-            remoteClient.SendPrimTerseUpdate(new SendPrimitiveTerseData(m_regionHandle,
-                    m_parentGroup.GetTimeDilation(), LocalId, lPos,
-                    RotationOffset, Velocity, Acceleration,
-                    AngularVelocity, FromItemID,
-                    OwnerID, (int)AttachmentPoint, null, ParentGroup.GetUpdatePriority(remoteClient)));
-        }
                 
         public void AddScriptLPS(int count)
         {
@@ -4694,7 +4665,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public Color4 GetTextColor()
         {
-            return new Color4((byte)Color.R, (byte)Color.G, (byte)Color.B, (byte)(0xFF - Color.A));
+            return new Color4(m_color.R, m_color.G, m_color.B, (byte)(255 - m_color.A));
         }
     }
 }

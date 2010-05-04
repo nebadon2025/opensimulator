@@ -1490,16 +1490,15 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void SendFullUpdateToClient(IClientAPI remoteClient)
         {
-            RootPart.SendFullUpdate(
-                remoteClient, m_scene.Permissions.GenerateClientFlags(remoteClient.AgentId, RootPart.UUID));
+            RootPart.SendFullUpdateToClient(
+                remoteClient, m_scene.Permissions.GenerateClientFlags(remoteClient.AgentId, RootPart.UUID), PrimUpdateFlags.FullUpdate);
 
             lock (m_parts)
             {
                 foreach (SceneObjectPart part in m_parts.Values)
                 {
                     if (part != RootPart)
-                        part.SendFullUpdate(
-                            remoteClient, m_scene.Permissions.GenerateClientFlags(remoteClient.AgentId, part.UUID));
+                        part.SendFullUpdateToClient(remoteClient, m_scene.Permissions.GenerateClientFlags(remoteClient.AgentId, part.UUID), PrimUpdateFlags.FullUpdate);
                 }
             }
         }

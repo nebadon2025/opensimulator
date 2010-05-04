@@ -590,17 +590,12 @@ namespace OpenSim.Client.VWoHTTP.ClientStack
             throw new System.NotImplementedException();
         }
 
-        public void SendAvatarData(SendAvatarData data)
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public void SendAvatarTerseUpdate(SendAvatarTerseData data)
-        {
-            throw new System.NotImplementedException();
-        }
-
         public void SendCoarseLocationUpdate(List<UUID> users, List<Vector3> CoarseLocations)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void SendEntityUpdate(double priority, ISceneEntity entity, PrimUpdateFlags updateFlags)
         {
             throw new System.NotImplementedException();
         }
@@ -615,17 +610,7 @@ namespace OpenSim.Client.VWoHTTP.ClientStack
             throw new System.NotImplementedException();
         }
 
-        public void SendPrimitiveToClient(SendPrimitiveData data)
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public void SendPrimTerseUpdate(SendPrimitiveTerseData data)
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public void ReprioritizeUpdates(StateUpdateTypes type, UpdatePriorityHandler handler)
+        public void ReprioritizeUpdates(UpdatePriorityHandler handler)
         {
             throw new System.NotImplementedException();
         }

@@ -243,7 +243,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Asset
             if (m_Cache != null)
                 m_Cache.Cache(asset);
             
-            if (asset.Temporary || asset.Local)
+            if (asset.Local)
                 return asset.ID;
             
             return m_AssetService.Store(asset);

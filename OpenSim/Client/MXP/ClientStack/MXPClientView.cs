@@ -1026,26 +1026,15 @@ namespace OpenSim.Client.MXP.ClientStack
             // Need to translate to MXP somehow
         }
 
-        public void SendAvatarData(SendAvatarData data)
-        {
-            //ScenePresence presence=((Scene)this.Scene).GetScenePresence(avatarID);
-            UUID ownerID = data.AvatarID;
-            MXPSendAvatarData(data.FirstName + " " + data.LastName, ownerID, UUID.Zero, data.AvatarID, data.AvatarLocalID, data.Position, data.Rotation);
-        }
-
-        public void SendAvatarTerseUpdate(SendAvatarTerseData data)
-        {
-            MovementEventMessage me = new MovementEventMessage();
-            me.ObjectIndex = data.LocalID;
-            me.Location = ToOmVector(data.Position);
-            me.Orientation = ToOmQuaternion(data.Rotation);
-
-            Session.Send(me);
-        }
-
         public void SendCoarseLocationUpdate(List<UUID> users, List<Vector3> CoarseLocations)
         {
             // Minimap function, not used.
+        }
+
+        public void SendEntityUpdate(double priority, ISceneEntity entity, PrimUpdateFlags updateFlags)
+        {
+            // TODO: Implement this
+            throw new System.NotImplementedException();
         }
 
         public void AttachObject(uint localID, Quaternion rotation, byte attachPoint, UUID ownerID)
@@ -1058,23 +1047,7 @@ namespace OpenSim.Client.MXP.ClientStack
             // Need to translate to MXP somehow
         }
 
-        public void SendPrimitiveToClient(SendPrimitiveData data)
-        {
-            MXPSendPrimitive(data.localID, data.ownerID, data.acc, data.rvel, data.primShape, data.pos, data.objectID, data.vel,
-                data.rotation, (uint)data.flags, data.text, data.color, data.parentID, data.particleSystem, data.clickAction,
-                data.material, data.textureanim);
-        }
-
-        public void SendPrimTerseUpdate(SendPrimitiveTerseData data)
-        {
-            MovementEventMessage me = new MovementEventMessage();
-            me.ObjectIndex = data.LocalID;
-            me.Location = ToOmVector(data.Position);
-            me.Orientation = ToOmQuaternion(data.Rotation);
-            Session.Send(me);
-        }
-
-        public void ReprioritizeUpdates(StateUpdateTypes type, UpdatePriorityHandler handler)
+        public void ReprioritizeUpdates(UpdatePriorityHandler handler)
         {
         }
 

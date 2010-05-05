@@ -3436,11 +3436,13 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 m_entityUpdates.Enqueue(priority, new EntityUpdate(entity, updateFlags), entity.LocalId);
         }
 
-        private void ProcessEntityUpdates()
+        private void ProcessEntityUpdates(int maxUpdates)
         {
             Lazy<List<ObjectUpdatePacket.ObjectDataBlock>> objectUpdateBlocks = new Lazy<List<ObjectUpdatePacket.ObjectDataBlock>>();
             Lazy<List<ObjectUpdateCompressedPacket.ObjectDataBlock>> compressedUpdateBlocks = new Lazy<List<ObjectUpdateCompressedPacket.ObjectDataBlock>>();
             Lazy<List<ImprovedTerseObjectUpdatePacket.ObjectDataBlock>> terseUpdateBlocks = new Lazy<List<ImprovedTerseObjectUpdatePacket.ObjectDataBlock>>();
+
+            int updatesThisCall = 0;
 
             lock (m_entityUpdates.SyncRoot)
             {
@@ -3516,50 +3518,14 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                     }
                     else
                     {
-                        bool avatar = (update.Entity is ScenePresence);
-                        uint localID = update.Entity.LocalId;
-                        uint attachPoint;
-                        Vector4 collisionPlane;
-                        Vector3 position, velocity, acceleration, angularVelocity;
-                        Quaternion rotation;
-                        byte[] textureEntry;
-
-                        if (update.Entity is ScenePresence)
-                        {
-                            ScenePresence presence = (ScenePresence)update.Entity;
-
-                            attachPoint = 0;
-                            collisionPlane = presence.CollisionPlane;
-                            position = presence.OffsetPosition;
-                            velocity = presence.Velocity;
-                            acceleration = Vector3.Zero;
-                            angularVelocity = Vector3.Zero;
-                            rotation = presence.Rotation;
-
-                            if (updateFlags.HasFlag(PrimUpdateFlags.Textures))
-                                textureEntry = presence.Appearance.Texture.GetBytes();
-                            else
-                                textureEntry = null;
-                        }
-                        else
-                        {
-                            SceneObjectPart part = (SceneObjectPart)update.Entity;
-
-                            attachPoint = part.AttachmentPoint;
-                            collisionPlane = Vector4.Zero;
-                            position = part.RelativePosition;
-                            velocity = part.Velocity;
-                            acceleration = part.Acceleration;
-                            angularVelocity = part.AngularVelocity;
-                            rotation = part.RotationOffset;
-                            textureEntry = part.Shape.TextureEntry;
-                        }
-
-                        terseUpdateBlocks.Value.Add(CreateImprovedTerseBlock(avatar, localID, attachPoint, collisionPlane, position,
-                            velocity, acceleration, rotation, angularVelocity, textureEntry));
+                        terseUpdateBlocks.Value.Add(CreateImprovedTerseBlock(update.Entity, updateFlags.HasFlag(PrimUpdateFlags.Textures)));
                     }
 
                     #endregion Block Construction
+
+                    ++updatesThisCall;
+                    if (maxUpdates > 0 && updatesThisCall >= maxUpdates)
+                        break;
                 }
             }
 
@@ -3618,6 +3584,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         public void ReprioritizeUpdates(UpdatePriorityHandler handler)
         {
+            //m_log.Debug("[CLIENT]: Reprioritizing prim updates for " + m_firstName + " " + m_lastName);
+
             PriorityQueue<double, EntityUpdate>.UpdatePriorityHandler update_priority_handler =
                 delegate(ref double priority, uint local_id)
                 {
@@ -3631,8 +3599,10 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         public void FlushPrimUpdates()
         {
+            m_log.Debug("[CLIENT]: Flushing prim updates to " + m_firstName + " " + m_lastName);
+
             while (m_entityUpdates.Count > 0)
-                ProcessEntityUpdates();
+                ProcessEntityUpdates(-1);
         }
 
         #endregion Primitive Packet/Data Sending Methods
@@ -3665,11 +3635,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         {
             if ((categories & ThrottleOutPacketTypeFlags.State) != 0)
             {
-                lock (m_entityUpdates.SyncRoot)
-                {
-                    if (m_entityUpdates.Count > 0)
-                        ProcessEntityUpdates();
-                }
+                if (m_entityUpdates.Count > 0)
+                    ProcessEntityUpdates(m_udpServer.PrimUpdatesPerCallback);
             }
 
             if ((categories & ThrottleOutPacketTypeFlags.Texture) != 0)
@@ -4327,10 +4294,51 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         #region Helper Methods
 
-        protected ImprovedTerseObjectUpdatePacket.ObjectDataBlock CreateImprovedTerseBlock(bool avatar, uint localID, uint attachPoint,
-            Vector4 collisionPlane, Vector3 position, Vector3 velocity, Vector3 acceleration, Quaternion rotation,
-            Vector3 angularVelocity, byte[] textureEntry)
+        protected ImprovedTerseObjectUpdatePacket.ObjectDataBlock CreateImprovedTerseBlock(ISceneEntity entity, bool sendTexture)
         {
+            #region ScenePresence/SOP Handling
+
+            bool avatar = (entity is ScenePresence);
+            uint localID = entity.LocalId;
+            uint attachPoint;
+            Vector4 collisionPlane;
+            Vector3 position, velocity, acceleration, angularVelocity;
+            Quaternion rotation;
+            byte[] textureEntry;
+
+            if (entity is ScenePresence)
+            {
+                ScenePresence presence = (ScenePresence)entity;
+
+                attachPoint = 0;
+                collisionPlane = presence.CollisionPlane;
+                position = presence.OffsetPosition;
+                velocity = presence.Velocity;
+                acceleration = Vector3.Zero;
+                angularVelocity = Vector3.Zero;
+                rotation = presence.Rotation;
+
+                if (sendTexture)
+                    textureEntry = presence.Appearance.Texture.GetBytes();
+                else
+                    textureEntry = null;
+            }
+            else
+            {
+                SceneObjectPart part = (SceneObjectPart)entity;
+
+                attachPoint = part.AttachmentPoint;
+                collisionPlane = Vector4.Zero;
+                position = part.RelativePosition;
+                velocity = part.Velocity;
+                acceleration = part.Acceleration;
+                angularVelocity = part.AngularVelocity;
+                rotation = part.RotationOffset;
+                textureEntry = part.Shape.TextureEntry;
+            }
+
+            #endregion ScenePresence/SOP Handling
+
             int pos = 0;
             byte[] data = new byte[(avatar ? 60 : 44)];
 

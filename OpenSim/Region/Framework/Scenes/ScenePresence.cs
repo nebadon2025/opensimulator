@@ -789,11 +789,6 @@ namespace OpenSim.Region.Framework.Scenes
             m_sceneViewer.QueuePartForUpdate(part);
         }
 
-        public uint GenerateClientFlags(UUID ObjectID)
-        {
-            return m_scene.Permissions.GenerateClientFlags(m_uuid, ObjectID);
-        }
-
         /// <summary>
         /// Send updates to the client about prims which have been placed on the update queue.  We don't
         /// necessarily send updates for all the parts on the queue, e.g. if an updates with a more recent

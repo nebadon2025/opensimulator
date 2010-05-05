@@ -118,8 +118,7 @@ namespace OpenSim.Region.Framework.Scenes
 //                                "[SCENE PRESENCE]: Fully   updating prim {0}, {1} - part timestamp {2}",
 //                                part.Name, part.UUID, part.TimeStampFull);
 
-                        part.SendUpdateToClient(m_presence.ControllingClient,
-                               m_presence.GenerateClientFlags(part.UUID), PrimUpdateFlags.FullUpdate);
+                        part.SendUpdateToClient(m_presence.ControllingClient, PrimUpdateFlags.FullUpdate);
 
                         // We'll update to the part's timestamp rather than
                         // the current time to avoid the race condition
@@ -137,7 +136,7 @@ namespace OpenSim.Region.Framework.Scenes
 //                                "[SCENE PRESENCE]: Tersely updating prim {0}, {1} - part timestamp {2}",
 //                                part.Name, part.UUID, part.TimeStampTerse);
 
-                        part.SendUpdateToClient(m_presence.ControllingClient, m_presence.GenerateClientFlags(part.UUID), PrimUpdateFlags.Position | PrimUpdateFlags.Rotation |
+                        part.SendUpdateToClient(m_presence.ControllingClient, PrimUpdateFlags.Position | PrimUpdateFlags.Rotation |
                             PrimUpdateFlags.Velocity | PrimUpdateFlags.Acceleration | PrimUpdateFlags.AngularVelocity);
 
                         update.LastTerseUpdateTime = part.TimeStampTerse;
@@ -162,7 +161,7 @@ namespace OpenSim.Region.Framework.Scenes
                         continue;
                     }
 
-                    part.SendUpdateToClient(m_presence.ControllingClient, m_presence.GenerateClientFlags(part.UUID), PrimUpdateFlags.FullUpdate);
+                    part.SendUpdateToClient(m_presence.ControllingClient, PrimUpdateFlags.FullUpdate);
                 }
             }
         }

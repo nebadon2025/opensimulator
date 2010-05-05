@@ -2839,15 +2839,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-//        /// <summary>
-//        ///
-//        /// </summary>
-//        /// <param name="remoteClient"></param>
-//        public void SendFullUpdate(IClientAPI remoteClient, uint clientFlags)
-//        {
-//            m_parentGroup.SendPartFullUpdate(remoteClient, this, clientFlags);
-//        }
-
         /// <summary>
         /// Send a full update for this part to all clients.
         /// </summary>
@@ -2855,7 +2846,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
             {
-                SendUpdateToClient(avatar.ControllingClient, avatar.GenerateClientFlags(UUID), updateFlags);
+                SendUpdateToClient(avatar.ControllingClient, updateFlags);
             });
         }
 
@@ -2869,17 +2860,14 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 // Ugly reference :(
                 if (avatar.UUID != agentID)
-                    SendUpdateToClient(avatar.ControllingClient, avatar.GenerateClientFlags(UUID), updateFlags);
+                    SendUpdateToClient(avatar.ControllingClient, updateFlags);
             });
         }
 
         /// <summary>
-        /// Sends a full update to the client
+        /// Sends an update for this object to a client
         /// </summary>
-        /// <param name="remoteClient"></param>
-        /// <param name="lPos"></param>
-        /// <param name="clientFlags"></param>
-        public void SendUpdateToClient(IClientAPI remoteClient, uint clientFlags, PrimUpdateFlags updateFlags)
+        public void SendUpdateToClient(IClientAPI remoteClient, PrimUpdateFlags updateFlags)
         {
             // Sanity check
             if (ParentGroup == null || ParentGroup.IsDeleted)

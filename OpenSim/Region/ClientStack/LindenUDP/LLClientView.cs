@@ -4505,7 +4505,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
             #region PrimFlags
 
-            PrimFlags flags = data.Flags;
+            PrimFlags flags = (PrimFlags)m_scene.Permissions.GenerateClientFlags(recipientID, data.UUID);
 
             // Don't send the CreateSelected flag to everyone
             flags &= ~PrimFlags.CreateSelected;
@@ -4520,7 +4520,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 }
             }
 
-            update.UpdateFlags = (uint)data.Flags;
+            update.UpdateFlags = (uint)flags;
 
             #endregion PrimFlags
 

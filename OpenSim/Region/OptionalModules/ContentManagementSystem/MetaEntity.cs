@@ -193,20 +193,14 @@ namespace OpenSim.Region.OptionalModules.ContentManagement
 
         public void SendFullUpdate(IClientAPI client)
         {
-            // Not sure what clientFlags should be but 0 seems to work
-            SendFullUpdate(client, 0);
-        }
-
-        public void SendFullUpdate(IClientAPI client, uint clientFlags)
-        {
-            m_Entity.SendFullUpdateToClient(client);
+            m_Entity.SendUpdateToClient(client, PrimUpdateFlags.FullUpdate);
         }
 
         public void SendFullUpdateToAll()
         {
             m_Entity.Scene.ForEachClient(
-                delegate(IClientAPI controller)
-                { m_Entity.SendFullUpdateToClient(controller); }
+                delegate(IClientAPI client)
+                { m_Entity.SendUpdateToClient(client, PrimUpdateFlags.FullUpdate); }
             );
         }
 

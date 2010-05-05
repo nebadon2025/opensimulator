@@ -3508,7 +3508,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                         if (update.Entity is ScenePresence)
                             objectUpdateBlocks.Value.Add(CreateAvatarUpdateBlock((ScenePresence)update.Entity));
                         else
-                            objectUpdateBlocks.Value.Add(CreatePrimUpdateBlock((SceneObjectPart)update.Entity));
+                            objectUpdateBlocks.Value.Add(CreatePrimUpdateBlock((SceneObjectPart)update.Entity, this.m_agentId));
                     }
                     else if (!canUseImproved)
                     {
@@ -4444,7 +4444,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             return update;
         }
 
-        protected ObjectUpdatePacket.ObjectDataBlock CreatePrimUpdateBlock(SceneObjectPart data)
+        protected ObjectUpdatePacket.ObjectDataBlock CreatePrimUpdateBlock(SceneObjectPart data, UUID recipientID)
         {
             byte[] objectData = new byte[60];
             data.RelativePosition.ToBytes(objectData, 0);
@@ -4502,7 +4502,27 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             update.TextureEntry = data.Shape.TextureEntry ?? Utils.EmptyBytes;
             update.Scale = data.Shape.Scale;
             update.Text = Util.StringToBytes256(data.Text);
+
+            #region PrimFlags
+
+            PrimFlags flags = data.Flags;
+
+            // Don't send the CreateSelected flag to everyone
+            flags &= ~PrimFlags.CreateSelected;
+
+            if (recipientID == data.OwnerID)
+            {
+                if ((data.Flags & PrimFlags.CreateSelected) != 0)
+                {
+                    // Only send this flag once, then unset it
+                    flags |= PrimFlags.CreateSelected;
+                    data.Flags &= ~PrimFlags.CreateSelected;
+                }
+            }
+
             update.UpdateFlags = (uint)data.Flags;
+
+            #endregion PrimFlags
 
             if (data.Sound != UUID.Zero)
             {

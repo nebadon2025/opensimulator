@@ -1297,7 +1297,9 @@ namespace OpenSim.Region.Framework.Scenes
                 // so that if the object is locked the client moving the object
                 // get's it's position on the simulator even if it was the same as before
                 // This keeps the moving user's client in sync with the rest of the world.
-                group.SendGroupTerseUpdate();
+                SceneObjectPart movingPart = group.GetChildPart(objectID);
+                if (movingPart != null)
+                    movingPart.SendUpdateToAllClients(PrimUpdateFlags.Position);
             }
         }
 
@@ -1338,7 +1340,9 @@ namespace OpenSim.Region.Framework.Scenes
                 // so that if the object is locked the client moving the object
                 // get's it's position on the simulator even if it was the same as before
                 // This keeps the moving user's client in sync with the rest of the world.
-                group.SendGroupTerseUpdate();
+                SceneObjectPart rotatingPart = group.GetChildPart(objectID);
+                if (rotatingPart != null)
+                    rotatingPart.SendUpdateToAllClients(PrimUpdateFlags.Rotation);
             }
         }
 

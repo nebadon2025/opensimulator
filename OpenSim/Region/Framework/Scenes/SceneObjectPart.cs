@@ -2851,11 +2851,11 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Send a full update for this part to all clients.
         /// </summary>
-        public void SendFullUpdateToAllClients()
+        public void SendUpdateToAllClients(PrimUpdateFlags updateFlags)
         {
             m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
             {
-                SendFullUpdateToClient(avatar.ControllingClient, avatar.GenerateClientFlags(UUID), PrimUpdateFlags.FullUpdate);
+                SendUpdateToClient(avatar.ControllingClient, avatar.GenerateClientFlags(UUID), updateFlags);
             });
         }
 
@@ -2863,13 +2863,13 @@ namespace OpenSim.Region.Framework.Scenes
         /// Send a full update to all clients except the one nominated.
         /// </summary>
         /// <param name="agentID"></param>
-        public void SendFullUpdateToAllClientsExcept(UUID agentID)
+        public void SendUpdateToAllClientsExcept(PrimUpdateFlags updateFlags, UUID agentID)
         {
             m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
             {
                 // Ugly reference :(
                 if (avatar.UUID != agentID)
-                    SendFullUpdateToClient(avatar.ControllingClient, avatar.GenerateClientFlags(UUID), PrimUpdateFlags.FullUpdate);
+                    SendUpdateToClient(avatar.ControllingClient, avatar.GenerateClientFlags(UUID), updateFlags);
             });
         }
 
@@ -2879,57 +2879,17 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="remoteClient"></param>
         /// <param name="lPos"></param>
         /// <param name="clientFlags"></param>
-        public void SendFullUpdateToClient(IClientAPI remoteClient, uint clientFlags, PrimUpdateFlags updateFlags)
+        public void SendUpdateToClient(IClientAPI remoteClient, uint clientFlags, PrimUpdateFlags updateFlags)
         {
-            // Suppress full updates during attachment editing
-            //
-            if (ParentGroup.IsSelected && IsAttachment)
-                return;
-            
-            if (ParentGroup.IsDeleted)
-                return;
-
-            clientFlags &= ~(uint) PrimFlags.CreateSelected;
-
-            if (remoteClient.AgentId == _ownerID)
-            {
-                if ((uint) (_flags & PrimFlags.CreateSelected) != 0)
-                {
-                    clientFlags |= (uint) PrimFlags.CreateSelected;
-                    _flags &= ~PrimFlags.CreateSelected;
-                }
-            }
-            //bool isattachment = IsAttachment;
-            //if (LocalId != ParentGroup.RootPart.LocalId)
-                //isattachment = ParentGroup.RootPart.IsAttachment;
-
-            remoteClient.SendEntityUpdate(ParentGroup.GetUpdatePriority(remoteClient), this, updateFlags);
-        }
-
-        public void SendTerseUpdateToClient(IClientAPI remoteClient)
-        {
+            // Sanity check
             if (ParentGroup == null || ParentGroup.IsDeleted)
                 return;
 
-            Vector3 lPos = OffsetPosition;
+            // Suppress full updates during attachment editing
+            if (ParentGroup.IsSelected && IsAttachment && updateFlags == PrimUpdateFlags.FullUpdate)
+                return;
 
-            if (IsAttachment)
-            {
-                if (ParentGroup.RootPart != this)
-                    return;
-
-                lPos = ParentGroup.RootPart.AttachedPos;
-            }
-            else
-            {
-                if (ParentGroup.RootPart == this)
-                    lPos = AbsolutePosition;
-            }
-
-            // Causes this thread to dig into the Client Thread Data.
-            // Remember your locking here!
-            remoteClient.SendEntityUpdate(ParentGroup.GetUpdatePriority(remoteClient), this, PrimUpdateFlags.Position | PrimUpdateFlags.Rotation | 
-                PrimUpdateFlags.Velocity | PrimUpdateFlags.Acceleration | PrimUpdateFlags.AngularVelocity);
+            remoteClient.SendEntityUpdate(ParentGroup.GetUpdatePriority(remoteClient), this, updateFlags);
         }
 
         /// <summary>
@@ -3073,17 +3033,6 @@ namespace OpenSim.Region.Framework.Scenes
                         soundModule.PlayAttachedSound(soundID, ownerID, objectID, volume, position, flags, radius);
                 }
             }
-        }
-
-        /// <summary>
-        /// Send a terse update to all clients
-        /// </summary>
-        public void SendTerseUpdateToAllClients()
-        {
-            m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
-            {
-                SendTerseUpdateToClient(avatar.ControllingClient);
-            });
         }
 
         public void SetAttachmentPoint(uint AttachmentPoint)
@@ -4111,10 +4060,9 @@ namespace OpenSim.Region.Framework.Scenes
                                 baseMask;
                         break;
                 }
-                SendFullUpdateToAllClients();
 
+                SendUpdateToAllClients(PrimUpdateFlags.PrimFlags);
                 SendObjectPropertiesToClient(AgentID);
-
             }
         }
 

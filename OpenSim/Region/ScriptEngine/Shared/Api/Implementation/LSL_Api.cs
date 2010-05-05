@@ -1329,7 +1329,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             tmp.Y = (float)scale.y;
             tmp.Z = (float)scale.z;
             part.Scale = tmp;
-            part.SendFullUpdateToAllClients();
+            part.SendUpdateToAllClients(PrimUpdateFlags.Scale);
         }
 
         public LSL_Vector llGetScale()
@@ -2246,7 +2246,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.SoundRadius = 20;    // Magic number, 20 seems reasonable. Make configurable?
 
             m_host.ScheduleFullUpdate();
-            m_host.SendFullUpdateToAllClients();
+            m_host.SendUpdateToAllClients(PrimUpdateFlags.Sound);
         }
 
         public void llLoopSoundMaster(string sound, double volume)
@@ -2266,7 +2266,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     prim.SoundRadius = 20;    // Magic number, 20 seems reasonable. Make configurable?
 
                     prim.ScheduleFullUpdate();
-                    prim.SendFullUpdateToAllClients();
+                    prim.SendUpdateToAllClients(PrimUpdateFlags.Sound);
                 }
             }
             if (m_host.Sound != UUID.Zero)
@@ -2278,7 +2278,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.SoundRadius = 20;    // Magic number, 20 seems reasonable. Make configurable?
 
             m_host.ScheduleFullUpdate();
-            m_host.SendFullUpdateToAllClients();
+            m_host.SendUpdateToAllClients(PrimUpdateFlags.Sound);
         }
 
         public void llLoopSoundSlave(string sound, double volume)
@@ -2320,7 +2320,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         part.SoundFlags = 0;
                         part.SoundRadius = 0;
                         part.ScheduleFullUpdate();
-                        part.SendFullUpdateToAllClients();
+                        part.SendUpdateToAllClients(PrimUpdateFlags.Sound);
                     }
                     m_host.ParentGroup.LoopSoundMasterPrim = null;
                     m_host.ParentGroup.LoopSoundSlavePrims.Clear();
@@ -2332,7 +2332,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     m_host.SoundFlags = 0;
                     m_host.SoundRadius = 0;
                     m_host.ScheduleFullUpdate();
-                    m_host.SendFullUpdateToAllClients();
+                    m_host.SendUpdateToAllClients(PrimUpdateFlags.Sound);
                 }
             }
             else
@@ -2342,7 +2342,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 m_host.SoundFlags = 0;
                 m_host.SoundRadius = 0;
                 m_host.ScheduleFullUpdate();
-                m_host.SendFullUpdateToAllClients();
+                m_host.SendUpdateToAllClients(PrimUpdateFlags.Sound);
             }
         }
 
@@ -3241,7 +3241,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.AddScriptLPS(1);
             m_host.AngularVelocity = new Vector3((float)(axis.x * spinrate), (float)(axis.y * spinrate), (float)(axis.z * spinrate));
             m_host.ScheduleTerseUpdate();
-            m_host.SendTerseUpdateToAllClients();
+            m_host.SendUpdateToAllClients(PrimUpdateFlags.AngularVelocity);
             m_host.ParentGroup.HasGroupChanged = true;
         }
 
@@ -5467,7 +5467,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             pTexAnim.Start = (float)start;
 
             part.AddTextureAnimation(pTexAnim);
-            part.SendFullUpdateToAllClients();
+            part.SendUpdateToAllClients(PrimUpdateFlags.TextureAnim);
             part.ParentGroup.HasGroupChanged = true;
         }
 
@@ -6029,7 +6029,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 part.AddNewParticleSystem(prules);
                 part.ParentGroup.HasGroupChanged = true;
             }
-            part.SendFullUpdateToAllClients();
+            part.SendUpdateToAllClients(PrimUpdateFlags.Particles);
         }
 
         public void llGroundRepel(double height, int water, double tau)

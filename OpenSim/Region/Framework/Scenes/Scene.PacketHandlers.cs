@@ -124,7 +124,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     if (((SceneObjectGroup)ent).LocalId == primLocalID)
                     {
-                        ((SceneObjectGroup)ent).SendFullUpdateToClient(remoteClient);
+                        ((SceneObjectGroup)ent).SendUpdateToClient(remoteClient, PrimUpdateFlags.FullUpdate);
                         return;
                     }
                 }

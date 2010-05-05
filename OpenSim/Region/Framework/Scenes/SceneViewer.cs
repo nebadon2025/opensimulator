@@ -118,7 +118,7 @@ namespace OpenSim.Region.Framework.Scenes
 //                                "[SCENE PRESENCE]: Fully   updating prim {0}, {1} - part timestamp {2}",
 //                                part.Name, part.UUID, part.TimeStampFull);
 
-                        part.SendFullUpdateToClient(m_presence.ControllingClient,
+                        part.SendUpdateToClient(m_presence.ControllingClient,
                                m_presence.GenerateClientFlags(part.UUID), PrimUpdateFlags.FullUpdate);
 
                         // We'll update to the part's timestamp rather than
@@ -137,7 +137,8 @@ namespace OpenSim.Region.Framework.Scenes
 //                                "[SCENE PRESENCE]: Tersely updating prim {0}, {1} - part timestamp {2}",
 //                                part.Name, part.UUID, part.TimeStampTerse);
 
-                        part.SendTerseUpdateToClient(m_presence.ControllingClient);
+                        part.SendUpdateToClient(m_presence.ControllingClient, m_presence.GenerateClientFlags(part.UUID), PrimUpdateFlags.Position | PrimUpdateFlags.Rotation |
+                            PrimUpdateFlags.Velocity | PrimUpdateFlags.Acceleration | PrimUpdateFlags.AngularVelocity);
 
                         update.LastTerseUpdateTime = part.TimeStampTerse;
                     }
@@ -157,11 +158,11 @@ namespace OpenSim.Region.Framework.Scenes
                         if (part != part.ParentGroup.RootPart)
                             continue;
 
-                        part.ParentGroup.SendFullUpdateToClient(m_presence.ControllingClient);
+                        part.ParentGroup.SendUpdateToClient(m_presence.ControllingClient, PrimUpdateFlags.FullUpdate);
                         continue;
                     }
 
-                    part.SendFullUpdateToClient(m_presence.ControllingClient, m_presence.GenerateClientFlags(part.UUID), PrimUpdateFlags.FullUpdate);
+                    part.SendUpdateToClient(m_presence.ControllingClient, m_presence.GenerateClientFlags(part.UUID), PrimUpdateFlags.FullUpdate);
                 }
             }
         }

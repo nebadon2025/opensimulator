@@ -1488,17 +1488,17 @@ namespace OpenSim.Region.Framework.Scenes
 
         #endregion
 
-        public void SendFullUpdateToClient(IClientAPI remoteClient)
+        public void SendUpdateToClient(IClientAPI remoteClient, PrimUpdateFlags updateFlags)
         {
-            RootPart.SendFullUpdateToClient(
-                remoteClient, m_scene.Permissions.GenerateClientFlags(remoteClient.AgentId, RootPart.UUID), PrimUpdateFlags.FullUpdate);
+            RootPart.SendUpdateToClient(
+                remoteClient, m_scene.Permissions.GenerateClientFlags(remoteClient.AgentId, RootPart.UUID), updateFlags);
 
             lock (m_parts)
             {
                 foreach (SceneObjectPart part in m_parts.Values)
                 {
                     if (part != RootPart)
-                        part.SendFullUpdateToClient(remoteClient, m_scene.Permissions.GenerateClientFlags(remoteClient.AgentId, part.UUID), PrimUpdateFlags.FullUpdate);
+                        part.SendUpdateToClient(remoteClient, m_scene.Permissions.GenerateClientFlags(remoteClient.AgentId, part.UUID), updateFlags);
                 }
             }
         }
@@ -2035,30 +2035,16 @@ namespace OpenSim.Region.Framework.Scenes
 
 //            m_log.DebugFormat("[SOG]: Sending immediate full group update for {0} {1}", Name, UUID);
             
-            RootPart.SendFullUpdateToAllClients();
+            RootPart.SendUpdateToAllClients(PrimUpdateFlags.FullUpdate);
 
             lock (m_parts)
             {
                 foreach (SceneObjectPart part in m_parts.Values)
                 {
                     if (part != RootPart)
-                        part.SendFullUpdateToAllClients();
+                        part.SendUpdateToAllClients(PrimUpdateFlags.FullUpdate);
                 }
             }
-        }
-
-        /// <summary>
-        /// Immediately send an update for this scene object's root prim only.
-        /// This is for updates regarding the object as a whole, and none of its parts in particular.
-        /// Note: this may not be used by opensim (it probably should) but it's used by
-        /// external modules.
-        /// </summary>
-        public void SendGroupRootTerseUpdate()
-        {
-            if (IsDeleted)
-                return;
-
-            RootPart.SendTerseUpdateToAllClients();
         }
 
         public void QueueForUpdateCheck()
@@ -2067,23 +2053,6 @@ namespace OpenSim.Region.Framework.Scenes
                 return;
             
             m_scene.SceneGraph.AddToUpdateList(this);
-        }
-
-        /// <summary>
-        /// Immediately send a terse update for this scene object.
-        /// </summary>
-        public void SendGroupTerseUpdate()
-        {
-            if (IsDeleted)
-                return;
-            
-            lock (m_parts)
-            {
-                foreach (SceneObjectPart part in m_parts.Values)
-                {
-                    part.SendTerseUpdateToAllClients();
-                }
-            }
         }
 
         #endregion
@@ -2491,7 +2460,7 @@ namespace OpenSim.Region.Framework.Scenes
         public void NonPhysicalGrabMovement(Vector3 pos)
         {
             AbsolutePosition = pos;
-            m_rootPart.SendTerseUpdateToAllClients();
+            m_rootPart.SendUpdateToAllClients(PrimUpdateFlags.Position);
         }
 
         /// <summary>

@@ -3450,9 +3450,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
                 while ((update = m_entityUpdates.Dequeue()) != null)
                 {
-                    if (m_killRecord.Contains(update.Entity.LocalId))
-                        continue;
-
                     #region UpdateFlags to packet type conversion
 
                     PrimUpdateFlags updateFlags = update.Flags;

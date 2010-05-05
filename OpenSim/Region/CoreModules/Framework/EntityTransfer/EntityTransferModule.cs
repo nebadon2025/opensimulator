@@ -1446,7 +1446,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             if (destination != null && !CrossPrimGroupIntoNewRegion(destination, grp, silent))
             {
                 grp.OffsetForNewRegion(oldGroupPosition);
-                grp.ScheduleGroupForFullUpdate();
+                grp.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
             }
         }
 
@@ -1465,7 +1465,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             //m_log.Debug("  >>> CrossPrimGroupIntoNewRegion <<<");
 
             bool successYN = false;
-            grp.RootPart.UpdateFlag = 0;
+            grp.RootPart.ClearPendingUpdate();
             //int primcrossingXMLmethod = 0;
 
             if (destination != null)

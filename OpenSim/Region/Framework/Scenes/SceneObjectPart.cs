@@ -168,13 +168,10 @@ namespace OpenSim.Region.Framework.Scenes
         public double SoundRadius;
         
         [XmlIgnore]
-        public uint TimeStampFull;
+        public uint TimeStampUpdate;
         
         [XmlIgnore]
         public uint TimeStampLastActivity; // Will be used for AutoReturn
-        
-        [XmlIgnore]
-        public uint TimeStampTerse;
 
         [XmlIgnore]
         public UUID FromItemID;
@@ -282,15 +279,8 @@ namespace OpenSim.Region.Framework.Scenes
 
         private bool m_passTouches;
 
-        /// <summary>
-        /// Only used internally to schedule client updates.
-        /// 0 - no update is scheduled
-        /// 1 - terse update scheduled
-        /// 2 - full update scheduled
-        ///
-        /// TODO - This should be an enumeration
-        /// </summary>
-        private byte m_updateFlag;
+        /// <summary>Modified fields that need to be broadcast</summary>
+        private PrimUpdateFlags m_pendingUpdateFlags;
 
         protected Vector3 m_acceleration;
         protected Vector3 m_angularVelocity;
@@ -961,10 +951,10 @@ namespace OpenSim.Region.Framework.Scenes
                 TriggerScriptChangedEvent(Changed.SCALE);
             }
         }
-        public byte UpdateFlag
+        public PrimUpdateFlags PendingUpdateFlags
         {
-            get { return m_updateFlag; }
-            set { m_updateFlag = value; }
+            get { return m_pendingUpdateFlags; }
+            set { m_pendingUpdateFlags = value; }
         }
 
         #endregion
@@ -1205,14 +1195,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        /// <summary>
-        /// Clear all pending updates of parts to clients
-        /// </summary>
-        private void ClearUpdateSchedule()
-        {
-            m_updateFlag = 0;
-        }
-
         private void SendObjectPropertiesToClient(UUID AgentID)
         {
             m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
@@ -1253,6 +1235,14 @@ namespace OpenSim.Region.Framework.Scenes
 
         #region Public Methods
 
+        /// <summary>
+        /// Clear all pending updates of parts to clients
+        /// </summary>
+        public void ClearPendingUpdate()
+        {
+            m_pendingUpdateFlags = 0;
+        }
+
         public void ResetExpire()
         {
             Expires = DateTime.Now + new TimeSpan(600000000);
@@ -1275,17 +1265,17 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Tell all scene presences that they should send updates for this part to their clients
         /// </summary>
-        public void AddFullUpdateToAllAvatars()
+        public void AddUpdateToAllAvatars(PrimUpdateFlags updateFlags)
         {
             m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
             {
-                avatar.SceneViewer.QueuePartForUpdate(this);
+                avatar.SceneViewer.QueuePartForUpdate(this, updateFlags);
             });
         }
 
-        public void AddFullUpdateToAvatar(ScenePresence presence)
+        public void AddUpdateToAvatar(ScenePresence presence, PrimUpdateFlags updateFlags)
         {
-            presence.SceneViewer.QueuePartForUpdate(this);
+            presence.SceneViewer.QueuePartForUpdate(this, updateFlags);
         }
 
         public void AddNewParticleSystem(Primitive.ParticleSystem pSystem)
@@ -1296,20 +1286,6 @@ namespace OpenSim.Region.Framework.Scenes
         public void RemoveParticleSystem()
         {
             m_particleSystem = new byte[0];
-        }
-
-        /// Terse updates
-        public void AddTerseUpdateToAllAvatars()
-        {
-            m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
-            {
-                avatar.SceneViewer.QueuePartForUpdate(this);
-            });
-        }
-
-        public void AddTerseUpdateToAvatar(ScenePresence presence)
-        {
-            presence.SceneViewer.QueuePartForUpdate(this);
         }
 
         public void AddTextureAnimation(Primitive.TextureAnimation pTexAnim)
@@ -2588,19 +2564,19 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (PhysActor != null)
             {
+                Vector3 newpos = PhysActor.Position;
                 
-                Vector3 newpos = new Vector3(PhysActor.Position.GetBytes(), 0);
-                
-                if (m_parentGroup.Scene.TestBorderCross(newpos, Cardinals.N) | m_parentGroup.Scene.TestBorderCross(newpos, Cardinals.S) | m_parentGroup.Scene.TestBorderCross(newpos, Cardinals.E) | m_parentGroup.Scene.TestBorderCross(newpos, Cardinals.W))
+                if (m_parentGroup.Scene.TestBorderCross(newpos, Cardinals.N) |
+                    m_parentGroup.Scene.TestBorderCross(newpos, Cardinals.S) |
+                    m_parentGroup.Scene.TestBorderCross(newpos, Cardinals.E) |
+                    m_parentGroup.Scene.TestBorderCross(newpos, Cardinals.W))
                 {
                     m_parentGroup.AbsolutePosition = newpos;
                     return;
                 }
-                //m_parentGroup.RootPart.m_groupPosition = newpos;
             }
-            ScheduleTerseUpdate();
 
-            //SendTerseUpdateToAllClients();
+            ScheduleUpdate(PrimUpdateFlags.Position);
         }
 
         public void PreloadSound(string sound)
@@ -2688,7 +2664,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_shape.Scale = scale;
 
             ParentGroup.HasGroupChanged = true;
-            ScheduleFullUpdate();
+            ScheduleUpdate(PrimUpdateFlags.Scale);
         }
         
         public void RotLookAt(Quaternion target, float strength, float damping)
@@ -2728,58 +2704,24 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Schedules this prim for a full update
+        /// Schedules this prim for an update
         /// </summary>
-        public void ScheduleFullUpdate()
+        public void ScheduleUpdate(PrimUpdateFlags updateFlags)
         {
-//            m_log.DebugFormat("[SCENE OBJECT PART]: Scheduling full update for {0} {1}", Name, LocalId);
-            
             if (m_parentGroup != null)
-            {
                 m_parentGroup.QueueForUpdateCheck();
-            }
 
             int timeNow = Util.UnixTimeSinceEpoch();
 
             // If multiple updates are scheduled on the same second, we still need to perform all of them
             // So we'll force the issue by bumping up the timestamp so that later processing sees these need
             // to be performed.
-            if (timeNow <= TimeStampFull)
-            {
-                TimeStampFull += 1;
-            }
+            if (timeNow <= TimeStampUpdate)
+                TimeStampUpdate += 1;
             else
-            {
-                TimeStampFull = (uint)timeNow;
-            }
+                TimeStampUpdate = (uint)timeNow;
 
-            m_updateFlag = 2;
-
-            //            m_log.DebugFormat(
-            //                "[SCENE OBJECT PART]: Scheduling full  update for {0}, {1} at {2}",
-            //                UUID, Name, TimeStampFull);
-        }
-
-        /// <summary>
-        /// Schedule a terse update for this prim.  Terse updates only send position,
-        /// rotation, velocity, rotational velocity and shape information.
-        /// </summary>
-        public void ScheduleTerseUpdate()
-        {
-            if (m_updateFlag < 1)
-            {
-                if (m_parentGroup != null)
-                {
-                    m_parentGroup.HasGroupChanged = true;
-                    m_parentGroup.QueueForUpdateCheck();
-                }
-                TimeStampTerse = (uint) Util.UnixTimeSinceEpoch();
-                m_updateFlag = 1;
-
-            //                m_log.DebugFormat(
-            //                    "[SCENE OBJECT PART]: Scheduling terse update for {0}, {1} at {2}",
-            //                    UUID, Name, TimeStampTerse);
-            }
+            m_pendingUpdateFlags |= updateFlags;
         }
 
         public void ScriptSetPhantomStatus(bool Phantom)
@@ -2886,50 +2828,59 @@ namespace OpenSim.Region.Framework.Scenes
         public void SendScheduledUpdates()
         {
             const float ROTATION_TOLERANCE = 0.01f;
-            const float VELOCITY_TOLERANCE = 0.001f;
             const float POSITION_TOLERANCE = 0.05f;
             const int TIME_MS_TOLERANCE = 3000;
 
-            if (m_updateFlag == 1)
-            {
-                // Throw away duplicate or insignificant updates
-                if (!RotationOffset.ApproxEquals(m_lastRotation, ROTATION_TOLERANCE) ||
-                    !Acceleration.Equals(m_lastAcceleration) ||
-                    !Velocity.ApproxEquals(m_lastVelocity, VELOCITY_TOLERANCE) ||
-                    Velocity.ApproxEquals(Vector3.Zero, VELOCITY_TOLERANCE) ||
-                    !AngularVelocity.ApproxEquals(m_lastAngularVelocity, VELOCITY_TOLERANCE) ||
-                    !OffsetPosition.ApproxEquals(m_lastPosition, POSITION_TOLERANCE) ||
-                    Environment.TickCount - m_lastTerseSent > TIME_MS_TOLERANCE)
-                {
-                    AddTerseUpdateToAllAvatars();
-                    ClearUpdateSchedule();
+            #region PrimUpdateFlags Management
 
-                    // This causes the Scene to 'poll' physical objects every couple of frames
-                    // bad, so it's been replaced by an event driven method.
-                    //if ((ObjectFlags & (uint)PrimFlags.Physics) != 0)
-                    //{
-                    // Only send the constant terse updates on physical objects!
-                    //ScheduleTerseUpdate();
-                    //}
+            // Check if any of the movement fields changes and set flags accordingly
+            PrimUpdateFlags updateFlags = m_pendingUpdateFlags;
 
-                    // Update the "last" values
-                    m_lastPosition = OffsetPosition;
-                    m_lastRotation = RotationOffset;
-                    m_lastVelocity = Velocity;
-                    m_lastAcceleration = Acceleration;
-                    m_lastAngularVelocity = AngularVelocity;
-                    m_lastTerseSent = Environment.TickCount;
-                }
-            }
+            if (!RotationOffset.ApproxEquals(m_lastRotation, ROTATION_TOLERANCE))
+                updateFlags |= PrimUpdateFlags.Rotation;
             else
+                updateFlags &= ~PrimUpdateFlags.Rotation;
+
+            if (!Acceleration.Equals(m_lastAcceleration))
+                updateFlags |= PrimUpdateFlags.Acceleration;
+            else
+                updateFlags &= ~PrimUpdateFlags.Acceleration;
+
+            if (!Velocity.Equals(m_lastVelocity))
+                updateFlags |= PrimUpdateFlags.Velocity;
+            else
+                updateFlags &= ~PrimUpdateFlags.Velocity;
+
+            if (!AngularVelocity.Equals(m_lastAngularVelocity))
+                updateFlags |= PrimUpdateFlags.AngularVelocity;
+            else
+                updateFlags &= ~PrimUpdateFlags.AngularVelocity;
+
+            if (!OffsetPosition.ApproxEquals(m_lastPosition, POSITION_TOLERANCE))
+                updateFlags |= PrimUpdateFlags.Position;
+            else
+                updateFlags &= ~PrimUpdateFlags.Position;
+
+            // For good measure
+            if (Environment.TickCount - m_lastTerseSent > TIME_MS_TOLERANCE)
+                updateFlags |= PrimUpdateFlags.Position;
+
+            #endregion PrimUpdateFlags Management
+
+            if (updateFlags != 0)
             {
-                if (m_updateFlag == 2) // is a new prim, just created/reloaded or has major changes
-                {
-                    AddFullUpdateToAllAvatars();
-                    ClearUpdateSchedule();
-                }
+                AddUpdateToAllAvatars(updateFlags);
+
+                // Update the "last" values
+                m_lastPosition = OffsetPosition;
+                m_lastRotation = RotationOffset;
+                m_lastVelocity = Velocity;
+                m_lastAcceleration = Acceleration;
+                m_lastAngularVelocity = AngularVelocity;
+                m_lastTerseSent = Environment.TickCount;
             }
-            ClearUpdateSchedule();
+
+            ClearPendingUpdate();
         }
 
         /// <summary>
@@ -3323,7 +3274,7 @@ namespace OpenSim.Region.Framework.Scenes
             _groupID = groupID;
             if (client != null)
                 GetProperties(client);
-            m_updateFlag = 2;
+            m_pendingUpdateFlags |= PrimUpdateFlags.FullUpdate;
         }
 
         /// <summary>
@@ -3385,14 +3336,14 @@ namespace OpenSim.Region.Framework.Scenes
             Text = text;
 
             ParentGroup.HasGroupChanged = true;
-            ScheduleFullUpdate();
+            ScheduleUpdate(PrimUpdateFlags.Text);
         }
         
         public void StopLookAt()
         {
             m_parentGroup.stopLookAt();
 
-            m_parentGroup.ScheduleGroupForTerseUpdate();
+            m_parentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
         }
         
         /// <summary>
@@ -3414,8 +3365,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             m_parentGroup.stopMoveToTarget();
 
-            m_parentGroup.ScheduleGroupForTerseUpdate();
-            //m_parentGroup.ScheduleGroupForFullUpdate();
+            m_parentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
         }
 
         public void StoreUndoState()
@@ -3962,7 +3912,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             ParentGroup.HasGroupChanged = true;
-            ScheduleFullUpdate();
+            ScheduleUpdate(PrimUpdateFlags.ExtraData);
         }
 
         public void UpdateGroupPosition(Vector3 pos)
@@ -3973,7 +3923,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 Vector3 newPos = new Vector3(pos.X, pos.Y, pos.Z);
                 GroupPosition = newPos;
-                ScheduleTerseUpdate();
+                ScheduleUpdate(PrimUpdateFlags.Position);
             }
         }
 
@@ -4005,7 +3955,7 @@ namespace OpenSim.Region.Framework.Scenes
                 }
 
                 OffsetPosition = newPos;
-                ScheduleTerseUpdate();
+                ScheduleUpdate(PrimUpdateFlags.Position);
             }
         }
 
@@ -4285,7 +4235,7 @@ namespace OpenSim.Region.Framework.Scenes
             //            m_log.Debug("Update:  PHY:" + UsePhysics.ToString() + ", T:" + IsTemporary.ToString() + ", PHA:" + IsPhantom.ToString() + " S:" + CastsShadows.ToString());
 
             ParentGroup.HasGroupChanged = true;
-            ScheduleFullUpdate();
+            ScheduleUpdate(PrimUpdateFlags.PrimFlags);
         }
 
         public void UpdateRotation(Quaternion rot)
@@ -4297,7 +4247,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 RotationOffset = rot;
                 ParentGroup.HasGroupChanged = true;
-                ScheduleTerseUpdate();
+                ScheduleUpdate(PrimUpdateFlags.Rotation);
             }
         }
 
@@ -4341,7 +4291,7 @@ namespace OpenSim.Region.Framework.Scenes
                 ParentGroup.RootPart.Rezzed = DateTime.UtcNow;
 
             ParentGroup.HasGroupChanged = true;
-            ScheduleFullUpdate();
+            ScheduleUpdate(PrimUpdateFlags.PrimData);
         }
 
         /// <summary>
@@ -4388,7 +4338,7 @@ namespace OpenSim.Region.Framework.Scenes
             //This is madness..
             //ParentGroup.ScheduleGroupForFullUpdate();
             //This is sparta
-            ScheduleFullUpdate();
+            ScheduleUpdate(PrimUpdateFlags.Textures);
         }
 
         public void aggregateScriptEvents()
@@ -4456,7 +4406,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
 //                m_log.DebugFormat(
 //                    "[SCENE OBJECT PART]: Scheduling part {0} {1} for full update in aggregateScriptEvents() since m_parentGroup == null", Name, LocalId);
-                ScheduleFullUpdate();
+                ScheduleUpdate(PrimUpdateFlags.FullUpdate);
                 return;
             }
 
@@ -4479,7 +4429,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
 //                m_log.DebugFormat(
 //                    "[SCENE OBJECT PART]: Scheduling part {0} {1} for full update in aggregateScriptEvents()", Name, LocalId);
-                ScheduleFullUpdate();
+                ScheduleUpdate(PrimUpdateFlags.FullUpdate);
             }
         }
 

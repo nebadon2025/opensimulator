@@ -1001,7 +1001,7 @@ namespace OpenSim.Region.Framework.Scenes
                     }
 
                     IsSelected = false; // fudge....
-                    ScheduleGroupForFullUpdate();
+                    ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
                 }
             }
             else
@@ -1052,7 +1052,7 @@ namespace OpenSim.Region.Framework.Scenes
             RootPart.RemFlag(PrimFlags.TemporaryOnRez);
             AttachToBackup();
             m_scene.EventManager.TriggerParcelPrimCountTainted();
-            m_rootPart.ScheduleFullUpdate();
+            m_rootPart.ScheduleUpdate(PrimUpdateFlags.ParentID);
             m_rootPart.ClearUndoState();
         }
 
@@ -1277,7 +1277,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                         if (!silent)
                         {
-                            part.UpdateFlag = 0;
+                            part.ClearPendingUpdate();
                             if (part == m_rootPart)
                                 avatar.ControllingClient.SendKillObject(m_regionHandle, part.LocalId);
                         }
@@ -1339,7 +1339,7 @@ namespace OpenSim.Region.Framework.Scenes
                 m_scene.RemoveGroupTarget(this);
             }
 
-            ScheduleGroupForFullUpdate();
+            ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
         }
 
         public override void SetText(string text, Vector3 color, double alpha)
@@ -1351,7 +1351,7 @@ namespace OpenSim.Region.Framework.Scenes
             Text = text;
 
             HasGroupChanged = true;
-            m_rootPart.ScheduleFullUpdate();
+            m_rootPart.ScheduleUpdate(PrimUpdateFlags.Text);
         }
 
         /// <summary>
@@ -1563,7 +1563,7 @@ namespace OpenSim.Region.Framework.Scenes
             if (userExposed)
             {
                 SetRootPartOwner(m_rootPart, cAgentID, cGroupID);
-                m_rootPart.ScheduleFullUpdate();
+                m_rootPart.ScheduleUpdate(PrimUpdateFlags.FullUpdate);
             }
             
             List<SceneObjectPart> partList;
@@ -1590,7 +1590,7 @@ namespace OpenSim.Region.Framework.Scenes
                     if (userExposed)
                     {
                         SetPartOwner(newPart, cAgentID, cGroupID);
-                        newPart.ScheduleFullUpdate();
+                        newPart.ScheduleUpdate(PrimUpdateFlags.FullUpdate);
                     }
                 }
             }
@@ -1601,7 +1601,7 @@ namespace OpenSim.Region.Framework.Scenes
                 dupe.HasGroupChanged = true;
                 dupe.AttachToBackup();
 
-                ScheduleGroupForFullUpdate();
+                ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
             }
 
             return dupe;
@@ -1854,7 +1854,7 @@ namespace OpenSim.Region.Framework.Scenes
                     ApplyNextOwnerPermissions();
             }
 
-            part.ScheduleFullUpdate();
+            part.ScheduleUpdate(PrimUpdateFlags.FullUpdate);
         }
 
         /// <summary>
@@ -1940,13 +1940,13 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if (UsePhysics && !AbsolutePosition.ApproxEquals(lastPhysGroupPos, 0.02f))
                 {
-                    m_rootPart.UpdateFlag = 1;
+                    m_rootPart.PendingUpdateFlags |= PrimUpdateFlags.Position;
                     lastPhysGroupPos = AbsolutePosition;
                 }
 
                 if (UsePhysics && !GroupRotation.ApproxEquals(lastPhysGroupRot, 0.1f))
                 {
-                    m_rootPart.UpdateFlag = 1;
+                    m_rootPart.PendingUpdateFlags |= PrimUpdateFlags.Rotation;
                     lastPhysGroupRot = GroupRotation;
                 }
 
@@ -1959,31 +1959,18 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void ScheduleFullUpdateToAvatar(ScenePresence presence)
+        public void ScheduleUpdateToAvatar(ScenePresence presence, PrimUpdateFlags updateFlags)
         {
 //            m_log.DebugFormat("[SOG]: Scheduling full update for {0} {1} just to avatar {2}", Name, UUID, presence.Name);
             
-            RootPart.AddFullUpdateToAvatar(presence);
+            RootPart.AddUpdateToAvatar(presence, updateFlags);
 
             lock (m_parts)
             {
                 foreach (SceneObjectPart part in m_parts.Values)
                 {
                     if (part != RootPart)
-                        part.AddFullUpdateToAvatar(presence);
-                }
-            }
-        }
-
-        public void ScheduleTerseUpdateToAvatar(ScenePresence presence)
-        {
-//            m_log.DebugFormat("[SOG]: Scheduling terse update for {0} {1} just to avatar {2}", Name, UUID, presence.Name);
-            
-            lock (m_parts)
-            {
-                foreach (SceneObjectPart part in m_parts.Values)
-                {
-                    part.AddTerseUpdateToAvatar(presence);
+                        part.AddUpdateToAvatar(presence, updateFlags);
                 }
             }
         }
@@ -1991,35 +1978,19 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Schedule a full update for this scene object
         /// </summary>
-        public void ScheduleGroupForFullUpdate()
+        public void ScheduleGroupForUpdate(PrimUpdateFlags updateFlags)
         {
 //            m_log.DebugFormat("[SOG]: Scheduling full update for {0} {1}", Name, UUID);
             
             checkAtTargets();
-            RootPart.ScheduleFullUpdate();
+            RootPart.ScheduleUpdate(updateFlags);
 
             lock (m_parts)
             {
                 foreach (SceneObjectPart part in m_parts.Values)
                 {
                     if (part != RootPart)
-                        part.ScheduleFullUpdate();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Schedule a terse update for this scene object
-        /// </summary>
-        public void ScheduleGroupForTerseUpdate()
-        {
-//            m_log.DebugFormat("[SOG]: Scheduling terse update for {0} {1}", Name, UUID);
-            
-            lock (m_parts)
-            {
-                foreach (SceneObjectPart part in m_parts.Values)
-                {
-                    part.ScheduleTerseUpdate();
+                        part.ScheduleUpdate(updateFlags);
                 }
             }
         }
@@ -2027,21 +1998,21 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Immediately send a full update for this scene object.
         /// </summary>
-        public void SendGroupFullUpdate()
+        public void SendGroupUpdate(PrimUpdateFlags updateFlags)
         {
             if (IsDeleted)
                 return;
 
 //            m_log.DebugFormat("[SOG]: Sending immediate full group update for {0} {1}", Name, UUID);
             
-            RootPart.SendUpdateToAllClients(PrimUpdateFlags.FullUpdate);
+            RootPart.SendUpdateToAllClients(updateFlags);
 
             lock (m_parts)
             {
                 foreach (SceneObjectPart part in m_parts.Values)
                 {
                     if (part != RootPart)
-                        part.SendUpdateToAllClients(PrimUpdateFlags.FullUpdate);
+                        part.SendUpdateToAllClients(updateFlags);
                 }
             }
         }
@@ -2779,7 +2750,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //if (part.UUID != m_rootPart.UUID)
 
                 HasGroupChanged = true;
-                ScheduleGroupForFullUpdate();
+                ScheduleGroupForUpdate(PrimUpdateFlags.Scale);
 
                 //if (part.UUID == m_rootPart.UUID)
                 //{
@@ -2931,7 +2902,7 @@ namespace OpenSim.Region.Framework.Scenes
                 part.IgnoreUndoUpdate = false;
                 part.StoreUndoState();
                 HasGroupChanged = true;
-                ScheduleGroupForTerseUpdate();
+                ScheduleGroupForUpdate(PrimUpdateFlags.Position);
             }
         }
 
@@ -2972,7 +2943,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             //we need to do a terse update even if the move wasn't allowed
             // so that the position is reset in the client (the object snaps back)
-            ScheduleGroupForTerseUpdate();
+            ScheduleGroupForUpdate(PrimUpdateFlags.Position);
         }
 
         /// <summary>
@@ -3037,7 +3008,7 @@ namespace OpenSim.Region.Framework.Scenes
             AbsolutePosition = newPos;
 
             HasGroupChanged = true;
-            ScheduleGroupForTerseUpdate();
+            ScheduleGroupForUpdate(PrimUpdateFlags.Position);
         }
 
         public void OffsetForNewRegion(Vector3 offset)
@@ -3069,7 +3040,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             HasGroupChanged = true;
-            ScheduleGroupForTerseUpdate();
+            ScheduleGroupForUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
         }
 
         /// <summary>
@@ -3095,7 +3066,7 @@ namespace OpenSim.Region.Framework.Scenes
             AbsolutePosition = pos;
 
             HasGroupChanged = true;
-            ScheduleGroupForTerseUpdate();
+            ScheduleGroupForUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
         }
 
         /// <summary>
@@ -3181,7 +3152,7 @@ namespace OpenSim.Region.Framework.Scenes
                         Quaternion newRot = primsRot * oldParentRot;
                         newRot *= Quaternion.Inverse(axRot);
                         prim.RotationOffset = newRot;
-                        prim.ScheduleTerseUpdate();
+                        prim.ScheduleUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
                     }
                 }
             }
@@ -3193,7 +3164,7 @@ namespace OpenSim.Region.Framework.Scenes
                     childpart.StoreUndoState();
                 }
             }
-            m_rootPart.ScheduleTerseUpdate();
+            m_rootPart.ScheduleUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
         }
 
         #endregion

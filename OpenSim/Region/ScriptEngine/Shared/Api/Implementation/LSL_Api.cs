@@ -1343,7 +1343,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.AddScriptLPS(1);
             m_host.ClickAction = (byte)action;
             if (m_host.ParentGroup != null) m_host.ParentGroup.HasGroupChanged = true;
-            m_host.ScheduleFullUpdate();
+            m_host.ScheduleUpdate(PrimUpdateFlags.PrimFlags);
             return;
         }
 
@@ -1595,7 +1595,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
 
             part.ParentGroup.HasGroupChanged = true;
-            part.ScheduleFullUpdate();
+            part.ScheduleUpdate(PrimUpdateFlags.ExtraData);
         }
 
         /// <summary>
@@ -1630,7 +1630,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
 
             part.ParentGroup.HasGroupChanged = true;
-            part.ScheduleFullUpdate();
+            part.ScheduleUpdate(PrimUpdateFlags.ExtraData);
         }
 
         public LSL_Vector llGetColor(int face)
@@ -1913,7 +1913,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     part.OffsetPosition = new Vector3((float)targetPos.x, (float)targetPos.y, (float)targetPos.z);
                     SceneObjectGroup parent = part.ParentGroup;
                     parent.HasGroupChanged = true;
-                    parent.ScheduleGroupForTerseUpdate();
+                    parent.ScheduleGroupForUpdate(PrimUpdateFlags.Position);
                 }
             }
         }
@@ -2245,7 +2245,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.SoundFlags = 1;      // looping
             m_host.SoundRadius = 20;    // Magic number, 20 seems reasonable. Make configurable?
 
-            m_host.ScheduleFullUpdate();
+            m_host.ScheduleUpdate(PrimUpdateFlags.Sound);
             m_host.SendUpdateToAllClients(PrimUpdateFlags.Sound);
         }
 
@@ -2265,7 +2265,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     prim.SoundFlags = 1;      // looping
                     prim.SoundRadius = 20;    // Magic number, 20 seems reasonable. Make configurable?
 
-                    prim.ScheduleFullUpdate();
+                    prim.ScheduleUpdate(PrimUpdateFlags.Sound);
                     prim.SendUpdateToAllClients(PrimUpdateFlags.Sound);
                 }
             }
@@ -2277,7 +2277,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.SoundFlags = 1;      // looping
             m_host.SoundRadius = 20;    // Magic number, 20 seems reasonable. Make configurable?
 
-            m_host.ScheduleFullUpdate();
+            m_host.ScheduleUpdate(PrimUpdateFlags.Sound);
             m_host.SendUpdateToAllClients(PrimUpdateFlags.Sound);
         }
 
@@ -2319,7 +2319,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         part.SoundGain = 0;
                         part.SoundFlags = 0;
                         part.SoundRadius = 0;
-                        part.ScheduleFullUpdate();
+                        part.ScheduleUpdate(PrimUpdateFlags.Sound);
                         part.SendUpdateToAllClients(PrimUpdateFlags.Sound);
                     }
                     m_host.ParentGroup.LoopSoundMasterPrim = null;
@@ -2331,7 +2331,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     m_host.SoundGain = 0;
                     m_host.SoundFlags = 0;
                     m_host.SoundRadius = 0;
-                    m_host.ScheduleFullUpdate();
+                    m_host.ScheduleUpdate(PrimUpdateFlags.Sound);
                     m_host.SendUpdateToAllClients(PrimUpdateFlags.Sound);
                 }
             }
@@ -2341,7 +2341,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 m_host.SoundGain = 0;
                 m_host.SoundFlags = 0;
                 m_host.SoundRadius = 0;
-                m_host.ScheduleFullUpdate();
+                m_host.ScheduleUpdate(PrimUpdateFlags.Sound);
                 m_host.SendUpdateToAllClients(PrimUpdateFlags.Sound);
             }
         }
@@ -3240,7 +3240,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
             m_host.AngularVelocity = new Vector3((float)(axis.x * spinrate), (float)(axis.y * spinrate), (float)(axis.z * spinrate));
-            m_host.ScheduleTerseUpdate();
+            m_host.ScheduleUpdate(PrimUpdateFlags.AngularVelocity);
             m_host.SendUpdateToAllClients(PrimUpdateFlags.AngularVelocity);
             m_host.ParentGroup.HasGroupChanged = true;
         }
@@ -3507,7 +3507,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     childPrim = m_host.ParentGroup;
                 }
 //                byte uf = childPrim.RootPart.UpdateFlag;
-                childPrim.RootPart.UpdateFlag = 0;
+                childPrim.RootPart.ClearPendingUpdate();
                 parentPrim.LinkToGroup(childPrim);
 //                if (uf != (Byte)0)
 //                    parent.RootPart.UpdateFlag = uf;
@@ -3516,7 +3516,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             parentPrim.TriggerScriptChangedEvent(Changed.LINK);
             parentPrim.RootPart.AddFlag(PrimFlags.CreateSelected);
             parentPrim.HasGroupChanged = true;
-            parentPrim.ScheduleGroupForFullUpdate();
+            parentPrim.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
 
             if (client != null)
                 parentPrim.GetProperties(client);
@@ -3582,7 +3582,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     parentPrim.DelinkFromGroup(part.LocalId, true);
                 }
                 parentPrim.HasGroupChanged = true;
-                parentPrim.ScheduleGroupForFullUpdate();
+                parentPrim.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
                 parentPrim.TriggerScriptChangedEvent(Changed.LINK);
 
                 if (parts.Count > 0)
@@ -3591,11 +3591,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     parts.Remove(newRoot);
                     foreach (SceneObjectPart part in parts)
                     {
-                        part.UpdateFlag = 0;
+                        part.ClearPendingUpdate();
                         newRoot.ParentGroup.LinkToGroup(part.ParentGroup);
                     }
                     newRoot.ParentGroup.HasGroupChanged = true;
-                    newRoot.ParentGroup.ScheduleGroupForFullUpdate();
+                    newRoot.ParentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
                 }
             }
             else
@@ -3605,7 +3605,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                 parentPrim.DelinkFromGroup(childPrim.LocalId, true);
                 parentPrim.HasGroupChanged = true;
-                parentPrim.ScheduleGroupForFullUpdate();
+                parentPrim.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
                 parentPrim.TriggerScriptChangedEvent(Changed.LINK);
             }
         }
@@ -3626,7 +3626,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 parentPrim.TriggerScriptChangedEvent(Changed.LINK);
             }
             parentPrim.HasGroupChanged = true;
-            parentPrim.ScheduleGroupForFullUpdate();
+            parentPrim.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
         }
 
         public LSL_String llGetLinkKey(int linknum)
@@ -3866,7 +3866,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                                       Util.Clip((float)color.z, 0.0f, 1.0f));
             m_host.SetText(text, av3, Util.Clip((float)alpha, 0.0f, 1.0f));
             m_host.ParentGroup.HasGroupChanged = true;
-            m_host.ParentGroup.ScheduleGroupForFullUpdate();
+            m_host.ParentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.Text);
         }
 
         public LSL_Float llWater(LSL_Vector offset)

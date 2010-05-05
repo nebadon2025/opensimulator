@@ -72,8 +72,8 @@ namespace OpenSim.Region.Framework.Scenes.Tests
             grp2.UpdateGroupRotationR(Quaternion.CreateFromEulers(180 * Utils.DEG_TO_RAD, 0, 0));
             
             // Required for linking
-            grp1.RootPart.UpdateFlag = 0;
-            grp2.RootPart.UpdateFlag = 0;
+            grp1.RootPart.ClearPendingUpdate();
+            grp2.RootPart.ClearPendingUpdate();
 
             // Link grp2 to grp1.   part2 becomes child prim to grp1. grp2 is eliminated.
             grp1.LinkToGroup(grp2);
@@ -165,10 +165,10 @@ namespace OpenSim.Region.Framework.Scenes.Tests
             grp4.UpdateGroupRotationR(Quaternion.CreateFromEulers(0, 90 * Utils.DEG_TO_RAD, 0));
 
             // Required for linking
-            grp1.RootPart.UpdateFlag = 0;
-            grp2.RootPart.UpdateFlag = 0;
-            grp3.RootPart.UpdateFlag = 0;
-            grp4.RootPart.UpdateFlag = 0;
+            grp1.RootPart.ClearPendingUpdate();
+            grp2.RootPart.ClearPendingUpdate();
+            grp3.RootPart.ClearPendingUpdate();
+            grp4.RootPart.ClearPendingUpdate();
 
             // Link grp2 to grp1.   part2 becomes child prim to grp1. grp2 is eliminated.
             grp1.LinkToGroup(grp2);
@@ -199,8 +199,8 @@ namespace OpenSim.Region.Framework.Scenes.Tests
             }
 
             // Required for linking
-            grp1.RootPart.UpdateFlag = 0;
-            grp3.RootPart.UpdateFlag = 0;
+            grp1.RootPart.ClearPendingUpdate();
+            grp3.RootPart.ClearPendingUpdate();
 
             // root part should have no offset position or rotation
             Assert.That(part1.OffsetPosition == Vector3.Zero && part1.RotationOffset == Quaternion.Identity,

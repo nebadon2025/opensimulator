@@ -297,7 +297,7 @@ namespace OpenSim.Region.Framework.Scenes
             sceneObject.AttachToScene(m_parentScene);
 
             if (sendClientUpdates)
-                sceneObject.ScheduleGroupForFullUpdate();
+                sceneObject.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
 
             lock (sceneObject)
             {
@@ -1512,7 +1512,7 @@ namespace OpenSim.Region.Framework.Scenes
                 parentGroup.RootPart.AddFlag(PrimFlags.CreateSelected);
                 parentGroup.TriggerScriptChangedEvent(Changed.LINK);
                 parentGroup.HasGroupChanged = true;
-                parentGroup.ScheduleGroupForFullUpdate();
+                parentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
                 
             }
             finally
@@ -1612,7 +1612,7 @@ namespace OpenSim.Region.Framework.Scenes
                             List<uint> linkIDs = new List<uint>();
 
                             foreach (SceneObjectPart newChild in newSet)
-                                newChild.UpdateFlag = 0;
+                                newChild.ClearPendingUpdate();
 
                             LinkObjects(newRoot, newSet);
                             if (!affectedGroups.Contains(newRoot.ParentGroup))
@@ -1627,7 +1627,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     g.TriggerScriptChangedEvent(Changed.LINK);
                     g.HasGroupChanged = true; // Persist
-                    g.ScheduleGroupForFullUpdate();
+                    g.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
                 }
             }
             finally
@@ -1735,7 +1735,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                     copy.CreateScriptInstances(0, false, m_parentScene.DefaultScriptEngine, 0);
                     copy.HasGroupChanged = true;
-                    copy.ScheduleGroupForFullUpdate();
+                    copy.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
                     copy.ResumeScripts();
 
                     // required for physics to update it's position

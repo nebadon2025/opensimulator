@@ -284,7 +284,7 @@ namespace OpenSim.Region.OptionalModules.ContentManagement
                         ((SceneObjectGroup)ent).ApplyPhysics(true);
                     ((SceneObjectGroup)ent).AttachToBackup();
                     ((SceneObjectGroup)ent).HasGroupChanged = true; // If not true, then attaching to backup does nothing because no change is detected.
-                    ((SceneObjectGroup)ent).ScheduleGroupForFullUpdate();
+                    ((SceneObjectGroup)ent).ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
                 }
                 catch(Exception e)
                 {

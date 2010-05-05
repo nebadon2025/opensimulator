@@ -2051,7 +2051,7 @@ namespace OpenSim.Region.Framework.Scenes
                 sceneObject.SetGroup(groupID, null);
             }
 
-            sceneObject.ScheduleGroupForFullUpdate();
+            sceneObject.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
 
             return sceneObject;
         }
@@ -2541,7 +2541,7 @@ namespace OpenSim.Region.Framework.Scenes
                             sp.ControllingClient, grp.LocalId, (uint)0, grp.GroupRotation, grp.AbsolutePosition, false);
                     
                     RootPrim.RemFlag(PrimFlags.TemporaryOnRez);
-                    grp.SendGroupFullUpdate();
+                    grp.SendGroupUpdate(PrimUpdateFlags.FullUpdate);
                 }
                 else
                 {
@@ -4037,7 +4037,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (ent is SceneObjectGroup)
                 {
-                    ((SceneObjectGroup)ent).ScheduleGroupForFullUpdate();
+                    ((SceneObjectGroup)ent).ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
                 }
             }
         }
@@ -4538,7 +4538,7 @@ namespace OpenSim.Region.Framework.Scenes
                 part.GetProperties(remoteClient);
                 part.TriggerScriptChangedEvent(Changed.OWNER);
                 group.ResumeScripts();
-                part.ScheduleFullUpdate();
+                part.ScheduleUpdate(PrimUpdateFlags.FullUpdate);
 
                 break;
 

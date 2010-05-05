@@ -26,6 +26,7 @@
  */
 
 using OpenMetaverse;
+using OpenSim.Framework;
 using OpenSim.Region.Framework.Interfaces;
 
 namespace OpenSim.Region.Framework.Scenes
@@ -91,7 +92,7 @@ namespace OpenSim.Region.Framework.Scenes
                     part.RotationOffset = Rotation;
                     if (Scale != Vector3.Zero)
                         part.Resize(Scale);
-                    part.ParentGroup.ScheduleGroupForTerseUpdate();
+                    part.ParentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
                 }
                 else
                 {
@@ -99,10 +100,11 @@ namespace OpenSim.Region.Framework.Scenes
                         part.OffsetPosition = Position;
                     part.UpdateRotation(Rotation);
                     if (Scale != Vector3.Zero)
-                        part.Resize(Scale); part.ScheduleTerseUpdate();
+                        part.Resize(Scale);
+                    part.ScheduleUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
                 }
-                part.Undoing = false;
 
+                part.Undoing = false;
             }
         }
         public void PlayfwdState(SceneObjectPart part)
@@ -119,7 +121,7 @@ namespace OpenSim.Region.Framework.Scenes
                         part.UpdateRotation(Rotation);
                     if (Scale != Vector3.Zero)
                         part.Resize(Scale);
-                    part.ParentGroup.ScheduleGroupForTerseUpdate();
+                    part.ParentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
                 }
                 else
                 {
@@ -129,7 +131,7 @@ namespace OpenSim.Region.Framework.Scenes
                         part.UpdateRotation(Rotation);
                     if (Scale != Vector3.Zero)
                         part.Resize(Scale);
-                    part.ScheduleTerseUpdate();
+                    part.ScheduleUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
                 }
                 part.Undoing = false;
 

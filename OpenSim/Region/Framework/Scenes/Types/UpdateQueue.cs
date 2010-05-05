@@ -30,16 +30,21 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security.Permissions;
 using OpenMetaverse;
+using OpenSim.Framework;
 using OpenSim.Region.Framework.Scenes;
 
 namespace OpenSim.Region.Framework.Scenes.Types
 {
     public class UpdateQueue
     {
-        private Queue<SceneObjectPart> m_queue;
+        private struct Update
+        {
+            public SceneObjectPart Entity;
+            public PrimUpdateFlags UpdateFlags;
+        }
 
-        private Dictionary<UUID, bool> m_ids;
-
+        private Queue<Update> m_queue;
+        private HashSet<UUID> m_ids;
         private object m_syncObject = new object();
 
         public int Count
@@ -49,8 +54,8 @@ namespace OpenSim.Region.Framework.Scenes.Types
 
         public UpdateQueue()
         {
-            m_queue = new Queue<SceneObjectPart>();
-            m_ids = new Dictionary<UUID, bool>();
+            m_queue = new Queue<Update>();
+            m_ids = new HashSet<UUID>();
         }
 
         public void Clear()
@@ -62,30 +67,33 @@ namespace OpenSim.Region.Framework.Scenes.Types
             }
         }
 
-        public void Enqueue(SceneObjectPart part)
+        public void Enqueue(SceneObjectPart part, PrimUpdateFlags updateFlags)
         {
             lock (m_syncObject)
             {
-                if (!m_ids.ContainsKey(part.UUID)) {
-                    m_ids.Add(part.UUID, true);
-                    m_queue.Enqueue(part);
-                }
+                if (m_ids.Add(part.UUID))
+                    m_queue.Enqueue(new Update { Entity = part, UpdateFlags = updateFlags });
             }
         }
 
-        public SceneObjectPart Dequeue()
+        public bool TryDequeue(out SceneObjectPart part, out PrimUpdateFlags updateFlags)
         {
-            SceneObjectPart part = null;
             lock (m_syncObject)
             {
                 if (m_queue.Count > 0)
                 {
-                    part = m_queue.Dequeue();
+                    Update update = m_queue.Dequeue();
+                    part = update.Entity;
+                    updateFlags = update.UpdateFlags;
+
                     m_ids.Remove(part.UUID);
+                    return true;
                 }
             }
 
-            return part;
+            part = null;
+            updateFlags = 0;
+            return false;
         }
     }
 }

@@ -783,10 +783,9 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Add the part to the queue of parts for which we need to send an update to the client
         /// </summary>
-        /// <param name="part"></param>
-        public void QueuePartForUpdate(SceneObjectPart part)
+        public void QueuePartForUpdate(SceneObjectPart part, PrimUpdateFlags updateFlags)
         {
-            m_sceneViewer.QueuePartForUpdate(part);
+            m_sceneViewer.QueuePartForUpdate(part, updateFlags);
         }
 
         /// <summary>
@@ -1573,7 +1572,7 @@ namespace OpenSim.Region.Framework.Scenes
             // Commented out this code since it could never have executed, but might still be informative.
 //            if (proxyObjectGroup != null)
 //            {
-                proxyObjectGroup.SendGroupFullUpdate();
+                proxyObjectGroup.SendGroupUpdate(PrimUpdateFlags.FullUpdate);
                 remote_client.SendSitResponse(proxyObjectGroup.UUID, Vector3.Zero, Quaternion.Identity, true, Vector3.Zero, Vector3.Zero, false);
                 m_scene.DeleteSceneObject(proxyObjectGroup, false);
 //            }

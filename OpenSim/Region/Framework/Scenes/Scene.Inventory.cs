@@ -1857,10 +1857,10 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         group.RootPart.ApplyImpulse((vel * group.GetMass()), false);
                         group.Velocity = vel;
-                        rootPart.ScheduleFullUpdate();
+                        rootPart.ScheduleUpdate(PrimUpdateFlags.FullUpdate);
                     }
                     group.CreateScriptInstances(param, true, DefaultScriptEngine, 2);
-                    rootPart.ScheduleFullUpdate();
+                    rootPart.ScheduleUpdate(PrimUpdateFlags.FullUpdate);
 
                     if (!Permissions.BypassPermissions())
                     {
@@ -1929,7 +1929,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     sog.SetOwnerId(ownerID);
                     sog.SetGroup(groupID, remoteClient);
-                    sog.ScheduleGroupForFullUpdate();
+                    sog.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
 
                     foreach (SceneObjectPart child in sog.Children.Values)
                         child.Inventory.ChangeInventoryOwner(ownerID);

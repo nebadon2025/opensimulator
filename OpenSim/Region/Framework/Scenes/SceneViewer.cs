@@ -38,6 +38,12 @@ namespace OpenSim.Region.Framework.Scenes
 {
     public class SceneViewer : ISceneViewer
     {
+        public class ScenePartUpdate
+        {
+            public UUID FullID;
+            public uint LastUpdateTime;
+        }
+
         protected ScenePresence m_presence;
         protected UpdateQueue m_partsUpdateQueue = new UpdateQueue();
         protected Queue<SceneObjectGroup> m_pendingObjects;
@@ -56,13 +62,10 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Add the part to the queue of parts for which we need to send an update to the client
         /// </summary>
-        /// <param name="part"></param>
-        public void QueuePartForUpdate(SceneObjectPart part)
+        public void QueuePartForUpdate(SceneObjectPart part, PrimUpdateFlags updateFlags)
         {
             lock (m_partsUpdateQueue)
-            {
-                m_partsUpdateQueue.Enqueue(part);
-            }
+                m_partsUpdateQueue.Enqueue(part, updateFlags);
         }
 
         public void SendPrimUpdates()
@@ -94,14 +97,15 @@ namespace OpenSim.Region.Framework.Scenes
                 // Don't even queue if we have sent this one
                 //
                 if (!m_updateTimes.ContainsKey(g.UUID))
-                    g.ScheduleFullUpdateToAvatar(m_presence);
+                    g.ScheduleUpdateToAvatar(m_presence, PrimUpdateFlags.FullUpdate);
             }
 
-            while (m_partsUpdateQueue.Count > 0)
+            SceneObjectPart part;
+            PrimUpdateFlags updateFlags;
+
+            while (m_partsUpdateQueue.TryDequeue(out part, out updateFlags))
             {
-                SceneObjectPart part = m_partsUpdateQueue.Dequeue();
-                
-                if (part.ParentGroup == null || part.ParentGroup.IsDeleted)
+                if (part.ParentGroup.IsDeleted)
                     continue;
                 
                 if (m_updateTimes.ContainsKey(part.UUID))
@@ -111,14 +115,13 @@ namespace OpenSim.Region.Framework.Scenes
                     // We deal with the possibility that two updates occur at
                     // the same unix time at the update point itself.
 
-                    if ((update.LastFullUpdateTime < part.TimeStampFull) ||
-                            part.IsAttachment)
+                    if ((update.LastUpdateTime < part.TimeStampUpdate) || part.IsAttachment)
                     {
 //                            m_log.DebugFormat(
 //                                "[SCENE PRESENCE]: Fully   updating prim {0}, {1} - part timestamp {2}",
 //                                part.Name, part.UUID, part.TimeStampFull);
 
-                        part.SendUpdateToClient(m_presence.ControllingClient, PrimUpdateFlags.FullUpdate);
+                        part.SendUpdateToClient(m_presence.ControllingClient, updateFlags);
 
                         // We'll update to the part's timestamp rather than
                         // the current time to avoid the race condition
@@ -127,19 +130,7 @@ namespace OpenSim.Region.Framework.Scenes
                         // updates which occurred on the same tick or the
                         // next tick of the last update would be ignored.
 
-                        update.LastFullUpdateTime = part.TimeStampFull;
-
-                    }
-                    else if (update.LastTerseUpdateTime <= part.TimeStampTerse)
-                    {
-//                            m_log.DebugFormat(
-//                                "[SCENE PRESENCE]: Tersely updating prim {0}, {1} - part timestamp {2}",
-//                                part.Name, part.UUID, part.TimeStampTerse);
-
-                        part.SendUpdateToClient(m_presence.ControllingClient, PrimUpdateFlags.Position | PrimUpdateFlags.Rotation |
-                            PrimUpdateFlags.Velocity | PrimUpdateFlags.Acceleration | PrimUpdateFlags.AngularVelocity);
-
-                        update.LastTerseUpdateTime = part.TimeStampTerse;
+                        update.LastUpdateTime = part.TimeStampUpdate;
                     }
                 }
                 else
@@ -147,7 +138,7 @@ namespace OpenSim.Region.Framework.Scenes
                     //never been sent to client before so do full update
                     ScenePartUpdate update = new ScenePartUpdate();
                     update.FullID = part.UUID;
-                    update.LastFullUpdateTime = part.TimeStampFull;
+                    update.LastUpdateTime = part.TimeStampUpdate;
                     m_updateTimes.Add(part.UUID, update);
 
                     // Attachment handling
@@ -190,20 +181,6 @@ namespace OpenSim.Region.Framework.Scenes
                 m_partsUpdateQueue.Clear();
             }
             Reset();
-        }
-
-        public class ScenePartUpdate
-        {
-            public UUID FullID;
-            public uint LastFullUpdateTime;
-            public uint LastTerseUpdateTime;
-
-            public ScenePartUpdate()
-            {
-                FullID = UUID.Zero;
-                LastFullUpdateTime = 0;
-                LastTerseUpdateTime = 0;
-            }
         }
     }
 }

@@ -511,7 +511,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     // if not, we set it's position in world.
                     if (!attachment)
                     {
-                        group.ScheduleGroupForFullUpdate();
+                        group.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
                         
                         float offsetHeight = 0;
                         pos = m_Scene.GetNewRezLocation(
@@ -603,7 +603,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                         group.CreateScriptInstances(0, true, m_Scene.DefaultScriptEngine, 0);
                         rootPart.ParentGroup.ResumeScripts();
 
-                        rootPart.ScheduleFullUpdate();
+                        rootPart.ScheduleUpdate(PrimUpdateFlags.FullUpdate);
                     }
 
                     if (!m_Scene.Permissions.BypassPermissions())

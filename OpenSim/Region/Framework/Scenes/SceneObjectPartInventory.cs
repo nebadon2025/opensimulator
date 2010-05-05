@@ -278,7 +278,7 @@ namespace OpenSim.Region.Framework.Scenes
                     m_part.ParentGroup.Scene.EventManager.TriggerRezScript(
                         m_part.LocalId, item.ItemID, String.Empty, startParam, postOnRez, engine, stateSource);
                     m_part.ParentGroup.AddActiveScriptCount(1);
-                    m_part.ScheduleFullUpdate();
+                    m_part.ScheduleUpdate(PrimUpdateFlags.FullUpdate);
                     return;
                 }
 
@@ -306,7 +306,7 @@ namespace OpenSim.Region.Framework.Scenes
                     m_part.ParentGroup.Scene.EventManager.TriggerRezScript(
                         m_part.LocalId, item.ItemID, script, startParam, postOnRez, engine, stateSource);
                     m_part.ParentGroup.AddActiveScriptCount(1);
-                    m_part.ScheduleFullUpdate();
+                    m_part.ScheduleUpdate(PrimUpdateFlags.FullUpdate);
                 }
             }
         }
@@ -697,7 +697,7 @@ namespace OpenSim.Region.Framework.Scenes
                         m_part.RemFlag(PrimFlags.Scripted);
                     }
 
-                    m_part.ScheduleFullUpdate();
+                    m_part.ScheduleUpdate(PrimUpdateFlags.FullUpdate);
 
                     return type;
                 }

@@ -1240,7 +1240,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void ClearPendingUpdate()
         {
-            m_pendingUpdateFlags = 0;
+            m_pendingUpdateFlags = PrimUpdateFlags.None;
         }
 
         public void ResetExpire()
@@ -2856,23 +2856,23 @@ namespace OpenSim.Region.Framework.Scenes
             else
                 updateFlags &= ~PrimUpdateFlags.AngularVelocity;
 
-            if (!OffsetPosition.ApproxEquals(m_lastPosition, POSITION_TOLERANCE))
+            if (!RelativePosition.ApproxEquals(m_lastPosition, POSITION_TOLERANCE))
                 updateFlags |= PrimUpdateFlags.Position;
             else
                 updateFlags &= ~PrimUpdateFlags.Position;
 
             // For good measure
-            if (Environment.TickCount - m_lastTerseSent > TIME_MS_TOLERANCE)
-                updateFlags |= PrimUpdateFlags.Position;
+            //if (Environment.TickCount - m_lastTerseSent > TIME_MS_TOLERANCE)
+            //    updateFlags |= PrimUpdateFlags.Position;
 
             #endregion PrimUpdateFlags Management
 
-            if (updateFlags != 0)
+            if (updateFlags != PrimUpdateFlags.None)
             {
                 AddUpdateToAllAvatars(updateFlags);
 
                 // Update the "last" values
-                m_lastPosition = OffsetPosition;
+                m_lastPosition = RelativePosition;
                 m_lastRotation = RotationOffset;
                 m_lastVelocity = Velocity;
                 m_lastAcceleration = Acceleration;
@@ -3342,8 +3342,7 @@ namespace OpenSim.Region.Framework.Scenes
         public void StopLookAt()
         {
             m_parentGroup.stopLookAt();
-
-            m_parentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
+            m_parentGroup.RootPart.ScheduleUpdate(PrimUpdateFlags.Rotation);
         }
         
         /// <summary>
@@ -3364,8 +3363,7 @@ namespace OpenSim.Region.Framework.Scenes
         public void StopMoveToTarget()
         {
             m_parentGroup.stopMoveToTarget();
-
-            m_parentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
+            m_parentGroup.RootPart.ScheduleUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
         }
 
         public void StoreUndoState()
@@ -3941,20 +3939,18 @@ namespace OpenSim.Region.Framework.Scenes
                 (pos.Y != OffsetPosition.Y) ||
                 (pos.Z != OffsetPosition.Z))
             {
-                Vector3 newPos = new Vector3(pos.X, pos.Y, pos.Z);
-
                 if (ParentGroup.RootPart.GetStatusSandbox())
                 {
-                    if (Util.GetDistanceTo(ParentGroup.RootPart.StatusSandboxPos, newPos) > 10)
+                    if (Util.GetDistanceTo(ParentGroup.RootPart.StatusSandboxPos, pos) > 10)
                     {
                         ParentGroup.RootPart.ScriptSetPhysicsStatus(false);
-                        newPos = OffsetPosition;
+                        pos = OffsetPosition;
                         ParentGroup.Scene.SimChat(Utils.StringToBytes("Hit Sandbox Limit"),
                               ChatTypeEnum.DebugChannel, 0x7FFFFFFF, ParentGroup.RootPart.AbsolutePosition, Name, UUID, false);
                     }
                 }
 
-                OffsetPosition = newPos;
+                OffsetPosition = pos;
                 ScheduleUpdate(PrimUpdateFlags.Position);
             }
         }

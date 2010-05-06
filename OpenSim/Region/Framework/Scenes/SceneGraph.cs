@@ -1512,7 +1512,7 @@ namespace OpenSim.Region.Framework.Scenes
                 parentGroup.RootPart.AddFlag(PrimFlags.CreateSelected);
                 parentGroup.TriggerScriptChangedEvent(Changed.LINK);
                 parentGroup.HasGroupChanged = true;
-                parentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
+                parentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.ParentID);
                 
             }
             finally
@@ -1627,7 +1627,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     g.TriggerScriptChangedEvent(Changed.LINK);
                     g.HasGroupChanged = true; // Persist
-                    g.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
+                    g.ScheduleGroupForUpdate(PrimUpdateFlags.ParentID);
                 }
             }
             finally

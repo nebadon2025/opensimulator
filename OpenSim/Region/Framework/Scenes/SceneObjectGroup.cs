@@ -1001,7 +1001,7 @@ namespace OpenSim.Region.Framework.Scenes
                     }
 
                     IsSelected = false; // fudge....
-                    ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
+                    RootPart.ScheduleUpdate(PrimUpdateFlags.ParentID);
                 }
             }
             else
@@ -2902,7 +2902,6 @@ namespace OpenSim.Region.Framework.Scenes
                 part.IgnoreUndoUpdate = false;
                 part.StoreUndoState();
                 HasGroupChanged = true;
-                ScheduleGroupForUpdate(PrimUpdateFlags.Position);
             }
         }
 
@@ -2939,11 +2938,12 @@ namespace OpenSim.Region.Framework.Scenes
                 AbsolutePosition = pos;
 
                 HasGroupChanged = true;
+                
             }
 
             //we need to do a terse update even if the move wasn't allowed
             // so that the position is reset in the client (the object snaps back)
-            ScheduleGroupForUpdate(PrimUpdateFlags.Position);
+            m_rootPart.ScheduleUpdate(PrimUpdateFlags.Position);
         }
 
         /// <summary>
@@ -3008,7 +3008,7 @@ namespace OpenSim.Region.Framework.Scenes
             AbsolutePosition = newPos;
 
             HasGroupChanged = true;
-            ScheduleGroupForUpdate(PrimUpdateFlags.Position);
+            ScheduleGroupForUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
         }
 
         public void OffsetForNewRegion(Vector3 offset)
@@ -3040,7 +3040,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             HasGroupChanged = true;
-            ScheduleGroupForUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
         }
 
         /// <summary>
@@ -3066,7 +3065,6 @@ namespace OpenSim.Region.Framework.Scenes
             AbsolutePosition = pos;
 
             HasGroupChanged = true;
-            ScheduleGroupForUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
         }
 
         /// <summary>

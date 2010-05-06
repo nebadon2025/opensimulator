@@ -42,17 +42,12 @@ namespace OpenSim.Region.Framework.Scenes
             if (part != null)
             {
                 if (part.ParentID == 0)
-                {
                     Position = part.ParentGroup.AbsolutePosition;
-                    Rotation = part.RotationOffset;
-                    Scale = part.Shape.Scale;
-                }
                 else
-                {
                     Position = part.OffsetPosition;
-                    Rotation = part.RotationOffset;
-                    Scale = part.Shape.Scale;
-                }
+
+                Rotation = part.RotationOffset;
+                Scale = part.Shape.Scale;
             }
         }
 
@@ -84,57 +79,48 @@ namespace OpenSim.Region.Framework.Scenes
             if (part != null)
             {
                 part.Undoing = true;
+                PrimUpdateFlags updateFlags = PrimUpdateFlags.Position | PrimUpdateFlags.Rotation;
 
                 if (part.ParentID == 0)
-                {
-                    if (Position != Vector3.Zero)
-                        part.ParentGroup.AbsolutePosition = Position;
-                    part.RotationOffset = Rotation;
-                    if (Scale != Vector3.Zero)
-                        part.Resize(Scale);
-                    part.ParentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
-                }
+                    part.ParentGroup.AbsolutePosition = Position;
                 else
+                    part.OffsetPosition = Position;
+
+                part.RotationOffset = Rotation;
+
+                if (Scale != part.Scale)
                 {
-                    if (Position != Vector3.Zero)
-                        part.OffsetPosition = Position;
-                    part.UpdateRotation(Rotation);
-                    if (Scale != Vector3.Zero)
-                        part.Resize(Scale);
-                    part.ScheduleUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
+                    part.Scale = Scale;
+                    updateFlags |= PrimUpdateFlags.Scale;
                 }
 
                 part.Undoing = false;
+                part.ScheduleUpdate(updateFlags);
             }
         }
+
         public void PlayfwdState(SceneObjectPart part)
         {
             if (part != null)
             {
                 part.Undoing = true;
+                PrimUpdateFlags updateFlags = PrimUpdateFlags.Position | PrimUpdateFlags.Rotation;
 
                 if (part.ParentID == 0)
-                {
-                    if (Position != Vector3.Zero)
-                        part.ParentGroup.AbsolutePosition = Position;
-                    if (Rotation != Quaternion.Identity)
-                        part.UpdateRotation(Rotation);
-                    if (Scale != Vector3.Zero)
-                        part.Resize(Scale);
-                    part.ParentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
-                }
+                    part.ParentGroup.AbsolutePosition = Position;
                 else
-                {
-                    if (Position != Vector3.Zero)
-                        part.OffsetPosition = Position;
-                    if (Rotation != Quaternion.Identity)
-                        part.UpdateRotation(Rotation);
-                    if (Scale != Vector3.Zero)
-                        part.Resize(Scale);
-                    part.ScheduleUpdate(PrimUpdateFlags.Position | PrimUpdateFlags.Rotation);
-                }
-                part.Undoing = false;
+                    part.OffsetPosition = Position;
 
+                part.RotationOffset = Rotation;
+
+                if (Scale != part.Scale)
+                {
+                    part.Scale = Scale;
+                    updateFlags |= PrimUpdateFlags.Scale;
+                }
+
+                part.Undoing = false;
+                part.ScheduleUpdate(updateFlags);
             }
         }
     }

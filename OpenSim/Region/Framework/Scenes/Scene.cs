@@ -2051,8 +2051,6 @@ namespace OpenSim.Region.Framework.Scenes
                 sceneObject.SetGroup(groupID, null);
             }
 
-            sceneObject.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
-
             return sceneObject;
         }
 

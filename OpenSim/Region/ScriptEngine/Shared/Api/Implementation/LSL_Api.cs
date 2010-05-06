@@ -1913,7 +1913,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     part.OffsetPosition = new Vector3((float)targetPos.x, (float)targetPos.y, (float)targetPos.z);
                     SceneObjectGroup parent = part.ParentGroup;
                     parent.HasGroupChanged = true;
-                    parent.ScheduleGroupForUpdate(PrimUpdateFlags.Position);
+                    part.ScheduleUpdate(PrimUpdateFlags.Position);
                 }
             }
         }
@@ -3866,7 +3866,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                                       Util.Clip((float)color.z, 0.0f, 1.0f));
             m_host.SetText(text, av3, Util.Clip((float)alpha, 0.0f, 1.0f));
             m_host.ParentGroup.HasGroupChanged = true;
-            m_host.ParentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.Text);
+            m_host.ScheduleUpdate(PrimUpdateFlags.Text);
         }
 
         public LSL_Float llWater(LSL_Vector offset)

@@ -207,8 +207,6 @@ namespace OpenSim.Region.Framework.Scenes
             
             if (part.ParentGroup.IsAttachment)
                 isAttachment = true;
-            else
-                part.ParentGroup.ScheduleGroupForUpdate(PrimUpdateFlags.FullUpdate);
 
             // If it's not an attachment, and we are allowed to move it,
             // then we might have done so. If we moved across a parcel

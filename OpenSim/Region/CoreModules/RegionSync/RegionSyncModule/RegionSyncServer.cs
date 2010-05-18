@@ -41,6 +41,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         // The list is read most of the time and only updated when a new client manager
         // connects, so we just replace the list when it changes. Iterators on this
         // list need to be able to handle if an element is shutting down.
+        private object m_clientview_lock = new object();
         private HashSet<RegionSyncClientView> m_client_views = new HashSet<RegionSyncClientView>();
 
         // Check if any of the client views are in a connected state
@@ -55,27 +56,36 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         // Add the client view to the list and increment synced client counter
         public void AddSyncedClient(RegionSyncClientView rscv)
         {
-            HashSet<RegionSyncClientView> newlist = new HashSet<RegionSyncClientView>(m_client_views);
-            newlist.Add(rscv);
-            // Threads holding the previous version of the list can keep using it since
-            // they will not hold it for long and get a new copy next time they need to iterate
-            Interlocked.Exchange<HashSet<RegionSyncClientView>>(ref m_client_views, newlist);
+            lock (m_clientview_lock)
+            {
+                HashSet<RegionSyncClientView> currentlist = m_client_views;
+                HashSet<RegionSyncClientView> newlist = new HashSet<RegionSyncClientView>(currentlist);
+                newlist.Add(rscv);
+                // Threads holding the previous version of the list can keep using it since
+                // they will not hold it for long and get a new copy next time they need to iterate
+                m_client_views = newlist;
+            }
         }
 
         // Remove the client view from the list and decrement synced client counter
         public void RemoveSyncedClient(RegionSyncClientView rscv)
         {
-            HashSet<RegionSyncClientView> newlist = new HashSet<RegionSyncClientView>(m_client_views);
-            newlist.Remove(rscv);
-            // Threads holding the previous version of the list can keep using it since
-            // they will not hold it for long and get a new copy next time they need to iterate
-            Interlocked.Exchange<HashSet<RegionSyncClientView>>(ref m_client_views, newlist);
+            lock (m_clientview_lock)
+            {
+                HashSet<RegionSyncClientView> currentlist = m_client_views;
+                HashSet<RegionSyncClientView> newlist = new HashSet<RegionSyncClientView>(currentlist);
+                newlist.Remove(rscv);
+                // Threads holding the previous version of the list can keep using it since
+                // they will not hold it for long and get a new copy next time they need to iterate
+                m_client_views = newlist;
+            }
         }
 
         public void ReportStats()
         {
             // We should be able to safely iterate over our reference to the list since
             // the only places which change it will replace it with an updated version
+            m_log.Error("SERVER, MSGIN, MSGOUT, BYTESIN, BYTESOUT");
             foreach (RegionSyncClientView rscv in m_client_views)
             {
                 m_log.ErrorFormat("{0}: {1}", rscv.Description, rscv.GetStats());
@@ -160,30 +170,26 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         public void Broadcast(RegionSyncMessage msg)
         {
             List<RegionSyncClientView> closed = null;
-            //lock (m_client_views)
+            foreach (RegionSyncClientView client in m_client_views)
             {
-                //m_log.WarnFormat("[REGION SYNC SERVER] Broadcasting {0} to all connected RegionSyncClients", msg.ToString());
-                foreach (RegionSyncClientView client in m_client_views)
+                // If connected, send the message.
+                if (client.Connected)
                 {
-                    // If connected, send the message.
-                    if (client.Connected)
-                    {
-                        client.Send(msg);
-                    }
-                    // Else, remove the client view from the list
-                    else
-                    {
-                        if (closed == null)
-                            closed = new List<RegionSyncClientView>();
-                        closed.Add(client);
-                    }
+                    client.Send(msg);
                 }
-                if (closed != null)
+                // Else, remove the client view from the list
+                else
                 {
-                    foreach (RegionSyncClientView rscv in closed)
-                        RemoveSyncedClient(rscv);
-                        //m_client_views.Remove(rscv);
+                    if (closed == null)
+                        closed = new List<RegionSyncClientView>();
+                    closed.Add(client);
                 }
+            }
+            if (closed != null)
+            {
+                foreach (RegionSyncClientView rscv in closed)
+                    RemoveSyncedClient(rscv);
+                    //m_client_views.Remove(rscv);
             }
         }
     }

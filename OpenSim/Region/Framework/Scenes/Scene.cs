@@ -724,6 +724,10 @@ namespace OpenSim.Region.Framework.Scenes
                 // TODO: Change default to true once the feature is supported
                 m_usePreJump = startupConfig.GetBoolean("enableprejump", false);
 
+                m_maxNonphys = 256f;
+                m_maxPhys = 256f;
+
+                /*
                 m_maxNonphys = startupConfig.GetFloat("NonPhysicalPrimMax", m_maxNonphys);
                 if (RegionInfo.NonphysPrimMax > 0)
                 {
@@ -736,6 +740,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     m_maxPhys = RegionInfo.PhysPrimMax;
                 }
+                */
 
                 // Here, if clamping is requested in either global or
                 // local config, it will be used
@@ -1595,7 +1600,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             List<UUID> resultIds = new List<UUID>();
             List<Vector3> resultLocations = new List<Vector3>();
-
+            /*
             ForEachScenePresence(delegate(ScenePresence sp)
             {
                 if (sp.IsChildAgent)
@@ -1603,9 +1608,10 @@ namespace OpenSim.Region.Framework.Scenes
                 resultIds.Add(sp.UUID);
                 resultLocations.Add(sp.AbsolutePosition);
             });
+            */
             ids = resultIds;
             locations = resultLocations;
-
+            
                 /*
                 if (sp.ParentID != 0)
                 {
@@ -2703,6 +2709,10 @@ namespace OpenSim.Region.Framework.Scenes
                 AvatarAppearance appearance = null;
                 GetAvatarAppearance(client, out appearance);
                 presence.Appearance = appearance;
+
+                // REGION SYNC
+                // The owner is not being set properly when there is no circuit. Hmmm
+                presence.Appearance.Owner = presence.UUID;
 
                 presence.initializeScenePresence(client, RegionInfo, this);
 

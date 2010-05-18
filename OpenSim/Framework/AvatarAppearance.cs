@@ -382,6 +382,8 @@ namespace OpenSim.Framework
                 m_texture = textureEntry;
             if (visualParams != null)
                 m_visualparams = visualParams;
+            if (m_visualparams == null)
+                return;
 
             m_avatarHeight = 1.23077f  // Shortest possible avatar height
                            + 0.516945f * (float)m_visualparams[(int)VPElement.SHAPE_HEIGHT] / 255.0f   // Body height

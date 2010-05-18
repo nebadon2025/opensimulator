@@ -257,7 +257,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
             }
 
             // Local asset handling
-            if (asset.Local)
+            /*if (asset.Local)
             {
                 if (!storedInCache)
                 {
@@ -267,7 +267,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
                 }
 
                 return asset.ID;
-            }
+            }*/
 
             // Distinguish public and private assets
             bool isPublic = true;

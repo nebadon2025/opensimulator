@@ -74,6 +74,7 @@ namespace OpenSim.Tests.Common.Mock
         public event ModifyTerrain OnModifyTerrain;
         public event BakeTerrain OnBakeTerrain;
         public event SetAppearance OnSetAppearance;
+        public event SetAppearanceRaw OnSetAppearanceRaw;
         public event AvatarNowWearing OnAvatarNowWearing;
         public event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;
         public event RezMultipleAttachmentsFromInv OnRezMultipleAttachmentsFromInv;

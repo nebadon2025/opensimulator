@@ -289,6 +289,44 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                         return HandlerFailure(msg, "Could not deserialize JSON data.");
 
                     }
+                case RegionSyncMessage.MsgType.AvatarAppearance:
+                    {
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data != null)
+                        {
+                            UUID agentID = data["id"].AsUUID();
+
+                            if (agentID != null && agentID != UUID.Zero)
+                            {
+                                ScenePresence presence;
+                                if (m_scene.TryGetScenePresence(agentID, out presence))
+                                {
+                                    string name = presence.Name;
+                                    Primitive.TextureEntry te = Primitive.TextureEntry.FromOSD(data["te"]);
+                                    byte[] vp = data["vp"].AsBinary();
+
+                                    byte[] BAKE_INDICES = new byte[] { 8, 9, 10, 11, 19, 20 };
+                                    for (int i = 0; i < BAKE_INDICES.Length; i++)
+                                    {
+                                        int j = BAKE_INDICES[i];
+                                        Primitive.TextureEntryFace face = te.FaceTextures[j];
+                                        if (face != null && face.TextureID != AppearanceManager.DEFAULT_AVATAR_TEXTURE)
+                                            if (m_scene.AssetService.Get(face.TextureID.ToString()) == null)
+                                                HandlerDebug(msg, "Missing baked texture " + face.TextureID + " (" + j + ") for avatar " + name);
+                                    }
+
+                                    presence.SetAppearance(te, vp);
+                                    return HandlerDebug(msg, String.Format("Agent \"{0}\" ({1}) updated their appearance.", name, agentID));
+                                }
+                                else
+                                {
+                                    return HandlerFailure(msg, String.Format("Agent {0} not found in the scene.", agentID));
+                                }
+                            }
+                        }
+                        return HandlerFailure(msg, "Could not deserialize JSON data.");
+
+                    }
                 default:
                     {
                         m_log.WarnFormat("{0} Unable to handle unsupported message type", LogHeader);

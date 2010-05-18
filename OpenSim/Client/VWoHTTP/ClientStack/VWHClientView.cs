@@ -226,6 +226,7 @@ namespace OpenSim.Client.VWoHTTP.ClientStack
         public event BakeTerrain OnBakeTerrain = delegate { };
         public event EstateChangeInfo OnEstateChangeInfo = delegate { };
         public event SetAppearance OnSetAppearance = delegate { };
+        public event SetAppearanceRaw OnSetAppearanceRaw = delegate { };
         public event AvatarNowWearing OnAvatarNowWearing = delegate { };
         public event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv = delegate { return new UUID(); };
         public event RezMultipleAttachmentsFromInv OnRezMultipleAttachmentsFromInv = delegate { };

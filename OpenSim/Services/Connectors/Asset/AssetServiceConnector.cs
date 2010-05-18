@@ -204,6 +204,7 @@ namespace OpenSim.Services.Connectors
 
         public string Store(AssetBase asset)
         {
+            /*
             if (asset.Temporary || asset.Local)
             {
                 if (m_Cache != null)
@@ -211,6 +212,8 @@ namespace OpenSim.Services.Connectors
 
                 return asset.ID;
             }
+             * */
+            m_Cache.Cache(asset);
 
             string uri = m_ServerURI + "/assets/";
 

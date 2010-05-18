@@ -168,6 +168,7 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         public event RezObject OnRezObject;
         public event ModifyTerrain OnModifyTerrain;
         public event SetAppearance OnSetAppearance;
+        public event SetAppearanceRaw OnSetAppearanceRaw;
         public event AvatarNowWearing OnAvatarNowWearing;
         public event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;
         public event RezMultipleAttachmentsFromInv OnRezMultipleAttachmentsFromInv;

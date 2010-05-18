@@ -120,6 +120,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         public event Action<IClientAPI> OnRegionHandShakeReply;
         public event GenericCall2 OnRequestWearables;
         public event SetAppearance OnSetAppearance;
+        public event SetAppearanceRaw OnSetAppearanceRaw;
         public event AvatarNowWearing OnAvatarNowWearing;
         public event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;
         public event RezMultipleAttachmentsFromInv OnRezMultipleAttachmentsFromInv;
@@ -5606,7 +5607,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             #endregion
 
             SetAppearance handlerSetAppearance = OnSetAppearance;
-            if (handlerSetAppearance != null)
+            SetAppearanceRaw handlerSetAppearanceRaw = OnSetAppearanceRaw;
+            //if (handlerSetAppearance != null)
             {
                 // Temporarily protect ourselves from the mantis #951 failure.
                 // However, we could do this for several other handlers where a failure isn't terminal
@@ -5622,7 +5624,10 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                     if (appear.ObjectData.TextureEntry.Length > 1)
                         te = new Primitive.TextureEntry(appear.ObjectData.TextureEntry, 0, appear.ObjectData.TextureEntry.Length);
 
-                    handlerSetAppearance(te, visualparams);
+                    if (handlerSetAppearance != null)
+                        handlerSetAppearance(te, visualparams);
+                    if (handlerSetAppearanceRaw != null)
+                        handlerSetAppearanceRaw(this, AgentId, visualparams, te);
                 }
                 catch (Exception e)
                 {

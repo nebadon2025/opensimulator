@@ -67,6 +67,7 @@ namespace OpenSim.Framework
     public delegate void NetworkStats(int inPackets, int outPackets, int unAckedBytes);
 
     public delegate void SetAppearance(Primitive.TextureEntry textureEntry, byte[] visualParams);
+    public delegate void SetAppearanceRaw(IClientAPI sender, UUID agentID, byte[] vp, Primitive.TextureEntry te);
 
     public delegate void StartAnim(IClientAPI remoteClient, UUID animID);
 
@@ -865,6 +866,7 @@ namespace OpenSim.Framework
         event EstateChangeInfo OnEstateChangeInfo;
         // [Obsolete("LLClientView Specific.")]
         event SetAppearance OnSetAppearance;
+        event SetAppearanceRaw OnSetAppearanceRaw;
         // [Obsolete("LLClientView Specific - Replace and rename OnAvatarUpdate. Difference from SetAppearance?")]
         event AvatarNowWearing OnAvatarNowWearing;
         event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;

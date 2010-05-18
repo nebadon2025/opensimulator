@@ -121,6 +121,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                     RemoveLocalClient(kvp.Key, m_scene);
                     // Remove the agent update handler from the client
                     kvp.Value.OnAgentUpdateRaw -= HandleAgentUpdateRaw;
+                    kvp.Value.OnSetAppearanceRaw -= HandleSetAppearanceRaw;
                 }
             }
             // Close the connection
@@ -515,6 +516,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             // Register for interesting client events which will be forwarded to auth sim
             // These are the raw packet data blocks from the client, intercepted and sent up to the sim
             client.OnAgentUpdateRaw += HandleAgentUpdateRaw;
+            client.OnSetAppearanceRaw += HandleSetAppearanceRaw;
             client.OnChatFromClientRaw += HandleChatFromClientRaw;
         }
 
@@ -534,6 +536,18 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         public void HandleAgentUpdateRaw(object sender, byte[] agentData)
         {
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentUpdate, agentData));
+        }
+
+        public void HandleSetAppearanceRaw(object sender, UUID agentID, byte[] vp, Primitive.TextureEntry te)
+        {
+            if (te != null)
+            {
+                OSDMap data = new OSDMap(2);
+                data["id"] = OSDUUID.FromUUID(agentID);
+                data["vp"] = new OSDBinary(vp);
+                data["te"] = te.GetOSD();
+                Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AvatarAppearance, OSDParser.SerializeJsonString(data)));
+            }
         }
 
         public void HandleChatFromClientRaw(object sender, byte[] chatData)

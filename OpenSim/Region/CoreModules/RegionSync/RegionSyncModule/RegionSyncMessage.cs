@@ -33,6 +33,8 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             RemovedObject,   // objects
             NewAvatar,       // avatars
             UpdatedAvatar,   // avatars
+            AnimateAvatar,
+            AvatarAppearance,
             RemovedAvatar,   // avatars
             ChatFromSim,
             // BIDIR

@@ -79,28 +79,48 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             m_port = ((IPEndPoint)client.Client.RemoteEndPoint).Port;
 
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-            m_log.WarnFormat("{0} Constructed", LogHeader);
+            //m_log.WarnFormat("{0} Constructed", LogHeader);
 
             // Create a thread for the receive loop
             m_receive_loop = new Thread(new ThreadStart(delegate() { ReceiveLoop(); }));
             m_receive_loop.Name = Description;
-            m_log.WarnFormat("{0} Started thread: {1}", LogHeader, m_receive_loop.Name);
+            //m_log.WarnFormat("{0} Started thread: {1}", LogHeader, m_receive_loop.Name);
             m_receive_loop.Start();
         }
 
         // Stop the RegionSyncClientView, disconnecting the RegionSyncClient
         public void Shutdown()
         {
+            m_scene.EventManager.OnChatFromClient -= EventManager_OnChatFromClient;
             // Abort ReceiveLoop Thread, close Socket and TcpClient
             m_receive_loop.Abort();
             m_tcpclient.Client.Close();
             m_tcpclient.Close();
+            //Logout any synced avatars
+            lock (m_syncedAvatars)
+            {
+                foreach (UUID agentID in m_syncedAvatars.Keys)
+                {
+                    ScenePresence presence;
+                    if (m_scene.TryGetScenePresence(agentID, out presence))
+                    {
+                        string name = presence.Name;
+                        m_scene.RemoveClient(agentID);
+                        m_log.WarnFormat("{0} Agent \"{1}\" ({2}) was removed from scene.", LogHeader, name, agentID);
+                    }
+                    else
+                    {
+                        m_log.WarnFormat("{0} Agent {1} not found in the scene.", LogHeader, agentID);
+                    }
+                }
+            }
         }
 
         // Listen for messages from a RegionSyncClient
         // *** This is the main thread loop for each connected client
         private void ReceiveLoop()
         {
+            m_scene.EventManager.OnChatFromClient += new EventManager.ChatFromClientEvent(EventManager_OnChatFromClient);
             try
             {
                 while (true)
@@ -118,6 +138,18 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             {
                 m_log.WarnFormat("{0} RegionSyncClient has disconnected: {1}", LogHeader, e.Message);
             }
+            Shutdown();
+        }
+
+        void EventManager_OnChatFromClient(object sender, OSChatMessage chat)
+        {
+            OSDMap data = new OSDMap(5);
+            data["channel"] = OSD.FromInteger(chat.Channel);
+            data["msg"] = OSD.FromString(chat.Message);
+            data["pos"] = OSD.FromVector3(chat.Position);
+            data["name"] = OSD.FromString(chat.From);
+            data["id"] = OSD.FromUUID(chat.SenderUUID);
+            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.ChatFromClient, OSDParser.SerializeJsonString(data)));
         }
 
         // Get a message from the RegionSyncClient
@@ -255,77 +287,108 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                     }
                 case RegionSyncMessage.MsgType.AgentRemove:
                     {
+                        // Get the data from message and error check
                         OSDMap data = DeserializeMessage(msg);
-                        if (data != null)
+                        if (data == null)
                         {
-                            UUID agentID = data["agentID"].AsUUID();
-
-                            if (agentID != null && agentID != UUID.Zero)
-                            {
-                                lock (m_syncedAvatars)
-                                {
-                                    if (m_syncedAvatars.ContainsKey(agentID))
-                                    {
-                                        m_syncedAvatars.Remove(agentID);
-                                        ScenePresence presence;
-                                        if (m_scene.TryGetScenePresence(agentID, out presence))
-                                        {
-                                            string name = presence.Name;
-                                            m_scene.RemoveClient(agentID);
-                                            return HandlerSuccess(msg, String.Format("Agent \"{0}\" ({1}) was removed from scene.", name, agentID));
-                                        }
-                                        else
-                                        {
-                                            return HandlerFailure(msg, String.Format("Agent {0} not found in the scene.", agentID));
-                                        }
-                                    }
-                                    else
-                                    {
-                                        return HandlerFailure(msg, String.Format("Agent {0} not in the list of synced avatars.", agentID));
-                                    }
-                                }
-                            }
+                            return HandlerFailure(msg, "Could not deserialize JSON data.");
                         }
-                        return HandlerFailure(msg, "Could not deserialize JSON data.");
 
-                    }
-                case RegionSyncMessage.MsgType.AvatarAppearance:
-                    {
-                        OSDMap data = DeserializeMessage(msg);
-                        if (data != null)
+                        // Get the parameters from data and error check
+                        UUID agentID = data["agentID"].AsUUID();
+                        if (agentID == null || agentID == UUID.Zero)
                         {
-                            UUID agentID = data["id"].AsUUID();
+                            return HandlerFailure(msg, "Missing or invalid JSON data.");
+                        }
 
-                            if (agentID != null && agentID != UUID.Zero)
+                        lock (m_syncedAvatars)
+                        {
+                            if (m_syncedAvatars.ContainsKey(agentID))
                             {
+                                m_syncedAvatars.Remove(agentID);
+                                // Find the presence in the scene
                                 ScenePresence presence;
                                 if (m_scene.TryGetScenePresence(agentID, out presence))
                                 {
                                     string name = presence.Name;
-                                    Primitive.TextureEntry te = Primitive.TextureEntry.FromOSD(data["te"]);
-                                    byte[] vp = data["vp"].AsBinary();
-
-                                    byte[] BAKE_INDICES = new byte[] { 8, 9, 10, 11, 19, 20 };
-                                    for (int i = 0; i < BAKE_INDICES.Length; i++)
-                                    {
-                                        int j = BAKE_INDICES[i];
-                                        Primitive.TextureEntryFace face = te.FaceTextures[j];
-                                        if (face != null && face.TextureID != AppearanceManager.DEFAULT_AVATAR_TEXTURE)
-                                            if (m_scene.AssetService.Get(face.TextureID.ToString()) == null)
-                                                HandlerDebug(msg, "Missing baked texture " + face.TextureID + " (" + j + ") for avatar " + name);
-                                    }
-
-                                    presence.SetAppearance(te, vp);
-                                    return HandlerDebug(msg, String.Format("Agent \"{0}\" ({1}) updated their appearance.", name, agentID));
+                                    m_scene.RemoveClient(agentID);
+                                    return HandlerSuccess(msg, String.Format("Agent \"{0}\" ({1}) was removed from scene.", name, agentID));
                                 }
                                 else
                                 {
                                     return HandlerFailure(msg, String.Format("Agent {0} not found in the scene.", agentID));
                                 }
                             }
+                            else
+                            {
+                                return HandlerFailure(msg, String.Format("Agent {0} not in the list of synced avatars.", agentID));
+                            }
                         }
-                        return HandlerFailure(msg, "Could not deserialize JSON data.");
+                    }
+                case RegionSyncMessage.MsgType.AvatarAppearance:
+                    {
+                        // Get the data from message and error check
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            return HandlerFailure(msg, "Could not deserialize JSON data.");
+                        }
 
+                        // Get the parameters from data and error check
+                        UUID agentID = data["id"].AsUUID();
+                        if (agentID == null || agentID == UUID.Zero)
+                        {
+                            return HandlerFailure(msg, "Missing or invalid JSON data.");
+                        }
+
+                        // Find the presence in the scene
+                        ScenePresence presence;
+                        if (m_scene.TryGetScenePresence(agentID, out presence))
+                        {
+                            string name = presence.Name;
+                            Primitive.TextureEntry te = Primitive.TextureEntry.FromOSD(data["te"]);
+                            byte[] vp = data["vp"].AsBinary();
+
+                            byte[] BAKE_INDICES = new byte[] { 8, 9, 10, 11, 19, 20 };
+                            for (int i = 0; i < BAKE_INDICES.Length; i++)
+                            {
+                                int j = BAKE_INDICES[i];
+                                Primitive.TextureEntryFace face = te.FaceTextures[j];
+                                if (face != null && face.TextureID != AppearanceManager.DEFAULT_AVATAR_TEXTURE)
+                                    if (m_scene.AssetService.Get(face.TextureID.ToString()) == null)
+                                        HandlerDebug(msg, "Missing baked texture " + face.TextureID + " (" + j + ") for avatar " + name);
+                            }
+
+                            presence.SetAppearance(te, vp);
+                            return HandlerDebug(msg, String.Format("Agent \"{0}\" ({1}) updated their appearance.", name, agentID));
+                        }
+                        return HandlerFailure(msg, String.Format("Agent {0} not found in the scene.", agentID));
+                    }
+                case RegionSyncMessage.MsgType.ChatFromClient:
+                    {
+                        // Get the data from message and error check
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            return HandlerFailure(msg, "Could not deserialize JSON data.");
+                        }
+                        OSChatMessage args = new OSChatMessage();
+                        args.Channel = data["channel"].AsInteger();
+                        args.Message = data["msg"].AsString();
+                        args.Position = data["pos"].AsVector3();
+                        args.From = data["name"].AsString();
+                        UUID id = data["id"].AsUUID();
+                        args.Scene = m_scene;
+                        args.Type = ChatTypeEnum.Say;
+                        ScenePresence sp;
+                        m_scene.TryGetScenePresence(id, out sp);
+                        if(sp != null)
+                        {
+                            args.Sender = sp.ControllingClient;
+                            args.SenderUUID = id;
+                            m_scene.EventManager.TriggerOnChatFromClient(sp.ControllingClient,args);
+                        }
+                        return HandlerSuccess(msg, String.Format("Received chat from \"{0}\"", args.From));
                     }
                 default:
                     {

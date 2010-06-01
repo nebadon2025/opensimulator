@@ -98,7 +98,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         public RegionSyncServer(Scene scene, string addr, int port)
         {
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-            m_log.Warn("[REGION SYNC SERVER] Constructed");
+            //m_log.Warn("[REGION SYNC SERVER] Constructed");
             m_scene = scene;
             m_addr = IPAddress.Parse(addr);
             m_port = port;
@@ -111,7 +111,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             m_listenerThread.Name = "RegionSyncServer Listener";
             m_log.WarnFormat("[REGION SYNC SERVER] Starting {0} thread", m_listenerThread.Name);
             m_listenerThread.Start();
-            m_log.Warn("[REGION SYNC SERVER] Started");
+            //m_log.Warn("[REGION SYNC SERVER] Started");
         }
 
         // Stop the server and disconnect all RegionSyncClients
@@ -142,12 +142,10 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             {
                 // Start listening for clients
                 m_listener.Start();
-                m_log.WarnFormat("[REGION SYNC SERVER] Listening on port {0}", m_port.ToString());
-
                 while (true)
                 {
                     // *** Move/Add TRY/CATCH to here, but we don't want to spin loop on the same error
-                    m_log.Warn("[REGION SYNC SERVER] Waiting for a connection...");
+                    m_log.WarnFormat("[REGION SYNC SERVER] Listening for new connections on port {0}...", m_port.ToString());
                     TcpClient tcpclient = m_listener.AcceptTcpClient();
                     IPAddress addr = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Address;
                     int port = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Port;

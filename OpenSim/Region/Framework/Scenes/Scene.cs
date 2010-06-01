@@ -1440,7 +1440,8 @@ namespace OpenSim.Region.Framework.Scenes
                     if (IsSyncedClient())
                     {
                         ForEachScenePresence(delegate(ScenePresence sp) { sp.SendPrimUpdates(); });
-                        RegionSyncClientModule.SendCoarseLocations();
+                        if(m_frame % 20 == 0)
+                            RegionSyncClientModule.SendCoarseLocations();
                     }
                     else
                     {
@@ -3384,7 +3385,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void NotifyMyCoarseLocationChange()
         {
-            ForEachScenePresence(delegate(ScenePresence presence) { presence.CoarseLocationChange(); });
+            // REGION SYNC (Need a better plan for coarse locations)
+            //ForEachScenePresence(delegate(ScenePresence presence) { presence.CoarseLocationChange(); });
         }
 
         #endregion

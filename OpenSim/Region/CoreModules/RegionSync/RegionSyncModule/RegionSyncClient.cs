@@ -6,6 +6,7 @@ using System.Text;
 using System.Collections.Generic;
 using System.Threading;
 using OpenMetaverse;
+using OpenMetaverse.Packets;
 using OpenMetaverse.StructuredData;
 using OpenSim.Framework;
 using OpenSim.Framework.Client;
@@ -40,6 +41,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         private Scene m_scene;
 
         // The avatars added to this client manager for clients on other client managers
+        object m_syncRoot = new object();
         Dictionary<UUID, RegionSyncAvatar> m_remoteAvatars = new Dictionary<UUID, RegionSyncAvatar>();
         Dictionary<UUID, IClientAPI> m_localAvatars = new Dictionary<UUID, IClientAPI>();
 
@@ -62,7 +64,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         public RegionSyncClient(Scene scene, string addr, int port)
         {
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-            m_log.WarnFormat("{0} Constructed", LogHeader);
+            //m_log.WarnFormat("{0} Constructed", LogHeader);
             m_scene = scene;
             m_addr = IPAddress.Parse(addr);
             m_port = port;
@@ -87,15 +89,14 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             m_rcvLoop.Name = "RegionSyncClient ReceiveLoop";
             m_log.WarnFormat("{0} Starting {1} thread", LogHeader, m_rcvLoop.Name);
             m_rcvLoop.Start();
-            m_log.WarnFormat("{0} Started", LogHeader);
+            //m_log.WarnFormat("{0} Started", LogHeader);
             DoInitialSync();
         }
 
         // Disconnect from the RegionSyncServer and close the RegionSyncClient
         public void Stop()
         {
-            // Can't abort the TCP connection until we let the remote scene know we are going away. 
-            // Or, the remote scene will remove the CM's avatars automatically when it disconnects
+            // The remote scene will remove our avatars automatically when we disconnect
             m_rcvLoop.Abort();
             ShutdownClient();
         }
@@ -104,24 +105,37 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         {
             m_log.WarnFormat("{0} Disconnected from RegionSyncServer. Shutting down.", LogHeader);
 
-            // Remove remote avatars from local scene
-            lock (m_remoteAvatars)
+            lock (m_syncRoot)
             {
-                foreach (UUID id in m_remoteAvatars.Keys)
+                // Remove remote avatars from local scene
+                try
                 {
-                    m_scene.RemoveClient(id);
+                    List<UUID> remoteAvatars = new List<UUID>(m_remoteAvatars.Keys);
+                    foreach (UUID id in remoteAvatars)
+                    {
+                        m_scene.RemoveClient(id);
+                    }
                 }
-            }
-            // Remove local avatars from remote scene
-            lock (m_localAvatars)
-            {
-                foreach (KeyValuePair<UUID, IClientAPI> kvp in m_localAvatars)
+                catch (Exception e)
                 {
-                    // Tell the remote scene to remove this client
-                    RemoveLocalClient(kvp.Key, m_scene);
-                    // Remove the agent update handler from the client
-                    kvp.Value.OnAgentUpdateRaw -= HandleAgentUpdateRaw;
-                    kvp.Value.OnSetAppearanceRaw -= HandleSetAppearanceRaw;
+                    m_log.ErrorFormat("Caught exception while removing remote avatars on Shutdown: {0}", e.Message);
+                }
+                try
+                {
+                    // Remove local avatars from remote scene
+                    List<KeyValuePair<UUID, IClientAPI>> localAvatars = new List<KeyValuePair<UUID, IClientAPI>>(m_localAvatars);
+                    foreach (KeyValuePair<UUID, IClientAPI> kvp in localAvatars)
+                    {
+                        // Tell the remote scene to remove this client
+                        RemoveLocalClient(kvp.Key, m_scene);
+                        // Remove the agent update handler from the client
+                        kvp.Value.OnAgentUpdateRaw -= HandleAgentUpdateRaw;
+                        kvp.Value.OnSetAppearanceRaw -= HandleSetAppearanceRaw;
+                    }
+                }
+                catch (Exception e)
+                {
+                    m_log.ErrorFormat("Caught exception while removing local avatars on Shutdown: {0}", e.Message);
                 }
             }
             // Close the connection
@@ -154,7 +168,9 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                 try
                 {
                     string message;
-                    MsgHandlerStatus status = HandleMessage(msg, out message);
+                    MsgHandlerStatus status;
+                    lock(m_syncRoot)
+                        status = HandleMessage(msg, out message);
                     switch (status)
                     {
                         case MsgHandlerStatus.Success:
@@ -218,7 +234,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             List<UUID> ids = new List<UUID>();
             List<Vector3> locations = new List<Vector3>();
             m_scene.GetCoarseLocations(out ids, out locations);
-            lock (m_localAvatars)
+            lock (m_syncRoot)
             {
                 foreach (IClientAPI client in m_localAvatars.Values)
                 {
@@ -330,112 +346,225 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                 case RegionSyncMessage.MsgType.NewAvatar:
                     {
                         OSDMap data = DeserializeMessage(msg);
-                        if (data != null)
+                        if (data == null)
                         {
-                            UUID agentID = data["agentID"].AsUUID();
-                            string first = data["first"].AsString();
-                            string last = data["last"].AsString();
-                            Vector3 startPos = data["startPos"].AsVector3();
-
-                            if (agentID != null && first != null && last != null && startPos != null)
-                            {
-                                if (m_remoteAvatars.ContainsKey(agentID))
-                                {
-                                    result = String.Format("Attempted to add duplicate avatar \"{0} {1}\" ({2})", first, last, agentID.ToString());
-                                    return MsgHandlerStatus.Warning;
-                                }
-                                ScenePresence sp;
-                                if (m_scene.TryGetScenePresence(agentID, out sp))
-                                {
-                                    result = String.Format("Confirmation of new avatar \"{0}\" ({1})", sp.Name, sp.UUID.ToString());
-                                    HandlerDebug(msg, result);
-                                    return MsgHandlerStatus.Success;
-                                }
-                                RegionSyncAvatar av = new RegionSyncAvatar(m_scene, agentID, first, last, startPos);
-                                m_remoteAvatars.Add(agentID, av);
-                                m_scene.AddNewClient(av);
-                                result = String.Format("Handled NewAvatar for UUID {0}", agentID);
-                                return MsgHandlerStatus.Success;
-                            }
+                            result = "Could not deserialize JSON data.";
+                            return MsgHandlerStatus.Error;
                         }
-                        result = "Could not deserialize JSON data.";
-                        return MsgHandlerStatus.Error;
+
+                        UUID agentID = data["agentID"].AsUUID();
+                        string first = data["first"].AsString();
+                        string last = data["last"].AsString();
+                        Vector3 startPos = data["startPos"].AsVector3();
+
+                        if (agentID == null || agentID == UUID.Zero || first == null || last == null || startPos == null)
+                        {
+                            result = "Missing or invalid JSON data.";
+                            return MsgHandlerStatus.Error;
+                        }
+
+                        if (m_remoteAvatars.ContainsKey(agentID))
+                        {
+                            result = String.Format("Attempted to add duplicate avatar \"{0} {1}\" ({2})", first, last, agentID.ToString());
+                            return MsgHandlerStatus.Warning;
+                        }
+
+                        ScenePresence sp;
+                        if (m_scene.TryGetScenePresence(agentID, out sp))
+                        {
+                            result = String.Format("Confirmation of new avatar \"{0}\" ({1})", sp.Name, sp.UUID.ToString());
+                            HandlerDebug(msg, result);
+                            return MsgHandlerStatus.Success;
+                        }
+
+                        RegionSyncAvatar av = new RegionSyncAvatar(m_scene, agentID, first, last, startPos);
+                        m_remoteAvatars.Add(agentID, av);
+                        m_scene.AddNewClient(av);
+                        result = String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID);
+                        HandlerDebug(msg, result);
+                        return MsgHandlerStatus.Success;
+                        
                     }
                 case RegionSyncMessage.MsgType.UpdatedAvatar:
                     {
+                        // Get the data from message and error check
                         OSDMap data = DeserializeMessage(msg);
-                        if (data != null)
+                        if (data == null)
                         {
-                            UUID agentID = data["id"].AsUUID();
-                            Vector3 pos = data["pos"].AsVector3();
-                            Vector3 vel = data["vel"].AsVector3();
-                            Quaternion rot = data["rot"].AsQuaternion();
-                            bool flying = data["fly"].AsBoolean();
+                            result = "Could not deserialize JSON data.";
+                            return MsgHandlerStatus.Error;
+                        }
 
-                            // We get the UUID of the avatar to be updated, find it in the scene
-                            if (agentID != UUID.Zero)
-                            {
-                                ScenePresence presence;
-                                if (m_scene.TryGetScenePresence(agentID, out presence))
-                                {
-                                    presence.AbsolutePosition = pos;
-                                    presence.Velocity = vel;
-                                    presence.Rotation = rot;
-                                    presence.PhysicsActor.Flying = flying;
-                                    List<IClientAPI> locals;
-                                    lock (m_localAvatars)
-                                        locals = new List<IClientAPI>(m_localAvatars.Values);
-                                    presence.SendTerseUpdateToClientList(locals);
-                                    result = String.Format("Avatar \"{0}\" ({1}) ({2}) updated (pos:{3}, vel:{4}, rot:{5}, fly:{6})",
-                                            presence.Name, presence.UUID.ToString(), presence.LocalId.ToString(),
-                                            presence.AbsolutePosition.ToString(), presence.Velocity.ToString(), 
-                                            presence.Rotation.ToString(), presence.PhysicsActor.Flying ? "Y" : "N");
-                                    return MsgHandlerStatus.Success;
-                                }
-                            }
+                        // Get the parameters from data and error check
+                        UUID agentID = data["id"].AsUUID();
+                        Vector3 pos = data["pos"].AsVector3();
+                        Vector3 vel = data["vel"].AsVector3();
+                        Quaternion rot = data["rot"].AsQuaternion();
+                        bool flying = data["fly"].AsBoolean();
+                        uint flags = data["flags"].AsUInteger();
+                        if (agentID == null || agentID == UUID.Zero )
+                        {
+                            result = "Missing or invalid JSON data.";
+                            return MsgHandlerStatus.Error;
+                        }
+
+                        // Find the presence in the scene and error check
+                        ScenePresence presence;
+                        m_scene.TryGetScenePresence(agentID, out presence);
+                        if (presence == null)
+                        {
                             result = String.Format("agentID {0} not found.", agentID.ToString());
                             return MsgHandlerStatus.Warning;
                         }
-                        result = "Could not deserialize JSON data.";
-                        return MsgHandlerStatus.Error;
+
+                        // Update the scene presence from parameters
+                        /*
+                        bool updateAnimations = ((presence.AgentControlFlags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_FLY        ) != (flags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_FLY        ) ||
+                                                 (presence.AgentControlFlags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_AT_POS     ) != (flags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_AT_POS     ) ||
+                                                 (presence.AgentControlFlags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_AT_NEG     ) != (flags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_AT_NEG     ) ||
+                                                 (presence.AgentControlFlags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_UP_POS     ) != (flags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_UP_POS     ) ||
+                                                 (presence.AgentControlFlags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_UP_NEG     ) != (flags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_UP_NEG     ) ||
+                                                 (presence.AgentControlFlags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_TURN_LEFT  ) != (flags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_TURN_LEFT  ) ||
+                                                 (presence.AgentControlFlags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_TURN_RIGHT ) != (flags & (uint)AgentManager.ControlFlags.AGENT_CONTROL_TURN_RIGHT ));
+                         * */
+                        presence.AgentControlFlags = flags;
+                        presence.AbsolutePosition = pos;
+                        presence.Velocity = vel;
+                        presence.Rotation = rot;
+                        bool updateAnimations = 
+                        presence.PhysicsActor.Flying = flying;
+                        List<IClientAPI> locals;
+                        lock (m_syncRoot)
+                            locals = new List<IClientAPI>(m_localAvatars.Values);
+                        presence.SendTerseUpdateToClientList(locals);
+                        if(updateAnimations)
+                            presence.Animator.UpdateMovementAnimations();
+                        /*
+                         * result = String.Format("Avatar \"{0}\" ({1}) ({2}) updated (pos:{3}, vel:{4}, rot:{5}, fly:{6})",
+                                presence.Name, presence.UUID.ToString(), presence.LocalId.ToString(),
+                                presence.AbsolutePosition.ToString(), presence.Velocity.ToString(), 
+                                presence.Rotation.ToString(), presence.PhysicsActor.Flying ? "Y" : "N");
+                         * */
+                        result = ""; // For performance, skip creating that long string unless debugging
+                        return MsgHandlerStatus.Success;
                     }
                 case RegionSyncMessage.MsgType.RemovedAvatar:
                     {
+                        // Get the data from message and error check
                         OSDMap data = DeserializeMessage(msg);
-                        if (data != null)
+                        if (data == null)
                         {
-                            UUID agentID = data["agentID"].AsUUID();
-
-                            // We get the UUID of the avatar to be removed, find it in the scene
-                            if (agentID != UUID.Zero)
-                            {
-                                ScenePresence presence;
-                                // If this is a synced remote avatar and it's in the scene, then remove it
-                                if (m_remoteAvatars.ContainsKey(agentID))
-                                {
-                                    if (m_scene.TryGetScenePresence(agentID, out presence))
-                                    {
-                                        m_scene.RemoveClient(agentID);
-                                        result = String.Format("Avatar \"{0}\" removed from scene", presence.Name);
-                                        return MsgHandlerStatus.Success;
-                                    }
-                                    else
-                                    {
-                                        result = String.Format("agentID {0} not found.", agentID.ToString());
-                                        return MsgHandlerStatus.Warning;
-                                    }
-                                }
-                                else
-                                {
-                                    result = String.Format("agentID {0} is not a remote avatar.", agentID.ToString());
-                                    return MsgHandlerStatus.Warning;
-                                }
-                            }
-                            result = String.Format("agentID {0} was UUID.Zero!", agentID.ToString());
+                            result = "Could not deserialize JSON data.";
                             return MsgHandlerStatus.Error;
                         }
-                        result = "Could not deserialize JSON data.";
+
+                        // Get the agentID from data and error check
+                        UUID agentID = data["agentID"].AsUUID();
+                        if (agentID == UUID.Zero)
+                        {
+                            result = "Missing or invalid JSON data.";
+                            return MsgHandlerStatus.Error;
+                        }
+
+                        // Find the presence in the scene and error check
+                        ScenePresence presence;
+                        m_scene.TryGetScenePresence(agentID, out presence);
+                        if(presence == null)
+                        {
+                            result = String.Format("agentID {0} not found.", agentID.ToString());
+                            return MsgHandlerStatus.Success;
+                        }
+
+                        // Remove the presence from the scene and if it's remote, then from the remote list too
+                        m_scene.RemoveClient(agentID);
+                        if (m_remoteAvatars.ContainsKey(agentID))
+                        {
+                            result = String.Format("Remote avatar \"{0}\" removed from scene", presence.Name);
+                            HandlerDebug(msg, result);
+                            return MsgHandlerStatus.Success;
+                        }
+                        else if(m_localAvatars.ContainsKey(agentID))
+                        {
+                            result = String.Format("Received confirmation of removed avatar \"{0}\" ({1})", presence.Name, presence.UUID.ToString());
+                            HandlerDebug(msg, result);
+                            return MsgHandlerStatus.Success;
+                        }
+                        result = String.Format("Avatar is not local OR remote but was found in scene: \"{0}\" ({1})", presence.Name, presence.UUID.ToString());
+                        HandlerDebug(msg, result);
                         return MsgHandlerStatus.Error;
+                    }
+                case RegionSyncMessage.MsgType.ChatFromClient:
+                    {
+                        // Get the data from message and error check
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            result = "Could not deserialize JSON data.";
+                            return MsgHandlerStatus.Error;
+                        }
+                        OSChatMessage args = new OSChatMessage();
+                        args.Channel = data["channel"].AsInteger();
+                        args.Message = data["msg"].AsString();
+                        args.Position = data["pos"].AsVector3();
+                        args.From = data["name"].AsString();
+                        UUID id = data["id"].AsUUID();
+                        args.Scene = m_scene;
+                        args.Type = ChatTypeEnum.Say;
+                        ScenePresence sp;
+                        m_scene.TryGetScenePresence(id, out sp);
+                        if (sp != null)
+                        {
+                            args.Sender = sp.ControllingClient;
+                            args.SenderUUID = id;
+                            m_scene.EventManager.TriggerOnChatBroadcast(sp.ControllingClient, args);
+                        }
+
+                        result = String.Format("Received chat from \"{0}\"", args.From);
+                        HandlerDebug(msg, result);
+                        return MsgHandlerStatus.Success;
+                    }
+                case RegionSyncMessage.MsgType.AvatarAppearance:
+                    {
+                        // Get the data from message and error check
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            result = "Could not deserialize JSON data.";
+                            return MsgHandlerStatus.Error;
+                        }
+
+                        // Get the parameters from data and error check
+                        UUID agentID = data["id"].AsUUID();
+                        if (agentID == null || agentID == UUID.Zero)
+                        {
+                            result = "Missing or invalid JSON data.";
+                            return MsgHandlerStatus.Error;
+                        }
+
+                        // Find the presence in the scene
+                        ScenePresence presence;
+                        if (m_scene.TryGetScenePresence(agentID, out presence))
+                        {
+                            string name = presence.Name;
+                            Primitive.TextureEntry te = Primitive.TextureEntry.FromOSD(data["te"]);
+                            byte[] vp = data["vp"].AsBinary();
+
+                            byte[] BAKE_INDICES = new byte[] { 8, 9, 10, 11, 19, 20 };
+                            for (int i = 0; i < BAKE_INDICES.Length; i++)
+                            {
+                                int j = BAKE_INDICES[i];
+                                Primitive.TextureEntryFace face = te.FaceTextures[j];
+                                if (face != null && face.TextureID != AppearanceManager.DEFAULT_AVATAR_TEXTURE)
+                                    if (m_scene.AssetService.Get(face.TextureID.ToString()) == null)
+                                        HandlerDebug(msg, "Missing baked texture " + face.TextureID + " (" + j + ") for avatar " + name);
+                            }
+
+                            presence.SetAppearance(te, vp);
+                            result = String.Format("Agent \"{0}\" ({1}) updated their appearance.", name, agentID);
+                            return MsgHandlerStatus.Success;
+                        }
+                        result = String.Format("Agent {0} not found in the scene.", agentID);
+                        return MsgHandlerStatus.Warning;
                     }
 
                     /*
@@ -502,7 +631,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                     return;
             }
             // Otherwise, it's a real local client connecting so track it locally
-            lock(m_localAvatars)
+            lock(m_syncRoot)
                 m_localAvatars.Add(client.AgentId, client);
             m_log.WarnFormat("{0} New local client \"{1}\" ({2}) being added to remote scene.", LogHeader, client.Name, client.AgentId.ToString());
             // Let the auth sim know that a new agent has connected
@@ -522,12 +651,19 @@ namespace OpenSim.Region.Examples.RegionSyncModule
 
         void RemoveLocalClient(UUID clientID, Scene scene)
         {
-            m_log.WarnFormat("{0} Local client ({1}) being removed from remote scene.", LogHeader, clientID.ToString());
-            m_localAvatars.Remove(clientID);
-            // Let the auth sim know that an agent has disconnected
-            OSDMap data = new OSDMap(1);
-            data["agentID"] = OSD.FromUUID(clientID);
-            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentRemove, OSDParser.SerializeJsonString(data)));
+            lock (m_syncRoot)
+            {
+                // If the client to be removed is a local client, then send a message to the remote scene
+                if (m_localAvatars.ContainsKey(clientID))
+                {
+                    m_log.WarnFormat("{0} Local client ({1}) being removed from remote scene.", LogHeader, clientID.ToString());
+                    m_localAvatars.Remove(clientID);
+                    // Let the auth sim know that an agent has disconnected
+                    OSDMap data = new OSDMap(1);
+                    data["agentID"] = OSD.FromUUID(clientID);
+                    Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentRemove, OSDParser.SerializeJsonString(data)));
+                }
+            }
         }
 
         /// <summary>
@@ -552,7 +688,29 @@ namespace OpenSim.Region.Examples.RegionSyncModule
 
         public void HandleChatFromClientRaw(object sender, byte[] chatData)
         {
-            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.ChatFromClient, chatData));
+            if (chatData != null && sender is IClientAPI)
+            {
+                IClientAPI client = (IClientAPI)sender;
+                ScenePresence presence;
+                m_scene.TryGetScenePresence(client.AgentId, out presence);
+                if(presence != null)
+                {
+                    int len = 0;
+                    ChatFromViewerPacket.ChatDataBlock cdb = new ChatFromViewerPacket.ChatDataBlock();
+                    cdb.FromBytes(chatData, ref len);
+                    if (cdb.Message.Length == 0)
+                        return;
+                    OSDMap data = new OSDMap(5);
+                    data["channel"] = OSD.FromInteger(cdb.Channel);
+                    data["msg"] = OSD.FromString(Utils.BytesToString(cdb.Message));
+                    data["pos"] = OSD.FromVector3(presence.AbsolutePosition);
+                    data["name"] = OSD.FromString(presence.Name);
+                    data["id"] = OSD.FromUUID(presence.UUID);
+
+                    Send(new RegionSyncMessage(RegionSyncMessage.MsgType.ChatFromClient, OSDParser.SerializeJsonString(data)));
+                    //m_log.WarnFormat("Forwarding chat message from local client \"{0}\" to remote scene", presence.Name);
+                }
+            }
         }
         #endregion
 

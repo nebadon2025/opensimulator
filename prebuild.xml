@@ -459,6 +459,7 @@
       <Reference name="System"/>
       <Reference name="OpenMetaverseTypes.dll"/>
       <Reference name="Nini.dll" />
+      <Reference name="log4net.dll"/>
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Region.Physics.Manager"/>
       <Files>

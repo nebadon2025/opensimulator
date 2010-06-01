@@ -73,7 +73,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             if (!m_active)
                 return;
 
-            m_log.Warn("[REGION SYNC CLIENT MODULE] Post-Initialised");
+            //m_log.Warn("[REGION SYNC CLIENT MODULE] Post-Initialised");
         }
 
         public void Close()
@@ -202,7 +202,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                     m_log.WarnFormat("[REGION SYNC CLIENT MODULE] Already synchronizing to {0}", m_client.GetServerAddressAndPort());
                     return;
                 }
-                m_log.Warn("[REGION SYNC CLIENT MODULE] Starting synchronization");
+                //m_log.Warn("[REGION SYNC CLIENT MODULE] Starting synchronization");
                 m_log.Warn("[REGION SYNC CLIENT MODULE] Starting RegionSyncClient");
 
                 m_client = new RegionSyncClient(m_scene, m_serveraddr, m_serverport);

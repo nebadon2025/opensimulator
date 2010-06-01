@@ -406,10 +406,8 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             return 0;
         }
 
-        public virtual int NextAnimationSequenceNumber
-        {
-            get { return 1; }
-        }
+        private int m_animationSequenceNumber = 1;
+        public int NextAnimationSequenceNumber { get { return m_animationSequenceNumber++; } }
 
         public IScene Scene
         {
@@ -763,6 +761,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
 
         private void Update()
         {
+            /*
             frame++;
             if (frame > 20)
             {
@@ -798,7 +797,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                     if (OnChatFromClient != null)
                     {
                         OSChatMessage args = new OSChatMessage();
-                        args.Message = "Hey You! Get out of my Home. This is my Region";
+                        args.Message = "";//Hey You! Get out of my Home. This is my Region";
                         args.Channel = 0;
                         args.From = FirstName + " " + LastName;
                         args.Scene = m_scene;
@@ -813,6 +812,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
 
                 count++;
             }
+             * */
         }
 
         public bool AddMoney(int debit)

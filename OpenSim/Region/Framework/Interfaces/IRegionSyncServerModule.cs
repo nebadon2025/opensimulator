@@ -42,6 +42,7 @@ namespace OpenSim.Region.Framework.Interfaces
         void QueuePresenceForTerseUpdate(ScenePresence presence);
         void SendUpdates();
         void DeleteObject(ulong regionHandle, uint localID);
+        void SendAppearance(UUID agentID, byte[] vp, Primitive.TextureEntry te);
 
         //void SendPartFullUpdate(SceneObjectPart part);
 

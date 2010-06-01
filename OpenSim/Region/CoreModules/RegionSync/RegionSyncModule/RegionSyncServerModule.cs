@@ -67,7 +67,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
             InstallInterfaces();
 
-            m_log.Warn("[REGION SYNC SERVER MODULE] Initialised");
+            //m_log.Warn("[REGION SYNC SERVER MODULE] Initialised");
         }
 
         public void PostInitialise()
@@ -93,7 +93,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             // Start the server and listen for RegionSyncClients
             m_server = new RegionSyncServer(m_scene, m_serveraddr, m_serverport);
             m_server.Start();
-            m_log.Warn("[REGION SYNC SERVER MODULE] Post-Initialised");
+            //m_log.Warn("[REGION SYNC SERVER MODULE] Post-Initialised");
         }
 
 
@@ -191,7 +191,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                 {
                     if (!presence.IsDeleted)
                     {
-                        OSDMap data = new OSDMap(5);
+                        OSDMap data = new OSDMap(6);
                         data["id"] = OSD.FromUUID(presence.UUID);
                         // Do not include offset for appearance height. That will be handled by RegionSyncClient before sending to viewers
                         if(presence.AbsolutePosition.IsFinite())
@@ -204,6 +204,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                             data["vel"] = OSD.FromVector3(Vector3.Zero);
                         data["rot"] = OSD.FromQuaternion(presence.Rotation);
                         data["fly"] = OSD.FromBoolean(presence.Flying);
+                        data["flags"] = OSD.FromUInteger((uint)presence.AgentControlFlags);
                         RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.UpdatedAvatar, OSDParser.SerializeJsonString(data));
                         m_server.Broadcast(rsm);
                     }
@@ -211,6 +212,18 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                 // Indicate that the current batch of updates has been completed
                 Interlocked.Exchange(ref m_sendingUpdates, 0);
             });
+        }
+
+        public void SendAppearance(UUID agentID, byte[] vp, Primitive.TextureEntry te)
+        {
+            if (te != null)
+            {
+                OSDMap data = new OSDMap(2);
+                data["id"] = OSDUUID.FromUUID(agentID);
+                data["vp"] = new OSDBinary(vp);
+                data["te"] = te.GetOSD();
+                m_server.Broadcast(new RegionSyncMessage(RegionSyncMessage.MsgType.AvatarAppearance, OSDParser.SerializeJsonString(data)));
+            }
         }
 
         public void DeleteObject(ulong regionHandle, uint localID)

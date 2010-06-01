@@ -2257,7 +2257,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// Rotate the avatar to the given rotation and apply a movement in the given relative vector
         /// </summary>
         /// <param name="vec">The vector in which to move.  This is relative to the rotation argument</param>
-        /// <param name="rotation">The direction in which this avatar should now face.
+        /// <param name="rotation">The direction in which this avatar should now face.</param>
         public void AddNewMovement(Vector3 vec, Quaternion rotation)
         {
             if (m_isChildAgent)
@@ -2598,14 +2598,30 @@ namespace OpenSim.Region.Framework.Scenes
         {
             m_perfMonMS = Util.EnvironmentTickCount();
 
-            m_scene.ForEachScenePresence(delegate(ScenePresence scenePresence)
-                                         {
-                                             if (scenePresence.UUID != UUID)
-                                             {
-                                                 SendAppearanceToOtherAgent(scenePresence);
-                                             }
-                                         });
+            // REGION SYNC
+            if(m_scene.IsSyncedServer())
+                m_scene.RegionSyncServerModule.SendAppearance(UUID, Appearance.VisualParams, Appearance.Texture);
+            m_appearance.Owner = UUID; // Why does this need to be here?
+            m_scene.ForEachClient(delegate(IClientAPI client)
+            {
+                if(client.AgentId != ControllingClient.AgentId)
+                {
+                    client.SendAppearance(m_appearance.Owner, m_appearance.VisualParams, m_appearance.Texture.GetBytes());
+                }
+            });
+            /*
 
+
+
+                m_scene.ForEachScenePresence(delegate(ScenePresence scenePresence)
+                                             {
+                                                 if (scenePresence.UUID != UUID)
+                                                 {
+                                                     SendAppearanceToOtherAgent(scenePresence);
+                                                 }
+                                             });
+            }
+             * */
             m_scene.StatsReporter.AddAgentTime(Util.EnvironmentTickCountSubtract(m_perfMonMS));
         }
 

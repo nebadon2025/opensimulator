@@ -652,10 +652,16 @@ namespace OpenSim.Region.Framework.Scenes
         /// offsetHeight is the offset in the Z axis from the centre of the bounding box to the centre of the root prim
         /// </summary>
         /// <returns></returns>
-        public Vector3 GetAxisAlignedBoundingBox(out float offsetHeight)
+        public void GetAxisAlignedBoundingBoxRaw(out float minX, out float maxX, out float minY, out float maxY, out float minZ, out float maxZ)
         {
-            float maxX = -256f, maxY = -256f, maxZ = -256f, minX = 256f, minY = 256f, minZ = 256f;
-            lock (m_parts)
+            maxX = -256f;
+            maxY = -256f;
+            maxZ = -256f;
+            minX = 256f;
+            minY = 256f;
+            minZ = 8192f;
+
+            lock(m_parts);
             {
                 foreach (SceneObjectPart part in m_parts.Values)
                 {
@@ -888,7 +894,18 @@ namespace OpenSim.Region.Framework.Scenes
                         minZ = backBottomLeft.Z;
                 }
             }
+        }
 
+        public Vector3 GetAxisAlignedBoundingBox(out float offsetHeight)
+        {
+            float minX;
+            float maxX;
+            float minY;
+            float maxY;
+            float minZ;
+            float maxZ;
+
+            GetAxisAlignedBoundingBoxRaw(out minX, out maxX, out minY, out maxY, out minZ, out maxZ);
             Vector3 boundingBox = new Vector3(maxX - minX, maxY - minY, maxZ - minZ);
 
             offsetHeight = 0;
@@ -2254,7 +2271,7 @@ namespace OpenSim.Region.Framework.Scenes
                 linkPart.LinkNum = 2;
 
                 linkPart.SetParent(this);
-                linkPart.AddFlag(PrimFlags.CreateSelected);
+                linkPart.CreateSelected = true;
 
                 //if (linkPart.PhysActor != null)
                 //{
@@ -3602,106 +3619,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             SetFromItemID(uuid);
         }
-        #endregion 
 
-        public double GetUpdatePriority(IClientAPI client)
-        {
-            switch (Scene.UpdatePrioritizationScheme)
-            {
-                case Scene.UpdatePrioritizationSchemes.Time:
-                    return GetPriorityByTime();
-                case Scene.UpdatePrioritizationSchemes.Distance:
-                    return GetPriorityByDistance(client);
-                case Scene.UpdatePrioritizationSchemes.SimpleAngularDistance:
-                    return GetPriorityBySimpleAngularDistance(client);
-                case Scenes.Scene.UpdatePrioritizationSchemes.FrontBack:
-                    return GetPriorityByFrontBack(client);
-                default:
-                    throw new InvalidOperationException("UpdatePrioritizationScheme not defined");
-            }
-        }
-
-        private double GetPriorityByTime()
-        {
-            return DateTime.Now.ToOADate();
-        }
-
-        private double GetPriorityByDistance(IClientAPI client)
-        {
-            ScenePresence presence = Scene.GetScenePresence(client.AgentId);
-            if (presence != null)
-            {
-                return GetPriorityByDistance((presence.IsChildAgent) ?
-                    presence.AbsolutePosition : presence.CameraPosition);
-            }
-            return double.NaN;
-        }
-
-        private double GetPriorityBySimpleAngularDistance(IClientAPI client)
-        {
-            ScenePresence presence = Scene.GetScenePresence(client.AgentId);
-            if (presence != null)
-            {
-                return GetPriorityBySimpleAngularDistance((presence.IsChildAgent) ?
-                    presence.AbsolutePosition : presence.CameraPosition);
-            }
-            return double.NaN;
-        }
-
-        private double GetPriorityByFrontBack(IClientAPI client)
-        {
-            ScenePresence presence = Scene.GetScenePresence(client.AgentId);
-            if (presence != null)
-            {
-                return GetPriorityByFrontBack(presence.CameraPosition, presence.CameraAtAxis);
-            }
-            return double.NaN;
-        }
-
-        public double GetPriorityByDistance(Vector3 position)
-        {
-            return Vector3.Distance(AbsolutePosition, position);
-        }
-
-        public double GetPriorityBySimpleAngularDistance(Vector3 position)
-        {
-            double distance = Vector3.Distance(position, AbsolutePosition);
-            if (distance >= double.Epsilon)
-            {
-                float height;
-                Vector3 box = GetAxisAlignedBoundingBox(out height);
-
-                double angle = box.X / distance;
-                double max = angle;
-
-                angle = box.Y / distance;
-                if (max < angle)
-                    max = angle;
-
-                angle = box.Z / distance;
-                if (max < angle)
-                    max = angle;
-
-                return -max;
-            }
-            else
-                return double.MinValue;
-        }
-
-        public double GetPriorityByFrontBack(Vector3 camPosition, Vector3 camAtAxis)
-        {
-            // Distance
-            double priority = Vector3.Distance(camPosition, AbsolutePosition);
-
-            // Scale
-            //priority -= GroupScale().Length();
-
-            // Plane equation
-            float d = -Vector3.Dot(camPosition, camAtAxis);
-            float p = Vector3.Dot(camAtAxis, AbsolutePosition) + d;
-            if (p < 0.0f) priority *= 2.0f;
-
-            return priority;
-        }
+        #endregion
     }
 }

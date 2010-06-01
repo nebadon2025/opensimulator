@@ -215,13 +215,15 @@ namespace OpenSim.Services.LLLoginService
             SetDefaultValues();
         }
 
-        public LLLoginResponse(UserAccount account, AgentCircuitData aCircuit, PresenceInfo pinfo,
+        public LLLoginResponse(UserAccount account, AgentCircuitData aCircuit, GridUserInfo pinfo,
             GridRegion destination, List<InventoryFolderBase> invSkel, FriendInfo[] friendsList, ILibraryService libService,
-            string where, string startlocation, Vector3 position, Vector3 lookAt, string message,
+            string where, string startlocation, Vector3 position, Vector3 lookAt, List<InventoryItemBase> gestures, string message,
             GridRegion home, IPEndPoint clientIP)
             : this()
         {
             FillOutInventoryData(invSkel, libService);
+
+            FillOutActiveGestures(gestures);
 
             CircuitCode = (int)aCircuit.circuitcode;
             Lastname = account.LastName;
@@ -283,7 +285,23 @@ namespace OpenSim.Services.LLLoginService
             }
         }
 
-        private void FillOutHomeData(PresenceInfo pinfo, GridRegion home)
+        private void FillOutActiveGestures(List<InventoryItemBase> gestures)
+        {
+            ArrayList list = new ArrayList();
+            if (gestures != null)
+            {
+                foreach (InventoryItemBase gesture in gestures)
+                {
+                    Hashtable item = new Hashtable();
+                    item["item_id"] = gesture.ID.ToString();
+                    item["asset_id"] = gesture.AssetID.ToString();
+                    list.Add(item);
+                }
+            }
+            ActiveGestures = list;
+        }
+
+        private void FillOutHomeData(GridUserInfo pinfo, GridRegion home)
         {
             int x = 1000 * (int)Constants.RegionSize, y = 1000 * (int)Constants.RegionSize;
             if (home != null)

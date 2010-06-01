@@ -87,9 +87,6 @@
     ; YOU HAVE BEEN WARNED!!!
     TrustBinaries = false
 
-    ; How many prims to send to each avatar in the scene on each Update()
-    ; MaxPrimsPerFrame = 200
-
     ; Combine all contiguous regions into one large region
     ; Order your regions from South to North, West to East in your regions.ini and then set this to true
     ; Warning!  Don't use this with regions that have existing content!, This will likely break them
@@ -112,9 +109,15 @@
     ;storage_plugin = "OpenSim.Data.Null.dll"
 
     ; --- To use sqlite as region storage:
-    ; NOTE: SQLite and OpenSim are not functioning properly with Mono 2.4.3 or greater.
-    ; If you are using Mono you probably should be using MySQL
+    ;
+    ; PLEASE NOTE: Unfortunately, the current SQLite database plugin (necessary to use SQLite with Mono on Linux) is 
+    ; not compatible with the sqlite3 library installed on Mac OSX.  If you're using Mono 2.4 you can still use the old sqlite
+    ; library by uncommenting the SQLiteLegacy.dll storage plugin (and commenting out SQLite.dll).  Unfortunately, the older library
+    ; will not work with Mono 2.6 on Mac OSX so you will either need to replace the OSX sqlite3 system library or use MySQL instead
+    ;
+    ; You will also need to do the same thing in config-include/StandaloneCommon.ini if you are running in standalone mode
     storage_plugin = "OpenSim.Data.SQLite.dll"
+    ;storage_plugin = "OpenSim.Data.SQLiteLegacy.dll"
     storage_connection_string="URI=file:OpenSim.db,version=3";
 
     ; --- To use MySQL storage, supply your own connection string (this is only an example):
@@ -588,6 +591,10 @@
 
 [RemoteAdmin]
     enabled = false
+
+    ; Set this to a nonzero value to have remote admin use a different port
+    port = 0
+
     access_password = unknown
 
     ; set this variable to true if you want the create_region XmlRpc
@@ -972,6 +979,12 @@
     ; Comma separated list of UUIDS allows the function for that list of UUIDS
     ; Allow_osSetRegionWaterHeight = 888760cb-a3cf-43ac-8ea4-8732fd3ee2bb
 
+    ; You can also use script creators as the uuid
+    ; Creators_osSetRegionWaterHeight = <uuid>, ...
+
+    ; If both Allow_ and Creators_ are given, effective permissions
+    ; are the union of the two.
+
     ; Allow for llCreateLink and llBreakLink to work without asking for permission
     ; only enable this in a trusted environment otherwise you may be subject to hijacking
     ; AutomaticLinkPermission = false
@@ -1228,11 +1241,6 @@
 ;; These defaults allow OpenSim to work out of the box with
 ;; zero configuration
 ;;
-[DatabaseService]
-    ;; default standalone, overridable in StandaloneCommon.ini
-    StorageProvider = "OpenSim.Data.SQLite.dll"
-
-
 [AssetService]
     DefaultAssetLoader = "OpenSim.Framework.AssetLoader.Filesystem.dll"
     AssetLoaderArgs = "assets/AssetSets.xml"

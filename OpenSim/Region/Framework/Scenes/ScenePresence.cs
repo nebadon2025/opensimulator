@@ -67,7 +67,7 @@ namespace OpenSim.Region.Framework.Scenes
 
     public delegate void SendCourseLocationsMethod(UUID scene, ScenePresence presence);
 
-    public class ScenePresence : EntityBase
+    public class ScenePresence : EntityBase, ISceneEntity
     {
 //        ~ScenePresence()
 //        {
@@ -218,7 +218,6 @@ namespace OpenSim.Region.Framework.Scenes
         private bool m_followCamAuto;
 
         private int m_movementUpdateCount;
-
         private const int NumMovementsBetweenRayCast = 5;
 
         private bool CameraConstraintActive;
@@ -479,6 +478,12 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        public Vector3 OffsetPosition
+        {
+            get { return m_pos; }
+            set { m_pos = value; }
+        }
+
         /// <summary>
         /// Current velocity of the avatar.
         /// </summary>
@@ -651,6 +656,11 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_flyDisabled = value; }
         }
 
+        public string Viewer
+        {
+            get { return m_scene.AuthenticateHandler.GetAgentCircuitData(ControllingClient.CircuitCode).Viewer; }
+        }
+
         #endregion
 
         #region Constructor(s)
@@ -773,15 +783,6 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         #endregion
-
-        /// <summary>
-        /// Add the part to the queue of parts for which we need to send an update to the client
-        /// </summary>
-        /// <param name="part"></param>
-        public void QueuePartForUpdate(SceneObjectPart part)
-        {
-            m_sceneViewer.QueuePartForUpdate(part);
-        }
 
         public uint GenerateClientFlags(UUID ObjectID)
         {
@@ -1032,8 +1033,9 @@ namespace OpenSim.Region.Framework.Scenes
                 AbsolutePosition = AbsolutePosition + new Vector3(0f, 0f, (1.56f / 6f));
             }
 
-            ControllingClient.SendAvatarTerseUpdate(new SendAvatarTerseData(m_rootRegionHandle, (ushort)(m_scene.TimeDilation * ushort.MaxValue), LocalId,
-                    AbsolutePosition, Velocity, Vector3.Zero, m_bodyRot, new Vector4(0,0,1,AbsolutePosition.Z - 0.5f), m_uuid, null, GetUpdatePriority(ControllingClient)));
+            ControllingClient.SendPrimUpdate(this, PrimUpdateFlags.Position);
+            //ControllingClient.SendAvatarTerseUpdate(new SendAvatarTerseData(m_rootRegionHandle, (ushort)(m_scene.TimeDilation * ushort.MaxValue), LocalId,
+            //        AbsolutePosition, Velocity, Vector3.Zero, m_bodyRot, new Vector4(0,0,1,AbsolutePosition.Z - 0.5f), m_uuid, null, GetUpdatePriority(ControllingClient)));
         }
 
         public void AddNeighbourRegion(ulong regionHandle, string cap)
@@ -1301,8 +1303,7 @@ namespace OpenSim.Region.Framework.Scenes
                 // Setting parent ID would fix this, if we knew what value
                 // to use.  Or we could add a m_isSitting variable.
                 //Animator.TrySetMovementAnimation("SIT_GROUND_CONSTRAINED");
-                SitGround = true;
-                
+                SitGround = true;                
             }
 
             // In the future, these values might need to go global.
@@ -1319,7 +1320,7 @@ namespace OpenSim.Region.Framework.Scenes
             
             bool update_movementflag = false;
 
-            if (m_allowMovement)
+            if (m_allowMovement && !SitGround)
             {
                 if (agentData.UseClientAgentPosition)
                 {
@@ -1661,8 +1662,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void StandUp()
         {
-            if (SitGround)
-                SitGround = false;
+            SitGround = false;
 
             if (m_parentID != 0)
             {
@@ -2356,8 +2356,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                 //m_log.DebugFormat("[SCENEPRESENCE]: TerseUpdate: Pos={0} Rot={1} Vel={2}", m_pos, m_bodyRot, m_velocity);
 
-                remoteClient.SendAvatarTerseUpdate(new SendAvatarTerseData(m_rootRegionHandle, (ushort)(m_scene.TimeDilation * ushort.MaxValue), LocalId,
-                    pos, velocity, Vector3.Zero, m_bodyRot, CollisionPlane, m_uuid, null, GetUpdatePriority(remoteClient)));
+                remoteClient.SendPrimUpdate(this, PrimUpdateFlags.Position | PrimUpdateFlags.Rotation | PrimUpdateFlags.Velocity | PrimUpdateFlags.Acceleration | PrimUpdateFlags.AngularVelocity);
 
                 m_scene.StatsReporter.AddAgentTime(Util.EnvironmentTickCountSubtract(m_perfMonMS));
                 m_scene.StatsReporter.AddAgentUpdates(1);
@@ -2453,9 +2452,7 @@ namespace OpenSim.Region.Framework.Scenes
             Vector3 pos = m_pos;
             pos.Z += m_appearance.HipOffset;
 
-            remoteAvatar.m_controllingClient.SendAvatarData(new SendAvatarData(m_regionInfo.RegionHandle, m_firstname, m_lastname, m_grouptitle, m_uuid,
-                                                            LocalId, pos, m_appearance.Texture.GetBytes(),
-                                                            m_parentID, m_bodyRot));
+            remoteAvatar.m_controllingClient.SendAvatarDataImmediate(this);
             m_scene.StatsReporter.AddAgentUpdates(1);
         }
 
@@ -2523,8 +2520,7 @@ namespace OpenSim.Region.Framework.Scenes
             Vector3 pos = m_pos;
             pos.Z += m_appearance.HipOffset;
 
-            m_controllingClient.SendAvatarData(new SendAvatarData(m_regionInfo.RegionHandle, m_firstname, m_lastname, m_grouptitle, m_uuid, LocalId,
-                                               pos, m_appearance.Texture.GetBytes(), m_parentID, m_bodyRot));
+            m_controllingClient.SendAvatarDataImmediate(this);
 
             SendInitialFullUpdateToAllClients();
             SendAppearanceToAllOtherAgents();
@@ -2634,9 +2630,7 @@ namespace OpenSim.Region.Framework.Scenes
             Vector3 pos = m_pos;
             pos.Z += m_appearance.HipOffset;
 
-            m_controllingClient.SendAvatarData(new SendAvatarData(m_regionInfo.RegionHandle, m_firstname, m_lastname, m_grouptitle, m_uuid, LocalId,
-                pos, m_appearance.Texture.GetBytes(), m_parentID, m_bodyRot));
-
+            m_controllingClient.SendAvatarDataImmediate(this);
         }
 
         public void SetWearable(int wearableId, AvatarWearable wearable)
@@ -3772,123 +3766,9 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public double GetUpdatePriority(IClientAPI client)
-        {
-            switch (Scene.UpdatePrioritizationScheme)
-            {
-                case Scene.UpdatePrioritizationSchemes.Time:
-                    return GetPriorityByTime();
-                case Scene.UpdatePrioritizationSchemes.Distance:
-                    return GetPriorityByDistance(client);
-                case Scene.UpdatePrioritizationSchemes.SimpleAngularDistance:
-                    return GetPriorityByDistance(client);
-                case Scenes.Scene.UpdatePrioritizationSchemes.FrontBack:
-                    return GetPriorityByFrontBack(client);
-                default:
-                    throw new InvalidOperationException("UpdatePrioritizationScheme not defined.");
-            }
-        }
-
-        private double GetPriorityByTime()
-        {
-            return DateTime.Now.ToOADate();
-        }
-
-        private double GetPriorityByDistance(IClientAPI client)
-        {
-            ScenePresence presence = Scene.GetScenePresence(client.AgentId);
-            if (presence != null)
-            {
-                return GetPriorityByDistance((presence.IsChildAgent) ?
-                    presence.AbsolutePosition : presence.CameraPosition);
-            }
-            return double.NaN;
-        }
-
-        private double GetPriorityByFrontBack(IClientAPI client)
-        {
-            ScenePresence presence = Scene.GetScenePresence(client.AgentId);
-            if (presence != null)
-            {
-                return GetPriorityByFrontBack(presence.CameraPosition, presence.CameraAtAxis);
-            }
-            return double.NaN;
-        }
-
-        private double GetPriorityByDistance(Vector3 position)
-        {
-            return Vector3.Distance(AbsolutePosition, position);
-        }
-
-        private double GetPriorityByFrontBack(Vector3 camPosition, Vector3 camAtAxis)
-        {
-            // Distance
-            double priority = Vector3.Distance(camPosition, AbsolutePosition);
-
-            // Plane equation
-            float d = -Vector3.Dot(camPosition, camAtAxis);
-            float p = Vector3.Dot(camAtAxis, AbsolutePosition) + d;
-            if (p < 0.0f) priority *= 2.0f;
-
-            return priority;
-        }
-
-        private double GetSOGUpdatePriority(SceneObjectGroup sog)
-        {
-            switch (Scene.UpdatePrioritizationScheme)
-            {
-                case Scene.UpdatePrioritizationSchemes.Time:
-                    throw new InvalidOperationException("UpdatePrioritizationScheme for time not supported for reprioritization");
-                case Scene.UpdatePrioritizationSchemes.Distance:
-                    return sog.GetPriorityByDistance((IsChildAgent) ? AbsolutePosition : CameraPosition);
-                case Scene.UpdatePrioritizationSchemes.SimpleAngularDistance:
-                    return sog.GetPriorityBySimpleAngularDistance((IsChildAgent) ? AbsolutePosition : CameraPosition);
-                case Scenes.Scene.UpdatePrioritizationSchemes.FrontBack:
-                    return sog.GetPriorityByFrontBack(CameraPosition, CameraAtAxis);
-                default:
-                    throw new InvalidOperationException("UpdatePrioritizationScheme not defined");
-            }
-        }
-
-        private double UpdatePriority(UpdatePriorityData data)
-        {
-            EntityBase entity;
-            SceneObjectGroup group;
-
-            if (Scene.Entities.TryGetValue(data.localID, out entity))
-            {
-                group = entity as SceneObjectGroup;
-                if (group != null)
-                    return GetSOGUpdatePriority(group);
-
-                ScenePresence presence = entity as ScenePresence;
-                if (presence == null)
-                    throw new InvalidOperationException("entity found is neither SceneObjectGroup nor ScenePresence");
-                switch (Scene.UpdatePrioritizationScheme)
-                {
-                    case Scene.UpdatePrioritizationSchemes.Time:
-                        throw new InvalidOperationException("UpdatePrioritization for time not supported for reprioritization");
-                    case Scene.UpdatePrioritizationSchemes.Distance:
-                    case Scene.UpdatePrioritizationSchemes.SimpleAngularDistance:
-                        return GetPriorityByDistance((IsChildAgent) ? AbsolutePosition : CameraPosition);
-                    case Scenes.Scene.UpdatePrioritizationSchemes.FrontBack:
-                        return GetPriorityByFrontBack(CameraPosition, CameraAtAxis);
-                    default:
-                        throw new InvalidOperationException("UpdatePrioritizationScheme not defined");
-                }
-            }
-            else
-            {
-                group = Scene.GetGroupByPrim(data.localID);
-                if (group != null)
-                    return GetSOGUpdatePriority(group);
-            }
-            return double.NaN;
-        }
-
         private void ReprioritizeUpdates()
         {
-            if (Scene.IsReprioritizationEnabled && Scene.UpdatePrioritizationScheme != Scene.UpdatePrioritizationSchemes.Time)
+            if (Scene.IsReprioritizationEnabled && Scene.UpdatePrioritizationScheme != UpdatePrioritizationSchemes.Time)
             {
                 lock (m_reprioritization_timer)
                 {
@@ -3902,7 +3782,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         private void Reprioritize(object sender, ElapsedEventArgs e)
         {
-            m_controllingClient.ReprioritizeUpdates(StateUpdateTypes.All, UpdatePriority);
+            m_controllingClient.ReprioritizeUpdates();
 
             lock (m_reprioritization_timer)
             {

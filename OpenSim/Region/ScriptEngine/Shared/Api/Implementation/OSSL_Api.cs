@@ -105,6 +105,18 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
     //            modification of user data, or allows the compromise of
     //            sensitive data by design.
 
+    class FunctionPerms
+    {
+        public List<UUID> AllowedCreators;
+        public List<UUID> AllowedOwners;
+
+        public FunctionPerms()
+        {
+            AllowedCreators = new List<UUID>();
+            AllowedOwners = new List<UUID>();
+        }
+    }
+
     [Serializable]
     public class OSSL_Api : MarshalByRefObject, IOSSL_Api, IScriptApi
     {
@@ -117,7 +129,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         internal ThreatLevel m_MaxThreatLevel = ThreatLevel.VeryLow;
         internal float m_ScriptDelayFactor = 1.0f;
         internal float m_ScriptDistanceFactor = 1.0f;
-        internal Dictionary<string, List<UUID> > m_FunctionPerms = new Dictionary<string, List<UUID> >();
+        internal Dictionary<string, FunctionPerms > m_FunctionPerms = new Dictionary<string, FunctionPerms >();
 
         public void Initialize(IScriptEngine ScriptEngine, SceneObjectPart host, uint localID, UUID itemID)
         {
@@ -217,31 +229,33 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             if (!m_FunctionPerms.ContainsKey(function))
             {
-                string perm = m_ScriptEngine.Config.GetString("Allow_" + function, "");
-                if (perm == "")
+                FunctionPerms perms = new FunctionPerms();
+                m_FunctionPerms[function] = perms;
+
+                string ownerPerm = m_ScriptEngine.Config.GetString("Allow_" + function, "");
+                string creatorPerm = m_ScriptEngine.Config.GetString("Creators_" + function, "");
+                if (ownerPerm == "" && creatorPerm == "")
                 {
-                    m_FunctionPerms[function] = null; // a null value is default
+                    // Default behavior
+                    perms.AllowedOwners = null;
+                    perms.AllowedCreators = null;
                 }
                 else
                 {
                     bool allowed;
 
-                    if (bool.TryParse(perm, out allowed))
+                    if (bool.TryParse(ownerPerm, out allowed))
                     {
                         // Boolean given
                         if (allowed)
                         {
-                            m_FunctionPerms[function] = new List<UUID>();
-                            m_FunctionPerms[function].Add(UUID.Zero);
+                            // Allow globally
+                            perms.AllowedOwners.Add(UUID.Zero);
                         }
-                        else
-                            m_FunctionPerms[function] = new List<UUID>(); // Empty list = none
                     }
                     else
                     {
-                        m_FunctionPerms[function] = new List<UUID>();
-
-                        string[] ids = perm.Split(new char[] {','});
+                        string[] ids = ownerPerm.Split(new char[] {','});
                         foreach (string id in ids)
                         {
                             string current = id.Trim();
@@ -250,7 +264,20 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             if (UUID.TryParse(current, out uuid))
                             {
                                 if (uuid != UUID.Zero)
-                                    m_FunctionPerms[function].Add(uuid);
+                                    perms.AllowedOwners.Add(uuid);
+                            }
+                        }
+
+                        ids = creatorPerm.Split(new char[] {','});
+                        foreach (string id in ids)
+                        {
+                            string current = id.Trim();
+                            UUID uuid;
+
+                            if (UUID.TryParse(current, out uuid))
+                            {
+                                if (uuid != UUID.Zero)
+                                    perms.AllowedCreators.Add(uuid);
                             }
                         }
                     }
@@ -266,8 +293,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             //
             // To allow use by anyone, the list contains UUID.Zero
             //
-            if (m_FunctionPerms[function] == null) // No list = true
+            if (m_FunctionPerms[function].AllowedOwners == null)
             {
+                // Allow / disallow by threat level
                 if (level > m_MaxThreatLevel)
                     OSSLError(
                         String.Format(
@@ -276,12 +304,34 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
             else
             {
-                if (!m_FunctionPerms[function].Contains(UUID.Zero))
+                if (!m_FunctionPerms[function].AllowedOwners.Contains(UUID.Zero))
                 {
-                    if (!m_FunctionPerms[function].Contains(m_host.OwnerID))
+                    // Not anyone. Do detailed checks
+                    if (m_FunctionPerms[function].AllowedOwners.Contains(m_host.OwnerID))
+                    {
+                        // prim owner is in the list of allowed owners
+                        return;
+                    }
+
+                    TaskInventoryItem ti = m_host.Inventory.GetInventoryItem(m_itemID);
+                    if (ti == null)
+                    {
                         OSSLError(
-                            String.Format("{0} permission denied.  Prim owner is not in the list of users allowed to execute this function.",
+                            String.Format("{0} permission error. Can't find script in prim inventory.",
                             function));
+                    }
+                    if (!m_FunctionPerms[function].AllowedCreators.Contains(ti.CreatorID))
+                        OSSLError(
+                            String.Format("{0} permission denied. Script creator is not in the list of users allowed to execute this function and prim owner also has no permission.",
+                            function));
+                    if (ti.CreatorID != ti.OwnerID)
+                    {
+                        if ((ti.CurrentPermissions & (uint)PermissionMask.Modify) != 0)
+                            OSSLError(
+                                String.Format("{0} permission denied. Script permissions error.",
+                                function));
+
+                    }
                 }
             }
         }
@@ -1129,7 +1179,89 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             return 0.0f;
         }
 
+        // Routines for creating and managing parcels programmatically
+        public void osParcelJoin(LSL_Vector pos1, LSL_Vector pos2)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osParcelJoin");
+            m_host.AddScriptLPS(1);
 
+            int startx = (int)(pos1.x < pos2.x ? pos1.x : pos2.x);
+            int starty = (int)(pos1.y < pos2.y ? pos1.y : pos2.y);
+            int endx = (int)(pos1.x > pos2.x ? pos1.x : pos2.x);
+            int endy = (int)(pos1.y > pos2.y ? pos1.y : pos2.y);
+
+            World.LandChannel.Join(startx,starty,endx,endy,m_host.OwnerID);
+        }
+          
+        public void osParcelSubdivide(LSL_Vector pos1, LSL_Vector pos2)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osParcelSubdivide");
+            m_host.AddScriptLPS(1);
+
+            int startx = (int)(pos1.x < pos2.x ? pos1.x : pos2.x);
+            int starty = (int)(pos1.y < pos2.y ? pos1.y : pos2.y);
+            int endx = (int)(pos1.x > pos2.x ? pos1.x : pos2.x);
+            int endy = (int)(pos1.y > pos2.y ? pos1.y : pos2.y);
+
+            World.LandChannel.Subdivide(startx,starty,endx,endy,m_host.OwnerID);
+        }
+
+        public void osParcelSetDetails(LSL_Vector pos, LSL_List rules)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osParcelSetDetails");
+            m_host.AddScriptLPS(1);
+
+            // Get a reference to the land data and make sure the owner of the script
+            // can modify it
+
+            ILandObject startLandObject = World.LandChannel.GetLandObject((int)pos.x, (int)pos.y);
+	    if (startLandObject == null)
+            {
+                OSSLShoutError("There is no land at that location");
+                return;
+            }
+
+            if (! World.Permissions.CanEditParcel(m_host.OwnerID, startLandObject))
+            {
+                OSSLShoutError("You do not have permission to modify the parcel");
+                return;
+            }
+
+            // Create a new land data object we can modify
+            LandData newLand = startLandObject.LandData.Copy();
+            UUID uuid;
+
+            // Process the rules, not sure what the impact would be of changing owner or group
+            for (int idx = 0; idx < rules.Length; )
+            {
+                int code = rules.GetLSLIntegerItem(idx++);
+                string arg = rules.GetLSLStringItem(idx++);
+                switch (code)
+                {
+                    case 0:
+                      newLand.Name = arg;
+                      break;
+
+                    case 1:
+                      newLand.Description = arg;
+                      break;
+
+                    case 2:
+                      CheckThreatLevel(ThreatLevel.VeryHigh, "osParcelSetDetails");
+                      if (UUID.TryParse(arg , out uuid))
+                          newLand.OwnerID = uuid;
+                      break;
+
+                    case 3:
+                      CheckThreatLevel(ThreatLevel.VeryHigh, "osParcelSetDetails");
+                      if (UUID.TryParse(arg , out uuid))
+                          newLand.GroupID = uuid;
+                      break;
+                }
+            }
+
+            World.LandChannel.UpdateLandObject(newLand.LocalID,newLand);
+        }
 
         public double osList2Double(LSL_Types.list src, int index)
         {

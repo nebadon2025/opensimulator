@@ -382,29 +382,31 @@ namespace OpenSim.Region.Framework.Scenes
                 itemCopy.InvType = item.InvType;
                 itemCopy.Folder = recipientFolderId;
 
-                if (Permissions.PropagatePermissions())
+                if (Permissions.PropagatePermissions() && recipient != senderId)
                 {
+                    // First, make sore base is limited to the next perms
+                    itemCopy.BasePermissions = item.BasePermissions & item.NextPermissions;
+                    // By default, current equals base
+                    itemCopy.CurrentPermissions = itemCopy.BasePermissions;
+
+                    // If this is an object, replace current perms
+                    // with folded perms
                     if (item.InvType == (int)InventoryType.Object)
                     {
-                        itemCopy.BasePermissions &= ~(uint)(PermissionMask.Copy | PermissionMask.Modify | PermissionMask.Transfer);
-                        itemCopy.BasePermissions |= (item.CurrentPermissions & 7) << 13;
-                    }
-                    else
-                    {
-                        itemCopy.BasePermissions = item.BasePermissions & item.NextPermissions;
+                        itemCopy.CurrentPermissions &= ~(uint)(PermissionMask.Copy | PermissionMask.Modify | PermissionMask.Transfer);
+                        itemCopy.CurrentPermissions |= (item.CurrentPermissions & 7) << 13;
                     }
 
-                    itemCopy.CurrentPermissions = itemCopy.BasePermissions;
-                    if ((item.CurrentPermissions & 8) != 0) // Propagate slam bit
-                    {
-                        itemCopy.BasePermissions &= item.NextPermissions;
-                        itemCopy.CurrentPermissions = itemCopy.BasePermissions;
-                        itemCopy.CurrentPermissions |= 8;
-                    }
+                    // Ensure there is no escalation
+                    itemCopy.CurrentPermissions &= item.NextPermissions;
+
+                    // Need slam bit on xfer
+                    itemCopy.CurrentPermissions |= 8;
 
                     itemCopy.NextPermissions = item.NextPermissions;
-                    itemCopy.EveryOnePermissions = item.EveryOnePermissions & item.NextPermissions;
-                    itemCopy.GroupPermissions = item.GroupPermissions & item.NextPermissions;
+
+                    itemCopy.EveryOnePermissions = 0;
+                    itemCopy.GroupPermissions = 0;
                 }
                 else
                 {
@@ -415,6 +417,25 @@ namespace OpenSim.Region.Framework.Scenes
                     itemCopy.BasePermissions = item.BasePermissions;
                 }
                 
+                if (itemCopy.Folder == UUID.Zero)
+                {
+                    InventoryFolderBase folder = InventoryService.GetFolderForType(recipient, (AssetType)itemCopy.AssetType);
+
+                    if (folder != null)
+                    {
+                        itemCopy.Folder = folder.ID;
+                    }
+                    else
+                    {
+                        InventoryFolderBase root = InventoryService.GetRootFolder(recipient);
+
+                        if (root != null)
+                            itemCopy.Folder = root.ID;
+                        else
+                            return null; // No destination
+                    }
+                }
+
                 itemCopy.GroupID = UUID.Zero;
                 itemCopy.GroupOwned = false;
                 itemCopy.Flags = item.Flags;
@@ -876,12 +897,12 @@ namespace OpenSim.Region.Framework.Scenes
 
             if ((part.OwnerID != destAgent) && Permissions.PropagatePermissions())
             {
+                agentItem.BasePermissions = taskItem.BasePermissions & taskItem.NextPermissions;
                 if (taskItem.InvType == (int)InventoryType.Object)
-                    agentItem.BasePermissions = taskItem.BasePermissions & ((taskItem.CurrentPermissions & 7) << 13);
-                else
-                    agentItem.BasePermissions = taskItem.BasePermissions;
-                agentItem.BasePermissions &= taskItem.NextPermissions;
-                agentItem.CurrentPermissions = agentItem.BasePermissions | 8;
+                    agentItem.CurrentPermissions = agentItem.BasePermissions & ((taskItem.CurrentPermissions & 7) << 13);
+                    agentItem.CurrentPermissions = agentItem.BasePermissions ;
+
+                agentItem.CurrentPermissions |= 8;
                 agentItem.NextPermissions = taskItem.NextPermissions;
                 agentItem.EveryOnePermissions = taskItem.EveryonePermissions & taskItem.NextPermissions;
                 agentItem.GroupPermissions = taskItem.GroupPermissions & taskItem.NextPermissions;
@@ -1135,6 +1156,21 @@ namespace OpenSim.Region.Framework.Scenes
             if (folder == null)
                 return;
 
+            // TODO: This code for looking in the folder for the library should be folded somewhere else
+            // so that this class doesn't have to know the details (and so that multiple libraries, etc.
+            // can be handled transparently).
+            InventoryFolderImpl fold = null;
+            if (LibraryService != null && LibraryService.LibraryRootFolder != null)
+            {
+                if ((fold = LibraryService.LibraryRootFolder.FindFolder(folder.ID)) != null)
+                {
+                    client.SendInventoryFolderDetails(
+                        fold.Owner, folder.ID, fold.RequestListOfItems(),
+                        fold.RequestListOfFolders(), fold.Version, fetchFolders, fetchItems);
+                    return;
+                }
+            }
+
             // Fetch the folder contents
             InventoryCollection contents = InventoryService.GetFolderContent(client.AgentId, folder.ID);
 
@@ -1145,7 +1181,7 @@ namespace OpenSim.Region.Framework.Scenes
             //m_log.DebugFormat("[AGENT INVENTORY]: Sending inventory folder contents ({0} nodes) for \"{1}\" to {2} {3}",
             //    contents.Folders.Count + contents.Items.Count, containingFolder.Name, client.FirstName, client.LastName);
 
-            if (containingFolder != null)
+            if (containingFolder != null && containingFolder != null)
                 client.SendInventoryFolderDetails(client.AgentId, folder.ID, contents.Items, contents.Folders, containingFolder.Version, fetchFolders, fetchItems);
         }
 
@@ -1495,79 +1531,101 @@ namespace OpenSim.Region.Framework.Scenes
         public virtual void DeRezObject(IClientAPI remoteClient, uint localID,
                 UUID groupID, DeRezAction action, UUID destinationID)
         {
-            SceneObjectPart part = GetSceneObjectPart(localID);
-            if (part == null)
-                return;
+            DeRezObjects(remoteClient, new List<uint>() { localID} , groupID, action, destinationID);
+        }
 
-            if (part.ParentGroup == null || part.ParentGroup.IsDeleted)
-                return;
+        public virtual void DeRezObjects(IClientAPI remoteClient, List<uint> localIDs,
+                UUID groupID, DeRezAction action, UUID destinationID)
+        {
+            // First, see of we can perform the requested action and
+            // build a list of eligible objects
+            List<uint> deleteIDs = new List<uint>();
+            List<SceneObjectGroup> deleteGroups = new List<SceneObjectGroup>();
 
-            // Can't delete child prims
-            if (part != part.ParentGroup.RootPart)
-                return;
+            // Start with true for both, then remove the flags if objects
+            // that we can't derez are part of the selection
+            bool permissionToTake = true;
+            bool permissionToTakeCopy = true;
+            bool permissionToDelete = true;
 
-            SceneObjectGroup grp = part.ParentGroup;
-
-            //force a database backup/update on this SceneObjectGroup
-            //So that we know the database is upto date, for when deleting the object from it
-            ForceSceneObjectBackup(grp);
-
-            bool permissionToTake = false;
-            bool permissionToDelete = false;
-
-            if (action == DeRezAction.SaveToExistingUserInventoryItem)
+            foreach (uint localID in localIDs)
             {
-                if (grp.OwnerID == remoteClient.AgentId && grp.RootPart.FromUserInventoryItemID != UUID.Zero)
-                {
-                    permissionToTake = true;
+                // Invalid id
+                SceneObjectPart part = GetSceneObjectPart(localID);
+                if (part == null)
+                    continue;
+
+                // Already deleted by someone else
+                if (part.ParentGroup == null || part.ParentGroup.IsDeleted)
+                    continue;
+
+                // Can't delete child prims
+                if (part != part.ParentGroup.RootPart)
+                    continue;
+
+                SceneObjectGroup grp = part.ParentGroup;
+
+                deleteIDs.Add(localID);
+                deleteGroups.Add(grp);
+
+                // Force a database backup/update on this SceneObjectGroup
+                // So that we know the database is upto date,
+                // for when deleting the object from it
+                ForceSceneObjectBackup(grp);
+
+                if (!Permissions.CanTakeCopyObject(grp.UUID, remoteClient.AgentId))
+                    permissionToTakeCopy = false;
+                if (!Permissions.CanTakeObject(grp.UUID, remoteClient.AgentId))
+                    permissionToTake = false;
+
+                if (!Permissions.CanDeleteObject(grp.UUID, remoteClient.AgentId))
                     permissionToDelete = false;
-                }
-            }
-            else if (action == DeRezAction.TakeCopy)
-            {
-                permissionToTake =
-                        Permissions.CanTakeCopyObject(
-                        grp.UUID,
-                        remoteClient.AgentId);
-            }
-            else if (action == DeRezAction.GodTakeCopy)
-            {
-                permissionToTake =
-                        Permissions.IsGod(
-                        remoteClient.AgentId);
-            }
-            else if (action == DeRezAction.Take)
-            {
-                permissionToTake =
-                        Permissions.CanTakeObject(
-                        grp.UUID,
-                        remoteClient.AgentId);
 
-                //If they can take, they can delete!
-                permissionToDelete = permissionToTake;
             }
-            else if (action == DeRezAction.Delete)
+
+            // Handle god perms
+            if (Permissions.IsGod(remoteClient.AgentId))
             {
-                permissionToTake =
-                        Permissions.CanDeleteObject(
-                        grp.UUID,
-                        remoteClient.AgentId);
-                permissionToDelete = permissionToTake;
+                permissionToTake = true;
+                permissionToTakeCopy = true;
+                permissionToDelete = true;
             }
-            else if (action == DeRezAction.Return)
+
+            // If we're re-saving, we don't even want to delete
+            if (action == DeRezAction.SaveToExistingUserInventoryItem)
+                permissionToDelete = false;
+
+            // if we want to take a copy,, we also don't want to delete
+            // Note: after this point, the permissionToTakeCopy flag
+            // becomes irrelevant. It already includes the permissionToTake
+            // permission and after excluding no copy items here, we can
+            // just use that.
+            if (action == DeRezAction.TakeCopy)
+            {
+                // If we don't have permission, stop right here
+                if (!permissionToTakeCopy)
+                    return;
+
+                // Don't delete
+                permissionToDelete = false;
+            }
+
+            if (action == DeRezAction.Return)
             {
                 if (remoteClient != null)
                 {
-                    permissionToTake =
-                            Permissions.CanReturnObjects(
+                    if (Permissions.CanReturnObjects(
                                     null,
                                     remoteClient.AgentId,
-                                    new List<SceneObjectGroup>() {grp});
-                    permissionToDelete = permissionToTake;
-
-                    if (permissionToDelete)
+                                    deleteGroups))
                     {
-                        AddReturn(grp.OwnerID, grp.Name, grp.AbsolutePosition, "parcel owner return");
+                        permissionToTake = true;
+                        permissionToDelete = true;
+
+                        foreach (SceneObjectGroup g in deleteGroups)
+                        {
+                            AddReturn(g.OwnerID, g.Name, g.AbsolutePosition, "parcel owner return");
+                        }
                     }
                 }
                 else // Auto return passes through here with null agent
@@ -1576,22 +1634,17 @@ namespace OpenSim.Region.Framework.Scenes
                     permissionToDelete = true;
                 }
             }
-            else
-            {
-                m_log.DebugFormat(
-                    "[AGENT INVENTORY]: Ignoring unexpected derez action {0} for {1}", action, remoteClient.Name);
-                return;
-            }
 
             if (permissionToTake)
             {
                 m_asyncSceneObjectDeleter.DeleteToInventory(
-                        action, destinationID, grp, remoteClient,
+                        action, destinationID, deleteGroups, remoteClient,
                         permissionToDelete);
             }
             else if (permissionToDelete)
             {
-                DeleteSceneObject(grp, false);
+                foreach (SceneObjectGroup g in deleteGroups)
+                    DeleteSceneObject(g, false);
             }
         }
 
@@ -1940,6 +1993,74 @@ namespace OpenSim.Region.Framework.Scenes
                 SceneObjectPart part = GetSceneObjectPart(localID);
                 part.GetProperties(remoteClient);
             }
+        }
+
+        public void DelinkObjects(List<uint> primIds, IClientAPI client)
+        {
+            List<SceneObjectPart> parts = new List<SceneObjectPart>();
+
+            foreach (uint localID in primIds)
+            {
+                SceneObjectPart part = GetSceneObjectPart(localID);
+
+                if (part == null)
+                    continue;
+
+                if (Permissions.CanDelinkObject(client.AgentId, part.ParentGroup.RootPart.UUID))
+                    parts.Add(part);
+            }
+
+            m_sceneGraph.DelinkObjects(parts);
+        }
+
+        public void LinkObjects(IClientAPI client, uint parentPrimId, List<uint> childPrimIds)
+        {
+            List<UUID> owners = new List<UUID>();
+
+            List<SceneObjectPart> children = new List<SceneObjectPart>();
+            SceneObjectPart root = GetSceneObjectPart(parentPrimId);
+
+            if (root == null)
+            {
+                m_log.DebugFormat("[LINK]: Can't find linkset root prim {0{", parentPrimId);
+                return;
+            }
+
+            if (!Permissions.CanLinkObject(client.AgentId, root.ParentGroup.RootPart.UUID))
+            {
+                m_log.DebugFormat("[LINK]: Refusing link. No permissions on root prim");
+                return;
+            }
+
+            foreach (uint localID in childPrimIds)
+            {
+                SceneObjectPart part = GetSceneObjectPart(localID);
+
+                if (part == null)
+                    continue;
+
+                if (!owners.Contains(part.OwnerID))
+                    owners.Add(part.OwnerID);
+
+                if (Permissions.CanLinkObject(client.AgentId, part.ParentGroup.RootPart.UUID))
+                    children.Add(part);
+            }
+
+            // Must be all one owner
+            //
+            if (owners.Count > 1)
+            {
+                m_log.DebugFormat("[LINK]: Refusing link. Too many owners");
+                return;
+            }
+
+            if (children.Count == 0)
+            {
+                m_log.DebugFormat("[LINK]: Refusing link. No permissions to link any of the children");
+                return;
+            }
+
+            m_sceneGraph.LinkObjects(root, children);
         }
     }
 }

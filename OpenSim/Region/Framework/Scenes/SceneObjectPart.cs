@@ -104,7 +104,7 @@ namespace OpenSim.Region.Framework.Scenes
 
     #endregion Enumerations
 
-    public class SceneObjectPart : IScriptHost
+    public class SceneObjectPart : IScriptHost, ISceneEntity
     {
         /// <value>
         /// Denote all sides of the prim
@@ -387,7 +387,7 @@ namespace OpenSim.Region.Framework.Scenes
             // the prim into an agent inventory (Linden client reports that the "Object not found for drop" in its log
 
             _flags = 0;
-            _flags |= PrimFlags.CreateSelected;
+            CreateSelected = true;
 
             TrimPermissions();
             //m_undo = new UndoStack<UndoState>(ParentGroup.GetSceneMaxUndo());
@@ -417,6 +417,7 @@ namespace OpenSim.Region.Framework.Scenes
         private PrimFlags _flags = 0;
         private DateTime m_expires;
         private DateTime m_rezzed;
+        private bool m_createSelected = false;
 
         public UUID CreatorID 
         {
@@ -712,6 +713,24 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        public Vector3 RelativePosition
+        {
+            get
+            {
+                if (IsRoot)
+                {
+                    if (IsAttachment)
+                        return AttachedPos;
+                    else
+                        return AbsolutePosition;
+                }
+                else
+                {
+                    return OffsetPosition;
+                }
+            }
+        }
+
         public Quaternion RotationOffset
         {
             get
@@ -949,6 +968,13 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_updateFlag = value; }
         }
 
+        [XmlIgnore]
+        public bool CreateSelected
+        {
+            get { return m_createSelected; }
+            set { m_createSelected = value; }
+        }
+
         #endregion
 
 //---------------
@@ -972,7 +998,6 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return AggregateScriptEvents; }
         }
-
 
         public Quaternion SitTargetOrientation
         {
@@ -1261,10 +1286,13 @@ namespace OpenSim.Region.Framework.Scenes
         {
             m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
             {
-                avatar.SceneViewer.QueuePartForUpdate(this);
+                AddFullUpdateToAvatar(avatar);
             });
         }
 
+        /// <summary>
+        /// Tell the scene presence that it should send updates for this part to its client
+        /// </summary>        
         public void AddFullUpdateToAvatar(ScenePresence presence)
         {
             presence.SceneViewer.QueuePartForUpdate(this);
@@ -1285,7 +1313,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             m_parentGroup.Scene.ForEachScenePresence(delegate(ScenePresence avatar)
             {
-                avatar.SceneViewer.QueuePartForUpdate(this);
+                AddTerseUpdateToAvatar(avatar);
             });
         }
 
@@ -2925,11 +2953,7 @@ namespace OpenSim.Region.Framework.Scenes
             //if (LocalId != ParentGroup.RootPart.LocalId)
                 //isattachment = ParentGroup.RootPart.IsAttachment;
 
-            byte[] color = new byte[] {m_color.R, m_color.G, m_color.B, m_color.A};
-            remoteClient.SendPrimitiveToClient(new SendPrimitiveData(m_regionHandle, m_parentGroup.GetTimeDilation(), LocalId, m_shape,
-                                               lPos, Velocity, Acceleration, RotationOffset, AngularVelocity, clientFlags, m_uuid, _ownerID,
-                                               m_text, color, _parentID, m_particleSystem, m_clickAction, (byte)m_material, m_TextureAnimation, IsAttachment,
-                                               AttachmentPoint,FromItemID, Sound, SoundGain, SoundFlags, SoundRadius, ParentGroup.GetUpdatePriority(remoteClient)));
+            remoteClient.SendPrimUpdate(this, PrimUpdateFlags.FullUpdate);
         }
 
         /// <summary>
@@ -3466,7 +3490,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="alpha"></param>
         public void SetText(string text, Vector3 color, double alpha)
         {
-            Color = Color.FromArgb(0xff - (int) (alpha*0xff),
+            Color = Color.FromArgb((int) (alpha*0xff),
                                    (int) (color.X*0xff),
                                    (int) (color.Y*0xff),
                                    (int) (color.Z*0xff));
@@ -4640,11 +4664,7 @@ namespace OpenSim.Region.Framework.Scenes
             
             // Causes this thread to dig into the Client Thread Data.
             // Remember your locking here!
-            remoteClient.SendPrimTerseUpdate(new SendPrimitiveTerseData(m_regionHandle,
-                    m_parentGroup.GetTimeDilation(), LocalId, lPos,
-                    RotationOffset, Velocity, Acceleration,
-                    AngularVelocity, FromItemID,
-                    OwnerID, (int)AttachmentPoint, null, ParentGroup.GetUpdatePriority(remoteClient)));
+            remoteClient.SendPrimUpdate(this, PrimUpdateFlags.Position | PrimUpdateFlags.Rotation | PrimUpdateFlags.Velocity | PrimUpdateFlags.Acceleration | PrimUpdateFlags.AngularVelocity);
         }
                 
         public void AddScriptLPS(int count)
@@ -4694,7 +4714,8 @@ namespace OpenSim.Region.Framework.Scenes
 
         public Color4 GetTextColor()
         {
-            return new Color4((byte)Color.R, (byte)Color.G, (byte)Color.B, (byte)(0xFF - Color.A));
+            Color color = Color;
+            return new Color4(color.R, color.G, color.B, (byte)(0xFF - color.A));
         }
     }
 }

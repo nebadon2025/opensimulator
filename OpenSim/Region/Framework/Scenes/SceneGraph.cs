@@ -70,7 +70,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         protected object m_presenceLock = new object();
         protected Dictionary<UUID, ScenePresence> m_scenePresenceMap = new Dictionary<UUID, ScenePresence>();
-        protected ScenePresence[] m_scenePresenceArray = new ScenePresence[0];
+        protected List<ScenePresence> m_scenePresenceArray = new List<ScenePresence>();
 
         // SceneObjects is not currently populated or used.
         //public Dictionary<UUID, SceneObjectGroup> SceneObjects;
@@ -136,9 +136,9 @@ namespace OpenSim.Region.Framework.Scenes
             lock (m_presenceLock)
             {
                 Dictionary<UUID, ScenePresence> newmap = new Dictionary<UUID, ScenePresence>();
-                ScenePresence[] newarray = new ScenePresence[0];
+                List<ScenePresence> newlist = new List<ScenePresence>();
                 m_scenePresenceMap = newmap;
-                m_scenePresenceArray = newarray;
+                m_scenePresenceArray = newlist;
             }
 
             lock (m_dictionary_lock)
@@ -278,61 +278,64 @@ namespace OpenSim.Region.Framework.Scenes
             if (sceneObject == null || sceneObject.RootPart == null || sceneObject.RootPart.UUID == UUID.Zero)
                 return false;
 
-            bool alreadyExisted = false;
-            
-            if (m_parentScene.m_clampPrimSize)
-            {
-                foreach (SceneObjectPart part in sceneObject.Children.Values)
-                {
-                    Vector3 scale = part.Shape.Scale;
-
-                    if (scale.X > m_parentScene.m_maxNonphys)
-                        scale.X = m_parentScene.m_maxNonphys;
-                    if (scale.Y > m_parentScene.m_maxNonphys)
-                        scale.Y = m_parentScene.m_maxNonphys;
-                    if (scale.Z > m_parentScene.m_maxNonphys)
-                        scale.Z = m_parentScene.m_maxNonphys;
-
-                    part.Shape.Scale = scale;
-                }
-            }
-
-            sceneObject.AttachToScene(m_parentScene);
-
-            if (sendClientUpdates)
-                sceneObject.ScheduleGroupForFullUpdate();
-
             lock (sceneObject)
-            {
-                if (!Entities.ContainsKey(sceneObject.UUID))
+            {            
+                if (Entities.ContainsKey(sceneObject.UUID))
                 {
-                    Entities.Add(sceneObject);
-                    m_numPrim += sceneObject.Children.Count;
-
-                    if (attachToBackup)
-                        sceneObject.AttachToBackup();
-
-                    if (OnObjectCreate != null)
-                        OnObjectCreate(sceneObject);
-                    
-                    lock (m_dictionary_lock)
+//                    m_log.WarnFormat(
+//                        "[SCENE GRAPH]: Scene object {0} {1} was already in region {2} on add request", 
+//                        sceneObject.Name, sceneObject.UUID, m_parentScene.RegionInfo.RegionName);                    
+                    return false;
+                }
+                   
+//                    m_log.DebugFormat(
+//                        "[SCENE GRAPH]: Adding object {0} {1} to region {2}", 
+//                        sceneObject.Name, sceneObject.UUID, m_parentScene.RegionInfo.RegionName);                
+            
+                if (m_parentScene.m_clampPrimSize)
+                {
+                    foreach (SceneObjectPart part in sceneObject.Children.Values)
                     {
-                        SceneObjectGroupsByFullID[sceneObject.UUID] = sceneObject;
-                        SceneObjectGroupsByLocalID[sceneObject.LocalId] = sceneObject;
-                        foreach (SceneObjectPart part in sceneObject.Children.Values)
-                        {
-                            SceneObjectGroupsByFullID[part.UUID] = sceneObject;
-                            SceneObjectGroupsByLocalID[part.LocalId] = sceneObject;
-                        }
+                        Vector3 scale = part.Shape.Scale;
+    
+                        if (scale.X > m_parentScene.m_maxNonphys)
+                            scale.X = m_parentScene.m_maxNonphys;
+                        if (scale.Y > m_parentScene.m_maxNonphys)
+                            scale.Y = m_parentScene.m_maxNonphys;
+                        if (scale.Z > m_parentScene.m_maxNonphys)
+                            scale.Z = m_parentScene.m_maxNonphys;
+    
+                        part.Shape.Scale = scale;
                     }
                 }
-                else
+    
+                sceneObject.AttachToScene(m_parentScene);
+    
+                if (sendClientUpdates)
+                    sceneObject.ScheduleGroupForFullUpdate();
+                                     
+                Entities.Add(sceneObject);
+                m_numPrim += sceneObject.Children.Count;
+
+                if (attachToBackup)
+                    sceneObject.AttachToBackup();
+
+                if (OnObjectCreate != null)
+                    OnObjectCreate(sceneObject);
+                
+                lock (m_dictionary_lock)
                 {
-                    alreadyExisted = true;
+                    SceneObjectGroupsByFullID[sceneObject.UUID] = sceneObject;
+                    SceneObjectGroupsByLocalID[sceneObject.LocalId] = sceneObject;
+                    foreach (SceneObjectPart part in sceneObject.Children.Values)
+                    {
+                        SceneObjectGroupsByFullID[part.UUID] = sceneObject;
+                        SceneObjectGroupsByLocalID[part.LocalId] = sceneObject;
+                    }
                 }
             }
 
-            return alreadyExisted;
+            return true;
         }
 
         /// <summary>
@@ -523,37 +526,27 @@ namespace OpenSim.Region.Framework.Scenes
 
             lock (m_presenceLock)
             {
-                // We are going to swap the map and array references with modified copies
-                Dictionary<UUID, ScenePresence> newmap;
-                ScenePresence[] newarray;
-                if (m_scenePresenceMap.ContainsKey(presence.UUID))
+                Dictionary<UUID, ScenePresence> newmap = new Dictionary<UUID, ScenePresence>(m_scenePresenceMap);
+                List<ScenePresence> newlist = new List<ScenePresence>(m_scenePresenceArray);
+
+                if (!newmap.ContainsKey(presence.UUID))
                 {
-                    // copy the map and update the presence reference
-                    newmap = new Dictionary<UUID, ScenePresence>(m_scenePresenceMap);
-                    m_scenePresenceMap[presence.UUID] = presence;
-                    // copy the array and update the presence reference
-                    newarray = new ScenePresence[m_scenePresenceArray.Length];
-                    for(int i = 0; i < m_scenePresenceArray.Length; ++i)
-                    {
-                        if(m_scenePresenceArray[i].UUID == presence.UUID)
-                            newarray[i] = presence;
-                        else
-                            newarray[i] = m_scenePresenceArray[i];
-                    }
+                    newmap.Add(presence.UUID, presence);
+                    newlist.Add(presence);
                 }
                 else
                 {
-                    // copy the map and add the new presence reference
-                    newmap = new Dictionary<UUID, ScenePresence>(m_scenePresenceMap);
+                    // Remember the old presene reference from the dictionary
+                    ScenePresence oldref = newmap[presence.UUID];
+                    // Replace the presence reference in the dictionary with the new value
                     newmap[presence.UUID] = presence;
-                    // Copy the array and add the new presence reference
-                    int oldLength = m_scenePresenceArray.Length;
-                    newarray = new ScenePresence[oldLength+1];
-                    Array.Copy(m_scenePresenceArray, newarray, oldLength);
-                    newarray[oldLength] = presence;
+                    // Find the index in the list where the old ref was stored and update the reference
+                    newlist[newlist.IndexOf(oldref)] = presence;
                 }
+
+                // Swap out the dictionary and list with new references
                 m_scenePresenceMap = newmap;
-                m_scenePresenceArray = newarray;
+                m_scenePresenceArray = newlist;
             }
         }
 
@@ -571,28 +564,19 @@ namespace OpenSim.Region.Framework.Scenes
 
             lock (m_presenceLock)
             {
-                // Copy the map
                 Dictionary<UUID, ScenePresence> newmap = new Dictionary<UUID, ScenePresence>(m_scenePresenceMap);
+                List<ScenePresence> newlist = new List<ScenePresence>(m_scenePresenceArray);
+
+                // Remember the old presence reference from the dictionary
+                ScenePresence oldref = newmap[agentID];
                 // Remove the presence reference from the dictionary
                 if (newmap.Remove(agentID))
                 {
-                    // Copy all of the elements from the previous array
-                    // into the new array except the removed element
-                    int oldLength = m_scenePresenceArray.Length;
-                    ScenePresence[] newarray = new ScenePresence[oldLength - 1];
-                    int j = 0;
-                    for (int i = 0; i < oldLength; ++i)
-                    {
-                        ScenePresence presence = m_scenePresenceArray[i];
-                        if (presence.UUID != agentID)
-                        {
-                            newarray[j] = presence;
-                            ++j;
-                        }
-                    }
+                    // Find the index in the list where the old ref was stored and remove the reference
+                    newlist.RemoveAt(newlist.IndexOf(oldref));
                     // Swap out the dictionary and list with new references
                     m_scenePresenceMap = newmap;
-                    m_scenePresenceArray = newarray;
+                    m_scenePresenceArray = newlist;
                 }
                 else
                 {
@@ -717,7 +701,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// pass a delegate to ForEachScenePresence.
         /// </summary>
         /// <returns></returns>
-        private ScenePresence[] GetScenePresences()
+        private List<ScenePresence> GetScenePresences()
         {
             return m_scenePresenceArray;
         }
@@ -743,11 +727,11 @@ namespace OpenSim.Region.Framework.Scenes
         /// <returns>null if the presence was not found</returns>
         protected internal ScenePresence GetScenePresence(string firstName, string lastName)
         {
-            ScenePresence[] presences = GetScenePresences();
-            for(int i = 0; i < presences.Length; ++i)
+            List<ScenePresence> presences = GetScenePresences();
+            foreach (ScenePresence presence in presences)
             {
-                if (presences[i].Firstname == firstName && presences[i].Lastname == lastName)
-                    return presences[i];
+                if (presence.Firstname == firstName && presence.Lastname == lastName)
+                    return presence;
             }
             return null;
         }
@@ -759,12 +743,10 @@ namespace OpenSim.Region.Framework.Scenes
         /// <returns>null if the presence was not found</returns>
         protected internal ScenePresence GetScenePresence(uint localID)
         {
-            ScenePresence[] presences = GetScenePresences();
-            for (int i = 0; i < presences.Length; ++i)
-            {
-                if (presences[i].LocalId == localID)
-                    return presences[i];
-            }
+            List<ScenePresence> presences = GetScenePresences();
+            foreach (ScenePresence presence in presences)
+                if (presence.LocalId == localID)
+                    return presence;
             return null;
         }
 
@@ -778,12 +760,11 @@ namespace OpenSim.Region.Framework.Scenes
         protected internal bool TryGetAvatarByName(string name, out ScenePresence avatar)
         {
             avatar = null;
-            ScenePresence[] presences = GetScenePresences();
-            for(int i = 0; i < presences.Length; ++i )
+            foreach (ScenePresence presence in GetScenePresences())
             {
-                if (String.Compare(name, presences[i].ControllingClient.Name, true) == 0)
+                if (String.Compare(name, presence.ControllingClient.Name, true) == 0)
                 {
-                    avatar = presences[i];
+                    avatar = presence;
                     break;
                 }
             }
@@ -1050,13 +1031,12 @@ namespace OpenSim.Region.Framework.Scenes
             Parallel.ForEach<ScenePresence>(GetScenePresences(), protectedAction);
             */
             // For now, perform actions serially
-            ScenePresence[] presences = GetScenePresences();
-            for(int i = 0; i < presences.Length; ++i)
+            List<ScenePresence> presences = GetScenePresences();
+            foreach (ScenePresence sp in presences)
             {
-                ScenePresence presence = presences[i];
                 try
                 {
-                    action(presence);
+                    action(sp);
                 }
                 catch (Exception e)
                 {
@@ -1478,20 +1458,21 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="client"></param>
         /// <param name="parentPrim"></param>
         /// <param name="childPrims"></param>
-        protected internal void LinkObjects(IClientAPI client, uint parentPrimId, List<uint> childPrimIds)
+        protected internal void LinkObjects(SceneObjectPart root, List<SceneObjectPart> children)
         {
             Monitor.Enter(m_updateLock);
             try
             {
-                SceneObjectGroup parentGroup = GetGroupByPrim(parentPrimId);
+                SceneObjectGroup parentGroup = root.ParentGroup;
 
                 List<SceneObjectGroup> childGroups = new List<SceneObjectGroup>();
                 if (parentGroup != null)
                 {
                     // We do this in reverse to get the link order of the prims correct
-                    for (int i = childPrimIds.Count - 1; i >= 0; i--)
+                    for (int i = children.Count - 1; i >= 0; i--)
                     {
-                        SceneObjectGroup child = GetGroupByPrim(childPrimIds[i]);
+                        SceneObjectGroup child = children[i].ParentGroup;
+
                         if (child != null)
                         {
                             // Make sure no child prim is set for sale
@@ -1519,22 +1500,11 @@ namespace OpenSim.Region.Framework.Scenes
 
                 // We need to explicitly resend the newly link prim's object properties since no other actions
                 // occur on link to invoke this elsewhere (such as object selection)
-                parentGroup.RootPart.AddFlag(PrimFlags.CreateSelected);
+                parentGroup.RootPart.CreateSelected = true;
                 parentGroup.TriggerScriptChangedEvent(Changed.LINK);
                 parentGroup.HasGroupChanged = true;
                 parentGroup.ScheduleGroupForFullUpdate();
                 
-//                if (client != null)
-//                {
-//                    parentGroup.GetProperties(client);
-//                }
-//                else
-//                {
-//                    foreach (ScenePresence p in GetScenePresences())
-//                    {
-//                        parentGroup.GetProperties(p.ControllingClient);
-//                    }
-//                }
             }
             finally
             {
@@ -1546,12 +1516,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// Delink a linkset
         /// </summary>
         /// <param name="prims"></param>
-        protected internal void DelinkObjects(List<uint> primIds)
-        {
-            DelinkObjects(primIds, true);
-        }
-
-        protected internal void DelinkObjects(List<uint> primIds, bool sendEvents)
+        protected internal void DelinkObjects(List<SceneObjectPart> prims)
         {
             Monitor.Enter(m_updateLock);
             try
@@ -1561,9 +1526,8 @@ namespace OpenSim.Region.Framework.Scenes
                 List<SceneObjectGroup> affectedGroups = new List<SceneObjectGroup>();
                 // Look them all up in one go, since that is comparatively expensive
                 //
-                foreach (uint primID in primIds)
+                foreach (SceneObjectPart part in prims)
                 {
-                    SceneObjectPart part = m_parentScene.GetSceneObjectPart(primID);
                     if (part != null)
                     {
                         if (part.ParentGroup.Children.Count != 1) // Skip single
@@ -1578,17 +1542,13 @@ namespace OpenSim.Region.Framework.Scenes
                                 affectedGroups.Add(group);
                         }
                     }
-                    else
-                    {
-                        m_log.ErrorFormat("Viewer requested unlink of nonexistent part {0}", primID);
-                    }
                 }
 
                 foreach (SceneObjectPart child in childParts)
                 {
                     // Unlink all child parts from their groups
                     //
-                    child.ParentGroup.DelinkFromGroup(child, sendEvents);
+                    child.ParentGroup.DelinkFromGroup(child, true);
                 }
 
                 foreach (SceneObjectPart root in rootParts)
@@ -1643,12 +1603,9 @@ namespace OpenSim.Region.Framework.Scenes
                             List<uint> linkIDs = new List<uint>();
 
                             foreach (SceneObjectPart newChild in newSet)
-                            {
                                 newChild.UpdateFlag = 0;
-                                linkIDs.Add(newChild.LocalId);
-                            }
 
-                            LinkObjects(null, newRoot.LocalId, linkIDs);
+                            LinkObjects(newRoot, newSet);
                             if (!affectedGroups.Contains(newRoot.ParentGroup))
                                 affectedGroups.Add(newRoot.ParentGroup);
                         }

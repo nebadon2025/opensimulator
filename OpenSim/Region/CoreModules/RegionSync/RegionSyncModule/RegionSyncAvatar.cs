@@ -547,15 +547,15 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         {
         }
 
-        public virtual void SendAvatarData(SendAvatarData data)
-        {
-        }
-
-        public virtual void SendAvatarTerseUpdate(SendAvatarTerseData data)
+        public virtual void SendAvatarDataImmediate(ISceneEntity avatar)
         {
         }
 
         public virtual void SendCoarseLocationUpdate(List<UUID> users, List<Vector3> CoarseLocations)
+        {
+        }
+
+        public void SendPrimUpdate(ISceneEntity entity, PrimUpdateFlags updateFlags)
         {
         }
 
@@ -567,15 +567,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         {
         }
 
-        public virtual void SendPrimitiveToClient(SendPrimitiveData data)
-        {
-        }
-
-        public virtual void SendPrimTerseUpdate(SendPrimitiveTerseData data)
-        {
-        }
-
-        public virtual void ReprioritizeUpdates(StateUpdateTypes type, UpdatePriorityHandler handler)
+        public virtual void ReprioritizeUpdates()
         {
         }
 

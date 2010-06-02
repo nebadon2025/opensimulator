@@ -30,7 +30,7 @@ using System.Data;
 using System.Reflection;
 using System.Collections.Generic;
 using log4net;
-using Mono.Data.SqliteClient;
+using Mono.Data.Sqlite;
 using OpenMetaverse;
 using OpenSim.Framework;
 
@@ -44,10 +44,10 @@ namespace OpenSim.Data.SQLite
 //        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private const string SelectAssetSQL = "select * from assets where UUID=:UUID";
-        private const string SelectAssetMetadataSQL = "select Name, Description, Type, Temporary, UUID from assets limit :start, :count";
+        private const string SelectAssetMetadataSQL = "select Name, Description, Type, Temporary, asset_flags, UUID, CreatorID from assets limit :start, :count";
         private const string DeleteAssetSQL = "delete from assets where UUID=:UUID";
-        private const string InsertAssetSQL = "insert into assets(UUID, Name, Description, Type, Local, Temporary, Data) values(:UUID, :Name, :Description, :Type, :Local, :Temporary, :Data)";
-        private const string UpdateAssetSQL = "update assets set Name=:Name, Description=:Description, Type=:Type, Local=:Local, Temporary=:Temporary, Data=:Data where UUID=:UUID";
+        private const string InsertAssetSQL = "insert into assets(UUID, Name, Description, Type, Local, Temporary, asset_flags, CreatorID, Data) values(:UUID, :Name, :Description, :Type, :Local, :Temporary, :Flags, :CreatorID, :Data)";
+        private const string UpdateAssetSQL = "update assets set Name=:Name, Description=:Description, Type=:Type, Local=:Local, Temporary=:Temporary, asset_flags=:Flags, CreatorID=:CreatorID, Data=:Data where UUID=:UUID";
         private const string assetSelect = "select * from assets";
 
         private SqliteConnection m_conn;
@@ -136,8 +136,10 @@ namespace OpenSim.Data.SQLite
                         cmd.Parameters.Add(new SqliteParameter(":Type", asset.Type));
                         cmd.Parameters.Add(new SqliteParameter(":Local", asset.Local));
                         cmd.Parameters.Add(new SqliteParameter(":Temporary", asset.Temporary));
+                        cmd.Parameters.Add(new SqliteParameter(":Flags", asset.Flags));
+                        cmd.Parameters.Add(new SqliteParameter(":CreatorID", asset.Metadata.CreatorID));
                         cmd.Parameters.Add(new SqliteParameter(":Data", asset.Data));
- 
+
                         cmd.ExecuteNonQuery();
                     }
                 }
@@ -154,6 +156,8 @@ namespace OpenSim.Data.SQLite
                         cmd.Parameters.Add(new SqliteParameter(":Type", asset.Type));
                         cmd.Parameters.Add(new SqliteParameter(":Local", asset.Local));
                         cmd.Parameters.Add(new SqliteParameter(":Temporary", asset.Temporary));
+                        cmd.Parameters.Add(new SqliteParameter(":Flags", asset.Flags));
+                        cmd.Parameters.Add(new SqliteParameter(":CreatorID", asset.Metadata.CreatorID));
                         cmd.Parameters.Add(new SqliteParameter(":Data", asset.Data));
 
                         cmd.ExecuteNonQuery();
@@ -208,20 +212,6 @@ namespace OpenSim.Data.SQLite
         }
 
         /// <summary>
-        /// Delete an asset from database
-        /// </summary>
-        /// <param name="uuid"></param>
-        public void DeleteAsset(UUID uuid)
-        {
-            using (SqliteCommand cmd = new SqliteCommand(DeleteAssetSQL, m_conn))
-            {
-                cmd.Parameters.Add(new SqliteParameter(":UUID", uuid.ToString()));
-
-                cmd.ExecuteNonQuery();
-            }
-        }
-
-        /// <summary>
         ///
         /// </summary>
         /// <param name="row"></param>
@@ -235,13 +225,14 @@ namespace OpenSim.Data.SQLite
                 new UUID((String)row["UUID"]),
                 (String)row["Name"],
                 Convert.ToSByte(row["Type"]),
-                UUID.Zero.ToString()
+                (String)row["CreatorID"]
             );
 
             asset.Description = (String) row["Description"];
             asset.Local = Convert.ToBoolean(row["Local"]);
             asset.Temporary = Convert.ToBoolean(row["Temporary"]);
-            asset.Data = (byte[]) row["Data"];
+            asset.Flags = (AssetFlags)Convert.ToInt32(row["asset_flags"]);
+            asset.Data = (byte[])row["Data"];
             return asset;
         }
 
@@ -254,6 +245,8 @@ namespace OpenSim.Data.SQLite
             metadata.Description = (string) row["Description"];
             metadata.Type = Convert.ToSByte(row["Type"]);
             metadata.Temporary = Convert.ToBoolean(row["Temporary"]); // Not sure if this is correct.
+            metadata.Flags = (AssetFlags)Convert.ToInt32(row["asset_flags"]);
+            metadata.CreatorID = row["CreatorID"].ToString();
 
             // Current SHA1s are not stored/computed.
             metadata.SHA1 = new byte[] {};
@@ -336,6 +329,35 @@ namespace OpenSim.Data.SQLite
         override public string Name
         {
             get { return "SQLite Asset storage engine"; }
+        }
+
+        // TODO: (AlexRa): one of these is to be removed eventually (?)
+
+        /// <summary>
+        /// Delete an asset from database
+        /// </summary>
+        /// <param name="uuid"></param>
+        public bool DeleteAsset(UUID uuid)
+        {
+            lock (this)
+            {
+            using (SqliteCommand cmd = new SqliteCommand(DeleteAssetSQL, m_conn))
+            {
+                cmd.Parameters.Add(new SqliteParameter(":UUID", uuid.ToString()));
+                cmd.ExecuteNonQuery();
+            }
+            }
+            return true;
+        }
+
+        public override bool Delete(string id)
+        {
+            UUID assetID;
+
+            if (!UUID.TryParse(id, out assetID))
+                return false;
+
+            return DeleteAsset(assetID);
         }
 
         #endregion

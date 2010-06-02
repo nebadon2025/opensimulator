@@ -59,7 +59,7 @@ namespace OpenSim.Services.HypergridService
 
         static bool m_Initialized = false;
 
-        protected static IPresenceService m_PresenceService;
+        protected static IGridUserService m_GridUserService;
         protected static IGridService m_GridService;
         protected static GatekeeperServiceConnector m_GatekeeperConnector;
 
@@ -74,14 +74,14 @@ namespace OpenSim.Services.HypergridService
                     throw new Exception(String.Format("No section UserAgentService in config file"));
 
                 string gridService = serverConfig.GetString("GridService", String.Empty);
-                string presenceService = serverConfig.GetString("PresenceService", String.Empty);
+                string gridUserService = serverConfig.GetString("GridUserService", String.Empty);
 
-                if (gridService == string.Empty || presenceService == string.Empty)
+                if (gridService == string.Empty || gridUserService == string.Empty)
                     throw new Exception(String.Format("Incomplete specifications, UserAgent Service cannot function."));
 
                 Object[] args = new Object[] { config };
                 m_GridService = ServerUtils.LoadPlugin<IGridService>(gridService, args);
-                m_PresenceService = ServerUtils.LoadPlugin<IPresenceService>(presenceService, args);
+                m_GridUserService = ServerUtils.LoadPlugin<IGridUserService>(gridUserService, args);
                 m_GatekeeperConnector = new GatekeeperServiceConnector();
 
                 m_Initialized = true;
@@ -95,15 +95,14 @@ namespace OpenSim.Services.HypergridService
             m_log.DebugFormat("[USER AGENT SERVICE]: Request to get home region of user {0}", userID);
 
             GridRegion home = null;
-            PresenceInfo[] presences = m_PresenceService.GetAgents(new string[] { userID.ToString() });
-            if (presences != null && presences.Length > 0)
+            GridUserInfo uinfo = m_GridUserService.GetGridUserInfo(userID.ToString());
+            if (uinfo != null)
             {
-                UUID homeID = presences[0].HomeRegionID;
-                if (homeID != UUID.Zero)
+                if (uinfo.HomeRegionID != UUID.Zero)
                 {
-                    home = m_GridService.GetRegionByUUID(UUID.Zero, homeID);
-                    position = presences[0].HomePosition;
-                    lookAt = presences[0].HomeLookAt;
+                    home = m_GridService.GetRegionByUUID(UUID.Zero, uinfo.HomeRegionID);
+                    position = uinfo.HomePosition;
+                    lookAt = uinfo.HomeLookAt;
                 }
                 if (home == null)
                 {
@@ -149,6 +148,15 @@ namespace OpenSim.Services.HypergridService
             return true;
         }
 
+        public void SetClientToken(UUID sessionID, string token)
+        {
+            if (m_TravelingAgents.ContainsKey(sessionID))
+            {
+                m_log.DebugFormat("[USER AGENT SERVICE]: Setting token {0} for session {1}", token, sessionID);
+                m_TravelingAgents[sessionID].ClientToken = token;
+            }
+        }
+
         TravelingAgentInfo UpdateTravelInfo(AgentCircuitData agentCircuit, GridRegion region)
         {
             TravelingAgentInfo travel = new TravelingAgentInfo();
@@ -186,6 +194,10 @@ namespace OpenSim.Services.HypergridService
                 foreach (UUID session in travels)
                     m_TravelingAgents.Remove(session);
             }
+
+            GridUserInfo guinfo = m_GridUserService.GetGridUserInfo(userID.ToString());
+            if (guinfo != null)
+                m_GridUserService.LoggedOut(userID.ToString(), guinfo.LastRegionID, guinfo.LastPosition, guinfo.LastLookAt);
         }
 
         // We need to prevent foreign users with the same UUID as a local user
@@ -200,22 +212,16 @@ namespace OpenSim.Services.HypergridService
 
         public bool VerifyClient(UUID sessionID, string token)
         {
-            return true;
+            m_log.DebugFormat("[USER AGENT SERVICE]: Verifying Client session {0} with token {1}", sessionID, token);
+            //return true;
 
             // Commenting this for now until I understand better what part of a sender's
             // info stays unchanged throughout a session
-            //
-            //if (m_TravelingAgents.ContainsKey(sessionID))
-            //{
-            //    // Aquiles heel. Must trust the first grid upon login
-            //    if (m_TravelingAgents[sessionID].ClientToken == string.Empty)
-            //    {
-            //        m_TravelingAgents[sessionID].ClientToken = token;
-            //        return true;
-            //    }
-            //    return m_TravelingAgents[sessionID].ClientToken == token;
-            //}
-            //return false;
+
+            if (m_TravelingAgents.ContainsKey(sessionID))
+                return m_TravelingAgents[sessionID].ClientToken == token;
+
+            return false;
         }
 
         public bool VerifyAgent(UUID sessionID, string token)

@@ -81,14 +81,14 @@ namespace OpenSim.Region.CoreModules.Avatar.Dialog
         {
             ScenePresence sp = m_scene.GetScenePresence(agentID);
             
-            if (sp != null)
+            if (sp != null && !sp.IsChildAgent)
                 sp.ControllingClient.SendAgentAlertMessage(message, modal);
         }
         
         public void SendAlertToUser(string firstName, string lastName, string message, bool modal)
         {
             ScenePresence presence = m_scene.GetScenePresence(firstName, lastName);
-            if(presence != null)
+            if (presence != null && !presence.IsChildAgent)
                 presence.ControllingClient.SendAgentAlertMessage(message, modal);
         }
         
@@ -119,7 +119,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Dialog
             }
 
             ScenePresence sp = m_scene.GetScenePresence(avatarID);
-            if (sp != null)
+            if (sp != null && !sp.IsChildAgent)
                 sp.ControllingClient.SendDialog(objectName, objectID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels);
         }
 
@@ -128,21 +128,13 @@ namespace OpenSim.Region.CoreModules.Avatar.Dialog
         {
             ScenePresence sp = m_scene.GetScenePresence(avatarID);
             
-            if (sp != null)
+            if (sp != null && !sp.IsChildAgent)
                 sp.ControllingClient.SendLoadURL(objectName, objectID, ownerID, groupOwned, message, url);
         }
         
-        public void SendNotificationToUsersInEstate(
-            UUID fromAvatarID, string fromAvatarName, string message)
-        {
-            // TODO: This does not yet do what it says on the tin - it only sends the message to users in the same
-            // region as the sending avatar.
-            SendNotificationToUsersInRegion(fromAvatarID, fromAvatarName, message);
-        }
-
         public void SendTextBoxToUser(UUID avatarid, string message, int chatChannel, string name, UUID objectid, UUID ownerid)
         {
-             UserAccount account = m_scene.UserAccountService.GetUserAccount(m_scene.RegionInfo.ScopeID, ownerid);
+            UserAccount account = m_scene.UserAccountService.GetUserAccount(m_scene.RegionInfo.ScopeID, ownerid);
             string ownerFirstName, ownerLastName;
             if (account != null)
             {
@@ -155,12 +147,10 @@ namespace OpenSim.Region.CoreModules.Avatar.Dialog
                 ownerLastName = "user)";
             }
 
-
             ScenePresence sp = m_scene.GetScenePresence(avatarid);
             
-            if (sp != null) {
+            if (sp != null && !sp.IsChildAgent)
                 sp.ControllingClient.SendTextBoxRequest(message, chatChannel, name, ownerFirstName, ownerLastName, objectid);
-            }
         }
 
         public void SendNotificationToUsersInRegion(

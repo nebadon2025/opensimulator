@@ -191,10 +191,17 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Grid
         public override List<GridRegion> GetRegionsByName(UUID scopeID, string name, int maxNumber)
         {
             List<GridRegion> rinfo = m_LocalGridService.GetRegionsByName(scopeID, name, maxNumber);
+            //m_log.DebugFormat("[REMOTE GRID CONNECTOR]: Local GetRegionsByName {0} found {1} regions", name, rinfo.Count);
             List<GridRegion> grinfo = base.GetRegionsByName(scopeID, name, maxNumber);
 
             if (grinfo != null)
-                rinfo.AddRange(grinfo);
+            {
+                //m_log.DebugFormat("[REMOTE GRID CONNECTOR]: Remote GetRegionsByName {0} found {1} regions", name, grinfo.Count);
+                foreach (GridRegion r in grinfo)
+                    if (rinfo.Find(delegate(GridRegion gr) { return gr.RegionID == r.RegionID; }) == null)
+                        rinfo.Add(r);
+            }
+
             return rinfo;
         }
 

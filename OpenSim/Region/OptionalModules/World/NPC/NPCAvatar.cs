@@ -131,6 +131,8 @@ namespace OpenSim.Region.OptionalModules.World.NPC
             set { }
         }
 
+        public uint MaxCoarseLocations { get { return 0; } }
+
         #region Internal Functions
 
         private void SendOnChatFromClient(string message, ChatTypeEnum chatType)

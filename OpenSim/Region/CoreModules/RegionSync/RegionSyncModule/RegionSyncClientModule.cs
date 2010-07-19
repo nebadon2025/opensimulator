@@ -39,7 +39,7 @@ using log4net;
 using System.Net;
 using System.Net.Sockets;
 
-namespace OpenSim.Region.Examples.RegionSyncModule
+namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
     public class RegionSyncClientModule : IRegionModule, IRegionSyncClientModule, ICommandableModule
     {
@@ -72,8 +72,8 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         {
             if (!m_active)
                 return;
-
-            //m_log.Warn("[REGION SYNC CLIENT MODULE] Post-Initialised");
+            // Go ahead and try to sync right away
+            Start();
         }
 
         public void Close()
@@ -159,8 +159,11 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             //cmdSyncStop.AddArgument("server_address", "The IP address of the server to synchronize with", "String");
             //cmdSyncStop.AddArgument("server_port", "The port of the server to synchronize with", "Integer");
 
+            Command cmdSyncStatus = new Command("status", CommandIntentions.COMMAND_HAZARDOUS, SyncStatus, "Displays synchronization status.");
+
             m_commander.RegisterCommand("start", cmdSyncStart);
             m_commander.RegisterCommand("stop", cmdSyncStop);
+            m_commander.RegisterCommand("status", cmdSyncStatus);
 
             lock (m_scene)
             {
@@ -195,6 +198,12 @@ namespace OpenSim.Region.Examples.RegionSyncModule
 
         private void SyncStart(Object[] args)
         {
+            Start();
+        }
+
+        private void Start()
+        {
+            
             lock (m_client_lock)
             {
                 if (m_client != null)
@@ -222,6 +231,20 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                 m_client.Stop();
                 m_client = null;
                 m_log.Warn("[REGION SYNC CLIENT MODULE] Stopping synchronization");
+            }
+        }
+
+        private void SyncStatus(Object[] args)
+        {
+            lock (m_client_lock)
+            {
+                if (m_client == null)
+                {
+                    m_log.WarnFormat("[REGION SYNC CLIENT MODULE] Not currently synchronized");
+                    return;
+                }
+                m_log.WarnFormat("[REGION SYNC CLIENT MODULE] Synchronized");
+                m_client.ReportStatus();
             }
         }
         #endregion

@@ -203,6 +203,11 @@ namespace OpenSim.Client.Sirikata.ClientStack
             set { sendLogoutPacketWhenClosing = value; }
         }
 
+        public uint MaxCoarseLocations 
+        { 
+            get { return 0; } 
+        }
+
         public uint CircuitCode
         {
             get { return circuitCode; }

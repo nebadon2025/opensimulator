@@ -206,6 +206,11 @@ namespace OpenSim.Client.VWoHTTP.ClientStack
             set { throw new System.NotImplementedException(); }
         }
 
+        public uint MaxCoarseLocations 
+        { 
+            get { return 0; } 
+        }
+
         public uint CircuitCode
         {
             get { throw new System.NotImplementedException(); }

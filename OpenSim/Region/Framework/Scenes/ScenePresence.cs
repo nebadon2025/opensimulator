@@ -65,7 +65,7 @@ namespace OpenSim.Region.Framework.Scenes
         public ScriptControlled eventControls;
     }
 
-    public delegate void SendCourseLocationsMethod(UUID scene, ScenePresence presence);
+    public delegate void SendCourseLocationsMethod(UUID scene, ScenePresence presence, List<Vector3> coarseLocations, List<UUID> avatarUUIDs);
 
     public class ScenePresence : EntityBase, ISceneEntity
     {
@@ -173,8 +173,6 @@ namespace OpenSim.Region.Framework.Scenes
 
         public string JID = String.Empty;
 
-        // Agent moves with a PID controller causing a force to be exerted.
-        private bool m_newCoarseLocations = true;
         private float m_health = 100f;
 
         // Default AV Height
@@ -683,10 +681,12 @@ namespace OpenSim.Region.Framework.Scenes
             CreateSceneViewer();
             m_animator = new ScenePresenceAnimator(this);
 
+            /*
             Primitive.TextureEntry te = AvatarAppearance.GetDefaultTexture();
             byte[] vp = AvatarAppearance.GetDefaultVisualParams();
             m_appearance = new AvatarAppearance(UUID);
             m_appearance.SetAppearance(te, vp);
+             * */
         }
         
         private ScenePresence(IClientAPI client, Scene world, RegionInfo reginfo) : this()
@@ -722,7 +722,7 @@ namespace OpenSim.Region.Framework.Scenes
             AdjustKnownSeeds();
 
             // TODO: I think, this won't send anything, as we are still a child here...
-            Animator.TrySetMovementAnimation("STAND");
+            //Animator.TrySetMovementAnimation("STAND");
 
             // we created a new ScenePresence (a new child agent) in a fresh region.
             // Request info about all the (root) agents in this region
@@ -737,13 +737,13 @@ namespace OpenSim.Region.Framework.Scenes
                              AvatarWearable[] wearables)
             : this(client, world, reginfo)
         {
-            //m_appearance = new AvatarAppearance(m_uuid, wearables, visualParams);
+            m_appearance = new AvatarAppearance(m_uuid, wearables, visualParams);
         }
 
         public ScenePresence(IClientAPI client, Scene world, RegionInfo reginfo, AvatarAppearance appearance)
             : this(client, world, reginfo)
         {
-            //m_appearance = appearance;
+            m_appearance = appearance;
         }
 
         private void CreateSceneViewer()
@@ -756,10 +756,12 @@ namespace OpenSim.Region.Framework.Scenes
             // REGION SYNC
             if (!m_scene.IsSyncedClient())
             {
+                // These client messages will not be handled by client managers but instead
+                // they are caught by the RegionSyncClient module and passed up to the auth sim
                 m_controllingClient.OnAgentUpdate += HandleAgentUpdate;
+                m_controllingClient.OnSetAppearance += SetAppearance;
             }
 
-            m_controllingClient.OnSetAppearance += SetAppearance;
             m_controllingClient.OnRequestWearables += SendWearables;
             m_controllingClient.OnCompleteMovementToRegion += CompleteMovement;
             //m_controllingClient.OnCompleteMovementToRegion += SendInitialData;
@@ -2352,12 +2354,6 @@ namespace OpenSim.Region.Framework.Scenes
 
             SendPrimUpdates();
 
-            if (m_newCoarseLocations)
-            {
-                SendCoarseLocations();
-                m_newCoarseLocations = false;
-            }
-
             if (m_isChildAgent == false)
             {
 //                PhysicsActor actor = m_physicsActor;
@@ -2428,6 +2424,10 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void SendTerseUpdateToAllClients()
         {
+            // REGION SYNC
+            // The server should not be doing anything via the ForEachScenePresence method
+            if (m_scene.IsSyncedServer())
+                return;
             m_perfMonMS = Util.EnvironmentTickCount();
             
             m_scene.ForEachClient(SendTerseUpdateToClient);
@@ -2435,29 +2435,13 @@ namespace OpenSim.Region.Framework.Scenes
             m_scene.StatsReporter.AddAgentTime(Util.EnvironmentTickCountSubtract(m_perfMonMS));
         }
 
-        /// <summary>
-        /// Send a location/velocity/accelleration update to all agents in a list
-        /// </summary>
-        public void SendTerseUpdateToClientList(List<IClientAPI> clients)
+        public void SendCoarseLocations(List<Vector3> coarseLocations, List<UUID> avatarUUIDs)
         {
-            m_perfMonMS = Util.EnvironmentTickCount();
-            foreach( IClientAPI client in clients)
-            {
-                SendTerseUpdateToClient(client);
-            }
-            m_scene.StatsReporter.AddAgentTime(Util.EnvironmentTickCountSubtract(m_perfMonMS));
-        }
-
-        public void SendCoarseLocations()
-        {
-            SendCoarseLocationsDefault(m_scene.RegionInfo.originRegionID, this);
-            /*
             SendCourseLocationsMethod d = m_sendCourseLocationsMethod;
             if (d != null)
             {
-                d.Invoke(m_scene.RegionInfo.originRegionID, this);
+                d.Invoke(m_scene.RegionInfo.originRegionID, this, coarseLocations, avatarUUIDs);
             }
-             * */
         }
 
         public void SetSendCourseLocationMethod(SendCourseLocationsMethod d)
@@ -2466,23 +2450,12 @@ namespace OpenSim.Region.Framework.Scenes
                 m_sendCourseLocationsMethod = d;
         }
 
-        public void SendCoarseLocationsDefault(UUID sceneId, ScenePresence p)
+        public void SendCoarseLocationsDefault(UUID sceneId, ScenePresence p, List<Vector3> coarseLocations, List<UUID> avatarUUIDs)
         {
             m_perfMonMS = Util.EnvironmentTickCount();
-            List<UUID> AvatarUUIDs = new List<UUID>();
-            List<Vector3> CoarseLocations = new List<Vector3>();
-            // This is not cheap to compile this list of locations.
-            // It should ideally be done once and then sent to every client rather than compiled for each client
-            //m_scene.GetCoarseLocations(out AvatarUUIDs, out CoarseLocations);
-            AvatarUUIDs.Add(UUID);
-            CoarseLocations.Add(AbsolutePosition);
-            m_controllingClient.SendCoarseLocationUpdate(AvatarUUIDs, CoarseLocations);
+            m_controllingClient.SendCoarseLocationUpdate(avatarUUIDs, coarseLocations);
             m_scene.StatsReporter.AddAgentTime(Util.EnvironmentTickCountSubtract(m_perfMonMS));
-        }
 
-        public void CoarseLocationChange()
-        {
-            m_newCoarseLocations = true;
         }
 
         /// <summary>
@@ -2512,6 +2485,10 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void SendInitialFullUpdateToAllClients()
         {
+            // REGION SYNC
+            // The server should not be doing anything via the ForEachScenePresence method
+            if (m_scene.IsSyncedServer())
+                return;
             m_perfMonMS = Util.EnvironmentTickCount();
             int avUpdates = 0;
             m_scene.ForEachScenePresence(delegate(ScenePresence avatar)
@@ -2542,6 +2519,10 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void SendFullUpdateToAllClients()
         {
+            // REGION SYNC
+            // The server should not be doing anything via the ForEachScenePresence method
+            if (m_scene.IsSyncedServer())
+                return;
             m_perfMonMS = Util.EnvironmentTickCount();
 
             // only send update from root agents to other clients; children are only "listening posts"
@@ -2592,16 +2573,23 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void SendAppearanceToAllOtherAgents()
         {
+            // REGION SYNC
+            // The server should not be doing anything via the ForEachScenePresence method
+            if (m_scene.IsSyncedServer())
+                return;
+            if (Appearance.Texture == null)
+                return;
             m_perfMonMS = Util.EnvironmentTickCount();
 
             // REGION SYNC
-            if(m_scene.IsSyncedServer())
-                m_scene.RegionSyncServerModule.SendAppearance(UUID, Appearance.VisualParams, Appearance.Texture);
+            //if(m_scene.IsSyncedServer())
+                //m_scene.RegionSyncServerModule.SendAppearance(UUID, Appearance.VisualParams, Appearance.Texture);
             m_appearance.Owner = UUID; // Why does this need to be here?
             m_scene.ForEachClient(delegate(IClientAPI client)
             {
                 if(client.AgentId != ControllingClient.AgentId)
                 {
+                    //m_log.WarnFormat("[SCENE PRESENCE] Sending {0} appearance to {1} (SendAppearanceToAllOtherAgents)", Name, client.Name);
                     client.SendAppearance(m_appearance.Owner, m_appearance.VisualParams, m_appearance.Texture.GetBytes());
                 }
             });
@@ -2627,7 +2615,10 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="avatar"></param>
         public void SendAppearanceToOtherAgent(ScenePresence avatar)
         {
+            if (Appearance.Texture == null)
+                return;
             //m_log.WarnFormat("{0} sending appearance to {1}, owner={2}", UUID, avatar.UUID, m_appearance.Owner);
+            //m_log.WarnFormat("[SCENE PRESENCE] Sending {0} appearance to {1} (SendAppearanceToOtherAgent)", Name, avatar.Name);
             m_appearance.Owner = UUID;
             avatar.ControllingClient.SendAppearance(
                 m_appearance.Owner, m_appearance.VisualParams, m_appearance.Texture.GetBytes());
@@ -2640,6 +2631,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="visualParam"></param>
         public void SetAppearance(Primitive.TextureEntry textureEntry, byte[] visualParams)
         {
+            //m_log.WarnFormat("[SCENE PRESENCE] SetAppearance called for {0} ({1})", Name, textureEntry == null ? "  " : "te");
             if (m_physicsActor != null)
             {
                 if (!IsChildAgent)
@@ -2704,6 +2696,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void SetWearable(int wearableId, AvatarWearable wearable)
         {
+            m_log.WarnFormat("[SCENE PRESENCE] SetWearable called for \"{0}\" (wearableID = {1})", Name, wearableId);
             m_appearance.SetWearable(wearableId, wearable);
             AvatarData adata = new AvatarData(m_appearance);
             m_scene.AvatarService.SetAvatar(m_controllingClient.AgentId, adata);
@@ -2737,7 +2730,6 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 posLastSignificantMove = AbsolutePosition;
                 m_scene.EventManager.TriggerSignificantClientMovement(m_controllingClient);
-                m_scene.NotifyMyCoarseLocationChange();
             }
 
             // Minimum Draw distance is 64 meters, the Radius of the draw distance sphere is 32m

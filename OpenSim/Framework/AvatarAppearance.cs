@@ -29,6 +29,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using OpenMetaverse;
+using System.Reflection;
+using log4net;
 
 namespace OpenSim.Framework
 {
@@ -361,7 +363,7 @@ namespace OpenSim.Framework
             // This sets Visual Params with *less* weirder values then default. Instead of a ugly alien, it looks like a fat scientist
             SetDefaultParams(m_visualparams);
             SetDefaultWearables();
-            m_texture = GetDefaultTexture();
+            m_texture = null;//GetDefaultTexture();
         }
         
         public AvatarAppearance(UUID avatarID, AvatarWearable[] wearables, byte[] visualParams)
@@ -370,14 +372,17 @@ namespace OpenSim.Framework
             m_serial = 1;
             m_wearables = wearables;
             m_visualparams = visualParams;
-            m_texture = GetDefaultTexture();
+            m_texture = null;// GetDefaultTexture();
         }
+
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         /// <summary>
         /// Set up appearance textures and avatar parameters, including a height calculation
         /// </summary>
         public virtual void SetAppearance(Primitive.TextureEntry textureEntry, byte[] visualParams)
         {
+            //m_log.WarnFormat("[APPEARANCE] SetAppearance called ({0})", textureEntry == null ? "  " : "te");
             if (textureEntry != null)
                 m_texture = textureEntry;
             if (visualParams != null)

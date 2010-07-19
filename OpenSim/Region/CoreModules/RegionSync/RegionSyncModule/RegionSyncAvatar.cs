@@ -33,7 +33,7 @@ using OpenMetaverse.Packets;
 using OpenSim.Framework;
 using OpenSim.Region.Framework.Scenes;
 
-namespace OpenSim.Region.Examples.RegionSyncModule
+namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
     public class RegionSyncAvatar : IClientAPI
     {
@@ -417,6 +417,11 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         public bool SendLogoutPacketWhenClosing
         {
             set { }
+        }
+
+        public uint MaxCoarseLocations
+        {
+            get { return 0; }
         }
 
         public virtual void ActivateGesture(UUID assetId, UUID gestureId)

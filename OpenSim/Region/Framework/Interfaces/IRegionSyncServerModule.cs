@@ -44,12 +44,5 @@ namespace OpenSim.Region.Framework.Interfaces
         void DeleteObject(ulong regionHandle, uint localID);
         void SendAppearance(UUID agentID, byte[] vp, Primitive.TextureEntry te);
 
-        //void SendPartFullUpdate(SceneObjectPart part);
-
-        //void SendPartTerseUpdate(SceneObjectPart part);
-
-        //void SendShutdownConnectionNotice(Scene scene);
-
-        
     }
 }

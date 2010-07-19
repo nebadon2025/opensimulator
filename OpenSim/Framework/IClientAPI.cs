@@ -677,6 +677,8 @@ namespace OpenSim.Framework
 
         IPEndPoint RemoteEndPoint { get; }
 
+        uint MaxCoarseLocations { get; }
+
         event GenericMessage OnGenericMessage;
 
         // [Obsolete("LLClientView Specific - Replace with more bare-bones arguments.")]

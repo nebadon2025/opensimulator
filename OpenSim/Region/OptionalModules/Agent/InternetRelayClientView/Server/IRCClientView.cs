@@ -638,6 +638,11 @@ namespace OpenSim.Region.OptionalModules.Agent.InternetRelayClientView.Server
             set { }
         }
 
+        public uint MaxCoarseLocations 
+        { 
+            get { return 0; } 
+        }
+
         public uint CircuitCode
         {
             get { return (uint)Util.RandomClass.Next(0,int.MaxValue); }

@@ -375,6 +375,7 @@ namespace OpenSim.Region.Framework.Scenes
         private int m_update_backup = 200;
         private int m_update_terrain = 50;
         private int m_update_land = 1;
+        private int m_update_coarse_locations = 25;
 
         private int frameMS;
         private int physicsMS2;
@@ -1311,8 +1312,9 @@ namespace OpenSim.Region.Framework.Scenes
             while (m_regInfo.EstateSettings.EstateOwner == UUID.Zero && MainConsole.Instance != null)
             {
                 MainConsole.Instance.Output("The current estate has no owner set.");
-                string first = MainConsole.Instance.CmdPrompt("Estate owner first name", "Test");
-                string last = MainConsole.Instance.CmdPrompt("Estate owner last name", "User");
+                string first = "Test";// MainConsole.Instance.CmdPrompt("Estate owner first name", "Test");
+                string last = "User";// MainConsole.Instance.CmdPrompt("Estate owner last name", "User");
+                MainConsole.Instance.Output(String.Format("Setting estate owner to {0} {1}.", first, last));
 
                 UserAccount account = UserAccountService.GetUserAccount(m_regInfo.ScopeID, first, last);
 
@@ -1470,6 +1472,23 @@ namespace OpenSim.Region.Framework.Scenes
                     if (IsSyncedServer())
                     {
                         m_regionSyncServerModule.SendUpdates();
+                    }
+
+                    // The authoritative sim should not try to send coarse locations
+                    // Leave this up to the client managers
+                    if (!IsSyncedServer())
+                    {
+                        if (m_frame % m_update_coarse_locations == 0)
+                        {
+                            List<Vector3> coarseLocations;
+                            List<UUID> avatarUUIDs;
+                            SceneGraph.GetCoarseLocations(out coarseLocations, out avatarUUIDs, 60);
+                            // Send coarse locations to clients 
+                            ForEachScenePresence(delegate(ScenePresence presence)
+                            {
+                                presence.SendCoarseLocations(coarseLocations, avatarUUIDs);
+                            });
+                        }
                     }
 
                     int tmpPhysicsMS2 = Util.EnvironmentTickCount();
@@ -3350,7 +3369,11 @@ namespace OpenSim.Region.Framework.Scenes
                         (childagentYN ? "child" : "root"), agentID, RegionInfo.RegionName);
 
                     m_sceneGraph.removeUserCount(!childagentYN);
-                    CapsModule.RemoveCapsHandler(agentID);
+
+                    // If there is a CAPS handler, remove it now. 
+                    // A Synced server region will not have a CAPS handler for its presences
+                    if(CapsModule.GetCapsHandlerForUser(agentID) != null)
+                        CapsModule.RemoveCapsHandler(agentID);
 
                     // REFACTORING PROBLEM -- well not really a problem, but just to point out that whatever
                     // this method is doing is HORRIBLE!!!
@@ -3381,7 +3404,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                 // Don't try to send kills to clients if this is a synced server.
                 // The client closed event will trigger the broadcast to client managers
-                //if(!IsSyncedServer())
+                if(!IsSyncedServer())
                 {
                     ForEachClient(
                         delegate(IClientAPI client)
@@ -3391,9 +3414,6 @@ namespace OpenSim.Region.Framework.Scenes
                             catch (NullReferenceException) { }
                         });
 
-
-                    ForEachScenePresence(
-                        delegate(ScenePresence presence) { presence.CoarseLocationChange(); });
 
                     IAgentAssetTransactions agentTransactions = this.RequestModuleInterface<IAgentAssetTransactions>();
                     if (agentTransactions != null)
@@ -3445,15 +3465,6 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// Inform all other ScenePresences on this Scene that someone else has changed position on the minimap.
-        /// </summary>
-        public void NotifyMyCoarseLocationChange()
-        {
-            // REGION SYNC (Need a better plan for coarse locations)
-            //ForEachScenePresence(delegate(ScenePresence presence) { presence.CoarseLocationChange(); });
         }
 
         #endregion

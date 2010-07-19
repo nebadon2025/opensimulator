@@ -866,6 +866,7 @@ namespace OpenSim
                         String.Format("{0,-16}{1,-16}{2,-37}{3,-11}{4,-16}{5,-30}", "Firstname", "Lastname",
                                       "Agent ID", "Root/Child", "Region", "Position"));
 
+                    bool missingTextures = false;
                     foreach (ScenePresence presence in agents)
                     {
                         RegionInfo regionInfo = presence.Scene.RegionInfo;
@@ -880,16 +881,24 @@ namespace OpenSim
                             regionName = regionInfo.RegionName;
                         }
 
+                        string te = "TE";
+                        if (presence.Appearance.Texture == null)
+                        {
+                            te = "";
+                            missingTextures = true;
+                        }
                         MainConsole.Instance.Output(
                             String.Format(
-                                "{0,-16}{1,-16}{2,-37}{3,-11}{4,-16}{5,-30}",
+                                "{0,-16}{1,-16}{2,-37}{3,-11}{4,-16}{5,-30}{6,2}",
                                 presence.Firstname,
                                 presence.Lastname,
                                 presence.UUID,
                                 presence.IsChildAgent ? "Child" : "Root",
                                 regionName,
-                                presence.AbsolutePosition.ToString()));
+                                presence.AbsolutePosition.ToString(),
+                                te));
                     }
+
 
                     MainConsole.Instance.Output(String.Empty);
                     break;

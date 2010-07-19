@@ -7,9 +7,10 @@ using System.Collections.Generic;
 using System.Threading;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Framework.Interfaces;
+using OpenMetaverse;
 using log4net;
 
-namespace OpenSim.Region.Examples.RegionSyncModule
+namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
     // The RegionSyncServer has a listener thread which accepts connections from RegionSyncClients
     // and an additional thread to process updates to/from each RegionSyncClient.
@@ -24,13 +25,6 @@ namespace OpenSim.Region.Examples.RegionSyncModule
  
         // The local scene.
         private Scene m_scene;
-
-        // A queue for incoming and outgoing traffic
-        // Incoming stuff can be from any client
-        // Outgoing stuff will be multicast to all clients
-        private Queue<string> m_inQ = new Queue<string>();
-        private Queue<string> m_outQ = new Queue<string>();
-
         private ILog m_log;
 
         // The listener and the thread which listens for connections from client managers
@@ -81,16 +75,33 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             }
         }
 
-        public void ReportStats()
+        public void ReportStats(System.IO.TextWriter tw)
         {
             // We should be able to safely iterate over our reference to the list since
             // the only places which change it will replace it with an updated version
-            m_log.Error("SERVER, MSGIN, MSGOUT, BYTESIN, BYTESOUT");
-            foreach (RegionSyncClientView rscv in m_client_views)
+            HashSet<RegionSyncClientView> cvs = m_client_views;
+            tw.WriteLine("{0}: [REGION SYNC SERVER]                      TOTAL        LOCAL        REMOTE               TO_SCENE                              FROM_SCENE", DateTime.Now.ToLongTimeString());
+            tw.WriteLine("{0}: [REGION SYNC SERVER]                                                          MSGS  ( /s )    BYTES    (  Mbps  )   MSGS  ( /s )    BYTES    (  Mbps  )     QUEUE", DateTime.Now.ToLongTimeString());
+            foreach (RegionSyncClientView cv in cvs)
             {
-                m_log.ErrorFormat("{0}: {1}", rscv.Description, rscv.GetStats());
+                tw.WriteLine("{0}: [{1}] {2}", DateTime.Now.ToLongTimeString(), cv.Description, cv.GetStats());
+            }
+            tw.Flush();
+        }
+
+        public void ReportStatus()
+        {
+            lock (m_clientview_lock)
+            {
+                m_log.ErrorFormat("[REGION SYNC SERVER] Connected to {0} remote client managers", m_client_views.Count);
+                m_log.ErrorFormat("[REGION SYNC SERVER] Local scene contains {0} presences", m_scene.SceneGraph.GetRootAgentCount());
+                foreach (RegionSyncClientView rscv in m_client_views)
+                {
+                    rscv.ReportStatus();
+                }
             }
         }
+
 
         #endregion
 
@@ -113,6 +124,8 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             m_listenerThread.Start();
             //m_log.Warn("[REGION SYNC SERVER] Started");
         }
+
+
 
         // Stop the server and disconnect all RegionSyncClients
         public void Shutdown()
@@ -188,6 +201,33 @@ namespace OpenSim.Region.Examples.RegionSyncModule
                 foreach (RegionSyncClientView rscv in closed)
                     RemoveSyncedClient(rscv);
                     //m_client_views.Remove(rscv);
+            }
+        }
+
+        // Broadcast a message to all connected RegionSyncClients
+        public void EnqueuePresenceUpdate(UUID id, byte[] update)
+        {
+            List<RegionSyncClientView> closed = null;
+            foreach (RegionSyncClientView client in m_client_views)
+            {
+                // If connected, send the message.
+                if (client.Connected)
+                {
+                    client.EnqueuePresenceUpdate(id, update);
+                }
+                // Else, remove the client view from the list
+                else
+                {
+                    if (closed == null)
+                        closed = new List<RegionSyncClientView>();
+                    closed.Add(client);
+                }
+            }
+            if (closed != null)
+            {
+                foreach (RegionSyncClientView rscv in closed)
+                    RemoveSyncedClient(rscv);
+                //m_client_views.Remove(rscv);
             }
         }
     }

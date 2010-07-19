@@ -52,6 +52,7 @@ namespace OpenSim.Region.Framework.Scenes.Animation
         public string CurrentMovementAnimation
         {
             get { return m_movementAnimation; }
+            set { m_movementAnimation = value; }
         }
         protected string m_movementAnimation = "DEFAULT";
 

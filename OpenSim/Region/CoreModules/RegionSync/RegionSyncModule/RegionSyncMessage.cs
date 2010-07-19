@@ -3,7 +3,7 @@ using System.IO;
 using OpenMetaverse;
 using log4net;
 
-namespace OpenSim.Region.Examples.RegionSyncModule
+namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
     /// <summary>
     /// A message for synchonization message between scenes
@@ -39,13 +39,16 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             ChatFromSim,
             // BIDIR
             EchoRequest,
-            EchoResponse
+            EchoResponse,
+            RegionName,
+            RegionStatus
         }
         #endregion
 
         #region Member Data
         private MsgType m_type;
         private byte[] m_data;
+        static ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         #endregion
 
         #region Constructors
@@ -58,7 +61,7 @@ namespace OpenSim.Region.Examples.RegionSyncModule
         public RegionSyncMessage(MsgType type, string msg)
         {
             m_type = type;
-            m_data = System.Text.Encoding.ASCII.GetBytes(msg + System.Environment.NewLine);
+            m_data = System.Text.Encoding.ASCII.GetBytes(msg);
         }
 
         public RegionSyncMessage(MsgType type)
@@ -131,5 +134,32 @@ namespace OpenSim.Region.Examples.RegionSyncModule
             return String.Format("{0} ({1} bytes)", m_type.ToString(), m_data.Length.ToString());
         }
         #endregion
+
+        public static void HandleSuccess(string header, RegionSyncMessage msg, string message)
+        {
+            m_log.WarnFormat("{0} Handled {1}: {2}", header, msg.ToString(), message);
+        }
+
+        public static void HandleTrivial(string header, RegionSyncMessage msg, string message)
+        {
+            m_log.WarnFormat("{0} Issue handling {1}: {2}", header, msg.ToString(), message);
+        }
+
+        public static void HandleWarning(string header, RegionSyncMessage msg, string message)
+        {
+            m_log.WarnFormat("{0} Warning handling {1}: {2}", header, msg.ToString(), message);
+        }
+
+        public static void HandleError(string header, RegionSyncMessage msg, string message)
+        {
+            m_log.WarnFormat("{0} Error handling {1}: {2}", header, msg.ToString(), message);
+        }
+
+        public static bool HandlerDebug(string header, RegionSyncMessage msg, string message)
+        {
+            m_log.WarnFormat("{0} DBG ({1}): {2}", header, msg.ToString(), message);
+            return true;
+        }
+
     }
 }

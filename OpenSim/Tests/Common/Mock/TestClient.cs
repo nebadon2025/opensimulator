@@ -417,6 +417,11 @@ namespace OpenSim.Tests.Common.Mock
             set { }
         }
 
+        public uint MaxCoarseLocations 
+        { 
+            get { return 0; } 
+        }
+
         private uint m_circuitCode;
 
         public uint CircuitCode

@@ -365,6 +365,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         private Timer m_propertiesPacketTimer;
         private List<ObjectPropertiesPacket.ObjectDataBlock> m_propertiesBlocks = new List<ObjectPropertiesPacket.ObjectDataBlock>();
 
+        private uint m_maxCoarseLocations = 60;
+
         #endregion Class Members
 
         #region Properties
@@ -411,6 +413,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         }
 
         public bool SendLogoutPacketWhenClosing { set { m_SendLogoutPacketWhenClosing = value; } }
+
+        public uint MaxCoarseLocations { get { return m_maxCoarseLocations; } }
 
         #endregion Properties
 
@@ -3321,6 +3325,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         public void SendWearables(AvatarWearable[] wearables, int serial)
         {
+            //m_log.WarnFormat("[LLCLIENTVIEW] Sending wearables to {0}", Name);
             AgentWearablesUpdatePacket aw = (AgentWearablesUpdatePacket)PacketPool.Instance.GetPacket(PacketType.AgentWearablesUpdate);
             aw.AgentData.AgentID = AgentId;
             aw.AgentData.SerialNum = (uint)serial;
@@ -3347,6 +3352,11 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         public void SendAppearance(UUID agentID, byte[] visualParams, byte[] textureEntry)
         {
+            ScenePresence sp;
+            string forName = "";
+            if (m_scene.TryGetScenePresence(agentID, out sp))
+                forName = sp.Name;
+            //m_log.WarnFormat("[LLCLIENTVIEW] Sending {0} appearance to {1}", forName, Name);
             AvatarAppearancePacket avp = (AvatarAppearancePacket)PacketPool.Instance.GetPacket(PacketType.AvatarAppearance);
             // TODO: don't create new blocks if recycling an old packet
             avp.VisualParam = new AvatarAppearancePacket.VisualParamBlock[218];
@@ -3426,7 +3436,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
             // Each packet can only hold around 62 avatar positions and the client clears the mini-map each time
             // a CoarseLocationUpdate packet is received. Oh well.
-            int total = Math.Min(CoarseLocations.Count, 60);
+            int total = Math.Min(CoarseLocations.Count, (int)MaxCoarseLocations);
 
             CoarseLocationUpdatePacket.IndexBlock ib = new CoarseLocationUpdatePacket.IndexBlock();
 
@@ -5556,6 +5566,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         private bool HandlerAgentWearablesRequest(IClientAPI sender, Packet Pack)
         {
+            //m_log.WarnFormat("[LLCLIENTVIEW] Received AgentWearablesRequest from {0}", sender.Name);
             GenericCall2 handlerRequestWearables = OnRequestWearables;
 
             if (handlerRequestWearables != null)
@@ -5595,7 +5606,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 // for the client session anyway, in order to protect ourselves against bad code in plugins
                 try
                 {
-
                     byte[] visualparams = new byte[appear.VisualParam.Length];
                     for (int i = 0; i < appear.VisualParam.Length; i++)
                         visualparams[i] = appear.VisualParam[i].ParamValue;
@@ -5604,10 +5614,18 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                     if (appear.ObjectData.TextureEntry.Length > 1)
                         te = new Primitive.TextureEntry(appear.ObjectData.TextureEntry, 0, appear.ObjectData.TextureEntry.Length);
 
-                    if (handlerSetAppearance != null)
-                        handlerSetAppearance(te, visualparams);
+                    // What would happen if we ignore any SetAppearance packet that does not include textures?
+                    if (te == null)
+                    {
+                        //m_log.WarnFormat("[LLCLIENTVIEW] Received SetAppearance from {0} (  )", Name);
+                        return true;
+                    }
+                    //m_log.WarnFormat("[LLCLIENTVIEW] Received SetAppearance from {0} (TE)", Name);
                     if (handlerSetAppearanceRaw != null)
                         handlerSetAppearanceRaw(this, AgentId, visualparams, te);
+                    if (handlerSetAppearance != null)
+                        handlerSetAppearance(te, visualparams);
+                    
                 }
                 catch (Exception e)
                 {

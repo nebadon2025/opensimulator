@@ -802,6 +802,11 @@ namespace OpenSim.Client.MXP.ClientStack
             set { }
         }
 
+        public uint MaxCoarseLocations 
+        { 
+            get { return 0; } 
+        }
+
         public uint CircuitCode
         {
             get { return m_sessionID.CRC(); }

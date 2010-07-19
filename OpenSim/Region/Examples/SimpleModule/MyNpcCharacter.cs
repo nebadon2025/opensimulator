@@ -403,6 +403,11 @@ namespace OpenSim.Region.Examples.SimpleModule
             set { }
         }
 
+        public uint MaxCoarseLocations 
+        { 
+            get { return 0; } 
+        }
+
         public virtual void ActivateGesture(UUID assetId, UUID gestureId)
         {
         }

@@ -95,6 +95,10 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     try
                     {
                         asset1.ID = url + "/" + asset.ID;
+                        UUID temp = UUID.Zero;
+                        // TODO: if the creator is local, stick this grid's URL in front
+                        //if (UUID.TryParse(asset.Metadata.CreatorID, out temp))
+                        //    asset1.Metadata.CreatorID = ??? + "/" + asset.Metadata.CreatorID;
                     }
                     catch
                     {
@@ -153,6 +157,8 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                 Dictionary<UUID, AssetType> ids = new Dictionary<UUID, AssetType>();
                 HGUuidGatherer uuidGatherer = new HGUuidGatherer(this, m_scene.AssetService, userAssetURL);
                 uuidGatherer.GatherAssetUuids(asset.FullID, (AssetType)asset.Type, ids);
+                if (ids.ContainsKey(assetID))
+                    ids.Remove(assetID);
                 foreach (UUID uuid in ids.Keys)
                     FetchAsset(userAssetURL, uuid);
 

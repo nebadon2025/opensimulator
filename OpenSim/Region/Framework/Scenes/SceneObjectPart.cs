@@ -180,6 +180,9 @@ namespace OpenSim.Region.Framework.Scenes
         public UUID FromItemID;
 
         [XmlIgnore]
+        public UUID FromFolderID;
+
+        [XmlIgnore]
         public int STATUS_ROTATE_X;
 
         [XmlIgnore]
@@ -1486,6 +1489,10 @@ namespace OpenSim.Region.Framework.Scenes
                         PhysActor.LocalID = LocalId;
                         DoPhysicsPropertyUpdate(RigidBody, true);
                         PhysActor.SetVolumeDetect(VolumeDetectActive ? 1 : 0);
+                    }
+                    else
+                    {
+                        m_log.DebugFormat("[SPEW]: physics actor is null for {0} with parent {1}", UUID, this.ParentGroup.UUID);
                     }
                 }
             }
@@ -4133,6 +4140,10 @@ namespace OpenSim.Region.Framework.Scenes
                     case 16:
                         _nextOwnerMask = ApplyMask(_nextOwnerMask, set, mask) &
                                 baseMask;
+                        // Prevent the client from creating no mod, no copy
+                        // objects
+                        if ((_nextOwnerMask & (uint)PermissionMask.Copy) == 0)
+                            _nextOwnerMask |= (uint)PermissionMask.Transfer;
                         break;
                 }
                 SendFullUpdateToAllClients();

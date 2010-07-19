@@ -93,36 +93,37 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
         /// </returns>
         public List<InventoryNodeBase> Execute()
         {
-            string filePath = "ERROR";
-            int successfulAssetRestores = 0;
-            int failedAssetRestores = 0;
-            int successfulItemRestores = 0;
-            List<InventoryNodeBase> nodesLoaded = new List<InventoryNodeBase>();
-           
-            //InventoryFolderImpl rootDestinationFolder = m_userInfo.RootFolder.FindFolderByPath(m_invPath);
-            InventoryFolderBase rootDestinationFolder 
-                = InventoryArchiveUtils.FindFolderByPath(
-                    m_scene.InventoryService, m_userInfo.PrincipalID, m_invPath);
-
-            if (null == rootDestinationFolder)
-            {
-                // Possibly provide an option later on to automatically create this folder if it does not exist
-                m_log.ErrorFormat("[INVENTORY ARCHIVER]: Inventory path {0} does not exist", m_invPath);
-
-                return nodesLoaded;
-            }
-
-            archive = new TarArchiveReader(m_loadStream);
-
-            // In order to load identically named folders, we need to keep track of the folders that we have already
-            // created
-            Dictionary <string, InventoryFolderBase> foldersCreated = new Dictionary<string, InventoryFolderBase>();
-
-            byte[] data;
-            TarArchiveReader.TarEntryType entryType;
-
             try
             {
+                string filePath = "ERROR";
+                int successfulAssetRestores = 0;
+                int failedAssetRestores = 0;
+                int successfulItemRestores = 0;
+                
+                List<InventoryNodeBase> loadedNodes = new List<InventoryNodeBase>();
+               
+                List<InventoryFolderBase> folderCandidates
+                    = InventoryArchiveUtils.FindFolderByPath(
+                        m_scene.InventoryService, m_userInfo.PrincipalID, m_invPath);
+    
+                if (folderCandidates.Count == 0)
+                {
+                    // Possibly provide an option later on to automatically create this folder if it does not exist
+                    m_log.ErrorFormat("[INVENTORY ARCHIVER]: Inventory path {0} does not exist", m_invPath);
+    
+                    return loadedNodes;
+                }
+                
+                InventoryFolderBase rootDestinationFolder = folderCandidates[0];
+                archive = new TarArchiveReader(m_loadStream);
+    
+                // In order to load identically named folders, we need to keep track of the folders that we have already
+                // resolved
+                Dictionary <string, InventoryFolderBase> resolvedFolders = new Dictionary<string, InventoryFolderBase>();
+    
+                byte[] data;
+                TarArchiveReader.TarEntryType entryType;
+
                 while ((data = archive.ReadEntry(out filePath, out entryType)) != null)
                 {
                     if (filePath.StartsWith(ArchiveConstants.ASSETS_PATH))
@@ -139,10 +140,15 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                     }
                     else if (filePath.StartsWith(ArchiveConstants.INVENTORY_PATH))
                     {
+                        filePath = filePath.Substring(ArchiveConstants.INVENTORY_PATH.Length);
+                        
+                        // Trim off the file portion if we aren't already dealing with a directory path
+                        if (TarArchiveReader.TarEntryType.TYPE_DIRECTORY != entryType)
+                            filePath = filePath.Remove(filePath.LastIndexOf("/") + 1);
+                        
                         InventoryFolderBase foundFolder 
                             = ReplicateArchivePathToUserInventory(
-                                filePath, TarArchiveReader.TarEntryType.TYPE_DIRECTORY == entryType, 
-                                rootDestinationFolder, foldersCreated, nodesLoaded);
+                                filePath, rootDestinationFolder, resolvedFolders, loadedNodes);
     
                         if (TarArchiveReader.TarEntryType.TYPE_DIRECTORY != entryType)
                         {
@@ -155,23 +161,25 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                                 // If we're loading an item directly into the given destination folder then we need to record
                                 // it separately from any loaded root folders
                                 if (rootDestinationFolder == foundFolder)
-                                    nodesLoaded.Add(item);
+                                    loadedNodes.Add(item);
                             }
                         }
                     }
                 }
+                
+                archive.Close();
+                
+                m_log.DebugFormat(
+                    "[INVENTORY ARCHIVER]: Successfully loaded {0} assets with {1} failures", 
+                    successfulAssetRestores, failedAssetRestores);
+                m_log.InfoFormat("[INVENTORY ARCHIVER]: Successfully loaded {0} items", successfulItemRestores);                
+                
+                return loadedNodes;
             }
             finally
             {
-                archive.Close();
-            }
-
-            m_log.DebugFormat(
-                "[INVENTORY ARCHIVER]: Successfully loaded {0} assets with {1} failures", 
-                successfulAssetRestores, failedAssetRestores);
-            m_log.InfoFormat("[INVENTORY ARCHIVER]: Successfully loaded {0} items", successfulItemRestores);
-
-            return nodesLoaded;
+                m_loadStream.Close();
+            }            
         }
 
         public void Close()
@@ -183,81 +191,139 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
         /// <summary>
         /// Replicate the inventory paths in the archive to the user's inventory as necessary.
         /// </summary>
-        /// <param name="archivePath">The item archive path to replicate</param>
-        /// <param name="isDir">Is the path we're dealing with a directory?</param>
+        /// <param name="iarPath">The item archive path to replicate</param>
         /// <param name="rootDestinationFolder">The root folder for the inventory load</param>
-        /// <param name="foldersCreated">
-        /// The folders created so far.  This method will add more folders if necessary
+        /// <param name="resolvedFolders">
+        /// The folders that we have resolved so far for a given archive path.  
+        /// This method will add more folders if necessary
         /// </param>
-        /// <param name="nodesLoaded">
-        /// Track the inventory nodes created.  This is distinct from the folders created since for a particular folder
-        /// chain, only the root node needs to be recorded
+        /// <param name="loadedNodes">
+        /// Track the inventory nodes created.
         /// </param>
         /// <returns>The last user inventory folder created or found for the archive path</returns>
         public InventoryFolderBase ReplicateArchivePathToUserInventory(
-            string archivePath, 
-            bool isDir, 
+            string iarPath, 
             InventoryFolderBase rootDestFolder, 
-            Dictionary <string, InventoryFolderBase> foldersCreated,
-            List<InventoryNodeBase> nodesLoaded)
+            Dictionary <string, InventoryFolderBase> resolvedFolders,
+            List<InventoryNodeBase> loadedNodes)
         {
-            archivePath = archivePath.Substring(ArchiveConstants.INVENTORY_PATH.Length);
-
-            // Remove the file portion if we aren't already dealing with a directory path
-            if (!isDir)
-                archivePath = archivePath.Remove(archivePath.LastIndexOf("/") + 1);
-
-            string originalArchivePath = archivePath;
+            string iarPathExisting = iarPath;
 
 //            m_log.DebugFormat(
 //                "[INVENTORY ARCHIVER]: Loading folder {0} {1}", rootDestFolder.Name, rootDestFolder.ID);
+                        
+            InventoryFolderBase destFolder = ResolveDestinationFolder(rootDestFolder, ref iarPathExisting, resolvedFolders);
+            
+//            m_log.DebugFormat(
+//                "[INVENTORY ARCHIVER]: originalArchivePath [{0}], section already loaded [{1}]", 
+//                iarPath, iarPathExisting);
+            
+            string iarPathToCreate = iarPath.Substring(iarPathExisting.Length);
+            CreateFoldersForPath(destFolder, iarPathExisting, iarPathToCreate, resolvedFolders, loadedNodes);
+            
+            return destFolder;
+        }
+
+        /// <summary>
+        /// Resolve a destination folder
+        /// </summary>
+        /// 
+        /// We require here a root destination folder (usually the root of the user's inventory) and the archive
+        /// path.  We also pass in a list of previously resolved folders in case we've found this one previously.
+        /// 
+        /// <param name="archivePath">
+        /// The item archive path to resolve.  The portion of the path passed back is that
+        /// which corresponds to the resolved desintation folder.
+        /// <param name="rootDestinationFolder">
+        /// The root folder for the inventory load
+        /// </param>
+        /// <param name="resolvedFolders">
+        /// The folders that we have resolved so far for a given archive path.  
+        /// </param>
+        /// <returns>
+        /// The folder in the user's inventory that matches best the archive path given.  If no such folder was found
+        /// then the passed in root destination folder is returned.
+        /// </returns>        
+        protected InventoryFolderBase ResolveDestinationFolder(
+            InventoryFolderBase rootDestFolder,                                                             
+            ref string archivePath,             
+            Dictionary <string, InventoryFolderBase> resolvedFolders)
+        {                       
+//            string originalArchivePath = archivePath;
 
             InventoryFolderBase destFolder = null;
 
-            // XXX: Nasty way of dealing with a path that has no directory component
             if (archivePath.Length > 0)
             {
                 while (null == destFolder && archivePath.Length > 0)
                 {
-                    if (foldersCreated.ContainsKey(archivePath))
+//                    m_log.DebugFormat("[INVENTORY ARCHIVER]: Trying to resolve destination folder {0}", archivePath);
+                    
+                    if (resolvedFolders.ContainsKey(archivePath))
                     {
 //                        m_log.DebugFormat(
 //                            "[INVENTORY ARCHIVER]: Found previously created folder from archive path {0}", archivePath);
-                        destFolder = foldersCreated[archivePath];
+                        destFolder = resolvedFolders[archivePath];
                     }
                     else
                     {
-                        // Don't include the last slash
+                        // Don't include the last slash so find the penultimate one
                         int penultimateSlashIndex = archivePath.LastIndexOf("/", archivePath.Length - 2);
 
                         if (penultimateSlashIndex >= 0)
                         {
+                            // Remove the last section of path so that we can see if we've already resolved the parent
                             archivePath = archivePath.Remove(penultimateSlashIndex + 1);
                         }
                         else
                         {
-                            m_log.DebugFormat(
-                                "[INVENTORY ARCHIVER]: Found no previously created folder for archive path {0}",
-                                originalArchivePath);
+//                            m_log.DebugFormat(
+//                                "[INVENTORY ARCHIVER]: Found no previously created folder for archive path {0}",
+//                                originalArchivePath);
                             archivePath = string.Empty;
                             destFolder = rootDestFolder;
                         }
                     }
                 }
             }
-            else
-            {
+            
+            if (null == destFolder)
                 destFolder = rootDestFolder;
-            }
-
-            string archivePathSectionToCreate = originalArchivePath.Substring(archivePath.Length);
-            string[] rawDirsToCreate
-                = archivePathSectionToCreate.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            
+            return destFolder;
+        }
+        
+        /// <summary>
+        /// Create a set of folders for the given path.
+        /// </summary>
+        /// <param name="destFolder">
+        /// The root folder from which the creation will take place.
+        /// </param>
+        /// <param name="iarPathExisting">
+        /// the part of the iar path that already exists
+        /// </param>
+        /// <param name="iarPathToReplicate">
+        /// The path to replicate in the user's inventory from iar
+        /// </param>
+        /// <param name="resolvedFolders">
+        /// The folders that we have resolved so far for a given archive path.
+        /// </param>
+        /// <param name="loadedNodes">
+        /// Track the inventory nodes created.
+        /// </param>
+        protected void CreateFoldersForPath(
+            InventoryFolderBase destFolder, 
+            string iarPathExisting,
+            string iarPathToReplicate, 
+            Dictionary <string, InventoryFolderBase> resolvedFolders, 
+            List<InventoryNodeBase> loadedNodes)
+        {
+            string[] rawDirsToCreate = iarPathToReplicate.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
             int i = 0;
 
             while (i < rawDirsToCreate.Length)
             {
-                m_log.DebugFormat("[INVENTORY ARCHIVER]: Loading archived folder {0}", rawDirsToCreate[i]);
+//                m_log.DebugFormat("[INVENTORY ARCHIVER]: Creating folder {0} from IAR", rawDirsToCreate[i]);
 
                 int identicalNameIdentifierIndex
                     = rawDirsToCreate[i].LastIndexOf(
@@ -282,66 +348,19 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                         newFolderId, newFolderName, m_userInfo.PrincipalID, 
                         (short)AssetType.Unknown, destFolder.ID, 1);
                 m_scene.InventoryService.AddFolder(destFolder);
-                
-//                UUID newFolderId = UUID.Random();
-//                m_scene.InventoryService.AddFolder(
-//                m_userInfo.CreateFolder(
-//                    folderName, newFolderId, (ushort)AssetType.Folder, foundFolder.ID);
-
-//                m_log.DebugFormat("[INVENTORY ARCHIVER]: Retrieving newly created folder {0}", folderName);
-//                foundFolder = foundFolder.GetChildFolder(newFolderId);
-//                m_log.DebugFormat(
-//                    "[INVENTORY ARCHIVER]: Retrieved newly created folder {0} with ID {1}", 
-//                    foundFolder.Name, foundFolder.ID);
 
                 // Record that we have now created this folder
-                archivePath += rawDirsToCreate[i] + "/";
-                m_log.DebugFormat("[INVENTORY ARCHIVER]: Loaded archive path {0}", archivePath);
-                foldersCreated[archivePath] = destFolder;
+                iarPathExisting += rawDirsToCreate[i] + "/";
+                m_log.DebugFormat("[INVENTORY ARCHIVER]: Created folder {0} from IAR", iarPathExisting);
+                resolvedFolders[iarPathExisting] = destFolder;
 
                 if (0 == i)
-                    nodesLoaded.Add(destFolder);
+                    loadedNodes.Add(destFolder);
 
                 i++;
-            }
-            
-            return destFolder;
-            
-            /*
-            string[] rawFolders = filePath.Split(new char[] { '/' });
-
-            // Find the folders that do exist along the path given
-            int i = 0;
-            bool noFolder = false;
-            InventoryFolderImpl foundFolder = rootDestinationFolder;
-            while (!noFolder && i < rawFolders.Length)
-            {
-                InventoryFolderImpl folder = foundFolder.FindFolderByPath(rawFolders[i]);
-                if (null != folder)
-                {
-                    m_log.DebugFormat("[INVENTORY ARCHIVER]: Found folder {0}", folder.Name);
-                    foundFolder = folder;
-                    i++;
-                }
-                else
-                {
-                    noFolder = true;
-                }
-            }
-
-            // Create any folders that did not previously exist
-            while (i < rawFolders.Length)
-            {
-                m_log.DebugFormat("[INVENTORY ARCHIVER]: Creating folder {0}", rawFolders[i]);
-
-                UUID newFolderId = UUID.Random();
-                m_userInfo.CreateFolder(
-                    rawFolders[i++], newFolderId, (ushort)AssetType.Folder, foundFolder.ID);
-                foundFolder = foundFolder.GetChildFolder(newFolderId);
-            }
-            */
+            }            
         }
-
+        
         /// <summary>
         /// Load an item from the archive
         /// </summary>

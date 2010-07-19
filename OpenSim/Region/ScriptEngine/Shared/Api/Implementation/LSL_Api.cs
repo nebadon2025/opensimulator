@@ -451,12 +451,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_Vector llVecNorm(LSL_Vector v)
         {
             m_host.AddScriptLPS(1);
-            double mag = LSL_Vector.Mag(v);
-            LSL_Vector nor = new LSL_Vector();
-            nor.x = v.x / mag;
-            nor.y = v.y / mag;
-            nor.z = v.z / mag;
-            return nor;
+            return LSL_Vector.Norm(v);
         }
 
         public LSL_Float llVecDist(LSL_Vector a, LSL_Vector b)
@@ -470,22 +465,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         //Now we start getting into quaternions which means sin/cos, matrices and vectors. ckrinke
 
-        // Utility function for llRot2Euler
-
-        // normalize an angle between -PI and PI (-180 to +180 degrees)
-        protected double NormalizeAngle(double angle)
-        {
-            if (angle > -Math.PI && angle < Math.PI)
-                return angle;
-
-            int numPis = (int)(Math.PI / angle);
-            double remainder = angle - Math.PI * numPis;
-            if (numPis % 2 == 1)
-                return Math.PI - angle;
-            return remainder;
-        }
-
-        // Old implementation of llRot2Euler, now normalized
+        // Old implementation of llRot2Euler. Normalization not required as Atan2 function will
+        // only return values >= -PI (-180 degrees) and <= PI (180 degrees).
 
         public LSL_Vector llRot2Euler(LSL_Rotation r)
         {
@@ -497,13 +478,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             double n = 2 * (r.y * r.s + r.x * r.z);
             double p = m * m - n * n;
             if (p > 0)
-                return new LSL_Vector(NormalizeAngle(Math.Atan2(2.0 * (r.x * r.s - r.y * r.z), (-t.x - t.y + t.z + t.s))),
-                                             NormalizeAngle(Math.Atan2(n, Math.Sqrt(p))),
-                                             NormalizeAngle(Math.Atan2(2.0 * (r.z * r.s - r.x * r.y), (t.x - t.y - t.z + t.s))));
+                return new LSL_Vector(Math.Atan2(2.0 * (r.x * r.s - r.y * r.z), (-t.x - t.y + t.z + t.s)),
+                                             Math.Atan2(n, Math.Sqrt(p)),
+                                             Math.Atan2(2.0 * (r.z * r.s - r.x * r.y), (t.x - t.y - t.z + t.s)));
             else if (n > 0)
-                return new LSL_Vector(0.0, Math.PI * 0.5, NormalizeAngle(Math.Atan2((r.z * r.s + r.x * r.y), 0.5 - t.x - t.z)));
+                return new LSL_Vector(0.0, Math.PI * 0.5, Math.Atan2((r.z * r.s + r.x * r.y), 0.5 - t.x - t.z));
             else
-                return new LSL_Vector(0.0, -Math.PI * 0.5, NormalizeAngle(Math.Atan2((r.z * r.s + r.x * r.y), 0.5 - t.x - t.z)));
+                return new LSL_Vector(0.0, -Math.PI * 0.5, Math.Atan2((r.z * r.s + r.x * r.y), 0.5 - t.x - t.z));
         }
 
         /* From wiki:
@@ -705,22 +686,75 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             //A and B should both be normalized
             m_host.AddScriptLPS(1);
-            double dotProduct = LSL_Vector.Dot(a, b);
-            LSL_Vector crossProduct = LSL_Vector.Cross(a, b);
-            double magProduct = LSL_Vector.Mag(a) * LSL_Vector.Mag(b);
-            double angle = Math.Acos(dotProduct / magProduct);
-            LSL_Vector axis = LSL_Vector.Norm(crossProduct);
-            double s = Math.Sin(angle / 2);
-
-            double x = axis.x * s;
-            double y = axis.y * s;
-            double z = axis.z * s;
-            double w = Math.Cos(angle / 2);
-
-            if (Double.IsNaN(x) || Double.IsNaN(y) || Double.IsNaN(z) || Double.IsNaN(w))
-                return new LSL_Rotation(0.0f, 0.0f, 0.0f, 1.0f);
-
-            return new LSL_Rotation((float)x, (float)y, (float)z, (float)w);
+            LSL_Rotation rotBetween;
+            // Check for zero vectors. If either is zero, return zero rotation. Otherwise,
+            // continue calculation.
+            if (a == new LSL_Vector(0.0f, 0.0f, 0.0f) || b == new LSL_Vector(0.0f, 0.0f, 0.0f))
+            {
+                rotBetween = new LSL_Rotation(0.0f, 0.0f, 0.0f, 1.0f);
+            }
+            else
+            {
+                a = LSL_Vector.Norm(a);
+                b = LSL_Vector.Norm(b);
+                double dotProduct = LSL_Vector.Dot(a, b);
+                // There are two degenerate cases possible. These are for vectors 180 or
+                // 0 degrees apart. These have to be detected and handled individually.
+                //
+                // Check for vectors 180 degrees apart.
+                // A dot product of -1 would mean the angle between vectors is 180 degrees.
+                if (dotProduct < -0.9999999f)
+                {
+                    // First assume X axis is orthogonal to the vectors.
+                    LSL_Vector orthoVector = new LSL_Vector(1.0f, 0.0f, 0.0f);
+                    orthoVector = orthoVector - a * (a.x / LSL_Vector.Dot(a, a));
+                    // Check for near zero vector. A very small non-zero number here will create
+                    // a rotation in an undesired direction.
+                    if (LSL_Vector.Mag(orthoVector) > 0.0001)
+                    {
+                        rotBetween = new LSL_Rotation(orthoVector.x, orthoVector.y, orthoVector.z, 0.0f);
+                    }
+                    // If the magnitude of the vector was near zero, then assume the X axis is not
+                    // orthogonal and use the Z axis instead.
+                    else
+                    {
+                        // Set 180 z rotation.
+                        rotBetween = new LSL_Rotation(0.0f, 0.0f, 1.0f, 0.0f);
+                    }
+                }
+                // Check for parallel vectors.
+                // A dot product of 1 would mean the angle between vectors is 0 degrees.
+                else if (dotProduct > 0.9999999f)
+                {
+                    // Set zero rotation.
+                    rotBetween = new LSL_Rotation(0.0f, 0.0f, 0.0f, 1.0f);
+                }
+                else
+                {
+                    // All special checks have been performed so get the axis of rotation.
+                    LSL_Vector crossProduct = LSL_Vector.Cross(a, b);
+                    // Quarternion s value is the length of the unit vector + dot product.
+                    double qs = 1.0 + dotProduct;
+                    rotBetween = new LSL_Rotation(crossProduct.x, crossProduct.y, crossProduct.z, qs);
+                    // Normalize the rotation.
+                    double mag = LSL_Rotation.Mag(rotBetween);
+                    // We shouldn't have to worry about a divide by zero here. The qs value will be
+                    // non-zero because we already know if we're here, then the dotProduct is not -1 so
+                    // qs will not be zero. Also, we've already handled the input vectors being zero so the
+                    // crossProduct vector should also not be zero.
+                    rotBetween.x = rotBetween.x / mag;
+                    rotBetween.y = rotBetween.y / mag;
+                    rotBetween.z = rotBetween.z / mag;
+                    rotBetween.s = rotBetween.s / mag;
+                    // Check for undefined values and set zero rotation if any found. This code might not actually be required
+                    // any longer since zero vectors are checked for at the top.
+                    if (Double.IsNaN(rotBetween.x) || Double.IsNaN(rotBetween.y) || Double.IsNaN(rotBetween.z) || Double.IsNaN(rotBetween.s))
+                    {
+                        rotBetween = new LSL_Rotation(0.0f, 0.0f, 0.0f, 1.0f);
+                    }
+                }
+            }
+            return rotBetween;
         }
 
         public void llWhisper(int channelID, string text)
@@ -2699,6 +2733,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     // objects rezzed with this method are die_at_edge by default.
                     new_group.RootPart.SetDieAtEdge(true);
 
+                    new_group.ResumeScripts();
+
                     m_ScriptEngine.PostObjectEvent(m_host.LocalId, new EventParams(
                             "object_rez", new Object[] {
                             new LSL_String(
@@ -2890,9 +2926,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                 IAttachmentsModule attachmentsModule = m_ScriptEngine.World.AttachmentsModule;
                 if (attachmentsModule != null)
-                    attachmentsModule.AttachObject(
-                        presence.ControllingClient, grp.LocalId, 
-                        (uint)attachment, Quaternion.Identity, Vector3.Zero, false);
+                    attachmentsModule.AttachObject(presence.ControllingClient,
+                            grp, (uint)attachment, false);
             }
         }
 
@@ -4895,7 +4930,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     case ',':
                         if (parens == 0)
                         {
-                            result.Add(src.Substring(start,length).Trim());
+                            result.Add(new LSL_String(src.Substring(start,length).Trim()));
                             start += length+1;
                             length = 0;
                         }
@@ -5824,6 +5859,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             PSYS_PART_MAX_AGE = 7,
             PSYS_SRC_ACCEL = 8,
             PSYS_SRC_PATTERN = 9,
+            PSYS_SRC_INNERANGLE = 10,
+            PSYS_SRC_OUTERANGLE = 11,
             PSYS_SRC_TEXTURE = 12,
             PSYS_SRC_BURST_RATE = 13,
             PSYS_SRC_BURST_PART_COUNT = 15,
@@ -5956,6 +5993,22 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             prules.Pattern = (Primitive.ParticleSystem.SourcePattern)tmpi;
                             break;
 
+                        // PSYS_SRC_INNERANGLE and PSYS_SRC_ANGLE_BEGIN use the same variables. The
+                        // PSYS_SRC_OUTERANGLE and PSYS_SRC_ANGLE_END also use the same variable. The
+                        // client tells the difference between the two by looking at the 0x02 bit in
+                        // the PartFlags variable.
+                        case (int)ScriptBaseClass.PSYS_SRC_INNERANGLE:
+                            tempf = (float)rules.GetLSLFloatItem(i + 1);
+                            prules.InnerAngle = (float)tempf;
+                            prules.PartFlags &= 0xFFFFFFFD; // Make sure new angle format is off.
+                            break;
+
+                        case (int)ScriptBaseClass.PSYS_SRC_OUTERANGLE:
+                            tempf = (float)rules.GetLSLFloatItem(i + 1);
+                            prules.OuterAngle = (float)tempf;
+                            prules.PartFlags &= 0xFFFFFFFD; // Make sure new angle format is off.
+                            break;
+
                         case (int)ScriptBaseClass.PSYS_SRC_TEXTURE:
                             prules.Texture = KeyOrName(rules.GetLSLStringItem(i + 1));
                             break;
@@ -6012,11 +6065,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         case (int)ScriptBaseClass.PSYS_SRC_ANGLE_BEGIN:
                             tempf = (float)rules.GetLSLFloatItem(i + 1);
                             prules.InnerAngle = (float)tempf;
+                            prules.PartFlags |= 0x02; // Set new angle format.
                             break;
 
                         case (int)ScriptBaseClass.PSYS_SRC_ANGLE_END:
                             tempf = (float)rules.GetLSLFloatItem(i + 1);
                             prules.OuterAngle = (float)tempf;
+                            prules.PartFlags |= 0x02; // Set new angle format.
                             break;
                     }
 
@@ -6518,6 +6573,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (cut.y - cut.x < 0.05f)
             {
                 cut.x = cut.y - 0.05f;
+                if (cut.x < 0.0f)
+                {
+                    cut.x = 0.0f;
+                    cut.y = 0.05f;
+                }
             }
             shapeBlock.ProfileBegin = (ushort)(50000 * cut.x);
             shapeBlock.ProfileEnd = (ushort)(50000 * (1 - cut.y));
@@ -6713,9 +6773,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 profilecut.y = 1f;
             }
-            if (profilecut.y - cut.x < 0.05f)
+            if (profilecut.y - profilecut.x < 0.05f)
             {
-                profilecut.x = cut.y - 0.05f;
+                profilecut.x = profilecut.y - 0.05f;
+                if (profilecut.x < 0.0f)
+                {
+                    profilecut.x = 0.0f;
+                    profilecut.y = 0.05f;
+                }
             }
             shapeBlock.ProfileBegin = (ushort)(50000 * profilecut.x);
             shapeBlock.ProfileEnd = (ushort)(50000 * (1 - profilecut.y));
@@ -9787,6 +9852,30 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             ScriptSleep(100);
             return tid.ToString();
+        }
+
+        public void SetPrimitiveParamsEx(LSL_Key prim, LSL_List rules)
+        {
+            SceneObjectPart obj = World.GetSceneObjectPart(new UUID(prim));
+            if (obj == null)
+                return;
+
+            if (obj.OwnerID != m_host.OwnerID)
+                return;
+
+            SetPrimParams(obj, rules);
+        }
+
+        public LSL_List GetLinkPrimitiveParamsEx(LSL_Key prim, LSL_List rules)
+        {
+            SceneObjectPart obj = World.GetSceneObjectPart(new UUID(prim));
+            if (obj == null)
+                return new LSL_List();
+
+            if (obj.OwnerID != m_host.OwnerID)
+                return new LSL_List();
+
+            return GetLinkPrimitiveParams(obj, rules);
         }
     }
 

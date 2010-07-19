@@ -31,6 +31,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Collections;
 using System.Reflection;
+using System.Threading;
 using OpenMetaverse;
 using log4net;
 using OpenSim.Framework;
@@ -555,7 +556,7 @@ namespace OpenSim.Region.Framework.Scenes
                 foreach (TaskInventoryItem item in items)
                 {
                     m_items.Add(item.ItemID, item);
-                    m_part.TriggerScriptChangedEvent(Changed.INVENTORY);
+//                    m_part.TriggerScriptChangedEvent(Changed.INVENTORY);
                 }
             }
 
@@ -950,7 +951,6 @@ namespace OpenSim.Region.Framework.Scenes
                             item.CurrentPermissions &= ~(uint)PermissionMask.Transfer;
                         if ((item.CurrentPermissions & ((uint)PermissionMask.Modify >> 13)) == 0)
                             item.CurrentPermissions &= ~(uint)PermissionMask.Modify;
-                        item.CurrentPermissions |= 8;
                     }
                     item.CurrentPermissions &= item.NextPermissions;
                     item.BasePermissions &= item.NextPermissions;

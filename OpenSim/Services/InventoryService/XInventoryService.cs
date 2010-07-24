@@ -299,6 +299,8 @@ namespace OpenSim.Services.InventoryService
             //
             foreach (UUID id in folderIDs)
             {
+                if (!ParentIsTrash(id))
+                    continue;
                 InventoryFolderBase f = new InventoryFolderBase();
                 f.ID = id;
                 PurgeFolder(f);
@@ -310,6 +312,9 @@ namespace OpenSim.Services.InventoryService
 
         public bool PurgeFolder(InventoryFolderBase folder)
         {
+            if (!ParentIsTrash(folder.ID))
+                return false;
+
             XInventoryFolder[] subFolders = m_Database.GetFolders(
                     new string[] { "parentFolderID" },
                     new string[] { folder.ID.ToString() });
@@ -503,6 +508,30 @@ namespace OpenSim.Services.InventoryService
             newItem.creationDate = item.CreationDate;
 
             return newItem;
+        }
+
+        private bool ParentIsTrash(UUID folderID)
+        {
+            XInventoryFolder[] folder = m_Database.GetFolders(new string[] {"folderID"}, new string[] {folderID.ToString()});
+            if (folder.Length < 1)
+                return false;
+
+            UUID parentFolder = folder[0].parentFolderID;
+
+            while (parentFolder != UUID.Zero)
+            {
+                XInventoryFolder[] parent = m_Database.GetFolders(new string[] {"folderID"}, new string[] {parentFolder.ToString()});
+                if (parent.Length < 1)
+                    return false;
+
+                if (parent[0].type == (int)AssetType.TrashFolder)
+                    return true;
+                if (parent[0].type == (int)AssetType.RootFolder)
+                    return false;
+
+                parentFolder = parent[0].parentFolderID;
+            }
+            return false;
         }
     }
 }

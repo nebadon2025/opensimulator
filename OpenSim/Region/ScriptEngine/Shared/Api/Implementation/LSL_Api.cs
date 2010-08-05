@@ -68,6 +68,13 @@ using System.Reflection;
 
 namespace OpenSim.Region.ScriptEngine.Shared.Api
 {
+    // MUST be a ref type
+    public class UserInfoCacheEntry
+    {
+        public int time;
+        public UserProfileData userProfile;
+    }
+
     /// <summary>
     /// Contains all LSL ll-functions. This class will be in Default AppDomain.
     /// </summary>
@@ -92,6 +99,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         protected int m_scriptConsoleChannel = 0;
         protected bool m_scriptConsoleChannelEnabled = false;
         protected IUrlModule m_UrlModule = null;
+        protected Dictionary<UUID, UserInfoCacheEntry> m_userInfoCache =
+                new Dictionary<UUID, UserInfoCacheEntry>();
 
         public void Initialize(IScriptEngine ScriptEngine, SceneObjectPart host, uint localID, UUID itemID)
         {
@@ -3885,11 +3894,40 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             UserProfileData userProfile =
                     World.CommsManager.UserService.GetUserProfile(uuid);
 
-            UserAgentData userAgent =
-                    World.CommsManager.UserService.GetAgentByUUID(uuid);
+            UserInfoCacheEntry ce;
+            if (!m_userInfoCache.TryGetValue(uuid, out ce))
+            {
+                userProfile = World.CommsManager.UserService.GetUserProfile(uuid);
+                if (userProfile == null)
+                {
+                    m_userInfoCache[uuid] = null; // Cache negative
+                    return UUID.Zero.ToString();
+                }
 
-            if (userProfile == null || userAgent == null)
-                return UUID.Zero.ToString();
+                UserAgentData userAgent =
+                        World.CommsManager.UserService.GetAgentByUUID(uuid);
+
+                if (userProfile == null || userAgent == null)
+                    return UUID.Zero.ToString();
+
+                ce = new UserInfoCacheEntry();
+                ce.time = Util.EnvironmentTickCount();
+                ce.userProfile = userProfile;
+            }
+            else
+            {
+                if (ce == null)
+                    return UUID.Zero.ToString();
+
+                userProfile = ce.userProfile;
+            }
+
+            if (Util.EnvironmentTickCount() < ce.time || (Util.EnvironmentTickCount() - ce.time) >= 20000)
+            {
+                userProfile = World.CommsManager.UserService.GetUserProfile(uuid);
+                ce.time = Util.EnvironmentTickCount();
+                ce.userProfile = userProfile;
+            }
 
             string reply = String.Empty;
 

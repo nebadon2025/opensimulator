@@ -3913,6 +3913,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 ce = new UserInfoCacheEntry();
                 ce.time = Util.EnvironmentTickCount();
                 ce.userProfile = userProfile;
+                m_userInfoCache[uuid] = ce;
             }
             else
             {

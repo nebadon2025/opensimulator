@@ -3891,8 +3891,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             UUID uuid = (UUID)id;
 
-            UserProfileData userProfile =
-                    World.CommsManager.UserService.GetUserProfile(uuid);
+            UserProfileData userProfile;
 
             UserInfoCacheEntry ce;
             if (!m_userInfoCache.TryGetValue(uuid, out ce))

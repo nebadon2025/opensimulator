@@ -86,7 +86,7 @@ namespace OpenSim.Framework
         /// <summary>
         /// Dynamic attributes can be created and deleted as required.
         /// </summary>
-        public DynAttrsOSDMap DynAttrs { get; set; }        
+        public DAMap DynAttrs { get; set; }        
 
         private byte[] m_textureEntry;
 
@@ -193,12 +193,12 @@ namespace OpenSim.Framework
             PCode = (byte) PCodeEnum.Primitive;
             ExtraParams = new byte[1];
             m_textureEntry = DEFAULT_TEXTURE;
-            DynAttrs = new DynAttrsOSDMap();
+            DynAttrs = new DAMap();
         }
 
         public PrimitiveBaseShape(bool noShape)
         {
-            DynAttrs = new DynAttrsOSDMap();
+            DynAttrs = new DAMap();
             
             if (noShape)
                 return;
@@ -214,7 +214,7 @@ namespace OpenSim.Framework
         /// <param name="prim"></param>
         public PrimitiveBaseShape(Primitive prim)
         {
-            DynAttrs = new DynAttrsOSDMap();
+            DynAttrs = new DAMap();
             PCode = (byte)prim.PrimData.PCode;
             ExtraParams = new byte[1];
 

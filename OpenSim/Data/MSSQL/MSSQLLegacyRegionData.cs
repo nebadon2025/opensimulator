@@ -1132,9 +1132,9 @@ VALUES
                 prim.MediaUrl = (string)primRow["MediaURL"];            
             
             if (!(primRow["DynAttrs"] is System.DBNull))
-                prim.DynAttrs = DynAttrsOSDMap.FromXml((string)primRow["DynAttrs"]);
+                prim.DynAttrs = DAMap.FromXml((string)primRow["DynAttrs"]);
             else
-                prim.DynAttrs = new DynAttrsOSDMap();             
+                prim.DynAttrs = new DAMap();             
 
             return prim;
         }
@@ -1192,9 +1192,9 @@ VALUES
                 baseShape.Media = PrimitiveBaseShape.MediaList.FromXml((string)shapeRow["Media"]);
             
             if (!(shapeRow["DynAttrs"] is System.DBNull))
-                baseShape.DynAttrs = DynAttrsOSDMap.FromXml((string)shapeRow["DynAttrs"]);            
+                baseShape.DynAttrs = DAMap.FromXml((string)shapeRow["DynAttrs"]);            
             else
-                baseShape.DynAttrs = new DynAttrsOSDMap();             
+                baseShape.DynAttrs = new DAMap();             
 
             return baseShape;
         }

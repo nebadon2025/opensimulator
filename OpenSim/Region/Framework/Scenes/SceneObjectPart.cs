@@ -119,7 +119,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Dynamic attributes can be created and deleted as required.
         /// </summary>
-        public DynAttrsOSDMap DynAttrs { get; set; }
+        public DAMap DynAttrs { get; set; }
         
         /// <value>
         /// Is this sop a root part?
@@ -368,7 +368,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_particleSystem = Utils.EmptyBytes;
             Rezzed = DateTime.UtcNow;
             
-            DynAttrs = new DynAttrsOSDMap();
+            DynAttrs = new DAMap();
             m_inventory = new SceneObjectPartInventory(this);
         }
 
@@ -420,7 +420,7 @@ namespace OpenSim.Region.Framework.Scenes
             //m_undo = new UndoStack<UndoState>(ParentGroup.GetSceneMaxUndo());
             
             m_inventory = new SceneObjectPartInventory(this);
-            DynAttrs = new DynAttrsOSDMap();
+            DynAttrs = new DAMap();
         }
 
         #endregion Constructors

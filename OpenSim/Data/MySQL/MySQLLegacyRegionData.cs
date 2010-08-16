@@ -1189,9 +1189,9 @@ namespace OpenSim.Data.MySQL
                 prim.MediaUrl = (string)row["MediaURL"];
             
             if (!(row["DynAttrs"] is System.DBNull))
-                prim.DynAttrs = DynAttrsOSDMap.FromXml((string)row["DynAttrs"]);
+                prim.DynAttrs = DAMap.FromXml((string)row["DynAttrs"]);
             else
-                prim.DynAttrs = new DynAttrsOSDMap();        
+                prim.DynAttrs = new DAMap();        
 
             return prim;
         }
@@ -1714,9 +1714,9 @@ namespace OpenSim.Data.MySQL
                 s.Media = PrimitiveBaseShape.MediaList.FromXml((string)row["Media"]);
             
             if (!(row["DynAttrs"] is System.DBNull))
-                s.DynAttrs = DynAttrsOSDMap.FromXml((string)row["DynAttrs"]);            
+                s.DynAttrs = DAMap.FromXml((string)row["DynAttrs"]);            
             else
-                s.DynAttrs = new DynAttrsOSDMap();             
+                s.DynAttrs = new DAMap();             
 
             return s;
         }

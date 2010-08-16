@@ -1063,11 +1063,6 @@ namespace OpenSim.Region.OptionalModules.Agent.InternetRelayClientView.Server
             
         }
 
-        public void AttachObject(uint localID, Quaternion rotation, byte attachPoint, UUID ownerID)
-        {
-            
-        }
-
         public void SendAvatarDataImmediate(ISceneEntity avatar)
         {
 
@@ -1686,6 +1681,10 @@ namespace OpenSim.Region.OptionalModules.Agent.InternetRelayClientView.Server
         }
 
         public void SendTextBoxRequest(string message, int chatChannel, string objectname, string ownerFirstName, string ownerLastName, UUID objectId)
+        {
+        }
+
+        public void StopFlying(ISceneEntity presence)
         {
         }
     }

@@ -60,7 +60,6 @@ namespace OpenSim.Region.Framework.Scenes
     struct ScriptControllers
     {
         public UUID itemID;
-        public uint objID;
         public ScriptControlled ignoreControls;
         public ScriptControlled eventControls;
     }
@@ -1042,25 +1041,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void StopFlying()
         {
-            // It turns out to get the agent to stop flying, you have to feed it stop flying velocities
-            // There's no explicit message to send the client to tell it to stop flying..   it relies on the 
-            // velocity, collision plane and avatar height
-
-            // Add 1/6 the avatar's height to it's position so it doesn't shoot into the air
-            // when the avatar stands up
-
-            if (m_avHeight != 127.0f)
-            {
-                AbsolutePosition = AbsolutePosition + new Vector3(0f, 0f, (m_avHeight / 6f));
-            }
-            else
-            {
-                AbsolutePosition = AbsolutePosition + new Vector3(0f, 0f, (1.56f / 6f));
-            }
-
-            ControllingClient.SendPrimUpdate(this, PrimUpdateFlags.Position);
-            //ControllingClient.SendAvatarTerseUpdate(new SendAvatarTerseData(m_rootRegionHandle, (ushort)(m_scene.TimeDilation * ushort.MaxValue), LocalId,
-            //        AbsolutePosition, Velocity, Vector3.Zero, m_bodyRot, new Vector4(0,0,1,AbsolutePosition.Z - 0.5f), m_uuid, null, GetUpdatePriority(ControllingClient)));
+            ControllingClient.StopFlying(this);
         }
 
         public void AddNeighbourRegion(ulong regionHandle, string cap)
@@ -2456,8 +2437,6 @@ namespace OpenSim.Region.Framework.Scenes
             m_controllingClient.SendCoarseLocationUpdate(avatarUUIDs, coarseLocations);
             m_scene.StatsReporter.AddAgentTime(Util.EnvironmentTickCountSubtract(m_perfMonMS));
 
-        }
-
         /// <summary>
         /// Tell other client about this avatar (The client previously didn't know or had outdated details about this avatar)
         /// </summary>
@@ -3182,6 +3161,18 @@ namespace OpenSim.Region.Framework.Scenes
                 cAgent.Attachments = attachs;
             }
 
+            lock (scriptedcontrols)
+            {
+                ControllerData[] controls = new ControllerData[scriptedcontrols.Count];
+                int i = 0;
+
+                foreach (ScriptControllers c in scriptedcontrols.Values)
+                {
+                    controls[i++] = new ControllerData(c.itemID, (uint)c.ignoreControls, (uint)c.eventControls);
+                }
+                cAgent.Controllers = controls;
+            }
+
             // Animations
             try
             {
@@ -3253,6 +3244,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (cAgent.Attachments != null)
                 {
+                    m_appearance.ClearAttachments();
                     foreach (AttachmentData att in cAgent.Attachments)
                     {
                         m_appearance.SetAttachment(att.AttachPoint, att.ItemID, att.AssetID);
@@ -3261,6 +3253,27 @@ namespace OpenSim.Region.Framework.Scenes
             }
             catch { } 
 
+            try
+            {
+                lock (scriptedcontrols)
+                {
+                    if (cAgent.Controllers != null)
+                    {
+                        scriptedcontrols.Clear();
+
+                        foreach (ControllerData c in cAgent.Controllers)
+                        {
+                            ScriptControllers sc = new ScriptControllers();
+                            sc.itemID = c.ItemID;
+                            sc.ignoreControls = (ScriptControlled)c.IgnoreControls;
+                            sc.eventControls = (ScriptControlled)c.EventControls;
+
+                            scriptedcontrols[sc.itemID] = sc;
+                        }
+                    }
+                }
+            }
+            catch { }
             // Animations
             try
             {
@@ -3592,7 +3605,6 @@ namespace OpenSim.Region.Framework.Scenes
             obj.eventControls = ScriptControlled.CONTROL_ZERO;
 
             obj.itemID = Script_item_UUID;
-            obj.objID = Obj_localID;
             if (pass_on == 0 && accept == 0)
             {
                 IgnoredControls |= (ScriptControlled)controls;
@@ -3735,7 +3747,7 @@ namespace OpenSim.Region.Framework.Scenes
                         if (localHeld != ScriptControlled.CONTROL_ZERO || localChange != ScriptControlled.CONTROL_ZERO)
                         {
                             // only send if still pressed or just changed
-                            m_scene.EventManager.TriggerControlEvent(scriptControlData.objID, scriptUUID, UUID, (uint)localHeld, (uint)localChange);
+                            m_scene.EventManager.TriggerControlEvent(scriptUUID, UUID, (uint)localHeld, (uint)localChange);
                         }
                     }
                 }

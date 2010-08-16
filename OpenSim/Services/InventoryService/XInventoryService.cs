@@ -200,7 +200,14 @@ namespace OpenSim.Services.InventoryService
             if (folders.Length == 0)
                 return null;
 
-            return ConvertToOpenSim(folders[0]);
+            XInventoryFolder root = null;
+            foreach (XInventoryFolder folder in folders)
+                if (folder.folderName == "My Inventory")
+                    root = folder;
+            if (folders == null) // oops
+                root = folders[0];
+
+            return ConvertToOpenSim(root);
         }
 
         public virtual InventoryFolderBase GetFolderForType(UUID principalID, AssetType type)
@@ -252,13 +259,15 @@ namespace OpenSim.Services.InventoryService
         
         public virtual List<InventoryItemBase> GetFolderItems(UUID principalID, UUID folderID)
         {
+//            m_log.DebugFormat("[XINVENTORY]: Fetch items for folder {0}", folderID);
+            
             // Since we probably don't get a valid principal here, either ...
             //
             List<InventoryItemBase> invItems = new List<InventoryItemBase>();
 
             XInventoryItem[] items = m_Database.GetItems(
-                    new string[] { "parentFolderID"},
-                    new string[] { UUID.Zero.ToString() });
+                    new string[] { "parentFolderID" },
+                    new string[] { folderID.ToString() });
 
             foreach (XInventoryItem i in items)
                 invItems.Add(ConvertToOpenSim(i));
@@ -460,7 +469,7 @@ namespace OpenSim.Services.InventoryService
             newItem.ID = item.inventoryID;
             newItem.InvType = item.invType;
             newItem.Folder = item.parentFolderID;
-            newItem.CreatorId = item.creatorID.ToString();
+            newItem.CreatorId = item.creatorID;
             newItem.Description = item.inventoryDescription;
             newItem.NextPermissions = (uint)item.inventoryNextPermissions;
             newItem.CurrentPermissions = (uint)item.inventoryCurrentPermissions;
@@ -491,7 +500,7 @@ namespace OpenSim.Services.InventoryService
             newItem.inventoryID = item.ID;
             newItem.invType = item.InvType;
             newItem.parentFolderID = item.Folder;
-            newItem.creatorID = item.CreatorIdAsUuid;
+            newItem.creatorID = item.CreatorId;
             newItem.inventoryDescription = item.Description;
             newItem.inventoryNextPermissions = (int)item.NextPermissions;
             newItem.inventoryCurrentPermissions = (int)item.CurrentPermissions;

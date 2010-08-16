@@ -1052,6 +1052,7 @@ namespace OpenSim.Region.Framework.Scenes
                 return;
 
             detachedpos = avatar.AbsolutePosition;
+            RootPart.FromItemID = UUID.Zero;
 
             AbsolutePosition = detachedpos;
             m_rootPart.AttachedAvatar = UUID.Zero;
@@ -1477,7 +1478,7 @@ namespace OpenSim.Region.Framework.Scenes
                             "[SCENE]: Storing {0}, {1} in {2}",
                             Name, UUID, m_scene.RegionInfo.RegionName);
 
-                        SceneObjectGroup backup_group = Copy(OwnerID, GroupID, false);
+                        SceneObjectGroup backup_group = Copy(false);
                         backup_group.RootPart.Velocity = RootPart.Velocity;
                         backup_group.RootPart.Acceleration = RootPart.Acceleration;
                         backup_group.RootPart.AngularVelocity = RootPart.AngularVelocity;
@@ -1533,7 +1534,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// Duplicates this object, including operations such as physics set up and attaching to the backup event.
         /// </summary>
         /// <returns></returns>
-        public SceneObjectGroup Copy(UUID cAgentID, UUID cGroupID, bool userExposed)
+        public SceneObjectGroup Copy(bool userExposed)
         {
             SceneObjectGroup dupe = (SceneObjectGroup)MemberwiseClone();
             dupe.m_isBackedUp = false;
@@ -1556,7 +1557,9 @@ namespace OpenSim.Region.Framework.Scenes
             dupe.AbsolutePosition = new Vector3(AbsolutePosition.X, AbsolutePosition.Y, AbsolutePosition.Z);
 
             if (!userExposed)
+            {
                 dupe.RootPart.IsAttachment = previousAttachmentStatus;
+            }
 
             dupe.CopyRootPart(m_rootPart, OwnerID, GroupID, userExposed);
             dupe.m_rootPart.LinkNum = m_rootPart.LinkNum;
@@ -1581,16 +1584,6 @@ namespace OpenSim.Region.Framework.Scenes
                 dupe.RootPart.DoPhysicsPropertyUpdate(dupe.RootPart.PhysActor.IsPhysical, true);
             }
 
-            // Now we've made a copy that replaces this one, we need to
-            // switch the owner to the person who did the copying
-            // Second Life copies an object and duplicates the first one in it's place
-            // So, we have to make a copy of this one, set it in it's place then set the owner on this one
-            if (userExposed)
-            {
-                SetRootPartOwner(m_rootPart, cAgentID, cGroupID);
-                m_rootPart.ScheduleFullUpdate();
-            }
-            
             List<SceneObjectPart> partList;
 
             lock (m_parts)
@@ -1611,12 +1604,6 @@ namespace OpenSim.Region.Framework.Scenes
                     SceneObjectPart newPart = dupe.CopyPart(part, OwnerID, GroupID, userExposed);
 
                     newPart.LinkNum = part.LinkNum;
-
-                    if (userExposed)
-                    {
-                        SetPartOwner(newPart, cAgentID, cGroupID);
-                        newPart.ScheduleFullUpdate();
-                    }
                 }
             }
 
@@ -2018,7 +2005,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void ScheduleGroupForFullUpdate()
         {
-//            m_log.DebugFormat("[SOG]: Scheduling full update for {0} {1}", Name, UUID);
+            if (IsAttachment)
+                m_log.DebugFormat("[SOG]: Scheduling full update for {0} {1}", Name, LocalId);
             
             checkAtTargets();
             RootPart.ScheduleFullUpdate();
@@ -3599,7 +3587,7 @@ namespace OpenSim.Region.Framework.Scenes
         
         public virtual ISceneObject CloneForNewScene()
         {
-            SceneObjectGroup sog = Copy(this.OwnerID, this.GroupID, false);
+            SceneObjectGroup sog = Copy(false);
             sog.m_isDeleted = false;
             return sog;
         }

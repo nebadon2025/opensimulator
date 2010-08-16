@@ -2186,5 +2186,45 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 }
             }
         }
+
+        public LSL_List osGetPrimitiveParams(LSL_Key prim, LSL_List rules)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osGetPrimitiveParams");
+            m_host.AddScriptLPS(1);
+            
+            return m_LSL_Api.GetLinkPrimitiveParamsEx(prim, rules);
+        }
+
+        public void osSetPrimitiveParams(LSL_Key prim, LSL_List rules)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osGetPrimitiveParams");
+            m_host.AddScriptLPS(1);
+            
+            m_LSL_Api.SetPrimitiveParamsEx(prim, rules);
+        }
+
+        /// <summary>
+        /// Like osGetAgents but returns enough info for a radar
+        /// </summary>
+        /// <returns>Strided list of the UUID, position and name of each avatar in the region</returns>
+        public LSL_List osGetAvatarList()
+        {
+            CheckThreatLevel(ThreatLevel.None, "osGetAvatarList");
+
+            LSL_List result = new LSL_List();
+            World.ForEachScenePresence(delegate (ScenePresence avatar)
+            {
+                if (avatar != null && avatar.UUID != m_host.OwnerID)
+                {
+                    if (avatar.IsChildAgent == false)
+                    {
+                        result.Add(avatar.UUID);
+                        result.Add(avatar.AbsolutePosition);
+                        result.Add(avatar.Name);
+                    }
+                }
+            });
+            return result;
+        }
     }
 }

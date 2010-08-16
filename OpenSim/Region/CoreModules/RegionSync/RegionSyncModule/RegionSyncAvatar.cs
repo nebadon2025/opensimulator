@@ -372,7 +372,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public virtual String Name
         {
-            get { return FirstName + LastName; }
+            get { return FirstName + " " + LastName; }
         }
 
         public bool IsActive
@@ -1199,6 +1199,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void SendEstateList(UUID invoice, int code, UUID[] Data, uint estateID)
         {
             throw new System.NotImplementedException();
+        }
+        public void StopFlying(ISceneEntity p)
+        {
         }
 
     }

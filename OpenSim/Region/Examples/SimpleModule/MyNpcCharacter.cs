@@ -544,10 +544,6 @@ namespace OpenSim.Region.Examples.SimpleModule
         {
         }
 
-        public virtual void AttachObject(uint localID, Quaternion rotation, byte attachPoint, UUID ownerID)
-        {
-        }
-
         public virtual void SendDialog(string objectname, UUID objectID, string ownerFirstName, string ownerLastName, string msg, UUID textureID, int ch, string[] buttonlabels)
         {
         }
@@ -1161,6 +1157,10 @@ namespace OpenSim.Region.Examples.SimpleModule
         }
 
         public void SendTextBoxRequest(string message, int chatChannel, string objectname, string ownerFirstName, string ownerLastName, UUID objectId)
+        {
+        }
+
+        public void StopFlying(ISceneEntity presence)
         {
         }
     }

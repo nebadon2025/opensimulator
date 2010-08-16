@@ -70,6 +70,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private Thread m_send_loop;
         private string m_regionName;
 
+        public string Name
+        {
+            get { return m_regionName; }
+        }
+
         // A string of the format [REGION SYNC CLIENT VIEW (regionname)] for use in log headers
         private string LogHeader
         {
@@ -94,10 +99,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public string GetStats()
         {
-            int syncedAvCount;
+            int syncedAvCount = SyncedAvCount; ;
             string ret;
-            lock (m_syncRoot)
-                syncedAvCount = m_syncedAvatars.Count;
             lock (stats)
             {
                 double secondsSinceLastStats = DateTime.Now.Subtract(lastStatTime).TotalSeconds;
@@ -192,8 +195,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         msgsIn++;
                         bytesIn += msg.Length;
                     }
-                    lock (m_syncRoot)
-                        HandleMessage(msg);
+                    try
+                    {
+                        lock (m_syncRoot)
+                            HandleMessage(msg);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat("{0} Exception in HandleMessage({1}) (ReceiveLoop):{2}", LogHeader, msg.Type.ToString(), e.Message);
+                    }
                 }
             }
             catch (Exception e)
@@ -374,7 +384,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         if(!found)
                         {
-                            RegionSyncMessage.HandleWarning(LogHeader, msg, String.Format("Received agent update for non-existent avatar with UUID {0}", agentData.AgentID));
+                            RegionSyncMessage.HandleWarning(LogHeader, msg, String.Format("Received agent update for avatar not owned by this client view {0}", agentData.AgentID));
                             return;
                         }
 
@@ -571,6 +581,66 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         //RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Received stats: {0},{1},{2}", t, l, r));
                         return;
                     }
+                case RegionSyncMessage.MsgType.AvatarTeleportIn:
+                    {
+                        // Get the data from message and error check
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            return;
+                        }
+                        UUID agentID = data["agentID"].AsUUID();
+                        ScenePresence sp;
+                        m_scene.TryGetScenePresence(agentID, out sp);
+                        if (sp == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Presence is not in scene");
+                            return;
+                        }
+
+                        if (sp.ControllingClient is RegionSyncAvatar)
+                        {
+                            m_syncedAvatars.Add(agentID, (RegionSyncAvatar)sp.ControllingClient);
+                            RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Avatar {0} now owned by region {1}", sp.Name, m_regionName));
+                            return;
+                        }
+                        else
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Presence is not a RegionSyncAvatar");
+                            return;
+                        }
+                    }
+                case RegionSyncMessage.MsgType.AvatarTeleportOut:
+                    {
+                        // Get the data from message and error check
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            return;
+                        }
+                        UUID agentID = data["agentID"].AsUUID();
+                        ScenePresence sp;
+                        m_scene.TryGetScenePresence(agentID, out sp);
+                        if (sp == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Presence is not in scene");
+                            return;
+                        }
+
+                        if (sp.ControllingClient is RegionSyncAvatar)
+                        {
+                            m_syncedAvatars.Remove(agentID);
+                            RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Avatar {0} is no longer owned by region {1}", sp.Name, m_regionName));
+                            return;
+                        }
+                        else
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Presence is not a RegionSyncAvatar");
+                            return;
+                        }
+                    }
                 default:
                     {
                         m_log.WarnFormat("{0} Unable to handle unsupported message type", LogHeader);
@@ -635,11 +705,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        public int SyncedAvCount
+        {
+            get
+            {
+                lock (m_syncRoot)
+                    return m_syncedAvatars.Count;
+            }
+        }
+
         public void ReportStatus()
         {
-            int syncedAvCount;
-            lock (m_syncRoot)
-                syncedAvCount = m_syncedAvatars.Count;
+            int syncedAvCount = SyncedAvCount;
             lock (stats)
             {
                 bool localcheck = true;
@@ -652,9 +729,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 if (m_scene.SceneGraph.GetRootAgentCount() - syncedAvCount != lastRemoteCount)
                     remotecheck = false;
                 m_log.ErrorFormat("{0} Syncing {1,4} remote presences. Remote scene reporting {2,4} locals, {3,4} remotes, {4,4} total ({5},{6},{7})",
-                    LogHeader, m_syncedAvatars.Count, lastLocalCount, lastRemoteCount, lastTotalCount, localcheck ? " " : "!", remotecheck ? " " : "!", totalcheck ? " " : "!");
+                    LogHeader, syncedAvCount, lastLocalCount, lastRemoteCount, lastTotalCount, localcheck ? " " : "!", remotecheck ? " " : "!", totalcheck ? " " : "!");
             }
         }
 
+        public void BalanceClients(int targetLoad, string destinationRegion)
+        {
+            OSDMap data = new OSDMap(2);
+            data["endCount"] = OSD.FromInteger(targetLoad);
+            data["toRegion"] = OSD.FromString(destinationRegion);
+            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.BalanceClientLoad, OSDParser.SerializeJsonString(data)));
+        }
     }
 }

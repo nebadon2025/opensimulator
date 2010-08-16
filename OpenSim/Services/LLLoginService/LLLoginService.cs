@@ -73,6 +73,7 @@ namespace OpenSim.Services.LLLoginService
         protected int m_MinLoginLevel;
         protected string m_GatekeeperURL;
         protected bool m_AllowRemoteSetLoginLevel;
+        protected string m_MapTileURL;
 
         IConfig m_LoginServerConfig;
 
@@ -100,6 +101,7 @@ namespace OpenSim.Services.LLLoginService
             m_AllowRemoteSetLoginLevel = m_LoginServerConfig.GetBoolean("AllowRemoteSetLoginLevel", false);
             m_MinLoginLevel = m_LoginServerConfig.GetInt("MinLoginLevel", 0);
             m_GatekeeperURL = m_LoginServerConfig.GetString("GatekeeperURI", string.Empty);
+            m_MapTileURL = m_LoginServerConfig.GetString("MapTileURL", string.Empty);
 
             // These are required; the others aren't
             if (accountService == string.Empty || authService == string.Empty)
@@ -209,6 +211,8 @@ namespace OpenSim.Services.LLLoginService
             bool success = false;
             UUID session = UUID.Random();
 
+            m_log.InfoFormat("[LLOGIN SERVICE]: Login request for {0} {1} from {2} with user agent {3} starting in {4}", 
+                firstName, lastName, clientIP.Address.ToString(), clientVersion, startLocation);
             try
             {
                 //
@@ -354,7 +358,7 @@ namespace OpenSim.Services.LLLoginService
                 // Finally, fill out the response and return it
                 //
                 LLLoginResponse response = new LLLoginResponse(account, aCircuit, guinfo, destination, inventorySkel, friendsList, m_LibraryService,
-                    where, startLocation, position, lookAt, gestures, m_WelcomeMessage, home, clientIP);
+                    where, startLocation, position, lookAt, gestures, m_WelcomeMessage, home, clientIP, m_MapTileURL);
 
                 m_log.DebugFormat("[LLOGIN SERVICE]: All clear. Sending login response to client.");
                 return response;

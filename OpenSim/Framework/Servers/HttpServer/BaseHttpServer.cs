@@ -310,7 +310,7 @@ namespace OpenSim.Framework.Servers.HttpServer
             }
             catch (Exception e)
             {
-                m_log.Error(String.Format("[BASE HTTP SERVER]: OnRequest() failed with {0}", e.Message));
+                m_log.ErrorFormat("[BASE HTTP SERVER]: OnRequest() failed with {0}{1}", e.Message, e.StackTrace);
             }
         }
 

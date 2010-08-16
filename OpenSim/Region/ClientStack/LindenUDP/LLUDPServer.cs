@@ -892,7 +892,12 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             LLUDPClient udpClient = new LLUDPClient(this, m_throttleRates, m_throttle, circuitCode, agentID, remoteEndPoint, m_defaultRTO, m_maxRTO);
             IClientAPI existingClient;
 
-            if (!m_scene.TryGetClient(agentID, out existingClient))
+            // REGION SYNC (Load Balancing)
+            ScenePresence presence;
+            m_scene.TryGetScenePresence(agentID, out presence);
+            bool syncedAvatar = (presence != null && presence.IsSyncedAvatar);
+
+            if (!m_scene.TryGetClient(agentID, out existingClient) || syncedAvatar)
             {
                 // Create the LLClientView
                 LLClientView client = new LLClientView(remoteEndPoint, m_scene, this, udpClient, sessionInfo, agentID, sessionID, circuitCode);

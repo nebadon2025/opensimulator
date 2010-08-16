@@ -61,6 +61,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             m_serveraddr = syncConfig.GetString("ServerIPAddress", "127.0.0.1");
             m_serverport = syncConfig.GetInt("ServerPort", 13000);
+            m_maxClientsPerManager = syncConfig.GetInt("MaxClientsPerManager", 100);
             m_scene = scene;
             m_scene.RegisterModuleInterface<IRegionSyncServerModule>(this);
 
@@ -92,7 +93,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             m_log.Warn("[REGION SYNC SERVER MODULE] Starting RegionSyncServer");
             // Start the server and listen for RegionSyncClients
-            m_server = new RegionSyncServer(m_scene, m_serveraddr, m_serverport);
+            m_server = new RegionSyncServer(m_scene, m_serveraddr, m_serverport, m_maxClientsPerManager);
             m_server.Start();
             m_statsTimer.Elapsed += new System.Timers.ElapsedEventHandler(StatsTimerElapsed);
             m_statsTimer.Start();
@@ -228,7 +229,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     catch (Exception e)
                     {
-                        m_log.ErrorFormat("[REGION SYNC SERVER MODULE] Caught exception sending presence updates for {0}", presence.Name);
+                        m_log.ErrorFormat("[REGION SYNC SERVER MODULE] Caught exception sending presence updates for {0}: {1}", presence.Name, e.Message);
                     }
                 }
                 // Indicate that the current batch of updates has been completed
@@ -343,6 +344,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private bool m_active = true;
         private string m_serveraddr;
         private int m_serverport;
+        private int m_maxClientsPerManager;
         private Scene m_scene;
         //private IClientAPI m_clientAggregator;
         private ILog m_log;
@@ -536,7 +538,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void InstallInterfaces()
         {
             Command cmdSyncStatus = new Command("status", CommandIntentions.COMMAND_HAZARDOUS, SyncStatus, "Reports current status of the RegionSyncServer.");
+            Command cmdBalanceClients = new Command("balance", CommandIntentions.COMMAND_HAZARDOUS, BalanceClients, "Balance client load across available client managers.");
             m_commander.RegisterCommand("status", cmdSyncStatus);
+            m_commander.RegisterCommand("balance", cmdBalanceClients);
 
             lock (m_scene)
             {
@@ -573,6 +577,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (Synced)
                 m_server.ReportStatus();
+            else
+                m_log.Error("No RegionSyncClients connected");
+        }
+
+        private void BalanceClients(Object[] args)
+        {
+            if (Synced)
+                m_server.BalanceClients();
             else
                 m_log.Error("No RegionSyncClients connected");
         }

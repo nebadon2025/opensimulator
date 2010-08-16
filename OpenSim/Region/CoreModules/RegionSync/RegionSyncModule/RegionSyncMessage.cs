@@ -17,6 +17,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //ConnectSyncClient,
             //DisconnectSyncClient,
             // CM -> SIM
+            ActorConnect,
             AgentAdd,       
             AgentUpdate,
             AgentRemove,
@@ -26,6 +27,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             GetAvatars,
             SubscribeAvatars,
             ChatFromClient,
+            AvatarTeleportOut, // An LLClientView (real client) was converted to a RegionSyncAvatar
+            AvatarTeleportIn,  // A RegionSyncAvatar was converted to an LLClientView (real client)
             // SIM -> CM
             Terrain,
             NewObject,       // objects
@@ -36,6 +39,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             AnimateAvatar,
             AvatarAppearance,
             RemovedAvatar,   // avatars
+            BalanceClientLoad, // Tells CM a client load target and a place to teleport the extras
             ChatFromSim,
             // BIDIR
             EchoRequest,

@@ -106,6 +106,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_client.SendCoarseLocations();
         }
 
+        public void IncomingLoadBalanceConnection(ScenePresence presence)
+        {
+            m_client.IncomingLoadBalanceConnection(presence);
+        }
+
         public bool Active
         {
             get { return m_active; }
@@ -228,9 +233,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_log.WarnFormat("[REGION SYNC CLIENT MODULE] Already stopped");
                     return;
                 }
+                m_log.Warn("[REGION SYNC CLIENT MODULE] Stopping synchronization");
                 m_client.Stop();
                 m_client = null;
-                m_log.Warn("[REGION SYNC CLIENT MODULE] Stopping synchronization");
+                
             }
         }
 

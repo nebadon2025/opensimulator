@@ -10,10 +10,12 @@ using OpenMetaverse.Packets;
 using OpenMetaverse.StructuredData;
 using OpenSim.Framework;
 using OpenSim.Framework.Client;
+using TPFlags = OpenSim.Framework.Constants.TeleportFlags;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Framework.Scenes.Serialization;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes.Types;
+
 using log4net;
 
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
@@ -359,6 +361,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         RegionSyncAvatar av = new RegionSyncAvatar(m_scene, agentID, first, last, startPos);
                         m_remoteAvatars.Add(agentID, av);
                         m_scene.AddNewClient(av);
+                        m_scene.TryGetScenePresence(agentID, out sp);
+                        if (sp == null)
+                        {
+                            m_log.ErrorFormat("{0} Could not get newly added scene presence.", LogHeader);
+                        }
+                        else
+                        {
+                            sp.IsSyncedAvatar = true;
+                        }
                         //RegionSyncMessage.HandlerDebug(LogHeader, msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));
                         RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));
                         return;
@@ -410,6 +421,22 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         {
                             //RegionSyncMessage.HandleWarning(LogHeader, msg, String.Format("agentID {0} not found.", agentID.ToString()));
                             return;
+                        }
+
+                        if (presence.IsBalancing && presence.ControllingClient is RegionSyncAvatar)
+                        {
+                            lock (m_syncRoot)
+                            {
+                                if (m_localAvatars.ContainsKey(presence.UUID))
+                                {
+                                    
+                                }
+                                else
+                                {
+                                    m_log.WarnFormat("{0} Received update for balancing avatar not in local avatar list. \"{1}\"", LogHeader, presence.Name);
+                                    return;
+                                }
+                            }
                         }
 
                         /**
@@ -631,6 +658,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         //m_log.WarnFormat("{0} END of AvatarAppearance handler", LogHeader); 
                         return;
                     }
+                case RegionSyncMessage.MsgType.BalanceClientLoad:
+                    {
+                        // Get the data from message and error check
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            return;
+                        }
+                        int targetLoad = data["endCount"].AsInteger();
+                        string destinationRegion = data["toRegion"].AsString();
+                        RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Balancing load from {0} to {1} via region \"{2}\"", m_localAvatars.Count, targetLoad, destinationRegion));
+                        BalanceClientLoad(targetLoad, destinationRegion);
+                        return;
+                    }
                 default:
                     {
                         RegionSyncMessage.HandleError(LogHeader, msg, String.Format("{0} Unsupported message type: {1}", LogHeader, ((int)msg.Type).ToString()));
@@ -684,7 +726,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // If this client was added in response to NewAvatar message from a synced server, 
             // don't subscribe to events or send back to server
             if (RemoteAvatars.ContainsKey(client.AgentId))
-                    return;
+                return;
+            // If this client is local, then it must have been added during a teleport due to load balancing. 
+            // Don't subscribe to events or sent to server.
+            if (LocalAvatars.ContainsKey(client.AgentId))
+                return;
             // Otherwise, it's a real local client connecting so track it locally
             lock (m_syncRoot)
             {
@@ -708,8 +754,33 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             client.OnChatFromClientRaw += HandleChatFromClientRaw;
         }
 
-        void RemoveLocalClient(UUID clientID, Scene scene)
+        private void RemoveLocalClient(UUID clientID, Scene scene)
         {
+            // If the client closed due to load balancing, the presence will stick around
+            // and we just move from a local avatar to a remote avatar and give it a new
+            // RegionSyncAvatar as the client
+            ScenePresence sp;
+            m_scene.TryGetScenePresence(clientID, out sp);
+            if (sp != null && sp.IsBalancing)
+            {
+                // Replace the LLClientView with a RegionSyncAvatar
+                RegionSyncAvatar av = new RegionSyncAvatar(sp.Scene, sp.UUID, sp.Firstname, sp.Lastname, sp.AbsolutePosition);
+                sp.ControllingClient = av;
+                lock (m_syncRoot)
+                {
+                    Dictionary<UUID, IClientAPI> newlocals = new Dictionary<UUID, IClientAPI>(LocalAvatars);
+                    newlocals.Remove(sp.UUID);
+                    m_localAvatars = newlocals;
+
+                    Dictionary<UUID, RegionSyncAvatar> newremotes = new Dictionary<UUID, RegionSyncAvatar>(RemoteAvatars);
+                    newremotes.Add(sp.UUID, av);
+                    m_remoteAvatars = newremotes;
+                }
+                sp.IsBalancing = false;
+                sp.IsSyncedAvatar = true;
+                return;
+            }
+
             lock (m_syncRoot)
             {
                 // If the client to be removed is a local client, then send a message to the remote scene
@@ -814,6 +885,72 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["remote"] = OSD.FromInteger(r);
             //m_log.WarnFormat("{0}: Sent stats: {1},{2},{3}", LogHeader, t, l, r);
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.RegionStatus, OSDParser.SerializeJsonString(data)));
+        }
+        
+
+        // Handles a message from the authoritative sim to balance client load by reducing client count to targetLoad
+        // by teleporting the extras to destinationRegion
+        private void BalanceClientLoad(int targetLoad, string destinationRegion)
+        {
+            int numberToTransfer = m_localAvatars.Count - targetLoad;
+            foreach(KeyValuePair<UUID,IClientAPI> kvp in LocalAvatars)
+            {
+                // BEGIN HACK FOR DEMO (Never teleport me please! I'll go where I please.)
+                if (kvp.Value.FirstName == "Dan" && kvp.Value.LastName == "Lake")
+                    continue;
+                // END HACK FOR DEMO
+
+                ScenePresence sp;
+                m_scene.TryGetScenePresence(kvp.Key, out sp);
+                if (sp == null)
+                {
+                    m_log.ErrorFormat("{0} Could not find scene presence {1} to teleport", LogHeader, kvp.Value.Name);
+                    continue;
+                }
+
+                sp.IsBalancing = true;
+
+                // Let the auth sim know we are losing responsibility for this client
+                OSDMap data = new OSDMap(1);
+                data["agentID"] = OSD.FromUUID(kvp.Key);
+                Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AvatarTeleportOut, OSDParser.SerializeJsonString(data)));
+
+                //kvp.Value.SendTeleportLocationStart();
+                m_scene.RequestTeleportLocation(kvp.Value, destinationRegion, sp.AbsolutePosition, sp.Lookat, (uint)TPFlags.ViaLocation);
+                if (--numberToTransfer <= 0)
+                    break;
+            }
+        }
+
+        // When a client teleports into the region from another client manager, this function is called after 
+        // the ScenePresence's RegionSyncAvatar client has been changed to an LLClientView.
+        // Here we will subscribe to interesting client events
+        public void IncomingLoadBalanceConnection(ScenePresence presence)
+        {
+            m_log.WarnFormat("{0} IncomingLoadBalanceConnection", LogHeader);
+            IClientAPI client = presence.ControllingClient;
+
+            // Let the auth sim know we just picked up responsibility for this client
+            OSDMap data = new OSDMap(1);
+            data["agentID"] = OSD.FromUUID(client.AgentId);
+            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AvatarTeleportIn, OSDParser.SerializeJsonString(data)));
+
+            lock (m_syncRoot)
+            {
+                Dictionary<UUID, IClientAPI> newlocals = new Dictionary<UUID, IClientAPI>(LocalAvatars);
+                newlocals.Add(client.AgentId, client);
+                m_localAvatars = newlocals;
+
+                Dictionary<UUID, RegionSyncAvatar> newremotes = new Dictionary<UUID, RegionSyncAvatar>(RemoteAvatars);
+                newremotes.Remove(client.AgentId);
+                m_remoteAvatars = newremotes;
+            }
+            // Register for interesting client events which will be forwarded to auth sim
+            // These are the raw packet data blocks from the client, intercepted and sent up to the sim
+            client.OnAgentUpdateRaw += HandleAgentUpdateRaw;
+            client.OnSetAppearanceRaw += HandleSetAppearanceRaw;
+            client.OnChatFromClientRaw += HandleChatFromClientRaw;
+            presence.IsSyncedAvatar = false;
         }
     }
 }

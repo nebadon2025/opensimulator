@@ -82,6 +82,11 @@ namespace OpenSim.Framework
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private static readonly byte[] DEFAULT_TEXTURE = new Primitive.TextureEntry(new UUID("89556747-24cb-43ed-920b-47caed15465f")).GetBytes();
+        
+        /// <summary>
+        /// Dynamic attributes can be created and deleted as required.
+        /// </summary>
+        public DynAttrsOSDMap DynAttrs { get; set; }        
 
         private byte[] m_textureEntry;
 
@@ -188,10 +193,13 @@ namespace OpenSim.Framework
             PCode = (byte) PCodeEnum.Primitive;
             ExtraParams = new byte[1];
             m_textureEntry = DEFAULT_TEXTURE;
+            DynAttrs = new DynAttrsOSDMap();
         }
 
         public PrimitiveBaseShape(bool noShape)
         {
+            DynAttrs = new DynAttrsOSDMap();
+            
             if (noShape)
                 return;
 
@@ -206,6 +214,7 @@ namespace OpenSim.Framework
         /// <param name="prim"></param>
         public PrimitiveBaseShape(Primitive prim)
         {
+            DynAttrs = new DynAttrsOSDMap();
             PCode = (byte)prim.PrimData.PCode;
             ExtraParams = new byte[1];
 

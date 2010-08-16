@@ -36,6 +36,7 @@ using System.Xml.Serialization;
 using log4net;
 using OpenMetaverse;
 using OpenMetaverse.Packets;
+using OpenMetaverse.StructuredData;
 using OpenSim.Framework;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes.Scripting;
@@ -115,6 +116,11 @@ namespace OpenSim.Region.Framework.Scenes
         
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
+        /// <summary>
+        /// Dynamic attributes can be created and deleted as required.
+        /// </summary>
+        public DynAttrsOSDMap DynAttrs { get; set; }
+        
         /// <value>
         /// Is this sop a root part?
         /// </value>
@@ -362,6 +368,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_particleSystem = Utils.EmptyBytes;
             Rezzed = DateTime.UtcNow;
             
+            DynAttrs = new DynAttrsOSDMap();
             m_inventory = new SceneObjectPartInventory(this);
         }
 
@@ -413,6 +420,7 @@ namespace OpenSim.Region.Framework.Scenes
             //m_undo = new UndoStack<UndoState>(ParentGroup.GetSceneMaxUndo());
             
             m_inventory = new SceneObjectPartInventory(this);
+            DynAttrs = new DynAttrsOSDMap();
         }
 
         #endregion Constructors

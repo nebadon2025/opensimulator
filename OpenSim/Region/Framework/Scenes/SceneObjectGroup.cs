@@ -34,6 +34,7 @@ using System.Xml;
 using System.Xml.Serialization;
 using OpenMetaverse;
 using OpenMetaverse.Packets;
+using OpenMetaverse.StructuredData;
 using OpenSim.Framework;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Physics.Manager;
@@ -98,7 +99,7 @@ namespace OpenSim.Region.Framework.Scenes
     public partial class SceneObjectGroup : EntityBase, ISceneObject
     {
         // private PrimCountTaintedDelegate handlerPrimCountTainted = null;
-
+        
         /// <summary>
         /// Signal whether the non-inventory attributes of any prims in the group have changed
         /// since the group's last persistent backup

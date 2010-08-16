@@ -977,6 +977,8 @@ namespace OpenSim.Data.SQLite
             createCol(prims, "VolumeDetect", typeof(Int16));
             
             createCol(prims, "MediaURL", typeof(String));
+            
+            createCol(prims, "DynAttrs", typeof(String));
 
             // Add in contraints
             prims.PrimaryKey = new DataColumn[] {prims.Columns["UUID"]};
@@ -1025,6 +1027,7 @@ namespace OpenSim.Data.SQLite
             createCol(shapes, "Texture", typeof (Byte[]));
             createCol(shapes, "ExtraParams", typeof (Byte[]));
             createCol(shapes, "Media", typeof(String));
+            createCol(shapes, "DynAttrs", typeof(String));
 
             shapes.PrimaryKey = new DataColumn[] {shapes.Columns["UUID"]};
 
@@ -1348,6 +1351,16 @@ namespace OpenSim.Data.SQLite
             {
                 //m_log.DebugFormat("[SQLITE]: MediaUrl type [{0}]", row["MediaURL"].GetType());
                 prim.MediaUrl = (string)row["MediaURL"];
+            }
+            
+            if (!(row["DynAttrs"] is System.DBNull))
+            {
+                //m_log.DebugFormat("[SQLITE]: DynAttrs type [{0}]", row["DynAttrs"].GetType());
+                prim.DynAttrs = DynAttrsOSDMap.FromXml((string)row["DynAttrs"]);
+            }   
+            else
+            {
+                prim.DynAttrs = new DynAttrsOSDMap();
             }
 
             return prim;
@@ -1685,6 +1698,7 @@ namespace OpenSim.Data.SQLite
                 row["VolumeDetect"] = 0;
             
             row["MediaURL"] = prim.MediaUrl;
+            row["DynAttrs"] = prim.DynAttrs.ToXml();
         }
 
         /// <summary>
@@ -1862,6 +1876,11 @@ namespace OpenSim.Data.SQLite
             
             if (!(row["Media"] is System.DBNull))
                 s.Media = PrimitiveBaseShape.MediaList.FromXml((string)row["Media"]);
+            
+            if (!(row["DynAttrs"] is System.DBNull))
+                s.DynAttrs = DynAttrsOSDMap.FromXml((string)row["DynAttrs"]);            
+            else
+                s.DynAttrs = new DynAttrsOSDMap();                
                         
             return s;
         }
@@ -1909,6 +1928,8 @@ namespace OpenSim.Data.SQLite
             
             if (s.Media != null)
                 row["Media"] = s.Media.ToXml();
+            
+            row["DynAttrs"] = s.DynAttrs.ToXml();
         }
 
         /// <summary>

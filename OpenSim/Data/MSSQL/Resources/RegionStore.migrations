@@ -934,3 +934,11 @@ ALTER TABLE prims ADD COLUMN MediaURL varchar(255)
 ALTER TABLE primshapes ADD COLUMN Media TEXT
 
 COMMIT
+
+:VERSION 25
+-- Added post 0.7.0.1
+
+BEGIN;
+ALTER TABLE prims ADD COLUMN DynAttrs TEXT;
+ALTER TABLE primshapes ADD COLUMN DynAttrs TEXT;
+COMMIT;

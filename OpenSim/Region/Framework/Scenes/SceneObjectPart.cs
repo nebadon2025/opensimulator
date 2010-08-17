@@ -35,6 +35,7 @@ using System.Xml.Serialization;
 using log4net;
 using OpenMetaverse;
 using OpenMetaverse.Packets;
+using OpenMetaverse.StructuredData;
 using OpenSim.Framework;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes.Components;
@@ -4806,7 +4807,7 @@ namespace OpenSim.Region.Framework.Scenes
         [NonSerializedAttribute] // Component serialisation occurs manually.
         private Dictionary<string, IComponent> m_components = new Dictionary<string, IComponent>();
 
-        public SerializableDictionary<string, ComponentState> ComponentStates = new SerializableDictionary<string, ComponentState>();
+        public SerializableDictionary<string, string> ComponentStates = new SerializableDictionary<string, string>();
 
         [NonSerializedAttribute]
         private bool m_componentsInit = false;
@@ -4816,12 +4817,19 @@ namespace OpenSim.Region.Framework.Scenes
             if(m_componentsInit)
                 return;
 
-            SerializableDictionary<string, ComponentState> states = ComponentStates;
+            Dictionary<string,OSDMap> states = new Dictionary<string, OSDMap>();
+            foreach (KeyValuePair<string, string> componentState in ComponentStates)
+            {
+                states.Add(componentState.Key, OSDParser.DeserializeJson(componentState.Value) as OSDMap);
+            }
+            //SerializableDictionary<string, OSDMap> states = ComponentStates;
+
+
             if(ParentGroup.Scene != null)
             {
                 m_log.Info("[COMPONENTS] Initialising components...");
                 IComponentManagerModule cmm = ParentGroup.Scene.RequestModuleInterface<IComponentManagerModule>();
-                foreach(KeyValuePair<string,ComponentState> kvp in states)
+                foreach (KeyValuePair<string, OSDMap> kvp in states)
                 {
                     m_log.Info("[COMPONENTS] Adding component " + kvp.Key + " to SceneObjectPart.");
 
@@ -4847,12 +4855,12 @@ namespace OpenSim.Region.Framework.Scenes
             m_log.Info("[COMPONENTS] Saving components...");
             foreach (KeyValuePair<string, IComponent> keyValuePair in m_components)
             {
-                ComponentState state = keyValuePair.Value.State;
+                OSDMap state = keyValuePair.Value.State;
                 string baseType = keyValuePair.Value.BaseType.ToString();
 
                 m_log.Info("[COMPONENTS] Saving component " + baseType);
 
-                ComponentStates[baseType] = state;
+                ComponentStates[baseType] = OSDParser.SerializeJsonString(state);
             }
         }
 

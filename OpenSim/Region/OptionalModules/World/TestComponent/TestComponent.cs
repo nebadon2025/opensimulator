@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Reflection;
 using log4net;
+using OpenMetaverse.StructuredData;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Framework.Scenes.Components;
 
@@ -18,7 +19,12 @@ namespace OpenSim.Region.OptionalModules.World.TestComponent
 
         #region Implementation of IComponent
 
-        public TestComponent(ComponentState state)
+        public TestComponent()
+        {
+            m_log.Info("Its alive! (for the very first time...!)");
+        }
+
+        public TestComponent(OSDMap state)
         {
             m_log.Info("Its alive!");
         }
@@ -28,13 +34,14 @@ namespace OpenSim.Region.OptionalModules.World.TestComponent
             get { return typeof (TestComponent); }
         }
 
-        public ComponentState State
+        public OSDMap State
         {
             get
             {
-                ComponentState x = new ComponentState();
-                x.Set("Hello","World");
-                x.Set("HitchhikersReference", m_theAnswerToTheQuestionOfLifeTheUniverseAndEverything);
+                OSDMap x = new OSDMap();
+                x["Hello"] = "World";
+                x["HitchhikersReference"] = m_theAnswerToTheQuestionOfLifeTheUniverseAndEverything;
+
                 return x;
             }
         }

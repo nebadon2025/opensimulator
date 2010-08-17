@@ -4,6 +4,7 @@ using System.Reflection;
 using log4net;
 using Mono.Addins;
 using Nini.Config;
+using OpenMetaverse.StructuredData;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Framework.Scenes.Components;
@@ -20,15 +21,14 @@ namespace OpenSim.Region.OptionalModules.World.TestComponent
 
         #region Overrides of ComponentFactory
 
-        protected override IComponent CreateComponent(string componentType, ComponentState componentState)
+        protected override IComponent CreateComponent(string componentType, OSDMap componentState)
         {
             m_log.Info("[TestComponentFactory] Recieved CreateComponent for " + componentType);
             if(componentType == typeof(TestComponent).ToString())
             {
-                string tmp;
-                if(componentState.TryGet("Hello", out tmp))
+                if(componentState.ContainsKey("Hello"))
                 {
-                    m_log.Info("[TestComponentFactory] Successfully recovered '" + tmp + "' from a component via serialisation.");
+                    m_log.Info("[TestComponentFactory] Successfully recovered '" + componentState["Hello"] + "' from a component via serialisation.");
                 }
                 return new TestComponent(componentState);
             }
@@ -89,11 +89,7 @@ namespace OpenSim.Region.OptionalModules.World.TestComponent
                     foreach (SceneObjectPart part in sog.GetParts())
                     {
                         m_log.Info("[TESTCOMPONENT] Adding new test component to SOP");
-                        part.SetComponent(
-                            new TestComponent(
-                                new ComponentState()
-                                )
-                            );
+                        part.SetComponent(new TestComponent());
                     }
                 }
             }

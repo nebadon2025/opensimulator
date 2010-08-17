@@ -3,6 +3,7 @@ using System.Reflection;
 using log4net;
 using Mono.Addins;
 using Nini.Config;
+using OpenMetaverse.StructuredData;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Framework.Scenes.Components;
@@ -60,7 +61,7 @@ namespace OpenSim.Region.CoreModules.World.Objects.Components
 
         #region Implementation of IComponentManagerModule
 
-        public void CreateComponent(SceneObjectPart target, string componentType, ComponentState state)
+        public void CreateComponent(SceneObjectPart target, string componentType, OSDMap state)
         {
             if (OnCreateComponent != null)
             {

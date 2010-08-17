@@ -1,4 +1,5 @@
 ﻿using System;
+using OpenMetaverse.StructuredData;
 
 namespace OpenSim.Region.Framework.Scenes.Components
 {
@@ -16,7 +17,7 @@ namespace OpenSim.Region.Framework.Scenes.Components
         /// <summary>
         /// A representation of the current state of the component, to be deserialised later.
         /// </summary>
-        ComponentState State { get; }
+        OSDMap State { get; }
 
         void SetParent(SceneObjectPart part);
     }

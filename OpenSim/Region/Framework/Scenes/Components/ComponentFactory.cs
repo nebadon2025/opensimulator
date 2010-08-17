@@ -1,4 +1,5 @@
 ﻿using System;
+using OpenMetaverse.StructuredData;
 using OpenSim.Region.Framework.Interfaces;
 
 namespace OpenSim.Region.Framework.Scenes.Components
@@ -11,6 +12,6 @@ namespace OpenSim.Region.Framework.Scenes.Components
             cmm.OnCreateComponent += CreateComponent;
         }
 
-        protected abstract IComponent CreateComponent(string componentType, ComponentState componentState);
+        protected abstract IComponent CreateComponent(string componentType, OSDMap componentState);
     }
 }

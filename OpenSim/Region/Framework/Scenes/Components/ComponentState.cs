@@ -5,7 +5,7 @@ using System.Runtime.Serialization;
 namespace OpenSim.Region.Framework.Scenes.Components
 {
     [Serializable]
-    public class ComponentState : IComponentState
+    public class ComponentState
     {
         private readonly Dictionary<string,Object> m_stateData = new Dictionary<string,object>();
 

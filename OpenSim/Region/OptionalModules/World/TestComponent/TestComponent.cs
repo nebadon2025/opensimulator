@@ -18,14 +18,6 @@ namespace OpenSim.Region.OptionalModules.World.TestComponent
 
         #region Implementation of IComponent
 
-        /// <summary>
-        /// Components MUST have a parameterless constructor
-        /// </summary>
-        public TestComponent()
-        {
-            
-        }
-
         public TestComponent(ComponentState state)
         {
             m_log.Info("Its alive!");

@@ -552,9 +552,12 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     // process causes some clients to fail to display the attachment properly.
                     m_Scene.AddNewSceneObject(group, true, false);
 
+                    // This is required for Group.Scene to be valid
+                    group.SetScene(m_Scene);
+
                     //  m_log.InfoFormat("ray end point for inventory rezz is {0} {1} {2} ", RayEnd.X, RayEnd.Y, RayEnd.Z);
                     // if attachment we set it's asset id so object updates can reflect that
-                    // if not, we set it's position in world.
+                    // if not, we set it's position in world.);
                     if (!attachment)
                     {
                         group.ScheduleGroupForFullUpdate();

@@ -113,6 +113,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 // Script state may, or may not, exist. Not having any, is NOT
                 // ever a problem.
                 sceneObject.LoadScriptState(doc);
+                sceneObject.InitPartComponents();
 
                 return sceneObject;
             }
@@ -240,6 +241,8 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 // ever a problem.
 
                 sceneObject.LoadScriptState(doc);
+                sceneObject.InitPartComponents();
+
                 return sceneObject;
             }
             catch (Exception e)

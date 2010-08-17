@@ -568,6 +568,8 @@ namespace OpenSim.Region.Framework.Scenes
             
             ApplyPhysics(m_scene.m_physicalPrim);
 
+            InitPartComponents();
+
             // Don't trigger the update here - otherwise some client issues occur when multiple updates are scheduled
             // for the same object with very different properties.  The caller must schedule the update.
             //ScheduleGroupForFullUpdate();
@@ -1133,6 +1135,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="scene"></param>
         public void SetScene(Scene scene)
         {
+            InitPartComponents();
+
             m_scene = scene;
         }
         
@@ -3579,8 +3583,19 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        #region Components
+
+        public void InitPartComponents()
+        {
+            m_log.Info("[COMPONENTS] Initialising part components");
+            foreach (SceneObjectPart part in m_parts.Values)
+                part.InitComponents();
+        }
+
+        #endregion
+
         #region ISceneObject
-        
+
         public virtual ISceneObject CloneForNewScene()
         {
             SceneObjectGroup sog = Copy(false);

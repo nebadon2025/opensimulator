@@ -30,7 +30,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Reflection;
 using System.Runtime.Serialization;
-using System.Security.Permissions;
 using System.Xml;
 using System.Xml.Serialization;
 using log4net;
@@ -38,6 +37,7 @@ using OpenMetaverse;
 using OpenMetaverse.Packets;
 using OpenSim.Framework;
 using OpenSim.Region.Framework.Interfaces;
+using OpenSim.Region.Framework.Scenes.Components;
 using OpenSim.Region.Framework.Scenes.Scripting;
 using OpenSim.Region.Physics.Manager;
 
@@ -3492,6 +3492,8 @@ namespace OpenSim.Region.Framework.Scenes
         public void SetParent(SceneObjectGroup parent)
         {
             m_parentGroup = parent;
+
+            InitComponents();
         }
 
         // Use this for attachments!  LocalID should be avatar's localid
@@ -4053,6 +4055,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="xmlWriter"></param>
         public void ToXml(XmlWriter xmlWriter)
         {
+            SaveComponents(); // Gather all the component data
             serializer.Serialize(xmlWriter, this);
         }
 
@@ -4797,5 +4800,94 @@ namespace OpenSim.Region.Framework.Scenes
             Color color = Color;
             return new Color4(color.R, color.G, color.B, (byte)(0xFF - color.A));
         }
+
+        #region Components
+
+        [NonSerializedAttribute] // Component serialisation occurs manually.
+        private Dictionary<Type, IComponent> m_components = new Dictionary<Type, IComponent>();
+
+        private IDictionary<Type, IComponentState> m_componentStates = new Dictionary<Type, IComponentState>();
+
+        public void InitComponents(IDictionary<Type,IComponentState> states)
+        {
+            m_componentStates = states;
+
+            InitComponents();
+        }
+
+        [NonSerializedAttribute]
+        private bool m_componentsInit = false;
+
+        public void InitComponents()
+        {
+            if(m_componentsInit)
+                return;
+
+            IDictionary<Type, IComponentState> states = m_componentStates;
+            if(ParentGroup.Scene != null)
+            {
+                m_log.Info("[COMPONENTS] Initialising components...");
+                IComponentManagerModule cmm = ParentGroup.Scene.RequestModuleInterface<IComponentManagerModule>();
+                foreach(KeyValuePair<Type,IComponentState> kvp in states)
+                {
+                    m_log.Info("[COMPONENTS] Adding component " + kvp.Key + " to SceneObjectPart.");
+                    cmm.CreateComponent(this,kvp.Key,kvp.Value);
+                }
+                m_componentsInit = true;
+            } else
+            {
+                m_log.Warn("[COMPONENTS] Trying to initialise component which is not attached to a scene.");
+            }
+        }
+
+        public void SaveComponents()
+        {
+            foreach (KeyValuePair<Type, IComponent> keyValuePair in m_components)
+            {
+                IComponentState state = keyValuePair.Value.State;
+                Type baseType = keyValuePair.Value.BaseType;
+
+                m_componentStates[baseType] = state;
+            }
+        }
+
+        /// <summary>
+        /// Accesses a component
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public T C<T>()
+        {
+            return Get<T>();
+        }
+
+        public T Get<T>()
+        {
+            return default(T);
+        }
+
+        public bool TryGet<T>(out T val)
+        {
+            if(m_components.ContainsKey(typeof(T)))
+            {
+                val = Get<T>();
+                return true;
+            }
+
+            val = default(T);
+            return false;
+        }
+
+        public bool Contains<T>()
+        {
+            return m_components.ContainsKey(typeof (T));
+        }
+
+        public void SetComponent(IComponent val)
+        {
+            Type T = val.BaseType;
+            m_components[T] = val;
+        }
+        #endregion
     }
 }

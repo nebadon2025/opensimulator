@@ -579,7 +579,12 @@ namespace OpenSim.Client.VWoHTTP.ClientStack
             throw new System.NotImplementedException();
         }
 
-        public void SendTeleportLocationStart()
+        public void SendTeleportStart(uint flags)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void SendTeleportProgress(uint flags, string message)
         {
             throw new System.NotImplementedException();
         }
@@ -595,11 +600,6 @@ namespace OpenSim.Client.VWoHTTP.ClientStack
         }
 
         public void SendCoarseLocationUpdate(List<UUID> users, List<Vector3> CoarseLocations)
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public void AttachObject(uint localID, Quaternion rotation, byte attachPoint, UUID ownerID)
         {
             throw new System.NotImplementedException();
         }

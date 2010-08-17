@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -286,23 +286,15 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                 {
                     // Deleting someone else's item
                     //
-
-
                     if (remoteClient == null ||
                         objectGroup.OwnerID != remoteClient.AgentId)
                     {
-                        // Folder skeleton may not be loaded and we
-                        // have to wait for the inventory to find
-                        // the destination folder
-                        //
+
                         folder = m_Scene.InventoryService.GetFolderForType(userID, AssetType.LostAndFoundFolder);
                     }
                     else
                     {
-                        // Assume inventory skeleton was loaded during login
-                        // and all folders can be found
-                        //
-                        folder = m_Scene.InventoryService.GetFolderForType(userID, AssetType.TrashFolder);
+                         folder = m_Scene.InventoryService.GetFolderForType(userID, AssetType.TrashFolder);
                     }
                 }
                 else if (action == DeRezAction.Return)
@@ -330,9 +322,20 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     }
                 }
 
+                // Override and put into where it came from, if it came
+                // from anywhere in inventory
+                //
+                if (action == DeRezAction.Take || action == DeRezAction.TakeCopy)
+                {
+                    if (objectGroup.RootPart.FromFolderID != UUID.Zero)
+                    {
+                        InventoryFolderBase f = new InventoryFolderBase(objectGroup.RootPart.FromFolderID, userID);
+                        folder = m_Scene.InventoryService.GetFolder(f);
+                    }
+                }
+
                 if (folder == null) // None of the above
                 {
-                    //folder = userInfo.RootFolder.FindFolder(folderID);
                     folder = new InventoryFolderBase(folderID);
 
                     if (folder == null) // Nowhere to put it
@@ -378,12 +381,27 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     if ((nextPerms & (uint)PermissionMask.Modify) == 0)
                         perms &= ~(uint)PermissionMask.Modify;
 
+                    // Make sure all bits but the ones we want are clear
+                    // on take.
+                    // This will be applied to the current perms, so
+                    // it will do what we want.
+                    objectGroup.RootPart.NextOwnerMask &=
+                            ((uint)PermissionMask.Copy | 
+                             (uint)PermissionMask.Transfer |
+                             (uint)PermissionMask.Modify);
+                    objectGroup.RootPart.NextOwnerMask |=
+                            (uint)PermissionMask.Move;
+
                     item.BasePermissions = perms & objectGroup.RootPart.NextOwnerMask;
                     item.CurrentPermissions = item.BasePermissions;
                     item.NextPermissions = objectGroup.RootPart.NextOwnerMask;
                     item.EveryOnePermissions = objectGroup.RootPart.EveryoneMask & objectGroup.RootPart.NextOwnerMask;
                     item.GroupPermissions = objectGroup.RootPart.GroupMask & objectGroup.RootPart.NextOwnerMask;
-                    item.CurrentPermissions |= 8; // Slam!
+                    
+                    // Magic number badness. Maybe this deserves an enum.
+                    // bit 4 (16) is the "Slam" bit, it means treat as passed
+                    // and apply next owner perms on rez
+                    item.CurrentPermissions |= 16; // Slam!
                 }
                 else
                 {
@@ -393,7 +411,12 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     item.EveryOnePermissions = objectGroup.RootPart.EveryoneMask;
                     item.GroupPermissions = objectGroup.RootPart.GroupMask;
 
-                    item.CurrentPermissions |= 8; // Slam!
+                    item.CurrentPermissions &=
+                            ((uint)PermissionMask.Copy |
+                             (uint)PermissionMask.Transfer |
+                             (uint)PermissionMask.Modify |
+                             (uint)PermissionMask.Move |
+                             7); // Preserve folded permissions
                 }
 
                 // TODO: add the new fields (Flags, Sale info, etc)
@@ -494,6 +517,14 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     SceneObjectGroup group
                         = SceneObjectSerializer.FromOriginalXmlFormat(itemId, xmlData);
 
+                    group.RootPart.FromFolderID = item.Folder;
+
+                    // If it's rezzed in world, select it. Much easier to 
+                    // find small items.
+                    //
+                    if (!attachment)
+                        group.RootPart.CreateSelected = true;
+
                     if (!m_Scene.Permissions.CanRezObject(
                         group.Children.Count, remoteClient.AgentId, pos)
                         && !attachment)
@@ -512,7 +543,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
 
                     if (attachment)
                     {
-                        group.RootPart.ObjectFlags |= (uint)PrimFlags.Phantom;
+                        group.RootPart.Flags |= PrimFlags.Phantom;
                         group.RootPart.IsAttachment = true;
                     }
 
@@ -566,7 +597,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     List<SceneObjectPart> partList = new List<SceneObjectPart>(group.Children.Values);
 
                     group.SetGroup(remoteClient.ActiveGroupId, remoteClient);
-                    if (rootPart.OwnerID != item.Owner)
+                    if ((rootPart.OwnerID != item.Owner) || (item.CurrentPermissions & 16) != 0)
                     {
                         //Need to kill the for sale here
                         rootPart.ObjectSaleType = 0;
@@ -574,14 +605,11 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
 
                         if (m_Scene.Permissions.PropagatePermissions())
                         {
-                            if ((item.CurrentPermissions & 8) != 0)
+                            foreach (SceneObjectPart part in partList)
                             {
-                                foreach (SceneObjectPart part in partList)
-                                {
-                                    part.EveryoneMask = item.EveryOnePermissions;
-                                    part.NextOwnerMask = item.NextPermissions;
-                                    part.GroupMask = 0; // DO NOT propagate here
-                                }
+                                part.EveryoneMask = item.EveryOnePermissions;
+                                part.NextOwnerMask = item.NextPermissions;
+                                part.GroupMask = 0; // DO NOT propagate here
                             }
                             
                             group.ApplyNextOwnerPermissions();
@@ -590,19 +618,15 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
 
                     foreach (SceneObjectPart part in partList)
                     {
-                        if (part.OwnerID != item.Owner)
+                        if ((part.OwnerID != item.Owner) || (item.CurrentPermissions & 16) != 0)
                         {
                             part.LastOwnerID = part.OwnerID;
                             part.OwnerID = item.Owner;
                             part.Inventory.ChangeInventoryOwner(item.Owner);
-                        }
-                        else if (((item.CurrentPermissions & 8) != 0) && (!attachment)) // Slam!
-                        {
-                            part.EveryoneMask = item.EveryOnePermissions;
-                            part.NextOwnerMask = item.NextPermissions;
-
                             part.GroupMask = 0; // DO NOT propagate here
                         }
+                        part.EveryoneMask = item.EveryOnePermissions;
+                        part.NextOwnerMask = item.NextPermissions;
                     }
 
                     rootPart.TrimPermissions();
@@ -648,6 +672,57 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
         {
         }
 
+        public virtual bool GetAgentInventoryItem(IClientAPI remoteClient, UUID itemID, UUID requestID)
+        {
+            InventoryItemBase assetRequestItem = GetItem(remoteClient.AgentId, itemID);
+            if (assetRequestItem == null)
+            {
+                ILibraryService lib = m_Scene.RequestModuleInterface<ILibraryService>();
+                if (lib != null)
+                    assetRequestItem = lib.LibraryRootFolder.FindItem(itemID);
+                if (assetRequestItem == null)
+                    return false;
+            }
+
+            // At this point, we need to apply perms
+            // only to notecards and scripts. All
+            // other asset types are always available
+            //
+            if (assetRequestItem.AssetType == (int)AssetType.LSLText)
+            {
+                if (!m_Scene.Permissions.CanViewScript(itemID, UUID.Zero, remoteClient.AgentId))
+                {
+                    remoteClient.SendAgentAlertMessage("Insufficient permissions to view script", false);
+                    return false;
+                }
+            }
+            else if (assetRequestItem.AssetType == (int)AssetType.Notecard)
+            {
+                if (!m_Scene.Permissions.CanViewNotecard(itemID, UUID.Zero, remoteClient.AgentId))
+                {
+                    remoteClient.SendAgentAlertMessage("Insufficient permissions to view notecard", false);
+                    return false;
+                }
+            }
+
+            if (assetRequestItem.AssetID != requestID)
+            {
+                m_log.WarnFormat(
+                    "[CLIENT]: {0} requested asset {1} from item {2} but this does not match item's asset {3}",
+                    Name, requestID, itemID, assetRequestItem.AssetID);
+                return false;
+            }
+
+            return true;
+        }
+
+
+        public virtual bool IsForeignUser(UUID userID, out string assetServerURL)
+        {
+            assetServerURL = string.Empty;
+            return false;
+        }
+
         #endregion
 
         #region Misc
@@ -668,6 +743,14 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
             asset.Data = (data == null) ? new byte[1] : data;
 
             return asset;
+        }
+
+        protected virtual InventoryItemBase GetItem(UUID agentID, UUID itemID)
+        {
+            IInventoryService invService = m_Scene.RequestModuleInterface<IInventoryService>();
+            InventoryItemBase assetRequestItem = new InventoryItemBase(itemID, agentID);
+            assetRequestItem = invService.GetItem(assetRequestItem);
+            return assetRequestItem;
         }
 
         #endregion

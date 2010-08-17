@@ -614,7 +614,11 @@ namespace OpenSim.Tests.Common.Mock
         {
         }
 
-        public virtual void SendTeleportLocationStart()
+        public virtual void SendTeleportStart(uint flags)
+        {
+        }
+
+        public void SendTeleportProgress(uint flags, string message)
         {
         }
 
@@ -627,10 +631,6 @@ namespace OpenSim.Tests.Common.Mock
         }
 
         public virtual void SendCoarseLocationUpdate(List<UUID> users, List<Vector3> CoarseLocations)
-        {
-        }
-
-        public virtual void AttachObject(uint localID, Quaternion rotation, byte attachPoint, UUID ownerID)
         {
         }
 

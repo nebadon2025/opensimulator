@@ -68,6 +68,14 @@ using System.Reflection;
 
 namespace OpenSim.Region.ScriptEngine.Shared.Api
 {
+    // MUST be a ref type
+    public class UserInfoCacheEntry
+    {
+        public int time;
+        public UserAccount account;
+        public PresenceInfo pinfo;
+    }
+
     /// <summary>
     /// Contains all LSL ll-functions. This class will be in Default AppDomain.
     /// </summary>
@@ -92,6 +100,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         protected int m_scriptConsoleChannel = 0;
         protected bool m_scriptConsoleChannelEnabled = false;
         protected IUrlModule m_UrlModule = null;
+        protected Dictionary<UUID, UserInfoCacheEntry> m_userInfoCache =
+                new Dictionary<UUID, UserInfoCacheEntry>();
 
         public void Initialize(IScriptEngine ScriptEngine, SceneObjectPart host, uint localID, UUID itemID)
         {
@@ -451,12 +461,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_Vector llVecNorm(LSL_Vector v)
         {
             m_host.AddScriptLPS(1);
-            double mag = LSL_Vector.Mag(v);
-            LSL_Vector nor = new LSL_Vector();
-            nor.x = v.x / mag;
-            nor.y = v.y / mag;
-            nor.z = v.z / mag;
-            return nor;
+            return LSL_Vector.Norm(v);
         }
 
         public LSL_Float llVecDist(LSL_Vector a, LSL_Vector b)
@@ -470,22 +475,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         //Now we start getting into quaternions which means sin/cos, matrices and vectors. ckrinke
 
-        // Utility function for llRot2Euler
-
-        // normalize an angle between -PI and PI (-180 to +180 degrees)
-        protected double NormalizeAngle(double angle)
-        {
-            if (angle > -Math.PI && angle < Math.PI)
-                return angle;
-
-            int numPis = (int)(Math.PI / angle);
-            double remainder = angle - Math.PI * numPis;
-            if (numPis % 2 == 1)
-                return Math.PI - angle;
-            return remainder;
-        }
-
-        // Old implementation of llRot2Euler, now normalized
+        // Old implementation of llRot2Euler. Normalization not required as Atan2 function will
+        // only return values >= -PI (-180 degrees) and <= PI (180 degrees).
 
         public LSL_Vector llRot2Euler(LSL_Rotation r)
         {
@@ -497,13 +488,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             double n = 2 * (r.y * r.s + r.x * r.z);
             double p = m * m - n * n;
             if (p > 0)
-                return new LSL_Vector(NormalizeAngle(Math.Atan2(2.0 * (r.x * r.s - r.y * r.z), (-t.x - t.y + t.z + t.s))),
-                                             NormalizeAngle(Math.Atan2(n, Math.Sqrt(p))),
-                                             NormalizeAngle(Math.Atan2(2.0 * (r.z * r.s - r.x * r.y), (t.x - t.y - t.z + t.s))));
+                return new LSL_Vector(Math.Atan2(2.0 * (r.x * r.s - r.y * r.z), (-t.x - t.y + t.z + t.s)),
+                                             Math.Atan2(n, Math.Sqrt(p)),
+                                             Math.Atan2(2.0 * (r.z * r.s - r.x * r.y), (t.x - t.y - t.z + t.s)));
             else if (n > 0)
-                return new LSL_Vector(0.0, Math.PI * 0.5, NormalizeAngle(Math.Atan2((r.z * r.s + r.x * r.y), 0.5 - t.x - t.z)));
+                return new LSL_Vector(0.0, Math.PI * 0.5, Math.Atan2((r.z * r.s + r.x * r.y), 0.5 - t.x - t.z));
             else
-                return new LSL_Vector(0.0, -Math.PI * 0.5, NormalizeAngle(Math.Atan2((r.z * r.s + r.x * r.y), 0.5 - t.x - t.z)));
+                return new LSL_Vector(0.0, -Math.PI * 0.5, Math.Atan2((r.z * r.s + r.x * r.y), 0.5 - t.x - t.z));
         }
 
         /* From wiki:
@@ -705,22 +696,75 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             //A and B should both be normalized
             m_host.AddScriptLPS(1);
-            double dotProduct = LSL_Vector.Dot(a, b);
-            LSL_Vector crossProduct = LSL_Vector.Cross(a, b);
-            double magProduct = LSL_Vector.Mag(a) * LSL_Vector.Mag(b);
-            double angle = Math.Acos(dotProduct / magProduct);
-            LSL_Vector axis = LSL_Vector.Norm(crossProduct);
-            double s = Math.Sin(angle / 2);
-
-            double x = axis.x * s;
-            double y = axis.y * s;
-            double z = axis.z * s;
-            double w = Math.Cos(angle / 2);
-
-            if (Double.IsNaN(x) || Double.IsNaN(y) || Double.IsNaN(z) || Double.IsNaN(w))
-                return new LSL_Rotation(0.0f, 0.0f, 0.0f, 1.0f);
-
-            return new LSL_Rotation((float)x, (float)y, (float)z, (float)w);
+            LSL_Rotation rotBetween;
+            // Check for zero vectors. If either is zero, return zero rotation. Otherwise,
+            // continue calculation.
+            if (a == new LSL_Vector(0.0f, 0.0f, 0.0f) || b == new LSL_Vector(0.0f, 0.0f, 0.0f))
+            {
+                rotBetween = new LSL_Rotation(0.0f, 0.0f, 0.0f, 1.0f);
+            }
+            else
+            {
+                a = LSL_Vector.Norm(a);
+                b = LSL_Vector.Norm(b);
+                double dotProduct = LSL_Vector.Dot(a, b);
+                // There are two degenerate cases possible. These are for vectors 180 or
+                // 0 degrees apart. These have to be detected and handled individually.
+                //
+                // Check for vectors 180 degrees apart.
+                // A dot product of -1 would mean the angle between vectors is 180 degrees.
+                if (dotProduct < -0.9999999f)
+                {
+                    // First assume X axis is orthogonal to the vectors.
+                    LSL_Vector orthoVector = new LSL_Vector(1.0f, 0.0f, 0.0f);
+                    orthoVector = orthoVector - a * (a.x / LSL_Vector.Dot(a, a));
+                    // Check for near zero vector. A very small non-zero number here will create
+                    // a rotation in an undesired direction.
+                    if (LSL_Vector.Mag(orthoVector) > 0.0001)
+                    {
+                        rotBetween = new LSL_Rotation(orthoVector.x, orthoVector.y, orthoVector.z, 0.0f);
+                    }
+                    // If the magnitude of the vector was near zero, then assume the X axis is not
+                    // orthogonal and use the Z axis instead.
+                    else
+                    {
+                        // Set 180 z rotation.
+                        rotBetween = new LSL_Rotation(0.0f, 0.0f, 1.0f, 0.0f);
+                    }
+                }
+                // Check for parallel vectors.
+                // A dot product of 1 would mean the angle between vectors is 0 degrees.
+                else if (dotProduct > 0.9999999f)
+                {
+                    // Set zero rotation.
+                    rotBetween = new LSL_Rotation(0.0f, 0.0f, 0.0f, 1.0f);
+                }
+                else
+                {
+                    // All special checks have been performed so get the axis of rotation.
+                    LSL_Vector crossProduct = LSL_Vector.Cross(a, b);
+                    // Quarternion s value is the length of the unit vector + dot product.
+                    double qs = 1.0 + dotProduct;
+                    rotBetween = new LSL_Rotation(crossProduct.x, crossProduct.y, crossProduct.z, qs);
+                    // Normalize the rotation.
+                    double mag = LSL_Rotation.Mag(rotBetween);
+                    // We shouldn't have to worry about a divide by zero here. The qs value will be
+                    // non-zero because we already know if we're here, then the dotProduct is not -1 so
+                    // qs will not be zero. Also, we've already handled the input vectors being zero so the
+                    // crossProduct vector should also not be zero.
+                    rotBetween.x = rotBetween.x / mag;
+                    rotBetween.y = rotBetween.y / mag;
+                    rotBetween.z = rotBetween.z / mag;
+                    rotBetween.s = rotBetween.s / mag;
+                    // Check for undefined values and set zero rotation if any found. This code might not actually be required
+                    // any longer since zero vectors are checked for at the top.
+                    if (Double.IsNaN(rotBetween.x) || Double.IsNaN(rotBetween.y) || Double.IsNaN(rotBetween.z) || Double.IsNaN(rotBetween.s))
+                    {
+                        rotBetween = new LSL_Rotation(0.0f, 0.0f, 0.0f, 1.0f);
+                    }
+                }
+            }
+            return rotBetween;
         }
 
         public void llWhisper(int channelID, string text)
@@ -1885,7 +1929,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         protected void SetPos(SceneObjectPart part, LSL_Vector targetPos)
         {
             // Capped movemment if distance > 10m (http://wiki.secondlife.com/wiki/LlSetPos)
-            LSL_Vector currentPos = llGetLocalPos();
+            LSL_Vector currentPos = GetPartLocalPos(part);
 
             float ground = World.GetGroundHeight((float)targetPos.x, (float)targetPos.y);
             bool disable_underground_movement = m_ScriptEngine.Config.GetBoolean("DisableUndergroundMovement", true);
@@ -1900,13 +1944,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
             else
             {
-                if (llVecDist(new LSL_Vector(0,0,0), targetPos) <= 10.0f)
-                {
-                    part.OffsetPosition = new Vector3((float)targetPos.x, (float)targetPos.y, (float)targetPos.z);
-                    SceneObjectGroup parent = part.ParentGroup;
-                    parent.HasGroupChanged = true;
-                    parent.ScheduleGroupForTerseUpdate();
-                }
+                LSL_Vector rel_vec = SetPosAdjust(currentPos, targetPos);
+                part.OffsetPosition = new Vector3((float)rel_vec.x, (float)rel_vec.y, (float)rel_vec.z);
+                SceneObjectGroup parent = part.ParentGroup;
+                parent.HasGroupChanged = true;
+                parent.ScheduleGroupForTerseUpdate();
             }
         }
 
@@ -1920,17 +1962,23 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_Vector llGetLocalPos()
         {
             m_host.AddScriptLPS(1);
-            if (m_host.ParentID != 0)
+            return GetPartLocalPos(m_host);
+        }
+
+        protected LSL_Vector GetPartLocalPos(SceneObjectPart part)
+        {
+            m_host.AddScriptLPS(1);
+            if (part.ParentID != 0)
             {
-                return new LSL_Vector(m_host.OffsetPosition.X,
-                                      m_host.OffsetPosition.Y,
-                                      m_host.OffsetPosition.Z);
+                return new LSL_Vector(part.OffsetPosition.X,
+                                      part.OffsetPosition.Y,
+                                      part.OffsetPosition.Z);
             }
             else
             {
-                return new LSL_Vector(m_host.AbsolutePosition.X,
-                                      m_host.AbsolutePosition.Y,
-                                      m_host.AbsolutePosition.Z);
+                return new LSL_Vector(part.AbsolutePosition.X,
+                                      part.AbsolutePosition.Y,
+                                      part.AbsolutePosition.Z);
             }
         }
 
@@ -2892,9 +2940,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                 IAttachmentsModule attachmentsModule = m_ScriptEngine.World.AttachmentsModule;
                 if (attachmentsModule != null)
-                    attachmentsModule.AttachObject(
-                        presence.ControllingClient, grp.LocalId, 
-                        (uint)attachment, Quaternion.Identity, Vector3.Zero, false);
+                    attachmentsModule.AttachObject(presence.ControllingClient,
+                            grp, (uint)attachment, false);
             }
         }
 
@@ -3217,17 +3264,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public void llPointAt(LSL_Vector pos)
         {
             m_host.AddScriptLPS(1);
-            ScenePresence Owner = World.GetScenePresence(m_host.UUID);
-            LSL_Rotation rot = llEuler2Rot(pos);
-            Owner.PreviousRotation = Owner.Rotation;
-            Owner.Rotation = (new Quaternion((float)rot.x,(float)rot.y,(float)rot.z,(float)rot.s));
         }
 
         public void llStopPointAt()
         {
             m_host.AddScriptLPS(1);
-            ScenePresence Owner = m_host.ParentGroup.Scene.GetScenePresence(m_host.OwnerID);
-            Owner.Rotation = Owner.PreviousRotation;
         }
 
         public void llTargetOmega(LSL_Vector axis, double spinrate, double gain)
@@ -3883,24 +3924,56 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.AddScriptLPS(1);
 
             UUID uuid = (UUID)id;
-
-            UserAccount account = World.UserAccountService.GetUserAccount(World.RegionInfo.ScopeID, uuid);
-
             PresenceInfo pinfo = null;
-            PresenceInfo[] pinfos = World.PresenceService.GetAgents(new string[] { uuid.ToString() });
-            if (pinfos != null && pinfos.Length > 0)
-                pinfo = pinfos[0];
+            UserAccount account;
 
-            if (pinfo == null)
-                return UUID.Zero.ToString();
+            UserInfoCacheEntry ce;
+            if (!m_userInfoCache.TryGetValue(uuid, out ce))
+            {
+                account = World.UserAccountService.GetUserAccount(World.RegionInfo.ScopeID, uuid);
+                if (account == null)
+                {
+                    m_userInfoCache[uuid] = null; // Cache negative
+                    return UUID.Zero.ToString();
+                }
+
+
+                PresenceInfo[] pinfos = World.PresenceService.GetAgents(new string[] { uuid.ToString() });
+                if (pinfos != null && pinfos.Length > 0)
+                    pinfo = pinfos[0];
+
+                ce = new UserInfoCacheEntry();
+                ce.time = Util.EnvironmentTickCount();
+                ce.account = account;
+                ce.pinfo = pinfo;
+            }
+            else
+            {
+                if (ce == null)
+                    return UUID.Zero.ToString();
+
+                account = ce.account;
+                pinfo = ce.pinfo;
+            }
+
+            if (Util.EnvironmentTickCount() < ce.time || (Util.EnvironmentTickCount() - ce.time) >= 20000)
+            {
+                PresenceInfo[] pinfos = World.PresenceService.GetAgents(new string[] { uuid.ToString() });
+                if (pinfos != null && pinfos.Length > 0)
+                    pinfo = pinfos[0];
+                else
+                    pinfo = null;
+
+                ce.time = Util.EnvironmentTickCount();
+                ce.pinfo = pinfo;
+            }
 
             string reply = String.Empty;
 
             switch (data)
             {
             case 1: // DATA_ONLINE (0|1)
-                // TODO: implement fetching of this information
-                if (pinfo != null)
+                if (pinfo != null && pinfo.RegionID != UUID.Zero)
                     reply = "1";
                 else 
                     reply = "0";
@@ -3997,7 +4070,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     if (m_host.OwnerID == World.LandChannel.GetLandObject(
                             presence.AbsolutePosition.X, presence.AbsolutePosition.Y).LandData.OwnerID)
                     {
-                        presence.ControllingClient.SendTeleportLocationStart();
                         World.TeleportClientHome(agentId, presence.ControllingClient);
                     }
                 }
@@ -4897,7 +4969,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     case ',':
                         if (parens == 0)
                         {
-                            result.Add(src.Substring(start,length).Trim());
+                            result.Add(new LSL_String(src.Substring(start,length).Trim()));
                             start += length+1;
                             length = 0;
                         }
@@ -5826,6 +5898,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             PSYS_PART_MAX_AGE = 7,
             PSYS_SRC_ACCEL = 8,
             PSYS_SRC_PATTERN = 9,
+            PSYS_SRC_INNERANGLE = 10,
+            PSYS_SRC_OUTERANGLE = 11,
             PSYS_SRC_TEXTURE = 12,
             PSYS_SRC_BURST_RATE = 13,
             PSYS_SRC_BURST_PART_COUNT = 15,
@@ -5958,6 +6032,22 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             prules.Pattern = (Primitive.ParticleSystem.SourcePattern)tmpi;
                             break;
 
+                        // PSYS_SRC_INNERANGLE and PSYS_SRC_ANGLE_BEGIN use the same variables. The
+                        // PSYS_SRC_OUTERANGLE and PSYS_SRC_ANGLE_END also use the same variable. The
+                        // client tells the difference between the two by looking at the 0x02 bit in
+                        // the PartFlags variable.
+                        case (int)ScriptBaseClass.PSYS_SRC_INNERANGLE:
+                            tempf = (float)rules.GetLSLFloatItem(i + 1);
+                            prules.InnerAngle = (float)tempf;
+                            prules.PartFlags &= 0xFFFFFFFD; // Make sure new angle format is off.
+                            break;
+
+                        case (int)ScriptBaseClass.PSYS_SRC_OUTERANGLE:
+                            tempf = (float)rules.GetLSLFloatItem(i + 1);
+                            prules.OuterAngle = (float)tempf;
+                            prules.PartFlags &= 0xFFFFFFFD; // Make sure new angle format is off.
+                            break;
+
                         case (int)ScriptBaseClass.PSYS_SRC_TEXTURE:
                             prules.Texture = KeyOrName(rules.GetLSLStringItem(i + 1));
                             break;
@@ -6014,11 +6104,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         case (int)ScriptBaseClass.PSYS_SRC_ANGLE_BEGIN:
                             tempf = (float)rules.GetLSLFloatItem(i + 1);
                             prules.InnerAngle = (float)tempf;
+                            prules.PartFlags |= 0x02; // Set new angle format.
                             break;
 
                         case (int)ScriptBaseClass.PSYS_SRC_ANGLE_END:
                             tempf = (float)rules.GetLSLFloatItem(i + 1);
                             prules.OuterAngle = (float)tempf;
+                            prules.PartFlags |= 0x02; // Set new angle format.
                             break;
                     }
 
@@ -6520,6 +6612,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (cut.y - cut.x < 0.05f)
             {
                 cut.x = cut.y - 0.05f;
+                if (cut.x < 0.0f)
+                {
+                    cut.x = 0.0f;
+                    cut.y = 0.05f;
+                }
             }
             shapeBlock.ProfileBegin = (ushort)(50000 * cut.x);
             shapeBlock.ProfileEnd = (ushort)(50000 * (1 - cut.y));
@@ -6715,9 +6812,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 profilecut.y = 1f;
             }
-            if (profilecut.y - cut.x < 0.05f)
+            if (profilecut.y - profilecut.x < 0.05f)
             {
-                profilecut.x = cut.y - 0.05f;
+                profilecut.x = profilecut.y - 0.05f;
+                if (profilecut.x < 0.0f)
+                {
+                    profilecut.x = 0.0f;
+                    profilecut.y = 0.05f;
+                }
             }
             shapeBlock.ProfileBegin = (ushort)(50000 * profilecut.x);
             shapeBlock.ProfileEnd = (ushort)(50000 * (1 - profilecut.y));
@@ -7745,6 +7847,241 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             return res;
         }
 
+        public LSL_List llGetPrimMediaParams(int face, LSL_List rules)
+        {
+            m_host.AddScriptLPS(1);
+            ScriptSleep(1000);
+
+            // LSL Spec http://wiki.secondlife.com/wiki/LlGetPrimMediaParams says to fail silently if face is invalid
+            // TODO: Need to correctly handle case where a face has no media (which gives back an empty list).
+            // Assuming silently fail means give back an empty list.  Ideally, need to check this.
+            if (face < 0 || face > m_host.GetNumberOfSides() - 1)
+                return new LSL_List();
+            
+            return GetPrimMediaParams(face, rules);
+        }
+        
+        private LSL_List GetPrimMediaParams(int face, LSL_List rules)
+        {
+            IMoapModule module = m_ScriptEngine.World.RequestModuleInterface<IMoapModule>();
+            if (null == module)
+                throw new Exception("Media on a prim functions not available");
+            
+            MediaEntry me = module.GetMediaEntry(m_host, face);
+            
+            // As per http://wiki.secondlife.com/wiki/LlGetPrimMediaParams
+            if (null == me)
+                return new LSL_List();
+            
+            LSL_List res = new LSL_List();
+
+            for (int i = 0; i < rules.Length; i++)
+            {
+                int code = (int)rules.GetLSLIntegerItem(i);
+                
+                switch (code)
+                {
+                    case ScriptBaseClass.PRIM_MEDIA_ALT_IMAGE_ENABLE:
+                        // Not implemented
+                        res.Add(new LSL_Integer(0));
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_CONTROLS:
+                        if (me.Controls == MediaControls.Standard)
+                            res.Add(new LSL_Integer(ScriptBaseClass.PRIM_MEDIA_CONTROLS_STANDARD));
+                        else
+                            res.Add(new LSL_Integer(ScriptBaseClass.PRIM_MEDIA_CONTROLS_MINI));
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_CURRENT_URL:
+                        res.Add(new LSL_String(me.CurrentURL));
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_HOME_URL:
+                        res.Add(new LSL_String(me.HomeURL));
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_AUTO_LOOP:
+                        res.Add(me.AutoLoop ? ScriptBaseClass.TRUE : ScriptBaseClass.FALSE);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_AUTO_PLAY:
+                        res.Add(me.AutoPlay ? ScriptBaseClass.TRUE : ScriptBaseClass.FALSE);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_AUTO_SCALE:
+                        res.Add(me.AutoScale ? ScriptBaseClass.TRUE : ScriptBaseClass.FALSE);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_AUTO_ZOOM:
+                        res.Add(me.AutoZoom ? ScriptBaseClass.TRUE : ScriptBaseClass.FALSE);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_FIRST_CLICK_INTERACT:
+                        res.Add(me.InteractOnFirstClick ? ScriptBaseClass.TRUE : ScriptBaseClass.FALSE);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_WIDTH_PIXELS:
+                        res.Add(new LSL_Integer(me.Width));
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_HEIGHT_PIXELS:
+                        res.Add(new LSL_Integer(me.Height));
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_WHITELIST_ENABLE:
+                        res.Add(me.EnableWhiteList ? ScriptBaseClass.TRUE : ScriptBaseClass.FALSE);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_WHITELIST:
+                        string[] urls = (string[])me.WhiteList.Clone();
+                    
+                        for (int j = 0; j < urls.Length; j++)
+                            urls[j] = Uri.EscapeDataString(urls[j]);
+                    
+                        res.Add(new LSL_String(string.Join(", ", urls)));
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_PERMS_INTERACT:
+                        res.Add(new LSL_Integer((int)me.InteractPermissions));
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_PERMS_CONTROL:
+                        res.Add(new LSL_Integer((int)me.ControlPermissions));
+                        break;
+                }
+            }            
+            
+            return res;
+        }
+        
+        public LSL_Integer llSetPrimMediaParams(int face, LSL_List rules)
+        {
+            m_host.AddScriptLPS(1);
+            ScriptSleep(1000);
+
+            // LSL Spec http://wiki.secondlife.com/wiki/LlSetPrimMediaParams says to fail silently if face is invalid
+            // Assuming silently fail means sending back LSL_STATUS_OK.  Ideally, need to check this.
+            // Don't perform the media check directly
+            if (face < 0 || face > m_host.GetNumberOfSides() - 1)
+                return ScriptBaseClass.LSL_STATUS_OK;
+            
+            return SetPrimMediaParams(face, rules);            
+        }
+        
+        private LSL_Integer SetPrimMediaParams(int face, LSL_List rules)
+        {
+            IMoapModule module = m_ScriptEngine.World.RequestModuleInterface<IMoapModule>();
+            if (null == module)
+                throw new Exception("Media on a prim functions not available");
+            
+            MediaEntry me = module.GetMediaEntry(m_host, face);
+            if (null == me)
+                me = new MediaEntry();
+            
+            int i = 0;
+            
+            while (i < rules.Length - 1)
+            {
+                int code = rules.GetLSLIntegerItem(i++);
+                
+                switch (code)
+                {
+                    case ScriptBaseClass.PRIM_MEDIA_ALT_IMAGE_ENABLE:
+                        me.EnableAlterntiveImage = (rules.GetLSLIntegerItem(i++) != 0 ? true : false);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_CONTROLS:
+                        int v = rules.GetLSLIntegerItem(i++);
+                        if (ScriptBaseClass.PRIM_MEDIA_CONTROLS_STANDARD == v)
+                            me.Controls = MediaControls.Standard;
+                        else
+                            me.Controls = MediaControls.Mini;
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_CURRENT_URL:
+                        me.CurrentURL = rules.GetLSLStringItem(i++);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_HOME_URL:
+                        me.HomeURL = rules.GetLSLStringItem(i++);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_AUTO_LOOP:
+                        me.AutoLoop = (ScriptBaseClass.TRUE == rules.GetLSLIntegerItem(i++) ? true : false);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_AUTO_PLAY:
+                        me.AutoPlay = (ScriptBaseClass.TRUE == rules.GetLSLIntegerItem(i++) ? true : false);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_AUTO_SCALE:
+                        me.AutoScale = (ScriptBaseClass.TRUE == rules.GetLSLIntegerItem(i++) ? true : false);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_AUTO_ZOOM:
+                        me.AutoZoom = (ScriptBaseClass.TRUE == rules.GetLSLIntegerItem(i++) ? true : false);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_FIRST_CLICK_INTERACT:
+                        me.InteractOnFirstClick = (ScriptBaseClass.TRUE == rules.GetLSLIntegerItem(i++) ? true : false);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_WIDTH_PIXELS:
+                        me.Width = (int)rules.GetLSLIntegerItem(i++);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_HEIGHT_PIXELS:
+                        me.Height = (int)rules.GetLSLIntegerItem(i++);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_WHITELIST_ENABLE:
+                        me.EnableWhiteList = (ScriptBaseClass.TRUE == rules.GetLSLIntegerItem(i++) ? true : false);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_WHITELIST:
+                        string[] rawWhiteListUrls = rules.GetLSLStringItem(i++).ToString().Split(new char[] { ',' });
+                        List<string> whiteListUrls = new List<string>();
+                        Array.ForEach(
+                            rawWhiteListUrls, delegate(string rawUrl) { whiteListUrls.Add(rawUrl.Trim()); });
+                        me.WhiteList = whiteListUrls.ToArray();
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_PERMS_INTERACT:
+                        me.InteractPermissions = (MediaPermission)(byte)(int)rules.GetLSLIntegerItem(i++);
+                        break;
+                        
+                    case ScriptBaseClass.PRIM_MEDIA_PERMS_CONTROL:
+                        me.ControlPermissions = (MediaPermission)(byte)(int)rules.GetLSLIntegerItem(i++);
+                        break;
+                }
+            }       
+                        
+            module.SetMediaEntry(m_host, face, me);
+            
+            return ScriptBaseClass.LSL_STATUS_OK;
+        }
+        
+        public LSL_Integer llClearPrimMedia(LSL_Integer face)
+        {
+            m_host.AddScriptLPS(1);
+            ScriptSleep(1000);
+
+            // LSL Spec http://wiki.secondlife.com/wiki/LlClearPrimMedia says to fail silently if face is invalid
+            // Assuming silently fail means sending back LSL_STATUS_OK.  Ideally, need to check this.
+            // FIXME: Don't perform the media check directly
+            if (face < 0 || face > m_host.GetNumberOfSides() - 1)
+                return ScriptBaseClass.LSL_STATUS_OK;
+            
+            IMoapModule module = m_ScriptEngine.World.RequestModuleInterface<IMoapModule>();
+            if (null == module)
+                throw new Exception("Media on a prim functions not available");            
+            
+            module.ClearMediaEntry(m_host, face);
+            
+            return ScriptBaseClass.LSL_STATUS_OK;
+        }
+        
         //  <remarks>
         //  <para>
         //  The .NET definition of base 64 is:

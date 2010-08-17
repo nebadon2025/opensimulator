@@ -211,7 +211,17 @@ namespace OpenSim
                         else
                         {
                             string basepath = Path.GetFullPath(Util.configDir());
-                            string path = Path.Combine(basepath, file);
+                            // Resolve relative paths with wildcards
+                            string chunkWithoutWildcards = file;
+                            string chunkWithWildcards = string.Empty;
+                            int wildcardIndex = file.IndexOfAny(new char[] { '*', '?' });
+                            if (wildcardIndex != -1)
+                            {
+                                chunkWithoutWildcards = file.Substring(0, wildcardIndex);
+                                chunkWithWildcards = file.Substring(wildcardIndex);
+                            }
+                            string path = Path.Combine(basepath, chunkWithoutWildcards);
+                            path = Path.GetFullPath(path) + chunkWithWildcards;
                             string[] paths = Util.Glob(path);
                             foreach (string p in paths)
                             {
@@ -305,21 +315,6 @@ namespace OpenSim
                 config.Set("clientstack_plugin", "OpenSim.Region.ClientStack.LindenUDP.dll");
                 // life doesn't really work without this
                 config.Set("EventQueue", true);
-            }
-
-            {
-                IConfig config = defaultConfig.Configs["StandAlone"];
-
-                if (null == config)
-                    config = defaultConfig.AddConfig("StandAlone");
-
-                config.Set("accounts_authenticate", true);
-                config.Set("welcome_message", "Welcome to OpenSimulator");
-                config.Set("inventory_plugin", "OpenSim.Data.SQLite.dll");
-                config.Set("inventory_source", "");
-                config.Set("userDatabase_plugin", "OpenSim.Data.SQLite.dll");
-                config.Set("user_source", "");
-                config.Set("LibrariesXMLFile", string.Format(".{0}inventory{0}Libraries.xml", Path.DirectorySeparatorChar));
             }
 
             {

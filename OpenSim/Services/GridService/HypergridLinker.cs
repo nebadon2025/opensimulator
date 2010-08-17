@@ -62,6 +62,7 @@ namespace OpenSim.Services.GridService
         protected GatekeeperServiceConnector m_GatekeeperConnector;
 
         protected UUID m_ScopeID = UUID.Zero;
+        protected bool m_Check4096 = true;
 
         // Hyperlink regions are hyperlinks on the map
         public readonly Dictionary<UUID, GridRegion> m_HyperlinkRegions = new Dictionary<UUID, GridRegion>();
@@ -115,6 +116,8 @@ namespace OpenSim.Services.GridService
                 string scope = gridConfig.GetString("ScopeID", string.Empty);
                 if (scope != string.Empty)
                     UUID.TryParse(scope, out m_ScopeID);
+
+                m_Check4096 = gridConfig.GetBoolean("Check4096", true);
 
                 m_GatekeeperConnector = new GatekeeperServiceConnector(m_AssetService);
 
@@ -244,18 +247,9 @@ namespace OpenSim.Services.GridService
                 }
 
                 regInfo.RegionID = regionID;
-                Uri uri = null;
-                try
-                {
-                    uri = new Uri(externalName);
-                    regInfo.ExternalHostName = uri.Host;
-                    regInfo.HttpPort = (uint)uri.Port;
-                }
-                catch 
-                {
-                    m_log.WarnFormat("[HYPERGRID LINKER]: Remote Gatekeeper at {0} provided malformed ExternalName {1}", regInfo.ExternalHostName, externalName);
-                }
-                regInfo.RegionName = regInfo.ExternalHostName + ":" + regInfo.HttpPort + ":" + regInfo.RegionName;
+                if (regInfo.RegionName == string.Empty)
+                    regInfo.RegionName = regInfo.ExternalHostName;
+
                 // Try get the map image
                 //regInfo.TerrainImage = m_GatekeeperConnector.GetMapImage(regionID, imageURL);
                 // I need a texture that works for this... the one I tried doesn't seem to be working
@@ -273,7 +267,7 @@ namespace OpenSim.Services.GridService
             }
 
             uint x, y;
-            if (!Check4096(handle, out x, out y))
+            if (m_Check4096 && !Check4096(handle, out x, out y))
             {
                 RemoveHyperlinkRegion(regInfo.RegionID);
                 reason = "Region is too far (" + x + ", " + y + ")";
@@ -328,25 +322,55 @@ namespace OpenSim.Services.GridService
         /// <returns></returns>
         public bool Check4096(ulong realHandle, out uint x, out uint y)
         {
-            GridRegion defRegion = DefaultRegion;
-
             uint ux = 0, uy = 0;
             Utils.LongToUInts(realHandle, out ux, out uy);
             x = ux / Constants.RegionSize;
             y = uy / Constants.RegionSize;
 
-            if ((Math.Abs((int)defRegion.RegionLocX - ux) >= 4096 * Constants.RegionSize) ||
-                (Math.Abs((int)defRegion.RegionLocY - uy) >= 4096 * Constants.RegionSize))
+            const uint limit = (4096 - 1) * Constants.RegionSize;
+            uint xmin = ux - limit;
+            uint xmax = ux + limit;
+            uint ymin = uy - limit;
+            uint ymax = uy + limit;
+            // World map boundary checks
+            if (xmin < 0 || xmin > ux)
+                xmin = 0;
+            if (xmax > int.MaxValue || xmax < ux)
+                xmax = int.MaxValue;
+            if (ymin < 0 || ymin > uy)
+                ymin = 0;
+            if (ymax > int.MaxValue || ymax < uy)
+                ymax = int.MaxValue;
+
+            // Check for any regions that are within the possible teleport range to the linked region
+            List<GridRegion> regions = m_GridService.GetRegionRange(m_ScopeID, (int)xmin, (int)xmax, (int)ymin, (int)ymax);
+            if (regions.Count == 0)
             {
                 return false;
             }
+            else
+            {
+                // Check for regions which are not linked regions
+                List<GridRegion> hyperlinks = m_GridService.GetHyperlinks(m_ScopeID);
+                // would like to use .Except, but doesn't seem to exist
+                //IEnumerable<GridRegion> availableRegions = regions.Except(hyperlinks);
+                List<GridRegion> availableRegions = regions.FindAll(delegate(GridRegion region) 
+                {
+                    // Ewww! n^2
+                    if (hyperlinks.Find(delegate(GridRegion r) { return r.RegionID == region.RegionID; }) == null) // not hyperlink. good.
+                        return true;
+
+                    return false;
+                });
+                if (availableRegions.Count == 0)
+                    return false;
+            }
+
             return true;
         }
 
         private void AddHyperlinkRegion(GridRegion regionInfo, ulong regionHandle)
         {
-            //m_HyperlinkRegions[regionInfo.RegionID] = regionInfo;
-            //m_HyperlinkHandles[regionInfo.RegionID] = regionHandle;
 
             RegionData rdata = m_GridService.RegionInfo2RegionData(regionInfo);
             int flags = (int)OpenSim.Data.RegionFlags.Hyperlink + (int)OpenSim.Data.RegionFlags.NoDirectLogin + (int)OpenSim.Data.RegionFlags.RegionOnline;
@@ -358,12 +382,6 @@ namespace OpenSim.Services.GridService
 
         private void RemoveHyperlinkRegion(UUID regionID)
         {
-            //// Try the hyperlink collection
-            //if (m_HyperlinkRegions.ContainsKey(regionID))
-            //{
-            //    m_HyperlinkRegions.Remove(regionID);
-            //    m_HyperlinkHandles.Remove(regionID);
-            //}
             m_Database.Delete(regionID);
         }
 
@@ -374,32 +392,31 @@ namespace OpenSim.Services.GridService
 
         public void HandleShow(string module, string[] cmd)
         {
-            MainConsole.Instance.Output("Not Implemented Yet");
-            //if (cmd.Length != 2)
-            //{
-            //    MainConsole.Instance.Output("Syntax: show hyperlinks");
-            //    return;
-            //}
-            //List<GridRegion> regions = new List<GridRegion>(m_HypergridService.m_HyperlinkRegions.Values);
-            //if (regions == null || regions.Count < 1)
-            //{
-            //    MainConsole.Instance.Output("No hyperlinks");
-            //    return;
-            //}
+            if (cmd.Length != 2)
+            {
+                MainConsole.Instance.Output("Syntax: show hyperlinks");
+                return;
+            }
+            List<RegionData> regions = m_Database.GetHyperlinks(UUID.Zero);
+            if (regions == null || regions.Count < 1)
+            {
+                MainConsole.Instance.Output("No hyperlinks");
+                return;
+            }
 
-            //MainConsole.Instance.Output("Region Name          Region UUID");
-            //MainConsole.Instance.Output("Location             URI");
-            //MainConsole.Instance.Output("Owner ID  ");
-            //MainConsole.Instance.Output("-------------------------------------------------------------------------------");
-            //foreach (GridRegion r in regions)
-            //{
-            //    MainConsole.Instance.Output(String.Format("{0,-20} {1}\n{2,-20} {3}\n{4,-39} \n\n",
-            //            r.RegionName, r.RegionID,
-            //            String.Format("{0},{1}", r.RegionLocX, r.RegionLocY), "http://" + r.ExternalHostName + ":" + r.HttpPort.ToString(),
-            //            r.EstateOwner.ToString()));
-            //}
-            //return;
+            MainConsole.Instance.Output("Region Name                             Region UUID");
+            MainConsole.Instance.Output("Location                                URI");
+            MainConsole.Instance.Output("-------------------------------------------------------------------------------");
+            foreach (RegionData r in regions)
+            {
+                MainConsole.Instance.Output(String.Format("{0,-39} {1}\n{2,-39} {3}\n",
+                        r.RegionName, r.RegionID,
+                        String.Format("{0},{1} ({2},{3})", r.posX, r.posY, r.posX / 256, r.posY / 256),
+                        "http://" + r.Data["serverIP"].ToString() + ":" + r.Data["serverHttpPort"].ToString()));
+            }
+            return;
         }
+
         public void RunCommand(string module, string[] cmdparams)
         {
             List<string> args = new List<string>(cmdparams);

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -26,61 +26,42 @@
  */
 
 using System;
-using NUnit.Framework;
 using OpenMetaverse;
-using OpenSim.Framework;
-using GridRegion = OpenSim.Services.Interfaces.GridRegion;
+using OpenSim.Region.Framework.Scenes;
 
-namespace OpenSim.Region.Framework.Scenes.Tests
+namespace OpenSim.Region.Framework.Interfaces
 {
     /// <summary>
-    /// Scene presence tests
+    /// Provides methods from manipulating media-on-a-prim
     /// </summary>
-    [TestFixture]
-    public class SceneBaseTests
+    public interface IMoapModule
     {
-        private class SceneBaseImpl : SceneBase
-        {
-            public override void Update()
-            {
-                throw new NotImplementedException();
-            }
-
-            public override void LoadWorldMap()
-            {
-                throw new NotImplementedException();
-            }
-
-            public override void AddNewClient(IClientAPI client)
-            {
-                throw new NotImplementedException();
-            }
-
-            public override void RemoveClient(UUID agentID)
-            {
-                throw new NotImplementedException();
-            }
-
-            public override void OtherRegionUp(GridRegion otherRegion)
-            {
-                throw new NotImplementedException();
-            }
-
-            public override bool TryGetScenePresence(UUID agentID, out ScenePresence scenePresence)
-            {
-                throw new NotImplementedException();
-            }
-
-            public override bool CheckClient(UUID agentID, System.Net.IPEndPoint ep)
-            {
-                throw new NotImplementedException();
-            }
-        }
-
-        [Test]
-        public void TestConstructor()
-        {
-            new SceneBaseImpl();
-        }
-    }
+        /// <summary>
+        /// Get the media entry for a given prim face.
+        /// </summary>
+        /// A copy of the media entry is returned rather than the original, so this can be altered at will without
+        /// affecting the original settings.
+        /// <param name="part"></param>
+        /// <param name="face"></param>
+        /// <returns></returns>
+        MediaEntry GetMediaEntry(SceneObjectPart part, int face);
+        
+        /// <summary>
+        /// Set the media entry for a given prim face.
+        /// </summary>
+        /// <param name="SceneObjectPart"></param>
+        /// <param name="face"></param>
+        /// <param name="me"></param>
+        void SetMediaEntry(SceneObjectPart part, int face, MediaEntry me);
+        
+        /// <summary>
+        /// Clear the media entry for a given prim face.
+        /// </summary>
+        /// 
+        /// This is the equivalent of setting a media entry of null
+        /// 
+        /// <param name="part"></param>
+        /// <param name="face">/param>
+        void ClearMediaEntry(SceneObjectPart part, int face);
+    }        
 }

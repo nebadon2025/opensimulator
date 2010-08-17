@@ -520,7 +520,11 @@ namespace OpenSim.Region.Examples.SimpleModule
         {
         }
 
-        public virtual void SendTeleportLocationStart()
+        public virtual void SendTeleportStart(uint flags)
+        {
+        }
+
+        public virtual void SendTeleportProgress(uint flags, string message)
         {
         }
 
@@ -533,10 +537,6 @@ namespace OpenSim.Region.Examples.SimpleModule
         }
 
         public virtual void SendCoarseLocationUpdate(List<UUID> users, List<Vector3> CoarseLocations)
-        {
-        }
-
-        public virtual void AttachObject(uint localID, Quaternion rotation, byte attachPoint, UUID ownerID)
         {
         }
 

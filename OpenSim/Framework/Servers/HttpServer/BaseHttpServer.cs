@@ -310,7 +310,7 @@ namespace OpenSim.Framework.Servers.HttpServer
             }
             catch (Exception e)
             {
-                m_log.Error(string.Format("[BASE HTTP SERVER]: OnRequest() failed with "), e);
+                m_log.ErrorFormat("[BASE HTTP SERVER]: OnRequest() failed with {0}{1}", e.Message, e.StackTrace);
             }
         }
 
@@ -319,6 +319,13 @@ namespace OpenSim.Framework.Servers.HttpServer
             OSHttpRequest req = new OSHttpRequest(context, request);
             OSHttpResponse resp = new OSHttpResponse(new HttpResponse(context, request),context);
             HandleRequest(req, resp);
+
+            // !!!HACK ALERT!!!
+            // There seems to be a bug in the underlying http code that makes subsequent requests
+            // come up with trash in Accept headers. Until that gets fixed, we're cleaning them up here.
+            if (request.AcceptTypes != null)
+                for (int i = 0; i < request.AcceptTypes.Length; i++)
+                    request.AcceptTypes[i] = string.Empty;
         }
 
         // public void ConvertIHttpClientContextToOSHttp(object stateinfo)
@@ -362,7 +369,7 @@ namespace OpenSim.Framework.Servers.HttpServer
                 string path = request.RawUrl;
                 string handlerKey = GetHandlerKey(request.HttpMethod, path);
 
-                //m_log.DebugFormat("[BASE HTTP SERVER]: Handling {0} request for {1}", request.HttpMethod, path);
+//                m_log.DebugFormat("[BASE HTTP SERVER]: Handling {0} request for {1}", request.HttpMethod, path);
 
                 if (TryGetStreamHandler(handlerKey, out requestHandler))
                 {

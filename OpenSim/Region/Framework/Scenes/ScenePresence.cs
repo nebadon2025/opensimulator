@@ -60,7 +60,6 @@ namespace OpenSim.Region.Framework.Scenes
     struct ScriptControllers
     {
         public UUID itemID;
-        public uint objID;
         public ScriptControlled ignoreControls;
         public ScriptControlled eventControls;
     }
@@ -822,7 +821,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             m_rootRegionHandle = m_scene.RegionInfo.RegionHandle;
 
-            m_scene.SetRootAgentScene(m_uuid);
+            m_scene.EventManager.TriggerSetRootAgentScene(m_uuid, m_scene);
 
             // Moved this from SendInitialData to ensure that m_appearance is initialized
             // before the inventory is processed in MakeRootAgent. This fixes a race condition
@@ -930,7 +929,12 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void MakeChildAgent()
         {
-            Animator.ResetAnimations();
+            // It looks like m_animator is set to null somewhere, and MakeChild
+            // is called after that. Probably in aborted teleports.
+            if (m_animator == null)
+                m_animator = new ScenePresenceAnimator(this);
+            else
+                Animator.ResetAnimations();
 
 //            m_log.DebugFormat(
 //                 "[SCENEPRESENCE]: Downgrading root agent {0}, {1} to a child agent in {2}",
@@ -3057,6 +3061,18 @@ namespace OpenSim.Region.Framework.Scenes
                 cAgent.Attachments = attachs;
             }
 
+            lock (scriptedcontrols)
+            {
+                ControllerData[] controls = new ControllerData[scriptedcontrols.Count];
+                int i = 0;
+
+                foreach (ScriptControllers c in scriptedcontrols.Values)
+                {
+                    controls[i++] = new ControllerData(c.itemID, (uint)c.ignoreControls, (uint)c.eventControls);
+                }
+                cAgent.Controllers = controls;
+            }
+
             // Animations
             try
             {
@@ -3137,6 +3153,27 @@ namespace OpenSim.Region.Framework.Scenes
             }
             catch { } 
 
+            try
+            {
+                lock (scriptedcontrols)
+                {
+                    if (cAgent.Controllers != null)
+                    {
+                        scriptedcontrols.Clear();
+
+                        foreach (ControllerData c in cAgent.Controllers)
+                        {
+                            ScriptControllers sc = new ScriptControllers();
+                            sc.itemID = c.ItemID;
+                            sc.ignoreControls = (ScriptControlled)c.IgnoreControls;
+                            sc.eventControls = (ScriptControlled)c.EventControls;
+
+                            scriptedcontrols[sc.itemID] = sc;
+                        }
+                    }
+                }
+            }
+            catch { }
             // Animations
             try
             {
@@ -3173,11 +3210,6 @@ namespace OpenSim.Region.Framework.Scenes
 
                 m_forceToApply = null;
             }
-        }
-
-        public override void SetText(string text, Vector3 color, double alpha)
-        {
-            throw new Exception("Can't set Text on avatar.");
         }
 
         /// <summary>
@@ -3423,7 +3455,7 @@ namespace OpenSim.Region.Framework.Scenes
                             if (m == null) // No script engine loaded
                                 continue;
 
-                            m.PostObjectEvent(grp.RootPart.UUID, "changed", new Object[] { 16384 });
+                            m.PostObjectEvent(grp.RootPart.UUID, "changed", new Object[] { (int)Changed.ANIMATION });
                         }
                     }
                 }
@@ -3468,7 +3500,6 @@ namespace OpenSim.Region.Framework.Scenes
             obj.eventControls = ScriptControlled.CONTROL_ZERO;
 
             obj.itemID = Script_item_UUID;
-            obj.objID = Obj_localID;
             if (pass_on == 0 && accept == 0)
             {
                 IgnoredControls |= (ScriptControlled)controls;
@@ -3611,7 +3642,7 @@ namespace OpenSim.Region.Framework.Scenes
                         if (localHeld != ScriptControlled.CONTROL_ZERO || localChange != ScriptControlled.CONTROL_ZERO)
                         {
                             // only send if still pressed or just changed
-                            m_scene.EventManager.TriggerControlEvent(scriptControlData.objID, scriptUUID, UUID, (uint)localHeld, (uint)localChange);
+                            m_scene.EventManager.TriggerControlEvent(scriptUUID, UUID, (uint)localHeld, (uint)localChange);
                         }
                     }
                 }

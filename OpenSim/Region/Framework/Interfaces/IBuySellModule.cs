@@ -25,14 +25,23 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-using System;
-using System.Collections.Generic;
-using System.Text;
+using OpenMetaverse;
+using OpenSim.Framework;
 
-namespace OpenSim.Framework
+namespace OpenSim.Region.Framework.Interfaces
 {
-    public abstract class ConfigBase
-    {
-        protected ConfigurationMember m_configMember;
+    public interface IBuySellModule
+    { 
+        /// <summary>
+        /// Try to buy an object
+        /// </summary>
+        /// <param name="remoteClient"></param>
+        /// <param name="categoryID"></param>
+        /// <param name="localID"></param>
+        /// <param name="saleType"></param>
+        /// <returns>
+        /// True on a successful purchase, false on failure
+        /// </returns>
+        bool BuyObject(IClientAPI remoteClient, UUID categoryID, uint localID, byte saleType);
     }
 }

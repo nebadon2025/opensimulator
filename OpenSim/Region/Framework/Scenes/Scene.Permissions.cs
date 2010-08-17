@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -64,6 +64,7 @@ namespace OpenSim.Region.Framework.Scenes
     public delegate bool RunConsoleCommandHandler(UUID user, Scene requestFromScene);
     public delegate bool IssueEstateCommandHandler(UUID user, Scene requestFromScene, bool ownerCommand);
     public delegate bool IsGodHandler(UUID user, Scene requestFromScene);
+    public delegate bool IsAdministratorHandler(UUID user);
     public delegate bool EditParcelHandler(UUID user, ILandObject parcel, Scene scene);
     public delegate bool SellParcelHandler(UUID user, ILandObject parcel, Scene scene);
     public delegate bool AbandonParcelHandler(UUID user, ILandObject parcel, Scene scene);
@@ -81,6 +82,8 @@ namespace OpenSim.Region.Framework.Scenes
     public delegate bool CopyUserInventoryHandler(UUID itemID, UUID userID);
     public delegate bool DeleteUserInventoryHandler(UUID itemID, UUID userID);
     public delegate bool TeleportHandler(UUID userID, Scene scene);
+    public delegate bool ControlPrimMediaHandler(UUID userID, UUID primID, int face);
+    public delegate bool InteractWithPrimMediaHandler(UUID userID, UUID primID, int face);
     #endregion
 
     public class ScenePermissions
@@ -122,6 +125,7 @@ namespace OpenSim.Region.Framework.Scenes
         public event RunConsoleCommandHandler OnRunConsoleCommand;
         public event IssueEstateCommandHandler OnIssueEstateCommand;
         public event IsGodHandler OnIsGod;
+        public event IsAdministratorHandler OnIsAdministrator;
         public event EditParcelHandler OnEditParcel;
         public event SellParcelHandler OnSellParcel;
         public event AbandonParcelHandler OnAbandonParcel;
@@ -139,6 +143,8 @@ namespace OpenSim.Region.Framework.Scenes
         public event CopyUserInventoryHandler OnCopyUserInventory;
         public event DeleteUserInventoryHandler OnDeleteUserInventory;
         public event TeleportHandler OnTeleport;
+        public event ControlPrimMediaHandler OnControlPrimMedia;
+        public event InteractWithPrimMediaHandler OnInteractWithPrimMedia;
         #endregion
 
         #region Object Permission Checks
@@ -652,6 +658,21 @@ namespace OpenSim.Region.Framework.Scenes
             }
             return true;
         }
+
+        public bool IsAdministrator(UUID user)
+        {
+            IsAdministratorHandler handler = OnIsAdministrator;
+            if (handler != null)
+            {
+                Delegate[] list = handler.GetInvocationList();
+                foreach (IsAdministratorHandler h in list)
+                {
+                    if (h(user) == false)
+                        return false;
+                }
+            }
+            return true;
+        }
         #endregion
 
         #region EDIT PARCEL
@@ -947,5 +968,35 @@ namespace OpenSim.Region.Framework.Scenes
             }
             return true;
         }
+        
+        public bool CanControlPrimMedia(UUID userID, UUID primID, int face)
+        {
+            ControlPrimMediaHandler handler = OnControlPrimMedia;
+            if (handler != null)
+            {
+                Delegate[] list = handler.GetInvocationList();
+                foreach (ControlPrimMediaHandler h in list)
+                {
+                    if (h(userID, primID, face) == false)
+                        return false;
+                }
+            }
+            return true;
+        } 
+        
+        public bool CanInteractWithPrimMedia(UUID userID, UUID primID, int face)
+        {
+            InteractWithPrimMediaHandler handler = OnInteractWithPrimMedia;
+            if (handler != null)
+            {
+                Delegate[] list = handler.GetInvocationList();
+                foreach (InteractWithPrimMediaHandler h in list)
+                {
+                    if (h(userID, primID, face) == false)
+                        return false;
+                }
+            }
+            return true;
+        }    
     }
 }

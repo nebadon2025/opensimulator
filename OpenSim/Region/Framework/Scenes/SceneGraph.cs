@@ -78,8 +78,6 @@ namespace OpenSim.Region.Framework.Scenes
 //        protected internal Dictionary<UUID, EntityBase> Entities = new Dictionary<UUID, EntityBase>();
         protected internal Dictionary<UUID, ScenePresence> RestorePresences = new Dictionary<UUID, ScenePresence>();
 
-        protected internal BasicQuadTreeNode QuadTree;
-
         protected RegionInfo m_regInfo;
         protected Scene m_parentScene;
         protected Dictionary<UUID, SceneObjectGroup> m_updateList = new Dictionary<UUID, SceneObjectGroup>();
@@ -107,9 +105,6 @@ namespace OpenSim.Region.Framework.Scenes
         {
             m_parentScene = parent;
             m_regInfo = regInfo;
-            QuadTree = new BasicQuadTreeNode(null, "/0/", 0, 0, (short)Constants.RegionSize, (short)Constants.RegionSize);
-            QuadTree.Subdivide();
-            QuadTree.Subdivide();
         }
 
         public PhysicsScene PhysicsScene
@@ -599,7 +594,7 @@ namespace OpenSim.Region.Framework.Scenes
             if (!Entities.Remove(agentID))
             {
                 m_log.WarnFormat(
-                    "[SCENE] Tried to remove non-existent scene presence with agent ID {0} from scene Entities list",
+                    "[SCENE]: Tried to remove non-existent scene presence with agent ID {0} from scene Entities list",
                     agentID);
             }
 
@@ -607,12 +602,13 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 Dictionary<UUID, ScenePresence> newmap = new Dictionary<UUID, ScenePresence>(m_scenePresenceMap);
                 List<ScenePresence> newlist = new List<ScenePresence>(m_scenePresenceArray);
-
-                // Remember the old presene reference from the dictionary
-                ScenePresence oldref = newmap[agentID];
+                
                 // Remove the presence reference from the dictionary
-                if (newmap.Remove(agentID))
+                if (newmap.ContainsKey(agentID))
                 {
+                    ScenePresence oldref = newmap[agentID];
+                    newmap.Remove(agentID);
+
                     // Find the index in the list where the old ref was stored and remove the reference
                     newlist.RemoveAt(newlist.IndexOf(oldref));
                     // Swap out the dictionary and list with new references
@@ -621,7 +617,7 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 else
                 {
-                    m_log.WarnFormat("[SCENE] Tried to remove non-existent scene presence with agent ID {0} from scene ScenePresences list", agentID);
+                    m_log.WarnFormat("[SCENE]: Tried to remove non-existent scene presence with agent ID {0} from scene ScenePresences list", agentID);
                 }
             }
         }
@@ -1724,6 +1720,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="originalPrim"></param>
         /// <param name="offset"></param>
         /// <param name="flags"></param>
+        /// <param name="AgentID"></param>
+        /// <param name="GroupID"></param>
         protected internal void DuplicateObject(uint originalPrim, Vector3 offset, uint flags, UUID AgentID, UUID GroupID)
         {
             //m_log.DebugFormat("[SCENE]: Duplication of object {0} at offset {1} requested by agent {2}", originalPrim, offset, AgentID);
@@ -1738,7 +1736,10 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="originalPrim"></param>
         /// <param name="offset"></param>
         /// <param name="flags"></param>
-        protected internal SceneObjectGroup DuplicateObject(uint originalPrimID, Vector3 offset, uint flags, UUID AgentID, UUID GroupID, Quaternion rot)
+        /// <param name="AgentID"></param>
+        /// <param name="GroupID"></param>
+        /// <param name="rot"></param>
+        public SceneObjectGroup DuplicateObject(uint originalPrimID, Vector3 offset, uint flags, UUID AgentID, UUID GroupID, Quaternion rot)
         {
             //m_log.DebugFormat("[SCENE]: Duplication of object {0} at offset {1} requested by agent {2}", originalPrim, offset, AgentID);
             SceneObjectGroup original = GetGroupByPrim(originalPrimID);
@@ -1746,8 +1747,30 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (m_parentScene.Permissions.CanDuplicateObject(original.Children.Count, original.UUID, AgentID, original.AbsolutePosition))
                 {
-                    SceneObjectGroup copy = original.Copy(AgentID, GroupID, true);
+                    SceneObjectGroup copy = original.Copy(true);
                     copy.AbsolutePosition = copy.AbsolutePosition + offset;
+
+                    if (original.OwnerID != AgentID)
+                    {
+                        copy.SetOwnerId(AgentID);
+                        copy.SetRootPartOwner(copy.RootPart, AgentID, GroupID);
+
+                        List<SceneObjectPart> partList =
+                            new List<SceneObjectPart>(copy.Children.Values);
+
+                        if (m_parentScene.Permissions.PropagatePermissions())
+                        {
+                            foreach (SceneObjectPart child in partList)
+                            {
+                                child.Inventory.ChangeInventoryOwner(AgentID);
+                                child.TriggerScriptChangedEvent(Changed.OWNER);
+                                child.ApplyNextOwnerPermissions();
+                            }
+                        }
+
+                        copy.RootPart.ObjectSaleType = 0;
+                        copy.RootPart.SalePrice = 10;
+                    }
 
                     Entities.Add(copy);
 

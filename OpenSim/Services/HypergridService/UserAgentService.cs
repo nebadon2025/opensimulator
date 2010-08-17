@@ -62,11 +62,18 @@ namespace OpenSim.Services.HypergridService
         protected static IGridUserService m_GridUserService;
         protected static IGridService m_GridService;
         protected static GatekeeperServiceConnector m_GatekeeperConnector;
+        protected static IGatekeeperService m_GatekeeperService;
+
+        protected static string m_GridName;
+
+        protected static bool m_BypassClientVerification;
 
         public UserAgentService(IConfigSource config)
         {
             if (!m_Initialized)
             {
+                m_Initialized = true;
+
                 m_log.DebugFormat("[HOME USERS SECURITY]: Starting...");
                 
                 IConfig serverConfig = config.Configs["UserAgentService"];
@@ -75,16 +82,25 @@ namespace OpenSim.Services.HypergridService
 
                 string gridService = serverConfig.GetString("GridService", String.Empty);
                 string gridUserService = serverConfig.GetString("GridUserService", String.Empty);
+                string gatekeeperService = serverConfig.GetString("GatekeeperService", String.Empty);
 
-                if (gridService == string.Empty || gridUserService == string.Empty)
+                m_BypassClientVerification = serverConfig.GetBoolean("BypassClientVerification", false);
+
+                if (gridService == string.Empty || gridUserService == string.Empty || gatekeeperService == string.Empty)
                     throw new Exception(String.Format("Incomplete specifications, UserAgent Service cannot function."));
 
                 Object[] args = new Object[] { config };
                 m_GridService = ServerUtils.LoadPlugin<IGridService>(gridService, args);
                 m_GridUserService = ServerUtils.LoadPlugin<IGridUserService>(gridUserService, args);
                 m_GatekeeperConnector = new GatekeeperServiceConnector();
+                m_GatekeeperService = ServerUtils.LoadPlugin<IGatekeeperService>(gatekeeperService, args);
 
-                m_Initialized = true;
+                m_GridName = serverConfig.GetString("ExternalName", string.Empty);
+                if (m_GridName == string.Empty)
+                {
+                    serverConfig = config.Configs["GatekeeperService"];
+                    m_GridName = serverConfig.GetString("ExternalName", string.Empty);
+                }
             }
         }
 
@@ -131,7 +147,13 @@ namespace OpenSim.Services.HypergridService
             agentCircuit.ServiceSessionID = "http://" + region.ExternalHostName + ":" + region.HttpPort + ";" + UUID.Random();
             TravelingAgentInfo old = UpdateTravelInfo(agentCircuit, region);
 
-            bool success = m_GatekeeperConnector.CreateAgent(region, agentCircuit, (uint)Constants.TeleportFlags.ViaLogin, out reason);
+            //bool success = m_GatekeeperConnector.CreateAgent(region, agentCircuit, (uint)Constants.TeleportFlags.ViaLogin, out reason);
+            bool success = false;
+            string gridName = "http://" + gatekeeper.ExternalHostName + ":" + gatekeeper.HttpPort;
+            if (m_GridName == gridName)
+                success = m_GatekeeperService.LoginAgent(agentCircuit, finalDestination, out reason);
+            else
+                success = m_GatekeeperConnector.CreateAgent(region, agentCircuit, (uint)Constants.TeleportFlags.ViaLogin, out reason);
 
             if (!success)
             {
@@ -171,7 +193,7 @@ namespace OpenSim.Services.HypergridService
                 m_TravelingAgents[agentCircuit.SessionID] = travel;
             }
             travel.UserID = agentCircuit.AgentID;
-            travel.GridExternalName = region.ExternalHostName + ":" + region.HttpPort;
+            travel.GridExternalName = "http://" + region.ExternalHostName + ":" + region.HttpPort;
             travel.ServiceToken = agentCircuit.ServiceSessionID;
             if (old != null)
                 travel.ClientToken = old.ClientToken;
@@ -207,16 +229,16 @@ namespace OpenSim.Services.HypergridService
                 return false;
 
             TravelingAgentInfo travel = m_TravelingAgents[sessionID];
+
             return travel.GridExternalName == thisGridExternalName;
         }
 
         public bool VerifyClient(UUID sessionID, string token)
         {
-            m_log.DebugFormat("[USER AGENT SERVICE]: Verifying Client session {0} with token {1}", sessionID, token);
-            //return true;
+            if (m_BypassClientVerification)
+                return true;
 
-            // Commenting this for now until I understand better what part of a sender's
-            // info stays unchanged throughout a session
+            m_log.DebugFormat("[USER AGENT SERVICE]: Verifying Client session {0} with token {1}", sessionID, token);
 
             if (m_TravelingAgents.ContainsKey(sessionID))
                 return m_TravelingAgents[sessionID].ClientToken == token;

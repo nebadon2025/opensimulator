@@ -388,17 +388,17 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                     PostEvent(new EventParams("attach",
                         new object[] { new LSL_Types.LSLString(m_AttachedAvatar.ToString()) }, new DetectParams[0]));
                 }
-                else if (m_stateSource == StateSource.NewRez)
+                else if (m_stateSource == StateSource.RegionStart)
                 {
 //                    m_log.Debug("[Script] Posted changed(CHANGED_REGION_RESTART) to script");
                     PostEvent(new EventParams("changed",
-                                              new Object[] {new LSL_Types.LSLInteger(256)}, new DetectParams[0]));
+                                              new Object[] { (int)Changed.REGION_RESTART }, new DetectParams[0]));
                 }
                 else if (m_stateSource == StateSource.PrimCrossing)
                 {
                     // CHANGED_REGION
                     PostEvent(new EventParams("changed",
-                                              new Object[] {new LSL_Types.LSLInteger(512)}, new DetectParams[0]));
+                                              new Object[] { (int)Changed.REGION }, new DetectParams[0]));
                 }
             } 
             else 

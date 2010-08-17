@@ -20,6 +20,7 @@
   <delete dir="${distbindir}/.nant"/>
   <delete>
     <fileset basedir="${distbindir}">
+      <include name="compile.bat"/>
       <include name="BUILDING.txt"/>
       <include name="Makefile"/>
       <include name="nant-color"/>
@@ -29,7 +30,7 @@
       <include name="TESTING.txt"/>
       <include name="TestResult.xml"/>
       <include name="bin/OpenSim.Server.ini"/>
-      <include name="bin/Regions/*"/>
+      <include name="bin/Regions/Regions.ini"/>
       <include name="bin/*.db"/>
       <include name="**/.git/**"/>
       <include name=".gitignore"/>
@@ -90,6 +91,11 @@
   the assembly here as an exec, and you add the fail clause later.
   This lets all the unit tests run and tells you if they fail at the
   end, instead of stopping short -->
+  <exec program="${nunitcmd}" failonerror="true" resultproperty="testresult.opensim.tests">
+    <arg value="./bin/OpenSim.Tests.dll" />
+  </exec>
+  <fail message="Failures reported in unit tests." unless="${int::parse(testresult.opensim.tests)==0}" /> 
+
   <exec program="${nunitcmd}" failonerror="true" resultproperty="testresult.opensim.framework.tests">
     <arg value="./bin/OpenSim.Framework.Tests.dll" />
   </exec>
@@ -255,6 +261,11 @@
 
   <mkdir dir="test-results" failonerror="false" />
   <!-- Unit Test Assembly -->
+  <exec program="${nunitcmd}" failonerror="false" resultproperty="testresult.opensim.tests">
+    <arg value="./bin/OpenSim.Tests.dll" />
+    <arg value="-xml=test-results/OpenSim.Tests.dll-Results.xml" />
+  </exec>
+
   <exec program="${nunitcmd}" failonerror="false" resultproperty="testresult.opensim.framework.tests">
     <arg value="./bin/OpenSim.Framework.Tests.dll" />
     <arg value="-xml=test-results/OpenSim.Framework.Tests.dll-Results.xml" />
@@ -297,6 +308,7 @@
     <arg value="-xml=test-results/OpenSim.Data.Tests.dll-Results.xml" />
   </exec>
 
+ <fail message="Failures reported in unit tests." unless="${int::parse(testresult.opensim.tests)==0}" /> 
  <fail message="Failures reported in unit tests." unless="${int::parse(testresult.opensim.framework.tests)==0}" /> 
  <fail message="Failures reported in unit tests." unless="${int::parse(testresult.opensim.framework.servers.tests)==0}" /> 
 <!-- <fail message="Failures reported in unit tests." unless="${int::parse(testresult.opensim.region.clientstack.lindenudp.tests)==0}" /> -->

@@ -45,6 +45,7 @@ namespace OpenSim.Services.InventoryService
                 MethodBase.GetCurrentMethod().DeclaringType);
 
         protected IXInventoryData m_Database;
+        protected bool m_AllowDelete = true;
 
         public XInventoryService(IConfigSource config) : base(config)
         {
@@ -60,6 +61,7 @@ namespace OpenSim.Services.InventoryService
             {
                 dllName = authConfig.GetString("StorageProvider", dllName);
                 connString = authConfig.GetString("ConnectionString", connString);
+                m_AllowDelete = authConfig.GetBoolean("AllowDelete", true);
                 // realm = authConfig.GetString("Realm", realm);
             }
 
@@ -200,7 +202,14 @@ namespace OpenSim.Services.InventoryService
             if (folders.Length == 0)
                 return null;
 
-            return ConvertToOpenSim(folders[0]);
+            XInventoryFolder root = null;
+            foreach (XInventoryFolder folder in folders)
+                if (folder.folderName == "My Inventory")
+                    root = folder;
+            if (folders == null) // oops
+                root = folders[0];
+
+            return ConvertToOpenSim(root);
         }
 
         public virtual InventoryFolderBase GetFolderForType(UUID principalID, AssetType type)
@@ -252,13 +261,15 @@ namespace OpenSim.Services.InventoryService
         
         public virtual List<InventoryItemBase> GetFolderItems(UUID principalID, UUID folderID)
         {
+//            m_log.DebugFormat("[XINVENTORY]: Fetch items for folder {0}", folderID);
+            
             // Since we probably don't get a valid principal here, either ...
             //
             List<InventoryItemBase> invItems = new List<InventoryItemBase>();
 
             XInventoryItem[] items = m_Database.GetItems(
-                    new string[] { "parentFolderID"},
-                    new string[] { UUID.Zero.ToString() });
+                    new string[] { "parentFolderID" },
+                    new string[] { folderID.ToString() });
 
             foreach (XInventoryItem i in items)
                 invItems.Add(ConvertToOpenSim(i));
@@ -295,10 +306,15 @@ namespace OpenSim.Services.InventoryService
         //
         public virtual bool DeleteFolders(UUID principalID, List<UUID> folderIDs)
         {
+            if (!m_AllowDelete)
+                return false;
+
             // Ignore principal ID, it's bogus at connector level
             //
             foreach (UUID id in folderIDs)
             {
+                if (!ParentIsTrash(id))
+                    continue;
                 InventoryFolderBase f = new InventoryFolderBase();
                 f.ID = id;
                 PurgeFolder(f);
@@ -310,6 +326,12 @@ namespace OpenSim.Services.InventoryService
 
         public virtual bool PurgeFolder(InventoryFolderBase folder)
         {
+            if (!m_AllowDelete)
+                return false;
+
+            if (!ParentIsTrash(folder.ID))
+                return false;
+
             XInventoryFolder[] subFolders = m_Database.GetFolders(
                     new string[] { "parentFolderID" },
                     new string[] { folder.ID.ToString() });
@@ -349,6 +371,9 @@ namespace OpenSim.Services.InventoryService
 
         public virtual bool DeleteItems(UUID principalID, List<UUID> itemIDs)
         {
+            if (!m_AllowDelete)
+                return false;
+
             // Just use the ID... *facepalms*
             //
             foreach (UUID id in itemIDs)
@@ -509,6 +534,33 @@ namespace OpenSim.Services.InventoryService
             newItem.creationDate = item.CreationDate;
 
             return newItem;
+        }
+
+        private bool ParentIsTrash(UUID folderID)
+        {
+            XInventoryFolder[] folder = m_Database.GetFolders(new string[] {"folderID"}, new string[] {folderID.ToString()});
+            if (folder.Length < 1)
+                return false;
+
+            if (folder[0].type == (int)AssetType.TrashFolder)
+                return true;
+
+            UUID parentFolder = folder[0].parentFolderID;
+
+            while (parentFolder != UUID.Zero)
+            {
+                XInventoryFolder[] parent = m_Database.GetFolders(new string[] {"folderID"}, new string[] {parentFolder.ToString()});
+                if (parent.Length < 1)
+                    return false;
+
+                if (parent[0].type == (int)AssetType.TrashFolder)
+                    return true;
+                if (parent[0].type == (int)AssetType.RootFolder)
+                    return false;
+
+                parentFolder = parent[0].parentFolderID;
+            }
+            return false;
         }
     }
 }

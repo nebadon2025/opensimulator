@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -24,14 +24,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-using System;
-using OpenMetaverse;
 
-namespace OpenSim.Region.Framework.Interfaces
+using System;
+
+namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
 {
-    public interface IHyperAssetService
-    {
-        string GetUserAssetServer(UUID userID);
-        string GetSimAssetServer();
+    /// <summary>
+    /// Signals an inventory archiving problem
+    /// </summary>
+    public class InventoryArchiverException : Exception
+    {        
+        public InventoryArchiverException(string message) : base(message) {}
+        public InventoryArchiverException(string message, Exception e) : base(message, e) {}
     }
 }

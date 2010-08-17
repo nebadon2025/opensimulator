@@ -73,6 +73,8 @@ namespace OpenSim.Services.LLLoginService
         protected int m_MinLoginLevel;
         protected string m_GatekeeperURL;
         protected bool m_AllowRemoteSetLoginLevel;
+        protected string m_MapTileURL;
+        protected string m_SearchURL;
 
         IConfig m_LoginServerConfig;
 
@@ -100,6 +102,8 @@ namespace OpenSim.Services.LLLoginService
             m_AllowRemoteSetLoginLevel = m_LoginServerConfig.GetBoolean("AllowRemoteSetLoginLevel", false);
             m_MinLoginLevel = m_LoginServerConfig.GetInt("MinLoginLevel", 0);
             m_GatekeeperURL = m_LoginServerConfig.GetString("GatekeeperURI", string.Empty);
+            m_MapTileURL = m_LoginServerConfig.GetString("MapTileURL", string.Empty);
+            m_SearchURL = m_LoginServerConfig.GetString("SearchURL", string.Empty);
 
             // These are required; the others aren't
             if (accountService == string.Empty || authService == string.Empty)
@@ -335,13 +339,14 @@ namespace OpenSim.Services.LLLoginService
                 // Instantiate/get the simulation interface and launch an agent at the destination
                 //
                 string reason = string.Empty;
-                AgentCircuitData aCircuit = LaunchAgentAtGrid(gatekeeper, destination, account, avatar, session, secureSession, position, where, clientVersion, clientIP, out where, out reason);
-
+                GridRegion dest;
+                AgentCircuitData aCircuit = LaunchAgentAtGrid(gatekeeper, destination, account, avatar, session, secureSession, position, where, clientVersion, clientIP, out where, out reason, out dest);
+                destination = dest;
                 if (aCircuit == null)
                 {
                     m_PresenceService.LogoutAgent(session);
                     m_log.InfoFormat("[LLOGIN SERVICE]: Login failed, reason: {0}", reason);
-                    return LLFailedLoginResponse.AuthorizationProblem;
+                    return new LLFailedLoginResponse("key", reason, "false");
 
                 }
                 // Get Friends list 
@@ -356,7 +361,7 @@ namespace OpenSim.Services.LLLoginService
                 // Finally, fill out the response and return it
                 //
                 LLLoginResponse response = new LLLoginResponse(account, aCircuit, guinfo, destination, inventorySkel, friendsList, m_LibraryService,
-                    where, startLocation, position, lookAt, gestures, m_WelcomeMessage, home, clientIP);
+                    where, startLocation, position, lookAt, gestures, m_WelcomeMessage, home, clientIP, m_MapTileURL, m_SearchURL);
 
                 m_log.DebugFormat("[LLOGIN SERVICE]: All clear. Sending login response to client.");
                 return response;
@@ -595,7 +600,7 @@ namespace OpenSim.Services.LLLoginService
         }
 
         protected AgentCircuitData LaunchAgentAtGrid(GridRegion gatekeeper, GridRegion destination, UserAccount account, AvatarData avatar,
-            UUID session, UUID secureSession, Vector3 position, string currentWhere, string viewer, IPEndPoint clientIP, out string where, out string reason)
+            UUID session, UUID secureSession, Vector3 position, string currentWhere, string viewer, IPEndPoint clientIP, out string where, out string reason, out GridRegion dest)
         {
             where = currentWhere;
             ISimulationService simConnector = null;
@@ -681,7 +686,7 @@ namespace OpenSim.Services.LLLoginService
                     }
                 }
             }
-
+            dest = destination;
             if (success)
                 return aCircuit;
             else
@@ -752,10 +757,8 @@ namespace OpenSim.Services.LLLoginService
             m_log.Debug("[LLOGIN SERVICE] Launching agent at " + destination.RegionName);
             if (m_UserAgentService.LoginAgentToGrid(aCircuit, gatekeeper, destination, out reason))
             {
-                // We may need to do this at some point,
-                // so leaving it here in comments.
-                //IPAddress addr = NetworkUtil.GetIPFor(clientIP.Address, destination.ExternalEndPoint.Address);
-                m_UserAgentService.SetClientToken(aCircuit.SessionID, /*addr.Address.ToString() */ clientIP.Address.ToString());
+                IPAddress addr = NetworkUtil.GetExternalIPOf(clientIP.Address);
+                m_UserAgentService.SetClientToken(aCircuit.SessionID, addr.ToString() /* clientIP.Address.ToString() */);
                 return true;
             }
             return false;

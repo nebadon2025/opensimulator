@@ -1015,9 +1015,13 @@ namespace OpenSim.Client.MXP.ClientStack
             // Need to translate to MXP somehow
         }
 
-        public void SendTeleportLocationStart()
+        public void SendTeleportStart(uint flags)
         {
             // Need to translate to MXP somehow
+        }
+
+        public void SendTeleportProgress(uint flags, string message)
+        {
         }
 
         public void SendMoneyBalance(UUID transaction, bool success, byte[] description, int balance)
@@ -1033,11 +1037,6 @@ namespace OpenSim.Client.MXP.ClientStack
         public void SendCoarseLocationUpdate(List<UUID> users, List<Vector3> CoarseLocations)
         {
             // Minimap function, not used.
-        }
-
-        public void AttachObject(uint localID, Quaternion rotation, byte attachPoint, UUID ownerID)
-        {
-            // Need to translate to MXP somehow
         }
 
         public void SetChildAgentThrottle(byte[] throttle)

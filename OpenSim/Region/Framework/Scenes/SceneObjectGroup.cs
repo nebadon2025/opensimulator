@@ -294,7 +294,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if ((m_scene.TestBorderCross(val - Vector3.UnitX, Cardinals.E) || m_scene.TestBorderCross(val + Vector3.UnitX, Cardinals.W)
                     || m_scene.TestBorderCross(val - Vector3.UnitY, Cardinals.N) || m_scene.TestBorderCross(val + Vector3.UnitY, Cardinals.S)) 
-                    && !IsAttachmentCheckFull())
+                    && !IsAttachmentCheckFull() && (!m_scene.LoadingPrims))
                 {
                     m_scene.CrossPrimGroupIntoNewRegion(val, this, true);
                 }
@@ -1322,9 +1322,9 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void aggregateScriptEvents()
         {
-            uint objectflagupdate=(uint)RootPart.GetEffectiveObjectFlags();
+            PrimFlags objectflagupdate = (PrimFlags)RootPart.GetEffectiveObjectFlags();
 
-            scriptEvents aggregateScriptEvents=0;
+            scriptEvents aggregateScriptEvents = 0;
 
             lock (m_parts)
             {
@@ -1333,7 +1333,7 @@ namespace OpenSim.Region.Framework.Scenes
                     if (part == null)
                         continue;
                     if (part != RootPart)
-                        part.ObjectFlags = objectflagupdate;
+                        part.Flags = objectflagupdate;
                     aggregateScriptEvents |= part.AggregateScriptEvents;
                 }
             }
@@ -1360,7 +1360,7 @@ namespace OpenSim.Region.Framework.Scenes
             ScheduleGroupForFullUpdate();
         }
 
-        public override void SetText(string text, Vector3 color, double alpha)
+        public void SetText(string text, Vector3 color, double alpha)
         {
             Color = Color.FromArgb(0xff - (int) (alpha * 0xff),
                                    (int) (color.X * 0xff),
@@ -1472,13 +1472,14 @@ namespace OpenSim.Region.Framework.Scenes
                             "[SCENE]: Storing {0}, {1} in {2}",
                             Name, UUID, m_scene.RegionInfo.RegionName);
 
-                        SceneObjectGroup backup_group = Copy(OwnerID, GroupID, false);
+                        SceneObjectGroup backup_group = Copy(false);
                         backup_group.RootPart.Velocity = RootPart.Velocity;
                         backup_group.RootPart.Acceleration = RootPart.Acceleration;
                         backup_group.RootPart.AngularVelocity = RootPart.AngularVelocity;
                         backup_group.RootPart.ParticleSystem = RootPart.ParticleSystem;
                         HasGroupChanged = false;
 
+                        m_scene.EventManager.TriggerOnSceneObjectPreSave(backup_group, this);
                         datastore.StoreObject(backup_group, m_scene.RegionInfo.RegionID);
 
                         backup_group.ForEachPart(delegate(SceneObjectPart part) 
@@ -1527,8 +1528,9 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Duplicates this object, including operations such as physics set up and attaching to the backup event.
         /// </summary>
+        /// <param name="userExposed">True if the duplicate will immediately be in the scene, false otherwise</param>
         /// <returns></returns>
-        public SceneObjectGroup Copy(UUID cAgentID, UUID cGroupID, bool userExposed)
+        public SceneObjectGroup Copy(bool userExposed)
         {
             SceneObjectGroup dupe = (SceneObjectGroup)MemberwiseClone();
             dupe.m_isBackedUp = false;
@@ -1551,7 +1553,9 @@ namespace OpenSim.Region.Framework.Scenes
             dupe.AbsolutePosition = new Vector3(AbsolutePosition.X, AbsolutePosition.Y, AbsolutePosition.Z);
 
             if (!userExposed)
+            {
                 dupe.RootPart.IsAttachment = previousAttachmentStatus;
+            }
 
             dupe.CopyRootPart(m_rootPart, OwnerID, GroupID, userExposed);
             dupe.m_rootPart.LinkNum = m_rootPart.LinkNum;
@@ -1559,33 +1563,6 @@ namespace OpenSim.Region.Framework.Scenes
             if (userExposed)
                 dupe.m_rootPart.TrimPermissions();
 
-            /// may need to create a new Physics actor.
-            if (dupe.RootPart.PhysActor != null && userExposed)
-            {
-                PrimitiveBaseShape pbs = dupe.RootPart.Shape;
-
-                dupe.RootPart.PhysActor = m_scene.PhysicsScene.AddPrimShape(
-                    dupe.RootPart.Name,
-                    pbs,
-                    dupe.RootPart.AbsolutePosition,
-                    dupe.RootPart.Scale,
-                    dupe.RootPart.RotationOffset,
-                    dupe.RootPart.PhysActor.IsPhysical);
-
-                dupe.RootPart.PhysActor.LocalID = dupe.RootPart.LocalId;
-                dupe.RootPart.DoPhysicsPropertyUpdate(dupe.RootPart.PhysActor.IsPhysical, true);
-            }
-
-            // Now we've made a copy that replaces this one, we need to
-            // switch the owner to the person who did the copying
-            // Second Life copies an object and duplicates the first one in it's place
-            // So, we have to make a copy of this one, set it in it's place then set the owner on this one
-            if (userExposed)
-            {
-                SetRootPartOwner(m_rootPart, cAgentID, cGroupID);
-                m_rootPart.ScheduleFullUpdate();
-            }
-            
             List<SceneObjectPart> partList;
 
             lock (m_parts)
@@ -1604,17 +1581,28 @@ namespace OpenSim.Region.Framework.Scenes
                 if (part.UUID != m_rootPart.UUID)
                 {
                     SceneObjectPart newPart = dupe.CopyPart(part, OwnerID, GroupID, userExposed);
-
                     newPart.LinkNum = part.LinkNum;
-
-                    if (userExposed)
-                    {
-                        SetPartOwner(newPart, cAgentID, cGroupID);
-                        newPart.ScheduleFullUpdate();
-                    }
                 }
-            }
 
+                // Need to duplicate the physics actor as well            
+                if (part.PhysActor != null && userExposed)
+                {
+                    PrimitiveBaseShape pbs = part.Shape;
+    
+                    part.PhysActor 
+                        = m_scene.PhysicsScene.AddPrimShape(
+                            part.Name,
+                            pbs,
+                            part.AbsolutePosition,
+                            part.Scale,
+                            part.RotationOffset,
+                            part.PhysActor.IsPhysical);
+    
+                    part.PhysActor.LocalID = part.LocalId;
+                    part.DoPhysicsPropertyUpdate(part.PhysActor.IsPhysical, true);
+                }                
+            }
+            
             if (userExposed)
             {
                 dupe.UpdateParentIDs();
@@ -2013,8 +2001,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void ScheduleGroupForFullUpdate()
         {
-            if (IsAttachment)
-                m_log.DebugFormat("[SOG]: Scheduling full update for {0} {1}", Name, LocalId);
+//            if (IsAttachment)
+//                m_log.DebugFormat("[SOG]: Scheduling full update for {0} {1}", Name, LocalId);
             
             checkAtTargets();
             RootPart.ScheduleFullUpdate();
@@ -3595,7 +3583,7 @@ namespace OpenSim.Region.Framework.Scenes
         
         public virtual ISceneObject CloneForNewScene()
         {
-            SceneObjectGroup sog = Copy(this.OwnerID, this.GroupID, false);
+            SceneObjectGroup sog = Copy(false);
             sog.m_isDeleted = false;
             return sog;
         }

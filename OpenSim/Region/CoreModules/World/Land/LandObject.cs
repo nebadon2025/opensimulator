@@ -146,7 +146,7 @@ namespace OpenSim.Region.CoreModules.World.Land
             else
             {
                 // Normal Calculations
-                return (int)Math.Round(((float)LandData.Area / 65536.0f) * (float)m_scene.objectCapacity * (float)m_scene.RegionInfo.RegionSettings.ObjectBonus);
+                return (int)Math.Round(((float)LandData.Area / 65536.0f) * (float)m_scene.RegionInfo.ObjectCapacity * (float)m_scene.RegionInfo.RegionSettings.ObjectBonus);
             }
         }
         public int GetSimulatorMaxPrimCount(ILandObject thisObject)
@@ -158,7 +158,7 @@ namespace OpenSim.Region.CoreModules.World.Land
             else
             {
                 //Normal Calculations
-                return m_scene.objectCapacity;
+                return m_scene.RegionInfo.ObjectCapacity;
             }
         }
         #endregion
@@ -283,6 +283,9 @@ namespace OpenSim.Region.CoreModules.World.Land
 
         public bool IsBannedFromLand(UUID avatar)
         {
+            if (m_scene.Permissions.IsAdministrator(avatar))
+                return false;
+
             if ((LandData.Flags & (uint) ParcelFlags.UseBanList) > 0)
             {
                 ParcelManager.ParcelAccessEntry entry = new ParcelManager.ParcelAccessEntry();
@@ -301,6 +304,9 @@ namespace OpenSim.Region.CoreModules.World.Land
 
         public bool IsRestrictedFromLand(UUID avatar)
         {
+            if (m_scene.Permissions.IsAdministrator(avatar))
+                return false;
+
             if ((LandData.Flags & (uint) ParcelFlags.UseAccessList) > 0)
             {
                 ParcelManager.ParcelAccessEntry entry = new ParcelManager.ParcelAccessEntry();

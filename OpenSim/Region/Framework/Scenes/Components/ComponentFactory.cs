@@ -11,6 +11,6 @@ namespace OpenSim.Region.Framework.Scenes.Components
             cmm.OnCreateComponent += CreateComponent;
         }
 
-        protected abstract IComponent CreateComponent(Type componentType, IComponentState componentState);
+        protected abstract IComponent CreateComponent(string componentType, ComponentState componentState);
     }
 }

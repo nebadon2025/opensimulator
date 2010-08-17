@@ -288,6 +288,8 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             {
                 foreach (SceneObjectPart part in sceneObject.Children.Values)
                 {
+                    part.SaveComponents();
+
                     if (part.UUID != sceneObject.RootPart.UUID)
                     {
                         part.ToXml(writer);

@@ -60,17 +60,24 @@ namespace OpenSim.Region.CoreModules.World.Objects.Components
 
         #region Implementation of IComponentManagerModule
 
-        public void CreateComponent(SceneObjectPart target, Type componentType, IComponentState state)
+        public void CreateComponent(SceneObjectPart target, string componentType, ComponentState state)
         {
-            foreach (OnCreateComponentDelegate h in OnCreateComponent.GetInvocationList())
+            if (OnCreateComponent != null)
             {
-                IComponent x = h(componentType, state);
-                if(x != null)
+                foreach (OnCreateComponentDelegate h in OnCreateComponent.GetInvocationList())
                 {
-                    target.SetComponent(x);
-                    x.SetParent(target);
-                    return;
+                    IComponent x = h(componentType, state);
+                    if (x != null)
+                    {
+                        target.SetComponent(x);
+                        x.SetParent(target);
+                        return;
+                    }
                 }
+            } else
+            {
+                m_log.Warn("[Components] No component handlers loaded. Are you missing a region module?");
+                return;
             }
 
             m_log.Warn("[Components] Unable to create component " + componentType + ". No ComponentFactory was able to recognize it. Could you be missing a region module?");

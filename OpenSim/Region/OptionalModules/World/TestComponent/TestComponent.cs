@@ -6,7 +6,10 @@ using OpenSim.Region.Framework.Scenes.Components;
 
 namespace OpenSim.Region.OptionalModules.World.TestComponent
 {
-    class TestComponent : IComponent 
+    /// <summary>
+    /// Components must be public classes
+    /// </summary>
+    public class TestComponent : IComponent 
     {
         private int m_theAnswerToTheQuestionOfLifeTheUniverseAndEverything = 42;
 
@@ -15,7 +18,15 @@ namespace OpenSim.Region.OptionalModules.World.TestComponent
 
         #region Implementation of IComponent
 
-        public TestComponent(IComponentState state)
+        /// <summary>
+        /// Components MUST have a parameterless constructor
+        /// </summary>
+        public TestComponent()
+        {
+            
+        }
+
+        public TestComponent(ComponentState state)
         {
             m_log.Info("Its alive!");
         }
@@ -25,7 +36,7 @@ namespace OpenSim.Region.OptionalModules.World.TestComponent
             get { return typeof (TestComponent); }
         }
 
-        public IComponentState State
+        public ComponentState State
         {
             get
             {

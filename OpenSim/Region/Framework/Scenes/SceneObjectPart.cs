@@ -4804,16 +4804,9 @@ namespace OpenSim.Region.Framework.Scenes
         #region Components
 
         [NonSerializedAttribute] // Component serialisation occurs manually.
-        private Dictionary<Type, IComponent> m_components = new Dictionary<Type, IComponent>();
+        private Dictionary<string, IComponent> m_components = new Dictionary<string, IComponent>();
 
-        private IDictionary<Type, IComponentState> m_componentStates = new Dictionary<Type, IComponentState>();
-
-        public void InitComponents(IDictionary<Type,IComponentState> states)
-        {
-            m_componentStates = states;
-
-            InitComponents();
-        }
+        public SerializableDictionary<string, ComponentState> ComponentStates = new SerializableDictionary<string, ComponentState>();
 
         [NonSerializedAttribute]
         private bool m_componentsInit = false;
@@ -4823,15 +4816,24 @@ namespace OpenSim.Region.Framework.Scenes
             if(m_componentsInit)
                 return;
 
-            IDictionary<Type, IComponentState> states = m_componentStates;
+            SerializableDictionary<string, ComponentState> states = ComponentStates;
             if(ParentGroup.Scene != null)
             {
                 m_log.Info("[COMPONENTS] Initialising components...");
                 IComponentManagerModule cmm = ParentGroup.Scene.RequestModuleInterface<IComponentManagerModule>();
-                foreach(KeyValuePair<Type,IComponentState> kvp in states)
+                foreach(KeyValuePair<string,ComponentState> kvp in states)
                 {
                     m_log.Info("[COMPONENTS] Adding component " + kvp.Key + " to SceneObjectPart.");
-                    cmm.CreateComponent(this,kvp.Key,kvp.Value);
+
+                    try
+                    {
+                        cmm.CreateComponent(this, kvp.Key, kvp.Value);
+                    } 
+                    catch(Exception e)
+                    {
+                        m_log.Error("Error creating component " + e.ToString());
+                        m_log.Error("Stacktrace: " + e.StackTrace);
+                    }
                 }
                 m_componentsInit = true;
             } else
@@ -4842,12 +4844,15 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void SaveComponents()
         {
-            foreach (KeyValuePair<Type, IComponent> keyValuePair in m_components)
+            m_log.Info("[COMPONENTS] Saving components...");
+            foreach (KeyValuePair<string, IComponent> keyValuePair in m_components)
             {
-                IComponentState state = keyValuePair.Value.State;
-                Type baseType = keyValuePair.Value.BaseType;
+                ComponentState state = keyValuePair.Value.State;
+                string baseType = keyValuePair.Value.BaseType.ToString();
 
-                m_componentStates[baseType] = state;
+                m_log.Info("[COMPONENTS] Saving component " + baseType);
+
+                ComponentStates[baseType] = state;
             }
         }
 
@@ -4868,7 +4873,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public bool TryGet<T>(out T val)
         {
-            if(m_components.ContainsKey(typeof(T)))
+            if(m_components.ContainsKey(typeof(T).ToString()))
             {
                 val = Get<T>();
                 return true;
@@ -4880,13 +4885,13 @@ namespace OpenSim.Region.Framework.Scenes
 
         public bool Contains<T>()
         {
-            return m_components.ContainsKey(typeof (T));
+            return m_components.ContainsKey(typeof (T).ToString());
         }
 
         public void SetComponent(IComponent val)
         {
             Type T = val.BaseType;
-            m_components[T] = val;
+            m_components[T.ToString()] = val;
         }
         #endregion
     }

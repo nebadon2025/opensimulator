@@ -16,7 +16,7 @@ namespace OpenSim.Region.Framework.Scenes.Components
         /// <summary>
         /// A representation of the current state of the component, to be deserialised later.
         /// </summary>
-        IComponentState State { get; }
+        ComponentState State { get; }
 
         void SetParent(SceneObjectPart part);
     }

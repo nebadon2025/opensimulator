@@ -648,8 +648,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             {
                 // Make sure that we see any exception caused by the asynchronous operation.
                 m_log.Error(
-                    string.Format("[LLCLIENTVIEW]: Caught exception while processing {0}", packetObject.Pack), e);
-            }            
+                    string.Format("[LLCLIENTVIEW]: Caught exception while processing {0} {1} STACK: {2}", packetObject.Pack, e.ToString(),e.StackTrace), e);
+            }      
         }
 
         #endregion Packet Handling

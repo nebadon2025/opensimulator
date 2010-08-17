@@ -20,9 +20,10 @@ namespace OpenSim.Region.OptionalModules.World.TestComponent
 
         #region Overrides of ComponentFactory
 
-        protected override IComponent CreateComponent(Type componentType, IComponentState componentState)
+        protected override IComponent CreateComponent(string componentType, ComponentState componentState)
         {
-            if(componentType == typeof(TestComponent))
+            m_log.Info("[TestComponentFactory] Recieved CreateComponent for " + componentType);
+            if(componentType == typeof(TestComponent).ToString())
             {
                 string tmp;
                 if(componentState.TryGet("Hello", out tmp))
@@ -96,6 +97,8 @@ namespace OpenSim.Region.OptionalModules.World.TestComponent
                     }
                 }
             }
+
+            InitComponentHandler(m_scenes[0]);
 
             m_log.Info("[TESTCOMPONENT] Test factory loaded");
         }

@@ -289,7 +289,7 @@ namespace OpenSim.Services.InventoryService
             {
                 if (xFolder.version > check.Version)
                     return false;
-                check.Version = xFolder.version;
+                check.Version = (ushort)xFolder.version;
                 xFolder = ConvertFromOpenSim(check);
                 return m_Database.StoreFolder(xFolder);
             }

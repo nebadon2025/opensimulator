@@ -49,7 +49,7 @@ namespace OpenSim.Framework
             set { m_EstateID = value; }
         }
 
-        private string m_EstateName;
+        private string m_EstateName = "My Estate";
 
         public string EstateName
         {
@@ -57,7 +57,7 @@ namespace OpenSim.Framework
             set { m_EstateName = value; }
         }
 
-        private uint m_ParentEstateID = 100;
+        private uint m_ParentEstateID = 1;
 
         public uint ParentEstateID
         {

@@ -200,6 +200,7 @@ namespace OpenSim.Data.MySQL
                         }
                         else
                         {
+                            m_log.DebugFormat("Adding field '{0}'", name);
                             cmd.Parameters.AddWithValue("?" + name, m_FieldMap[name].GetValue(es).ToString());
                         }
                     }

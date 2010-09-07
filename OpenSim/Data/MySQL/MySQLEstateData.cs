@@ -123,6 +123,8 @@ namespace OpenSim.Data.MySQL
 
         public EstateSettings LoadEstateSettings(UUID regionID)
         {
+            bool create = true;
+
             EstateSettings es = new EstateSettings();
             es.OnSave += StoreEstateSettings;
 
@@ -142,6 +144,8 @@ namespace OpenSim.Data.MySQL
                     {
                         if (r.Read())
                         {
+                            create = false;
+
                             foreach (string name in FieldList)
                             {
                                 if (m_FieldMap[name].GetValue(es) is bool)
@@ -165,6 +169,66 @@ namespace OpenSim.Data.MySQL
                                 }
                             }
                         }
+                    }
+                }
+
+                if (create)
+                {
+                    // Migration case
+                    List<string> names = new List<string>(FieldList);
+
+                    names.Remove("EstateID");
+
+                    sql = "insert into estate_settings (" + String.Join(",", names.ToArray()) + ") values ( ?" + String.Join(", ?", names.ToArray()) + ")";
+
+                    using (MySqlCommand cmd = dbcon.CreateCommand())
+                    {
+                        cmd.CommandText = sql;
+                        cmd.Parameters.Clear();
+
+                        foreach (string name in FieldList)
+                        {
+                            if (m_FieldMap[name].GetValue(es) is bool)
+                            {
+                                if ((bool)m_FieldMap[name].GetValue(es))
+                                    cmd.Parameters.AddWithValue("?" + name, "1");
+                                else
+                                    cmd.Parameters.AddWithValue("?" + name, "0");
+                            }
+                            else
+                            {
+                                cmd.Parameters.AddWithValue("?" + name, m_FieldMap[name].GetValue(es).ToString());
+                            }
+                        }
+
+                        cmd.ExecuteNonQuery();
+
+                        cmd.CommandText = "select LAST_INSERT_ID() as id";
+                        cmd.Parameters.Clear();
+
+                        using (IDataReader r = cmd.ExecuteReader())
+                        {
+                            r.Read();
+                            es.EstateID = Convert.ToUInt32(r["id"]);
+                        }
+
+                        cmd.CommandText = "insert into estate_map values (?RegionID, ?EstateID)";
+                        cmd.Parameters.AddWithValue("?RegionID", regionID.ToString());
+                        cmd.Parameters.AddWithValue("?EstateID", es.EstateID.ToString());
+
+                        // This will throw on dupe key
+                        try { cmd.ExecuteNonQuery(); }
+                        catch (Exception) { }
+
+                        // Munge and transfer the ban list
+                        cmd.Parameters.Clear();
+                        cmd.CommandText = "insert into estateban select " + es.EstateID.ToString() + ", bannedUUID, bannedIp, bannedIpHostMask, '' from regionban where regionban.regionUUID = ?UUID";
+                        cmd.Parameters.AddWithValue("?UUID", regionID.ToString());
+
+                        try { cmd.ExecuteNonQuery(); }
+                        catch (Exception) { }
+
+                        es.Save();
                     }
                 }
             }

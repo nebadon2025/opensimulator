@@ -439,6 +439,7 @@ namespace OpenSim.Region.Framework.Scenes
         public IClientAPI ControllingClient
         {
             get { return m_controllingClient; }
+            set { m_controllingClient = value; }
         }
 
         public IClientCore ClientView
@@ -563,6 +564,20 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return m_health; }
             set { m_health = value; }
+        }
+
+        private bool m_isSyncedAvatar;
+        public bool IsSyncedAvatar
+        {
+            get { return m_isSyncedAvatar; }
+            set { m_isSyncedAvatar = value; }
+        }
+
+        private bool m_isBalancing;
+        public bool IsBalancing
+        {
+            get { return m_isBalancing; }
+            set { m_isBalancing = value; }
         }
 
         /// <summary>
@@ -753,7 +768,7 @@ namespace OpenSim.Region.Framework.Scenes
         public void RegisterToEvents()
         {
             // REGION SYNC
-            if (!m_scene.IsSyncedClient())
+            if (!m_scene.IsSyncedServer())// || m_scene.RegionSyncEnabled == false)
             {
                 // These client messages will not be handled by client managers but instead
                 // they are caught by the RegionSyncClient module and passed up to the auth sim
@@ -2436,6 +2451,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_perfMonMS = Util.EnvironmentTickCount();
             m_controllingClient.SendCoarseLocationUpdate(avatarUUIDs, coarseLocations);
             m_scene.StatsReporter.AddAgentTime(Util.EnvironmentTickCountSubtract(m_perfMonMS));
+        }
 
         /// <summary>
         /// Tell other client about this avatar (The client previously didn't know or had outdated details about this avatar)

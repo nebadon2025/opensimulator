@@ -429,5 +429,15 @@ namespace OpenSim.Region.Framework.Scenes
                 part.Inventory.ResumeScripts();
             }
         }
+
+        #region REGION SYNC
+        public void SuspendScripts()
+        {
+            foreach (SceneObjectPart part in m_parts.Values)
+            {
+                part.Inventory.SuspendScripts();
+            }
+        }
+        #endregion REGION SYNC
     }
 }

@@ -71,6 +71,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private string m_regionName;
 
         private System.Timers.Timer m_statsTimer = new System.Timers.Timer(30000);
+
+        //KittyL: added to identify different actors
+        private ActorType m_actorType = ActorType.ClientManager;
+
+        // The queue of incoming messages which need handling
+        //private Queue<string> m_inQ = new Queue<string>();
         #endregion
 
         // Constructor
@@ -704,6 +710,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void DoInitialSync()
         {
             m_scene.DeleteAllSceneObjects();
+            //KittyL: added to distinguish different actors
+            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.ActorType, m_actorType.ToString()));
+
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.RegionName, m_scene.RegionInfo.RegionName));
             m_log.WarnFormat("Sending region name: \"{0}\"", m_scene.RegionInfo.RegionName);
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetTerrain));

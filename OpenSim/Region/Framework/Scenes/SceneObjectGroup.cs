@@ -292,12 +292,16 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 Vector3 val = value;
 
-                if ((m_scene.TestBorderCross(val - Vector3.UnitX, Cardinals.E) || m_scene.TestBorderCross(val + Vector3.UnitX, Cardinals.W)
-                    || m_scene.TestBorderCross(val - Vector3.UnitY, Cardinals.N) || m_scene.TestBorderCross(val + Vector3.UnitY, Cardinals.S)) 
-                    && !IsAttachmentCheckFull())
+                //REGION SYNC touched
+
+                //if ((m_scene.TestBorderCross(val - Vector3.UnitX, Cardinals.E) || m_scene.TestBorderCross(val + Vector3.UnitX, Cardinals.W)
+                //    || m_scene.TestBorderCross(val - Vector3.UnitY, Cardinals.N) || m_scene.TestBorderCross(val + Vector3.UnitY, Cardinals.S)) 
+                //    && !IsAttachmentCheckFull())
+                if (m_scene.IsBorderCrossing(LocX, LocY, val) && !IsAttachmentCheckFull())
                 {
                     m_scene.CrossPrimGroupIntoNewRegion(val, this, true);
                 }
+                //end REGION SYNC touched
                 if (RootPart.GetStatusSandbox())
                 {
                     if (Util.GetDistanceTo(RootPart.StatusSandboxPos, value) > 10)
@@ -1289,7 +1293,7 @@ namespace OpenSim.Region.Framework.Scenes
                     // REGION SYNC
                     if (Scene.IsSyncedServer())
                     {
-                        Scene.RegionSyncServerModule.DeleteObject(part.RegionHandle, part.LocalId);
+                        Scene.RegionSyncServerModule.DeleteObject(part.RegionHandle, part.LocalId, part);
                         //return;
                     }
                     Scene.ForEachScenePresence(delegate(ScenePresence avatar)
@@ -3615,5 +3619,69 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         #endregion
+
+#region REGION SYNC
+
+        //the LocX and LocY of the authoritative scene that this object is located 
+        
+        private uint m_locX;
+        private uint m_locY;
+        public uint LocX
+        {
+            get { return m_locX; }
+            set { m_locX = value; }
+        }
+        public uint LocY
+        {
+            get { return m_locY; }
+            set { m_locY = value; }
+        }
+         
+
+        //update the existing copy of the object with updated properties in 'updatedSog'
+        //TODO: handle updates on script content seperately (e.g. user edited the script and saved it).
+        public void UpdateObjectProperties(SceneObjectGroup updatedSog)
+        {
+            if (!this.GroupID.Equals(updatedSog.GroupID))
+                return;
+
+            //So far this function is written with Script Engine updating local Scene cache in mind.
+
+            //We do not want to simply call SceneObjectGroup.Copy here to clone the object.
+            //We need to preserve the references to the prims (SceneObjectParts) inside the group,
+            //since their scripts are referencing back to the prims, and we have to update those
+            //references if we call SceneObjectGroup.Copy(), which creates new SceneObjectPart for all 
+            //non root parts. (So is SceneObjectGroup.CopyPart().)
+            //Plus, we do not need to trigger client updating, since Script engine does not have client connections.
+            Dictionary<UUID, SceneObjectPart> updatedParts = new Dictionary<UUID, SceneObjectPart>();
+            lock (m_parts)
+            {
+                foreach (KeyValuePair<UUID, SceneObjectPart> pair in updatedSog.Children){
+                    UUID partUUID = pair.Key;
+                    SceneObjectPart updatedPart = pair.Value;
+                    if(m_parts.ContainsKey(partUUID)){
+                        //update the existing part
+                        SceneObjectPart oldPart = m_parts[partUUID];
+                        oldPart.UpdateObjectPartProperties(updatedPart);
+                        updatedParts.Add(partUUID, updatedPart);
+                    }else{
+                        //a new part
+                        m_parts.Add(partUUID,updatedPart);
+                    }
+                }
+
+                //delete the parts that are no longer in the object-group
+                foreach(KeyValuePair<UUID, SceneObjectPart> pair in m_parts){
+                    if(!updatedParts.ContainsKey(pair.Key)){
+                        m_parts.Remove(pair.Key);
+                    }
+                }
+            } 
+
+            //update the authoritative scene that this object is located, which is identified by (LocX, LocY)
+            this.m_locX = updatedSog.LocX;
+            this.m_locY = updatedSog.LocY;
+        }
+#endregion 
     }
 }

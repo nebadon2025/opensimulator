@@ -278,6 +278,12 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             //int time = System.Environment.TickCount;
 
             writer.WriteStartElement(String.Empty, "SceneObjectGroup", String.Empty);
+
+            //REGION SYNG
+            //Need to add LocX,LocY of the Scene that the object is located in.
+            //writer.WriteStartElement(String.Empty, "LocX", String.Empty);
+            //end of REGION SYGN
+
             sceneObject.RootPart.ToXml(writer);
             writer.WriteStartElement(String.Empty, "OtherParts", String.Empty);
 

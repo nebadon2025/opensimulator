@@ -9,6 +9,7 @@ using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Framework.Interfaces;
 using OpenMetaverse;
 using log4net;
+using OpenSim.Region.Framework.Scenes.Serialization;
 
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
@@ -192,5 +193,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_ClientBalancer.BalanceLoad();
         }
+        //KittyL: 
+        public void BroadcastToCM(RegionSyncMessage.MsgType msgType, SceneObjectGroup sog)
+        {
+            string sogxml = SceneObjectSerializer.ToXml2Format(sog);
+
+            //m_log.Debug("SOG " + sog.UUID);
+
+            RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.NewObject, sogxml);
+            Broadcast(rsm);
+        }
+
     }
 }

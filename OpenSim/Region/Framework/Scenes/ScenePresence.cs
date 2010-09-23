@@ -768,7 +768,7 @@ namespace OpenSim.Region.Framework.Scenes
         public void RegisterToEvents()
         {
             // REGION SYNC
-            if (!m_scene.IsSyncedServer())// || m_scene.RegionSyncEnabled == false)
+            if (m_scene.IsSyncedServer() || m_scene.RegionSyncEnabled == false)
             {
                 // These client messages will not be handled by client managers but instead
                 // they are caught by the RegionSyncClient module and passed up to the auth sim

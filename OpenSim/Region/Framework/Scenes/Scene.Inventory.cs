@@ -149,6 +149,11 @@ namespace OpenSim.Region.Framework.Scenes
             return UUID.Zero;
         }
 
+        ////////////////////////////////////////////////////////////////////////////////////////////////
+        //REGION SYNC 
+        //Scene does permission checking, asset creation and storing, then informs Script Engine to 
+        //update the script.
+        ////////////////////////////////////////////////////////////////////////////////////////////////
         /// <summary>
         /// Capability originating call to update the asset of a script in a prim's (task's) inventory
         /// </summary>
@@ -195,9 +200,13 @@ namespace OpenSim.Region.Framework.Scenes
             AssetBase asset = CreateAsset(item.Name, item.Description, (sbyte)AssetType.LSLText, data, remoteClient.AgentId);
             AssetService.Store(asset);
 
-            if (isScriptRunning)
+            //REGION SYNC: if RegionSyncEnabled, move script related operations to be after update inventory item
+            if (!RegionSyncEnabled)
             {
-                part.Inventory.RemoveScriptInstance(item.ItemID, false);
+                if (isScriptRunning)
+                {
+                    part.Inventory.RemoveScriptInstance(item.ItemID, false);
+                }
             }
 
             // Update item with new asset
@@ -207,23 +216,89 @@ namespace OpenSim.Region.Framework.Scenes
             
             part.GetProperties(remoteClient);
 
-            // Trigger rerunning of script (use TriggerRezScript event, see RezScript)
+            ////REGION SYNC 
+            if (!RegionSyncEnabled)
+            {
+                //Original OpenSim code below
+
+                // Trigger rerunning of script (use TriggerRezScript event, see RezScript)
+                ArrayList errors = new ArrayList();
+
+                if (isScriptRunning)
+                {
+                    // Needs to determine which engine was running it and use that
+                    //
+                    part.Inventory.CreateScriptInstance(item.ItemID, 0, false, DefaultScriptEngine, 0);
+                    errors = part.Inventory.GetScriptErrors(item.ItemID);
+                }
+                else
+                {
+                    remoteClient.SendAgentAlertMessage("Script saved", false);
+                }
+                part.ParentGroup.ResumeScripts();
+                return errors;
+            }
+            else
+            {
+                //Distributed Scene Graph is in place, trigger event OnUpdateScript to 
+                //let SceneToSEConnector to contact remote script engine for script update
+                m_log.Debug("Scene.Inventory: to call EventManager.TriggerUpdateTaskInventoryScriptAsset, agentID: " + remoteClient.AgentId);
+                EventManager.TriggerUpdateScript(remoteClient.AgentId, itemId, primId, isScriptRunning, item.AssetID);
+
+                //For now, we simple tell client that script saved while waiting for remote script engine to re-rez the script.
+                //Later will change the BaseHttpServer's code to return error list to client.
+                remoteClient.SendAgentAlertMessage("Script saved", false);
+                ArrayList errors = new ArrayList();
+                return errors;
+
+            }
+        }
+
+        #region REGION SYNC
+        ////////////////////////////////////////////////////////////////////////////////////////////////
+        //REGION SYNC 
+        //Scene does permission checking, asset creation and storing, then informs Script Engine to 
+        //update the script.
+        ////////////////////////////////////////////////////////////////////////////////////////////////
+        //Only should be called when this is the cached Scene of script engine (e.g. from ScriptEngineToSceneConnector)
+        public ArrayList OnUpdateScript(UUID avatarID, UUID itemID, UUID primID, bool isScriptRunning, UUID newAssetID)
+        {
             ArrayList errors = new ArrayList();
+            //This function is supposed to be executed only on a remote script engine, not an authorative Scene
+            if (!IsSyncedScriptEngine())
+            {
+                m_log.Warn("This is not the script engine. Should not have received OnUpdateScript event.");
+                return errors;
+            }
+            SceneObjectPart part = GetSceneObjectPart(primID);
+            SceneObjectGroup group = part.ParentGroup;
+            if (isScriptRunning)
+            {
+                m_log.Debug("To RemoveScriptInstance");
+                part.Inventory.RemoveScriptInstance(itemID, false);
+            }
+
+            // Retrieve item
+            TaskInventoryItem item = group.GetInventoryItem(part.LocalId, itemID);
+
+            // Update item with new asset
+            item.AssetID = newAssetID;
+            group.UpdateInventoryItem(item);
+            m_log.Debug("UpdateInventoryItem on object "+group.UUID);
 
             if (isScriptRunning)
             {
                 // Needs to determine which engine was running it and use that
-                //
-                part.Inventory.CreateScriptInstance(item.ItemID, 0, false, DefaultScriptEngine, 0);
-                errors = part.Inventory.GetScriptErrors(item.ItemID);
+                m_log.Debug("To CreateScriptInstance");
+                part.Inventory.CreateScriptInstance(itemID, 0, false, DefaultScriptEngine, 0);
+                errors = part.Inventory.GetScriptErrors(itemID);
             }
-            else
-            {
-                remoteClient.SendAgentAlertMessage("Script saved", false);
-            }
+
             part.ParentGroup.ResumeScripts();
+
             return errors;
         }
+        #endregion 
 
         /// <summary>
         /// <see>CapsUpdateTaskInventoryScriptAsset(IClientAPI, UUID, UUID, bool, byte[])</see>
@@ -235,6 +310,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (TryGetScenePresence(avatarId, out avatar))
             {
+                //REGION SYNC LOG
+                m_log.Debug("Scene.Inventory: Avatar " + avatarId + ", triggers UpdateTaskInventoryScriptAsset");
                 return CapsUpdateTaskInventoryScriptAsset(
                     avatar.ControllingClient, itemId, primId, isScriptRunning, data);
             }

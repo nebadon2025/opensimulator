@@ -322,6 +322,7 @@ namespace OpenSim.Region.Framework.Scenes
         protected IDialogModule m_dialogModule;
         protected IEntityTransferModule m_teleportModule;
 
+        #region REGION SYNC
         protected IRegionSyncServerModule m_regionSyncServerModule;
         protected IRegionSyncClientModule m_regionSyncClientModule;
 
@@ -344,10 +345,151 @@ namespace OpenSim.Region.Framework.Scenes
             return (m_regionSyncClientModule != null && m_regionSyncClientModule.Active && m_regionSyncClientModule.Synced);
         }
 
+        //Return true if the sync server thread is active (Mode == server) and has some actors connected
         public bool IsSyncedServer()
         {
             return (m_regionSyncServerModule != null && m_regionSyncServerModule.Active && m_regionSyncServerModule.Synced);
         }
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        //KittyL: below variables and functions added to support additional actors, e.g. script engine 
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+
+        //Return true if the sync server thread is active (Mode == server)
+        public bool IsAuthoritativeScene()
+        {
+            //if this is the authoratative scene, then m_regionSyncServerModule.Active == true (mode=server)
+            return (m_regionSyncServerModule != null && m_regionSyncServerModule.Active);
+        }
+
+        private bool m_regionSyncEnabled = false;
+        public bool RegionSyncEnabled
+        {
+            get { return m_regionSyncEnabled; }
+            set { m_regionSyncEnabled = value; }
+        }
+
+        private string m_regionSyncMode = "";
+        public string RegionSyncMode
+        {
+            get { return m_regionSyncMode; }
+            set { m_regionSyncMode = value; }
+        }
+
+        
+        protected IScriptEngineToSceneConnectorModule m_scriptEngineToSceneConnectorModule;
+
+
+        public IScriptEngineToSceneConnectorModule ScriptEngineToSceneConnectorModule
+        {
+            get { return m_scriptEngineToSceneConnectorModule; }
+            set { m_scriptEngineToSceneConnectorModule = value; }
+        }
+
+        public bool IsSyncedScriptEngine()
+        {
+            return (m_scriptEngineToSceneConnectorModule != null && m_scriptEngineToSceneConnectorModule.Active && m_scriptEngineToSceneConnectorModule.Synced);
+        }
+
+        public bool ToScheduleFullUpdate()
+        {
+            //Only Scene (SyncServer) or Client Manager (SyncClient) will schedule update to send to its client. Script Engine will not (its update should be sent to Scene).
+            return (IsSyncedClient() || IsSyncedServer() || (IsSyncedScriptEngine() && m_scriptEngineToSceneConnectorModule.DebugWithViewer)); 
+        }
+
+       
+        public bool ToRezScriptByRemoteScriptEngine()
+        {
+            //Only Auth. Scene should trigger scritp rez by remote script engine.
+            return IsSyncedServer();
+        }
+
+
+        //This function should only be called by an actor who's local Scene is just a cache of the authorative Scene.
+        //If the object already exists, use the new copy to replace it.
+        //Return true if added, false if just updated
+        public bool AddOrUpdateObjectInLocalScene(SceneObjectGroup sog, bool debugWithViewer)
+        {
+            return m_sceneGraph.AddOrUpdateObjectInScene(sog, debugWithViewer);
+            
+        }
+
+        //public delegate bool TestBorderCrossingOutsideScenes(Scene currentScene, Vector3 pos);
+        public delegate bool TestBorderCrossingOutsideScenes(uint locX, uint locY, Vector3 pos);
+        private TestBorderCrossingOutsideScenes m_isOutsideScenesFunc = null;
+        public TestBorderCrossingOutsideScenes IsOutsideScenes
+        {
+            get { return m_isOutsideScenesFunc; }
+            set { m_isOutsideScenesFunc = value; }
+        }
+
+        /// <summary>
+        /// This is the given position goes outside of the current scene (if not a script engine executing this function), 
+        /// or outside of all scenes hosted by the script engine. Parameters curLocX, curLocY, and offset uniquely identify
+        /// the position in the entire space.
+        /// </summary>
+        /// <param name="curLocX">the X coordinate of the scene's left-bottom corner</param>
+        /// <param name="curLocY">the Y coordinate of the scene's left-bottom corner</param>
+        /// <param name="offset">the offset position to the scene's left-bottom corner</param>
+        /// <returns></returns>
+        public bool IsBorderCrossing(uint curLocX, uint curLocY, Vector3 offset)
+        {
+            Vector3 val = offset;
+            if (!RegionSyncEnabled || !(RegionSyncMode == "script_engine"))
+            {
+                //if we are not running Region Sync code, or if we are but this OpenSim instance is not the script engine, then 
+                //proceed as original code
+                bool crossing = TestBorderCross(val - Vector3.UnitX, Cardinals.E) || TestBorderCross(val + Vector3.UnitX, Cardinals.W)
+                    || TestBorderCross(val - Vector3.UnitY, Cardinals.N) || TestBorderCross(val + Vector3.UnitY, Cardinals.S);
+                return crossing;
+            }
+            else
+            {
+                //this is script engine
+                if (m_isOutsideScenesFunc == null)
+                {
+                    m_log.Warn("Scene " + RegionInfo.RegionName + ": Function IsOutsideScenes not hooked up yet");
+                    return false;
+                }
+
+                return m_isOutsideScenesFunc(curLocX, curLocY, val);
+            }
+        }
+
+        public void LoadPrimsFromStorageInGivenSpace(string regionName, float minX, float minY, float maxX, float maxY)
+        {
+            m_log.Info("[SCENE]: Loading objects from datastore");
+
+            GridRegion regionInfo = GridService.GetRegionByName(UUID.Zero, regionName);
+            //TODO: need to load objects from the specified space
+            List<SceneObjectGroup> PrimsFromDB = m_storageManager.DataStore.LoadObjectsInGivenSpace(regionInfo.RegionID, minX, minY, maxX, maxY);
+
+            m_log.Info("[SCENE]: Loaded " + PrimsFromDB.Count + " objects from the datastore");
+
+            foreach (SceneObjectGroup group in PrimsFromDB)
+            {
+                if (group.RootPart == null)
+                {
+                    m_log.ErrorFormat("[SCENE] Found a SceneObjectGroup with m_rootPart == null and {0} children",
+                                      group.Children == null ? 0 : group.Children.Count);
+                }
+
+                AddRestoredSceneObject(group, true, true);
+                SceneObjectPart rootPart = group.GetChildPart(group.UUID);
+                rootPart.ObjectFlags &= ~(uint)PrimFlags.Scripted;
+                rootPart.TrimPermissions();
+                group.CheckSculptAndLoad();
+                //rootPart.DoPhysicsPropertyUpdate(UsePhysics, true);
+            }
+            m_log.Info("[SCENE]: Loaded " + PrimsFromDB.Count.ToString() + " SceneObject(s)");
+        }
+
+        //public void ToInformActorsLoadOar()
+        //{
+        //    m_regionSyncServerModule.SendResetScene();
+        // }
+
+        #endregion 
 
         protected ICapabilitiesModule m_capsModule;
         public ICapabilitiesModule CapsModule
@@ -1293,8 +1435,11 @@ namespace OpenSim.Region.Framework.Scenes
             m_dialogModule = RequestModuleInterface<IDialogModule>();
             m_capsModule = RequestModuleInterface<ICapabilitiesModule>();
             m_teleportModule = RequestModuleInterface<IEntityTransferModule>();
+
+            //REGION SYNC
             RegionSyncServerModule = RequestModuleInterface<IRegionSyncServerModule>();
             RegionSyncClientModule = RequestModuleInterface<IRegionSyncClientModule>();
+            ScriptEngineToSceneConnectorModule = RequestModuleInterface<IScriptEngineToSceneConnectorModule>();
 
             // Shoving this in here for now, because we have the needed
             // interfaces at this point
@@ -1900,6 +2045,11 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 m_log.Warn("[TERRAIN]: Scene.cs: LoadWorldMap() - Failed with exception " + e.ToString());
             }
+
+            //REGION SYNC
+            //Inform actors of the new terrain
+            if (IsSyncedServer())
+                RegionSyncServerModule.SendLoadWorldMap(Heightmap);
         }
 
         /// <summary>
@@ -3510,7 +3660,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             // REGION SYNC
             if( IsSyncedServer() )
-                RegionSyncServerModule.DeleteObject(m_regionHandle, localID);
+                RegionSyncServerModule.DeleteObject(m_regionHandle, localID, part);
         }
 
         #endregion

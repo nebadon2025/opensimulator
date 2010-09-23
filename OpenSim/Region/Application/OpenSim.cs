@@ -359,7 +359,58 @@ namespace OpenSim
                                           "kill uuid <UUID>",
                                           "Kill an object by UUID", KillUUID);
 
+            //REGION SYNC
+            //Add one more command handler for "sync start", to pass simulator-wise information to one valide Scene.
+            //A trick to enable Script Engine to run scripts in several adjacent regions (all objects and their scripts 
+            //exisited in the valid region, but all regions have their Scene data structure up and hold the RegionInfo.
+            //More details, see ScriptEngineToSceneConnector.cs.
+            m_console.Commands.AddCommand("region", false, "sync start",
+                              "sync start",
+                              "start synchronization with the authoratative Scene", SyncStart);
+            //End REGION SYNC
         }
+
+        #region REGION SYNC
+        protected void SyncStart(string module, string[] cmdparams)
+        {
+            m_log.Debug("OpenSim: receives sync start command, do something");
+
+            //string validLocalScene = m_config.
+            IConfig regionSyncConfig = m_config.Source.Configs["RegionSyncModule"];
+
+            if (regionSyncConfig == null || regionSyncConfig.GetString("Enabled", "").ToLower() != "true")
+            {
+                m_log.Warn("[OpenSim] Not in sync mode. Ignore cmmand.");
+                return;
+            }
+
+            if (regionSyncConfig.GetString("Mode", "").ToLower() == "server")
+            {
+                m_log.Warn("[OpenSim] In server mode. Should not initiate sync start. Ignore command.");
+                return;
+            }
+
+            if (regionSyncConfig.GetString("Mode", "").ToLower() == "script_engine")
+            {
+                //if this is a remote script engine, proceed with following actions
+                string validSceneName = regionSyncConfig.GetString("ValidScriptEngineScene", "");
+
+                if (!validSceneName.Equals(""))
+                {
+                    Scene validScene;
+                    m_sceneManager.TryGetScene(validSceneName, out validScene);
+
+                    List<Scene> localScenes = m_sceneManager.Scenes;
+                    //First, let the valid scene's SEToSceneConnector be aware of all local scenes.
+                    //The SEToSceneConnector will also pass a reference to all other scenes, so that they can 
+                    //call the appropriate IsBorderCrossing().
+                    validScene.EventManager.TriggerPopulateLocalSceneList(localScenes); //TO BE FINISHED
+                    //validScene.EventManager.TriggerPopulateLocalSceneList(localScenes, cmdparams);
+                }
+            }
+        }
+        #endregion REGION SYNC
+
 
         public override void ShutdownSpecific()
         {

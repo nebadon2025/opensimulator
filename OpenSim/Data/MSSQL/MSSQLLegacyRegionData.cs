@@ -1564,5 +1564,12 @@ VALUES
         #endregion
 
         #endregion
+
+        #region REGION SYNC
+        public List<SceneObjectGroup> LoadObjectsInGivenSpace(UUID regionID, float lowerX, float lowerY, float upperX, float upperY)
+        {
+            return null;
+        }
+        #endregion REGION SYNC
     }
 }

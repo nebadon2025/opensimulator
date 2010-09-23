@@ -322,6 +322,10 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             m_Scene.EventManager.OnGetScriptRunning += OnGetScriptRunning;
             m_Scene.EventManager.OnShutdown += OnShutdown;
 
+            //REGION SYNC events
+            m_Scene.EventManager.OnScriptEngineSyncStop += OnScriptEngineSyncStop;
+            //end REGION SYNC
+
             if (m_SleepTime > 0)
             {
                 m_ThreadPool.QueueWorkItem(new WorkItemCallback(this.DoMaintenance),
@@ -1601,5 +1605,57 @@ namespace OpenSim.Region.ScriptEngine.XEngine
 
             instance.Resume();
         }
+
+        #region REGION SYNC functions
+
+        //eventually triggered when user typed "sync stop" at the script engine's console
+        public void OnScriptEngineSyncStop()
+        {
+            //DoBackup();
+
+            //save the script states, stop script instances, and clear records
+            //similar to RemoveRegion(), except that still keep the engine in 
+            //m_scriptEngines.
+            lock (m_Scripts)
+            {
+                foreach (IScriptInstance instance in m_Scripts.Values)
+                {
+                    // Force a final state save
+                    //
+                    if (m_Assemblies.ContainsKey(instance.AssetID))
+                    {
+                        string assembly = m_Assemblies[instance.AssetID];
+                        instance.SaveState(assembly);
+                    }
+
+                    // Clear the event queue and abort the instance thread
+                    //
+                    instance.ClearQueue();
+                    instance.Stop(0);
+
+                    // Release events, timer, etc
+                    //
+                    instance.DestroyScriptInstance();
+
+                    // Unload scripts and app domains
+                    // Must be done explicitly because they have infinite
+                    // lifetime
+                    //
+                    m_DomainScripts[instance.AppDomain].Remove(instance.ItemID);
+                    if (m_DomainScripts[instance.AppDomain].Count == 0)
+                    {
+                        m_DomainScripts.Remove(instance.AppDomain);
+                        UnloadAppDomain(instance.AppDomain);
+                    }
+                }
+                m_Scripts.Clear();
+                m_PrimObjects.Clear();
+                m_Assemblies.Clear();
+                m_DomainScripts.Clear();
+            }
+
+        }
+
+        #endregion 
     }
 }

@@ -47,21 +47,72 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
     public class RegionSyncServerModule : IRegionModule, IRegionSyncServerModule, ICommandableModule
     {
+        private static int DefaultPort = 13000;
+
         #region IRegionModule Members
         public void Initialise(Scene scene, IConfigSource config)
         {
             m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
+            // If no syncConfig, do not start up server mode
             IConfig syncConfig = config.Configs["RegionSyncModule"];
-            if (syncConfig == null || syncConfig.GetString("Mode", "server").ToLower() != "server")
+            if (syncConfig == null)
             {
+                scene.RegionSyncEnabled = false;
                 m_active = false;
-                m_log.Warn("[REGION SYNC SERVER MODULE] Not in server mode. Shutting down.");
+                m_log.Warn("[REGION SYNC SERVER MODULE] No RegionSyncModule config section found. Shutting down.");
                 return;
             }
-            m_serveraddr = syncConfig.GetString("ServerIPAddress", "127.0.0.1");
-            m_serverport = syncConfig.GetInt("ServerPort", 13000);
+
+            // If syncConfig does not indicate "enabled", do not start up server mode
+            bool enabled = syncConfig.GetBoolean("Enabled", true);
+            if(!enabled)
+            {
+                scene.RegionSyncEnabled = false;
+                m_active = false;
+                m_log.Warn("[REGION SYNC SERVER MODULE] RegionSyncModule is not enabled. Shutting down.");
+                return;
+            }
+
+            // If syncConfig does not indicate "server", do not start up server mode
+            string mode = syncConfig.GetString("Mode", "server").ToLower();
+            if(mode != "server")
+            {
+                scene.RegionSyncEnabled = false;
+                m_active = false;
+                m_log.WarnFormat("[REGION SYNC SERVER MODULE] RegionSyncModule is in {0} mode. Shutting down.", mode);
+                return;
+            }
+
+            // Enable region sync in server mode on the scene and module
+            scene.RegionSyncEnabled = true;
+            scene.RegionSyncMode = mode;
+            m_active = true;
+
+            // Init the sync statistics log file
+            string syncstats = "syncstats" + "_" + scene.RegionInfo.RegionName + ".txt";
+            m_statsWriter = File.AppendText(syncstats);
+
+            //Get sync server info for Client Manager actors 
+            string serverAddr = scene.RegionInfo.RegionName + "_ServerIPAddress";
+            m_serveraddr = syncConfig.GetString(serverAddr, "127.0.0.1");
+            string serverPort = scene.RegionInfo.RegionName + "_ServerPort";
+            m_serverport = syncConfig.GetInt(serverPort, DefaultPort);
+            // Client manager load balancing
             m_maxClientsPerManager = syncConfig.GetInt("MaxClientsPerManager", 100);
+            DefaultPort++;
+
+            //Get sync server info for Script Engine actors 
+            string seServerAddr = scene.RegionInfo.RegionName + "_SceneToSESyncServerIP";
+            m_seSyncServeraddr = syncConfig.GetString(seServerAddr, "127.0.0.1");
+            string seServerPort = scene.RegionInfo.RegionName + "_SceneToSESyncServerPort";
+            m_seSyncServerport = syncConfig.GetInt(seServerPort, DefaultPort);
+            DefaultPort++;
+
+            //Get quark information
+            QuarkInfo.SizeX = syncConfig.GetInt("QuarkSizeX", (int)Constants.RegionSize);
+            QuarkInfo.SizeY = syncConfig.GetInt("QuarkSizeY", (int)Constants.RegionSize);
+
             m_scene = scene;
             m_scene.RegisterModuleInterface<IRegionSyncServerModule>(this);
 
@@ -90,6 +141,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.SceneGraph.OnObjectDuplicate += new ObjectDuplicateDelegate(SceneGraph_OnObjectDuplicate);
             //m_scene.SceneGraph.OnObjectRemove += new ObjectDeleteDelegate(SceneGraph_OnObjectRemove);
             //m_scene.StatsReporter.OnSendStatsResult += new SimStatsReporter.SendStatResult(StatsReporter_OnSendStatsResult);
+            m_scene.EventManager.OnOarFileLoaded += new EventManager.OarFileLoaded(EventManager_OnOarFileLoaded);
 
             m_log.Warn("[REGION SYNC SERVER MODULE] Starting RegionSyncServer");
             // Start the server and listen for RegionSyncClients
@@ -97,17 +149,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_server.Start();
             m_statsTimer.Elapsed += new System.Timers.ElapsedEventHandler(StatsTimerElapsed);
             m_statsTimer.Start();
+
+            m_log.Warn("[REGION SYNC SERVER MODULE] Starting SceneToScriptEngineSyncServer");
+            //Start the sync server for script engines
+            m_sceneToSESyncServer = new SceneToScriptEngineSyncServer(m_scene, m_seSyncServeraddr, m_seSyncServerport);
+            m_sceneToSESyncServer.Start();
             //m_log.Warn("[REGION SYNC SERVER MODULE] Post-Initialised");
         }
 
         private void StatsTimerElapsed(object source, System.Timers.ElapsedEventArgs e)
         {
             if (Synced)
-            {
-                TextWriter tw = File.AppendText("syncstats.txt");
-                m_server.ReportStats(tw);
-                tw.Close();
-            }
+                m_server.ReportStats(m_statsWriter);
         }
 
         void IRegionModule.Close()
@@ -124,6 +177,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             get { return false; }
         }
+
+
+        //KittyL added
+        //Later, should make quarkIDs the argument to the function call
+        //public void SendResetScene()
+        //{
+        //    m_server.Broadcast(new RegionSyncMessage(RegionSyncMessage.MsgType.ResetScene, "reset"));
+        //}
+
         #endregion
 
         #region ICommandableModule Members
@@ -142,6 +204,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private Dictionary<UUID, ScenePresence> m_presenceUpdates = new Dictionary<UUID, ScenePresence>();
 
         private System.Timers.Timer m_statsTimer = new System.Timers.Timer(1000);
+        //private TextWriter m_statsWriter = File.AppendText("syncstats.txt");
+        private TextWriter m_statsWriter;
 
         public void QueuePartForUpdate(SceneObjectPart part)
         {
@@ -198,8 +262,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     if (!sog.IsDeleted)
                     {
+                        /*
                         string sogxml = SceneObjectSerializer.ToXml2Format(sog);
+
+                        m_log.Debug("[REGION SYNC SERVER MODULE]: to update object " + sog.UUID + ", localID: "+sog.LocalId
+                            + ", with color " + sog.RootPart.Shape.Textures.DefaultTexture.RGBA.A 
+                            + "," + sog.RootPart.Shape.Textures.DefaultTexture.RGBA.B + "," + sog.RootPart.Shape.Textures.DefaultTexture.RGBA.G 
+                            + "," + sog.RootPart.Shape.Textures.DefaultTexture.RGBA.R);
+
                         m_server.Broadcast(new RegionSyncMessage(RegionSyncMessage.MsgType.UpdatedObject, sogxml));
+                         * */
+                        //KittyL: modified to broadcast to different types of actors
+                        m_server.BroadcastToCM(RegionSyncMessage.MsgType.UpdatedObject, sog);
+                        m_sceneToSESyncServer.SendToSE(RegionSyncMessage.MsgType.UpdatedObject, sog);
                     }
                 }
                 foreach (ScenePresence presence in presenceUpdates)
@@ -211,11 +286,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             OSDMap data = new OSDMap(7);
                             data["id"] = OSD.FromUUID(presence.UUID);
                             // Do not include offset for appearance height. That will be handled by RegionSyncClient before sending to viewers
-                            if (presence.AbsolutePosition.IsFinite())
+                            if(presence.AbsolutePosition.IsFinite())
                                 data["pos"] = OSD.FromVector3(presence.AbsolutePosition);
                             else
                                 data["pos"] = OSD.FromVector3(Vector3.Zero);
-                            if (presence.Velocity.IsFinite())
+                            if(presence.Velocity.IsFinite())
                                 data["vel"] = OSD.FromVector3(presence.Velocity);
                             else
                                 data["vel"] = OSD.FromVector3(Vector3.Zero);
@@ -225,6 +300,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             data["anim"] = OSD.FromString(presence.Animator.CurrentMovementAnimation);
                             RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.UpdatedAvatar, OSDParser.SerializeJsonString(data));
                             m_server.EnqueuePresenceUpdate(presence.UUID, rsm.ToBytes());
+
                         }
                     }
                     catch (Exception e)
@@ -268,15 +344,35 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_appearanceTimers[agentID] = appearanceSetter;
         }
 
-        public void DeleteObject(ulong regionHandle, uint localID)
+        public void DeleteObject(ulong regionHandle, uint localID, SceneObjectPart part)
         {
             if (!Active || !Synced)
                 return;
+
+            //First, tell client managers to remove the SceneObjectPart 
             OSDMap data = new OSDMap(2);
             data["regionHandle"] = OSD.FromULong(regionHandle);
             data["localID"] = OSD.FromUInteger(localID);
             RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
+            //m_server.BroadcastToCM(rsm);
             m_server.Broadcast(rsm);
+
+            //KittyL: Second, tell script engine to remove the object, identified by UUID
+            //UUID objID = m_scene.GetSceneObjectPart(localID).ParentGroup.UUID;
+            //SceneObjectPart part = m_scene.GetSceneObjectPart(localID);
+            if (part != null)
+            {
+                data = new OSDMap(1);
+                
+                data["UUID"] = OSD.FromUUID(part.UUID);
+                rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
+                
+                //when an object is deleted, this function (DeleteObject) could be triggered more than once. So we check 
+                //if the object part is already removed is the scene (part==null)
+                m_log.Debug("Inform script engine about the deleted object");
+                m_sceneToSESyncServer.SendToSE(rsm, part.ParentGroup);
+            }
+            
         }
 
         public bool Active
@@ -284,15 +380,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_active; }
         }
 
-        // Check if the sync server module is connected to any clients
+        // Check if the sync server module is connected to any clients (KittyL: edited for testing if connected to any actors)
         public bool Synced
         {
             get
             {
                 if (m_server == null || !m_server.Synced)
+                //if((m_server == null || !m_server.Synced) && (m_sceneToSESyncServer==null || !m_sceneToSESyncServer.Synced))
                     return false;
                 return true;
             }
+        }
+
+        public void SendLoadWorldMap(ITerrainChannel heightMap)
+        {
+            RegionSyncMessage msg = new RegionSyncMessage(RegionSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString());
+            m_server.Broadcast(msg);
+            //KittyL: added for SE
+            m_sceneToSESyncServer.SendToAllConnectedSE(msg);
         }
 
         #region cruft
@@ -350,6 +455,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private ILog m_log;
         //private int m_moveCounter = 0;
         private RegionSyncServer m_server = null;
+
+        //Sync-server for script engines
+        private string m_seSyncServeraddr;
+        private int m_seSyncServerport;
+        private SceneToScriptEngineSyncServer m_sceneToSESyncServer = null;
+        
+        //quark related information
+        //private int QuarkInfo.SizeX;
+        //private int QuarkInfo.SizeY;
+
         #endregion
 
         #region Event Handlers
@@ -357,11 +472,27 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (!Synced)
                 return;
+
+//            m_log.Debug("[RegionSyncServerModule]: SceneGraph_OnObjectCreate() called");
+
             if (entity is SceneObjectGroup)
             {
+                /*
                 string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)entity);
+
+                SceneObjectGroup sog = (SceneObjectGroup)entity;
+                m_log.Debug("SOG " + sog.UUID); 
+
                 RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.NewObject, sogxml);
-                m_server.Broadcast(rsm);
+                //KittyL: edited to support both Client Manager and Script Engine actors
+                //m_server.Broadcast(rsm);
+                m_server.BroadcastToCM(rsm);
+                 * */
+                SceneObjectGroup sog = (SceneObjectGroup)entity;
+                m_server.BroadcastToCM(RegionSyncMessage.MsgType.NewObject, sog);
+
+                m_sceneToSESyncServer.SendToSE(RegionSyncMessage.MsgType.NewObject, sog);
+
             }
             else
             {
@@ -375,9 +506,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
             if (original is SceneObjectGroup && copy is SceneObjectGroup)
             {
-                string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)copy);
-                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.NewObject, sogxml);
-                m_server.Broadcast(rsm);
+             
+                //string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)copy);
+                //RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.NewObject, sogxml);
+                //m_server.Broadcast(rsm);
+                SceneObjectGroup sog = (SceneObjectGroup)copy;
+                m_server.BroadcastToCM(RegionSyncMessage.MsgType.NewObject, sog);
+                m_sceneToSESyncServer.SendToSE(RegionSyncMessage.MsgType.NewObject, sog);
             }
             else
             {
@@ -394,6 +529,20 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 // No reason to send the entire object, just send the UUID to be deleted
                 RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedObject, entity.UUID.ToString());
                 m_server.Broadcast(rsm);
+
+                SceneObjectPart part = m_scene.GetSceneObjectPart(entity.UUID);
+                if (part != null)
+                {
+                    OSDMap data = new OSDMap(1);
+
+                    data["UUID"] = OSD.FromUUID(part.UUID);
+                    rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
+
+                    //when an object is deleted, this function (DeleteObject) could be triggered more than once. So we check 
+                    //if the object part is already removed is the scene (part==null)
+                    m_log.Debug("Inform script engine about the deleted object");
+                    m_sceneToSESyncServer.SendToSE(rsm, part.ParentGroup);
+                }
             }
             else
             {
@@ -532,6 +681,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_server.Broadcast(new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedAvatar, OSDParser.SerializeJsonString(data)));
         }
 
+        private void EventManager_OnOarFileLoaded(Guid requestID, string errorMsg)
+        {
+            //we ignore the requestID and the errorMsg
+            SendLoadWorldMap(m_scene.Heightmap);
+        }
+
         #endregion
 
         #region Console Command Interface
@@ -609,6 +764,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_log.DebugFormat("[REGION SYNC SERVER MODULE]  LocalChat({0},{1})", msg, channel);
             m_scene.EventManager.TriggerOnChatBroadcast(this, osm);
         }
+
     }
 
 }

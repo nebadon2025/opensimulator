@@ -5,18 +5,39 @@ using log4net;
 
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
+    #region ActorType Enum
+    public enum ActorType
+    {
+        Null,
+        ClientManager,
+        ScriptEngine
+    }
+    #endregion
+
+    #region ActorStatus Enum
+    public enum ActorStatus
+    {
+        Null,
+        Idle,
+        Sync
+    }
+    #endregion 
+
     /// <summary>
     /// A message for synchonization message between scenes
     /// </summary>
     public class RegionSyncMessage
     {
+        //KittyL: added to help identify different actors
+
+
         #region MsgType Enum
         public enum MsgType
         {
             Null,
             //ConnectSyncClient,
             //DisconnectSyncClient,
-            // CM -> SIM
+            // CM -> SIM(Scene)
             ActorConnect,
             AgentAdd,       
             AgentUpdate,
@@ -45,7 +66,38 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             EchoRequest,
             EchoResponse,
             RegionName,
-            RegionStatus
+            RegionStatus,
+            //Added by KittyL
+            // Actor -> Scene
+            ActorType, //to register the type (e.g. Client Manager or Script Engine) with Scene when sync channel is initialized
+            SetObjectProperty,
+            ActorStop,
+            ResetScene,
+            OnRezScript,
+            OnScriptReset,
+            OnUpdateScript,
+            QuarkSubscription,
+            // Scene -> Script Engine
+            NewObjectWithScript,
+            SceneLocation,
+            //For load balancing purpose (among script engines)
+            //Temorarily put here, for easier first round of implemention.
+            //Script engine --> Scene
+            ActorStatus, //if the actor is busying syncing with a Scene, or is just idle. Status: {sync, idle}
+            LoadBalanceRequest,
+            LoadMigrationListenerInitiated,
+            //Scene --> Script engine
+            LoadMigrationNotice,
+            LoadBalanceResponse,
+            LoadBalanceRejection,
+            //Overloaded script engine overloaded -> idle script engine
+            //MigratingQuarks,
+            MigrationSpace,
+            ScriptStateSyncStart,
+            ScriptStateSyncPerObject,
+            ScriptStateSyncEnd,
+            //Idle script engine overloaded -> overloaded script engine
+            ScriptStateSyncRequest,
         }
         #endregion
 

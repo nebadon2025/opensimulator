@@ -1061,5 +1061,34 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
         }
+
+        #region REGION SYNC
+        public void SuspendScripts()
+        {
+            IScriptModule[] engines = m_part.ParentGroup.Scene.RequestModuleInterfaces<IScriptModule>();
+            if (engines == null)
+                return;
+
+            lock (m_items)
+            {
+                foreach (TaskInventoryItem item in m_items.Values)
+                {
+                    if (item.InvType == (int)InventoryType.LSL)
+                    {
+                        foreach (IScriptModule engine in engines)
+                        {
+                            if (engine != null)
+                            {
+                                if (item.OwnerChanged)
+                                    engine.PostScriptEvent(item.ItemID, "changed", new Object[] { (int)Changed.OWNER });
+                                item.OwnerChanged = false;
+                                engine.SuspendScript(item.ItemID);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        #endregion REGION SYNC
     }
 }

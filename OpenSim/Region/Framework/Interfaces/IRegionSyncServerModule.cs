@@ -41,8 +41,13 @@ namespace OpenSim.Region.Framework.Interfaces
         void QueuePartForUpdate(SceneObjectPart part);
         void QueuePresenceForTerseUpdate(ScenePresence presence);
         void SendUpdates();
-        void DeleteObject(ulong regionHandle, uint localID);
+        //void DeleteObject(ulong regionHandle, uint localID);
+        void DeleteObject(ulong regionHandle, uint localID, SceneObjectPart part);
         void SendAppearance(UUID agentID, byte[] vp, Primitive.TextureEntry te);
 
+        //KittyL: added to support remote script engine actor
+        //void SendRezScript(SceneObjectGroup sog);
+        //void SendResetScene();
+        void SendLoadWorldMap(ITerrainChannel heightMap);
     }
 }

@@ -4734,5 +4734,60 @@ namespace OpenSim.Region.Framework.Scenes
             Color color = Color;
             return new Color4(color.R, color.G, color.B, (byte)(0xFF - color.A));
         }
+
+        #region REGION SYNC
+
+        public void UpdateObjectPartProperties(SceneObjectPart updatedPart)
+        {
+            //So far this function is written with Script Engine updating local Scene cache in mind.
+            //
+            //Assumptions: 
+            //(1) prim's UUID and LocalID won't change.
+            //(2) CreaterIF, OwnerID, GroupID,  won't change
+            //For now, we only update a small set of properties, which is a subset of the serialized object data.
+            //We simply assume other properties won't change. (Just a temporary work-around.)
+            //Properties that will be updated:
+            //GroupPosition, OffsetPosition,RotationOffset, Velocity, AngularVelocity, Acceleration,
+            //<Color />   <LinkNum>0</LinkNum>  , Scale
+            //
+            //And we do not update Physics properties.
+
+            //The above assumptions and limited updating actions can be easily fixed once Scene supports
+            //[property name, property value] type of detailed updates.
+
+            //Need to be able to update TaskInventory, so that new scripts will be added
+            
+            if (updatedPart == null)
+                return;
+
+            this.GroupPosition = updatedPart.GroupPosition;
+            this.OffsetPosition = updatedPart.OffsetPosition;
+            this.RotationOffset = updatedPart.RotationOffset;
+            this.AngularVelocity = updatedPart.AngularVelocity;
+            this.Acceleration = updatedPart.Acceleration;
+            this.Color = updatedPart.Color;
+            this.LinkNum = updatedPart.LinkNum;
+            this.Velocity = updatedPart.Velocity;
+            this.Scale = updatedPart.Scale;
+            this.SitAnimation = updatedPart.SitAnimation;
+            this.SitName = updatedPart.SitName;
+            this.SitTargetAvatar = updatedPart.SitTargetAvatar;
+            this.SitTargetOrientation = updatedPart.SitTargetOrientation;
+            this.SitTargetOrientationLL = updatedPart.SitTargetOrientationLL;
+            this.SitTargetPosition = updatedPart.SitTargetPosition;
+            this.SitTargetPositionLL = updatedPart.SitTargetPositionLL;
+            
+            this.ObjectFlags = updatedPart.ObjectFlags;
+
+            this.m_inventory.Items = (TaskInventoryDictionary)updatedPart.m_inventory.Items.Clone();
+
+            //update shape information, for now, only update fileds in Shape whose set functions are defined in PrimitiveBaseShape
+            this.Shape = updatedPart.Shape.Copy();
+            this.Shape.TextureEntry = updatedPart.Shape.TextureEntry;
+
+        }
+
+        #endregion
+
     }
 }

@@ -107,5 +107,9 @@ namespace OpenSim.Region.Framework.Interfaces
         void StoreRegionWindlightSettings(RegionLightShareData wl);
 
         void Shutdown();
+
+        #region REGION SYNC
+        List<SceneObjectGroup> LoadObjectsInGivenSpace(UUID regionID, float lowerX, float lowerY, float upperX, float upperY);
+        #endregion REGION SYNC
     }
 }

@@ -335,6 +335,7 @@ namespace OpenSim.Region.Framework.Scenes
         public delegate void RegionUp(GridRegion region);
         public event RegionUp OnRegionUp;
 
+
         public class MoneyTransferArgs : EventArgs
         {
             public UUID sender;
@@ -2013,5 +2014,86 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
         }
+
+        //REGION SYNC
+        #region REGION SYNC RELATED EVENTS
+
+        //OnScriptEngineSyncStop: triggered when user types "sync stop" on the script engine's console
+        public delegate void ScriptEngineSyncStop();
+        public event ScriptEngineSyncStop OnScriptEngineSyncStop;
+        public void TriggerScriptEngineSyncStop()
+        {
+            ScriptEngineSyncStop handlerScriptEngineSyncStop = OnScriptEngineSyncStop;
+            if (handlerScriptEngineSyncStop != null)
+            {
+                foreach (ScriptEngineSyncStop d in handlerScriptEngineSyncStop.GetInvocationList())
+                {
+                    try
+                    {
+                        d();
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerScriptEngineSyncStop failed - continuing.  {0} {1}",
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+
+        //OnUpdateTaskInventoryScriptAsset: triggered after Scene receives client's upload of updated script and stores it as asset
+        public delegate void UpdateScript(UUID clientID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID);
+        public event UpdateScript OnUpdateScript;
+        public void TriggerUpdateScript(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
+        {
+            UpdateScript handlerUpdateScript = OnUpdateScript;
+            if (handlerUpdateScript != null)
+            {
+                foreach (UpdateScript d in handlerUpdateScript.GetInvocationList())
+                {
+                    try
+                    {
+                        d(clientId, itemId, primId, isScriptRunning, newAssetID);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerUpdateScript failed - continuing.  {0} {1}",
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+
+        //OnPopulateLocalSceneList: Triggered by OpenSim to the valid local scene, should only happen in script engine
+        public delegate void PopulateLocalSceneList(List<Scene> localScenes);
+        public event PopulateLocalSceneList OnPopulateLocalSceneList;
+        public void TriggerPopulateLocalSceneList(List<Scene> localScenes)
+        //public delegate void PopulateLocalSceneList(List<Scene> localScenes, string[] cmdparams);
+        //public event PopulateLocalSceneList OnPopulateLocalSceneList;
+        //public void TriggerPopulateLocalSceneList(List<Scene> localScenes, string[] cmdparams)
+        {
+            PopulateLocalSceneList handlerPopulateLocalSceneList = OnPopulateLocalSceneList;
+            if (handlerPopulateLocalSceneList != null)
+            {
+                foreach (PopulateLocalSceneList d in handlerPopulateLocalSceneList.GetInvocationList())
+                {
+                    try
+                    {
+                        d(localScenes);
+                        //d(localScenes, cmdparams);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerPopulateLocalSceneList failed - continuing.  {0} {1}",
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+        #endregion
+
     }
 }

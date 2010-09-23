@@ -76,6 +76,10 @@ namespace OpenSim.Region.Framework.Interfaces
         ArrayList GetScriptErrors(UUID itemID);
         void ResumeScripts();
 
+        #region REGION SYNC
+        void SuspendScripts();
+        #endregion REGION SYNC
+
         /// <summary>
         /// Stop all the scripts in this entity.
         /// </summary>

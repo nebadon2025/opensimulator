@@ -352,14 +352,24 @@ namespace OpenSim.Region.Framework.Scenes
     
                 sceneObject.AttachToScene(m_parentScene);
     
+                //KittyL: edited to support script engine actor
+                //if (sendClientUpdates)
+                //    sceneObject.ScheduleGroupForFullUpdate();
                 if (sendClientUpdates)
+                {
                     sceneObject.ScheduleGroupForFullUpdate();
+                }
                                      
                 Entities.Add(sceneObject);
                 m_numPrim += sceneObject.Children.Count;
 
-                if (attachToBackup)
+                //KittyL: edited to support script engine actor
+                //if (attachToBackup)
+                //    sceneObject.AttachToBackup();
+                if (attachToBackup && m_parentScene.IsAuthoritativeScene())
+                {
                     sceneObject.AttachToBackup();
+                }
 
                 if (OnObjectCreate != null)
                     OnObjectCreate(sceneObject);
@@ -607,7 +617,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 Dictionary<UUID, ScenePresence> newmap = new Dictionary<UUID, ScenePresence>(m_scenePresenceMap);
                 List<ScenePresence> newlist = new List<ScenePresence>(m_scenePresenceArray);
-                
+
                 // Remove the presence reference from the dictionary
                 if (newmap.ContainsKey(agentID))
                 {
@@ -1828,6 +1838,62 @@ namespace OpenSim.Region.Framework.Scenes
 
         #endregion
 
-       
+        #region REGION SYNC
+
+        protected internal bool IsObjectInScene(SceneObjectGroup sog)
+        {
+            if (Entities.ContainsKey(sog.UUID))
+                return true;
+            else
+            {
+                return false;
+            }
+        }
+        
+        //Return false if the entity with the UUID is not a SceneObjectGroup, 
+        //otherwise, return true.
+        protected internal bool AddOrUpdateObjectInScene(SceneObjectGroup updatedSog, bool debugWithViewer)
+        {
+            UUID sogID = updatedSog.UUID;
+
+            if (Entities.ContainsKey(sogID))
+            {
+                //update the object
+                EntityBase entity = Entities[sogID];
+                if (entity is SceneObjectGroup)
+                {
+                    SceneObjectGroup oldSog = (SceneObjectGroup)entity;
+                    oldSog.UpdateObjectProperties(updatedSog);
+
+                    if (debugWithViewer)
+                    {
+                        //if we need to debug the script engine with a viewer attaching to it,
+                        //we need to schedule updates to be sent to the viewer
+                        oldSog.ScheduleGroupForFullUpdate();
+                    }
+                }
+                else
+                {
+                    m_log.Warn("Entity with " + sogID + " is not of type SceneObjectGroup");
+                    //return false;
+                }
+                return false;
+            }
+            else
+            {
+                //Add a new object
+                //For now, we set sendClientUpdates to true, for debugging purpose -- so that we could log a viewer in to 
+                //see if scripts are running properly
+                //Since this is a Script Engine's local Scene cache, do not backup to DB
+                AddSceneObject(updatedSog, false, debugWithViewer);
+                //AddSceneObject(updatedSog, false, false);
+
+                return true;
+            }
+            
+        }
+
+        #endregion
+
     }
 }

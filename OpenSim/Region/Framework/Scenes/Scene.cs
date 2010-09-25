@@ -4602,6 +4602,9 @@ namespace OpenSim.Region.Framework.Scenes
             if (part.ParentGroup.IsDeleted)
                 return;
 
+            if (part.OwnerID != client.AgentId)
+                return;
+
             part = part.ParentGroup.RootPart;
 
             part.ObjectSaleType = saleType;

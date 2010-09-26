@@ -772,6 +772,10 @@ namespace OpenSim.Region.Framework.Scenes
             // isn't available (such as drag from prim inventory to agent inventory)
             InventoryStringBuilder invString = new InventoryStringBuilder(m_part.UUID, UUID.Zero);
 
+            bool includeAssets = false;
+            if (m_part.ParentGroup.Scene.Permissions.CanEditObjectInventory(m_part.UUID, client.AgentId))
+                includeAssets = true;
+
             lock (m_items)
             {
                 foreach (TaskInventoryItem item in m_items.Values)
@@ -802,7 +806,10 @@ namespace OpenSim.Region.Framework.Scenes
                     invString.AddNameValueLine("group_id", item.GroupID.ToString());
                     invString.AddSectionEnd();
 
-                    invString.AddNameValueLine("asset_id", item.AssetID.ToString());
+                    if (includeAssets)
+                        invString.AddNameValueLine("asset_id", item.AssetID.ToString());
+                    else
+                        invString.AddNameValueLine("asset_id", UUID.Zero.ToString());
                     invString.AddNameValueLine("type", TaskInventoryItem.Types[item.Type]);
                     invString.AddNameValueLine("inv_type", TaskInventoryItem.InvTypes[item.InvType]);
                     invString.AddNameValueLine("flags", Utils.UIntToHexString(item.Flags));

@@ -47,25 +47,37 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void Initialise(Scene scene, IConfigSource config)
         {
+            /* This config parsing pattern should be used in each of these files:
+               OpenSim.cs
+               RegionSyncServerModule.cs
+               RegionSyncClientModule.cs
+               ScriptEngineToSceneConnectorModule.cs
+             */
             m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-            
+
             IConfig syncConfig = config.Configs["RegionSyncModule"];
-            if (syncConfig == null || syncConfig.GetString("Mode", "client").ToLower() != "client")
+            m_active = false;
+            if (syncConfig == null)
+                m_log.Warn("[REGION SYNC CLIENT MODULE] No RegionSyncModule config section found. Shutting down.");
+            else if (!syncConfig.GetBoolean("Enabled", true))
+                m_log.Warn("[REGION SYNC CLIENT MODULE] RegionSyncModule is not enabled. Shutting down.");
+            else if (!syncConfig.GetString("Mode", "client").ToLower().Equals("client"))
+                m_log.WarnFormat("[REGION SYNC CLIENT MODULE] RegionSyncModule is not in client mode. Shutting down.");
+            else
             {
-                m_active = false;
-                m_log.Warn("[REGION SYNC CLIENT MODULE] Not in client mode. Shutting down.");
-                return;
+                m_scene = scene;
+                m_active = true;
+                m_scene.RegionSyncEnabled = true;
+                m_scene.RegionSyncMode = "client";
+                m_serveraddr = syncConfig.GetString("ServerIPAddress", "127.0.0.1");
+                m_serverport = syncConfig.GetInt("ServerPort", 13000);
+                m_scene.RegisterModuleInterface<IRegionSyncClientModule>(this);
+
+                // Setup the command line interface
+                m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
+                InstallInterfaces();
+                m_log.Warn("[REGION SYNC CLIENT MODULE] Initialised");
             }
-            m_serveraddr = syncConfig.GetString("ServerIPAddress", "127.0.0.1");
-            m_serverport = syncConfig.GetInt("ServerPort", 13000);
-            m_scene = scene;
-            m_scene.RegisterModuleInterface<IRegionSyncClientModule>(this);
-
-            // Setup the command line interface
-            m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
-            InstallInterfaces();
-
-            m_log.Warn("[REGION SYNC CLIENT MODULE] Initialised");
         }
 
         public void PostInitialise()

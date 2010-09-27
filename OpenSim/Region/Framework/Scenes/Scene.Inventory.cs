@@ -859,6 +859,9 @@ namespace OpenSim.Region.Framework.Scenes
             SceneObjectGroup group = part.ParentGroup;
             if (group != null)
             {
+                if (!Permissions.CanEditObjectInventory(part.UUID, remoteClient.AgentId))
+                    return;
+
                 TaskInventoryItem item = group.GetInventoryItem(localID, itemID);
                 if (item == null)
                     return;

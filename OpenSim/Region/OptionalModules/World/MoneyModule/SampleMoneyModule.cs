@@ -850,7 +850,7 @@ namespace OpenSim.Region.OptionalModules.World.MoneyModule
                 remoteClient.SendAgentAlertMessage("Unable to buy now. The object was not found.", false);
                 return;
             }
-            s.PerformObjectBuy(remoteClient, categoryID, localID, saleType);
+            s.PerformObjectBuy(remoteClient, categoryID, localID, saleType, salePrice);
         }
     }
 

@@ -323,7 +323,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.WarnFormat("[REGION SYNC SERVER MODULE] <{0}> {1} SendAppearance could not locate presence!", "           ", agentID);
                 return;
             }
-            //m_log.WarnFormat("[REGION SYNC SERVER MODULE] <{0}> {1} ScenePresence called SendAppearance ({2})", sp.Name, agentID, te == null ? "  " : "te");
+            m_log.DebugFormat("[REGION SYNC SERVER MODULE] <{0}> {1} ScenePresence called SendAppearance ({2})", sp.Name, agentID, te == null ? "  " : "te");
             if(te == null)
                 return;
             int delay = 1000;
@@ -334,7 +334,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["te"] = te.GetOSD();
             Timer appearanceSetter = new Timer(delegate(object obj)
                             {
-                                //m_log.WarnFormat("[REGION SYNC SERVER MODULE]  <{0}> {1} Broadcasting appearance to all client managers", sp.Name, agentID);
+                                m_log.DebugFormat("[REGION SYNC SERVER MODULE]  <{0}> {1} Broadcasting appearance to all client managers", sp.Name, agentID);
                                 m_server.Broadcast(new RegionSyncMessage(RegionSyncMessage.MsgType.AvatarAppearance, OSDParser.SerializeJsonString(data)));
                                 lock (m_appearanceTimers)
                                     m_appearanceTimers.Remove(agentID);

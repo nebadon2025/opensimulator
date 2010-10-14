@@ -462,7 +462,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case RegionSyncMessage.MsgType.AvatarAppearance:
                     {
                         int msgID = msgCount;
-                        //m_log.WarnFormat("{0} START of AvatarAppearance handler <{1}>", LogHeader, msgID); 
+                        m_log.DebugFormat("{0} START of AvatarAppearance handler <{1}>", LogHeader, msgID); 
                         // Get the data from message and error check
                         OSDMap data = DeserializeMessage(msg);
                         if (data == null)
@@ -507,7 +507,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                         }
                                     }
 
-                                    //m_log.WarnFormat("{0} {1} Calling presence.SetAppearance {2} <{3}>", LogHeader, name, (missingBakes ? "MISSING BAKES" : "GOT BAKES"), msgID);
+                                    m_log.DebugFormat("{0} {1} Calling presence.SetAppearance {2} <{3}>", LogHeader, name, (missingBakes ? "MISSING BAKES" : "GOT BAKES"), msgID);
                                     try
                                     {
                                         presence.SetAppearance(te, vp);
@@ -520,7 +520,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                         RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Set appearance for {0} <{1}>", name, msgID));
                                     else
                                         RegionSyncMessage.HandleWarning(LogHeader, msg, String.Format("Set appearance for {0} but has missing bakes. <{1}>", name, msgID));
-                                    //m_log.WarnFormat("{0} Calling RegionsSyncServerModule.SendAppearance for {1} {2} <{3}>", LogHeader, name, (missingBakes ? "MISSING BAKES" : "GOT BAKES"), msgID);
+                                    m_log.DebugFormat("{0} Calling RegionsSyncServerModule.SendAppearance for {1} {2} <{3}>", LogHeader, name, (missingBakes ? "MISSING BAKES" : "GOT BAKES"), msgID);
                                     m_scene.RegionSyncServerModule.SendAppearance(presence.UUID, presence.Appearance.VisualParams, presence.Appearance.Texture);
                                     lock (m_appearanceTimers)
                                         m_appearanceTimers.Remove(agentID);

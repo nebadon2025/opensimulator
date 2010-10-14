@@ -428,6 +428,7 @@ namespace OpenSim.Framework
         public static Primitive.TextureEntry GetDefaultTexture()
         {
             Primitive.TextureEntry textu = new Primitive.TextureEntry(new UUID("C228D1CF-4B5D-4BA8-84F4-899A0796AA97"));
+            /*  recommended by MB
             textu.CreateFace(0).TextureID = new UUID("00000000-0000-1111-9999-000000000012");
             textu.CreateFace(1).TextureID = Util.BLANK_TEXTURE_UUID;
             textu.CreateFace(2).TextureID = Util.BLANK_TEXTURE_UUID;
@@ -435,6 +436,7 @@ namespace OpenSim.Framework
             textu.CreateFace(4).TextureID = new UUID("7CA39B4C-BD19-4699-AFF7-F93FD03D3E7B");
             textu.CreateFace(5).TextureID = new UUID("00000000-0000-1111-9999-000000000010");
             textu.CreateFace(6).TextureID = new UUID("00000000-0000-1111-9999-000000000011");
+             */
             return textu;
         }
 

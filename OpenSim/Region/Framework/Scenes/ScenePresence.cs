@@ -1122,7 +1122,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void CompleteMovement(IClientAPI client)
         {
-            //m_log.Debug("[SCENE PRESENCE]: CompleteMovement");
+            m_log.Debug("[SCENE PRESENCE]: CompleteMovement");
 
             Vector3 look = Velocity;
             if ((look.X == 0) && (look.Y == 0) && (look.Z == 0))
@@ -1158,8 +1158,10 @@ namespace OpenSim.Region.Framework.Scenes
             SendInitialData();
 
             // Create child agents in neighbouring regions
-            if (!m_isChildAgent)
+            if (!m_isChildAgent && !m_scene.IsAuthoritativeScene())
             {
+                m_log.DebugFormat("[SCENE PRESENCE]: Requesting neighbouring children. cagent={0}, auth={1}",
+                        m_isChildAgent.ToString(), m_scene.IsAuthoritativeScene());
                 IEntityTransferModule m_agentTransfer = m_scene.RequestModuleInterface<IEntityTransferModule>();
                 if (m_agentTransfer != null)
                     m_agentTransfer.EnableChildAgents(this);
@@ -2472,6 +2474,9 @@ namespace OpenSim.Region.Framework.Scenes
             pos.Z += m_appearance.HipOffset;
 
             remoteAvatar.m_controllingClient.SendAvatarDataImmediate(this);
+            // Next line added on recommondation of MB
+            m_controllingClient.SendAppearance(m_appearance.Owner, m_appearance.VisualParams, m_appearance.Texture.GetBytes());
+
             m_scene.StatsReporter.AddAgentUpdates(1);
         }
 
@@ -2492,6 +2497,7 @@ namespace OpenSim.Region.Framework.Scenes
                 // only send if this is the root (children are only "listening posts" in a foreign region)
                 if (!IsChildAgent)
                 {
+                    m_log.DebugFormat("[SCENE PRESENCE]: SendInitialFullUpdateToAllClients.SendFullUpdateToOtherClient");
                     SendFullUpdateToOtherClient(avatar);
                 }
 
@@ -2548,8 +2554,11 @@ namespace OpenSim.Region.Framework.Scenes
             pos.Z += m_appearance.HipOffset;
 
             m_controllingClient.SendAvatarDataImmediate(this);
-
             SendInitialFullUpdateToAllClients();
+            // Next two lines added on recommondation of MB
+            if (m_appearance != null && m_appearance.VisualParams != null && m_appearance.Texture != null)
+                m_controllingClient.SendAppearance(m_appearance.Owner, m_appearance.VisualParams, m_appearance.Texture.GetBytes());
+
             SendAppearanceToAllOtherAgents();
         }
 
@@ -2584,7 +2593,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if(client.AgentId != ControllingClient.AgentId)
                 {
-                    //m_log.WarnFormat("[SCENE PRESENCE] Sending {0} appearance to {1} (SendAppearanceToAllOtherAgents)", Name, client.Name);
+                    m_log.DebugFormat("[SCENE PRESENCE] Sending {0} appearance to {1} (SendAppearanceToAllOtherAgents)", Name, client.Name);
                     client.SendAppearance(m_appearance.Owner, m_appearance.VisualParams, m_appearance.Texture.GetBytes());
                 }
             });
@@ -2611,9 +2620,11 @@ namespace OpenSim.Region.Framework.Scenes
         public void SendAppearanceToOtherAgent(ScenePresence avatar)
         {
             if (Appearance.Texture == null)
+            {
                 return;
+            }
             //m_log.WarnFormat("{0} sending appearance to {1}, owner={2}", UUID, avatar.UUID, m_appearance.Owner);
-            //m_log.WarnFormat("[SCENE PRESENCE] Sending {0} appearance to {1} (SendAppearanceToOtherAgent)", Name, avatar.Name);
+            m_log.DebugFormat("[SCENE PRESENCE] Sending {0} appearance to {1} (SendAppearanceToOtherAgent)", Name, avatar.Name);
             m_appearance.Owner = UUID;
             avatar.ControllingClient.SendAppearance(
                 m_appearance.Owner, m_appearance.VisualParams, m_appearance.Texture.GetBytes());
@@ -2668,25 +2679,34 @@ namespace OpenSim.Region.Framework.Scenes
 
             #endregion Bake Cache Check
 
-            m_appearance.SetAppearance(textureEntry, visualParams);
-            if (m_appearance.AvatarHeight > 0)
-                SetHeight(m_appearance.AvatarHeight);
-
-            // This is not needed, because only the transient data changed
-            //AvatarData adata = new AvatarData(m_appearance);
-            //m_scene.AvatarService.SetAvatar(m_controllingClient.AgentId, adata);
-
-            SendAppearanceToAllOtherAgents();
-            if (!m_startAnimationSet)
+            try
             {
-                Animator.UpdateMovementAnimations();
-                m_startAnimationSet = true;
+                m_appearance.SetAppearance(textureEntry, visualParams);
+                if (m_appearance.AvatarHeight > 0)
+                    SetHeight(m_appearance.AvatarHeight);
+
+                // This is not needed, because only the transient data changed
+                //AvatarData adata = new AvatarData(m_appearance);
+                //m_scene.AvatarService.SetAvatar(m_controllingClient.AgentId, adata);
+
+                SendAppearanceToAllOtherAgents();
+                if (!m_startAnimationSet)
+                {
+                    Animator.UpdateMovementAnimations();
+                    m_startAnimationSet = true;
+                }
+
+                Vector3 pos = m_pos;
+                pos.Z += m_appearance.HipOffset;
+
+                m_controllingClient.SendAvatarDataImmediate(this);
+                // Next line added on recommondation of MB
+                m_controllingClient.SendAppearance(m_appearance.Owner, m_appearance.VisualParams, m_appearance.Texture.GetBytes());
             }
-
-            Vector3 pos = m_pos;
-            pos.Z += m_appearance.HipOffset;
-
-            m_controllingClient.SendAvatarDataImmediate(this);
+            catch (Exception e)
+            {
+                m_log.DebugFormat("[SCENE PRESENCE] EXCEPTION setting appearance: {0}", e);
+            }
         }
 
         public void SetWearable(int wearableId, AvatarWearable wearable)
@@ -2774,7 +2794,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Checks to see if the avatar is in range of a border and calls CrossToNewRegion
         /// </summary>
-        protected void CheckForBorderCrossing()
+        public void CheckForBorderCrossing()
         {
             if (IsChildAgent)
                 return;

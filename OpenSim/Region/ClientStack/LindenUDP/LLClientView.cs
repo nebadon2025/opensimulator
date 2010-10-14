@@ -5630,10 +5630,10 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                     // What would happen if we ignore any SetAppearance packet that does not include textures?
                     if (te == null)
                     {
-                        //m_log.WarnFormat("[LLCLIENTVIEW] Received SetAppearance from {0} (  )", Name);
+                        m_log.WarnFormat("[LLCLIENTVIEW] Received SetAppearance from {0} (  )", Name);
                         return true;
                     }
-                    //m_log.WarnFormat("[LLCLIENTVIEW] Received SetAppearance from {0} (TE)", Name);
+                    m_log.WarnFormat("[LLCLIENTVIEW] Received SetAppearance from {0} (TE)", Name);
                     if (handlerSetAppearanceRaw != null)
                         handlerSetAppearanceRaw(this, AgentId, visualparams, te);
                     if (handlerSetAppearance != null)

@@ -1597,6 +1597,18 @@ namespace OpenSim.Region.Framework.Scenes
                         ForEachScenePresence(delegate(ScenePresence sp) { sp.SendPrimUpdates(); });
                         if(m_frame % 20 == 0)
                             RegionSyncClientModule.SendCoarseLocations();
+                        // make border crossing work in the CMs
+                        m_sceneGraph.ForEachScenePresence(delegate(ScenePresence sp)
+                        {
+                            if (!sp.IsChildAgent)
+                            {
+                                // Check that we have a physics actor or we're sitting on something
+                                if (sp.ParentID == 0 && sp.PhysicsActor != null || sp.ParentID != 0)
+                                {
+                                    sp.CheckForBorderCrossing();
+                                }
+                            }
+                        });
                     }
                     else
                     {
@@ -2979,6 +2991,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             m_LastLogin = Util.EnvironmentTickCount();
             EventManager.TriggerOnNewClient(client);
+            // m_log.Debug("[Scene] New agent " + client.Name + " vialogin=" + vialogin.ToString());
             if (vialogin)
                 EventManager.TriggerOnClientLogin(client);
         }

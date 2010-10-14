@@ -118,7 +118,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 while (true)
                 {
                     // *** Move/Add TRY/CATCH to here, but we don't want to spin loop on the same error
-                    m_log.WarnFormat("[REGION SYNC SERVER] Listening for new connections on port {0}...", m_port.ToString());
+                    m_log.WarnFormat("[REGION SYNC SERVER] Listening for new connections on {0}:{1}...", m_addr.ToString(), m_port.ToString());
                     TcpClient tcpclient = m_listener.AcceptTcpClient();
                     IPAddress addr = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Address;
                     int port = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Port;

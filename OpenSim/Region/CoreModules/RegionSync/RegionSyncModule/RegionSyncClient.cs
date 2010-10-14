@@ -350,6 +350,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             return;
                         }
 
+                        m_log.DebugFormat("{0} Handle NewAvater for \"{1} {2}\"", LogHeader, first, last);
                         if (m_remoteAvatars.ContainsKey(agentID))
                         {
                             RegionSyncMessage.HandleWarning(LogHeader, msg, String.Format("Attempted to add duplicate avatar \"{0} {1}\" ({2})", first, last, agentID.ToString()));
@@ -720,7 +721,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetAvatars));
 
             // Register for events which will be forwarded to authoritative scene
-            m_scene.EventManager.OnNewClient += EventManager_OnNewClient;
+            // m_scene.EventManager.OnNewClient += EventManager_OnNewClient;
+            m_scene.EventManager.OnMakeRootAgent += EventManager_OnMakeRootAgent;
+            m_scene.EventManager.OnMakeChildAgent += EventManager_OnMakeChildAgent;
             m_scene.EventManager.OnClientClosed += new EventManager.ClientClosed(RemoveLocalClient);
         }
 
@@ -730,8 +733,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         #region MESSAGES SENT FROM CLIENT MANAGER TO SIM
-        public void EventManager_OnNewClient(IClientAPI client)
+        // public void EventManager_OnNewClient(IClientAPI client)
+        public void EventManager_OnMakeRootAgent(ScenePresence scenep)
         {
+            IClientAPI client = scenep.ControllingClient;
             // If this client was added in response to NewAvatar message from a synced server, 
             // don't subscribe to events or send back to server
             if (RemoteAvatars.ContainsKey(client.AgentId))
@@ -747,7 +752,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 newlocals.Add(client.AgentId, client);
                 m_localAvatars = newlocals;
             }
-            m_log.WarnFormat("{0} New local client \"{1}\" ({2}) being added to remote scene.", LogHeader, client.Name, client.AgentId.ToString());
+
+            m_log.WarnFormat("{0} New local client \"{1}\" ({2}) being added to remote scene.", 
+                    LogHeader, client.Name, client.AgentId.ToString());
             // Let the auth sim know that a new agent has connected
             OSDMap data = new OSDMap(4);
             data["agentID"] = OSD.FromUUID(client.AgentId);
@@ -761,6 +768,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             client.OnAgentUpdateRaw += HandleAgentUpdateRaw;
             client.OnSetAppearanceRaw += HandleSetAppearanceRaw;
             client.OnChatFromClientRaw += HandleChatFromClientRaw;
+        }
+
+        public void EventManager_OnMakeChildAgent(ScenePresence scenep)
+        {
+            // if demoting from root, tell the server not to track our child
+            m_log.DebugFormat("{0} Demotion to child. Sending remove for {1}/{2}", 
+                LogHeader, scenep.ControllingClient.Name, scenep.ControllingClient.AgentId);
+            OSDMap data = new OSDMap(1);
+            data["agentID"] = OSD.FromUUID(scenep.ControllingClient.AgentId);
+            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentRemove, OSDParser.SerializeJsonString(data)));
+            return;
         }
 
         private void RemoveLocalClient(UUID clientID, Scene scene)

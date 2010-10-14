@@ -1199,6 +1199,8 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
 
         protected List<GridRegion> RequestNeighbours(Scene pScene, uint pRegionLocX, uint pRegionLocY)
         {
+            m_log.DebugFormat("[ENTITY TRANSFER MODULE] Request neighbors for {0} at {1}/{2}",
+                            pScene.RegionInfo.RegionName, pRegionLocX, pRegionLocY);
             RegionInfo m_regionInfo = pScene.RegionInfo;
 
             Border[] northBorders = pScene.NorthBorders.ToArray();

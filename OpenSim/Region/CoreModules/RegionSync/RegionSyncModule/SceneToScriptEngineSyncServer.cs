@@ -356,10 +356,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 seConnector.SendObjectUpdate(msgType, sog);
             }
-            else
-            {
-                m_log.Warn(LogHeader + sog.AbsolutePosition.ToString() + " not covered by any script engine");
-            }
         }
 
         //This is to send a message, rsm, to script engine, and the message is about object SOG. E.g. RemovedObject
@@ -370,25 +366,29 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 seConnector.Send(rsm);
             }
-            else
-            {
-                m_log.Warn(LogHeader + sog.AbsolutePosition.ToString() + " not covered by any script engine");
-            }
         }
 
 
         private SceneToScriptEngineConnector GetSceneToSEConnector(SceneObjectGroup sog)
         {
-            if (sog==null)
+            if (m_scriptEngineConnectors.Count == 0)
+                return null;
+            if (sog == null)
             {
                 return m_scriptEngineConnectors[0];
             }
-            else 
+            else
             {
                 //Find the right SceneToSEConnector by the object's position
                 //TO FINISH: Map the object to a quark first, then map the quark to SceneToSEConnector
                 string quarkID = RegionSyncUtil.GetQuarkIDByPosition(sog.AbsolutePosition);
                 SceneToScriptEngineConnector seConnector = m_quarksInScene[quarkID].SEConnector;
+
+                if (seConnector == null)
+                {
+                    m_log.Warn(LogHeader + sog.AbsolutePosition.ToString() + " not covered by any script engine");
+                }
+
                 return seConnector;
             }
 

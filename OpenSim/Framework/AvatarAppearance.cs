@@ -363,7 +363,8 @@ namespace OpenSim.Framework
             // This sets Visual Params with *less* weirder values then default. Instead of a ugly alien, it looks like a fat scientist
             SetDefaultParams(m_visualparams);
             SetDefaultWearables();
-            m_texture = null;//GetDefaultTexture();
+            // m_texture = null;//GetDefaultTexture();
+            m_texture = GetDefaultTexture();
         }
         
         public AvatarAppearance(UUID avatarID, AvatarWearable[] wearables, byte[] visualParams)
@@ -372,7 +373,8 @@ namespace OpenSim.Framework
             m_serial = 1;
             m_wearables = wearables;
             m_visualparams = visualParams;
-            m_texture = null;// GetDefaultTexture();
+            // m_texture = null;// GetDefaultTexture();
+            m_texture = GetDefaultTexture();
         }
 
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);

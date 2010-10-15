@@ -28,6 +28,8 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Reflection;
+using log4net;
 using OpenMetaverse;
 using OpenMetaverse.Packets;
 using OpenSim.Framework;
@@ -42,6 +44,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private Quaternion bodyDirection = Quaternion.Identity;
         private short count = 0;
         private short frame = 0;
+
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
 // disable warning: public events, part of the public API
 #pragma warning disable 67
@@ -322,7 +326,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_firstName = first;
             m_lastName = last;
             m_startPos = startPos;
-            
+
+            m_log.Debug("[REGION SYNC AVATAR] instance");
+
             //m_scene.EventManager.OnFrame += Update;
         }
 
@@ -430,10 +436,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public virtual void SendWearables(AvatarWearable[] wearables, int serial)
         {
+            m_log.Debug("[REGION SYNC AVATAR] SendWearables");
         }
 
         public virtual void SendAppearance(UUID agentID, byte[] visualParams, byte[] textureEntry)
         {
+            m_log.Debug("[REGION SYNC AVATAR] SendAppearance");
         }
 
         public virtual void Kick(string message)
@@ -566,6 +574,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public virtual void AttachObject(uint localID, Quaternion rotation, byte attachPoint, UUID ownerID)
         {
+            m_log.Debug("[REGION SYNC AVATAR] AttachObject");
         }
 
         public virtual void SendDialog(string objectname, UUID objectID, string ownerFirstName, string ownerLastName, string msg, UUID textureID, int ch, string[] buttonlabels)

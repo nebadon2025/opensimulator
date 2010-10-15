@@ -484,7 +484,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         {
                             int delay = 30000;
                             string name = presence.Name;
-                            //m_log.WarnFormat("{0} Waiting {1}ms before setting appearance on presence {2} <{3}>", LogHeader, delay, name, msgID);
+                            m_log.WarnFormat("{0} Waiting {1}ms before setting appearance on presence {2} <{3}>", LogHeader, delay, name, msgID);
                             Timer appearanceSetter = new Timer(delegate(object obj)
                                 {
                                     //m_log.WarnFormat("{0} Ready to set appearance on presence {1} <{2}>", LogHeader, name, msgID);

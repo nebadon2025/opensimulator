@@ -68,6 +68,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             BalanceClientLoad, // Tells CM a client load target and a place to teleport the extras
             ChatFromSim,
             SitResponse,
+            SendAnimations,
             // BIDIR
             EchoRequest,
             EchoResponse,

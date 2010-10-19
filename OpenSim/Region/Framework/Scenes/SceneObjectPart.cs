@@ -259,7 +259,7 @@ namespace OpenSim.Region.Framework.Scenes
         [XmlIgnore]
         public bool IgnoreUndoUpdate = false;
 
-        private PrimFlags LocalFlags;
+        public PrimFlags LocalFlags;
         [XmlIgnore]
         private float m_damage = -1.0f;
         private byte[] m_TextureAnimation;

@@ -494,6 +494,23 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public virtual void SendAnimations(UUID[] animations, int[] seqs, UUID sourceAgentId, UUID[] objectIDs)
         {
             m_log.Debug("[REGION SYNC AVATAR] SendAnimations");
+            if (m_clientView != null)
+            {
+                OSDMap data = new OSDMap();
+                data["agentID"] = OSD.FromUUID(m_agentID);
+                OSDArray animatA = new OSDArray();
+                foreach (UUID uu in animations) animatA.Add(OSD.FromUUID(uu));
+                data["animations"] = animatA;
+                OSDArray seqsA = new OSDArray();
+                foreach (int ss in seqs) seqsA.Add(OSD.FromInteger(ss));
+                data["seqs"] = seqsA;
+                data["sourceAgentID"] = OSD.FromUUID(sourceAgentId);
+                OSDArray obIDA = new OSDArray();
+                foreach (UUID ii in objectIDs) obIDA.Add(OSD.FromUUID(ii));
+                data["objectIDs"] = obIDA;
+                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.SendAnimations, OSDParser.SerializeJsonString(data));
+                m_clientView.Send(rsm);
+            }
         }
 
         public virtual void SendChatMessage(string message, byte type, Vector3 fromPos, string fromName,

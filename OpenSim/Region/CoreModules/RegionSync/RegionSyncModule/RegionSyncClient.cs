@@ -710,6 +710,39 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                         return;
                     }
+                case RegionSyncMessage.MsgType.SendAnimations:
+                    {
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            return;
+                        }
+
+                        UUID agentID = data["agentID"].AsUUID();
+
+                        OSDArray animatA = (OSDArray)data["animations"];
+                        UUID[] animIDs = new UUID[animatA.Count];
+                        for (int ii = 0; ii < animatA.Count; ii++) animIDs[ii] = animatA[ii].AsUUID();
+
+                        OSDArray seqsA = (OSDArray)data["seqs"];
+                        int[] seqs = new int[seqsA.Count];
+                        for (int jj = 0; jj < seqsA.Count; jj++) seqs[jj] = seqsA[jj].AsInteger();
+
+                        UUID sourceAgentID = data["sourceAgentID"].AsUUID();
+
+                        OSDArray obIDA = (OSDArray)data["objectIDs"];
+                        UUID[] objectIDs = new UUID[obIDA.Count];
+                        for (int kk = 0; kk < obIDA.Count; kk++) objectIDs[kk] = obIDA[kk].AsUUID();
+
+                        ScenePresence sp;
+                        m_scene.TryGetScenePresence(agentID, out sp);
+                        if (sp != null)
+                        {
+                            sp.ControllingClient.SendAnimations(animIDs, seqs, sourceAgentID, objectIDs);
+                        }
+                        return;
+                    }
                 case RegionSyncMessage.MsgType.BalanceClientLoad:
                     {
                         // Get the data from message and error check

@@ -42,6 +42,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             AgentAdd,       
             AgentUpdate,
             AgentRemove,
+            AgentRequestSit,
+            AgentSit,
+            GrabObject,
+            GrabUpdate,
+            DeGrabObject,
             GetTerrain,
             GetObjects,
             SubscribeObjects,
@@ -62,6 +67,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             RemovedAvatar,   // avatars
             BalanceClientLoad, // Tells CM a client load target and a place to teleport the extras
             ChatFromSim,
+            SitResponse,
             // BIDIR
             EchoRequest,
             EchoResponse,

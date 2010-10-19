@@ -768,20 +768,22 @@ namespace OpenSim.Region.Framework.Scenes
         public void RegisterToEvents()
         {
             // REGION SYNC
-            if (m_scene.IsSyncedServer() || m_scene.RegionSyncEnabled == false)
+            // if (m_scene.IsSyncedServer() || m_scene.RegionSyncEnabled == false)
+            if (m_scene.IsSyncedServer())
             {
                 // These client messages will not be handled by client managers but instead
                 // they are caught by the RegionSyncClient module and passed up to the auth sim
                 m_controllingClient.OnAgentUpdate += HandleAgentUpdate;
                 m_controllingClient.OnSetAppearance += SetAppearance;
+                m_log.DebugFormat("[SCENE PRESENCE]: Setting local handler for HandleAgentRequestSit"); //RA
+                m_controllingClient.OnAgentRequestSit += HandleAgentRequestSit;
+                m_controllingClient.OnAgentSit += HandleAgentSit;
             }
 
             m_controllingClient.OnRequestWearables += SendWearables;
             m_controllingClient.OnCompleteMovementToRegion += CompleteMovement;
             //m_controllingClient.OnCompleteMovementToRegion += SendInitialData;
 
-            m_controllingClient.OnAgentRequestSit += HandleAgentRequestSit;
-            m_controllingClient.OnAgentSit += HandleAgentSit;
             m_controllingClient.OnSetAlwaysRun += HandleSetAlwaysRun;
             m_controllingClient.OnStartAnim += HandleStartAnim;
             m_controllingClient.OnStopAnim += HandleStopAnim;

@@ -3117,9 +3117,12 @@ namespace OpenSim.Region.Framework.Scenes
             client.OnUpdatePrimFlags += m_sceneGraph.UpdatePrimFlags;
             client.OnRequestObjectPropertiesFamily += m_sceneGraph.RequestObjectPropertiesFamily;
             client.OnObjectPermissions += HandleObjectPermissionsUpdate;
-            client.OnGrabObject += ProcessObjectGrab;
-            client.OnGrabUpdate += ProcessObjectGrabUpdate; 
-            client.OnDeGrabObject += ProcessObjectDeGrab;
+            if (IsSyncedServer())
+            {
+                client.OnGrabObject += ProcessObjectGrab;
+                client.OnGrabUpdate += ProcessObjectGrabUpdate;
+                client.OnDeGrabObject += ProcessObjectDeGrab;
+            }
             client.OnUndo += m_sceneGraph.HandleUndo;
             client.OnRedo += m_sceneGraph.HandleRedo;
             client.OnObjectDescription += m_sceneGraph.PrimDescription;

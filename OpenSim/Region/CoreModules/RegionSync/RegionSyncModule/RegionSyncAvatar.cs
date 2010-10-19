@@ -32,6 +32,7 @@ using System.Reflection;
 using log4net;
 using OpenMetaverse;
 using OpenMetaverse.Packets;
+using OpenMetaverse.StructuredData;
 using OpenSim.Framework;
 using OpenSim.Region.Framework.Scenes;
 
@@ -311,6 +312,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private string m_firstName;
         private string m_lastName;
         private Vector3 m_startPos;
+        private RegionSyncClientView m_clientView;
 
         /*
                             // Throw away duplicate or insignificant updates
@@ -326,6 +328,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_firstName = first;
             m_lastName = last;
             m_startPos = startPos;
+            m_clientView = null;
+
+            m_log.Debug("[REGION SYNC AVATAR] instance");
+
+            //m_scene.EventManager.OnFrame += Update;
+        }
+
+        public RegionSyncAvatar(Scene scene, UUID agentID, string first, string last, Vector3 startPos, RegionSyncClientView view)
+        {
+            m_scene = scene;
+            m_agentID = agentID;
+            m_firstName = first;
+            m_lastName = last;
+            m_startPos = startPos;
+            m_clientView = view;
 
             m_log.Debug("[REGION SYNC AVATAR] instance");
 
@@ -476,6 +493,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public virtual void SendAnimations(UUID[] animations, int[] seqs, UUID sourceAgentId, UUID[] objectIDs)
         {
+            m_log.Debug("[REGION SYNC AVATAR] SendAnimations");
         }
 
         public virtual void SendChatMessage(string message, byte type, Vector3 fromPos, string fromName,
@@ -753,6 +771,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void SendSitResponse(UUID TargetID, Vector3 OffsetPos, Quaternion SitOrientation, bool autopilot,
                                         Vector3 CameraAtOffset, Vector3 CameraEyeOffset, bool ForceMouseLook)
         {
+            m_log.Debug("[REGION SYNC AVATAR] SendSitResponse");
+            if (m_clientView != null)
+            {
+                OSDMap data = new OSDMap();
+                data["agentID"] = OSD.FromUUID(m_agentID);
+                data["targetID"] = OSD.FromUUID(TargetID);
+                data["offsetPos"] = OSD.FromVector3(OffsetPos);
+                data["sitOrientation"] = OSD.FromQuaternion(SitOrientation);
+                data["autoPilot"] = OSD.FromBoolean(autopilot);
+                data["cameraAtOffset"] = OSD.FromVector3(CameraAtOffset);
+                data["cameraEyeOffset"] = OSD.FromVector3(CameraEyeOffset);
+                data["forceMouseLook"] = OSD.FromBoolean(ForceMouseLook);
+                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.SitResponse, OSDParser.SerializeJsonString(data));
+                m_clientView.Send(rsm);
+            }
         }
 
         public void SendAdminResponse(UUID Token, uint AdminLevel)

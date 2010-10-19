@@ -180,6 +180,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void ReceiveLoop()
         {
             m_scene.EventManager.OnChatFromClient += new EventManager.ChatFromClientEvent(EventManager_OnChatFromClient);
+            m_scene.EventManager.OnChatFromWorld += new EventManager.ChatFromWorldEvent(EventManager_OnChatFromClient);
+
             
             // Reset stats and time
             lastStatTime = DateTime.Now;
@@ -349,7 +351,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                             if (agentID != null && first != null && last != null && startPos != null)
                             {
-                                RegionSyncAvatar av = new RegionSyncAvatar(m_scene, agentID, first, last, startPos);
+                                RegionSyncAvatar av = new RegionSyncAvatar(m_scene, agentID, first, last, startPos, this);
                                 lock (m_syncRoot)
                                 {
                                     if (m_syncedAvatars.ContainsKey(agentID))
@@ -535,6 +537,119 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         //m_log.WarnFormat("{0} END of AvatarAppearance handler <{1}>", LogHeader, msgID); 
                         return;
                     }
+                case RegionSyncMessage.MsgType.AgentRequestSit:
+                    {
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            return;
+                        }
+                        UUID agentID = data["agentID"].AsUUID();
+                        UUID targetID = data["targetID"].AsUUID();
+                        Vector3 offset = data["offset"].AsVector3();
+
+                        m_log.DebugFormat("{0} AgentRequestSit for {1}", LogHeader, agentID.ToString());
+
+                        ScenePresence sp;
+                        m_scene.TryGetScenePresence(agentID, out sp);
+                        if (sp != null)
+                        {
+                            sp.HandleAgentRequestSit(sp.ControllingClient, agentID, targetID, offset);
+                        }
+                        return;
+                    }
+                case RegionSyncMessage.MsgType.AgentSit:
+                    {
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            return;
+                        }
+                        UUID agentID = data["agentID"].AsUUID();
+
+                        m_log.DebugFormat("{0} AgentSit for {1}", LogHeader, agentID.ToString());
+
+                        ScenePresence sp;
+                        m_scene.TryGetScenePresence(agentID, out sp);
+                        if (sp != null)
+                        {
+                            sp.HandleAgentSit(sp.ControllingClient, agentID);
+                        }
+                        return;
+                    }
+                case RegionSyncMessage.MsgType.GrabObject:
+                    {
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            return;
+                        }
+                        UUID agentID = data["agentID"].AsUUID();
+                        uint localID = data["localID"].AsUInteger();
+                        m_log.DebugFormat("{0} GrabObject for {1}. object={2}", 
+                                        LogHeader, agentID.ToString(), localID);
+                        Vector3 offsetPos = data["offsetPos"].AsVector3();
+                        OSDArray surfaceArray = (OSDArray)data["surfaceArgs"];
+                        List<SurfaceTouchEventArgs> surfaceArgs = ExtractSurfaceArgList(surfaceArray);
+
+                        ScenePresence sp;
+                        m_scene.TryGetScenePresence(agentID, out sp);
+                        if (sp != null)
+                        {
+                            m_scene.ProcessObjectGrab(localID, offsetPos, sp.ControllingClient, surfaceArgs);
+                        }
+                        return;
+                    }
+                case RegionSyncMessage.MsgType.GrabUpdate:
+                    {
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            return;
+                        }
+                        UUID agentID = data["agentID"].AsUUID();
+                        UUID objectID = data["objectID"].AsUUID();
+                        m_log.DebugFormat("{0} GrabUpdate for {1}. ObjectID={2}", 
+                                        LogHeader, agentID.ToString(), objectID.ToString());
+                        Vector3 offset = data["offset"].AsVector3();
+                        Vector3 pos = data["pos"].AsVector3();
+                        OSDArray surfaceArray = (OSDArray)data["surfaceArgs"];
+                        List<SurfaceTouchEventArgs> surfaceArgs = ExtractSurfaceArgList(surfaceArray);
+
+                        ScenePresence sp;
+                        m_scene.TryGetScenePresence(agentID, out sp);
+                        if (sp != null)
+                        {
+                            m_scene.ProcessObjectGrabUpdate(objectID, offset, pos, sp.ControllingClient, surfaceArgs);
+                        }
+                        return;
+                    }
+                case RegionSyncMessage.MsgType.DeGrabObject:
+                    {
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            return;
+                        }
+                        UUID agentID = data["agentID"].AsUUID();
+                        m_log.DebugFormat("{0} DeGrabUpdate for {1}", LogHeader, agentID.ToString());
+                        uint localID = data["objectID"].AsUInteger();
+                        OSDArray surfaceArray = (OSDArray)data["surfaceArgs"];
+                        List<SurfaceTouchEventArgs> surfaceArgs = ExtractSurfaceArgList(surfaceArray);
+
+                        ScenePresence sp;
+                        m_scene.TryGetScenePresence(agentID, out sp);
+                        if (sp != null)
+                        {
+                            m_scene.ProcessObjectDeGrab(localID, sp.ControllingClient, surfaceArgs);
+                        }
+                        return;
+                    }
                 case RegionSyncMessage.MsgType.ChatFromClient:
                     {
                         // Get the data from message and error check
@@ -647,6 +762,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         return;
                     }
             }
+        }
+
+        private List<SurfaceTouchEventArgs> ExtractSurfaceArgList(OSDArray args)
+        {
+            List<SurfaceTouchEventArgs> surfaceArgs = new List<SurfaceTouchEventArgs>();
+            for (int ii = 0; ii < args.Count; ii++)
+            {
+                SurfaceTouchEventArgs stea = new SurfaceTouchEventArgs();
+                OSDMap entry = (OSDMap)args[ii];
+                stea.Binormal = entry["binormal"].AsVector3();
+                stea.FaceIndex = entry["faceIndex"].AsInteger();
+                stea.Normal = entry["normal"].AsVector3();
+                stea.Position = entry["position"].AsVector3();
+                stea.STCoord = entry["stCoord"].AsVector3();
+                stea.UVCoord = entry["uvCoord"].AsVector3();
+                surfaceArgs.Add(stea);
+            }
+            return surfaceArgs;
         }
 
         private bool HandlerDebug(RegionSyncMessage msg, string handlerMessage)

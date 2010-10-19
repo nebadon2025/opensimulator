@@ -295,6 +295,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             return;
                         }
 
+                        /*
+                        m_log.DebugFormat("{0} NewObject '{1}'", LogHeader, sog.Name);
+                        sog.ForEachPart(delegate(SceneObjectPart part)
+                        {
+                            m_log.DebugFormat("{0}     Part {1}, lf={2} f={3}", LogHeader, part.Name, 
+                                        part.LocalFlags.ToString(), part.Flags.ToString());
+                        });
+                         */
                         if (m_scene.AddNewSceneObject(sog, true));
                             //RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Object \"{0}\" ({1}) ({1}) updated.", sog.Name, sog.UUID.ToString(), sog.LocalId.ToString()));
                         //else
@@ -596,6 +604,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         args.Position = data["pos"].AsVector3();
                         args.From = data["name"].AsString();
                         UUID id = data["id"].AsUUID();
+                        // m_log.DebugFormat("{0} chat. chan={1}, from='{2}', msg='{3}'", LogHeader, args.Channel, args.From, args.Message);
                         args.Scene = m_scene;
                         args.Type = ChatTypeEnum.Say;
                         ScenePresence sp;
@@ -605,6 +614,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             args.Sender = sp.ControllingClient;
                             args.SenderUUID = id;
                             m_scene.EventManager.TriggerOnChatBroadcast(sp.ControllingClient, args);
+                        }
+                        else {
+                            args.Sender = null;
+                            args.SenderUUID = id;
+                            m_scene.EventManager.TriggerOnChatFromWorld(null, args);
                         }
 
                         //RegionSyncMessage.HandlerDebug(LogHeader, msg, String.Format("Received chat from \"{0}\"", args.From));
@@ -663,6 +677,37 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             RegionSyncMessage.HandleWarning(LogHeader, msg, String.Format("Agent {0} not found in the scene.", agentID));
                         }
                         //m_log.WarnFormat("{0} END of AvatarAppearance handler", LogHeader); 
+                        return;
+                    }
+                case RegionSyncMessage.MsgType.SitResponse:
+                    {
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            return;
+                        }
+                        UUID agentID = data["agentID"].AsUUID();
+                        m_log.DebugFormat("{0} SitResponse for {1}", LogHeader, agentID);
+                        UUID targetID = data["targetID"].AsUUID();
+                        Vector3 offsetPos = data["offsetPos"].AsVector3();
+                        Quaternion sitOrientation = data["sitOrientation"].AsQuaternion();
+                        Boolean autopilot = data["autoPilot"].AsBoolean();
+                        Vector3 cameraAtOffset = data["cameraAtOffset"].AsVector3();
+                        Vector3 cameraEyeOffset = data["cameraEyeOffset"].AsVector3();
+                        Boolean forceMouseLook = data["forceMouseLook"].AsBoolean();
+                        ScenePresence presence;
+                        if (m_scene.TryGetScenePresence(agentID, out presence))
+                        {
+                            presence.ControllingClient.SendSitResponse(targetID, offsetPos, sitOrientation, autopilot,
+                                cameraAtOffset, cameraEyeOffset, forceMouseLook);
+                        }
+                        else
+                        {
+                            RegionSyncMessage.HandleWarning(LogHeader, msg,
+                                String.Format("Agent {0} not found in the scene for SitResponse.", agentID));
+                        }
+
                         return;
                     }
                 case RegionSyncMessage.MsgType.BalanceClientLoad:
@@ -768,6 +813,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             client.OnAgentUpdateRaw += HandleAgentUpdateRaw;
             client.OnSetAppearanceRaw += HandleSetAppearanceRaw;
             client.OnChatFromClientRaw += HandleChatFromClientRaw;
+            client.OnAgentRequestSit += HandleAgentRequestSit;
+            client.OnAgentSit += HandleAgentSit;
+            client.OnGrabObject += HandleGrabObject;
+            client.OnGrabUpdate += HandleGrabUpdate;
+            client.OnDeGrabObject += HandleDeGrabObject;
         }
 
         public void EventManager_OnMakeChildAgent(ScenePresence scenep)
@@ -865,6 +915,80 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 data["te"] = te.GetOSD();
                 Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AvatarAppearance, OSDParser.SerializeJsonString(data)));
             }
+        }
+
+        public void HandleAgentRequestSit(object sender, UUID agentID, UUID targetID, Vector3 offset)
+        {
+            m_log.DebugFormat("[REGION SYNC CLIENT] HandleAgentRequestSit for {0}", agentID.ToString());
+            OSDMap data = new OSDMap(3);
+            data["agentID"] = OSD.FromUUID(agentID);
+            data["targetID"] = OSD.FromUUID(targetID);
+            data["offset"] = OSD.FromVector3(offset);
+            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentRequestSit, OSDParser.SerializeJsonString(data)));
+        }
+
+        public void HandleAgentSit(IClientAPI remoteClient, UUID agentID)
+        {
+            m_log.DebugFormat("[REGION SYNC CLIENT] HandleAgentSit for {0}", agentID.ToString());
+            OSDMap data = new OSDMap(1);
+            data["agentID"] = OSD.FromUUID(agentID);
+            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentSit, OSDParser.SerializeJsonString(data)));
+        }
+
+        public void HandleGrabObject(uint localID, Vector3 offsetPos, IClientAPI remoteClient, List<SurfaceTouchEventArgs> surfaceArgs)
+        {
+            m_log.DebugFormat("[REGION SYNC CLIENT] HandleGrabObject for {0}", remoteClient.AgentId.ToString());
+            OSDMap data = new OSDMap(4);
+            data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
+            data["localID"] = OSD.FromUInteger(localID);
+            data["offsetPos"] = OSD.FromVector3(offsetPos);
+            data["surfaceArgs"] = MakeSurfaceArgsArray(surfaceArgs);
+            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GrabObject, OSDParser.SerializeJsonString(data)));
+        }
+
+        public void HandleGrabUpdate(UUID objectID, Vector3 offset, Vector3 pos, IClientAPI remoteClient, List<SurfaceTouchEventArgs> surfaceArgs)
+        {
+            m_log.DebugFormat("[REGION SYNC CLIENT] HandleGrabUpdate for {0}", remoteClient.AgentId.ToString());
+            OSDMap data = new OSDMap(5);
+            data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
+            data["objectID"] = OSD.FromUUID(objectID);
+            data["offset"] = OSD.FromVector3(offset);
+            data["pos"] = OSD.FromVector3(pos);
+            data["surfaceArgs"] = MakeSurfaceArgsArray(surfaceArgs);
+            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GrabUpdate, OSDParser.SerializeJsonString(data)));
+        }
+
+        public void HandleDeGrabObject(uint localID, IClientAPI remoteClient, List<SurfaceTouchEventArgs> surfaceArgs)
+        {
+            m_log.DebugFormat("[REGION SYNC CLIENT] HandleDeGrabObject for {0}", remoteClient.AgentId.ToString());
+            OSDMap data = new OSDMap(3);
+            data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
+            data["localID"] = OSD.FromUInteger(localID);
+            data["surfaceArgs"] = MakeSurfaceArgsArray(surfaceArgs);
+            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.DeGrabObject, OSDParser.SerializeJsonString(data)));
+        }
+
+        /// <summary>
+        /// Convert a list of SurfaceTouchEventArgs into an OSDArray for transmission.
+        /// Return an array of maps which each are a list entry.
+        /// </summary>
+        /// <param name="surfaceArgs"></param>
+        /// <returns></returns>
+        private OSDArray MakeSurfaceArgsArray(List<SurfaceTouchEventArgs> surfaceArgs)
+        {
+            OSDArray surfaceList = new OSDArray();
+            for (int ii = 0; ii < surfaceArgs.Count; ii++)
+            {
+                OSDMap surfaceData = new OSDMap(6);
+                surfaceData["binormal"] = OSD.FromVector3(surfaceArgs[ii].Binormal);
+                surfaceData["faceIndex"] = OSD.FromInteger(surfaceArgs[ii].FaceIndex);
+                surfaceData["normal"] = OSD.FromVector3(surfaceArgs[ii].Normal);
+                surfaceData["position"] = OSD.FromVector3(surfaceArgs[ii].Position);
+                surfaceData["stCoord"] = OSD.FromVector3(surfaceArgs[ii].STCoord);
+                surfaceData["uvCoord"] = OSD.FromVector3(surfaceArgs[ii].UVCoord);
+                surfaceList.Add(surfaceData);
+            }
+            return surfaceList;
         }
 
         public void HandleChatFromClientRaw(object sender, byte[] chatData)

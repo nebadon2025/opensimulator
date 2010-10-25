@@ -126,6 +126,9 @@ namespace OpenSim.Region.Framework.Scenes
         private Vector3 m_lastPosition;
         private Quaternion m_lastRotation;
         private Vector3 m_lastVelocity;
+        // RA: following kludge lets us remember if we need to send a full update
+        // Used in RegionSyncServerModule
+        public uint lastSentParentID;
         //private int m_lastTerseSent;
 
         private bool m_updateflag;
@@ -2525,7 +2528,10 @@ namespace OpenSim.Region.Framework.Scenes
             // REGION SYNC
             // The server should not be doing anything via the ForEachScenePresence method
             if (m_scene.IsSyncedServer())
+            {
+                m_scene.RegionSyncServerModule.QueuePresenceForTerseUpdate(this);
                 return;
+            }
             m_perfMonMS = Util.EnvironmentTickCount();
 
             // only send update from root agents to other clients; children are only "listening posts"

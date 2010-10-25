@@ -283,7 +283,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     {
                         if (!presence.IsDeleted)
                         {
-                            OSDMap data = new OSDMap(7);
+                            OSDMap data = new OSDMap(10);
                             data["id"] = OSD.FromUUID(presence.UUID);
                             // Do not include offset for appearance height. That will be handled by RegionSyncClient before sending to viewers
                             if(presence.AbsolutePosition.IsFinite())
@@ -298,6 +298,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             data["fly"] = OSD.FromBoolean(presence.Flying);
                             data["flags"] = OSD.FromUInteger((uint)presence.AgentControlFlags);
                             data["anim"] = OSD.FromString(presence.Animator.CurrentMovementAnimation);
+                            // needed for a full update
+                            if (presence.ParentID != presence.lastSentParentID)
+                            {
+                                data["coll"] = OSD.FromVector4(presence.CollisionPlane);
+                                data["off"] = OSD.FromVector3(presence.OffsetPosition);
+                                data["pID"] = OSD.FromUInteger(presence.ParentID);
+                                presence.lastSentParentID = presence.ParentID;
+                            }
+
                             RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.UpdatedAvatar, OSDParser.SerializeJsonString(data));
                             m_server.EnqueuePresenceUpdate(presence.UUID, rsm.ToBytes());
 
@@ -342,6 +351,25 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // Just keeps a reference to this timer
             lock (m_appearanceTimers)
                 m_appearanceTimers[agentID] = appearanceSetter;
+        }
+
+        public void SendAnimations(UUID agentID, UUID[] animations, int[] seqs, UUID sourceAgentId, UUID[] objectIDs)
+        {
+            OSDMap data = new OSDMap();
+            data["agentID"] = OSD.FromUUID(agentID);
+            OSDArray animatA = new OSDArray();
+            foreach (UUID uu in animations) animatA.Add(OSD.FromUUID(uu));
+            data["animations"] = animatA;
+            OSDArray seqsA = new OSDArray();
+            foreach (int ss in seqs) seqsA.Add(OSD.FromInteger(ss));
+            data["seqs"] = seqsA;
+            data["sourceAgentID"] = OSD.FromUUID(sourceAgentId);
+            OSDArray obIDA = new OSDArray();
+            foreach (UUID ii in objectIDs) obIDA.Add(OSD.FromUUID(ii));
+            data["objectIDs"] = obIDA;
+            RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.SendAnimations, OSDParser.SerializeJsonString(data));
+            m_server.Broadcast(rsm);
+            // m_clientView.Send(rsm);
         }
 
         public void DeleteObject(ulong regionHandle, uint localID, SceneObjectPart part)

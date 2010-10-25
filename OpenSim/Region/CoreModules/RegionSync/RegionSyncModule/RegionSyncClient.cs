@@ -408,6 +408,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         bool flying = false;
                         string anim = "";
                         uint flags = 0;
+                        Vector4 collisionPlane = Vector4.Zero;
+                        Vector3 offsetPosition = Vector3.Zero;
+                        uint parentID = 0;
+                        bool doFullUpdate = false;
 
                         try
                         {
@@ -418,6 +422,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             flying = data["fly"].AsBoolean();
                             anim = data["anim"].AsString();
                             flags = data["flags"].AsUInteger();
+                            // do we have the data for a full update?
+                            OSD valTemp = null;
+                            data.TryGetValue("coll", out valTemp);
+                            if (valTemp != null)
+                            {
+                                collisionPlane = valTemp.AsVector4();
+                                offsetPosition = data["off"].AsVector3();
+                                parentID = data["pID"].AsUInteger();
+                                doFullUpdate = true;
+                            }
                         }
                         catch (Exception e)
                         {
@@ -476,6 +490,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 presence.PhysicsActor.Flying = flying;
                                 presence.PhysicsActor.CollidingGround = !flying;
                             }
+                            if (doFullUpdate)
+                            {
+                                presence.CollisionPlane = collisionPlane;
+                                presence.OffsetPosition = offsetPosition;
+                                presence.ParentID = parentID;
+                            }
                         }
                         catch(Exception e)
                         {
@@ -483,7 +503,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         try
                         {
-                            presence.SendTerseUpdateToAllClients();
+                            if (doFullUpdate)
+                            {
+                                presence.SendFullUpdateToAllClients();
+                            }
+                            else
+                            {
+                                presence.SendTerseUpdateToAllClients();
+                            }
                         }
                         catch (Exception e)
                         {
@@ -720,6 +747,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
 
                         UUID agentID = data["agentID"].AsUUID();
+                        // m_log.DebugFormat("{0} SendAnimations for {1}", LogHeader, agentID.ToString());
 
                         OSDArray animatA = (OSDArray)data["animations"];
                         UUID[] animIDs = new UUID[animatA.Count];
@@ -740,6 +768,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         if (sp != null)
                         {
                             sp.ControllingClient.SendAnimations(animIDs, seqs, sourceAgentID, objectIDs);
+                        }
+                        else
+                        {
+                            m_log.WarnFormat("{0} Could not send animation for {1} because scene presence not found",
+                                LogHeader, agentID.ToString());
                         }
                         return;
                     }

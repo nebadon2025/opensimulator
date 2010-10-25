@@ -44,6 +44,7 @@ namespace OpenSim.Region.Framework.Interfaces
         //void DeleteObject(ulong regionHandle, uint localID);
         void DeleteObject(ulong regionHandle, uint localID, SceneObjectPart part);
         void SendAppearance(UUID agentID, byte[] vp, Primitive.TextureEntry te);
+        void SendAnimations(UUID agentID, UUID[] animations, int[] seqs, UUID sourceAgentId, UUID[] objectIDs);
 
         //KittyL: added to support remote script engine actor
         //void SendRezScript(SceneObjectGroup sog);

@@ -549,7 +549,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         UUID targetID = data["targetID"].AsUUID();
                         Vector3 offset = data["offset"].AsVector3();
 
-                        m_log.DebugFormat("{0} AgentRequestSit for {1}", LogHeader, agentID.ToString());
+                        // m_log.DebugFormat("{0} AgentRequestSit for {1}", LogHeader, agentID.ToString());
 
                         ScenePresence sp;
                         m_scene.TryGetScenePresence(agentID, out sp);
@@ -569,13 +569,55 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         UUID agentID = data["agentID"].AsUUID();
 
-                        m_log.DebugFormat("{0} AgentSit for {1}", LogHeader, agentID.ToString());
+                        // m_log.DebugFormat("{0} AgentSit for {1}", LogHeader, agentID.ToString());
 
                         ScenePresence sp;
                         m_scene.TryGetScenePresence(agentID, out sp);
                         if (sp != null)
                         {
                             sp.HandleAgentSit(sp.ControllingClient, agentID);
+                        }
+                        return;
+                    }
+                case RegionSyncMessage.MsgType.StartAnim:
+                    {
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            return;
+                        }
+                        UUID agentID = data["agentID"].AsUUID();
+                        UUID animID = data["id"].AsUUID();
+
+                        m_log.DebugFormat("{0} AnimStart for {1}", LogHeader, agentID.ToString());
+
+                        ScenePresence sp;
+                        m_scene.TryGetScenePresence(agentID, out sp);
+                        if (sp != null)
+                        {
+                            sp.Animator.AddAnimation(animID, UUID.Zero);
+                        }
+                        return;
+                    }
+                case RegionSyncMessage.MsgType.StopAnim:
+                    {
+                        OSDMap data = DeserializeMessage(msg);
+                        if (data == null)
+                        {
+                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            return;
+                        }
+                        UUID agentID = data["agentID"].AsUUID();
+                        UUID animID = data["id"].AsUUID();
+
+                        m_log.DebugFormat("{0} AnimStop for {1}", LogHeader, agentID.ToString());
+
+                        ScenePresence sp;
+                        m_scene.TryGetScenePresence(agentID, out sp);
+                        if (sp != null)
+                        {
+                            sp.Animator.RemoveAnimation(animID);
                         }
                         return;
                     }

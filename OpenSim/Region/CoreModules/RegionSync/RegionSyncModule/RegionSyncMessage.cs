@@ -47,6 +47,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             GrabObject,
             GrabUpdate,
             DeGrabObject,
+            StartAnim,
+            StopAnim,
             GetTerrain,
             GetObjects,
             SubscribeObjects,

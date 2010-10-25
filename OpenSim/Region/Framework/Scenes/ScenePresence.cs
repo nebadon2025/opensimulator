@@ -781,6 +781,8 @@ namespace OpenSim.Region.Framework.Scenes
                 m_log.DebugFormat("[SCENE PRESENCE]: Setting local handler for HandleAgentRequestSit"); //RA
                 m_controllingClient.OnAgentRequestSit += HandleAgentRequestSit;
                 m_controllingClient.OnAgentSit += HandleAgentSit;
+                m_controllingClient.OnStartAnim += HandleStartAnim;
+                m_controllingClient.OnStopAnim += HandleStopAnim;
             }
 
             m_controllingClient.OnRequestWearables += SendWearables;
@@ -788,8 +790,6 @@ namespace OpenSim.Region.Framework.Scenes
             //m_controllingClient.OnCompleteMovementToRegion += SendInitialData;
 
             m_controllingClient.OnSetAlwaysRun += HandleSetAlwaysRun;
-            m_controllingClient.OnStartAnim += HandleStartAnim;
-            m_controllingClient.OnStopAnim += HandleStopAnim;
             m_controllingClient.OnForceReleaseControls += HandleForceReleaseControls;
             m_controllingClient.OnAutoPilotGo += DoAutoPilot;
             m_controllingClient.AddGenericPacketHandler("autopilot", DoMoveToPosition);

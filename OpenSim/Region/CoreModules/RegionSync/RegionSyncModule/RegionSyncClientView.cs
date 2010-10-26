@@ -590,13 +590,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         UUID agentID = data["agentID"].AsUUID();
                         UUID animID = data["id"].AsUUID();
 
-                        m_log.DebugFormat("{0} AnimStart for {1}", LogHeader, agentID.ToString());
+                        // m_log.DebugFormat("{0} AnimStart for {1}", LogHeader, agentID.ToString());
 
                         ScenePresence sp;
                         m_scene.TryGetScenePresence(agentID, out sp);
                         if (sp != null)
                         {
-                            sp.Animator.AddAnimation(animID, UUID.Zero);
+                            sp.HandleStartAnim(sp.ControllingClient, animID);
                         }
                         return;
                     }
@@ -611,13 +611,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         UUID agentID = data["agentID"].AsUUID();
                         UUID animID = data["id"].AsUUID();
 
-                        m_log.DebugFormat("{0} AnimStop for {1}", LogHeader, agentID.ToString());
+                        // m_log.DebugFormat("{0} AnimStop for {1}", LogHeader, agentID.ToString());
 
                         ScenePresence sp;
                         m_scene.TryGetScenePresence(agentID, out sp);
                         if (sp != null)
                         {
-                            sp.Animator.RemoveAnimation(animID);
+                            sp.HandleStopAnim(sp.ControllingClient, animID);
                         }
                         return;
                     }

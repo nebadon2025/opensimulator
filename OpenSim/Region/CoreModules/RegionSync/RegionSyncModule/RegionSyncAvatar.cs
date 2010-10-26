@@ -496,7 +496,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (m_clientView != null)
             {
-                // m_log.Debug("[REGION SYNC AVATAR] SendAnimations");
+                // m_log.DebugFormat("[REGION SYNC AVATAR] SendAnimations for {0}", m_agentID.ToString());
                 m_scene.RegionSyncServerModule.SendAnimations(m_agentID, animations, seqs, sourceAgentId, objectIDs);
             }
         }

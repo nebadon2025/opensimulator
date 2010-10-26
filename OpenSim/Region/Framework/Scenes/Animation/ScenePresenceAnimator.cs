@@ -407,6 +407,13 @@ namespace OpenSim.Region.Framework.Scenes.Animation
         {
             if (m_scenePresence.IsChildAgent)
                 return;
+            if (m_scenePresence.Scene.IsSyncedServer())
+            {
+                m_scenePresence.Scene.RegionSyncServerModule.SendAnimations(
+                    m_scenePresence.ControllingClient.AgentId, animations, seqs,
+                    m_scenePresence.ControllingClient.AgentId, objectIDs);
+                return;
+            }
 
             m_scenePresence.Scene.ForEachClient(
                 delegate(IClientAPI client) 

@@ -747,7 +747,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
 
                         UUID agentID = data["agentID"].AsUUID();
-                        m_log.DebugFormat("{0} SendAnimations for {1}", LogHeader, agentID.ToString());
+                        // m_log.DebugFormat("{0} SendAnimations for {1}", LogHeader, agentID.ToString());
 
                         OSDArray animatA = (OSDArray)data["animations"];
                         UUID[] animIDs = new UUID[animatA.Count];
@@ -767,7 +767,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         m_scene.TryGetScenePresence(agentID, out sp);
                         if (sp != null)
                         {
-                            sp.ControllingClient.SendAnimations(animIDs, seqs, sourceAgentID, objectIDs);
+                            if (agentID == sourceAgentID)
+                            {
+                                sp.Animator.SendAnimPack(animIDs, seqs, objectIDs);
+                            }
+                            else
+                            {
+                                sp.ControllingClient.SendAnimations(animIDs, seqs, sourceAgentID, objectIDs);
+                            }
                         }
                         else
                         {
@@ -1039,19 +1046,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void HandleStartAnim(IClientAPI remoteClient, UUID animID)
         {
-            m_log.DebugFormat("[REGION SYNC CLIENT] HandleStartAnim for {0}", remoteClient.AgentId.ToString());
+            // m_log.DebugFormat("[REGION SYNC CLIENT] HandleStartAnim for {0}", remoteClient.AgentId.ToString());
             OSDMap data = new OSDMap(3);
             data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
-            data["animID"] = OSD.FromUUID(animID);
+            data["id"] = OSD.FromUUID(animID);
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.StartAnim, OSDParser.SerializeJsonString(data)));
         }
 
         public void HandleStopAnim(IClientAPI remoteClient, UUID animID)
         {
-            m_log.DebugFormat("[REGION SYNC CLIENT] HandleStopAnim for {0}", remoteClient.AgentId.ToString());
+            // m_log.DebugFormat("[REGION SYNC CLIENT] HandleStopAnim for {0}", remoteClient.AgentId.ToString());
             OSDMap data = new OSDMap(3);
             data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
-            data["animID"] = OSD.FromUUID(animID);
+            data["id"] = OSD.FromUUID(animID);
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.StopAnim, OSDParser.SerializeJsonString(data)));
         }
 

@@ -367,7 +367,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             OSDArray obIDA = new OSDArray();
             foreach (UUID ii in objectIDs) obIDA.Add(OSD.FromUUID(ii));
             data["objectIDs"] = obIDA;
-            m_log.DebugFormat("[REGION SYNC SERVER MODULE] Broadcast animations to {0}", agentID.ToString());
+            // m_log.DebugFormat("[REGION SYNC SERVER MODULE] Broadcast animations for {0}", agentID.ToString());
             RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.SendAnimations, OSDParser.SerializeJsonString(data));
             m_server.Broadcast(rsm);
             // m_clientView.Send(rsm);

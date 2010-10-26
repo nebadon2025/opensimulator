@@ -878,7 +878,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["agentID"] = OSD.FromUUID(client.AgentId);
             data["first"] = OSD.FromString(client.FirstName);
             data["last"] = OSD.FromString(client.LastName);
-            data["startPos"] = OSD.FromVector3(client.StartPos);
+            // data["startPos"] = OSD.FromVector3(client.StartPos);
+            data["startPos"] = OSD.FromVector3(scenep.AbsolutePosition);
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentAdd, OSDParser.SerializeJsonString(data)));
 
             // Register for interesting client events which will be forwarded to auth sim
@@ -1047,7 +1048,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void HandleStartAnim(IClientAPI remoteClient, UUID animID)
         {
             // m_log.DebugFormat("[REGION SYNC CLIENT] HandleStartAnim for {0}", remoteClient.AgentId.ToString());
-            OSDMap data = new OSDMap(3);
+            OSDMap data = new OSDMap(2);
             data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
             data["id"] = OSD.FromUUID(animID);
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.StartAnim, OSDParser.SerializeJsonString(data)));
@@ -1056,7 +1057,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void HandleStopAnim(IClientAPI remoteClient, UUID animID)
         {
             // m_log.DebugFormat("[REGION SYNC CLIENT] HandleStopAnim for {0}", remoteClient.AgentId.ToString());
-            OSDMap data = new OSDMap(3);
+            OSDMap data = new OSDMap(2);
             data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
             data["id"] = OSD.FromUUID(animID);
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.StopAnim, OSDParser.SerializeJsonString(data)));

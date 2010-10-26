@@ -362,7 +362,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                     m_syncedAvatars.Add(agentID, av);
                                 }
                                 m_scene.AddNewClient(av);
-                                RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Handled AddAgent for UUID {0}", agentID));
+                                RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Handled AddAgent for UUID {0} at {1}", agentID, startPos.ToString()));
                                 return;
                             }
                         }

@@ -79,6 +79,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Read in configuration
             IConfig syncConfig = config.Configs["RegionSyncModule"];
+
+            if (syncConfig == null)
+            {
+                m_log.Warn("[REGION SYNC SCRIPT ENGINE MODULE] No RegionSyncModule config section found. Shutting down.");
+                return;
+            }
+            else if (!syncConfig.GetBoolean("Enabled", false))
+            {
+                m_log.Warn("[REGION SYNC SCRIPT ENGINE MODULE] RegionSyncModule is not enabled. Shutting down.");
+                return;
+            }
+            else
+            {
+                scene.RegionSyncEnabled = true;
+                m_regionSyncMode = syncConfig.GetString("Mode", "");
+                if (m_regionSyncMode == null || m_regionSyncMode.ToLower() != "script_engine")
+                {
+                    m_log.WarnFormat("[REGION SYNC SCRIPT ENGINE MODULE] RegionSyncModule is not in script_engine mode. Shutting down.");
+                    return;
+                }
+            }
+            /*
             if (syncConfig != null && syncConfig.GetString("Enabled", "").ToLower() == "true")
             {
                 scene.RegionSyncEnabled = true;
@@ -88,12 +110,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 scene.RegionSyncEnabled = false;
             }
 
-            m_regionSyncMode = syncConfig.GetString("Mode", "").ToLower();
-            if (syncConfig == null || m_regionSyncMode != "script_engine")
+            m_regionSyncMode = syncConfig.GetString("Mode", "");
+            if (syncConfig == null || m_regionSyncMode == null || m_regionSyncMode.ToLower() != "script_engine")
             {
                 m_log.Warn("[REGION SYNC SCRIPT ENGINE MODULE] Not in script_engine mode. Shutting down.");
                 return;
             }
+             * */
 
             //get the name of the valid region for script engine, i.e., that region that will holds all objects and scripts
             //if not matching m_scene's name, simply return

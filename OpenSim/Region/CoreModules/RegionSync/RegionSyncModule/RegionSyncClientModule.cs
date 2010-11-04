@@ -59,9 +59,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_active = false;
             if (syncConfig == null)
                 m_log.Warn("[REGION SYNC CLIENT MODULE] No RegionSyncModule config section found. Shutting down.");
-            else if (!syncConfig.GetBoolean("Enabled", true))
+            else if (!syncConfig.GetBoolean("Enabled", false))
                 m_log.Warn("[REGION SYNC CLIENT MODULE] RegionSyncModule is not enabled. Shutting down.");
-            else if (!syncConfig.GetString("Mode", "client").ToLower().Equals("client"))
+            else if (!syncConfig.GetString("Mode", "").ToLower().Equals("client"))
                 m_log.WarnFormat("[REGION SYNC CLIENT MODULE] RegionSyncModule is not in client mode. Shutting down.");
             else
             {

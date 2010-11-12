@@ -1644,7 +1644,8 @@ namespace OpenSim.Region.Framework.Scenes
 
                     int tmpPhysicsMS2 = Util.EnvironmentTickCount();
                     // Do not simulate physics locally if this is a synced client
-                    if (!IsSyncedClient())
+                    //if (!IsSyncedClient())
+                    if (IsSyncedServer())
                     {
                         if ((m_frame % m_update_physics == 0) && m_physics_enabled)
                             m_sceneGraph.UpdatePreparePhysics();
@@ -1652,7 +1653,8 @@ namespace OpenSim.Region.Framework.Scenes
                     physicsMS2 = Util.EnvironmentTickCountSubtract(tmpPhysicsMS2);
 
                     // Do not simulate physics locally if this is a synced client
-                    if (!IsSyncedClient())
+                    //if (!IsSyncedClient())
+                    if (IsSyncedServer())
                     {
                         if (m_frame % m_update_entitymovement == 0)
                             m_sceneGraph.UpdateScenePresenceMovement();
@@ -1660,7 +1662,8 @@ namespace OpenSim.Region.Framework.Scenes
 
                     int tmpPhysicsMS = Util.EnvironmentTickCount();
                     // Do not simulate physics locally if this is a synced client
-                    if (!IsSyncedClient())
+                    //if (!IsSyncedClient())
+                    if (IsSyncedServer())
                     {
                         if (m_frame % m_update_physics == 0)
                         {

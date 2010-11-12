@@ -414,8 +414,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             get
             {
-                if (m_server == null || !m_server.Synced)
-                //if((m_server == null || !m_server.Synced) && (m_sceneToSESyncServer==null || !m_sceneToSESyncServer.Synced))
+                //if (m_server == null || !m_server.Synced)
+                if((m_server == null || !m_server.Synced) && (m_sceneToSESyncServer==null || !m_sceneToSESyncServer.Synced))
                     return false;
                 return true;
             }

@@ -107,12 +107,12 @@ namespace OpenSim.Region.Framework.Scenes
                     GetSceneObjectAssetUuids(assetUuid, assetUuids);
                 }
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 m_log.ErrorFormat(
-                    "[UUID GATHERER]: Failed to gathering uuids for asset id {0}, type {1}", 
+                    "[UUID GATHERER]: Failed to gather uuids for asset id {0}, type {1}", 
                     assetUuid, assetType);
-                throw e;
+                throw;
             }
         }
 

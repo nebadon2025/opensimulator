@@ -86,23 +86,33 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="assetUuids">The assets gathered</param>
         public void GatherAssetUuids(UUID assetUuid, AssetType assetType, IDictionary<UUID, int> assetUuids)
         {
-            assetUuids[assetUuid] = 1;
-
-            if (AssetType.Bodypart == assetType || AssetType.Clothing == assetType)
-            {
-                GetWearableAssetUuids(assetUuid, assetUuids);
+            try
+            {               
+                assetUuids[assetUuid] = 1;
+    
+                if (AssetType.Bodypart == assetType || AssetType.Clothing == assetType)
+                {
+                    GetWearableAssetUuids(assetUuid, assetUuids);
+                }
+                else if (AssetType.Gesture == assetType)
+                {
+                    GetGestureAssetUuids(assetUuid, assetUuids);
+                }
+                else if (AssetType.LSLText == assetType)
+                {
+                    GetScriptAssetUuids(assetUuid, assetUuids);
+                }
+                else if (AssetType.Object == assetType)
+                {
+                    GetSceneObjectAssetUuids(assetUuid, assetUuids);
+                }
             }
-            else if (AssetType.Gesture == assetType)
+            catch (Exception e)
             {
-                GetGestureAssetUuids(assetUuid, assetUuids);
-            }
-            else if (AssetType.LSLText == assetType)
-            {
-                GetScriptAssetUuids(assetUuid, assetUuids);
-            }
-            else if (AssetType.Object == assetType)
-            {
-                GetSceneObjectAssetUuids(assetUuid, assetUuids);
+                m_log.ErrorFormat(
+                    "[UUID GATHERER]: Failed to gathering uuids for asset id {0}, type {1}", 
+                    assetUuid, assetType);
+                throw e;
             }
         }
 

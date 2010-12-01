@@ -26,6 +26,7 @@
 using System;
 using System.Collections.Generic;
 using Nini.Config;
+using log4net;
 using OpenSim.Framework;
 using OpenSim.Region.Physics.Manager;
 using OpenMetaverse;
@@ -34,6 +35,12 @@ namespace OpenSim.Region.Physics.PEPlugin
 {
 public class PEScene : PhysicsScene
 {
+    private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
+    private List<PECharacter> m_avatars = new List<PECharacter>();
+    private List<PEPrim> m_prims = new List<PEPrim>();
+    private float[] m_heightMap;
+
     public PEScene(string identifier)
     {
     }
@@ -46,15 +53,32 @@ public class PEScene : PhysicsScene
     {
         PECharacter actor = new PECharacter(avName, this, position, null, size, 0f, 0f, .5f, 1f,
             1f, 1f, .5f, .5f);
+        m_avatars.Add(actor);
         return actor;
     }
 
     public override void RemoveAvatar(PhysicsActor actor)
     {
+        try
+        {
+            m_avatars.Remove((PECharacter)actor);
+        }
+        catch (Exception e)
+        {
+            m_log.WarnFormat("[RPE]: Attempt to remove avatar that is not in physics scene: {0}", e);
+        }
     }
 
     public override void RemovePrim(PhysicsActor prim)
     {
+        try
+        {
+            m_prims.Remove((PEPrim)prim);
+        }
+        catch (Exception e)
+        {
+            m_log.WarnFormat("[RPE]: Attempt to remove prim that is not in physics scene: {0}", e);
+        }
     }
 
     public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, Vector3 position,
@@ -66,6 +90,7 @@ public class PEScene : PhysicsScene
                                               Vector3 size, Quaternion rotation, bool isPhysical)
     {
         PEPrim prim = new PEPrim(primName, this, position, size, rotation, null, pbs, isPhysical, null);
+        m_prims.Add(prim);
         return prim;
     }
 
@@ -73,12 +98,62 @@ public class PEScene : PhysicsScene
 
     public override float Simulate(float timeStep)
     {
+        foreach (PECharacter actor in m_avatars)
+        {
+            Vector3 actorPosition = actor.Position;
+            Vector3 actorVelocity = actor.Velocity;
+
+            actorPosition.X += actor.Velocity.X*timeStep;
+            actorPosition.Y += actor.Velocity.Y*timeStep;
+
+            actorPosition.Y = Math.Max(actorPosition.Y, 0.1f);
+            actorPosition.Y = Math.Min(actorPosition.Y, Constants.RegionSize - 0.1f);
+            actorPosition.X = Math.Max(actorPosition.X, 0.1f);
+            actorPosition.X = Math.Min(actorPosition.X, Constants.RegionSize - 0.1f);
+
+            float height = 25.0F;
+            try
+            {
+                height = m_heightMap[(int)actor.Position.Y * Constants.RegionSize + (int)actor.Position.X] + actor.Size.Z;
+            }
+            catch (OverflowException)
+            {
+                m_log.WarnFormat("[RPE]: Actor out of range: {0}", actor.SOPName, actor.Position.ToString());
+            }
+
+            if (actor.Flying)
+            {
+                if (actor.Position.Z + (actor.Velocity.Z*timeStep) <
+                    m_heightMap[(int)actor.Position.Y * Constants.RegionSize + (int)actor.Position.X] + 2)
+                {
+                    actorPosition.Z = height;
+                    actorVelocity.Z = 0;
+                    actor.IsColliding = true;
+                }
+                else
+                {
+                    actorPosition.Z += actor.Velocity.Z*timeStep;
+                    actor.IsColliding = false;
+                }
+            }
+            else
+            {
+                actorPosition.Z = height;
+                actorVelocity.Z = 0;
+                actor.IsColliding = true;
+            }
+
+            actor.Position = actorPosition;
+            actor.Velocity = actorVelocity;
+        }
         return 60f; // returns frames per second
     }
 
     public override void GetResults() { }
 
-    public override void SetTerrain(float[] heightMap) { }
+    public override void SetTerrain(float[] heightMap) {
+        m_heightMap = heightMap;
+    }
 
     public override void SetWaterLevel(float baseheight) { }
 

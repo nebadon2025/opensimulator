@@ -378,8 +378,6 @@ namespace OpenSim.Region.Framework.Scenes
 
         
         protected IScriptEngineToSceneConnectorModule m_scriptEngineToSceneConnectorModule;
-
-
         public IScriptEngineToSceneConnectorModule ScriptEngineToSceneConnectorModule
         {
             get { return m_scriptEngineToSceneConnectorModule; }
@@ -404,6 +402,48 @@ namespace OpenSim.Region.Framework.Scenes
             return IsSyncedServer();
         }
 
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        //RA: Physics Engine
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        protected IPhysEngineToSceneConnectorModule m_physEngineToSceneConnectorModule = null;
+        public IPhysEngineToSceneConnectorModule PhysEngineToSceneConnectorModule
+        {
+            get { return m_physEngineToSceneConnectorModule; }
+            set { m_physEngineToSceneConnectorModule = value; }
+        }
+
+        // list of physactors for this scene so we can find them later for remote physics
+        public Dictionary<uint, PhysicsActor> PhysActors = new Dictionary<uint, PhysicsActor>();
+        public void AddPhysActor(uint id, PhysicsActor pActor)
+        {
+            if (PhysActors.ContainsKey(id)) {
+                PhysActors.Remove(id);
+            }
+            PhysActors.Add(id, pActor);
+            return;
+        }
+        public void RemovePhysActor(uint id)
+        {
+            if (PhysActors.ContainsKey(id)) {
+                PhysActors.Remove(id);
+            }
+            return;
+        }
+
+        public bool IsPhysEngineScene()
+        {
+            return (SceneToPhysEngineConnectorModule != null);
+        }
+        public bool IsActivePhysEngineScene()
+        {
+            return (SceneToPhysEngineConnectorModule != null && SceneToPhysEngineConnectorModule.Active);
+        }
+        public bool IsPhysEngineActor()
+        {
+            return (PhysEngineToSceneConnectorModule != null);
+        }
+
+        ///////////////////////////////////////////////////////////////////////////////////////////////
 
         //This function should only be called by an actor who's local Scene is just a cache of the authorative Scene.
         //If the object already exists, use the new copy to replace it.

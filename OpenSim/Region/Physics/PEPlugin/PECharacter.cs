@@ -86,31 +86,32 @@ public class PECharacter : PhysicsActor
     public override Vector3 Size { 
         get { return _size; } 
         set { _size = value;
-            m_log.Debug("[PEE] PEChar set Size");
+            m_log.Debug("[RPE] PEChar set Size");
             Prop.Set(_localID, PropType.Size, _size);
         } 
     }
     public override PrimitiveBaseShape Shape { 
         set { _pbs = value; 
-            m_log.Debug("[PEE] PEChar set Shape");
+            m_log.Debug("[RPE] PEChar set Shape");
             Prop.Set(_localID, PropType.Shape, _pbs);
         } 
     }
     public override uint LocalID { 
         set { _localID = value; 
-            m_log.Debug("[PEE] PEChar set LocalID");
+            m_log.Debug("[RPE] PEChar set LocalID");
             Prop.Set(_localID, PropType.LocalID, _localID);
-        } 
+        }
+        get { return _localID; }
     }
     public override bool Grabbed { 
         set { _grabbed = value; 
-            m_log.Debug("[PEE] PEChar set Grabbed");
+            m_log.Debug("[RPE] PEChar set Grabbed");
             Prop.Set(_localID, PropType.Grabbed, _grabbed);
         } 
     }
     public override bool Selected { 
         set { _selected = value; 
-            m_log.Debug("[PEE] PEChar set Selected");
+            m_log.Debug("[RPE] PEChar set Selected");
             Prop.Set(_localID, PropType.Selected, _selected);
         } 
     }
@@ -122,7 +123,7 @@ public class PECharacter : PhysicsActor
     public override Vector3 Position { 
         get { return _position; } 
         set { _position = value; 
-            // m_log.Debug("[PEE] PEChar set Position");
+            // m_log.Debug("[RPE] PEChar set Position");
             Prop.Set(_localID, PropType.Position, _position);
         } 
     }
@@ -132,7 +133,7 @@ public class PECharacter : PhysicsActor
     public override Vector3 Force { 
         get { return _force; } 
         set { _force = value; 
-            m_log.Debug("[PEE] PEChar set Force");
+            m_log.Debug("[RPE] PEChar set Force");
             Prop.Set(_localID, PropType.Force, _force);
         } 
     }

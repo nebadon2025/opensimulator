@@ -142,7 +142,8 @@ namespace OpenSim.Region.Physics.Manager
 
         public abstract PrimitiveBaseShape Shape { set; }
 
-        public abstract uint LocalID { set; }
+        // RA: used to be abstract but changed to allow 'get' without changing all the phys engines
+        public virtual uint LocalID { set { return; } get { return 0; } }
 
         public abstract bool Grabbed { set; }
 
@@ -280,6 +281,7 @@ namespace OpenSim.Region.Physics.Manager
         public override uint LocalID
         {
             set { return; }
+            get { return 0; }
         }
 
         public override bool Grabbed

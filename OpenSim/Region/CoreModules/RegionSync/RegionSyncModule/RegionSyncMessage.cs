@@ -10,7 +10,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
     {
         Null,
         ClientManager,
-        ScriptEngine
+        ScriptEngine,
+        PhysicsEngine
     }
     #endregion
 

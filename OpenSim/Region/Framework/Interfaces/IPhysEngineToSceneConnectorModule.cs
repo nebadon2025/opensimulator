@@ -1,5 +1,6 @@
 ﻿/*
- * Copyright (c) Intel Corporation
+ * Copyright (c) Contributors, http://opensimulator.org/
+ * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -8,7 +9,7 @@
  *     * Redistributions in binary form must reproduce the above copyright
  *       notice, this list of conditions and the following disclaimer in the
  *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the Intel Corporation nor the
+ *     * Neither the name of the OpenSim Project nor the
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
@@ -23,45 +24,30 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-using System;
-using System.Collections.Generic;
-using OpenSim.Framework;
-using OpenSim.Region.Physics.Manager;
+
+//KittyL: Added to support running script engine actor
+
 using OpenMetaverse;
+using OpenSim.Framework;
+using OpenSim.Region.Framework.Scenes;
 
-namespace OpenSim.Region.Physics.PEPlugin
+namespace OpenSim.Region.Framework.Interfaces
 {
-public class PEPlugin : IPhysicsPlugin
-{
-    //private static readonly log4net.ILog m_log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-
-    private PEScene _mScene;
-
-    public PEPlugin()
+    //the interface for Scene to sync with Script Engine
+    public interface IPhysEngineToSceneConnectorModule
     {
+        bool Active { get; }
+        bool Synced { get; }
+        bool DebugWithViewer { get; }
+        //void SendCoarseLocations();
+        /// <summary>
+        /// Update the property of prim with primID, where the prim is located at quark (LocX, LocY). The length of each quark is configurable.
+        /// </summary>
+        /// <param name="locX"></param>
+        /// <param name="locY"></param>
+        /// <param name="primID"></param>
+        /// <param name="pName"></param>
+        /// <param name="pValue"></param>
+        void SendSetPrimProperties(uint locX, uint locY, UUID primID, string pName, object pValue);
     }
-
-    public bool Init()
-    {
-        return true;
-    }
-
-    public PhysicsScene GetScene(String sceneIdentifier)
-    {
-        if (_mScene == null)
-        {
-            _mScene = new PEScene(sceneIdentifier);
-        }
-        return (_mScene);
-    }
-
-    public string GetName()
-    {
-        return ("RemotePhysicsEngine");
-    }
-
-    public void Dispose()
-    {
-    }
-}
 }

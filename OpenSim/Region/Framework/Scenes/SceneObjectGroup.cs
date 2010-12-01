@@ -997,6 +997,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if (m_rootPart.PhysActor != null)
                 {
+                    Scene.RemovePhysActor(m_rootPart.PhysActor.LocalID);
                     m_scene.PhysicsScene.RemovePrim(m_rootPart.PhysActor);
                     m_rootPart.PhysActor = null;
                 }
@@ -1585,6 +1586,7 @@ namespace OpenSim.Region.Framework.Scenes
                     dupe.RootPart.PhysActor.IsPhysical);
 
                 dupe.RootPart.PhysActor.LocalID = dupe.RootPart.LocalId;
+                // RA: Register physActor in scene
                 dupe.RootPart.DoPhysicsPropertyUpdate(dupe.RootPart.PhysActor.IsPhysical, true);
             }
 
@@ -2273,6 +2275,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                 //if (linkPart.PhysActor != null)
                 //{
+                // m_scene.RemovePhysActor(linkPart.PhysActor.LocalID);
                 // m_scene.PhysicsScene.RemovePrim(linkPart.PhysActor);
         
                 //linkPart.PhysActor = null;
@@ -2387,6 +2390,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (linkPart.PhysActor != null)
             {
+                m_scene.RemovePhysActor(linkPart.PhysActor.LocalID);
                 m_scene.PhysicsScene.RemovePrim(linkPart.PhysActor);
             }
 

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -54,7 +54,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
             get { return m_assMapper; }
         }
 
-        private bool m_Initialized = false;
+//        private bool m_Initialized = false;
 
         #region INonSharedRegionModule
 
@@ -132,7 +132,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
         }
 
         // DO NOT OVERRIDE THE BASE METHOD
-        public virtual UUID DeleteToInventory(DeRezAction action, UUID folderID,
+        public new virtual UUID DeleteToInventory(DeRezAction action, UUID folderID,
                 SceneObjectGroup objectGroup, IClientAPI remoteClient)
         {
             UUID assetID = base.DeleteToInventory(action, folderID, new List<SceneObjectGroup>() {objectGroup}, remoteClient);

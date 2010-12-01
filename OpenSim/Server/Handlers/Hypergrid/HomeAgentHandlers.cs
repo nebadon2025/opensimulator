@@ -54,9 +54,14 @@ namespace OpenSim.Server.Handlers.Hypergrid
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         private IUserAgentService m_UserAgentService;
 
-        public HomeAgentHandler(IUserAgentService userAgentService)
+        private string m_LoginServerIP;
+        private bool m_Proxy = false;
+
+        public HomeAgentHandler(IUserAgentService userAgentService, string loginServerIP, bool proxy)
         {
             m_UserAgentService = userAgentService;
+            m_LoginServerIP = loginServerIP;
+            m_Proxy = proxy;
         }
 
         public Hashtable Handler(Hashtable request)
@@ -120,6 +125,7 @@ namespace OpenSim.Server.Handlers.Hypergrid
             string regionname = string.Empty;
             string gatekeeper_host = string.Empty;
             int gatekeeper_port = 0;
+            IPEndPoint client_ipaddress = null;
 
             if (args.ContainsKey("gatekeeper_host") && args["gatekeeper_host"] != null)
                 gatekeeper_host = args["gatekeeper_host"].AsString();
@@ -144,6 +150,24 @@ namespace OpenSim.Server.Handlers.Hypergrid
             if (args.ContainsKey("destination_name") && args["destination_name"] != null)
                 regionname = args["destination_name"].ToString();
 
+            if (args.ContainsKey("client_ip") && args["client_ip"] != null)
+            {
+                string ip_str = args["client_ip"].ToString();
+                try
+                {
+                    string callerIP = GetCallerIP(request);
+                    // Verify if this caller has authority to send the client IP
+                    if (callerIP == m_LoginServerIP)
+                        client_ipaddress = new IPEndPoint(IPAddress.Parse(ip_str), 0);
+                    else // leaving this for now, but this warning should be removed
+                        m_log.WarnFormat("[HOME AGENT HANDLER]: Unauthorized machine {0} tried to set client ip to {1}", callerIP, ip_str);
+                }
+                catch
+                {
+                    m_log.DebugFormat("[HOME AGENT HANDLER]: Exception parsing client ip address from {0}", ip_str);
+                }
+            }
+
             GridRegion destination = new GridRegion();
             destination.RegionID = uuid;
             destination.RegionLocX = x;
@@ -166,7 +190,7 @@ namespace OpenSim.Server.Handlers.Hypergrid
             OSDMap resp = new OSDMap(2);
             string reason = String.Empty;
 
-            bool result = m_UserAgentService.LoginAgentToGrid(aCircuit, gatekeeper, destination, out reason);
+            bool result = m_UserAgentService.LoginAgentToGrid(aCircuit, gatekeeper, destination, client_ipaddress, out reason);
 
             resp["reason"] = OSD.FromString(reason);
             resp["success"] = OSD.FromBoolean(result);
@@ -176,6 +200,23 @@ namespace OpenSim.Server.Handlers.Hypergrid
             responsedata["str_response_string"] = OSDParser.SerializeJsonString(resp);
         }
 
+        private string GetCallerIP(Hashtable request)
+        {
+            if (!m_Proxy)
+                return Util.GetCallerIP(request);
+
+            // We're behind a proxy
+            Hashtable headers = (Hashtable)request["headers"];
+            if (headers.ContainsKey("X-Forwarded-For") && headers["X-Forwarded-For"] != null)
+            {
+                IPEndPoint ep = Util.GetClientIPFromXFF((string)headers["X-Forwarded-For"]);
+                if (ep != null)
+                    return ep.Address.ToString();
+            }
+
+            // Oops
+            return Util.GetCallerIP(request);
+        }
     }
 
 }

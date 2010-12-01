@@ -60,6 +60,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
 
         private string m_serverUrl = String.Empty;
         private Dictionary<UUID, Scene> m_scenes = new Dictionary<UUID, Scene>();
+        private bool m_Enabled = false;
 
         #region ISharedRegionModule
 
@@ -72,50 +73,62 @@ namespace OpenSim.Services.Connectors.SimianGrid
         public string Name { get { return "SimianGridServiceConnector"; } }
         public void AddRegion(Scene scene)
         {
+            if (!m_Enabled)
+                return;
+
             // Every shared region module has to maintain an indepedent list of
             // currently running regions
             lock (m_scenes)
                 m_scenes[scene.RegionInfo.RegionID] = scene;
 
-            if (!String.IsNullOrEmpty(m_serverUrl))
-                scene.RegisterModuleInterface<IGridService>(this);
+            scene.RegisterModuleInterface<IGridService>(this);
         }
         public void RemoveRegion(Scene scene)
         {
+            if (!m_Enabled)
+                return;
+
             lock (m_scenes)
                 m_scenes.Remove(scene.RegionInfo.RegionID);
 
-            if (!String.IsNullOrEmpty(m_serverUrl))
-                scene.UnregisterModuleInterface<IGridService>(this);
+            scene.UnregisterModuleInterface<IGridService>(this);
         }
 
         #endregion ISharedRegionModule
 
         public SimianGridServiceConnector(IConfigSource source)
         {
-            Initialise(source);
+            CommonInit(source);
         }
 
         public void Initialise(IConfigSource source)
         {
-            if (Simian.IsSimianEnabled(source, "GridServices", this.Name))
+            IConfig moduleConfig = source.Configs["Modules"];
+            if (moduleConfig != null)
             {
-                IConfig gridConfig = source.Configs["GridService"];
-                if (gridConfig == null)
-                {
-                    m_log.Error("[SIMIAN GRID CONNECTOR]: GridService missing from OpenSim.ini");
-                    throw new Exception("Grid connector init error");
-                }
-
-                string serviceUrl = gridConfig.GetString("GridServerURI");
-                if (String.IsNullOrEmpty(serviceUrl))
-                {
-                    m_log.Error("[SIMIAN GRID CONNECTOR]: No Server URI named in section GridService");
-                    throw new Exception("Grid connector init error");
-                }
-
-                m_serverUrl = serviceUrl;
+                string name = moduleConfig.GetString("GridServices", "");
+                if (name == Name)
+                    CommonInit(source);
             }
+        }
+
+        private void CommonInit(IConfigSource source)
+        {
+            IConfig gridConfig = source.Configs["GridService"];
+            if (gridConfig != null)
+            {
+                string serviceUrl = gridConfig.GetString("GridServerURI");
+                if (!String.IsNullOrEmpty(serviceUrl))
+                {
+                    if (!serviceUrl.EndsWith("/") && !serviceUrl.EndsWith("="))
+                        serviceUrl = serviceUrl + '/';
+                    m_serverUrl = serviceUrl;
+                    m_Enabled = true;
+                }
+            }
+
+            if (String.IsNullOrEmpty(m_serverUrl))
+                m_log.Info("[SIMIAN GRID CONNECTOR]: No GridServerURI specified, disabling connector");
         }
 
         #region IGridService
@@ -357,6 +370,12 @@ namespace OpenSim.Services.Connectors.SimianGrid
                 return new List<GridRegion>(0);
         }
 
+        public List<GridRegion> GetHyperlinks(UUID scopeID)
+        {
+            // Hypergrid/linked regions are not supported
+            return new List<GridRegion>();
+        }
+        
         public int GetRegionFlags(UUID scopeID, UUID regionID)
         {
             const int REGION_ONLINE = 4;
@@ -394,7 +413,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
                 return;
             }
 
-            using (Image mapTile = tileGenerator.CreateMapTile("defaultstripe.png"))
+            using (Image mapTile = tileGenerator.CreateMapTile())
             {
                 using (MemoryStream stream = new MemoryStream())
                 {

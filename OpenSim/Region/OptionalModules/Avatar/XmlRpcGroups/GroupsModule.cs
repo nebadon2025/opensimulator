@@ -599,7 +599,10 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
 
         public List<GroupMembersData> GroupMembersRequest(IClientAPI remoteClient, UUID groupID)
         {
-            if (m_debugEnabled) m_log.DebugFormat("[GROUPS]: {0} called", System.Reflection.MethodBase.GetCurrentMethod().Name);
+            if (m_debugEnabled) 
+                m_log.DebugFormat(
+                    "[GROUPS]: GroupMembersRequest called for {0} from client {1}", groupID, remoteClient.Name);
+            
             List<GroupMembersData> data = m_groupData.GetGroupMembers(GetRequestingAgentID(remoteClient), groupID);
 
             if (m_debugEnabled)
@@ -962,7 +965,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
             if ((groupInfo == null) || (account == null))
             {
                 return;
-            }            
+            }
 
             // Send Message to Ejectee
             GridInstantMessage msg = new GridInstantMessage();
@@ -1129,7 +1132,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
                 OSDMap NewGroupDataMap = new OSDMap(1);
 
                 GroupDataMap.Add("GroupID", OSD.FromUUID(membership.GroupID));
-                GroupDataMap.Add("GroupPowers", OSD.FromBinary(membership.GroupPowers));
+                GroupDataMap.Add("GroupPowers", OSD.FromULong(membership.GroupPowers));
                 GroupDataMap.Add("AcceptNotices", OSD.FromBoolean(membership.AcceptNotices));
                 GroupDataMap.Add("GroupInsigniaID", OSD.FromUUID(membership.GroupPicture));
                 GroupDataMap.Add("Contribution", OSD.FromInteger(membership.Contribution));

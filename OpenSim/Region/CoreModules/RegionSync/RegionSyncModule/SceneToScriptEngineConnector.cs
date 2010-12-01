@@ -609,7 +609,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //a certain space. (Or use DB that supports spatial queries.)
         List<SceneObjectGroup> GetObjectsInGivenSpace(Scene scene, Dictionary<string, QuarkInfo> quarkSubscriptions)
         {
-            List<EntityBase> entities = m_scene.GetEntities();
+            EntityBase[] entities = m_scene.GetEntities();
             List<SceneObjectGroup> sogList = new List<SceneObjectGroup>();
             foreach (EntityBase e in entities)
             {

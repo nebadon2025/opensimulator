@@ -86,6 +86,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         void osTeleportAgent(string agent, string regionName, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
         void osTeleportAgent(string agent, int regionX, int regionY, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
         void osTeleportAgent(string agent, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
+        void osTeleportOwner(string regionName, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
+        void osTeleportOwner(int regionX, int regionY, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
+        void osTeleportOwner(LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
 
         // Animation commands
         void osAvatarPlayAnimation(string avatar, string animation);
@@ -176,7 +179,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         void osCauseDamage(string avatar, double damage);
         LSL_List osGetPrimitiveParams(LSL_Key prim, LSL_List rules);
         void osSetPrimitiveParams(LSL_Key prim, LSL_List rules);
+        void osSetProjectionParams(bool projection, LSL_Key texture, double fov, double focus, double amb);
+        void osSetProjectionParams(LSL_Key prim, bool projection, LSL_Key texture, double fov, double focus, double amb);
+
         LSL_List osGetAvatarList();
 
+        LSL_String osUnixTimeToTimestamp(long time);
     }
 }

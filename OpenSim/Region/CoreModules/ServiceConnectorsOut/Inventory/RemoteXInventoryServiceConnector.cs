@@ -32,7 +32,6 @@ using System.Reflection;
 using Nini.Config;
 using OpenSim.Framework;
 using OpenSim.Framework.Statistics;
-
 using OpenSim.Services.Connectors;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
@@ -48,7 +47,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
 
         private bool m_Enabled = false;
         private bool m_Initialized = false;
-        private Scene m_Scene;
+//        private Scene m_Scene;
         private XInventoryServicesConnector m_RemoteConnector;
 
         public Type ReplaceableInterface 
@@ -109,7 +108,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
 
         public void AddRegion(Scene scene)
         {
-            m_Scene = scene;
+//            m_Scene = scene;
             //m_log.Debug("[XXXX] Adding scene " + m_Scene.RegionInfo.RegionName);
 
             if (!m_Enabled)
@@ -262,7 +261,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
 
         public  InventoryItemBase GetItem(InventoryItemBase item)
         {
-            m_log.DebugFormat("[XINVENTORY CONNECTOR]: GetItem {0}", item.ID);
+            //m_log.DebugFormat("[XINVENTORY CONNECTOR]: GetItem {0}", item.ID);
             if (item == null)
                 return null;
 
@@ -273,7 +272,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
 
         public  InventoryFolderBase GetFolder(InventoryFolderBase folder)
         {
-            m_log.DebugFormat("[XINVENTORY CONNECTOR]: GetFolder {0}", folder.ID);
+            //m_log.DebugFormat("[XINVENTORY CONNECTOR]: GetFolder {0}", folder.ID);
             if (folder == null)
                 return null;
 
@@ -295,9 +294,6 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
             return m_RemoteConnector.GetAssetPermissions(userID, assetID);
         }
 
-
         #endregion
-
-
     }
 }

@@ -119,13 +119,10 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
         protected void ReceivedAllAssets(ICollection<UUID> assetsFoundUuids, ICollection<UUID> assetsNotFoundUuids)
         {
             Exception reportedException = null;
-            bool succeeded = true;            
+            bool succeeded = true;
              
             try
             {
-                // We're almost done.  Just need to write out the control file now
-                m_archiveWriter.WriteFile(ArchiveConstants.CONTROL_FILE_PATH, Create0p1ControlFile());
-                m_log.InfoFormat("[ARCHIVER]: Added control file to archive.");
                 m_archiveWriter.Close();
             }
             catch (Exception e)
@@ -136,7 +133,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
             finally
             {
                 m_saveStream.Close();
-            }            
+            }
 
             m_module.TriggerInventoryArchiveSaved(
                 m_id, succeeded, m_userInfo, m_invPath, m_saveStream, reportedException);
@@ -176,28 +173,6 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
 
             InventoryCollection contents 
                 = m_scene.InventoryService.GetFolderContent(inventoryFolder.Owner, inventoryFolder.ID);
-            //List<InventoryFolderImpl> childFolders = inventoryFolder.RequestListOfFolderImpls();
-            //List<InventoryItemBase> items = inventoryFolder.RequestListOfItems();
-
-            /*
-            Dictionary identicalFolderNames = new Dictionary<string, int>();
-
-            foreach (InventoryFolderImpl folder in inventories)
-            {
-                if (!identicalFolderNames.ContainsKey(folder.Name))
-                    identicalFolderNames[folder.Name] = 0;
-                else
-                    identicalFolderNames[folder.Name] = identicalFolderNames[folder.Name]++;
-
-                int folderNameNumber = identicalFolderName[folder.Name];
-
-                SaveInvDir(
-                    folder,
-                    string.Format(
-                        "{0}{1}{2}/",
-                        path, ArchiveConstants.INVENTORY_NODE_NAME_COMPONENT_SEPARATOR, folderNameNumber));
-            }
-            */
 
             foreach (InventoryFolderBase childFolder in contents.Folders)
             {
@@ -221,7 +196,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 InventoryItemBase inventoryItem = null;
                 InventoryFolderBase rootFolder = m_scene.InventoryService.GetRootFolder(m_userInfo.PrincipalID);
     
-                bool foundStar = false;
+                bool saveFolderContentsOnly = false;
     
                 // Eliminate double slashes and any leading / on the path.
                 string[] components
@@ -234,7 +209,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 // folder itself.  This may get more sophisicated later on
                 if (maxComponentIndex >= 0 && components[maxComponentIndex] == STAR_WILDCARD)
                 {
-                    foundStar = true;
+                    saveFolderContentsOnly = true;
                     maxComponentIndex--;
                 }
     
@@ -270,21 +245,28 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 {
                     // We couldn't find the path indicated 
                     string errorMessage = string.Format("Aborted save.  Could not find inventory path {0}", m_invPath);
-                    Exception e = new InventoryArchiverException(errorMessage);                
+                    Exception e = new InventoryArchiverException(errorMessage);
                     m_module.TriggerInventoryArchiveSaved(m_id, false, m_userInfo, m_invPath, m_saveStream, e);
                     throw e;
                 }
             
                 m_archiveWriter = new TarArchiveWriter(m_saveStream);
 
+                // Write out control file.  This has to be done first so that subsequent loaders will see this file first
+                // XXX: I know this is a weak way of doing it since external non-OAR aware tar executables will not do this
+                m_archiveWriter.WriteFile(ArchiveConstants.CONTROL_FILE_PATH, Create0p1ControlFile());
+                m_log.InfoFormat("[INVENTORY ARCHIVER]: Added control file to archive.");
+                
                 if (inventoryFolder != null)
                 {
                     m_log.DebugFormat(
                         "[INVENTORY ARCHIVER]: Found folder {0} {1} at {2}",
-                        inventoryFolder.Name, inventoryFolder.ID, m_invPath);
+                        inventoryFolder.Name, 
+                        inventoryFolder.ID, 
+                        m_invPath == String.Empty ? InventoryFolderImpl.PATH_DELIMITER : m_invPath);
     
                     //recurse through all dirs getting dirs and files
-                    SaveInvFolder(inventoryFolder, ArchiveConstants.INVENTORY_PATH, !foundStar);
+                    SaveInvFolder(inventoryFolder, ArchiveConstants.INVENTORY_PATH, !saveFolderContentsOnly);
                 }
                 else if (inventoryItem != null)
                 {
@@ -299,7 +281,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 //SaveUsers();
                             
                 new AssetsRequest(
-                    new AssetsArchiver(m_archiveWriter), m_assetUuids, m_scene.AssetService, ReceivedAllAssets).Execute();                
+                    new AssetsArchiver(m_archiveWriter), m_assetUuids, m_scene.AssetService, ReceivedAllAssets).Execute();
             }
             catch (Exception)
             {
@@ -397,13 +379,17 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
         /// <returns></returns>
         public static string Create0p1ControlFile()
         {
+            int majorVersion = 0, minorVersion = 1;
+            
+            m_log.InfoFormat("[INVENTORY ARCHIVER]: Creating version {0}.{1} IAR", majorVersion, minorVersion);
+            
             StringWriter sw = new StringWriter();
             XmlTextWriter xtw = new XmlTextWriter(sw);
             xtw.Formatting = Formatting.Indented;
             xtw.WriteStartDocument();
             xtw.WriteStartElement("archive");
-            xtw.WriteAttributeString("major_version", "0");
-            xtw.WriteAttributeString("minor_version", "1");
+            xtw.WriteAttributeString("major_version", majorVersion.ToString());
+            xtw.WriteAttributeString("minor_version", minorVersion.ToString());
             xtw.WriteEndElement();
 
             xtw.Flush();

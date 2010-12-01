@@ -92,11 +92,12 @@ namespace OpenSim.Services.Interfaces
 
         List<GridRegion> GetDefaultRegions(UUID scopeID);
         List<GridRegion> GetFallbackRegions(UUID scopeID, int x, int y);
+        List<GridRegion> GetHyperlinks(UUID scopeID);
 
         int GetRegionFlags(UUID scopeID, UUID regionID);
     }
 
-    public class GridRegion
+    public class GridRegion : Object
     {
 
         /// <summary>
@@ -223,6 +224,33 @@ namespace OpenSim.Services.Interfaces
             RegionSecret = ConvertFrom.RegionSecret;
             EstateOwner = ConvertFrom.EstateOwner;
         }
+
+        # region Definition of equality
+
+        /// <summary>
+        /// Define equality as two regions having the same, non-zero UUID.
+        /// </summary>
+        public bool Equals(GridRegion region)
+        {
+            if ((object)region == null)
+                return false;
+            // Return true if the non-zero UUIDs are equal:
+            return (RegionID != UUID.Zero) && RegionID.Equals(region.RegionID);
+        }
+
+        public override bool Equals(Object obj)
+        {
+            if (obj == null)
+                return false;
+            return Equals(obj as GridRegion);
+        }
+
+        public override int GetHashCode()
+        {
+            return RegionID.GetHashCode() ^ TerrainImage.GetHashCode();
+        }
+
+        #endregion
 
         /// <value>
         /// This accessor can throw all the exceptions that Dns.GetHostAddresses can throw.

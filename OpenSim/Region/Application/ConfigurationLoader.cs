@@ -83,7 +83,10 @@ namespace OpenSim
             List<string> sources = new List<string>();
 
             string masterFileName =
-                    startupConfig.GetString("inimaster", String.Empty);
+                    startupConfig.GetString("inimaster", "OpenSimDefaults.ini");
+
+            if (masterFileName == "none")
+                masterFileName = String.Empty;
 
             if (IsUri(masterFileName))
             {
@@ -95,10 +98,19 @@ namespace OpenSim
                 string masterFilePath = Path.GetFullPath(
                         Path.Combine(Util.configDir(), masterFileName));
 
-                if (masterFileName != String.Empty &&
-                        File.Exists(masterFilePath) &&
-                        (!sources.Contains(masterFilePath)))
-                    sources.Add(masterFilePath);
+                if (masterFileName != String.Empty)
+                {
+                    if (File.Exists(masterFilePath))
+                    {
+                        if (!sources.Contains(masterFilePath))
+                            sources.Add(masterFilePath);
+                    }
+                    else
+                    {
+                        m_log.ErrorFormat("Master ini file {0} not found", masterFilePath);
+                        Environment.Exit(1);
+                    }
+                }
             }
 
 
@@ -160,7 +172,7 @@ namespace OpenSim
             if (sources.Count == 0)
             {
                 m_log.FatalFormat("[CONFIG]: Could not load any configuration");
-                m_log.FatalFormat("[CONFIG]: Did you copy the OpenSim.ini.example file to OpenSim.ini?");
+                m_log.FatalFormat("[CONFIG]: Did you copy the OpenSimDefaults.ini.example file to OpenSimDefaults.ini?");
                 Environment.Exit(1);
             }
 
@@ -211,7 +223,17 @@ namespace OpenSim
                         else
                         {
                             string basepath = Path.GetFullPath(Util.configDir());
-                            string path = Path.Combine(basepath, file);
+                            // Resolve relative paths with wildcards
+                            string chunkWithoutWildcards = file;
+                            string chunkWithWildcards = string.Empty;
+                            int wildcardIndex = file.IndexOfAny(new char[] { '*', '?' });
+                            if (wildcardIndex != -1)
+                            {
+                                chunkWithoutWildcards = file.Substring(0, wildcardIndex);
+                                chunkWithWildcards = file.Substring(wildcardIndex);
+                            }
+                            string path = Path.Combine(basepath, chunkWithoutWildcards);
+                            path = Path.GetFullPath(path) + chunkWithWildcards;
                             string[] paths = Util.Glob(path);
                             foreach (string p in paths)
                             {
@@ -308,21 +330,6 @@ namespace OpenSim
             }
 
             {
-                IConfig config = defaultConfig.Configs["StandAlone"];
-
-                if (null == config)
-                    config = defaultConfig.AddConfig("StandAlone");
-
-                config.Set("accounts_authenticate", true);
-                config.Set("welcome_message", "Welcome to OpenSimulator");
-                config.Set("inventory_plugin", "OpenSim.Data.SQLite.dll");
-                config.Set("inventory_source", "");
-                config.Set("userDatabase_plugin", "OpenSim.Data.SQLite.dll");
-                config.Set("user_source", "");
-                config.Set("LibrariesXMLFile", string.Format(".{0}inventory{0}Libraries.xml", Path.DirectorySeparatorChar));
-            }
-
-            {
                 IConfig config = defaultConfig.Configs["Network"];
 
                 if (null == config)
@@ -350,10 +357,6 @@ namespace OpenSim
 
                 m_configSettings.StorageDll = startupConfig.GetString("storage_plugin");
 
-                m_configSettings.StorageConnectionString 
-                    = startupConfig.GetString("storage_connection_string");
-                m_configSettings.EstateConnectionString 
-                    = startupConfig.GetString("estate_connection_string", m_configSettings.StorageConnectionString);
                 m_configSettings.ClientstackDll 
                     = startupConfig.GetString("clientstack_plugin", "OpenSim.Region.ClientStack.LindenUDP.dll");
             }

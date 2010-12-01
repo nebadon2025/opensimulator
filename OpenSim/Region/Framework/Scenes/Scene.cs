@@ -42,7 +42,6 @@ using OpenMetaverse.Imaging;
 using OpenSim.Framework;
 using OpenSim.Services.Interfaces;
 using OpenSim.Framework.Communications;
-
 using OpenSim.Framework.Console;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes.Scripting;
@@ -58,55 +57,21 @@ namespace OpenSim.Region.Framework.Scenes
 
     public partial class Scene : SceneBase
     {
-        public delegate void SynchronizeSceneHandler(Scene scene);
-        public SynchronizeSceneHandler SynchronizeScene = null;
-
-        /* Used by the loadbalancer plugin on GForge */
-        protected int m_splitRegionID = 0;
-        public int SplitRegionID
-        {
-            get { return m_splitRegionID; }
-            set { m_splitRegionID = value; }
-        }
-
         private const long DEFAULT_MIN_TIME_FOR_PERSISTENCE = 60L;
         private const long DEFAULT_MAX_TIME_FOR_PERSISTENCE = 600L;
 
+        public delegate void SynchronizeSceneHandler(Scene scene);
+
         #region Fields
 
-        protected Timer m_restartWaitTimer = new Timer();
-
+        public SynchronizeSceneHandler SynchronizeScene;
         public SimStatsReporter StatsReporter;
-
-        protected List<RegionInfo> m_regionRestartNotifyList = new List<RegionInfo>();
-        protected List<RegionInfo> m_neighbours = new List<RegionInfo>();
-
-        private volatile int m_bordersLocked = 0;
-        public bool BordersLocked
-        {
-            get { return m_bordersLocked == 1; }
-            set
-            {
-                if (value == true)
-                    m_bordersLocked = 1;
-                else
-                    m_bordersLocked = 0;
-            }
-        }
         public List<Border> NorthBorders = new List<Border>();
         public List<Border> EastBorders = new List<Border>();
         public List<Border> SouthBorders = new List<Border>();
         public List<Border> WestBorders = new List<Border>();
 
-        /// <value>
-        /// The scene graph for this scene
-        /// </value>
-        /// TODO: Possibly stop other classes being able to manipulate this directly.
-        private SceneGraph m_sceneGraph;
-
-        /// <summary>
-        /// Are we applying physics to any of the prims in this scene?
-        /// </summary>
+        /// <summary>Are we applying physics to any of the prims in this scene?</summary>
         public bool m_physicalPrim;
         public float m_maxNonphys = 256;
         public float m_maxPhys = 10;
@@ -120,23 +85,131 @@ namespace OpenSim.Region.Framework.Scenes
         // root agents when ACL denies access to root agent
         public bool m_strictAccessControl = true;
         public int MaxUndoCount = 5;
+        public bool LoginsDisabled = true;
+        public bool LoadingPrims;
+        public IXfer XferManager;
+
+        // the minimum time that must elapse before a changed object will be considered for persisted
+        public long m_dontPersistBefore = DEFAULT_MIN_TIME_FOR_PERSISTENCE * 10000000L;
+        // the maximum time that must elapse before a changed object will be considered for persisted
+        public long m_persistAfter = DEFAULT_MAX_TIME_FOR_PERSISTENCE * 10000000L;
+
+        protected int m_splitRegionID;
+        protected Timer m_restartWaitTimer = new Timer();
+        protected List<RegionInfo> m_regionRestartNotifyList = new List<RegionInfo>();
+        protected List<RegionInfo> m_neighbours = new List<RegionInfo>();
+        protected string m_simulatorVersion = "OpenSimulator Server";
+        protected ModuleLoader m_moduleLoader;
+        protected AgentCircuitManager m_authenticateHandler;
+        protected SceneCommunicationService m_sceneGridService;
+
+        protected ISimulationDataService m_SimulationDataService;
+        protected IEstateDataService m_EstateDataService;
+        protected IAssetService m_AssetService;
+        protected IAuthorizationService m_AuthorizationService;
+        protected IInventoryService m_InventoryService;
+        protected IGridService m_GridService;
+        protected ILibraryService m_LibraryService;
+        protected ISimulationService m_simulationService;
+        protected IAuthenticationService m_AuthenticationService;
+        protected IPresenceService m_PresenceService;
+        protected IUserAccountService m_UserAccountService;
+        protected IAvatarService m_AvatarService;
+        protected IGridUserService m_GridUserService;
+
+        protected IXMLRPC m_xmlrpcModule;
+        protected IWorldComm m_worldCommModule;
+        protected IAvatarFactory m_AvatarFactory;
+        protected IConfigSource m_config;
+        protected IRegionSerialiserModule m_serialiser;
+        protected IDialogModule m_dialogModule;
+        protected IEntityTransferModule m_teleportModule;
+        protected ICapabilitiesModule m_capsModule;
+        // Central Update Loop
+        protected int m_fps = 10;
+        protected uint m_frame;
+        protected float m_timespan = 0.089f;
+        protected DateTime m_lastupdate = DateTime.UtcNow;
+
+        // TODO: Possibly stop other classes being able to manipulate this directly.
+        private SceneGraph m_sceneGraph;
+        private volatile int m_bordersLocked;
         private int m_RestartTimerCounter;
         private readonly Timer m_restartTimer = new Timer(15000); // Wait before firing
         private int m_incrementsof15seconds;
         private volatile bool m_backingup;
-
         private Dictionary<UUID, ReturnInfo> m_returns = new Dictionary<UUID, ReturnInfo>();
         private Dictionary<UUID, SceneObjectGroup> m_groupsWithTargets = new Dictionary<UUID, SceneObjectGroup>();
+        private Object m_heartbeatLock = new Object();
 
-        protected string m_simulatorVersion = "OpenSimulator Server";
+        private int m_update_physics = 1;
+        private int m_update_entitymovement = 1;
+        private int m_update_objects = 1; // Update objects which have scheduled themselves for updates
+        private int m_update_presences = 1; // Update scene presence movements
+        private int m_update_events = 1;
+        private int m_update_backup = 200;
+        private int m_update_terrain = 50;
+        private int m_update_land = 1;
+        private int m_update_coarse_locations = 50;
 
-        protected ModuleLoader m_moduleLoader;
-        protected StorageManager m_storageManager;
-        protected AgentCircuitManager m_authenticateHandler;
+        private int frameMS;
+        private int physicsMS2;
+        private int physicsMS;
+        private int otherMS;
+        private int tempOnRezMS;
+        private int eventMS;
+        private int backupMS;
+        private int terrainMS;
+        private int landMS;
+        private int lastCompletedFrame;
 
-        protected SceneCommunicationService m_sceneGridService;
-        public bool LoginsDisabled = true;
+        private bool m_physics_enabled = true;
+        private bool m_scripts_enabled = true;
+        private string m_defaultScriptEngine;
+        private int m_LastLogin;
+        private Thread HeartbeatThread;
+        private volatile bool shuttingdown;
 
+        private int m_lastUpdate;
+        private bool m_firstHeartbeat = true;
+
+        private object m_deleting_scene_object = new object();
+        private object m_cleaningAttachments = new object();
+
+        private UpdatePrioritizationSchemes m_priorityScheme = UpdatePrioritizationSchemes.Time;
+        private bool m_reprioritizationEnabled = true;
+        private double m_reprioritizationInterval = 5000.0;
+        private double m_rootReprioritizationDistance = 10.0;
+        private double m_childReprioritizationDistance = 20.0;
+
+        private Timer m_mapGenerationTimer = new Timer();
+        private bool m_generateMaptiles;
+
+        private Dictionary<UUID, string[]> m_UserNamesCache = new Dictionary<UUID, string[]>();
+
+        #endregion Fields
+
+        #region Properties
+
+        /* Used by the loadbalancer plugin on GForge */
+        public int SplitRegionID
+        {
+            get { return m_splitRegionID; }
+            set { m_splitRegionID = value; }
+        }
+
+        public bool BordersLocked
+        {
+            get { return m_bordersLocked == 1; }
+            set
+            {
+                if (value == true)
+                    m_bordersLocked = 1;
+                else
+                    m_bordersLocked = 0;
+            }
+        }
+        
         public new float TimeDilation
         {
             get { return m_sceneGraph.PhysicsScene.TimeDilation; }
@@ -147,12 +220,41 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_sceneGridService; }
         }
 
-        public IXfer XferManager;
+        public ISimulationDataService SimulationDataService
+        {
+            get
+            {
+                if (m_SimulationDataService == null)
+                {
+                    m_SimulationDataService = RequestModuleInterface<ISimulationDataService>();
 
-        protected IAssetService m_AssetService;
-        protected IAuthorizationService m_AuthorizationService;
+                    if (m_SimulationDataService == null)
+                    {
+                        throw new Exception("No ISimulationDataService available.");
+                    }
+                }
 
-        private Object m_heartbeatLock = new Object();
+                return m_SimulationDataService;
+            }
+        }
+
+        public IEstateDataService EstateDataService
+        {
+            get
+            {
+                if (m_EstateDataService == null)
+                {
+                    m_EstateDataService = RequestModuleInterface<IEstateDataService>();
+
+                    if (m_EstateDataService == null)
+                    {
+                        throw new Exception("No IEstateDataService available.");
+                    }
+                }
+
+                return m_EstateDataService;
+            }
+        }
 
         public IAssetService AssetService
         {
@@ -191,8 +293,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        protected IInventoryService m_InventoryService;
-
         public IInventoryService InventoryService
         {
             get
@@ -210,8 +310,6 @@ namespace OpenSim.Region.Framework.Scenes
                 return m_InventoryService;
             }
         }
-
-        protected IGridService m_GridService;
 
         public IGridService GridService
         {
@@ -231,8 +329,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        protected ILibraryService m_LibraryService;
-
         public ILibraryService LibraryService
         {
             get
@@ -244,7 +340,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        protected ISimulationService m_simulationService;
         public ISimulationService SimulationService
         {
             get
@@ -255,7 +350,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        protected IAuthenticationService m_AuthenticationService;
         public IAuthenticationService AuthenticationService
         {
             get
@@ -266,7 +360,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        protected IPresenceService m_PresenceService;
         public IPresenceService PresenceService
         {
             get
@@ -276,7 +369,7 @@ namespace OpenSim.Region.Framework.Scenes
                 return m_PresenceService;
             }
         }
-        protected IUserAccountService m_UserAccountService;
+
         public IUserAccountService UserAccountService
         {
             get
@@ -287,8 +380,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        protected OpenSim.Services.Interfaces.IAvatarService m_AvatarService;
-        public OpenSim.Services.Interfaces.IAvatarService AvatarService
+        public IAvatarService AvatarService
         {
             get
             {
@@ -298,7 +390,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        protected IGridUserService m_GridUserService;
         public IGridUserService GridUserService
         {
             get
@@ -309,19 +400,12 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        protected IXMLRPC m_xmlrpcModule;
-        protected IWorldComm m_worldCommModule;
         public IAttachmentsModule AttachmentsModule { get; set; }
-        protected IAvatarFactory m_AvatarFactory;
+
         public IAvatarFactory AvatarFactory
         {
             get { return m_AvatarFactory; }
         }
-        protected IConfigSource m_config;
-        protected IRegionSerialiserModule m_serialiser;
-        protected IDialogModule m_dialogModule;
-        protected IEntityTransferModule m_teleportModule;
-
         #region REGION SYNC
         protected IRegionSyncServerModule m_regionSyncServerModule;
         protected IRegionSyncClientModule m_regionSyncClientModule;
@@ -462,7 +546,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             GridRegion regionInfo = GridService.GetRegionByName(UUID.Zero, regionName);
             //TODO: need to load objects from the specified space
-            List<SceneObjectGroup> PrimsFromDB = m_storageManager.DataStore.LoadObjectsInGivenSpace(regionInfo.RegionID, minX, minY, maxX, maxY);
+            List<SceneObjectGroup> PrimsFromDB = m_SimulationDataService.LoadObjectsInGivenSpace(regionInfo.RegionID, minX, minY, maxX, maxY);
 
             m_log.Info("[SCENE]: Loaded " + PrimsFromDB.Count + " objects from the datastore");
 
@@ -471,7 +555,7 @@ namespace OpenSim.Region.Framework.Scenes
                 if (group.RootPart == null)
                 {
                     m_log.ErrorFormat("[SCENE] Found a SceneObjectGroup with m_rootPart == null and {0} children",
-                                      group.Children == null ? 0 : group.Children.Count);
+                                      group.Parts == null ? 0 : group.Parts.Length);
                 }
 
                 AddRestoredSceneObject(group, true, true);
@@ -490,45 +574,10 @@ namespace OpenSim.Region.Framework.Scenes
         // }
 
         #endregion 
-
-        protected ICapabilitiesModule m_capsModule;
         public ICapabilitiesModule CapsModule
         {
             get { return m_capsModule; }
         }
-
-        protected override IConfigSource GetConfig()
-        {
-            return m_config;
-        }
-
-        // Central Update Loop
-
-        protected int m_fps = 10;
-        protected uint m_frame;
-        protected float m_timespan = 0.089f;
-        protected DateTime m_lastupdate = DateTime.UtcNow;
-
-        private int m_update_physics = 1;
-        private int m_update_entitymovement = 1;
-        private int m_update_objects = 1; // Update objects which have scheduled themselves for updates
-        private int m_update_presences = 1; // Update scene presence movements
-        private int m_update_events = 1;
-        private int m_update_backup = 200;
-        private int m_update_terrain = 50;
-        private int m_update_land = 1;
-        private int m_update_coarse_locations = 50;
-
-        private int frameMS;
-        private int physicsMS2;
-        private int physicsMS;
-        private int otherMS;
-        private int tempOnRezMS;
-        private int eventMS;
-        private int backupMS;
-        private int terrainMS;
-        private int landMS;
-        private int lastCompletedFrame;
 
         public int MonitorFrameTime { get { return frameMS; } }
         public int MonitorPhysicsUpdateTime { get { return physicsMS; } }
@@ -540,33 +589,6 @@ namespace OpenSim.Region.Framework.Scenes
         public int MonitorTerrainTime { get { return terrainMS; } }
         public int MonitorLandTime { get { return landMS; } }
         public int MonitorLastFrameTick { get { return lastCompletedFrame; } }
-
-        private bool m_physics_enabled = true;
-        private bool m_scripts_enabled = true;
-        private string m_defaultScriptEngine;
-        private int m_LastLogin;
-        private Thread HeartbeatThread;
-        private volatile bool shuttingdown;
-
-        private int m_lastUpdate;
-        private bool m_firstHeartbeat = true;
-
-        private object m_deleting_scene_object = new object();
-
-        // the minimum time that must elapse before a changed object will be considered for persisted
-        public long m_dontPersistBefore = DEFAULT_MIN_TIME_FOR_PERSISTENCE * 10000000L;
-        // the maximum time that must elapse before a changed object will be considered for persisted
-        public long m_persistAfter = DEFAULT_MAX_TIME_FOR_PERSISTENCE * 10000000L;
-
-        private UpdatePrioritizationSchemes m_priorityScheme = UpdatePrioritizationSchemes.Time;
-        private bool m_reprioritizationEnabled = true;
-        private double m_reprioritizationInterval = 5000.0;
-        private double m_rootReprioritizationDistance = 10.0;
-        private double m_childReprioritizationDistance = 20.0;
-
-        #endregion
-
-        #region Properties
 
         public UpdatePrioritizationSchemes UpdatePrioritizationScheme { get { return m_priorityScheme; } }
         public bool IsReprioritizationEnabled { get { return m_reprioritizationEnabled; } }
@@ -647,80 +669,13 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_sceneGraph.RestorePresences = value; }
         }
 
-        #endregion
-
-        #region BinaryStats
-
-        public class StatLogger
-        {
-            public DateTime StartTime;
-            public string Path;
-            public System.IO.BinaryWriter Log;
-        }
-        static StatLogger m_statLog = null;
-        static TimeSpan m_statLogPeriod = TimeSpan.FromSeconds(300);
-        static string m_statsDir = String.Empty;
-        static Object m_statLockObject = new Object();
-        private void LogSimStats(SimStats stats)
-        {
-            SimStatsPacket pack = new SimStatsPacket();
-            pack.Region = new SimStatsPacket.RegionBlock();
-            pack.Region.RegionX = stats.RegionX;
-            pack.Region.RegionY = stats.RegionY;
-            pack.Region.RegionFlags = stats.RegionFlags;
-            pack.Region.ObjectCapacity = stats.ObjectCapacity;
-            //pack.Region = //stats.RegionBlock;
-            pack.Stat = stats.StatsBlock;
-            pack.Header.Reliable = false;
-
-            // note that we are inside the reporter lock when called
-            DateTime now = DateTime.Now;
-
-            // hide some time information into the packet
-            pack.Header.Sequence = (uint)now.Ticks;
-
-            lock (m_statLockObject) // m_statLog is shared so make sure there is only executer here
-            {
-                try
-                {
-                    if (m_statLog == null || now > m_statLog.StartTime + m_statLogPeriod)
-                    {
-                        // First log file or time has expired, start writing to a new log file
-                        if (m_statLog != null && m_statLog.Log != null)
-                        {
-                            m_statLog.Log.Close();
-                        }
-                        m_statLog = new StatLogger();
-                        m_statLog.StartTime = now;
-                        m_statLog.Path = (m_statsDir.Length > 0 ? m_statsDir + System.IO.Path.DirectorySeparatorChar.ToString() : "")
-                                + String.Format("stats-{0}.log", now.ToString("yyyyMMddHHmmss"));
-                        m_statLog.Log = new BinaryWriter(File.Open(m_statLog.Path, FileMode.Append, FileAccess.Write));
-                    }
-
-                    // Write the serialized data to disk
-                    if (m_statLog != null && m_statLog.Log != null)
-                        m_statLog.Log.Write(pack.ToBytes());
-                }
-                catch (Exception ex)
-                {
-                    m_log.Error("statistics gathering failed: " + ex.Message, ex);
-                    if (m_statLog != null && m_statLog.Log != null)
-                    {
-                        m_statLog.Log.Close();
-                    }
-                    m_statLog = null;
-                }
-            }
-            return;
-        }
-
-        #endregion
+        #endregion Properties
 
         #region Constructors
 
         public Scene(RegionInfo regInfo, AgentCircuitManager authen,
                      SceneCommunicationService sceneGridService,
-                     StorageManager storeManager,
+                     ISimulationDataService simDataService, IEstateDataService estateDataService,
                      ModuleLoader moduleLoader, bool dumpAssetsToFile, bool physicalPrim,
                      bool SeeIntoRegionFromNeighbor, IConfigSource config, string simulatorVersion)
         {
@@ -756,7 +711,8 @@ namespace OpenSim.Region.Framework.Scenes
             m_moduleLoader = moduleLoader;
             m_authenticateHandler = authen;
             m_sceneGridService = sceneGridService;
-            m_storageManager = storeManager;
+            m_SimulationDataService = simDataService;
+            m_EstateDataService = estateDataService;
             m_regInfo = regInfo;
             m_regionHandle = m_regInfo.RegionHandle;
             m_regionName = m_regInfo.RegionName;
@@ -775,50 +731,9 @@ namespace OpenSim.Region.Framework.Scenes
             #region Region Settings
 
             // Load region settings
-            m_regInfo.RegionSettings = m_storageManager.DataStore.LoadRegionSettings(m_regInfo.RegionID);
-            if (m_storageManager.EstateDataStore != null)
-            {
-                m_regInfo.EstateSettings = m_storageManager.EstateDataStore.LoadEstateSettings(m_regInfo.RegionID, false);
-                if (m_regInfo.EstateSettings.EstateID == 0) // No record at all
-                {
-                    MainConsole.Instance.Output("Your region is not part of an estate.");
-                    while (true)
-                    {
-                        string response = MainConsole.Instance.CmdPrompt("Do you wish to join an existing estate?", "no", new List<string>() {"yes", "no"});
-                        if (response == "no")
-                        {
-                            // Create a new estate
-                            m_regInfo.EstateSettings = m_storageManager.EstateDataStore.LoadEstateSettings(m_regInfo.RegionID, true);
-
-                            m_regInfo.EstateSettings.EstateName = MainConsole.Instance.CmdPrompt("New estate name", m_regInfo.EstateSettings.EstateName);
-                            m_regInfo.EstateSettings.Save();
-                            break;
-                        }
-                        else
-                        {
-                            response = MainConsole.Instance.CmdPrompt("Estate name to join", "None");
-                            if (response == "None")
-                                continue;
-
-                            List<int> estateIDs = m_storageManager.EstateDataStore.GetEstates(response);
-                            if (estateIDs.Count < 1)
-                            {
-                                MainConsole.Instance.Output("The name you have entered matches no known estate. Please try again");
-                                continue;
-                            }
-
-                            int estateID = estateIDs[0];
-
-                            m_regInfo.EstateSettings = m_storageManager.EstateDataStore.LoadEstateSettings(estateID);
-
-                            if (m_storageManager.EstateDataStore.LinkRegion(m_regInfo.RegionID, estateID))
-                                break;
-
-                            MainConsole.Instance.Output("Joining the estate failed. Please try again.");
-                        }
-                    }
-                }
-            }
+            m_regInfo.RegionSettings = simDataService.LoadRegionSettings(m_regInfo.RegionID);
+            if (estateDataService != null)
+                m_regInfo.EstateSettings = estateDataService.LoadEstateSettings(m_regInfo.RegionID, false);
 
             #endregion Region Settings
 
@@ -828,9 +743,9 @@ namespace OpenSim.Region.Framework.Scenes
 
             //Bind Storage Manager functions to some land manager functions for this scene
             EventManager.OnLandObjectAdded +=
-                new EventManager.LandObjectAdded(m_storageManager.DataStore.StoreLandObject);
+                new EventManager.LandObjectAdded(simDataService.StoreLandObject);
             EventManager.OnLandObjectRemoved +=
-                new EventManager.LandObjectRemoved(m_storageManager.DataStore.RemoveLandObject);
+                new EventManager.LandObjectRemoved(simDataService.RemoveLandObject);
 
             m_sceneGraph = new SceneGraph(this, m_regInfo);
 
@@ -853,8 +768,6 @@ namespace OpenSim.Region.Framework.Scenes
             StatsReporter = new SimStatsReporter(this);
             StatsReporter.OnSendStatsResult += SendSimStatsPackets;
             StatsReporter.OnStatsIncorrect += m_sceneGraph.RecalculateStats;
-
-            StatsReporter.SetObjectCapacity(RegionInfo.ObjectCapacity);
 
             // Old
             /*
@@ -926,37 +839,28 @@ namespace OpenSim.Region.Framework.Scenes
 
                 m_strictAccessControl = startupConfig.GetBoolean("StrictAccessControl", m_strictAccessControl);
 
-                #region BinaryStats
-
-                try
+                m_generateMaptiles = startupConfig.GetBoolean("GenerateMaptiles", true);
+                if (m_generateMaptiles)
                 {
-                    IConfig statConfig = m_config.Configs["Statistics.Binary"];
-                    if (statConfig.Contains("enabled") && statConfig.GetBoolean("enabled"))
+                    int maptileRefresh = startupConfig.GetInt("MaptileRefresh", 0);
+                    if (maptileRefresh != 0)
                     {
-                        if (statConfig.Contains("collect_region_stats"))
-                        {
-                            if (statConfig.GetBoolean("collect_region_stats"))
-                            {
-                                // if enabled, add us to the event. If not enabled, I won't get called
-                                StatsReporter.OnSendStatsResult += LogSimStats;
-                            }
-                        }
-                        if (statConfig.Contains("region_stats_period_seconds"))
-                        {
-                            m_statLogPeriod = TimeSpan.FromSeconds(statConfig.GetInt("region_stats_period_seconds"));
-                        }
-                        if (statConfig.Contains("stats_dir"))
-                        {
-                            m_statsDir = statConfig.GetString("stats_dir");
-                        }
+                        m_mapGenerationTimer.Interval = maptileRefresh * 1000;
+                        m_mapGenerationTimer.Elapsed += RegenerateMaptile;
+                        m_mapGenerationTimer.AutoReset = true;
+                        m_mapGenerationTimer.Start();
                     }
                 }
-                catch
+                else
                 {
-                    // if it doesn't work, we don't collect anything
-                }
+                    string tile = startupConfig.GetString("MaptileStaticUUID", UUID.Zero.ToString());
+                    UUID tileID;
 
-                #endregion BinaryStats
+                    if (UUID.TryParse(tile, out tileID))
+                    {
+                        RegionInfo.RegionSettings.TerrainImageID = tileID;
+                    }
+                }
             }
             catch
             {
@@ -1060,36 +964,6 @@ namespace OpenSim.Region.Framework.Scenes
         public override string GetSimulatorVersion()
         {
             return m_simulatorVersion;
-        }
-
-        public string[] GetUserNames(UUID uuid)
-        {
-            string[] returnstring = new string[0];
-
-            UserAccount account = UserAccountService.GetUserAccount(RegionInfo.ScopeID, uuid);
-
-            if (account != null)
-            {
-                returnstring = new string[2];
-                returnstring[0] = account.FirstName;
-                returnstring[1] = account.LastName;
-            }
-
-            return returnstring;
-        }
-
-        public string GetUserName(UUID uuid)
-        {
-            string[] names = GetUserNames(uuid);
-            if (names.Length == 2)
-            {
-                string firstname = names[0];
-                string lastname = names[1];
-
-                return firstname + " " + lastname;
-
-            }
-            return "(hippos)";
         }
 
         /// <summary>
@@ -1315,29 +1189,30 @@ namespace OpenSim.Region.Framework.Scenes
                 if (ScriptEngine)
                 {
                     m_log.Info("Stopping all Scripts in Scene");
-                    foreach (EntityBase ent in Entities)
+                    
+                    EntityBase[] entities = Entities.GetEntities();
+                    foreach (EntityBase ent in entities)
                     {
                         if (ent is SceneObjectGroup)
-                        {
-                            ((SceneObjectGroup) ent).RemoveScriptInstances(false);
-                        }
+                            ((SceneObjectGroup)ent).RemoveScriptInstances(false);
                     }
                 }
                 else
                 {
                     m_log.Info("Starting all Scripts in Scene");
-                    lock (Entities)
+
+                    EntityBase[] entities = Entities.GetEntities();
+                    foreach (EntityBase ent in entities)
                     {
-                        foreach (EntityBase ent in Entities)
+                        if (ent is SceneObjectGroup)
                         {
-                            if (ent is SceneObjectGroup)
-                            {
-                                ((SceneObjectGroup)ent).CreateScriptInstances(0, false, DefaultScriptEngine, 0);
-                                ((SceneObjectGroup)ent).ResumeScripts();
-                            }
+                            SceneObjectGroup sog = (SceneObjectGroup)ent;
+                            sog.CreateScriptInstances(0, false, DefaultScriptEngine, 0);
+                            sog.ResumeScripts();
                         }
                     }
                 }
+
                 m_scripts_enabled = !ScriptEngine;
                 m_log.Info("[TOTEDD]: Here is the method to trigger disabling of the scripting engine");
             }
@@ -1384,12 +1259,12 @@ namespace OpenSim.Region.Framework.Scenes
             shuttingdown = true;
 
             m_log.Debug("[SCENE]: Persisting changed objects");
-            List<EntityBase> entities = GetEntities();
+            EntityBase[] entities = GetEntities();
             foreach (EntityBase entity in entities)
             {
                 if (!entity.IsDeleted && entity is SceneObjectGroup && ((SceneObjectGroup)entity).HasGroupChanged)
                 {
-                    ((SceneObjectGroup)entity).ProcessBackup(m_storageManager.DataStore, false);
+                    ((SceneObjectGroup)entity).ProcessBackup(SimulationDataService, false);
                 }
             }
 
@@ -1449,9 +1324,9 @@ namespace OpenSim.Region.Framework.Scenes
             while (m_regInfo.EstateSettings.EstateOwner == UUID.Zero && MainConsole.Instance != null)
             {
                 MainConsole.Instance.Output("The current estate has no owner set.");
-                string first = "Test";// MainConsole.Instance.CmdPrompt("Estate owner first name", "Test");
-                string last = "User";// MainConsole.Instance.CmdPrompt("Estate owner last name", "User");
-                MainConsole.Instance.Output(String.Format("Setting estate owner to {0} {1}.", first, last));
+                List<char> excluded = new List<char>(new char[1]{' '});
+                string first = MainConsole.Instance.CmdPrompt("Estate owner first name", "Test", excluded);
+                string last = MainConsole.Instance.CmdPrompt("Estate owner last name", "User", excluded);
 
                 UserAccount account = UserAccountService.GetUserAccount(m_regInfo.ScopeID, first, last);
 
@@ -1513,7 +1388,7 @@ namespace OpenSim.Region.Framework.Scenes
                         m_regInfo.EstateSettings.Save();
                     }
                     else
-                        m_log.ErrorFormat("[SCENE]: Unable to store account. If this simulator is connected to a grid,\n you must create the estate owner account first.");
+                        m_log.ErrorFormat("[SCENE]: Unable to store account. If this simulator is connected to a grid, you must create the estate owner account first.");
                 }
                 else
                 {
@@ -1593,6 +1468,7 @@ namespace OpenSim.Region.Framework.Scenes
                     // This will get fixed later to only send to locally logged in presences rather than all presences
                     // but requires pulling apart the concept of a client from the concept of a presence/avatar
                     if (IsSyncedClient())
+
                     {
                         ForEachScenePresence(delegate(ScenePresence sp) { sp.SendPrimUpdates(); });
                         if(m_frame % 20 == 0)
@@ -1660,6 +1536,8 @@ namespace OpenSim.Region.Framework.Scenes
                             m_sceneGraph.UpdateScenePresenceMovement();
                     }
 
+                    // Perform the main physics update.  This will do the actual work of moving objects and avatars according to their
+                    // velocity
                     int tmpPhysicsMS = Util.EnvironmentTickCount();
                     // Do not simulate physics locally if this is a synced client
                     //if (!IsSyncedClient())
@@ -1913,18 +1791,22 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         private void BackupWaitCallback(object o)
         {
-            Backup();
+            Backup(false);
         }
-
+        
         /// <summary>
         /// Backup the scene.  This acts as the main method of the backup thread.
         /// </summary>
+        /// <param name="forced">
+        /// If true, then any changes that have not yet been persisted are persisted.  If false,
+        /// then the persistence decision is left to the backup code (in some situations, such as object persistence,
+        /// it's much more efficient to backup multiple changes at once rather than every single one).
         /// <returns></returns>
-        public void Backup()
+        public void Backup(bool forced)
         {
             lock (m_returns)
             {
-                EventManager.TriggerOnBackup(m_storageManager.DataStore);
+                EventManager.TriggerOnBackup(SimulationDataService, forced);
                 m_backingup = false;
 
                 foreach (KeyValuePair<UUID, ReturnInfo> ret in m_returns)
@@ -1965,7 +1847,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (group != null)
             {
-                group.ProcessBackup(m_storageManager.DataStore, true);
+                group.ProcessBackup(SimulationDataService, true);
             }
         }
 
@@ -2007,19 +1889,19 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void SaveTerrain()
         {
-            m_storageManager.DataStore.StoreTerrain(Heightmap.GetDoubles(), RegionInfo.RegionID);
+            SimulationDataService.StoreTerrain(Heightmap.GetDoubles(), RegionInfo.RegionID);
         }
 
         public void StoreWindlightProfile(RegionLightShareData wl)
         {
             m_regInfo.WindlightSettings = wl;
-            m_storageManager.DataStore.StoreRegionWindlightSettings(wl);
+            SimulationDataService.StoreRegionWindlightSettings(wl);
             m_eventManager.TriggerOnSaveNewWindlightProfile();
         }
 
         public void LoadWindlightProfile()
         {
-            m_regInfo.WindlightSettings = m_storageManager.DataStore.LoadRegionWindlightSettings(RegionInfo.RegionID);
+            m_regInfo.WindlightSettings = SimulationDataService.LoadRegionWindlightSettings(RegionInfo.RegionID);
             m_eventManager.TriggerOnSaveNewWindlightProfile();
         }
 
@@ -2030,13 +1912,13 @@ namespace OpenSim.Region.Framework.Scenes
         {
             try
             {
-                double[,] map = m_storageManager.DataStore.LoadTerrain(RegionInfo.RegionID);
+                double[,] map = SimulationDataService.LoadTerrain(RegionInfo.RegionID);
                 if (map == null)
                 {
                     m_log.Info("[TERRAIN]: No default terrain. Generating a new terrain.");
                     Heightmap = new TerrainChannel();
 
-                    m_storageManager.DataStore.StoreTerrain(Heightmap.GetDoubles(), RegionInfo.RegionID);
+                    SimulationDataService.StoreTerrain(Heightmap.GetDoubles(), RegionInfo.RegionID);
                 }
                 else
                 {
@@ -2053,7 +1935,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     Heightmap = new TerrainChannel();
 
-                    m_storageManager.DataStore.StoreTerrain(Heightmap.GetDoubles(), RegionInfo.RegionID);
+                    SimulationDataService.StoreTerrain(Heightmap.GetDoubles(), RegionInfo.RegionID);
                 }
             }
             catch (Exception e)
@@ -2077,42 +1959,20 @@ namespace OpenSim.Region.Framework.Scenes
 
             m_sceneGridService.SetScene(this);
 
-            // These two 'commands' *must be* next to each other or sim rebooting fails.
-            //m_sceneGridService.RegisterRegion(m_interregionCommsOut, RegionInfo);
-
-            GridRegion region = new GridRegion(RegionInfo);
-            string error = GridService.RegisterRegion(RegionInfo.ScopeID, region);
-            if (error != String.Empty)
+            // If we generate maptiles internally at all, the maptile generator
+            // will register the region. If not, do it here
+            if (m_generateMaptiles)
             {
-                throw new Exception(error);
+                RegenerateMaptile(null, null);
             }
-
-        }
-
-        /// <summary>
-        /// Create a terrain texture for this scene
-        /// </summary>
-        public void CreateTerrainTexture()
-        {
-            //create a texture asset of the terrain
-            IMapImageGenerator terrain = RequestModuleInterface<IMapImageGenerator>();
-
-            // Cannot create a map for a nonexistant heightmap yet.
-            if (Heightmap == null)
-                return;
-
-            if (terrain == null)
-                return;
-
-            byte[] data = terrain.WriteJpeg2000Image("defaultstripe.png");
-            if (data != null)
+            else
             {
-                IWorldMapModule mapModule = RequestModuleInterface<IWorldMapModule>();
-
-                if (mapModule != null)
-                    mapModule.RegenerateMaptile(data);
-                else
-                    m_log.DebugFormat("[SCENE]: MapModule is null, can't save maptile");
+                GridRegion region = new GridRegion(RegionInfo);
+                string error = GridService.RegisterRegion(RegionInfo.ScopeID, region);
+                if (error != String.Empty)
+                {
+                    throw new Exception(error);
+                }
             }
         }
 
@@ -2127,7 +1987,7 @@ namespace OpenSim.Region.Framework.Scenes
         public void loadAllLandObjectsFromStorage(UUID regionID)
         {
             m_log.Info("[SCENE]: Loading land objects from storage");
-            List<LandData> landData = m_storageManager.DataStore.LoadLandObjects(regionID);
+            List<LandData> landData = SimulationDataService.LoadLandObjects(regionID);
 
             if (LandChannel != null)
             {
@@ -2155,29 +2015,34 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public virtual void LoadPrimsFromStorage(UUID regionID)
         {
+            LoadingPrims = true;
             m_log.Info("[SCENE]: Loading objects from datastore");
 
-            List<SceneObjectGroup> PrimsFromDB = m_storageManager.DataStore.LoadObjects(regionID);
+            List<SceneObjectGroup> PrimsFromDB = SimulationDataService.LoadObjects(regionID);
 
             m_log.Info("[SCENE]: Loaded " + PrimsFromDB.Count + " objects from the datastore");
 
             foreach (SceneObjectGroup group in PrimsFromDB)
             {
+                EventManager.TriggerOnSceneObjectLoaded(group);
+                
                 if (group.RootPart == null)
                 {
-                    m_log.ErrorFormat("[SCENE] Found a SceneObjectGroup with m_rootPart == null and {0} children",
-                                      group.Children == null ? 0 : group.Children.Count);
+                    m_log.ErrorFormat(
+                        "[SCENE]: Found a SceneObjectGroup with m_rootPart == null and {0} children",
+                        group.Parts == null ? 0 : group.PrimCount);
                 }
 
                 AddRestoredSceneObject(group, true, true);
                 SceneObjectPart rootPart = group.GetChildPart(group.UUID);
-                rootPart.ObjectFlags &= ~(uint)PrimFlags.Scripted;
+                rootPart.Flags &= ~PrimFlags.Scripted;
                 rootPart.TrimPermissions();
                 group.CheckSculptAndLoad();
                 //rootPart.DoPhysicsPropertyUpdate(UsePhysics, true);
             }
 
             m_log.Info("[SCENE]: Loaded " + PrimsFromDB.Count.ToString() + " SceneObject(s)");
+            LoadingPrims = false;
         }
 
 
@@ -2336,7 +2201,7 @@ namespace OpenSim.Region.Framework.Scenes
             sceneObject.ScheduleGroupForFullUpdate();
 
             return sceneObject;
-        }    
+        }
         
         /// <summary>
         /// Add an object into the scene that has come from storage
@@ -2415,6 +2280,23 @@ namespace OpenSim.Region.Framework.Scenes
         {
             return m_sceneGraph.AddNewSceneObject(sceneObject, attachToBackup, sendClientUpdates);
         }
+        
+        /// <summary>
+        /// Add a newly created object to the scene.
+        /// </summary>
+        /// 
+        /// This method does not send updates to the client - callers need to handle this themselves.
+        /// <param name="sceneObject"></param>
+        /// <param name="attachToBackup"></param>
+        /// <param name="pos">Position of the object</param>
+        /// <param name="rot">Rotation of the object</param>
+        /// <param name="vel">Velocity of the object.  This parameter only has an effect if the object is physical</param>
+        /// <returns></returns>
+        public bool AddNewSceneObject(
+            SceneObjectGroup sceneObject, bool attachToBackup, Vector3 pos, Quaternion rot, Vector3 vel)
+        {
+            return m_sceneGraph.AddNewSceneObject(sceneObject, attachToBackup, pos, rot, vel);
+        }
 
         /// <summary>
         /// Delete every object from the scene.  This does not include attachments worn by avatars.
@@ -2423,8 +2305,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             lock (Entities)
             {
-                ICollection<EntityBase> entities = new List<EntityBase>(Entities);
-
+                EntityBase[] entities = Entities.GetEntities();
                 foreach (EntityBase e in entities)
                 {
                     if (e is SceneObjectGroup)
@@ -2455,9 +2336,11 @@ namespace OpenSim.Region.Framework.Scenes
                 group.RemoveScriptInstances(true);
             }
 
-            foreach (SceneObjectPart part in group.Children.Values)
+            SceneObjectPart[] partList = group.Parts;
+
+            foreach (SceneObjectPart part in partList)
             {
-                if (part.IsJoint() && ((part.ObjectFlags&(uint)PrimFlags.Physics) != 0))
+                if (part.IsJoint() && ((part.Flags & PrimFlags.Physics) != 0))
                 {
                     PhysicsScene.RequestJointDeletion(part.Name); // FIXME: what if the name changed?
                 }
@@ -2467,19 +2350,20 @@ namespace OpenSim.Region.Framework.Scenes
                     part.PhysActor = null;
                 }
             }
+            
 //            if (rootPart.PhysActor != null)
 //            {
 //                PhysicsScene.RemovePrim(rootPart.PhysActor);
 //                rootPart.PhysActor = null;
 //            }
 
-            if (UnlinkSceneObject(group.UUID, false))
+            if (UnlinkSceneObject(group, false))
             {
                 EventManager.TriggerObjectBeingRemovedFromScene(group);
                 EventManager.TriggerParcelPrimCountTainted();
             }
 
-            group.DeleteGroup(silent);
+            group.DeleteGroupFromScene(silent);
 
 //            m_log.DebugFormat("[SCENE]: Exit DeleteSceneObject() for {0} {1}", group.Name, group.UUID);
         }
@@ -2488,18 +2372,25 @@ namespace OpenSim.Region.Framework.Scenes
         /// Unlink the given object from the scene.  Unlike delete, this just removes the record of the object - the
         /// object itself is not destroyed.
         /// </summary>
-        /// <param name="uuid">Id of object.</param>
+        /// <param name="so">The scene object.</param>
+        /// <param name="softDelete">If true, only deletes from scene, but keeps the object in the database.</param>
         /// <returns>true if the object was in the scene, false if it was not</returns>
-        /// <param name="softDelete">If true, only deletes from scene, but keeps object in database.</param>
-        public bool UnlinkSceneObject(UUID uuid, bool softDelete)
+        public bool UnlinkSceneObject(SceneObjectGroup so, bool softDelete)
         {
-            if (m_sceneGraph.DeleteSceneObject(uuid, softDelete))
+            if (m_sceneGraph.DeleteSceneObject(so.UUID, softDelete))
             {
                 if (!softDelete)
                 {
-                    m_storageManager.DataStore.RemoveObject(uuid,
-                                                            m_regInfo.RegionID);
+                    // Force a database update so that the scene object group ID is accurate.  It's possible that the
+                    // group has recently been delinked from another group but that this change has not been persisted
+                    // to the DB.
+                    ForceSceneObjectBackup(so);
+                    so.DetachFromBackup();
+                    SimulationDataService.RemoveObject(so.UUID, m_regInfo.RegionID);
                 }
+                                    
+                // We need to keep track of this state in case this group is still queued for further backup.
+                so.IsDeleted = true;
 
                 return true;
             }
@@ -2530,7 +2421,7 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 catch (Exception)
                 {
-                    m_log.Warn("[DATABASE]: exception when trying to remove the prim that crossed the border.");
+                    m_log.Warn("[SCENE]: exception when trying to remove the prim that crossed the border.");
                 }
                 return;
             }
@@ -2547,7 +2438,7 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 catch (Exception)
                 {
-                    m_log.Warn("[DATABASE]: exception when trying to return the prim that crossed the border.");
+                    m_log.Warn("[SCENE]: exception when trying to return the prim that crossed the border.");
                 }
                 return;
             }
@@ -2751,7 +2642,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
             catch (Exception e)
             {
-                m_log.WarnFormat("[SCENE]: Problem casting object: {0}", e.Message);
+                m_log.WarnFormat("[SCENE]: Problem casting object: " + e.ToString());
                 return false;
             }
 
@@ -2761,7 +2652,7 @@ namespace OpenSim.Region.Framework.Scenes
                 return false;
             }
             
-            newObject.RootPart.ParentGroup.CreateScriptInstances(0, false, DefaultScriptEngine, 1);
+            newObject.RootPart.ParentGroup.CreateScriptInstances(0, false, DefaultScriptEngine, 2);
 
             newObject.ResumeScripts();
 
@@ -2786,7 +2677,7 @@ namespace OpenSim.Region.Framework.Scenes
             ScenePresence sp = GetScenePresence(userID);
             if (sp != null && AttachmentsModule != null)
             {
-                uint attPt = (uint)sp.Appearance.GetAttachpoint(itemID);                
+                uint attPt = (uint)sp.Appearance.GetAttachpoint(itemID);
                 AttachmentsModule.RezSingleAttachmentFromInventory(sp.ControllingClient, itemID, attPt);
             }
 
@@ -2817,17 +2708,17 @@ namespace OpenSim.Region.Framework.Scenes
 
             // Force allocation of new LocalId
             //
-            foreach (SceneObjectPart p in sceneObject.Children.Values)
-                p.LocalId = 0;
+            SceneObjectPart[] parts = sceneObject.Parts;
+            for (int i = 0; i < parts.Length; i++)
+                parts[i].LocalId = 0;
 
             if (sceneObject.IsAttachmentCheckFull()) // Attachment
             {
                 sceneObject.RootPart.AddFlag(PrimFlags.TemporaryOnRez);
                 sceneObject.RootPart.AddFlag(PrimFlags.Phantom);
-
                       
                 // Don't sent a full update here because this will cause full updates to be sent twice for 
-                // attachments on region crossings, resulting in viewer glitches.                
+                // attachments on region crossings, resulting in viewer glitches.
                 AddRestoredSceneObject(sceneObject, false, false, false);
 
                 // Handle attachment special case
@@ -2838,7 +2729,6 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if (sp != null)
                 {
-
                     SceneObjectGroup grp = sceneObject;
 
                     m_log.DebugFormat(
@@ -2850,7 +2740,6 @@ namespace OpenSim.Region.Framework.Scenes
                     
                     if (AttachmentsModule != null)
                         AttachmentsModule.AttachObject(sp.ControllingClient, grp, 0, false);
-
                 }
                 else
                 {
@@ -2914,18 +2803,24 @@ namespace OpenSim.Region.Framework.Scenes
         public void AddNewClient2(IClientAPI client, bool managed)
         {
 
+            AgentCircuitData aCircuit = m_authenticateHandler.GetAgentCircuitData(client.CircuitCode);
             bool vialogin = false;
 
-            if(managed)
-                m_clientManager.Add(client);
+            if (aCircuit == null) // no good, didn't pass NewUserConnection successfully
+                return;
+
+            vialogin = (aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaHGLogin) != 0 || 
+                       (aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaLogin) != 0;
 
             CheckHeartbeat();
-            SubscribeToClientEvents(client);
             ScenePresence presence;
 
             if (m_restorePresences.ContainsKey(client.AgentId))
             {
                 m_log.DebugFormat("[SCENE]: Restoring agent {0} {1} in {2}", client.Name, client.AgentId, RegionInfo.RegionName);
+
+                m_clientManager.Add(client);
+                SubscribeToClientEvents(client);
 
                 presence = m_restorePresences[client.AgentId];
                 m_restorePresences.Remove(client.AgentId);
@@ -2940,7 +2835,8 @@ namespace OpenSim.Region.Framework.Scenes
 
                 // REGION SYNC
                 // The owner is not being set properly when there is no circuit. Hmmm
-                presence.Appearance.Owner = presence.UUID;
+                // Commenting this out for the merge from master. Might still need it since we have no circuit on scene
+                // presence.Appearance.Owner = presence.UUID;
 
                 presence.initializeScenePresence(client, RegionInfo, this);
 
@@ -2953,50 +2849,35 @@ namespace OpenSim.Region.Framework.Scenes
             }
             else
             {
-                AgentCircuitData aCircuit = m_authenticateHandler.GetAgentCircuitData(client.CircuitCode);
-
-                // Do the verification here
-                System.Net.IPEndPoint ep = (System.Net.IPEndPoint)client.GetClientEP();
-                if (aCircuit != null)
+                if (GetScenePresence(client.AgentId) == null) // ensure there is no SP here
                 {
-                    if (!VerifyClient(aCircuit, ep, out vialogin))
+                    m_log.Debug("[SCENE]: Adding new agent " + client.Name + " to scene " + RegionInfo.RegionName);
+
+                    m_clientManager.Add(client);
+                    SubscribeToClientEvents(client);
+
+                    ScenePresence sp = CreateAndAddScenePresence(client);
+                    if (aCircuit != null)
+                        sp.Appearance = aCircuit.Appearance;
+
+                    // HERE!!! Do the initial attachments right here
+                    // first agent upon login is a root agent by design.
+                    // All other AddNewClient calls find aCircuit.child to be true
+                    if (aCircuit == null || (aCircuit != null && aCircuit.child == false))
                     {
-                        // uh-oh, this is fishy
-                        m_log.WarnFormat("[Scene]: Agent {0} with session {1} connecting with unidentified end point {2}. Refusing service.",
-                            client.AgentId, client.SessionId, ep.ToString());
-                        try
-                        {
-                            client.Close();
-                        }
-                        catch (Exception e)
-                        {
-                            m_log.DebugFormat("[Scene]: Exception while closing aborted client: {0}", e.StackTrace);
-                        }
-                        return;
+                        sp.IsChildAgent = false;
+                        Util.FireAndForget(delegate(object o) { sp.RezAttachments(); });
                     }
-                }
-
-                m_log.Debug("[Scene] Adding new agent " + client.Name + " to scene " + RegionInfo.RegionName);
-
-                ScenePresence sp = CreateAndAddScenePresence(client);
-                if (aCircuit != null)
-                    sp.Appearance = aCircuit.Appearance;
-
-                // HERE!!! Do the initial attachments right here
-                // first agent upon login is a root agent by design.
-                // All other AddNewClient calls find aCircuit.child to be true
-                if (aCircuit == null || (aCircuit != null && aCircuit.child == false))
-                {
-                    sp.IsChildAgent = false;
-                    Util.FireAndForget(delegate(object o) { sp.RezAttachments(); });
                 }
             }
 
-            m_LastLogin = Util.EnvironmentTickCount();
-            EventManager.TriggerOnNewClient(client);
-            // m_log.Debug("[Scene] New agent " + client.Name + " vialogin=" + vialogin.ToString());
-            if (vialogin)
-                EventManager.TriggerOnClientLogin(client);
+            if (GetScenePresence(client.AgentId) != null)
+            {
+                m_LastLogin = Util.EnvironmentTickCount();
+                EventManager.TriggerOnNewClient(client);
+                if (vialogin)
+                    EventManager.TriggerOnClientLogin(client);
+            }
         }
 
         private bool VerifyClient(AgentCircuitData aCircuit, System.Net.IPEndPoint ep, out bool vialogin)
@@ -3004,9 +2885,9 @@ namespace OpenSim.Region.Framework.Scenes
             vialogin = false;
             
             // Do the verification here
-            if ((aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaLogin) != 0)
+            if ((aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaHGLogin) != 0)
             {
-                m_log.DebugFormat("[Scene]: Incoming client {0} {1} in region {2} via Login", aCircuit.firstname, aCircuit.lastname, RegionInfo.RegionName);
+                m_log.DebugFormat("[SCENE]: Incoming client {0} {1} in region {2} via HG login", aCircuit.firstname, aCircuit.lastname, RegionInfo.RegionName);
                 vialogin = true;
                 IUserAgentVerificationModule userVerification = RequestModuleInterface<IUserAgentVerificationModule>();
                 if (userVerification != null && ep != null)
@@ -3014,12 +2895,19 @@ namespace OpenSim.Region.Framework.Scenes
                     if (!userVerification.VerifyClient(aCircuit, ep.Address.ToString()))
                     {
                         // uh-oh, this is fishy
-                        m_log.DebugFormat("[Scene]: User Client Verification for {0} {1} in {2} returned false", aCircuit.firstname, aCircuit.lastname, RegionInfo.RegionName);
+                        m_log.DebugFormat("[SCENE]: User Client Verification for {0} {1} in {2} returned false", aCircuit.firstname, aCircuit.lastname, RegionInfo.RegionName);
                         return false;
                     }
                     else
-                        m_log.DebugFormat("[Scene]: User Client Verification for {0} {1} in {2} returned true", aCircuit.firstname, aCircuit.lastname, RegionInfo.RegionName);
+                        m_log.DebugFormat("[SCENE]: User Client Verification for {0} {1} in {2} returned true", aCircuit.firstname, aCircuit.lastname, RegionInfo.RegionName);
                 }
+            }
+
+            else if ((aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaLogin) != 0)
+            {
+                m_log.DebugFormat("[SCENE]: Incoming client {0} {1} in region {2} via regular login. Client IP verification not performed.",
+                    aCircuit.firstname, aCircuit.lastname, RegionInfo.RegionName);
+                vialogin = true;
             }
 
             return true;
@@ -3039,6 +2927,8 @@ namespace OpenSim.Region.Framework.Scenes
                     try
                     {
                         ScenePresence sp = GetScenePresence(agentID);
+                        PresenceService.LogoutAgent(sp.ControllingClient.SessionId);
+                        
                         if (sp != null)
                             sp.ControllingClient.Close();
 
@@ -3049,7 +2939,7 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                     catch (Exception e)
                     {
-                        m_log.DebugFormat("[Scene]: Exception while closing aborted client: {0}", e.StackTrace);
+                        m_log.DebugFormat("[SCENE]: Exception while closing aborted client: {0}", e.StackTrace);
                     }
                 }
                 else
@@ -3069,28 +2959,20 @@ namespace OpenSim.Region.Framework.Scenes
             SubscribeToClientPrimEvents(client);
             SubscribeToClientPrimRezEvents(client);
             SubscribeToClientInventoryEvents(client);
-            SubscribeToClientAttachmentEvents(client);
             SubscribeToClientTeleportEvents(client);
             SubscribeToClientScriptEvents(client);
             SubscribeToClientParcelEvents(client);
             SubscribeToClientGridEvents(client);
-            SubscribeToClientGodEvents(client);
-
             SubscribeToClientNetworkEvents(client);
-            
-
-            // EventManager.TriggerOnNewClient(client);
         }
 
         public virtual void SubscribeToClientTerrainEvents(IClientAPI client)
         {
             client.OnRegionHandShakeReply += SendLayerData;
-            client.OnUnackedTerrain += TerrainUnAcked;
         }
         
         public virtual void SubscribeToClientPrimEvents(IClientAPI client)
         {
-            
             client.OnUpdatePrimGroupPosition += m_sceneGraph.UpdatePrimPosition;
             client.OnUpdatePrimSinglePosition += m_sceneGraph.UpdatePrimSinglePosition;
             client.OnUpdatePrimGroupRotation += m_sceneGraph.UpdatePrimRotation;
@@ -3108,7 +2990,7 @@ namespace OpenSim.Region.Framework.Scenes
             client.OnGrabUpdate += m_sceneGraph.MoveObject;
             client.OnSpinStart += m_sceneGraph.SpinStart;
             client.OnSpinUpdate += m_sceneGraph.SpinObject;
-            client.OnDeRezObject += DeRezObject;
+            client.OnDeRezObject += DeRezObjects;
             
             client.OnObjectName += m_sceneGraph.PrimName;
             client.OnObjectClickAction += m_sceneGraph.PrimClickAction;
@@ -3130,7 +3012,6 @@ namespace OpenSim.Region.Framework.Scenes
             client.OnRedo += m_sceneGraph.HandleRedo;
             client.OnObjectDescription += m_sceneGraph.PrimDescription;
             client.OnObjectDrop += m_sceneGraph.DropObject;
-            client.OnObjectSaleInfo += ObjectSaleInfo;
             client.OnObjectIncludeInSearch += m_sceneGraph.MakeObjectSearchable;
             client.OnObjectOwner += ObjectOwner;
         }
@@ -3163,18 +3044,6 @@ namespace OpenSim.Region.Framework.Scenes
             client.OnMoveTaskItem += ClientMoveTaskInventoryItem;
         }
 
-        public virtual void SubscribeToClientAttachmentEvents(IClientAPI client)
-        {                                    
-            if (AttachmentsModule != null)
-            {
-                client.OnRezSingleAttachmentFromInv += AttachmentsModule.RezSingleAttachmentFromInventory;
-                client.OnRezMultipleAttachmentsFromInv += AttachmentsModule.RezMultipleAttachmentsFromInventory;
-                client.OnObjectAttach += AttachmentsModule.AttachObject;
-                client.OnObjectDetach += AttachmentsModule.DetachObject;
-                client.OnDetachAttachmentIntoInv += AttachmentsModule.ShowDetachInUserInventory;
-            }
-        }
-
         public virtual void SubscribeToClientTeleportEvents(IClientAPI client)
         {
             client.OnTeleportLocationRequest += RequestTeleportLocation;
@@ -3198,56 +3067,40 @@ namespace OpenSim.Region.Framework.Scenes
 
         public virtual void SubscribeToClientGridEvents(IClientAPI client)
         {
-            client.OnNameFromUUIDRequest += HandleUUIDNameRequest;
+            //client.OnNameFromUUIDRequest += HandleUUIDNameRequest;
             client.OnMoneyTransferRequest += ProcessMoneyTransferRequest;
             client.OnAvatarPickerRequest += ProcessAvatarPickerRequest;
             client.OnSetStartLocationRequest += SetHomeRezPoint;
             client.OnRegionHandleRequest += RegionHandleRequest;
         }
-
-        public virtual void SubscribeToClientGodEvents(IClientAPI client)
-        {
-            IGodsModule godsModule = RequestModuleInterface<IGodsModule>();
-            client.OnGodKickUser += godsModule.KickUser;
-            client.OnRequestGodlikePowers += godsModule.RequestGodlikePowers;
-        }
-
+        
         public virtual void SubscribeToClientNetworkEvents(IClientAPI client)
         {
             client.OnNetworkStatsUpdate += StatsReporter.AddPacketsStats;
             client.OnViewerEffect += ProcessViewerEffect;
         }
 
-        protected virtual void UnsubscribeToClientEvents(IClientAPI client)
-        {
-        }
-
         /// <summary>
-        /// Register for events from the client
+        /// Unsubscribe the client from events.
         /// </summary>
-        /// <param name="client">The IClientAPI of the connected client</param>
+        /// FIXME: Not called anywhere!
+        /// <param name="client">The IClientAPI of the client</param>
         public virtual void UnSubscribeToClientEvents(IClientAPI client)
         {
             UnSubscribeToClientTerrainEvents(client);
             UnSubscribeToClientPrimEvents(client);
             UnSubscribeToClientPrimRezEvents(client);
             UnSubscribeToClientInventoryEvents(client);
-            UnSubscribeToClientAttachmentEvents(client);
             UnSubscribeToClientTeleportEvents(client);
             UnSubscribeToClientScriptEvents(client);
             UnSubscribeToClientParcelEvents(client);
             UnSubscribeToClientGridEvents(client);
-            UnSubscribeToClientGodEvents(client);
-
             UnSubscribeToClientNetworkEvents(client);
-
-            // EventManager.TriggerOnNewClient(client);
         }
 
         public virtual void UnSubscribeToClientTerrainEvents(IClientAPI client)
         {
             client.OnRegionHandShakeReply -= SendLayerData;
-            client.OnUnackedTerrain -= TerrainUnAcked;
         }
 
         public virtual void UnSubscribeToClientPrimEvents(IClientAPI client)
@@ -3269,7 +3122,7 @@ namespace OpenSim.Region.Framework.Scenes
             client.OnGrabUpdate -= m_sceneGraph.MoveObject;
             client.OnSpinStart -= m_sceneGraph.SpinStart;
             client.OnSpinUpdate -= m_sceneGraph.SpinObject;
-            client.OnDeRezObject -= DeRezObject;
+            client.OnDeRezObject -= DeRezObjects;
             client.OnObjectName -= m_sceneGraph.PrimName;
             client.OnObjectClickAction -= m_sceneGraph.PrimClickAction;
             client.OnObjectMaterial -= m_sceneGraph.PrimMaterial;
@@ -3286,7 +3139,6 @@ namespace OpenSim.Region.Framework.Scenes
             client.OnRedo -= m_sceneGraph.HandleRedo;
             client.OnObjectDescription -= m_sceneGraph.PrimDescription;
             client.OnObjectDrop -= m_sceneGraph.DropObject;
-            client.OnObjectSaleInfo -= ObjectSaleInfo;
             client.OnObjectIncludeInSearch -= m_sceneGraph.MakeObjectSearchable;
             client.OnObjectOwner -= ObjectOwner;
         }
@@ -3318,18 +3170,6 @@ namespace OpenSim.Region.Framework.Scenes
             client.OnMoveTaskItem -= ClientMoveTaskInventoryItem;
         }
 
-        public virtual void UnSubscribeToClientAttachmentEvents(IClientAPI client)
-        {            
-            if (AttachmentsModule != null)
-            {
-                client.OnRezSingleAttachmentFromInv -= AttachmentsModule.RezSingleAttachmentFromInventory;
-                client.OnRezMultipleAttachmentsFromInv -= AttachmentsModule.RezMultipleAttachmentsFromInventory;
-                client.OnObjectAttach -= AttachmentsModule.AttachObject;
-                client.OnObjectDetach -= AttachmentsModule.DetachObject;
-                client.OnDetachAttachmentIntoInv -= AttachmentsModule.ShowDetachInUserInventory;
-            }
-        }
-
         public virtual void UnSubscribeToClientTeleportEvents(IClientAPI client)
         {
             client.OnTeleportLocationRequest -= RequestTeleportLocation;
@@ -3354,18 +3194,11 @@ namespace OpenSim.Region.Framework.Scenes
 
         public virtual void UnSubscribeToClientGridEvents(IClientAPI client)
         {
-            client.OnNameFromUUIDRequest -= HandleUUIDNameRequest;
+            //client.OnNameFromUUIDRequest -= HandleUUIDNameRequest;
             client.OnMoneyTransferRequest -= ProcessMoneyTransferRequest;
             client.OnAvatarPickerRequest -= ProcessAvatarPickerRequest;
             client.OnSetStartLocationRequest -= SetHomeRezPoint;
             client.OnRegionHandleRequest -= RegionHandleRequest;
-        }
-
-        public virtual void UnSubscribeToClientGodEvents(IClientAPI client)
-        {
-            IGodsModule godsModule = RequestModuleInterface<IGodsModule>();
-            client.OnGodKickUser -= godsModule.KickUser;
-            client.OnRequestGodlikePowers -= godsModule.RequestGodlikePowers;
         }
 
         public virtual void UnSubscribeToClientNetworkEvents(IClientAPI client)
@@ -3582,7 +3415,6 @@ namespace OpenSim.Region.Framework.Scenes
                         List<ulong> regions = new List<ulong>(avatar.KnownChildRegionHandles);
                         regions.Remove(RegionInfo.RegionHandle);
                         m_sceneGridService.SendCloseChildAgentConnections(agentID, regions);
-
                     }
                     m_eventManager.TriggerClientClosed(agentID, this);
                 }
@@ -3593,6 +3425,17 @@ namespace OpenSim.Region.Framework.Scenes
                 }
 
                 m_eventManager.TriggerOnRemovePresence(agentID);
+
+                if (avatar != null && (!avatar.IsChildAgent))
+                    avatar.SaveChangedAttachments();
+
+                ForEachClient(
+                    delegate(IClientAPI client)
+                    {
+                        //We can safely ignore null reference exceptions.  It means the avatar is dead and cleaned up anyway
+                        try { client.SendKillObject(avatar.RegionHandle, avatar.LocalId); }
+                        catch (NullReferenceException) { }
+                    });
 
                 // Don't try to send kills to clients if this is a synced server.
                 // The client closed event will trigger the broadcast to client managers
@@ -3632,7 +3475,7 @@ namespace OpenSim.Region.Framework.Scenes
                 }
 
                 m_authenticateHandler.RemoveCircuit(avatar.ControllingClient.CircuitCode);
-
+                CleanDroppedAttachments();
                 //m_log.InfoFormat("[SCENE] Memory pre  GC {0}", System.GC.GetTotalMemory(false));
                 //m_log.InfoFormat("[SCENE] Memory post GC {0}", System.GC.GetTotalMemory(true));
             }
@@ -3722,7 +3565,6 @@ namespace OpenSim.Region.Framework.Scenes
                 m_log.WarnFormat("[SCENE]: Deregister from grid failed for region {0}", m_regInfo.RegionName);
         }
 
-
         /// <summary>
         /// Do the work necessary to initiate a new user connection for a particular scene.
         /// At the moment, this consists of setting up the caps infrastructure
@@ -3735,7 +3577,25 @@ namespace OpenSim.Region.Framework.Scenes
         /// also return a reason.</returns>
         public bool NewUserConnection(AgentCircuitData agent, uint teleportFlags, out string reason)
         {
-            TeleportFlags tp = (TeleportFlags)teleportFlags;
+            return NewUserConnection(agent, teleportFlags, out reason, true);
+        }
+
+        /// <summary>
+        /// Do the work necessary to initiate a new user connection for a particular scene.
+        /// At the moment, this consists of setting up the caps infrastructure
+        /// The return bool should allow for connections to be refused, but as not all calling paths
+        /// take proper notice of it let, we allowed banned users in still.
+        /// </summary>
+        /// <param name="agent">CircuitData of the agent who is connecting</param>
+        /// <param name="reason">Outputs the reason for the false response on this string</param>
+        /// <param name="requirePresenceLookup">True for normal presence. False for NPC
+        /// or other applications where a full grid/Hypergrid presence may not be required.</param>
+        /// <returns>True if the region accepts this agent.  False if it does not.  False will 
+        /// also return a reason.</returns>
+        public bool NewUserConnection(AgentCircuitData agent, uint teleportFlags, out string reason, bool requirePresenceLookup)
+        {
+            bool vialogin = ((teleportFlags & (uint)Constants.TeleportFlags.ViaLogin) != 0 ||
+                             (teleportFlags & (uint)Constants.TeleportFlags.ViaHGLogin) != 0);
             reason = String.Empty;
 
             //Teleport flags:
@@ -3772,7 +3632,7 @@ namespace OpenSim.Region.Framework.Scenes
             ILandObject land = LandChannel.GetLandObject(agent.startpos.X, agent.startpos.Y);
 
             //On login test land permisions
-            if (tp == TeleportFlags.ViaLogin)
+            if (vialogin)
             {
                 if (land != null && !TestLandRestrictions(agent, land, out reason))
                 {
@@ -3782,16 +3642,18 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (sp == null) // We don't have an [child] agent here already
             {
-
-                try
+                if (requirePresenceLookup)
                 {
-                    if (!VerifyUserPresence(agent, out reason))
+                    try
+                    {
+                        if (!VerifyUserPresence(agent, out reason))
+                            return false;
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat("[CONNECTION BEGIN]: Exception verifying presence " + e.ToString());
                         return false;
-                }
-                catch (Exception e)
-                {
-                    m_log.DebugFormat("[CONNECTION BEGIN]: Exception verifying presence {0}", e.Message);
-                    return false;
+                    }
                 }
 
                 try
@@ -3801,7 +3663,7 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 catch (Exception e)
                 {
-                    m_log.DebugFormat("[CONNECTION BEGIN]: Exception authorizing user {0}", e.Message);
+                    m_log.ErrorFormat("[CONNECTION BEGIN]: Exception authorizing user " + e.ToString());
                     return false;
                 }
 
@@ -3831,8 +3693,10 @@ namespace OpenSim.Region.Framework.Scenes
             agent.teleportFlags = teleportFlags;
             m_authenticateHandler.AddNewCircuit(agent.circuitcode, agent);
 
-            if (tp == TeleportFlags.ViaLogin) 
+            if (vialogin) 
             {
+                CleanDroppedAttachments();
+
                 if (TestBorderCross(agent.startpos, Cardinals.E))
                 {
                     Border crossedBorder = GetCrossedBorder(agent.startpos, Cardinals.E);
@@ -3949,7 +3813,7 @@ namespace OpenSim.Region.Framework.Scenes
             IPresenceService presence = RequestModuleInterface<IPresenceService>();
             if (presence == null)
             {
-                reason = String.Format("Failed to verify user {0} {1} in region {2}. Presence service does not exist.", agent.firstname, agent.lastname, RegionInfo.RegionName);
+                reason = String.Format("Failed to verify user presence in the grid for {0} {1} in region {2}. Presence service does not exist.", agent.firstname, agent.lastname, RegionInfo.RegionName);
                 return false;
             }
 
@@ -3957,7 +3821,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (pinfo == null)
             {
-                reason = String.Format("Failed to verify user {0} {1}, access denied to region {2}.", agent.firstname, agent.lastname, RegionInfo.RegionName);
+                reason = String.Format("Failed to verify user presence in the grid for {0} {1}, access denied to region {2}.", agent.firstname, agent.lastname, RegionInfo.RegionName);
                 return false;
             }
 
@@ -4081,18 +3945,6 @@ namespace OpenSim.Region.Framework.Scenes
             return true;
         }
 
-        private ILandObject GetParcelAtPoint(float x, float y)
-        {
-            foreach (var parcel in AllParcels())
-            {
-                if (parcel.ContainsPoint((int)x,(int)y))
-                {
-                    return parcel;
-                }
-            }
-            return null;
-        }
-
         /// <summary>
         /// Update an AgentCircuitData object with new information
         /// </summary>
@@ -4158,7 +4010,7 @@ namespace OpenSim.Region.Framework.Scenes
         public virtual void AgentCrossing(UUID agentID, Vector3 position, bool isFlying)
         {
             ScenePresence presence = GetScenePresence(agentID);
-            if(presence != null)
+            if (presence != null)
             {
                 try
                 {
@@ -4193,6 +4045,13 @@ namespace OpenSim.Region.Framework.Scenes
 
             // We have to wait until the viewer contacts this region after receiving EAC.
             // That calls AddNewClient, which finally creates the ScenePresence
+            ILandObject nearestParcel = GetNearestAllowedParcel(cAgentData.AgentID, Constants.RegionSize / 2, Constants.RegionSize / 2);
+            if (nearestParcel == null)
+            {
+                m_log.DebugFormat("[SCENE]: Denying root agent entry to {0}: no allowed parcel", cAgentData.AgentID);
+                return false;
+            }
+
             ScenePresence childAgentUpdate = WaitGetScenePresence(cAgentData.AgentID);
             if (childAgentUpdate != null)
             {
@@ -4424,6 +4283,11 @@ namespace OpenSim.Region.Framework.Scenes
 
         #region Other Methods
 
+        protected override IConfigSource GetConfig()
+        {
+            return m_config;
+        }
+
         #endregion
 
         public void HandleObjectPermissionsUpdate(IClientAPI controller, UUID agentID, UUID sessionID, byte field, uint localId, uint mask, byte set)
@@ -4448,9 +4312,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void ForceClientUpdate()
         {
-            List<EntityBase> EntityList = GetEntities();
-
-            foreach (EntityBase ent in EntityList)
+            EntityBase[] entityList = GetEntities();
+            foreach (EntityBase ent in entityList)
             {
                 if (ent is SceneObjectGroup)
                 {
@@ -4468,9 +4331,8 @@ namespace OpenSim.Region.Framework.Scenes
         {
             m_log.Debug("Searching for Primitive: '" + cmdparams[2] + "'");
 
-            List<EntityBase> EntityList = GetEntities();
-
-            foreach (EntityBase ent in EntityList)
+            EntityBase[] entityList = GetEntities();
+            foreach (EntityBase ent in entityList)
             {
                 if (ent is SceneObjectGroup)
                 {
@@ -4845,7 +4707,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// will not affect the original list of objects in the scene.
         /// </summary>
         /// <returns></returns>
-        public List<EntityBase> GetEntities()
+        public EntityBase[] GetEntities()
         {
             return m_sceneGraph.GetEntities();
         }
@@ -4868,23 +4730,6 @@ namespace OpenSim.Region.Framework.Scenes
                 client.SendRegionHandle(regionID, handle);
         }
 
-        public void TerrainUnAcked(IClientAPI client, int patchX, int patchY)
-        {
-            //m_log.Debug("Terrain packet unacked, resending patch: " + patchX + " , " + patchY);
-             client.SendLayerData(patchX, patchY, Heightmap.GetFloatsSerialised());
-        }
-
-        public void SetRootAgentScene(UUID agentID)
-        {
-            IInventoryTransferModule inv = RequestModuleInterface<IInventoryTransferModule>();
-            if (inv == null)
-                return;
-
-            inv.SetRootAgentScene(agentID, this);
-
-            EventManager.TriggerSetRootAgentScene(agentID, this);
-        }
-
         public bool NeedSceneCacheClear(UUID agentID)
         {
             IInventoryTransferModule inv = RequestModuleInterface<IInventoryTransferModule>();
@@ -4894,189 +4739,10 @@ namespace OpenSim.Region.Framework.Scenes
             return inv.NeedSceneCacheClear(agentID, this);
         }
 
-        public void ObjectSaleInfo(IClientAPI client, UUID agentID, UUID sessionID, uint localID, byte saleType, int salePrice)
-        {
-            SceneObjectPart part = GetSceneObjectPart(localID);
-            if (part == null || part.ParentGroup == null)
-                return;
-
-            if (part.ParentGroup.IsDeleted)
-                return;
-
-            part = part.ParentGroup.RootPart;
-
-            part.ObjectSaleType = saleType;
-            part.SalePrice = salePrice;
-
-            part.ParentGroup.HasGroupChanged = true;
-
-            part.GetProperties(client);
-        }
-
-        public bool PerformObjectBuy(IClientAPI remoteClient, UUID categoryID,
-                uint localID, byte saleType)
-        {
-            SceneObjectPart part = GetSceneObjectPart(localID);
-
-            if (part == null)
-                return false;
-
-            if (part.ParentGroup == null)
-                return false;
-
-            SceneObjectGroup group = part.ParentGroup;
-
-            switch (saleType)
-            {
-            case 1: // Sell as original (in-place sale)
-                uint effectivePerms=group.GetEffectivePermissions();
-
-                if ((effectivePerms & (uint)PermissionMask.Transfer) == 0)
-                {
-                    m_dialogModule.SendAlertToUser(remoteClient, "This item doesn't appear to be for sale");
-                    return false;
-                }
-
-                group.SetOwnerId(remoteClient.AgentId);
-                group.SetRootPartOwner(part, remoteClient.AgentId,
-                        remoteClient.ActiveGroupId);
-
-                List<SceneObjectPart> partList =
-                    new List<SceneObjectPart>(group.Children.Values);
-
-                if (Permissions.PropagatePermissions())
-                {
-                    foreach (SceneObjectPart child in partList)
-                    {
-                        child.Inventory.ChangeInventoryOwner(remoteClient.AgentId);
-                        child.TriggerScriptChangedEvent(Changed.OWNER);
-                        child.ApplyNextOwnerPermissions();
-                    }
-                }
-
-                part.ObjectSaleType = 0;
-                part.SalePrice = 10;
-
-                group.HasGroupChanged = true;
-                part.GetProperties(remoteClient);
-                part.TriggerScriptChangedEvent(Changed.OWNER);
-                group.ResumeScripts();
-                part.ScheduleFullUpdate();
-
-                break;
-
-            case 2: // Sell a copy
-
-
-                Vector3 inventoryStoredPosition = new Vector3
-                       (((group.AbsolutePosition.X > (int)Constants.RegionSize)
-                             ? 250
-                             : group.AbsolutePosition.X)
-                        ,
-                        (group.AbsolutePosition.X > (int)Constants.RegionSize)
-                            ? 250
-                            : group.AbsolutePosition.X,
-                        group.AbsolutePosition.Z);
-
-                Vector3 originalPosition = group.AbsolutePosition;
-
-                group.AbsolutePosition = inventoryStoredPosition;
-
-                string sceneObjectXml = SceneObjectSerializer.ToOriginalXmlFormat(group);
-                group.AbsolutePosition = originalPosition;
-
-                uint perms=group.GetEffectivePermissions();
-
-                if ((perms & (uint)PermissionMask.Transfer) == 0)
-                {
-                    m_dialogModule.SendAlertToUser(remoteClient, "This item doesn't appear to be for sale");
-                    return false;
-                }
-
-                AssetBase asset = CreateAsset(
-                    group.GetPartName(localID),
-                    group.GetPartDescription(localID),
-                    (sbyte)AssetType.Object,
-                    Utils.StringToBytes(sceneObjectXml),
-                    group.OwnerID);
-                AssetService.Store(asset);
-
-                InventoryItemBase item = new InventoryItemBase();
-                item.CreatorId = part.CreatorID.ToString();
-
-                item.ID = UUID.Random();
-                item.Owner = remoteClient.AgentId;
-                item.AssetID = asset.FullID;
-                item.Description = asset.Description;
-                item.Name = asset.Name;
-                item.AssetType = asset.Type;
-                item.InvType = (int)InventoryType.Object;
-                item.Folder = categoryID;
-
-                uint nextPerms=(perms & 7) << 13;
-                if ((nextPerms & (uint)PermissionMask.Copy) == 0)
-                    perms &= ~(uint)PermissionMask.Copy;
-                if ((nextPerms & (uint)PermissionMask.Transfer) == 0)
-                    perms &= ~(uint)PermissionMask.Transfer;
-                if ((nextPerms & (uint)PermissionMask.Modify) == 0)
-                    perms &= ~(uint)PermissionMask.Modify;
-
-                item.BasePermissions = perms & part.NextOwnerMask;
-                item.CurrentPermissions = perms & part.NextOwnerMask;
-                item.NextPermissions = part.NextOwnerMask;
-                item.EveryOnePermissions = part.EveryoneMask &
-                                           part.NextOwnerMask;
-                item.GroupPermissions = part.GroupMask &
-                                           part.NextOwnerMask;
-                item.CurrentPermissions |= 16; // Slam!
-                item.CreationDate = Util.UnixTimeSinceEpoch();
-
-                if (InventoryService.AddItem(item))
-                    remoteClient.SendInventoryItemCreateUpdate(item, 0);
-                else
-                {
-                    m_dialogModule.SendAlertToUser(remoteClient, "Cannot buy now. Your inventory is unavailable");
-                    return false;
-                }
-                break;
-
-            case 3: // Sell contents
-                List<UUID> invList = part.Inventory.GetInventoryList();
-
-                bool okToSell = true;
-
-                foreach (UUID invID in invList)
-                {
-                    TaskInventoryItem item1 = part.Inventory.GetInventoryItem(invID);
-                    if ((item1.CurrentPermissions &
-                            (uint)PermissionMask.Transfer) == 0)
-                    {
-                        okToSell = false;
-                        break;
-                    }
-                }
-
-                if (!okToSell)
-                {
-                    m_dialogModule.SendAlertToUser(
-                        remoteClient, "This item's inventory doesn't appear to be for sale");
-                    return false;
-                }
-
-                if (invList.Count > 0)
-                    MoveTaskInventoryItems(remoteClient.AgentId, part.Name,
-                            part, invList);
-                break;
-            }
-
-            return true;
-        }
-
         public void CleanTempObjects()
         {
-            List<EntityBase> objs = GetEntities();
-
-            foreach (EntityBase obj in objs)
+            EntityBase[] entities = GetEntities();
+            foreach (EntityBase obj in entities)
             {
                 if (obj is SceneObjectGroup)
                 {
@@ -5096,7 +4762,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void DeleteFromStorage(UUID uuid)
         {
-            m_storageManager.DataStore.RemoveObject(uuid, m_regInfo.RegionID);
+            SimulationDataService.RemoveObject(uuid, m_regInfo.RegionID);
         }
 
         public int GetHealth()
@@ -5212,7 +4878,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             // turn the proxy non-physical, which also stops its client-side interpolation
-            bool wasUsingPhysics = ((jointProxyObject.ObjectFlags & (uint)PrimFlags.Physics) != 0);
+            bool wasUsingPhysics = ((jointProxyObject.Flags & PrimFlags.Physics) != 0);
             if (wasUsingPhysics)
             {
                 jointProxyObject.UpdatePrimFlags(false, false, true, false); // FIXME: possible deadlock here; check to make sure all the scene alterations set into motion here won't deadlock
@@ -5371,7 +5037,6 @@ namespace OpenSim.Region.Framework.Scenes
             Vector3 nearestRegionEdgePoint = GetNearestRegionEdgePosition(avatar);
             //Debug.WriteLine("They are really in a place they don't belong, sending them to: " + nearestRegionEdgePoint.ToString());
             return nearestRegionEdgePoint;
-            return null;
         }
 
         private Vector3 GetParcelCenterAtGround(ILandObject parcel)
@@ -5505,17 +5170,21 @@ namespace OpenSim.Region.Framework.Scenes
 
         public List<UUID> GetEstateRegions(int estateID)
         {
-            if (m_storageManager.EstateDataStore == null)
-                return new List<UUID>();
+            IEstateDataService estateDataService = EstateDataService;
+            if (estateDataService == null)
+                return new List<UUID>(0);
 
-            return m_storageManager.EstateDataStore.GetRegions(estateID);
+            return estateDataService.GetRegions(estateID);
         }
 
         public void ReloadEstateData()
         {
-            m_regInfo.EstateSettings = m_storageManager.EstateDataStore.LoadEstateSettings(m_regInfo.RegionID, false);
-
-            TriggerEstateSunUpdate();
+            IEstateDataService estateDataService = EstateDataService;
+            if (estateDataService != null)
+            {
+                m_regInfo.EstateSettings = estateDataService.LoadEstateSettings(m_regInfo.RegionID, false);
+                TriggerEstateSunUpdate();
+            }
         }
 
         public void TriggerEstateSunUpdate()
@@ -5601,6 +5270,55 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             return offsets.ToArray();
+        }
+
+        public void RegenerateMaptile(object sender, ElapsedEventArgs e)
+        {
+            IWorldMapModule mapModule = RequestModuleInterface<IWorldMapModule>();
+            if (mapModule != null)
+            {
+                mapModule.GenerateMaptile();
+
+                string error = GridService.RegisterRegion(RegionInfo.ScopeID, new GridRegion(RegionInfo));
+
+                if (error != String.Empty)
+                    throw new Exception(error);
+            }
+        }
+
+        public void CleanDroppedAttachments()
+        {
+            List<SceneObjectGroup> objectsToDelete =
+                    new List<SceneObjectGroup>();
+
+            lock (m_cleaningAttachments)
+            {
+                ForEachSOG(delegate (SceneObjectGroup grp)
+                        {
+                            if (grp.RootPart.Shape.PCode == 0 && grp.RootPart.Shape.State != 0 && (!objectsToDelete.Contains(grp)))
+                            {
+                                UUID agentID = grp.OwnerID;
+                                if (agentID == UUID.Zero)
+                                {
+                                    objectsToDelete.Add(grp);
+                                    return;
+                                }
+
+                                ScenePresence sp = GetScenePresence(agentID);
+                                if (sp == null)
+                                {
+                                    objectsToDelete.Add(grp);
+                                    return;
+                                }
+                            }
+                        });
+            }
+
+            foreach (SceneObjectGroup grp in objectsToDelete)
+            {
+                m_log.InfoFormat("[SCENE]: Deleting dropped attachment {0} of user {1}", grp.UUID, grp.OwnerID);
+                DeleteSceneObject(grp, true);
+            }
         }
     }
 }

@@ -48,7 +48,7 @@ namespace OpenSim.Region.CoreModules.World.Serialiser
 
         private Commander m_commander = new Commander("export");
         private List<Scene> m_regions = new List<Scene>();
-        private string m_savedir = "exports" + "/";
+        private string m_savedir = "exports";
         private List<IFileSerialiser> m_serialisers = new List<IFileSerialiser>();
 
         #region ISharedRegionModule Members
@@ -160,17 +160,17 @@ namespace OpenSim.Region.CoreModules.World.Serialiser
             return SceneXmlLoader.DeserializeGroupFromXml2(xmlString);
         }
 
-        public string SerializeGroupToXml2(SceneObjectGroup grp)
+        public string SerializeGroupToXml2(SceneObjectGroup grp, Dictionary<string, object> options)
         {
-            return SceneXmlLoader.SaveGroupToXml2(grp);
+            return SceneXmlLoader.SaveGroupToXml2(grp, options);
         }
 
-        public void SavePrimListToXml2(List<EntityBase> entityList, string fileName)
+        public void SavePrimListToXml2(EntityBase[] entityList, string fileName)
         {
             SceneXmlLoader.SavePrimListToXml2(entityList, fileName);
         }
 
-        public void SavePrimListToXml2(List<EntityBase> entityList, TextWriter stream, Vector3 min, Vector3 max)
+        public void SavePrimListToXml2(EntityBase[] entityList, TextWriter stream, Vector3 min, Vector3 max)
         {
             SceneXmlLoader.SavePrimListToXml2(entityList, stream, min, max);
         }
@@ -192,14 +192,14 @@ namespace OpenSim.Region.CoreModules.World.Serialiser
                 }
             }
 
-            TextWriter regionInfoWriter = new StreamWriter(saveDir + "README.TXT");
+            TextWriter regionInfoWriter = new StreamWriter(Path.Combine(saveDir, "README.TXT"));
             regionInfoWriter.WriteLine("Region Name: " + scene.RegionInfo.RegionName);
             regionInfoWriter.WriteLine("Region ID: " + scene.RegionInfo.RegionID.ToString());
             regionInfoWriter.WriteLine("Backup Time: UTC " + DateTime.UtcNow.ToString());
             regionInfoWriter.WriteLine("Serialise Version: 0.1");
             regionInfoWriter.Close();
 
-            TextWriter manifestWriter = new StreamWriter(saveDir + "region.manifest");
+            TextWriter manifestWriter = new StreamWriter(Path.Combine(saveDir, "region.manifest"));
             foreach (string line in results)
             {
                 manifestWriter.WriteLine(line);
@@ -231,7 +231,7 @@ namespace OpenSim.Region.CoreModules.World.Serialiser
                 if (region.RegionInfo.RegionName == (string) args[0])
                 {
                     // List<string> results = SerialiseRegion(region, m_savedir + region.RegionInfo.RegionID.ToString() + "/");
-                    SerialiseRegion(region, m_savedir + region.RegionInfo.RegionID.ToString() + "/");
+                    SerialiseRegion(region, Path.Combine(m_savedir, region.RegionInfo.RegionID.ToString()));
                 }
             }
         }
@@ -241,7 +241,7 @@ namespace OpenSim.Region.CoreModules.World.Serialiser
             foreach (Scene region in m_regions)
             {
                 // List<string> results = SerialiseRegion(region, m_savedir + region.RegionInfo.RegionID.ToString() + "/");
-                SerialiseRegion(region, m_savedir + region.RegionInfo.RegionID.ToString() + "/");
+                SerialiseRegion(region, Path.Combine(m_savedir, region.RegionInfo.RegionID.ToString()));
             }
         }
 

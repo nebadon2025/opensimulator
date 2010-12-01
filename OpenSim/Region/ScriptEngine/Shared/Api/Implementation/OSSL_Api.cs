@@ -639,6 +639,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             //
             CheckThreatLevel(ThreatLevel.High, "osTeleportAgent");
 
+            TeleportAgent(agent, regionName, position, lookat);
+        }
+
+        private void TeleportAgent(string agent, string regionName, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat)
+        {
             m_host.AddScriptLPS(1);
             UUID agentId = new UUID();
             if (UUID.TryParse(agent, out agentId))
@@ -651,7 +656,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         == World.LandChannel.GetLandObject(
                             presence.AbsolutePosition.X, presence.AbsolutePosition.Y).LandData.OwnerID)
                     {
-
                         // Check for hostname , attempt to make a hglink
                         // and convert the regionName to the target region
                         if (regionName.Contains(".") && regionName.Contains(":"))
@@ -661,10 +665,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             if (regions != null && regions.Count > 0)
                             {
                                 GridRegion regInfo = regions[0];
-                                regionName = regInfo.RegionName;
+                                string[] parts = regInfo.RegionName.Split(new char[] { ':' });
+                                if (parts.Length > 2)
+                                    regionName = parts[2];
+                                else
+                                    regionName = parts[0];
                             }
                         }
-                        presence.ControllingClient.SendTeleportLocationStart();
                         World.RequestTeleportLocation(presence.ControllingClient, regionName,
                             new Vector3((float)position.x, (float)position.y, (float)position.z),
                             new Vector3((float)lookat.x, (float)lookat.y, (float)lookat.z), (uint)TPFlags.ViaLocation);
@@ -675,13 +682,17 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
         }
 
-        // Teleport functions
         public void osTeleportAgent(string agent, int regionX, int regionY, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat)
         {
             // High because there is no security check. High griefer potential
             //
             CheckThreatLevel(ThreatLevel.High, "osTeleportAgent");
 
+            TeleportAgent(agent, regionX, regionY, position, lookat);
+        }
+
+        private void TeleportAgent(string agent, int regionX, int regionY, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat)
+        {
             ulong regionHandle = Util.UIntsToLong(((uint)regionX * (uint)Constants.RegionSize), ((uint)regionY * (uint)Constants.RegionSize));
 
             m_host.AddScriptLPS(1);
@@ -696,7 +707,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         == World.LandChannel.GetLandObject(
                             presence.AbsolutePosition.X, presence.AbsolutePosition.Y).LandData.OwnerID)
                     {
-                        presence.ControllingClient.SendTeleportLocationStart();
                         World.RequestTeleportLocation(presence.ControllingClient, regionHandle,
                             new Vector3((float)position.x, (float)position.y, (float)position.z),
                             new Vector3((float)lookat.x, (float)lookat.y, (float)lookat.z), (uint)TPFlags.ViaLocation);
@@ -709,6 +719,26 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public void osTeleportAgent(string agent, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat)
         {
             osTeleportAgent(agent, World.RegionInfo.RegionName, position, lookat);
+        }
+
+        public void osTeleportOwner(string regionName, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat)
+        {
+            // Threat level None because this is what can already be done with the World Map in the viewer
+            CheckThreatLevel(ThreatLevel.None, "osTeleportOwner");
+
+            TeleportAgent(m_host.OwnerID.ToString(), regionName, position, lookat);
+        }
+
+        public void osTeleportOwner(LSL_Types.Vector3 position, LSL_Types.Vector3 lookat)
+        {
+            osTeleportOwner(World.RegionInfo.RegionName, position, lookat);
+        }
+
+        public void osTeleportOwner(int regionX, int regionY, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat)
+        {
+            CheckThreatLevel(ThreatLevel.None, "osTeleportOwner");
+
+            TeleportAgent(m_host.OwnerID.ToString(), regionX, regionY, position, lookat);
         }
 
         // Functions that get information from the agent itself.
@@ -1192,7 +1222,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             World.LandChannel.Join(startx,starty,endx,endy,m_host.OwnerID);
         }
-          
+
         public void osParcelSubdivide(LSL_Vector pos1, LSL_Vector pos2)
         {
             CheckThreatLevel(ThreatLevel.High, "osParcelSubdivide");
@@ -1215,7 +1245,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             // can modify it
 
             ILandObject startLandObject = World.LandChannel.GetLandObject((int)pos.x, (int)pos.y);
-	    if (startLandObject == null)
+            if (startLandObject == null)
             {
                 OSSLShoutError("There is no land at that location");
                 return;
@@ -1232,7 +1262,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             UUID uuid;
 
             // Process the rules, not sure what the impact would be of changing owner or group
-            for (int idx = 0; idx < rules.Length; )
+            for (int idx = 0; idx < rules.Length;)
             {
                 int code = rules.GetLSLIntegerItem(idx++);
                 string arg = rules.GetLSLStringItem(idx++);
@@ -2202,6 +2232,48 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             
             m_LSL_Api.SetPrimitiveParamsEx(prim, rules);
         }
+        
+        /// <summary>
+        /// Set parameters for light projection in host prim 
+        /// </summary>
+        public void osSetProjectionParams(bool projection, LSL_Key texture, double fov, double focus, double amb)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osSetProjectionParams");
+
+            osSetProjectionParams(UUID.Zero.ToString(), projection, texture, fov, focus, amb);
+        }
+
+        /// <summary>
+        /// Set parameters for light projection with uuid of target prim
+        /// </summary>
+        public void osSetProjectionParams(LSL_Key prim, bool projection, LSL_Key texture, double fov, double focus, double amb)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osSetProjectionParams");
+            m_host.AddScriptLPS(1);
+
+            SceneObjectPart obj = null;
+            if (prim == UUID.Zero.ToString())
+            {
+                obj = m_host;
+            }
+            else
+            {
+                obj = World.GetSceneObjectPart(new UUID(prim));
+                if (obj == null)
+                    return;
+            }
+
+            obj.Shape.ProjectionEntry = projection;
+            obj.Shape.ProjectionTextureUUID = new UUID(texture);
+            obj.Shape.ProjectionFOV = (float)fov;
+            obj.Shape.ProjectionFocus = (float)focus;
+            obj.Shape.ProjectionAmbiance = (float)amb;
+
+
+            obj.ParentGroup.HasGroupChanged = true;
+            obj.ScheduleFullUpdate();
+
+        }
 
         /// <summary>
         /// Like osGetAgents but returns enough info for a radar
@@ -2225,6 +2297,22 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 }
             });
             return result;
+        }
+
+        /// <summary>
+        /// Convert a unix time to a llGetTimestamp() like string
+        /// </summary>
+        /// <param name="unixTime"></param>
+        /// <returns></returns>
+        public LSL_String osUnixTimeToTimestamp(long time)
+        {
+            CheckThreatLevel(ThreatLevel.VeryLow, "osUnixTimeToTimestamp");
+            long baseTicks = 621355968000000000;
+            long tickResolution = 10000000;
+            long epochTicks = (time * tickResolution) + baseTicks;
+            DateTime date = new DateTime(epochTicks);
+
+            return date.ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ");
         }
     }
 }

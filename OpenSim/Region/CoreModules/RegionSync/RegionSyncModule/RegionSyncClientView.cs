@@ -312,7 +312,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                 case RegionSyncMessage.MsgType.GetObjects:
                     {
-                        List<EntityBase> entities = m_scene.GetEntities();
+                        EntityBase[] entities = m_scene.GetEntities();
                         foreach(EntityBase e in entities)
                         {
                             if (e is SceneObjectGroup)
@@ -484,7 +484,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         ScenePresence presence;
                         if (m_scene.TryGetScenePresence(agentID, out presence))
                         {
-                            int delay = 30000;
+                            int delay = 5000;
                             string name = presence.Name;
                             m_log.WarnFormat("{0} Waiting {1}ms before setting appearance on presence {2} <{3}>", LogHeader, delay, name, msgID);
                             Timer appearanceSetter = new Timer(delegate(object obj)
@@ -493,36 +493,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                     Primitive.TextureEntry te = Primitive.TextureEntry.FromOSD(data["te"]);
                                     byte[] vp = data["vp"].AsBinary();
 
-                                    bool missingBakes = false;
-                                    byte[] BAKE_INDICES = new byte[] { 8, 9, 10, 11, 19, 20 };
-                                    for (int i = 0; i < BAKE_INDICES.Length; i++)
-                                    {
-                                        int j = BAKE_INDICES[i];
-                                        Primitive.TextureEntryFace face = te.FaceTextures[j];
-                                        if (face != null && face.TextureID != AppearanceManager.DEFAULT_AVATAR_TEXTURE)
-                                        {
-                                            if (m_scene.AssetService.Get(face.TextureID.ToString()) == null)
-                                            {
-                                                RegionSyncMessage.HandlerDebug(LogHeader, msg, "Missing baked texture " + face.TextureID + " (" + j + ") for avatar " + name);
-                                                missingBakes = true;
-                                            }
-                                        }
-                                    }
-
-                                    m_log.DebugFormat("{0} {1} Calling presence.SetAppearance {2} <{3}>", LogHeader, name, (missingBakes ? "MISSING BAKES" : "GOT BAKES"), msgID);
+                                    m_log.DebugFormat("{0} {1} Calling presence.SetAppearance <{2}>", LogHeader, name, msgID);
                                     try
                                     {
-                                        presence.SetAppearance(te, vp);
+                                        m_scene.AvatarFactory.SetAppearance(presence.ControllingClient, te, vp);
                                     }
                                     catch (Exception e)
                                     {
                                         m_log.WarnFormat("{0} Caught exception setting appearance for {1} (probably was removed from scene): {2}", LogHeader, name, e.Message);
                                     }
-                                    if (!missingBakes)
-                                        RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Set appearance for {0} <{1}>", name, msgID));
-                                    else
-                                        RegionSyncMessage.HandleWarning(LogHeader, msg, String.Format("Set appearance for {0} but has missing bakes. <{1}>", name, msgID));
-                                    m_log.DebugFormat("{0} Calling RegionsSyncServerModule.SendAppearance for {1} {2} <{3}>", LogHeader, name, (missingBakes ? "MISSING BAKES" : "GOT BAKES"), msgID);
+                                    RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Set appearance for {0} <{1}>", name, msgID));
+                                    m_log.DebugFormat("{0} Calling RegionsSyncServerModule.SendAppearance for {1} <{2}>", LogHeader, name, msgID);
                                     m_scene.RegionSyncServerModule.SendAppearance(presence.UUID, presence.Appearance.VisualParams, presence.Appearance.Texture);
                                     lock (m_appearanceTimers)
                                         m_appearanceTimers.Remove(agentID);

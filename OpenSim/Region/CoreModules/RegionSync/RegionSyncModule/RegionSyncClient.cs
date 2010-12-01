@@ -679,24 +679,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             Primitive.TextureEntry te = Primitive.TextureEntry.FromOSD(data["te"]);
                             byte[] vp = data["vp"].AsBinary();
 
-                            bool missingBakes = false;
-                            byte[] BAKE_INDICES = new byte[] { 8, 9, 10, 11, 19, 20 };
-                            for (int i = 0; i < BAKE_INDICES.Length; i++)
-                            {
-                                int j = BAKE_INDICES[i];
-                                Primitive.TextureEntryFace face = te.FaceTextures[j];
-                                if (face != null && face.TextureID != AppearanceManager.DEFAULT_AVATAR_TEXTURE)
-                                {
-                                    if (m_scene.AssetService.Get(face.TextureID.ToString()) == null)
-                                    {
-                                        RegionSyncMessage.HandlerDebug(LogHeader, msg, "Missing baked texture " + face.TextureID + " (" + j + ") for avatar " + name);
-                                        missingBakes = true;
-                                    }
-                                }
-                            }
-
-                            //m_log.WarnFormat("{0} Calling presence.SetAppearance for {1} (\"{2}\") {3}", LogHeader, agentID, presence.Name, missingBakes ? "MISSING BAKES" : "GOT BAKES");
-                            presence.SetAppearance(te, vp);
+                            m_log.WarnFormat("{0} Calling presence.SetAppearance for {1} (\"{2}\")", LogHeader, agentID, presence.Name);
+                            m_scene.AvatarFactory.SetAppearance(presence.ControllingClient, te, vp);
                             RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Set appearance for {0}", name));
                         }
                         else
@@ -981,7 +965,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             // Set the appearance on the presence. This will generate the needed exchange with the client if rebakes need to take place.
             m_log.WarnFormat("{0} Setting appearance on ScenePresence {1} \"{2}\"", LogHeader, sp.UUID, sp.Name);
-            sp.SetAppearance(te, vp);
+            m_scene.AvatarFactory.SetAppearance(sp.ControllingClient, te, vp);
 
             if (te != null)
             {

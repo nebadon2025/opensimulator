@@ -343,7 +343,6 @@ namespace OpenSim.Region.CoreModules.World.Estate
                         {
                             if (!s.IsChildAgent)
                             {
-                                s.ControllingClient.SendTeleportLocationStart();
                                 m_scene.TeleportClientHome(user, s.ControllingClient);
                             }
                         }
@@ -478,7 +477,6 @@ namespace OpenSim.Region.CoreModules.World.Estate
                 ScenePresence s = m_scene.GetScenePresence(prey);
                 if (s != null)
                 {
-                    s.ControllingClient.SendTeleportLocationStart(); 
                     m_scene.TeleportClientHome(prey, s.ControllingClient);
                 }
             }
@@ -498,7 +496,6 @@ namespace OpenSim.Region.CoreModules.World.Estate
                     // Also make sure they are actually in the region
                     if (p != null && !p.IsChildAgent)
                     {
-                        p.ControllingClient.SendTeleportLocationStart();
                         m_scene.TeleportClientHome(p.UUID, p.ControllingClient);
                     }
                 }
@@ -673,6 +670,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
            args.useEstateSun = m_scene.RegionInfo.RegionSettings.UseEstateSun;
            args.waterHeight = (float)m_scene.RegionInfo.RegionSettings.WaterHeight;
            args.simName = m_scene.RegionInfo.RegionName;
+           args.regionType = m_scene.RegionInfo.RegionType;
 
            remote_client.SendRegionInfoToEstateMenu(args);
         }
@@ -684,6 +682,9 @@ namespace OpenSim.Region.CoreModules.World.Estate
 
         private void HandleLandStatRequest(int parcelID, uint reportType, uint requestFlags, string filter, IClientAPI remoteClient)
         {
+            if (!m_scene.Permissions.CanIssueEstateCommand(remoteClient.AgentId, false))
+                return;
+
             Dictionary<uint, float> SceneData = new Dictionary<uint,float>();
             List<UUID> uuidNameLookupList = new List<UUID>();
 
@@ -770,8 +771,14 @@ namespace OpenSim.Region.CoreModules.World.Estate
             for (int i = 0; i < uuidarr.Length; i++)
             {
                 // string lookupname = m_scene.CommsManager.UUIDNameRequestString(uuidarr[i]);
-                m_scene.GetUserName(uuidarr[i]);
+
+                IUserManagement userManager = m_scene.RequestModuleInterface<IUserManagement>();
+                string userName = "Unkown User";
+                if (userManager != null)
+                    userName = userManager.GetUserName(uuidarr[i]);
+                
                 // we drop it.  It gets cached though...  so we're ready for the next request.
+                // diva commnent 11/21/2010: uh?!? wft?
             }
         }
         #endregion
@@ -1097,12 +1104,14 @@ namespace OpenSim.Region.CoreModules.World.Estate
             if (m_scene.RegionInfo.RegionSettings.AllowLandJoinDivide)
                 flags |= RegionFlags.AllowParcelChanges;
             if (m_scene.RegionInfo.RegionSettings.BlockShowInSearch)
-                flags |= (RegionFlags)(1 << 29);
+                flags |= RegionFlags.BlockParcelSearch;
 
             if (m_scene.RegionInfo.RegionSettings.FixedSun)
                 flags |= RegionFlags.SunFixed;
             if (m_scene.RegionInfo.RegionSettings.Sandbox)
                 flags |= RegionFlags.Sandbox;
+            if (m_scene.RegionInfo.EstateSettings.AllowVoice)
+                flags |= RegionFlags.AllowVoice;
 
             // Fudge these to always on, so the menu options activate
             //

@@ -109,6 +109,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_seSyncServerport = syncConfig.GetInt(seServerPort, DefaultPort);
             DefaultPort++;
 
+            //Get sync server info for Physics Engine actors 
+            string peServerAddr = scene.RegionInfo.RegionName + "_SceneToPESyncServerIP";
+            m_peSyncServeraddr = syncConfig.GetString(peServerAddr, "127.0.0.1");
+            string peServerPort = scene.RegionInfo.RegionName + "_SceneToPESyncServerPort";
+            m_peSyncServerport = syncConfig.GetInt(peServerPort, DefaultPort);
+            DefaultPort++;
+
             //Get quark information
             QuarkInfo.SizeX = syncConfig.GetInt("QuarkSizeX", (int)Constants.RegionSize);
             QuarkInfo.SizeY = syncConfig.GetInt("QuarkSizeY", (int)Constants.RegionSize);
@@ -154,6 +161,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //Start the sync server for script engines
             m_sceneToSESyncServer = new SceneToScriptEngineSyncServer(m_scene, m_seSyncServeraddr, m_seSyncServerport);
             m_sceneToSESyncServer.Start();
+
+            m_log.Warn("[REGION SYNC SERVER MODULE] Starting SceneToPhysEngineSyncServer");
+            //Start the sync server for physics engines
+            m_sceneToPESyncServer = new SceneToPhysEngineSyncServer(m_scene, m_peSyncServeraddr, m_peSyncServerport);
+            m_sceneToPESyncServer.Start();
             //m_log.Warn("[REGION SYNC SERVER MODULE] Post-Initialised");
         }
 
@@ -489,6 +501,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private string m_seSyncServeraddr;
         private int m_seSyncServerport;
         private SceneToScriptEngineSyncServer m_sceneToSESyncServer = null;
+
+        //Sync-server for physics engine
+        private string m_peSyncServeraddr;
+        private int m_peSyncServerport;
+        private SceneToPhysEngineSyncServer m_sceneToPESyncServer = null;
         
         //quark related information
         //private int QuarkInfo.SizeX;

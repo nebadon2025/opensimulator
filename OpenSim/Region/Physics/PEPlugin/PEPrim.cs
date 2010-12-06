@@ -26,13 +26,16 @@
 using System;
 using System.Reflection;
 using System.Collections.Generic;
+using System.Xml;
 using log4net;
 using OpenMetaverse;
 using OpenSim.Framework;
 using OpenSim.Region.Physics.Manager;
+using OpenSim.Region.CoreModules.RegionSync.RegionSyncModule;
 
 namespace OpenSim.Region.Physics.PEPlugin
 {
+    [Serializable]
 public sealed class PEPrim : PhysicsActor
 {
     private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);

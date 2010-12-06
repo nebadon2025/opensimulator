@@ -41,7 +41,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
     }
 
     //Here is the per actor type listening server for physics Engines.
-    public class SceneToPhysEngineSyncServer
+    public class SceneToPhysEngineSyncServer : ISceneToPhysEngineServer
     {
         #region SceneToPhysEngineSyncServer members
         // Set the addr and port for TcpListener
@@ -57,6 +57,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         private int peCounter;
+
+        // static counters that are used to compute global configuration state
+        private static int m_syncServerInitialized = 0;
+        private static int m_totalConnections = 0;
 
         // The local scene.
         private Scene m_scene;
@@ -92,6 +96,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return (m_physEngineConnectors.Count > 0);
             }
         }
+        public static bool IsPhysEngineScene
+        {
+            get { return (m_syncServerInitialized != 0); }
+        }
+        public static bool IsActivePhysEngineScene
+        {
+            get { return (m_syncServerInitialized != 0 && m_totalConnections != 0); }
+        }
+        public static bool IsPhysEngineActor
+        {
+            get { return PhysEngineToSceneConnectorModule.IsPhysEngineActor; }
+        }
+
         #endregion
 
         // Constructor
@@ -130,6 +147,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_log.WarnFormat(LogHeader + ": Starting {0} thread", m_listenerThread.Name);
             m_listenerThread.Start();
             //m_log.Warn("[REGION SYNC SERVER] Started");
+            m_syncServerInitialized++;
         }
 
 
@@ -137,6 +155,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Stop the server and disconnect all RegionSyncClients
         public void Shutdown()
         {
+            m_syncServerInitialized--;
             // Stop the listener and listening thread so no new clients are accepted
             m_listener.Stop();
             m_listenerThread.Abort();

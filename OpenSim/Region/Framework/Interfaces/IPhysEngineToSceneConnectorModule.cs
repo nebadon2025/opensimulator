@@ -36,18 +36,9 @@ namespace OpenSim.Region.Framework.Interfaces
     //the interface for Scene to sync with Script Engine
     public interface IPhysEngineToSceneConnectorModule
     {
-        bool Active { get; }
-        bool Synced { get; }
+        // static bool IsPhysEngineScene { get; }
+        // static bool IsActivePhysEngineScene { get; }
+        // static bool IsPhysEngineActor { get; }
         bool DebugWithViewer { get; }
-        //void SendCoarseLocations();
-        /// <summary>
-        /// Update the property of prim with primID, where the prim is located at quark (LocX, LocY). The length of each quark is configurable.
-        /// </summary>
-        /// <param name="locX"></param>
-        /// <param name="locY"></param>
-        /// <param name="primID"></param>
-        /// <param name="pName"></param>
-        /// <param name="pValue"></param>
-        void SendSetPrimProperties(uint locX, uint locY, UUID primID, string pName, object pValue);
     }
 }

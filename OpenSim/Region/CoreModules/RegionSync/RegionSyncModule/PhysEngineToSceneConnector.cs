@@ -63,7 +63,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // The client connection to the RegionSyncServer
         private TcpClient m_client = new TcpClient();
 
-        private string m_authSceneName;
 
         //KittyL: Comment out m_statsTimer for now, will figure out whether we need it for PhysEngine later
         //private System.Timers.Timer m_statsTimer = new System.Timers.Timer(30000);
@@ -94,7 +93,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
 
         // Constructor
-        public PhysEngineToSceneConnector(Scene validLocalScene, string addr, int port, bool debugWithViewer, string authSceneName, IConfig sysConfig)
+        public PhysEngineToSceneConnector(Scene validLocalScene, string addr, int port, bool debugWithViewer, 
+                            IConfig sysConfig)
         {
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
             m_validLocalScene = validLocalScene;
@@ -102,7 +102,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_addrString = addr;
             m_port = port;
             m_debugWithViewer = debugWithViewer;
-            m_authSceneName = authSceneName;
             //m_statsTimer.Elapsed += new System.Timers.ElapsedEventHandler(StatsTimerElapsed);
             m_sysConfig = sysConfig;
 
@@ -110,53 +109,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_subscribedQuarks = new QuarkSubsriptionInfo(0, 0, (int)Constants.RegionSize, (int)Constants.RegionSize);
         }
 
-        /// <summary>
-        /// Create a PhysEngineToSceneConnector based on the space it is supposed to subscribe (and operate) on.
-        /// </summary>
-        /// <param name="validLocalScene"></param>
-        /// <param name="addr"></param>
-        /// <param name="port"></param>
-        /// <param name="debugWithViewer"></param>
-        /// <param name="authSceneName"></param>
-        /// <param name="subscriptionSpace"></param>
-        /// <param name="quarkSizeX"></param>
-        /// <param name="quarkSizeY"></param>
-        /// <param name="sysConfig"></param>
-        public PhysEngineToSceneConnector(Scene validLocalScene, string addr, int port, bool debugWithViewer, string authSceneName,
-            string subscriptionSpace, IConfig sysConfig)
-        {
-            if (QuarkInfo.SizeX == -1 || QuarkInfo.SizeY == -1)
-            {
-                m_log.Error("QuarkInfo.SizeX or QuarkInfo.SizeY has not been configured.");
-                Environment.Exit(0);
-            }
-
-            m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-            m_validLocalScene = validLocalScene;
-            m_addr = IPAddress.Parse(addr);
-            m_addrString = addr;
-            m_port = port;
-            m_debugWithViewer = debugWithViewer;
-            m_authSceneName = authSceneName;
-            //m_statsTimer.Elapsed += new System.Timers.ElapsedEventHandler(StatsTimerElapsed);
-            m_sysConfig = sysConfig;
-
-            m_subscribedQuarks = new QuarkSubsriptionInfo(subscriptionSpace);
-        }
-
-        public PhysEngineToSceneConnectorModule GetPEToSceneConnectorMasterModule()
-        {
-            if (m_validLocalScene == null)
-                return null;
-            return (PhysEngineToSceneConnectorModule)m_validLocalScene.PhysEngineToSceneConnectorModule;
-        }
-
-        public Scene GetValidLocalScene()
-        {
-            return m_validLocalScene;
-        }
-
-        
         private List<string> GetQuarkStringList()
         {
             List<string> quarkList = new List<string>();
@@ -167,19 +119,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return quarkList;
         }
          
-
-
-        /// <summary>
-        /// Get the reference to the local scene that is supposed to be mapped to the remote auth. scene.
-        /// </summary>
-        /// <param name="authSceneName"></param>
-        /// <returns></returns>
-        private Scene GetLocalScene(string authSceneName)
-        {
-            PhysEngineToSceneConnectorModule connectorModule = GetPEToSceneConnectorMasterModule();
-            return connectorModule.GetLocalScene(authSceneName);
-        }
-
         // Start the RegionSyncPhysEngine client thread
         public bool Start()
         {
@@ -474,28 +413,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 case RegionSyncMessage.MsgType.RegionName:
                     {
-                        string authSceneName = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
-                        if (authSceneName != m_authSceneName)
-                        {
-                            //This should not happen. If happens, check the configuration files (OpenSim.ini) on other sides.
-                            m_log.Warn(": !!! Mismatch between configurations of authoritative scene. Script Engine's config: "+m_authSceneName+", Scene's config: "+authSceneName);
-                            return;
-                        }
-                        RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Syncing to region \"{0}\"", m_authSceneName));
                         return;
                     }
                 case RegionSyncMessage.MsgType.Terrain:
                     {
                         //We need to handle terrain differently as we handle objects: we really will set the HeightMap
                         //of each local scene that is the shadow copy of its auth. scene.
-                        Scene localScene = GetLocalScene(m_authSceneName);
-                        if (localScene == null)
-                        {
-                            m_log.Warn("no local Scene mapped to "+m_authSceneName);
-                            return;
-                        }
-                        localScene.Heightmap.LoadFromXmlString(Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
-                        RegionSyncMessage.HandleSuccess(LogHeader, msg, "Synchronized terrain");
                         return;
                     }
                 case RegionSyncMessage.MsgType.NewObject:

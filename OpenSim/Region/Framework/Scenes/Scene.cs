@@ -412,6 +412,13 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_physEngineToSceneConnectorModule = value; }
         }
 
+        protected ISceneToPhysEngineServer m_sceneToPhysEngineSyncServer = null;
+        public ISceneToPhysEngineServer SceneToPhysEngineSyncServer
+        {
+            get { return m_sceneToPhysEngineSyncServer; }
+            set { m_sceneToPhysEngineSyncServer = value; }
+        }
+
         // list of physactors for this scene so we can find them later for remote physics
         public Dictionary<uint, PhysicsActor> PhysActors = new Dictionary<uint, PhysicsActor>();
         public void AddPhysActor(uint id, PhysicsActor pActor)
@@ -428,19 +435,6 @@ namespace OpenSim.Region.Framework.Scenes
                 PhysActors.Remove(id);
             }
             return;
-        }
-
-        public bool IsPhysEngineScene()
-        {
-            return (SceneToPhysEngineConnectorModule != null);
-        }
-        public bool IsActivePhysEngineScene()
-        {
-            return (SceneToPhysEngineConnectorModule != null && SceneToPhysEngineConnectorModule.Active);
-        }
-        public bool IsPhysEngineActor()
-        {
-            return (PhysEngineToSceneConnectorModule != null);
         }
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1480,6 +1474,8 @@ namespace OpenSim.Region.Framework.Scenes
             RegionSyncServerModule = RequestModuleInterface<IRegionSyncServerModule>();
             RegionSyncClientModule = RequestModuleInterface<IRegionSyncClientModule>();
             ScriptEngineToSceneConnectorModule = RequestModuleInterface<IScriptEngineToSceneConnectorModule>();
+            PhysEngineToSceneConnectorModule = RequestModuleInterface<IPhysEngineToSceneConnectorModule>();
+            SceneToPhysEngineSyncServer = RequestModuleInterface<ISceneToPhysEngineServer>();
 
             // Shoving this in here for now, because we have the needed
             // interfaces at this point

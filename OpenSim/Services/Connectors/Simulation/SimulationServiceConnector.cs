@@ -72,7 +72,7 @@ namespace OpenSim.Services.Connectors.Simulation
 
         protected virtual string AgentPath()
         {
-            return "/agent/";
+            return "agent/";
         }
 
         public bool CreateAgent(GridRegion destination, AgentCircuitData aCircuit, uint flags, out string reason)
@@ -104,26 +104,7 @@ namespace OpenSim.Services.Connectors.Simulation
                 return false;
             }
 
-            string uri = string.Empty;
-
-            // HACK -- Simian grid make it work!!!
-            if (destination.ServerURI != null && destination.ServerURI != string.Empty && !destination.ServerURI.StartsWith("http:"))
-                uri = "http://" + destination.ServerURI + AgentPath() + aCircuit.AgentID + "/";
-            else
-            {
-                try
-                {
-                    uri = "http://" + destination.ExternalEndPoint.Address + ":" + destination.HttpPort + AgentPath() + aCircuit.AgentID + "/";
-                }
-                catch (Exception e)
-                {
-                    m_log.Error("[REMOTE SIMULATION CONNECTOR]: Unable to resolve external endpoint on agent create. Reason: " + e.Message);
-                    reason = e.Message;
-                    return false;
-                }
-            }
-
-            //Console.WriteLine("   >>> DoCreateChildAgentCall <<< " + uri);
+            string uri = destination.ServerURI + AgentPath() + aCircuit.AgentID + "/";
 
             AgentCreateRequest = (HttpWebRequest)WebRequest.Create(uri);
             AgentCreateRequest.Method = "POST";
@@ -277,17 +258,8 @@ namespace OpenSim.Services.Connectors.Simulation
         private bool UpdateAgent(GridRegion destination, IAgentData cAgentData)
         {
             // Eventually, we want to use a caps url instead of the agentID
-            string uri = string.Empty;
-            try
-            {
-                uri = "http://" + destination.ExternalEndPoint.Address + ":" + destination.HttpPort + AgentPath() + cAgentData.AgentID + "/";
-            }
-            catch (Exception e)
-            {
-                m_log.Warn("[REMOTE SIMULATION CONNECTOR]: Unable to resolve external endpoint on agent update. Reason: " + e.Message);
-                return false;
-            }
-            //Console.WriteLine("   >>> DoAgentUpdateCall <<< " + uri);
+
+            string uri = destination.ServerURI + AgentPath() + cAgentData.AgentID + "/";
 
             HttpWebRequest ChildUpdateRequest = (HttpWebRequest)WebRequest.Create(uri);
             ChildUpdateRequest.Method = "PUT";
@@ -385,8 +357,7 @@ namespace OpenSim.Services.Connectors.Simulation
         {
             agent = null;
             // Eventually, we want to use a caps url instead of the agentID
-            string uri = "http://" + destination.ExternalEndPoint.Address + ":" + destination.HttpPort + AgentPath() + id + "/" + destination.RegionID.ToString() + "/";
-            //Console.WriteLine("   >>> DoRetrieveRootAgentCall <<< " + uri);
+            string uri = destination.ServerURI + AgentPath() + id + "/" + destination.RegionID.ToString() + "/";
 
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri);
             request.Method = "GET";
@@ -407,7 +378,6 @@ namespace OpenSim.Services.Connectors.Simulation
                 sr = new StreamReader(webResponse.GetResponseStream());
                 reply = sr.ReadToEnd().Trim();
 
-                //Console.WriteLine("[REMOTE SIMULATION CONNECTOR]: ChilAgentUpdate reply was " + reply);
 
             }
             catch (WebException ex)
@@ -428,7 +398,6 @@ namespace OpenSim.Services.Connectors.Simulation
                 OSDMap args = Util.GetOSDMap(reply);
                 if (args == null)
                 {
-                    //Console.WriteLine("[REMOTE SIMULATION CONNECTOR]: Error getting OSDMap from reply");
                     return false;
                 }
 
@@ -437,7 +406,65 @@ namespace OpenSim.Services.Connectors.Simulation
                 return true;
             }
 
-            //Console.WriteLine("[REMOTE SIMULATION CONNECTOR]: DoRetrieveRootAgentCall returned status " + webResponse.StatusCode);
+            return false;
+        }
+
+        public bool QueryAccess(GridRegion destination, UUID id)
+        {
+            IPEndPoint ext = destination.ExternalEndPoint;
+            if (ext == null) return false;
+            // Eventually, we want to use a caps url instead of the agentID
+            string uri = destination.ServerURI + AgentPath() + id + "/" + destination.RegionID.ToString() + "/";
+
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri);
+            request.Method = "QUERYACCESS";
+            request.Timeout = 10000;
+            //request.Headers.Add("authorization", ""); // coming soon
+
+            HttpWebResponse webResponse = null;
+            string reply = string.Empty;
+            StreamReader sr = null;
+            try
+            {
+                webResponse = (HttpWebResponse)request.GetResponse();
+                if (webResponse == null)
+                {
+                    m_log.Debug("[REMOTE SIMULATION CONNECTOR]: Null reply on agent query ");
+                }
+
+                sr = new StreamReader(webResponse.GetResponseStream());
+                reply = sr.ReadToEnd().Trim();
+
+
+            }
+            catch (WebException ex)
+            {
+                m_log.WarnFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of agent query {0}", ex.Message);
+                // ignore, really
+                return false;
+            }
+            finally
+            {
+                if (sr != null)
+                    sr.Close();
+            }
+
+            if (webResponse.StatusCode == HttpStatusCode.OK)
+            {
+                try
+                {
+                    bool result;
+
+                    result = bool.Parse(reply);
+
+                    return result;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
             return false;
         }
 
@@ -479,18 +506,7 @@ namespace OpenSim.Services.Connectors.Simulation
 
         public bool CloseAgent(GridRegion destination, UUID id)
         {
-            string uri = string.Empty;
-            try
-            {
-                uri = "http://" + destination.ExternalEndPoint.Address + ":" + destination.HttpPort + AgentPath() + id + "/" + destination.RegionID.ToString() + "/";
-            }
-            catch (Exception e)
-            {
-                m_log.Warn("[REMOTE SIMULATION CONNECTOR]: Unable to resolve external endpoint on agent close. Reason: " + e.Message);
-                return false;
-            }
-
-            //Console.WriteLine("   >>> DoCloseAgentCall <<< " + uri);
+            string uri = destination.ServerURI + AgentPath() + id + "/" + destination.RegionID.ToString() + "/";
 
             WebRequest request = WebRequest.Create(uri);
             request.Method = "DELETE";
@@ -532,13 +548,13 @@ namespace OpenSim.Services.Connectors.Simulation
 
         protected virtual string ObjectPath()
         {
-            return "/object/";
+            return "object/";
         }
 
         public bool CreateObject(GridRegion destination, ISceneObject sog, bool isLocalCall)
         {
             string uri
-                = "http://" + destination.ExternalEndPoint.Address + ":" + destination.HttpPort + ObjectPath() + sog.UUID + "/";
+                = destination.ServerURI + ObjectPath() + sog.UUID + "/";
             //m_log.Debug("   >>> DoCreateObjectCall <<< " + uri);
 
             WebRequest ObjectCreateRequest = WebRequest.Create(uri);

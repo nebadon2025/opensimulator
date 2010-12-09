@@ -87,6 +87,8 @@ namespace OpenSim.Services.HypergridService
                 //m_WelcomeMessage = serverConfig.GetString("WelcomeMessage", "Welcome to OpenSim!");
                 m_AllowTeleportsToAnyRegion = serverConfig.GetBoolean("AllowTeleportsToAnyRegion", true);
                 m_ExternalName = serverConfig.GetString("ExternalName", string.Empty);
+                if (m_ExternalName != string.Empty && !m_ExternalName.EndsWith("/"))
+                    m_ExternalName = m_ExternalName + "/";
 
                 Object[] args = new Object[] { config };
                 m_GridService = ServerUtils.LoadPlugin<IGridService>(gridService, args);
@@ -118,7 +120,7 @@ namespace OpenSim.Services.HypergridService
         {
             regionID = UUID.Zero;
             regionHandle = 0;
-            externalName = m_ExternalName;
+            externalName = m_ExternalName + ((regionName != string.Empty) ? " " + regionName : "");
             imageURL = string.Empty;
             reason = string.Empty;
 
@@ -157,7 +159,7 @@ namespace OpenSim.Services.HypergridService
             string regionimage = "regionImage" + region.RegionID.ToString();
             regionimage = regionimage.Replace("-", "");
 
-            imageURL = "http://" + region.ExternalHostName + ":" + region.HttpPort + "/index.php?method=" + regionimage;
+            imageURL = region.ServerURI + "index.php?method=" + regionimage;
 
             return true;
         }
@@ -333,7 +335,8 @@ namespace OpenSim.Services.HypergridService
 
             string addressee = parts[0];
             m_log.DebugFormat("[GATEKEEPER SERVICE]: Verifying {0} against {1}", addressee, m_ExternalName);
-            return (addressee == m_ExternalName);
+
+            return string.Equals(addressee, m_ExternalName, StringComparison.OrdinalIgnoreCase);
         }
 
         #endregion

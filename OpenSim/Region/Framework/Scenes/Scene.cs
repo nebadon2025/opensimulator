@@ -1065,60 +1065,6 @@ namespace OpenSim.Region.Framework.Scenes
             return new GridRegion(RegionInfo);
         }
 
-        /// <summary>
-        /// Given float seconds, this will restart the region.
-        /// </summary>
-        /// <param name="seconds">float indicating duration before restart.</param>
-        public virtual void Restart(float seconds)
-        {
-            // notifications are done in 15 second increments
-            // so ..   if the number of seconds is less then 15 seconds, it's not really a restart request
-            // It's a 'Cancel restart' request.
-
-            // RestartNow() does immediate restarting.
-            if (seconds < 15)
-            {
-                m_restartTimer.Stop();
-                m_dialogModule.SendGeneralAlert("Restart Aborted");
-            }
-            else
-            {
-                // Now we figure out what to set the timer to that does the notifications and calls, RestartNow()
-                m_restartTimer.Interval = 15000;
-                m_incrementsof15seconds = (int)seconds / 15;
-                m_RestartTimerCounter = 0;
-                m_restartTimer.AutoReset = true;
-                m_restartTimer.Elapsed += new ElapsedEventHandler(RestartTimer_Elapsed);
-                m_log.Info("[REGION]: Restarting Region in " + (seconds / 60) + " minutes");
-                m_restartTimer.Start();
-                m_dialogModule.SendNotificationToUsersInRegion(
-                    UUID.Random(), String.Empty, RegionInfo.RegionName + String.Format(": Restarting in {0} Minutes", (int)(seconds / 60.0)));
-            }
-        }
-
-        // The Restart timer has occured.
-        // We have to figure out if this is a notification or if the number of seconds specified in Restart
-        // have elapsed.
-        // If they have elapsed, call RestartNow()
-        public void RestartTimer_Elapsed(object sender, ElapsedEventArgs e)
-        {
-            m_RestartTimerCounter++;
-            if (m_RestartTimerCounter <= m_incrementsof15seconds)
-            {
-                if (m_RestartTimerCounter == 4 || m_RestartTimerCounter == 6 || m_RestartTimerCounter == 7)
-                    m_dialogModule.SendNotificationToUsersInRegion(
-                        UUID.Random(),
-                        String.Empty,
-                        RegionInfo.RegionName + ": Restarting in " + ((8 - m_RestartTimerCounter) * 15) + " seconds");
-            }
-            else
-            {
-                m_restartTimer.Stop();
-                m_restartTimer.AutoReset = false;
-                RestartNow();
-            }
-        }
-
         // This causes the region to restart immediatley.
         public void RestartNow()
         {
@@ -1141,7 +1087,8 @@ namespace OpenSim.Region.Framework.Scenes
             Close();
 
             m_log.Error("[REGION]: Firing Region Restart Message");
-            base.Restart(0);
+
+            base.Restart();
         }
 
         // This is a helper function that notifies root agents in this region that a new sim near them has come up
@@ -2324,7 +2271,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="group">Object Id</param>
         /// <param name="silent">Suppress broadcasting changes to other clients.</param>
         public void DeleteSceneObject(SceneObjectGroup group, bool silent)
-        {
+        {            
 //            m_log.DebugFormat("[SCENE]: Deleting scene object {0} {1}", group.Name, group.UUID);
             
             //SceneObjectPart rootPart = group.GetChildPart(group.UUID);
@@ -2365,7 +2312,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             group.DeleteGroupFromScene(silent);
 
-//            m_log.DebugFormat("[SCENE]: Exit DeleteSceneObject() for {0} {1}", group.Name, group.UUID);
+//            m_log.DebugFormat("[SCENE]: Exit DeleteSceneObject() for {0} {1}", group.Name, group.UUID);            
         }
 
         /// <summary>
@@ -2384,9 +2331,12 @@ namespace OpenSim.Region.Framework.Scenes
                     // Force a database update so that the scene object group ID is accurate.  It's possible that the
                     // group has recently been delinked from another group but that this change has not been persisted
                     // to the DB.
-                    ForceSceneObjectBackup(so);
+                    // This is an expensive thing to do so only do it if absolutely necessary.
+                    if (so.HasGroupChangedDueToDelink)
+                        ForceSceneObjectBackup(so);                
+                    
                     so.DetachFromBackup();
-                    SimulationDataService.RemoveObject(so.UUID, m_regInfo.RegionID);
+                    SimulationDataService.RemoveObject(so.UUID, m_regInfo.RegionID);                                        
                 }
                                     
                 // We need to keep track of this state in case this group is still queued for further backup.
@@ -2651,16 +2601,14 @@ namespace OpenSim.Region.Framework.Scenes
                 m_log.DebugFormat("[SCENE]: Problem adding scene object {0} in {1} ", sog.UUID, RegionInfo.RegionName);
                 return false;
             }
-            
-            newObject.RootPart.ParentGroup.CreateScriptInstances(0, false, DefaultScriptEngine, 2);
+
+            newObject.RootPart.ParentGroup.CreateScriptInstances(0, false, DefaultScriptEngine, GetStateSource(newObject));
 
             newObject.ResumeScripts();
 
             // Do this as late as possible so that listeners have full access to the incoming object
             EventManager.TriggerOnIncomingSceneObject(newObject);
 
-            TriggerChangedTeleport(newObject);
-            
             return true;
         }
 
@@ -2768,7 +2716,7 @@ namespace OpenSim.Region.Framework.Scenes
             return true;
         }
 
-        private void TriggerChangedTeleport(SceneObjectGroup sog)
+        private int GetStateSource(SceneObjectGroup sog)
         {
             ScenePresence sp = GetScenePresence(sog.OwnerID);
 
@@ -2779,13 +2727,12 @@ namespace OpenSim.Region.Framework.Scenes
                 if (aCircuit != null && (aCircuit.teleportFlags != (uint)TeleportFlags.Default))
                 {
                     // This will get your attention
-                    //m_log.Error("[XXX] Triggering ");
+                    //m_log.Error("[XXX] Triggering CHANGED_TELEPORT");
 
-                    // Trigger CHANGED_TELEPORT
-                    sp.Scene.EventManager.TriggerOnScriptChangedEvent(sog.LocalId, (uint)Changed.TELEPORT);
+                    return 5; // StateSource.Teleporting
                 }
-
             }
+            return 2; // StateSource.PrimCrossing
         }
 
         #endregion
@@ -2900,6 +2847,7 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                     else
                         m_log.DebugFormat("[SCENE]: User Client Verification for {0} {1} in {2} returned true", aCircuit.firstname, aCircuit.lastname, RegionInfo.RegionName);
+
                 }
             }
 
@@ -4053,6 +4001,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             ScenePresence childAgentUpdate = WaitGetScenePresence(cAgentData.AgentID);
+
             if (childAgentUpdate != null)
             {
                 childAgentUpdate.ChildAgentDataUpdate(cAgentData);
@@ -4610,7 +4559,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        ///
+        /// Perform the given action for each object
         /// </summary>
         /// <param name="action"></param>
         //        public void ForEachObject(Action<SceneObjectGroup> action)
@@ -5319,6 +5268,17 @@ namespace OpenSim.Region.Framework.Scenes
                 m_log.InfoFormat("[SCENE]: Deleting dropped attachment {0} of user {1}", grp.UUID, grp.OwnerID);
                 DeleteSceneObject(grp, true);
             }
+        }
+
+        // This method is called across the simulation connector to
+        // determine if a given agent is allowed in this region
+        // AS A ROOT AGENT. Returning false here will prevent them
+        // from logging into the region, teleporting into the region
+        // or corssing the broder walking, but will NOT prevent
+        // child agent creation, thereby emulating the SL behavior.
+        public bool QueryAccess(UUID agentID)
+        {
+            return true;
         }
     }
 }

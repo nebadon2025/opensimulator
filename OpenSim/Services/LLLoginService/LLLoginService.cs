@@ -586,6 +586,7 @@ namespace OpenSim.Services.LLLoginService
 
         private GridRegion FindForeignRegion(string domainName, uint port, string regionName, out GridRegion gatekeeper)
         {
+            m_log.Debug("[LLLOGIN SERVICE]: attempting to findforeignregion " + domainName + ":" + port.ToString() + ":" + regionName);
             gatekeeper = new GridRegion();
             gatekeeper.ExternalHostName = domainName;
             gatekeeper.HttpPort = port;
@@ -651,11 +652,9 @@ namespace OpenSim.Services.LLLoginService
                     gatekeeper = new GridRegion(destination);
                     gatekeeper.ExternalHostName = hostName;
                     gatekeeper.HttpPort = (uint)port;
-
+                    gatekeeper.ServerURI = m_GatekeeperURL;
                 }
-                else // login to foreign grid
-                {
-                }
+                m_log.Debug("[LLLOGIN SERVICE]: no gatekeeper detected..... using " + m_GatekeeperURL);
             }
 
             bool success = false;
@@ -762,6 +761,7 @@ namespace OpenSim.Services.LLLoginService
             if (account.ServiceURLs == null)
                 return;
 
+            // Old style: get the service keys from the DB 
             foreach (KeyValuePair<string, object> kvp in account.ServiceURLs)
             {
                 if (kvp.Value == null || (kvp.Value != null && kvp.Value.ToString() == string.Empty))
@@ -773,6 +773,21 @@ namespace OpenSim.Services.LLLoginService
                     aCircuit.ServiceURLs[kvp.Key] = kvp.Value;
                 }
             }
+
+            // New style: service keys  start with SRV_; override the previous
+            string[] keys = m_LoginServerConfig.GetKeys();
+
+            if (keys.Length > 0)
+            {
+                IEnumerable<string> serviceKeys = keys.Where(value => value.StartsWith("SRV_"));
+                foreach (string serviceKey in serviceKeys)
+                {
+                    string keyName = serviceKey.Replace("SRV_", "");
+                    aCircuit.ServiceURLs[keyName] = m_LoginServerConfig.GetString(serviceKey, string.Empty);
+                    m_log.DebugFormat("[LLLOGIN SERVICE]: found new key {0} {1}", keyName, aCircuit.ServiceURLs[keyName]);
+                }
+            }
+
         }
 
         private bool LaunchAgentDirectly(ISimulationService simConnector, GridRegion region, AgentCircuitData aCircuit, out string reason)

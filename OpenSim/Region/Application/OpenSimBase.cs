@@ -327,8 +327,8 @@ namespace OpenSim
             //regionInfo.originRegionID = regionInfo.RegionID;
 
             // set initial ServerURI
-            regionInfo.ServerURI = "http://" + regionInfo.ExternalHostName + ":" + regionInfo.InternalEndPoint.Port;
             regionInfo.HttpPort = m_httpServerPort;
+            regionInfo.ServerURI = "http://" + regionInfo.ExternalHostName + ":" + regionInfo.HttpPort.ToString() + "/";
             
             regionInfo.osSecret = m_osSecret;
             
@@ -352,13 +352,13 @@ namespace OpenSim
             m_moduleLoader.InitialiseSharedModules(scene);
 
             // Use this in the future, the line above will be deprecated soon
-            m_log.Info("[MODULES]: Loading Region's modules (new style)");
+            m_log.Info("[REGIONMODULES]: Loading Region's modules (new style)");
             IRegionModulesController controller;
             if (ApplicationRegistry.TryGet(out controller))
             {
                 controller.AddRegionToModules(scene);
             }
-            else m_log.Error("[MODULES]: The new RegionModulesController is missing...");
+            else m_log.Error("[REGIONMODULES]: The new RegionModulesController is missing...");
 
             scene.SetModuleInterfaces();
 

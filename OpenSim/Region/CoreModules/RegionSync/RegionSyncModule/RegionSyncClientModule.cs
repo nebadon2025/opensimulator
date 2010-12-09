@@ -120,6 +120,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_client.SendCoarseLocations();
         }
 
+        public void SendAppearanceToScene(UUID agentID)
+        {
+            m_client.SendAppearanceToScene(agentID);
+        }
+
         public void IncomingLoadBalanceConnection(ScenePresence presence)
         {
             m_client.IncomingLoadBalanceConnection(presence);

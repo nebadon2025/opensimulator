@@ -266,6 +266,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        public void SendAppearanceToScene(UUID agentID)
+        {
+            OSDMap data = new OSDMap();
+            data["agentID"] = OSD.FromUUID(agentID);
+            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AvatarAppearance, OSDParser.SerializeJsonString(data)));
+        }
+
         // Handle an incoming message
         // TODO: This should not be synchronous with the receive!
         // Instead, handle messages from an incoming Queue so server doesn't block sending
@@ -654,7 +661,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                 case RegionSyncMessage.MsgType.AvatarAppearance:
                     {
-                        //m_log.WarnFormat("{0} START of AvatarAppearance handler", LogHeader); 
+                        m_log.DebugFormat("{0} START of AvatarAppearance handler", LogHeader);
                         // Get the data from message and error check
                         OSDMap data = DeserializeMessage(msg);
                         if (data == null)
@@ -671,23 +678,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             return;
                         }
 
-                        // Find the presence in the scene
-                        ScenePresence presence;
-                        if (m_scene.TryGetScenePresence(agentID, out presence))
-                        {
-                            string name = presence.Name;
-                            Primitive.TextureEntry te = Primitive.TextureEntry.FromOSD(data["te"]);
-                            byte[] vp = data["vp"].AsBinary();
+                        // Tells the avatar factory to pull an updated appearance from the avatar service
+                        m_scene.AvatarFactory.RefreshAppearance(agentID);
 
-                            m_log.WarnFormat("{0} Calling presence.SetAppearance for {1} (\"{2}\")", LogHeader, agentID, presence.Name);
-                            m_scene.AvatarFactory.SetAppearance(presence.ControllingClient, te, vp);
-                            RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Set appearance for {0}", name));
-                        }
-                        else
-                        {
-                            RegionSyncMessage.HandleWarning(LogHeader, msg, String.Format("Agent {0} not found in the scene.", agentID));
-                        }
-                        //m_log.WarnFormat("{0} END of AvatarAppearance handler", LogHeader); 
+                        m_log.DebugFormat("{0} END of AvatarAppearance handler", LogHeader);
                         return;
                     }
                 case RegionSyncMessage.MsgType.SitResponse:
@@ -961,21 +955,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 name = sp.Name;
             m_log.WarnFormat("{0} Received LLClientView.SetAppearance ({1,3},{2,2}) for {3} (\"{4}\")", LogHeader, vp.Length.ToString(), (te == null) ? "" : "te", agentID.ToString(), sp.Name);
             if (sp == null)
+            {
+                m_log.WarnFormat("{0} Scene presence could not be found to set appearance.", LogHeader);
                 return;
+            }
 
             // Set the appearance on the presence. This will generate the needed exchange with the client if rebakes need to take place.
             m_log.WarnFormat("{0} Setting appearance on ScenePresence {1} \"{2}\"", LogHeader, sp.UUID, sp.Name);
             m_scene.AvatarFactory.SetAppearance(sp.ControllingClient, te, vp);
-
-            if (te != null)
-            {
-                //m_log.WarnFormat("{0} Sending appearance to server for {1} \"{2}\"", LogHeader, sp.UUID, sp.Name);
-                OSDMap data = new OSDMap(3);
-                data["id"] = OSDUUID.FromUUID(sp.UUID);
-                data["vp"] = new OSDBinary(sp.Appearance.VisualParams);
-                data["te"] = te.GetOSD();
-                Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AvatarAppearance, OSDParser.SerializeJsonString(data)));
-            }
         }
 
         public void HandleAgentRequestSit(object sender, UUID agentID, UUID targetID, Vector3 offset)

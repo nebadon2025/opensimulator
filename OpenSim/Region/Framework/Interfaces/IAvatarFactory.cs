@@ -35,6 +35,7 @@ namespace OpenSim.Region.Framework.Interfaces
         bool ValidateBakedTextureCache(IClientAPI client);
         void QueueAppearanceSend(UUID agentid);
         void QueueAppearanceSave(UUID agentid);
+        void RefreshAppearance(UUID agentid);
         void SetAppearance(IClientAPI client, Primitive.TextureEntry textureEntry, byte[] visualParams);
     }
 }

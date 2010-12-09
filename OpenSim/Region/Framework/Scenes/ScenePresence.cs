@@ -2606,10 +2606,10 @@ namespace OpenSim.Region.Framework.Scenes
 //            m_log.WarnFormat("[SCENEPRESENCE]: Send appearance from {0} to all other agents", m_uuid);
 // DEBUG OFF
             // REGION SYNC
-            // The server should not be doing anything via the ForEachScenePresence method
+            // The server sends appearance to all client managers since there are no local clients
             if (m_scene.IsSyncedServer())
             {
-                m_scene.RegionSyncServerModule.SendAppearance(UUID, Appearance.Texture, Appearance.VisualParams);
+                m_scene.RegionSyncServerModule.SendAppearance(UUID);
                 return;
             }
             if (Appearance.Texture == null)

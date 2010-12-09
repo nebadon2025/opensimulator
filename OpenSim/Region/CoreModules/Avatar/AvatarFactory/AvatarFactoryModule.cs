@@ -261,6 +261,32 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
             }
         }
 
+        public void RefreshAppearance(UUID agentid)
+        {
+            ScenePresence sp;
+            if(!m_scene.TryGetScenePresence(agentid, out sp))
+            {
+                m_log.WarnFormat("[AVFACTORY]: RefreshAppearance unable to find presence for {0}", agentid);
+                return;
+            }
+
+            Util.FireAndForget(delegate(object o)
+            {
+                AvatarAppearance appearance = m_scene.AvatarService.GetAppearance(agentid);
+                if (appearance.Texture != null && appearance.VisualParams != null)
+                {
+                    sp.Appearance.SetTextureEntries(appearance.Texture);
+                    sp.Appearance.SetVisualParams(appearance.VisualParams);
+                    sp.SetHeight(appearance.AvatarHeight);
+                    QueueAppearanceSend(agentid);
+                }
+                else
+                {
+                     m_log.WarnFormat("[AVFACTORY]: RefreshAppearance received null appearance data from grid for {0}", agentid);
+                }
+            }, null);
+        }
+
         private void HandleAppearanceSend(UUID agentid)
         {
             ScenePresence sp = m_scene.GetScenePresence(agentid);
@@ -303,6 +329,11 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
             // m_log.WarnFormat("[AVFACTORY] avatar {0} save appearance",agentid);
 
             m_scene.AvatarService.SetAppearance(agentid, sp.Appearance);
+            // REGION SYNC
+            // If this is a client manager, we have received new appearance from a client and saved
+            // it to the avatar service. Now let's tell the parent scene about it.
+            if (m_scene.IsSyncedClient())
+                m_scene.RegionSyncClientModule.SendAppearanceToScene(agentid);
         }
 
         private void HandleAppearanceUpdateTimer(object sender, EventArgs ea)

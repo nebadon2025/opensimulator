@@ -286,8 +286,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return data;
         }
 
-        private Dictionary<UUID, System.Threading.Timer> m_appearanceTimers = new Dictionary<UUID, Timer>();
-
         // Handle an incoming message
         // *** Perhaps this should not be synchronous with the receive
         // We could handle messages from an incoming Queue
@@ -463,8 +461,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                 case RegionSyncMessage.MsgType.AvatarAppearance:
                     {
-                        int msgID = msgCount;
-                        m_log.DebugFormat("{0} START of AvatarAppearance handler <{1}>", LogHeader, msgID); 
+                        m_log.DebugFormat("{0} START of AvatarAppearance handler", LogHeader); 
                         // Get the data from message and error check
                         OSDMap data = DeserializeMessage(msg);
                         if (data == null)
@@ -481,41 +478,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             return;
                         }
 
-                        ScenePresence presence;
-                        if (m_scene.TryGetScenePresence(agentID, out presence))
-                        {
-                            int delay = 5000;
-                            string name = presence.Name;
-                            m_log.WarnFormat("{0} Waiting {1}ms before setting appearance on presence {2} <{3}>", LogHeader, delay, name, msgID);
-                            Timer appearanceSetter = new Timer(delegate(object obj)
-                                {
-                                    //m_log.WarnFormat("{0} Ready to set appearance on presence {1} <{2}>", LogHeader, name, msgID);
-                                    Primitive.TextureEntry te = Primitive.TextureEntry.FromOSD(data["te"]);
-                                    byte[] vp = data["vp"].AsBinary();
+                        // Tells the avatar factory to pull an updated appearance from the avatar service
+                        m_scene.AvatarFactory.RefreshAppearance(agentID);
 
-                                    m_log.DebugFormat("{0} {1} Calling presence.SetAppearance <{2}>", LogHeader, name, msgID);
-                                    try
-                                    {
-                                        m_scene.AvatarFactory.SetAppearance(presence.ControllingClient, te, vp);
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        m_log.WarnFormat("{0} Caught exception setting appearance for {1} (probably was removed from scene): {2}", LogHeader, name, e.Message);
-                                    }
-                                    RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Set appearance for {0} <{1}>", name, msgID));
-                                    m_log.DebugFormat("{0} Calling RegionsSyncServerModule.SendAppearance for {1} <{2}>", LogHeader, name, msgID);
-                                    m_scene.RegionSyncServerModule.SendAppearance(presence.UUID, presence.Appearance.VisualParams, presence.Appearance.Texture);
-                                    lock (m_appearanceTimers)
-                                        m_appearanceTimers.Remove(agentID);
-                                }, null, delay, Timeout.Infinite);
-                            lock (m_appearanceTimers)
-                                m_appearanceTimers[agentID] = appearanceSetter;
-                        }
-                        else
-                        {
-                            RegionSyncMessage.HandleWarning(LogHeader, msg, String.Format("Presence not found in the scene: {0} <{1}>", agentID, msgID));
-                        }
-                        //m_log.WarnFormat("{0} END of AvatarAppearance handler <{1}>", LogHeader, msgID); 
+                        m_log.DebugFormat("{0} END of AvatarAppearance handler", LogHeader); 
                         return;
                     }
                 case RegionSyncMessage.MsgType.AgentRequestSit:

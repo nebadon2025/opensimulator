@@ -115,6 +115,39 @@ namespace OpenSim.Region.Physics.Manager
         }
     }
 
+    /// <summary>
+    /// Structure to hold previous values of the PhysicsActor. This is used to see
+    /// if the values changed before sending updates to the Physics Engine.
+    /// </summary>
+    public struct PhysActorLastValues
+    {
+        public uint localID;
+        public Vector3 size;
+        public Vector3 position;
+        public Vector3 force;
+        public Vector3 velocity;
+        public Vector3 torque;
+        public Quaternion orientation;
+        public Boolean isPhysical;
+        public Boolean flying;
+        public double buoyancy;
+        public bool Changed(PhysicsActor pa)
+        {
+            bool ret = false;
+            if (localID != pa.LocalID) { localID = pa.LocalID; ret = true; }
+            if (size != pa.Size) { size = pa.Size; ret = true; }
+            if (position != pa.Position) { position = pa.Position; ret = true; }
+            if (force != pa.Force) { force = pa.Force; ret = true; }
+            if (velocity != pa.Velocity) { velocity = pa.Velocity; ret = true; }
+            if (torque != pa.Torque) { torque = pa.Torque; ret = true; }
+            if (orientation != pa.Orientation) { orientation = pa.Orientation; ret = true; }
+            if (isPhysical != pa.IsPhysical) { isPhysical = pa.IsPhysical; ret = true; }
+            if (flying != pa.Flying) { flying = pa.Flying; ret = true; }
+            if (buoyancy != pa.Buoyancy) { buoyancy = pa.Buoyancy; ret = true; }
+            return ret;
+        }
+    }
+
     public abstract class PhysicsActor
     {
         public delegate void RequestTerseUpdate();
@@ -144,6 +177,7 @@ namespace OpenSim.Region.Physics.Manager
 
         // RA: used to be abstract but changed to allow 'get' without changing all the phys engines
         public virtual uint LocalID { set { return; } get { return 0; } }
+        public PhysActorLastValues lastValues;
 
         public abstract bool Grabbed { set; }
 

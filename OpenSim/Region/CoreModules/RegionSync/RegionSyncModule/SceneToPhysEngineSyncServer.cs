@@ -6,6 +6,7 @@ using System.Text;
 using System.Collections.Generic;
 using System.Threading;
 using OpenSim.Framework;
+using OpenSim.Region.CoreModules.Framework.InterfaceCommander;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Framework.Interfaces;
 using log4net;
@@ -13,6 +14,7 @@ using log4net;
 using OpenMetaverse;
 using OpenMetaverse.StructuredData;
 using OpenSim.Region.Framework.Scenes.Serialization;
+using OpenSim.Region.Physics.Manager;
 
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
@@ -41,7 +43,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
     }
 
     //Here is the per actor type listening server for physics Engines.
-    public class SceneToPhysEngineSyncServer : ISceneToPhysEngineServer
+    public class SceneToPhysEngineSyncServer : ISceneToPhysEngineServer, ICommandableModule
     {
         #region SceneToPhysEngineSyncServer members
         // Set the addr and port for TcpListener
@@ -61,6 +63,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // static counters that are used to compute global configuration state
         private static int m_syncServerInitialized = 0;
         private static int m_totalConnections = 0;
+        private static List<Scene> m_allScenes = new List<Scene>();
 
         // The local scene.
         private Scene m_scene;
@@ -74,6 +77,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private object m_physEngineConnector_lock = new object();
         //private Dictionary<string, SceneToPhysEngineConnector> m_physEngineConnectors = new Dictionary<string, SceneToPhysEngineConnector>();
         private List<SceneToPhysEngineConnector> m_physEngineConnectors = new List<SceneToPhysEngineConnector>();
+        // the last connector created
+        private SceneToPhysEngineConnector m_sceneToPhysEngineConnector = null;
 
         //list of idle physics engines that have registered.
         private List<IdlePhysEngineInfo> m_idlePhysEngineList = new List<IdlePhysEngineInfo>();
@@ -88,25 +93,174 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //private int QuarkInfo.SizeX;
         //private int QuarkInfo.SizeY;
 
+        #region ICommandableModule Members
+        private readonly Commander m_commander = new Commander("phys");
+        public ICommander CommandInterface
+        {
+            get { return m_commander; }
+        }
+
+        private void InstallInterfaces()
+        {
+            // Command cmdSyncStart = new Command("start", CommandIntentions.COMMAND_HAZARDOUS, SyncStart, "Begins synchronization with RegionSyncServer.");
+            //cmdSyncStart.AddArgument("server_port", "The port of the server to synchronize with", "Integer");
+            
+            // Command cmdSyncStop = new Command("stop", CommandIntentions.COMMAND_HAZARDOUS, SyncStop, "Stops synchronization with RegionSyncServer.");
+            //cmdSyncStop.AddArgument("server_address", "The IP address of the server to synchronize with", "String");
+            //cmdSyncStop.AddArgument("server_port", "The port of the server to synchronize with", "Integer");
+
+            Command cmdSyncStatus = new Command("status", CommandIntentions.COMMAND_HAZARDOUS, SyncStatus, "Displays synchronization status.");
+
+            //The following two commands are more for easier debugging purpose
+            // Command cmdSyncSetQuarks = new Command("quarkSpace", CommandIntentions.COMMAND_HAZARDOUS, SetQuarkList, "Set the set of quarks to subscribe to. For debugging purpose. Should be issued before \"sync start\"");
+            // cmdSyncSetQuarks.AddArgument("quarkSpace", "The (rectangle) space of quarks to subscribe, represented by x0_y0,x1_y1, the left-bottom and top-right corners of the rectangel space", "String");
+
+            // Command cmdSyncSetQuarkSize = new Command("quarksize", CommandIntentions.COMMAND_HAZARDOUS, SetQuarkSize, "Set the size of each quark. For debugging purpose. Should be issued before \"sync quarks\"");
+            // cmdSyncSetQuarkSize.AddArgument("quarksizeX", "The size on x axis of each quark", "Integer");
+            // cmdSyncSetQuarkSize.AddArgument("quarksizeY", "The size on y axis of each quark", "Integer");
+
+            // m_commander.RegisterCommand("start", cmdSyncStart);
+            // m_commander.RegisterCommand("stop", cmdSyncStop);
+            m_commander.RegisterCommand("status", cmdSyncStatus);
+            // m_commander.RegisterCommand("quarkSpace", cmdSyncSetQuarks);
+
+            lock (m_scene)
+            {
+                // Add this to our scene so scripts can call these functions
+                m_scene.RegisterModuleCommander(m_commander);
+            }
+        }
+
+        /// <summary>
+        /// Processes commandline input. Do not call directly.
+        /// </summary>
+        /// <param name="args">Commandline arguments</param>
+        private void EventManager_OnPluginConsole(string[] args)
+        {
+            if (args[0] == "phys")
+            {
+                if (args.Length == 1)
+                {
+                    m_commander.ProcessConsoleCommand("help", new string[0]);
+                    return;
+                }
+
+                string[] tmpArgs = new string[args.Length - 2];
+                int i;
+                for (i = 2; i < args.Length; i++)
+                    tmpArgs[i - 2] = args[i];
+
+                m_commander.ProcessConsoleCommand(args[1], tmpArgs);
+            }
+        }
+
+        private void SyncStart(Object[] args)
+        {
+            return;
+        }
+        private void SyncStop(Object[] args)
+        {
+            return;
+        }
+        private void SyncStatus(Object[] args)
+        {
+            lock (m_physEngineConnector_lock)
+            {
+                if (m_physEngineConnectors.Count == 0)
+                {
+                    m_log.Warn(LogHeader + " Not currently synchronized");
+                    return;
+                }
+                m_log.Warn(LogHeader + " Synchronized");
+                foreach (SceneToPhysEngineConnector pec in m_physEngineConnectors)
+                {
+                    m_log.Warn(pec.GetStats());
+                }
+            }
+        }
+
+        #endregion
+
         // Check if any of the client views are in a connected state
         public bool Synced
         {
-            get
-            {
-                return (m_physEngineConnectors.Count > 0);
-            }
+            get { return (m_physEngineConnectors.Count > 0); }
         }
         public static bool IsPhysEngineScene
         {
-            get { return (m_syncServerInitialized != 0); }
+            get { return (SceneToPhysEngineSyncServer.m_syncServerInitialized > 0); }
+        }
+        public static bool IsPhysEngineScene2()
+        {
+            return (SceneToPhysEngineSyncServer.m_syncServerInitialized > 0);
         }
         public static bool IsActivePhysEngineScene
         {
-            get { return (m_syncServerInitialized != 0 && m_totalConnections != 0); }
+            get {
+                System.Console.WriteLine("IsActivePhysEngineScene: si={0} tc={1}", 
+                    SceneToPhysEngineSyncServer.m_syncServerInitialized, 
+                    SceneToPhysEngineSyncServer.m_totalConnections);
+                return (SceneToPhysEngineSyncServer.m_syncServerInitialized > 0 
+                                && SceneToPhysEngineSyncServer.m_totalConnections > 0); 
+            }
+        }
+        public static bool IsActivePhysEngineScene2()
+        {
+            return (SceneToPhysEngineSyncServer.m_syncServerInitialized > 0 
+                            && SceneToPhysEngineSyncServer.m_totalConnections > 0); 
         }
         public static bool IsPhysEngineActor
         {
             get { return PhysEngineToSceneConnectorModule.IsPhysEngineActor; }
+        }
+
+        /// <summary>
+        /// The scene is unknown by ODE so we have to look through the scenes to
+        /// find the one with this PhysicsActor so we can send the update.
+        /// </summary>
+        /// <param name="pa"></param>
+        public static void RouteUpdate(PhysicsActor pa)
+        {
+            SceneObjectPart sop = null;
+            Scene s = null;
+            foreach (Scene ss in m_allScenes)
+            {
+                try
+                {
+                    sop = ss.GetSceneObjectPart(pa.LocalID);
+                }
+                catch
+                {
+                    sop = null;
+                }
+                if (sop != null)
+                {
+                    s = ss;
+                    break;
+                }
+            }
+            if (s != null)
+            {
+                if (s.SceneToPhysEngineSyncServer != null)
+                {
+                    s.SceneToPhysEngineSyncServer.SendUpdate(pa);
+                }
+                else
+                {
+                    Console.WriteLine("RouteUpdate: SceneToPhysEngineSyncServer is no available");
+                }
+            }
+            else
+            {
+                Console.WriteLine("RouteUpdate: no SOP for update");
+            }
+            return;
+        }
+
+        public void SendUpdate(PhysicsActor pa)
+        {
+            // m_log.DebugFormat("{0}: SendUpdate for {1}", LogHeader, pa.LocalID);
+            this.m_sceneToPhysEngineConnector.SendPhysUpdateAttributes(pa);
         }
 
         #endregion
@@ -126,8 +280,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_addr = IPAddress.Parse(addr);
             m_port = port;
 
+            m_scene.RegisterModuleInterface<ISceneToPhysEngineServer>(this);
+
+            // remember all the scenes that are configured for connection to physics engine
+            if (!m_allScenes.Contains(m_scene))
+            {
+                m_allScenes.Add(m_scene);
+            }
+
             InitQuarksInScene();
             SubscribeToEvents();
+            m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
+            InstallInterfaces();
         }
 
 
@@ -142,12 +306,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Start the server
         public void Start()
         {
+            SceneToPhysEngineSyncServer.m_syncServerInitialized++;
             m_listenerThread = new Thread(new ThreadStart(Listen));
             m_listenerThread.Name = "SceneToPhysEngineSyncServer Listener";
-            m_log.WarnFormat(LogHeader + ": Starting {0} thread", m_listenerThread.Name);
+            m_log.DebugFormat("{0}: Starting {1} thread", LogHeader, m_listenerThread.Name);
             m_listenerThread.Start();
-            //m_log.Warn("[REGION SYNC SERVER] Started");
-            m_syncServerInitialized++;
+            // m_log.DebugFormat("{0}: Started", LogHeader);
         }
 
 
@@ -155,7 +319,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Stop the server and disconnect all RegionSyncClients
         public void Shutdown()
         {
-            m_syncServerInitialized--;
+            m_log.DebugFormat("{0}: Shutdown", LogHeader);
+            SceneToPhysEngineSyncServer.m_syncServerInitialized--;
             // Stop the listener and listening thread so no new clients are accepted
             m_listener.Stop();
             m_listenerThread.Abort();
@@ -197,12 +362,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             lock (m_physEngineConnector_lock)
             {
-                //Dictionary<string, SceneToPhysEngineConnector> currentlist = m_physEngineConnectors;
-                //Dictionary<string, SceneToPhysEngineConnector> newlist = new Dictionary<string, SceneToPhysEngineConnector>(currentlist);
                 m_physEngineConnectors.Add(peConnector);
-                // Threads holding the previous version of the list can keep using it since
-                // they will not hold it for long and get a new copy next time they need to iterate
-                //m_physEngineConnectors = newlist;
+                m_sceneToPhysEngineConnector = peConnector;
             }
         }
 
@@ -237,6 +398,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     TcpClient tcpclient = m_listener.AcceptTcpClient();
                     IPAddress addr = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Address;
                     int port = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Port;
+                    SceneToPhysEngineSyncServer.m_totalConnections++;
+                    // m_log.DebugFormat("{0}: m_totalConnections = {1}", LogHeader, SceneToPhysEngineSyncServer.m_totalConnections);
 
                     ActorStatus actorStatus = GetActorStatus(tcpclient);
 
@@ -249,10 +412,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             break;
                         case ActorStatus.Idle:
                             IdlePhysEngineInfo idleSE = new IdlePhysEngineInfo(tcpclient);
-                            m_log.Debug(": adding an idle SE ("+addr+","+port+")");
+                            m_log.DebugFormat("{0}: adding an idle SE ({1}:{2})", LogHeader, addr, port);
                             m_idlePhysEngineList.Add(idleSE);
                             break;
                         default:
+                            m_log.DebugFormat("{0}: Unknown actor status", LogHeader);
                             break;
                     }
 
@@ -260,7 +424,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             catch (SocketException e)
             {
-                m_log.WarnFormat(LogHeader + " [Listen] SocketException: {0}", e);
+                m_log.WarnFormat("{0}: [Listen] SocketException: {1}", LogHeader, e);
             }
         }
 

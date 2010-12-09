@@ -32,6 +32,7 @@ using OpenMetaverse;
 using Ode.NET;
 using OpenSim.Framework;
 using OpenSim.Region.Physics.Manager;
+using OpenSim.Region.CoreModules.RegionSync.RegionSyncModule;
 using log4net;
 
 namespace OpenSim.Region.Physics.OdePlugin
@@ -200,6 +201,19 @@ namespace OpenSim.Region.Physics.OdePlugin
             _parent_scene.AddPhysicsActorTaint(this);
             
             m_name = avName;
+        }
+
+        public override void RequestPhysicsterseUpdate()
+        {
+            if (PhysEngineToSceneConnectorModule.IsPhysEngineActor)
+            {
+                m_log.DebugFormat("[ODE CHARACTER]: Sending terse update for {0}", LocalID);
+                PhysEngineToSceneConnectorModule.RouteUpdate(this);
+            }
+            else
+            {
+                base.RequestPhysicsterseUpdate();
+            }
         }
 
         public override int PhysicsActorType

@@ -47,7 +47,9 @@ using log4net;
 using OpenMetaverse;
 using Ode.NET;
 using OpenSim.Framework;
+using OpenSim.Region.Framework;
 using OpenSim.Region.Physics.Manager;
+using OpenSim.Region.CoreModules.RegionSync.RegionSyncModule;
 
 namespace OpenSim.Region.Physics.OdePlugin
 {
@@ -250,6 +252,18 @@ namespace OpenSim.Region.Physics.OdePlugin
             m_taintadd = true;
             _parent_scene.AddPhysicsActorTaint(this);
             //  don't do .add() here; old geoms get recycled with the same hash
+        }
+
+        public override void RequestPhysicsterseUpdate()
+        {
+            if (PhysEngineToSceneConnectorModule.IsPhysEngineActor)
+            {
+                PhysEngineToSceneConnectorModule.RouteUpdate(this);
+            }
+            else
+            {
+                base.RequestPhysicsterseUpdate();
+            }
         }
 
         public override int PhysicsActorType
@@ -2641,7 +2655,7 @@ Console.WriteLine(" JointCreateFixed");
                             _position = l_position;
                             //_parent_scene.remActivePrim(this);
                             if (_parent == null)
-                                base.RequestPhysicsterseUpdate();
+                                RequestPhysicsterseUpdate();
                             return;
                         }
                         else
@@ -2676,7 +2690,7 @@ Console.WriteLine(" JointCreateFixed");
                         m_rotationalVelocity.Z = 0;
 
                         if (_parent == null)
-                            base.RequestPhysicsterseUpdate();
+                            RequestPhysicsterseUpdate();
 
                         m_throttleUpdates = false;
                         throttleCounter = 0;
@@ -2729,7 +2743,7 @@ Console.WriteLine(" JointCreateFixed");
 
                             if (_parent == null)
                             {
-                                base.RequestPhysicsterseUpdate();
+                                RequestPhysicsterseUpdate();
                             }
 
                             m_lastUpdateSent = true;
@@ -2741,7 +2755,7 @@ Console.WriteLine(" JointCreateFixed");
                         {
                             if (_parent == null)
                             {
-                                base.RequestPhysicsterseUpdate();
+                                RequestPhysicsterseUpdate();
                             }
                         }
 
@@ -2776,7 +2790,7 @@ Console.WriteLine(" JointCreateFixed");
                         {
                             if (_parent == null)
                             {
-                                base.RequestPhysicsterseUpdate();
+                                RequestPhysicsterseUpdate();
                             }
                         }
                         else

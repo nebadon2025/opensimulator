@@ -1492,8 +1492,6 @@ namespace OpenSim.Region.Framework.Scenes
                         PhysActor.SOPName = this.Name; // save object name and desc into the PhysActor so ODE internals know the joint/body info
                         PhysActor.SOPDescription = this.Description;
                         PhysActor.LocalID = LocalId;
-                        // RA: register PhysActor with the scene
-                        ParentGroup.Scene.AddPhysActor(LocalId, PhysActor);
                         DoPhysicsPropertyUpdate(RigidBody, true);
                         PhysActor.SetVolumeDetect(VolumeDetectActive ? 1 : 0);
                     }
@@ -1756,7 +1754,6 @@ namespace OpenSim.Region.Framework.Scenes
 
 
                         // If we're not what we're supposed to be in the physics scene, recreate ourselves.
-                        //ParentGroup.Scene.RemovePhysActor(PhysActor.LocalID);
                         //m_parentGroup.Scene.PhysicsScene.RemovePrim(PhysActor);
                         /// that's not wholesome.  Had to make Scene public
                         //PhysActor = null;
@@ -4286,7 +4283,6 @@ namespace OpenSim.Region.Framework.Scenes
                 AddFlag(PrimFlags.Phantom);
                 if (PhysActor != null)
                 {
-                    ParentGroup.Scene.RemovePhysActor(PhysActor.LocalID);
                     m_parentGroup.Scene.PhysicsScene.RemovePrim(PhysActor);
                     /// that's not wholesome.  Had to make Scene public
                     PhysActor = null;
@@ -4312,8 +4308,6 @@ namespace OpenSim.Region.Framework.Scenes
                     if (pa != null)
                     {
                         pa.LocalID = LocalId;
-                        // RA: register PhysActor with scene
-                        ParentGroup.Scene.AddPhysActor(LocalId, PhysActor);
                         DoPhysicsPropertyUpdate(UsePhysics, true);
                         if (m_parentGroup != null)
                         {

@@ -35,6 +35,7 @@ using OpenSim.Framework.Client;
 using OpenSim.Region.CoreModules.Framework.InterfaceCommander;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
+using OpenSim.Region.Physics.Manager;
 using log4net;
 using System.Net;
 using System.Net.Sockets;
@@ -51,6 +52,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private string m_serveraddr;
         private int m_serverport;
         private Scene m_scene;
+        private static List<Scene> m_allScenes = new List<Scene>();
         private ILog m_log;
         private Object m_client_lock = new Object();
         //private PhysEngineToSceneConnector m_scriptEngineToSceneConnector = null;
@@ -64,6 +66,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private Dictionary<string, PhysEngineToSceneConnector> m_PEToSceneConnectors = new Dictionary<string, PhysEngineToSceneConnector>(); //connector for each auth. scene
         private string LogHeader = "[PhysEngineToSceneConnectorModule]";
         private PhysEngineToSceneConnector m_idlePEToSceneConnector = null;
+        private PhysEngineToSceneConnector m_physEngineToSceneConnector = null;
 
         //quark information
         //private int QuarkInfo.SizeX;
@@ -131,6 +134,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             InstallInterfaces();
 
             m_log.Warn(LogHeader + " Initialised");
+
+            // collect all the scenes for later routing
+            if (!m_allScenes.Contains(scene))
+            {
+                m_allScenes.Add(scene);
+            }
         }
 
         public void PostInitialise()
@@ -202,6 +211,49 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return (m_activeActors != 0); }
         }
 
+        /// <summary>
+        /// The scene is unknown by ODE so we have to look through the scenes to
+        /// find the one with this PhysicsActor so we can send the update.
+        /// </summary>
+        /// <param name="pa"></param>
+        public static void RouteUpdate(PhysicsActor pa)
+        {
+            SceneObjectPart sop = null;
+            Scene s = null;
+            foreach (Scene ss in m_allScenes)
+            {
+                try
+                {
+                    sop = ss.GetSceneObjectPart(pa.LocalID);
+                }
+                catch
+                {
+                    sop = null;
+                }
+                if (sop != null)
+                {
+                    s = ss;
+                    break;
+                }
+            }
+            if (s != null)
+            {
+                if (s.PhysEngineToSceneConnectorModule != null)
+                {
+                    s.PhysEngineToSceneConnectorModule.SendUpdate(pa);
+                }
+                else
+                {
+                    Console.WriteLine("RouteUpdate: PhysEngineToSceneConnectorModule is null");
+                }
+            }
+            else
+            {
+                Console.WriteLine("RouteUpdate: no SOP found");
+            }
+            return;
+        }
+
         #endregion
 
 
@@ -216,6 +268,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             List<EntityBase> entities = m_scene.GetEntities();
             m_log.WarnFormat("{0} There are {1} avatars and {2} entities in the scene", LogHeader, avatars.Count, entities.Count);
              */
+        }
+
+        public void SendUpdate(PhysicsActor pa)
+        {
+            this.m_physEngineToSceneConnector.SendPhysUpdateAttributes(pa);
         }
 
         #region Console Command Interface
@@ -307,11 +364,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void InitPhysEngineToSceneConnector(string space)
         {
             
-            PhysEngineToSceneConnector scriptEngineToSceneConnector = new PhysEngineToSceneConnector(m_scene, 
+            m_physEngineToSceneConnector = new PhysEngineToSceneConnector(m_scene, 
                     m_serveraddr, m_serverport, m_debugWithViewer, /* space,*/ m_syncConfig);
-            if (scriptEngineToSceneConnector.Start())
+            if (m_physEngineToSceneConnector.Start())
             {
-                m_PEToSceneConnectors.Add(m_scene.RegionInfo.RegionName, scriptEngineToSceneConnector);
+                m_PEToSceneConnectors.Add(m_scene.RegionInfo.RegionName, m_physEngineToSceneConnector);
             }
         }
 

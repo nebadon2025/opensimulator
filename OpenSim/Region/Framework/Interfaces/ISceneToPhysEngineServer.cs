@@ -30,6 +30,7 @@
 using OpenMetaverse;
 using OpenSim.Framework;
 using OpenSim.Region.Framework.Scenes;
+using OpenSim.Region.Physics.Manager;
 
 namespace OpenSim.Region.Framework.Interfaces
 {
@@ -39,5 +40,6 @@ namespace OpenSim.Region.Framework.Interfaces
         // static bool IsPhysEngineScene { get; }
         // static bool IsActivePhysEngineScene { get; }
         // static bool IsPhysEngineActor { get; }
+        void SendUpdate(PhysicsActor pa);
     }
 }

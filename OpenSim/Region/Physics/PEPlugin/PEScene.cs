@@ -30,6 +30,8 @@ using log4net;
 using OpenSim.Framework;
 using OpenSim.Region.Physics.Manager;
 using OpenMetaverse;
+using OpenSim.Region.Framework;
+using OpenSim.Region.CoreModules.RegionSync.RegionSyncModule;
 
 namespace OpenSim.Region.Physics.PEPlugin
 {
@@ -98,6 +100,29 @@ public class PEScene : PhysicsScene
 
     public override float Simulate(float timeStep)
     {
+        // if we are a physics engine server, send update information
+        if (SceneToPhysEngineSyncServer.IsPhysEngineScene2())
+        {
+            if (SceneToPhysEngineSyncServer.IsActivePhysEngineScene2())
+            {
+                // m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
+                foreach (PEPrim prim in m_prims)
+                {
+                    if (prim.lastValues.Changed(prim))
+                    {
+                        SceneToPhysEngineSyncServer.RouteUpdate(prim);
+                    }
+                }
+                foreach (PECharacter actor in m_avatars)
+                {
+                    m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
+                    SceneToPhysEngineSyncServer.RouteUpdate(actor);
+                }
+            }
+            return 60f;
+        }
+        /*
+        // code borrowed from BasicPhysics to do just avatar movement
         foreach (PECharacter actor in m_avatars)
         {
             Vector3 actorPosition = actor.Position;
@@ -146,6 +171,7 @@ public class PEScene : PhysicsScene
             actor.Position = actorPosition;
             actor.Velocity = actorVelocity;
         }
+         */
         return 60f; // returns frames per second
     }
 

@@ -12,6 +12,7 @@ using OpenMetaverse.StructuredData;
 using OpenSim.Framework;
 using OpenSim.Services.Interfaces;
 using OpenSim.Framework.Client;
+using OpenSim.Region.Physics.Manager;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Framework.Scenes.Serialization;
 using OpenSim.Region.Framework.Interfaces;
@@ -74,6 +75,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private ActorType m_actorType = ActorType.PhysicsEngine;
 
         private bool m_debugWithViewer = false;
+        private long m_messagesSent = 0;
+        private long m_messagesReceived = 0;
 
         private QuarkSubsriptionInfo m_subscribedQuarks; 
         
@@ -165,7 +168,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             RegionSyncMessage msg = new RegionSyncMessage(RegionSyncMessage.MsgType.ActorStatus, Convert.ToString((int)ActorStatus.Sync));
             Send(msg);
-            SendQuarkSubscription();
+            // SendQuarkSubscription();
             Thread.Sleep(100);
             DoInitialSync();
         }
@@ -196,7 +199,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void DoInitialSync()
         {
-            m_validLocalScene.DeleteAllSceneObjects();
+            // m_validLocalScene.DeleteAllSceneObjects();
             //m_log.Debug(LogHeader + ": send actor type " + m_actorType);
             //Send(new RegionSyncMessage(RegionSyncMessage.MsgType.ActorType, Convert.ToString((int)m_actorType)));
             //KittyL??? Do we need to send in RegionName?
@@ -204,8 +207,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //Send(new RegionSyncMessage(RegionSyncMessage.MsgType.RegionName, m_scene.RegionInfo.RegionName));
             //m_log.WarnFormat("Sending region name: \"{0}\"", m_scene.RegionInfo.RegionName);
 
-            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetTerrain));
-            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetObjects));
+            // Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetTerrain));
+            // Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetObjects));
 
             // Register for events which will be forwarded to authoritative scene
             // m_scene.EventManager.OnNewClient += EventManager_OnNewClient;
@@ -229,6 +232,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void ReportStatus()
         {
             m_log.WarnFormat("{0} Synchronized to RegionSyncServer at {1}:{2}", LogHeader, m_addr, m_port);
+            m_log.WarnFormat("{0} Received={1}, Sent={2}", LogHeader, m_messagesReceived, m_messagesSent);
             lock (m_syncRoot)
             {
                 //TODO: should be reporting about the information of the objects/scripts
@@ -278,6 +282,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 try
                 {
                     //lock (m_syncRoot) -- KittyL: why do we need to lock here? We could lock inside HandleMessage if necessary, and lock on different objects for better performance
+                    m_messagesReceived++;
                     HandleMessage(msg);
                 }
                 catch (Exception e)
@@ -310,6 +315,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 try
                 {
                     m_client.GetStream().Write(data, 0, data.Length);
+                    m_messagesSent++;
                 }
                 // If there is a problem reading from the client, shut 'er down. 
                 // *** Still need to alert the module that it's no longer connected!
@@ -318,79 +324,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     ShutdownClient();
                 }
             }
-        }
-
-        /// <summary>
-        /// Send requests to update object properties in the remote authoratative Scene.
-        /// </summary>
-        /// <param name="primID">UUID of the object</param>
-        /// <param name="pName">name of the property to be updated</param>
-        /// <param name="valParams">parameters of the value of the property</param>
-        /// <returns></returns>
-        public void SendSetPrimProperties(UUID primID, string pName, object val)
-        {
-            OSDMap data = new OSDMap();
-            data["UUID"] = OSD.FromUUID(primID);
-            data["name"] = OSD.FromString(pName);
-            object[] valParams = (object[])val;
-            //data["param"] = OSD.FromString(presence.ControllingClient.LastName);
-            Vector3 pos, vel;
-            switch (pName)
-            {
-                case "object_rez":
-                    //this is to rez an object from the prim's inventory, rather than change the prim's property
-                    if(valParams.Length<5){
-                        m_log.Warn(LogHeader+": values for object's "+pName+" property should include: inventory, pos, velocity, rotation, param");
-                        return;
-                    }
-                    string inventory = (string)valParams[0];
-                    pos = (Vector3)valParams[1];
-                    vel = (Vector3)valParams[2];
-                    Quaternion rot = (Quaternion)valParams[3];
-                    int param = (int)valParams[4];
-                    data["inventory"]=OSD.FromString(inventory);
-                    data["pos"]=OSD.FromVector3(pos);
-                    data["vel"] = OSD.FromVector3(vel);
-                    data["rot"] = OSD.FromQuaternion(rot);
-                    data["param"] = OSD.FromInteger(param);
-                    break;
-                case "color":
-                    if(valParams.Length<2){
-                        m_log.Warn(LogHeader+": values for object's "+pName+" property should include: color-x, color-y, color-z, face");
-                        return;
-                    }
-                    //double cx = (double)valParams[0];
-                    //double cy = (double)valParams[1];
-                    //double cz = (double)valParams[2];
-                    //Vector3 color = new Vector3((float)cx, (float)cy, (float)cz);
-                    Vector3 color = (Vector3)valParams[0];
-                    data["color"] = OSD.FromVector3(color);
-                    data["face"] = OSD.FromInteger((int)valParams[1]);
-
-                    //m_log.DebugFormat("{0}: to set color {1} on face {2} of prim {3}", LogHeader, color.ToString(), (int)valParams[1], primID);
-
-                    break;
-                case "pos":
-                    if (valParams.Length < 1)
-                    {
-                        m_log.Warn(LogHeader + ": values for object's " + pName + " property should include: pos(vector)");
-                        return;
-                    }
-                    //double px = (double)valParams[0];
-                    //double py = (double)valParams[1];
-                    //double pz = (double)valParams[2];
-                    //Vector3 pos = new Vector3((float)px, (float)py, (float)pz);
-                    pos = (Vector3)valParams[0];
-                    data["pos"] = OSD.FromVector3(pos);
-
-                    m_log.DebugFormat("{0}: to set pos {1} for prim {2}", LogHeader, pos.ToString(), primID);
-                    break;
-                default:
-                    //
-                    break;
-            }
-
-            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.SetObjectProperty, OSDParser.SerializeJsonString(data)));
         }
         #endregion SEND
 
@@ -415,16 +348,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     {
                         return;
                     }
-                case RegionSyncMessage.MsgType.Terrain:
+                case RegionSyncMessage.MsgType.PhysUpdateAttributes:
                     {
-                        //We need to handle terrain differently as we handle objects: we really will set the HeightMap
-                        //of each local scene that is the shadow copy of its auth. scene.
-                        return;
-                    }
-                case RegionSyncMessage.MsgType.NewObject:
-                case RegionSyncMessage.MsgType.UpdatedObject:
-                    {
-                        HandleAddOrUpdateObjectInLocalScene(msg);
+                        HandlePhysUpdateAttributes(msg);
                         return;
                     }
                 default:
@@ -434,6 +360,69 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
             }
 
+        }
+
+        /// <summary>
+        /// The physics engine has some updates to the attributes. Unpack the parameters, find the
+        /// correct PhysicsActor and plug in the new values;
+        /// </summary>
+        /// <param name="msg"></param>
+        private void HandlePhysUpdateAttributes(RegionSyncMessage msg)
+        {
+            // TODO: 
+            OSDMap data = RegionSyncUtil.DeserializeMessage(msg, LogHeader);
+            try
+            {
+                uint localID = data["localID"].AsUInteger();
+                // m_log.DebugFormat("{0}: HandlPhysUpdateAttributes for {1}", LogHeader, localID);
+                SceneObjectPart sop = m_validLocalScene.GetSceneObjectPart(localID);
+                if (sop != null)
+                {
+                    sop.PhysActor.Size = data["size"].AsVector3();
+                    sop.PhysActor.Position = data["position"].AsVector3();
+                    sop.PhysActor.Force = data["force"].AsVector3();
+                    sop.PhysActor.Velocity = data["velocity"].AsVector3();
+                    sop.PhysActor.Torque = data["torque"].AsVector3();
+                    sop.PhysActor.Orientation = data["orientantion"].AsQuaternion();
+                    sop.PhysActor.IsPhysical = data["isPhysical"].AsBoolean();  // receive??
+                    sop.PhysActor.Flying = data["flying"].AsBoolean();      // receive??
+                    sop.PhysActor.Kinematic = data["kinematic"].AsBoolean();    // receive??
+                    sop.PhysActor.Buoyancy = (float)(data["buoyancy"].AsReal());
+                    sop.PhysActor.Shape = sop.Shape;
+                }
+                else
+                {
+                    m_log.WarnFormat("{0}: attribute update for unknown localID {1}", LogHeader, localID);
+                    return;
+                }
+            }
+            catch (Exception e)
+            {
+                m_log.WarnFormat("{0}: EXCEPTION processing UpdateAttributes: {1}", LogHeader, e);
+                return;
+            }
+            return;
+        }
+
+        public void SendPhysUpdateAttributes(PhysicsActor pa)
+        {
+            m_log.DebugFormat("{0}: SendPhysUpdateAttributes for {1}", LogHeader, pa.LocalID);
+            OSDMap data = new OSDMap(9);
+            data["localID"] = OSD.FromUInteger(pa.LocalID);
+            data["size"] = OSD.FromVector3(pa.Size);
+            data["position"] = OSD.FromVector3(pa.Position);
+            data["force"] = OSD.FromVector3(pa.Force);
+            data["velocity"] = OSD.FromVector3(pa.Velocity);
+            data["torque"] = OSD.FromVector3(pa.Torque);
+            data["orientation"] = OSD.FromQuaternion(pa.Orientation);
+            data["isPhysical"] = OSD.FromBoolean(pa.IsPhysical);
+            data["flying"] = OSD.FromBoolean(pa.Flying);
+            data["buoyancy"] = OSD.FromReal(pa.Buoyancy);
+
+            RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.PhysUpdateAttributes, 
+                                                                OSDParser.SerializeJsonString(data));
+            Send(rsm);
+            return;
         }
 
         #region Utility functions

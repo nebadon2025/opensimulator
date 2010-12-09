@@ -12,6 +12,7 @@ using OpenSim.Framework;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Framework.Scenes.Serialization;
 using OpenSim.Region.Framework.Interfaces;
+using OpenSim.Region.Physics.Manager;
 using log4net;
 
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
@@ -94,7 +95,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public string GetStats()
         {
-            int syncedAvCount;
             string ret;
             //lock (m_syncRoot)
             //    syncedAvCount = m_syncedAvatars.Count;
@@ -103,7 +103,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 double secondsSinceLastStats = DateTime.Now.Subtract(lastStatTime).TotalSeconds;
                 lastStatTime = DateTime.Now;
 
-                ret = String.Format("[{0,4}/{1,4}], [{2,4}/{3,4}], [{4,4}/{5,4}], [{6,4} ({7,4})], [{8,8} ({9,8:00.00})], [{10,4} ({11,4})], [{12,8} ({13,8:00.00})], [{14,8} ({15,4}]",
+                // ret = String.Format("[{0,4}/{1,4}], [{2,4}/{3,4}], [{4,4}/{5,4}], [{6,4} ({7,4})], [{8,8} ({9,8:00.00})], [{10,4} ({11,4})], [{12,8} ({13,8:00.00})], [{14,8} ({15,4}]",
+                ret = String.Format("[{0,4}/{1,4}], [{2,6}/{3,6}], [{4,4}/{5,4}], [{6,6} ({7,6})], [{8,4} ({9,4})]",
                     //lastTotalCount, totalAvCount, // TOTAL AVATARS
                     //lastLocalCount, syncedAvCount, // LOCAL TO THIS CLIENT VIEW
                     //lastRemoteCount, totalAvCount - syncedAvCount, // REMOTE (SHOULD = TOTAL - LOCAL)
@@ -162,7 +163,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_receive_loop.Start();
 
             //tell the remote script engine about the locX, locY of this authoritative scene
-            SendSceneLoc();
+            // SendSceneLoc();
+            m_log.DebugFormat("{0}: SceneToPhysEngineConnector initialized", LogHeader);
         }
 
         // Stop the listening thread, disconnecting the RegionSyncPhysEngine
@@ -257,13 +259,113 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         return;
                     }
-                     
+
+                case RegionSyncMessage.MsgType.PhysTerseUpdate:
+                    {
+                        HandlePhysTerseUpdate(msg);
+                        return;
+                    }
+                case RegionSyncMessage.MsgType.PhysOutOfBounds:
+                    {
+                        HandlePhysOutOfBounds(msg);
+                        return;
+                    }
+                case RegionSyncMessage.MsgType.PhysCollisionUpdate:
+                    {
+                        HandlePhysCollisionUpdate(msg);
+                        return;
+                    }
+                case RegionSyncMessage.MsgType.PhysUpdateAttributes:
+                    {
+                        HandlePhysUpdateAttributes(msg);
+                        return;
+                    }
                 default:
                     {
                         m_log.WarnFormat("{0} Unable to handle unsupported message type", LogHeader);
                         return;
                     }
             }
+        }
+
+        private void HandlePhysTerseUpdate(RegionSyncMessage msg)
+        {
+            // TODO: 
+            return;
+        }
+
+        private void HandlePhysOutOfBounds(RegionSyncMessage msg)
+        {
+            // TODO: 
+            return;
+        }
+
+        private void HandlePhysCollisionUpdate(RegionSyncMessage msg)
+        {
+            // TODO: 
+            return;
+        }
+
+        /// <summary>
+        /// The physics engine has some updates to the attributes. Unpack the parameters, find the
+        /// correct PhysicsActor and plug in the new values;
+        /// </summary>
+        /// <param name="msg"></param>
+        private void HandlePhysUpdateAttributes(RegionSyncMessage msg)
+        {
+            // TODO: 
+            OSDMap data = RegionSyncUtil.DeserializeMessage(msg, LogHeader);
+            try
+            {
+                uint localID = data["localID"].AsUInteger();
+                m_log.DebugFormat("{0}: received PhysUpdateAttributes for {1}", LogHeader, localID);
+                SceneObjectPart sop = m_scene.GetSceneObjectPart(localID);
+                if (sop != null)
+                {
+                    sop.PhysActor.Size = data["size"].AsVector3();
+                    sop.PhysActor.Position = data["position"].AsVector3();
+                    sop.PhysActor.Force = data["force"].AsVector3();
+                    sop.PhysActor.Velocity = data["velocity"].AsVector3();
+                    sop.PhysActor.Torque = data["torque"].AsVector3();
+                    sop.PhysActor.Orientation = data["orientantion"].AsQuaternion();
+                    sop.PhysActor.IsPhysical = data["isPhysical"].AsBoolean();  // receive??
+                    sop.PhysActor.Flying = data["flying"].AsBoolean();      // receive??
+                    sop.PhysActor.Kinematic = data["kinematic"].AsBoolean();    // receive??
+                    sop.PhysActor.Buoyancy = (float)(data["buoyancy"].AsReal());
+                }
+                else
+                {
+                    m_log.WarnFormat("{0}: attribute update for unknown localID {1}", LogHeader, localID);
+                    return;
+                }
+            }
+            catch (Exception e)
+            {
+                m_log.WarnFormat("{0}: EXCEPTION processing UpdateAttributes: {1}", LogHeader, e);
+                return;
+            }
+            return;
+        }
+
+        public void SendPhysUpdateAttributes(PhysicsActor pa)
+        {
+            // m_log.DebugFormat("{0}: sending PhysUpdateAttributes for {1}", LogHeader, pa.LocalID);
+            OSDMap data = new OSDMap(9);
+            data["localID"] = OSD.FromUInteger(pa.LocalID);
+            data["size"] = OSD.FromVector3(pa.Size);
+            data["position"] = OSD.FromVector3(pa.Position);
+            data["force"] = OSD.FromVector3(pa.Force);
+            data["velocity"] = OSD.FromVector3(pa.Velocity);
+            data["torque"] = OSD.FromVector3(pa.Torque);
+            data["orientation"] = OSD.FromQuaternion(pa.Orientation);
+            data["isPhysical"] = OSD.FromBoolean(pa.IsPhysical);
+            data["flying"] = OSD.FromBoolean(pa.Flying);
+            data["buoyancy"] = OSD.FromReal(pa.Buoyancy);
+
+            RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.PhysUpdateAttributes, 
+                                                                OSDParser.SerializeJsonString(data));
+            Send(rsm);
+            return;
         }
 
         //For simplicity, we assume the subscription sent by PhysEngine is legistimate (no overlapping with other script engines, etc)
@@ -335,7 +437,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 m_tcpclient.GetStream().EndWrite(ar);
                             }
                             catch (Exception)
-                            { }
+                            {
+                                m_log.WarnFormat("{0} Write to output stream failed", LogHeader);
+                            }
                         }
                     }, null);
                 }
@@ -344,6 +448,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_log.WarnFormat("{0} Physics Engine has disconnected.", LogHeader);
                 }
             }
+            else
+            {
+                m_log.DebugFormat("{0} Attempt to send with no connection", LogHeader);
+            }
+
         }
 
         public void SendObjectUpdate(RegionSyncMessage.MsgType msgType, SceneObjectGroup sog)

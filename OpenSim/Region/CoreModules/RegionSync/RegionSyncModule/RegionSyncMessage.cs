@@ -108,6 +108,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             ScriptStateSyncEnd,
             //Idle script engine overloaded -> overloaded script engine
             ScriptStateSyncRequest,
+            // Physics Engine -> Scene
+            PhysTerseUpdate,
+            PhysOutOfBounds,
+            PhysCollisionUpdate,
+            // Scene -> Physics Engine
+            PhysUpdateAttributes,
         }
         #endregion
 

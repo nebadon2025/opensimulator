@@ -415,26 +415,16 @@ namespace OpenSim.Region.Framework.Scenes
         protected ISceneToPhysEngineServer m_sceneToPhysEngineSyncServer = null;
         public ISceneToPhysEngineServer SceneToPhysEngineSyncServer
         {
-            get { return m_sceneToPhysEngineSyncServer; }
+            get 
+            {
+                if (m_sceneToPhysEngineSyncServer == null)
+                {
+                    // kludge since this module is loaded in postInitialize
+                    m_sceneToPhysEngineSyncServer = RequestModuleInterface<ISceneToPhysEngineServer>();
+                }
+                return m_sceneToPhysEngineSyncServer; 
+            }
             set { m_sceneToPhysEngineSyncServer = value; }
-        }
-
-        // list of physactors for this scene so we can find them later for remote physics
-        public Dictionary<uint, PhysicsActor> PhysActors = new Dictionary<uint, PhysicsActor>();
-        public void AddPhysActor(uint id, PhysicsActor pActor)
-        {
-            if (PhysActors.ContainsKey(id)) {
-                PhysActors.Remove(id);
-            }
-            PhysActors.Add(id, pActor);
-            return;
-        }
-        public void RemovePhysActor(uint id)
-        {
-            if (PhysActors.ContainsKey(id)) {
-                PhysActors.Remove(id);
-            }
-            return;
         }
 
         ///////////////////////////////////////////////////////////////////////////////////////////////

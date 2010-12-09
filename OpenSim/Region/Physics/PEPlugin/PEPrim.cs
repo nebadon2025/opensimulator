@@ -78,6 +78,9 @@ public sealed class PEPrim : PhysicsActor
     public PEPrim(String primName, PEScene parent_scene, Vector3 pos, Vector3 size,
                        Quaternion rotation, IMesh mesh, PrimitiveBaseShape pbs, bool pisPhysical, CollisionLocker dode)
     {
+        _position = pos;
+        _size = size;
+        _orientation = rotation;
         // SendCreatePrim(primName, parent_scene, pos, size, rotation, mesh, pbs, pisPhysical, dode);
     }
     

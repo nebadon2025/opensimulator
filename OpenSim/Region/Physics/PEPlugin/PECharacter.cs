@@ -77,6 +77,8 @@ public class PECharacter : PhysicsActor
                     float capsule_radius, float tensor, float density, float height_fudge_factor, 
                     float walk_divisor, float rundivisor)
     {
+        _position = pos;
+        _size = size;
         return;
     }
 
@@ -123,7 +125,7 @@ public class PECharacter : PhysicsActor
     public override Vector3 Position { 
         get { return _position; } 
         set { _position = value; 
-            // m_log.Debug("[RPE] PEChar set Position");
+            // m_log.DebugFormat("[RPE] PEChar set Position: {0}", _position);
             Prop.Set(_localID, PropType.Position, _position);
         } 
     }
@@ -155,6 +157,7 @@ public class PECharacter : PhysicsActor
     public override Vector3 Velocity { 
         get { return _velocity; } 
         set { _velocity = value; 
+            m_log.Debug("[RPE] PEChar set Velocity");
             Prop.Set(_localID, PropType.Velocity, _velocity);
         } 
     }

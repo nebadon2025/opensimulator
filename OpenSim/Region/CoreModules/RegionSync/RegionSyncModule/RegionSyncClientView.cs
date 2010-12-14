@@ -331,6 +331,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             // Let the client managers know about this avatar
                             OSDMap data = new OSDMap(1);
                             data["agentID"] = OSD.FromUUID(presence.ControllingClient.AgentId);
+                            data["localID"] = OSD.FromUInteger(presence.LocalId);
                             data["first"] = OSD.FromString(presence.ControllingClient.FirstName);
                             data["last"] = OSD.FromString(presence.ControllingClient.LastName);
                             data["startPos"] = OSD.FromVector3(presence.ControllingClient.StartPos);

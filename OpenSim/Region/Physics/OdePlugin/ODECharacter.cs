@@ -205,7 +205,7 @@ namespace OpenSim.Region.Physics.OdePlugin
 
         public override void RequestPhysicsterseUpdate()
         {
-            if (PhysEngineToSceneConnectorModule.IsPhysEngineActor)
+            if (PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
             {
                 m_log.DebugFormat("[ODE CHARACTER]: Sending terse update for {0}", LocalID);
                 PhysEngineToSceneConnectorModule.RouteUpdate(this);
@@ -234,6 +234,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         public override uint LocalID
         {
             set { m_localID = value; }
+            get { return m_localID; }
         }
 
         public override bool Grabbed
@@ -1153,7 +1154,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                 if (!m_lastUpdateSent)
                 {
                     m_lastUpdateSent = true;
-                    //base.RequestPhysicsterseUpdate();
+                    // base.RequestPhysicsterseUpdate();
 
                 }
             }
@@ -1190,6 +1191,11 @@ namespace OpenSim.Region.Physics.OdePlugin
                     m_hackSentFly = false;
                     m_hackSentFall = false;
                 }
+            }
+            if (!m_lastUpdateSent)
+            {
+                m_log.DebugFormat("[ODE CHARACTER] UpdatePositionAndVelocity");
+                this.RequestPhysicsterseUpdate();
             }
         }
 
@@ -1357,7 +1363,8 @@ namespace OpenSim.Region.Physics.OdePlugin
                     _position.Z = m_taintPosition.Z;
                 }
             }
-
+            Console.WriteLine("ODECharacter: ProcessTaints: doing update");
+            this.RequestPhysicsterseUpdate();
         }
 
         internal void AddCollisionFrameTime(int p)

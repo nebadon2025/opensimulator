@@ -182,19 +182,23 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         #endregion
 
         // Check if any of the client views are in a connected state
+        public bool IsPhysEngineScene() { return SceneToPhysEngineSyncServer.IsPhysEngineScene2S(); }
+        public bool IsActivePhysEngineScene() { return SceneToPhysEngineSyncServer.IsActivePhysEngineScene2S(); }
+        public bool IsPhysEngineActor() { return SceneToPhysEngineSyncServer.IsPhysEngineActorS; }
+
         public bool Synced
         {
             get { return (m_physEngineConnectors.Count > 0); }
         }
-        public static bool IsPhysEngineScene
+        public static bool IsPhysEngineSceneS
         {
             get { return (SceneToPhysEngineSyncServer.m_syncServerInitialized > 0); }
         }
-        public static bool IsPhysEngineScene2()
+        public static bool IsPhysEngineScene2S()
         {
             return (SceneToPhysEngineSyncServer.m_syncServerInitialized > 0);
         }
-        public static bool IsActivePhysEngineScene
+        public static bool IsActivePhysEngineSceneS
         {
             get {
                 System.Console.WriteLine("IsActivePhysEngineScene: si={0} tc={1}", 
@@ -204,14 +208,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 && SceneToPhysEngineSyncServer.m_totalConnections > 0); 
             }
         }
-        public static bool IsActivePhysEngineScene2()
+        public static bool IsActivePhysEngineScene2S()
         {
             return (SceneToPhysEngineSyncServer.m_syncServerInitialized > 0 
                             && SceneToPhysEngineSyncServer.m_totalConnections > 0); 
         }
-        public static bool IsPhysEngineActor
+        public static bool IsPhysEngineActorS
         {
-            get { return PhysEngineToSceneConnectorModule.IsPhysEngineActor; }
+            get { return PhysEngineToSceneConnectorModule.IsPhysEngineActorS; }
         }
 
         /// <summary>
@@ -238,6 +242,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     s = ss;
                     break;
                 }
+                else
+                {
+                    ScenePresence sp = ss.GetScenePresence(pa.LocalID);
+                    if (sp != null)
+                    {
+                        s = ss;
+                        break;
+                    }
+                }
             }
             if (s != null)
             {
@@ -252,7 +265,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             else
             {
-                Console.WriteLine("RouteUpdate: no SOP for update");
+                Console.WriteLine("RouteUpdate: no SOP for update of {0}", pa.LocalID);
             }
             return;
         }

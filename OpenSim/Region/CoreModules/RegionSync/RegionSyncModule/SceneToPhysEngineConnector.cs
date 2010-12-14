@@ -318,20 +318,20 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             try
             {
                 uint localID = data["localID"].AsUInteger();
-                m_log.DebugFormat("{0}: received PhysUpdateAttributes for {1}", LogHeader, localID);
-                SceneObjectPart sop = m_scene.GetSceneObjectPart(localID);
-                if (sop != null)
+                // m_log.DebugFormat("{0}: received PhysUpdateAttributes for {1}", LogHeader, localID);
+                PhysicsActor pa = FindPhysicsActor(localID);
+                if (pa != null)
                 {
-                    sop.PhysActor.Size = data["size"].AsVector3();
-                    sop.PhysActor.Position = data["position"].AsVector3();
-                    sop.PhysActor.Force = data["force"].AsVector3();
-                    sop.PhysActor.Velocity = data["velocity"].AsVector3();
-                    sop.PhysActor.Torque = data["torque"].AsVector3();
-                    sop.PhysActor.Orientation = data["orientantion"].AsQuaternion();
-                    sop.PhysActor.IsPhysical = data["isPhysical"].AsBoolean();  // receive??
-                    sop.PhysActor.Flying = data["flying"].AsBoolean();      // receive??
-                    sop.PhysActor.Kinematic = data["kinematic"].AsBoolean();    // receive??
-                    sop.PhysActor.Buoyancy = (float)(data["buoyancy"].AsReal());
+                    pa.Size = data["size"].AsVector3();
+                    pa.Position = data["position"].AsVector3();
+                    pa.Force = data["force"].AsVector3();
+                    pa.Velocity = data["velocity"].AsVector3();
+                    pa.Torque = data["torque"].AsVector3();
+                    pa.Orientation = data["orientantion"].AsQuaternion();
+                    pa.IsPhysical = data["isPhysical"].AsBoolean();  // receive??
+                    pa.Flying = data["flying"].AsBoolean();      // receive??
+                    pa.Kinematic = data["kinematic"].AsBoolean();    // receive??
+                    pa.Buoyancy = (float)(data["buoyancy"].AsReal());
                 }
                 else
                 {
@@ -345,6 +345,22 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
             }
             return;
+        }
+
+        // Find the physics actor whether it is an object or a scene presence
+        private PhysicsActor FindPhysicsActor(uint localID)
+        {
+            SceneObjectPart sop = m_scene.GetSceneObjectPart(localID);
+            if (sop != null)
+            {
+                return sop.PhysActor;
+            }
+            ScenePresence sp = m_scene.GetScenePresence(localID);
+            if (sp != null)
+            {
+                return sp.PhysicsActor;
+            }
+            return null;
         }
 
         public void SendPhysUpdateAttributes(PhysicsActor pa)

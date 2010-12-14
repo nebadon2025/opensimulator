@@ -701,6 +701,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // Let the client managers know that a new agent has connected
             OSDMap data = new OSDMap(1);
             data["agentID"] = OSD.FromUUID(client.AgentId);
+            data["localID"] = OSD.FromUInteger(m_scene.GetScenePresence(client.AgentId).LocalId);
             data["first"] = OSD.FromString(client.FirstName);
             data["last"] = OSD.FromString(client.LastName);
             data["startPos"] = OSD.FromVector3(client.StartPos);

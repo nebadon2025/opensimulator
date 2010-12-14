@@ -127,7 +127,7 @@ public sealed class PEPrim : PhysicsActor
     public override Vector3 Position { 
         get { return _position; } 
         set { _position = value; 
-            m_log.Debug("[RPE] PEPrim set Position");
+            // m_log.Debug("[RPE] PEPrim set Position");
             Prop.Set(_localID, PropType.Position, _position);
         } 
     }
@@ -137,7 +137,7 @@ public sealed class PEPrim : PhysicsActor
     public override Vector3 Force { 
         get { return _force; } 
         set { _force = value; 
-            m_log.Debug("[RPE] PEPrim set Force");
+            // m_log.Debug("[RPE] PEPrim set Force");
             Prop.Set(_localID, PropType.Force, _force);
         } 
     }

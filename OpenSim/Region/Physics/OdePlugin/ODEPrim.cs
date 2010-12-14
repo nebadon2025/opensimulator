@@ -256,9 +256,10 @@ namespace OpenSim.Region.Physics.OdePlugin
 
         public override void RequestPhysicsterseUpdate()
         {
-            if (PhysEngineToSceneConnectorModule.IsPhysEngineActor)
+            if (PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
             {
-                PhysEngineToSceneConnectorModule.RouteUpdate(this);
+                if (this.lastValues.Changed(this))
+                    PhysEngineToSceneConnectorModule.RouteUpdate(this);
             }
             else
             {
@@ -283,6 +284,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             set {
                 //m_log.Info("[PHYSICS]: Setting TrackerID: " + value);
                 m_localID = value; }
+            get { return m_localID; }
         }
 
         public override bool Grabbed
@@ -2655,7 +2657,7 @@ Console.WriteLine(" JointCreateFixed");
                             _position = l_position;
                             //_parent_scene.remActivePrim(this);
                             if (_parent == null)
-                                RequestPhysicsterseUpdate();
+                                this.RequestPhysicsterseUpdate();
                             return;
                         }
                         else
@@ -2690,7 +2692,7 @@ Console.WriteLine(" JointCreateFixed");
                         m_rotationalVelocity.Z = 0;
 
                         if (_parent == null)
-                            RequestPhysicsterseUpdate();
+                            this.RequestPhysicsterseUpdate();
 
                         m_throttleUpdates = false;
                         throttleCounter = 0;
@@ -2743,7 +2745,7 @@ Console.WriteLine(" JointCreateFixed");
 
                             if (_parent == null)
                             {
-                                RequestPhysicsterseUpdate();
+                                this.RequestPhysicsterseUpdate();
                             }
 
                             m_lastUpdateSent = true;
@@ -2755,7 +2757,7 @@ Console.WriteLine(" JointCreateFixed");
                         {
                             if (_parent == null)
                             {
-                                RequestPhysicsterseUpdate();
+                                this.RequestPhysicsterseUpdate();
                             }
                         }
 
@@ -2790,7 +2792,7 @@ Console.WriteLine(" JointCreateFixed");
                         {
                             if (_parent == null)
                             {
-                                RequestPhysicsterseUpdate();
+                                this.RequestPhysicsterseUpdate();
                             }
                         }
                         else

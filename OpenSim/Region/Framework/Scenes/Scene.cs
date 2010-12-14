@@ -427,6 +427,20 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_sceneToPhysEngineSyncServer = value; }
         }
 
+        // depending on what mode we're in, the different modules are available
+        protected bool IsPhysEngineActor()
+        {
+            if (PhysEngineToSceneConnectorModule != null)
+            {
+                return this.PhysEngineToSceneConnectorModule.IsPhysEngineActor();
+            }
+            if (SceneToPhysEngineSyncServer != null)
+            {
+                return this.SceneToPhysEngineSyncServer.IsPhysEngineActor();
+            }
+            return false;
+        }
+
         ///////////////////////////////////////////////////////////////////////////////////////////////
 
         //This function should only be called by an actor who's local Scene is just a cache of the authorative Scene.
@@ -1670,7 +1684,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                     int tmpPhysicsMS2 = Util.EnvironmentTickCount();
                     // Do not simulate physics locally if this is a synced client
-                    if (!IsSyncedClient())
+                    if (!IsSyncedClient() || this.IsPhysEngineActor())
                     {
                         if ((m_frame % m_update_physics == 0) && m_physics_enabled)
                             m_sceneGraph.UpdatePreparePhysics();
@@ -1678,7 +1692,7 @@ namespace OpenSim.Region.Framework.Scenes
                     physicsMS2 = Util.EnvironmentTickCountSubtract(tmpPhysicsMS2);
 
                     // Do not simulate physics locally if this is a synced client
-                    if (!IsSyncedClient())
+                    if (!IsSyncedClient() || this.IsPhysEngineActor())
                     {
                         if (m_frame % m_update_entitymovement == 0)
                             m_sceneGraph.UpdateScenePresenceMovement();
@@ -1686,7 +1700,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                     int tmpPhysicsMS = Util.EnvironmentTickCount();
                     // Do not simulate physics locally if this is a synced client
-                    if (!IsSyncedClient())
+                    if (!IsSyncedClient() || this.IsPhysEngineActor())
                     {
                         if (m_frame % m_update_physics == 0)
                         {

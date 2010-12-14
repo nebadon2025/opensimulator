@@ -133,6 +133,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
             InstallInterfaces();
 
+            SyncStart(null);    // fake a 'phys start' to get things going
+
             m_log.Warn(LogHeader + " Initialised");
 
             // collect all the scenes for later routing
@@ -198,15 +200,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
-        public static bool IsPhysEngineScene
+        bool IPhysEngineToSceneConnectorModule.IsPhysEngineActor()
         {
-            get { return SceneToPhysEngineSyncServer.IsPhysEngineScene; }
+            return PhysEngineToSceneConnectorModule.IsPhysEngineActorS;
         }
-        public static bool IsActivePhysEngineScene
+        bool IPhysEngineToSceneConnectorModule.IsPhysEngineScene()
         {
-            get { return SceneToPhysEngineSyncServer.IsActivePhysEngineScene; }
+            return PhysEngineToSceneConnectorModule.IsPhysEngineSceneS;
         }
-        public static bool IsPhysEngineActor
+        bool IPhysEngineToSceneConnectorModule.IsActivePhysEngineScene()
+        {
+            return PhysEngineToSceneConnectorModule.IsActivePhysEngineSceneS;
+        }
+
+        public static bool IsPhysEngineSceneS
+        {
+            get { return SceneToPhysEngineSyncServer.IsPhysEngineScene2S(); }
+        }
+        public static bool IsActivePhysEngineSceneS
+        {
+            get { return SceneToPhysEngineSyncServer.IsActivePhysEngineScene2S(); }
+        }
+        public static bool IsPhysEngineActorS
         {
             get { return (m_activeActors != 0); }
         }
@@ -249,7 +264,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             else
             {
-                Console.WriteLine("RouteUpdate: no SOP found");
+                Console.WriteLine("RouteUpdate: no SOP found for {0}", pa.LocalID);
             }
             return;
         }

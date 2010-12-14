@@ -307,6 +307,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             //RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Object \"{0}\" ({1}) ({1}) updated.", sog.Name, sog.UUID.ToString(), sog.LocalId.ToString()));
                         //else
                             //RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Object \"{0}\" ({1}) ({1}) added.", sog.Name, sog.UUID.ToString(), sog.LocalId.ToString()));
+
                         sog.ScheduleGroupForFullUpdate();
                         return;
                     }
@@ -351,6 +352,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         UUID agentID = data["agentID"].AsUUID();
                         string first = data["first"].AsString();
                         string last = data["last"].AsString();
+                        uint localID = data["localID"].AsUInteger();
                         Vector3 startPos = data["startPos"].AsVector3();
                         if (agentID == null || agentID == UUID.Zero || first == null || last == null || startPos == null)
                         {
@@ -384,6 +386,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         else
                         {
                             sp.IsSyncedAvatar = true;
+                            m_log.DebugFormat("{0}: Setting avatar local ID to {1}", LogHeader, localID);
+                            sp.LocalId = localID;
+                            if (sp.PhysicsActor != null)
+                            {
+                                sp.PhysicsActor.LocalID = localID;
+                            }
                         }
                         //RegionSyncMessage.HandlerDebug(LogHeader, msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));
                         RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));

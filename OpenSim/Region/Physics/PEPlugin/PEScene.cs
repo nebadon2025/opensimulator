@@ -101,9 +101,9 @@ public class PEScene : PhysicsScene
     public override float Simulate(float timeStep)
     {
         // if we are a physics engine server, send update information
-        if (SceneToPhysEngineSyncServer.IsPhysEngineScene2())
+        if (SceneToPhysEngineSyncServer.IsPhysEngineScene2S())
         {
-            if (SceneToPhysEngineSyncServer.IsActivePhysEngineScene2())
+            if (SceneToPhysEngineSyncServer.IsActivePhysEngineScene2S())
             {
                 // m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
                 foreach (PEPrim prim in m_prims)
@@ -115,8 +115,11 @@ public class PEScene : PhysicsScene
                 }
                 foreach (PECharacter actor in m_avatars)
                 {
-                    m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
-                    SceneToPhysEngineSyncServer.RouteUpdate(actor);
+                    // m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
+                    if (actor.lastValues.Changed(actor))
+                    {
+                        SceneToPhysEngineSyncServer.RouteUpdate(actor);
+                    }
                 }
             }
             return 60f;

@@ -121,6 +121,7 @@ namespace OpenSim.Region.Physics.Manager
     /// </summary>
     public struct PhysActorLastValues
     {
+        public uint updateTime;
         public uint localID;
         public Vector3 size;
         public Vector3 position;
@@ -176,7 +177,11 @@ namespace OpenSim.Region.Physics.Manager
         public abstract PrimitiveBaseShape Shape { set; }
 
         // RA: used to be abstract but changed to allow 'get' without changing all the phys engines
-        public virtual uint LocalID { set { return; } get { return 0; } }
+        uint m_baseLocalID;
+        public virtual uint LocalID { 
+            set { m_baseLocalID = value; } 
+            get { return m_baseLocalID; } 
+        }
         public PhysActorLastValues lastValues;
 
         public abstract bool Grabbed { set; }

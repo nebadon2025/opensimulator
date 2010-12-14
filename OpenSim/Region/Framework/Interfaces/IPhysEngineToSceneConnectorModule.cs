@@ -37,9 +37,9 @@ namespace OpenSim.Region.Framework.Interfaces
     //the interface for Scene to sync with Script Engine
     public interface IPhysEngineToSceneConnectorModule
     {
-        // static bool IsPhysEngineScene { get; }
-        // static bool IsActivePhysEngineScene { get; }
-        // static bool IsPhysEngineActor { get; }
+        bool IsPhysEngineScene();
+        bool IsActivePhysEngineScene();
+        bool IsPhysEngineActor();
         bool DebugWithViewer { get; }
         void SendUpdate(PhysicsActor pa);
     }

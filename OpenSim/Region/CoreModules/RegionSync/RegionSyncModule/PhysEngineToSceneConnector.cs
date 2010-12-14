@@ -375,20 +375,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 uint localID = data["localID"].AsUInteger();
                 // m_log.DebugFormat("{0}: HandlPhysUpdateAttributes for {1}", LogHeader, localID);
-                SceneObjectPart sop = m_validLocalScene.GetSceneObjectPart(localID);
-                if (sop != null)
+                PhysicsActor pa = FindPhysicsActor(localID);
+                if (pa != null)
                 {
-                    sop.PhysActor.Size = data["size"].AsVector3();
-                    sop.PhysActor.Position = data["position"].AsVector3();
-                    sop.PhysActor.Force = data["force"].AsVector3();
-                    sop.PhysActor.Velocity = data["velocity"].AsVector3();
-                    sop.PhysActor.Torque = data["torque"].AsVector3();
-                    sop.PhysActor.Orientation = data["orientantion"].AsQuaternion();
-                    sop.PhysActor.IsPhysical = data["isPhysical"].AsBoolean();  // receive??
-                    sop.PhysActor.Flying = data["flying"].AsBoolean();      // receive??
-                    sop.PhysActor.Kinematic = data["kinematic"].AsBoolean();    // receive??
-                    sop.PhysActor.Buoyancy = (float)(data["buoyancy"].AsReal());
-                    sop.PhysActor.Shape = sop.Shape;
+                    pa.Size = data["size"].AsVector3();
+                    pa.Position = data["position"].AsVector3();
+                    pa.Force = data["force"].AsVector3();
+                    pa.Velocity = data["velocity"].AsVector3();
+                    pa.Torque = data["torque"].AsVector3();
+                    pa.Orientation = data["orientantion"].AsQuaternion();
+                    pa.IsPhysical = data["isPhysical"].AsBoolean();  // receive??
+                    pa.Flying = data["flying"].AsBoolean();      // receive??
+                    pa.Kinematic = data["kinematic"].AsBoolean();    // receive??
+                    pa.Buoyancy = (float)(data["buoyancy"].AsReal());
+                    SceneObjectPart sop = m_validLocalScene.GetSceneObjectPart(localID);
+                    if (sop != null)
+                    {
+                        pa.Shape = sop.Shape;
+                    }
                 }
                 else
                 {
@@ -404,9 +408,25 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return;
         }
 
+        // Find the physics actor whether it is an object or a scene presence
+        private PhysicsActor FindPhysicsActor(uint localID)
+        {
+            SceneObjectPart sop = m_validLocalScene.GetSceneObjectPart(localID);
+            if (sop != null)
+            {
+                return sop.PhysActor;
+            }
+            ScenePresence sp = m_validLocalScene.GetScenePresence(localID);
+            if (sp != null)
+            {
+                return sp.PhysicsActor;
+            }
+            return null;
+        }
+
         public void SendPhysUpdateAttributes(PhysicsActor pa)
         {
-            m_log.DebugFormat("{0}: SendPhysUpdateAttributes for {1}", LogHeader, pa.LocalID);
+            // m_log.DebugFormat("{0}: SendPhysUpdateAttributes for {1}", LogHeader, pa.LocalID);
             OSDMap data = new OSDMap(9);
             data["localID"] = OSD.FromUInteger(pa.LocalID);
             data["size"] = OSD.FromVector3(pa.Size);

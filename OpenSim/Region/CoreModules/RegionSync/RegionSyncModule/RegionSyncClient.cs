@@ -269,7 +269,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void SendAppearanceToScene(UUID agentID)
         {
             OSDMap data = new OSDMap();
-            data["agentID"] = OSD.FromUUID(agentID);
+            data["id"] = OSD.FromUUID(agentID);
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AvatarAppearance, OSDParser.SerializeJsonString(data)));
         }
 
@@ -512,7 +512,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         {
                             if (doFullUpdate)
                             {
-                                presence.SendFullUpdateToAllClients();
+                                presence.SendAvatarDataToAllAgents();
                             }
                             else
                             {
@@ -808,7 +808,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_scene.DeleteAllSceneObjects();
             //KittyL: added to distinguish different actors
-            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.ActorType, m_actorType.ToString()));
+            //Send(new RegionSyncMessage(RegionSyncMessage.MsgType.ActorType, m_actorType.ToString()));
 
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.RegionName, m_scene.RegionInfo.RegionName));
             m_log.WarnFormat("Sending region name: \"{0}\"", m_scene.RegionInfo.RegionName);

@@ -116,6 +116,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
         // <param name="userID"></param>
         public AvatarAppearance GetAppearance(UUID userID)
         {
+            m_log.DebugFormat("[SIMIAN AVATAR CONNECTOR] Start of GetAppearance for {0}", userID);
             NameValueCollection requestArgs = new NameValueCollection
             {
                 { "RequestMethod", "GetUser" },
@@ -125,25 +126,39 @@ namespace OpenSim.Services.Connectors.SimianGrid
             OSDMap response = WebUtil.PostToService(m_serverUrl, requestArgs);
             if (response["Success"].AsBoolean())
             {
-                OSDMap map = null;
-                try { map = OSDParser.DeserializeJson(response["LLPackedAppearance"].AsString()) as OSDMap; }
-                catch { }
-
-                if (map != null)
+                OSDMap usermap = null;
+                try
                 {
-                    AvatarAppearance appearance = new AvatarAppearance(map);
-// DEBUG ON
-                    m_log.WarnFormat("[SIMIAN AVATAR CONNECTOR] retrieved appearance for {0}:\n{1}",userID,appearance.ToString());
-// DEBUG OFF
-                    return appearance;
+                    usermap = OSDParser.DeserializeJson(response["User"].ToString()) as OSDMap;
+                }
+                catch (Exception e)
+                {
+                    m_log.ErrorFormat("[SIMIAN AVATAR CONNECTOR] Caught exception deserializing \"User\" in GetAppearance for {0}: {1}", userID, e.Message);
+                }
+                if (usermap != null)
+                {
+                    OSDMap appearancemap = null;
+                    try
+                    {
+                        appearancemap = OSDParser.DeserializeJson(usermap["LLPackedAppearance"].ToString()) as OSDMap;
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat("[SIMIAN AVATAR CONNECTOR] Caught exception deserializing \"LLPackedAppearance\" in GetAppearance for {0}: {1}", userID, e.Message);
+                    }
+                    if (appearancemap != null)
+                    {
+                        AvatarAppearance appearance = new AvatarAppearance(userID, appearancemap);
+                        m_log.DebugFormat("[SIMIAN AVATAR CONNECTOR] Retrieved appearance for {0}:\n{1}", userID, appearance.ToString());
+                        return appearance;
+                    }
                 }
 
-                m_log.WarnFormat("[SIMIAN AVATAR CONNECTOR]: Failed to decode appearance for {0}",userID);
+                m_log.WarnFormat("[SIMIAN AVATAR CONNECTOR]: Failed to decode appearance for {0}", userID);
                 return null;
             }
 
-            m_log.WarnFormat("[SIMIAN AVATAR CONNECTOR]: Failed to get appearance for {0}: {1}",
-                             userID,response["Message"].AsString());
+            m_log.WarnFormat("[SIMIAN AVATAR CONNECTOR]: Failed to get appearance for {0}: {1}", userID, response["Message"].AsString());
             return null;
         }
         

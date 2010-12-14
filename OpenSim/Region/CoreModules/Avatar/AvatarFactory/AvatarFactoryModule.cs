@@ -284,16 +284,19 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                 m_log.WarnFormat("[AVFACTORY]: RefreshAppearance unable to find presence for {0}", agentid);
                 return;
             }
-
+            m_log.DebugFormat("[AVFACTORY]: FireAndForget called for RefreshAppearance on agentid {0}", agentid);
             Util.FireAndForget(delegate(object o)
             {
                 AvatarAppearance appearance = m_scene.AvatarService.GetAppearance(agentid);
                 if (appearance.Texture != null && appearance.VisualParams != null)
                 {
-                    sp.Appearance.SetTextureEntries(appearance.Texture);
-                    sp.Appearance.SetVisualParams(appearance.VisualParams);
-                    sp.SetHeight(appearance.AvatarHeight);
-                    QueueAppearanceSend(agentid);
+                    sp.Appearance = appearance;
+                    if (sp.Appearance.AvatarHeight > 0)
+                        sp.SetHeight(sp.Appearance.AvatarHeight);
+                    // Send the appearance to everyone in the scene
+                    sp.SendAppearanceToAllOtherAgents();
+                    // Send animations back to the avatar as well
+                    sp.Animator.SendAnimPack();
                 }
                 else
                 {
@@ -430,6 +433,8 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
             // since the "iswearing" will trigger a new set of visual param and baked texture changes
             // when those complete, the new appearance will be sent
             sp.Appearance = avatAppearance;
+            if (sp.Appearance.AvatarHeight > 0)
+                sp.SetHeight(sp.Appearance.AvatarHeight);
             QueueAppearanceSave(client.AgentId);
         }
 

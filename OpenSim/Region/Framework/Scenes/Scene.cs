@@ -1411,10 +1411,10 @@ namespace OpenSim.Region.Framework.Scenes
 
                     // Run through all ScenePresences looking for updates
                     // Presence updates and queued object updates for each presence are sent to clients
-                    // If it's a synced client, just send prim updates
+                    // If it's a client manager, just send prim updates
                     // This will get fixed later to only send to locally logged in presences rather than all presences
                     // but requires pulling apart the concept of a client from the concept of a presence/avatar
-                    if (IsSyncedClient())
+                    if (IsSyncedClient() || !RegionSyncEnabled)
 
                     {
                         ForEachScenePresence(delegate(ScenePresence sp) { sp.SendPrimUpdates(); });
@@ -1448,6 +1448,7 @@ namespace OpenSim.Region.Framework.Scenes
                         m_regionSyncServerModule.SendUpdates();
                     }
 
+                    /*
                     // The authoritative sim should not try to send coarse locations
                     // Leave this up to the client managers
                     if (!IsSyncedServer())
@@ -1464,6 +1465,7 @@ namespace OpenSim.Region.Framework.Scenes
                             });
                         }
                     }
+                     * */
 
                     int tmpPhysicsMS2 = Util.EnvironmentTickCount();
                     // Do not simulate physics locally if this is a synced client
@@ -2753,11 +2755,15 @@ namespace OpenSim.Region.Framework.Scenes
             AgentCircuitData aCircuit = m_authenticateHandler.GetAgentCircuitData(client.CircuitCode);
             bool vialogin = false;
 
-            if (aCircuit == null) // no good, didn't pass NewUserConnection successfully
-                return;
+            // REGION SYNC
+            if (!RegionSyncEnabled)
+            {
+                if (aCircuit == null) // no good, didn't pass NewUserConnection successfully
+                    return;
 
-            vialogin = (aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaHGLogin) != 0 || 
-                       (aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaLogin) != 0;
+                vialogin = (aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaHGLogin) != 0 ||
+                           (aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaLogin) != 0;
+            }
 
             CheckHeartbeat();
             ScenePresence presence;

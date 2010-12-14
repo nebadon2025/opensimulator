@@ -2405,10 +2405,6 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     SendTerseUpdateToAllClients();
 
-                    // REGION SYNC
-                    if(m_scene.IsSyncedServer())
-                        m_scene.RegionSyncServerModule.QueuePresenceForTerseUpdate(this);
-
                     // Update the "last" values
                     m_lastPosition = m_pos;
                     m_lastRotation = m_bodyRot;
@@ -2460,9 +2456,12 @@ namespace OpenSim.Region.Framework.Scenes
         public void SendTerseUpdateToAllClients()
         {
             // REGION SYNC
-            // The server should not be doing anything via the ForEachScenePresence method
             if (m_scene.IsSyncedServer())
+            {
+                m_scene.RegionSyncServerModule.QueuePresenceForTerseUpdate(this);
                 return;
+            }
+
             m_perfMonMS = Util.EnvironmentTickCount();
             
             m_scene.ForEachClient(SendTerseUpdateToClient);
@@ -2548,6 +2547,14 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void SendAvatarDataToAllAgents()
         {
+            // REGION SYNC
+            // The server sends appearance to all client managers since there are no local clients
+            if (m_scene.IsSyncedServer())
+            {
+                m_scene.RegionSyncServerModule.SendAppearance(UUID);
+                return;
+            }
+
             // only send update from root agents to other clients; children are only "listening posts"
             if (IsChildAgent)
             {
@@ -2621,7 +2628,7 @@ namespace OpenSim.Region.Framework.Scenes
             // The server should not be doing anything via the ForEachScenePresence method
             if (m_scene.IsSyncedServer())
             {
-                m_scene.RegionSyncServerModule.QueuePresenceForTerseUpdate(this);
+                m_scene.RegionSyncServerModule.SendAppearance(UUID);
                 return;
             }
             // only send update from root agents to other clients; children are only "listening posts"
@@ -2679,7 +2686,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="avatar"></param>
         public void SendAppearanceToAgent(ScenePresence avatar)
         {
-//          m_log.WarnFormat("[SP] Send appearance from {0} to {1}",m_uuid,avatar.ControllingClient.AgentId);
+            m_log.DebugFormat("[SP] Send appearance from {0} to {1}",m_uuid,avatar.ControllingClient.AgentId);
 
             avatar.ControllingClient.SendAppearance(
                 m_appearance.Owner, m_appearance.VisualParams, m_appearance.Texture.GetBytes());

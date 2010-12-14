@@ -747,7 +747,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                 default:
                     {
-                        m_log.WarnFormat("{0} Unable to handle unsupported message type", LogHeader);
+                        m_log.WarnFormat("{0} Unable to handle unsupported message type: {1}", LogHeader, msg.ToString());
                         return;
                     }
             }

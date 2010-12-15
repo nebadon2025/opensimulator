@@ -90,7 +90,7 @@ public sealed class PEPrim : PhysicsActor
     public override Vector3 Size { 
         get { return _size; } 
         set { _size = value;
-            m_log.Debug("[RPE] PEPrim set Size");
+            // m_log.Debug("[RPE] PEPrim set Size");
             Prop.Set(_localID, PropType.Size, _size);
         } 
     }

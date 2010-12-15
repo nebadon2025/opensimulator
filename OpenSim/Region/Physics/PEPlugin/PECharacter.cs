@@ -88,19 +88,16 @@ public class PECharacter : PhysicsActor
     public override Vector3 Size { 
         get { return _size; } 
         set { _size = value;
-            m_log.Debug("[RPE] PEChar set Size");
             Prop.Set(_localID, PropType.Size, _size);
         } 
     }
     public override PrimitiveBaseShape Shape { 
         set { _pbs = value; 
-            m_log.Debug("[RPE] PEChar set Shape");
             Prop.Set(_localID, PropType.Shape, _pbs);
         } 
     }
     public override uint LocalID { 
         set { _localID = value; 
-            m_log.Debug("[RPE] PEChar set LocalID");
             Prop.Set(_localID, PropType.LocalID, _localID);
         }
         get { return _localID; }
@@ -125,7 +122,6 @@ public class PECharacter : PhysicsActor
     public override Vector3 Position { 
         get { return _position; } 
         set { _position = value; 
-            // m_log.DebugFormat("[RPE] PEChar set Position: {0}", _position);
             Prop.Set(_localID, PropType.Position, _position);
         } 
     }
@@ -135,7 +131,6 @@ public class PECharacter : PhysicsActor
     public override Vector3 Force { 
         get { return _force; } 
         set { _force = value; 
-            m_log.Debug("[RPE] PEChar set Force");
             Prop.Set(_localID, PropType.Force, _force);
         } 
     }
@@ -157,7 +152,6 @@ public class PECharacter : PhysicsActor
     public override Vector3 Velocity { 
         get { return _velocity; } 
         set { _velocity = value; 
-            m_log.Debug("[RPE] PEChar set Velocity");
             Prop.Set(_localID, PropType.Velocity, _velocity);
         } 
     }

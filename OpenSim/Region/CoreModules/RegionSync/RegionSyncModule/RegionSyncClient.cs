@@ -282,6 +282,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case RegionSyncMessage.MsgType.Terrain:
                     {
                         m_scene.Heightmap.LoadFromXmlString(Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
+                        m_scene.PhysicsScene.SetTerrain(m_scene.Heightmap.GetFloatsSerialised());
                         RegionSyncMessage.HandleSuccess(LogHeader, msg, "Synchronized terrain");
                         return;
                     }

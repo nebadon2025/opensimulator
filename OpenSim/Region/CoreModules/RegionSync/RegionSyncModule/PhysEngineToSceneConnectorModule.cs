@@ -250,6 +250,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     s = ss;
                     break;
                 }
+                {
+                    ScenePresence sp = ss.GetScenePresence(pa.LocalID);
+                    if (sp != null)
+                    {
+                        s = ss;
+                        break;
+                    }
+                }
             }
             if (s != null)
             {

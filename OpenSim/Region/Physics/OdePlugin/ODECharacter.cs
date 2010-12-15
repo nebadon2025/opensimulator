@@ -207,8 +207,11 @@ namespace OpenSim.Region.Physics.OdePlugin
         {
             if (PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
             {
-                m_log.DebugFormat("[ODE CHARACTER]: Sending terse update for {0}", LocalID);
-                PhysEngineToSceneConnectorModule.RouteUpdate(this);
+                // m_log.DebugFormat("[ODE CHARACTER]: Sending terse update for {0}", LocalID);
+                if (this.lastValues.Changed(this))
+                {
+                    PhysEngineToSceneConnectorModule.RouteUpdate(this);
+                }
             }
             else
             {
@@ -1194,7 +1197,6 @@ namespace OpenSim.Region.Physics.OdePlugin
             }
             if (!m_lastUpdateSent)
             {
-                m_log.DebugFormat("[ODE CHARACTER] UpdatePositionAndVelocity");
                 this.RequestPhysicsterseUpdate();
             }
         }

@@ -102,7 +102,7 @@ public sealed class PEPrim : PhysicsActor
     }
     public override uint LocalID { 
         set { _localID = value; 
-            m_log.Debug("[RPE] PEPrim set LocalID");
+            // m_log.Debug("[RPE] PEPrim set LocalID");
             Prop.Set(_localID, PropType.LocalID, _localID);
         }
         get { return _localID; }

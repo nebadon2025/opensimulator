@@ -656,8 +656,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         UUID agentID = data["agentID"].AsUUID();
                         UUID objectID = data["objectID"].AsUUID();
-                        m_log.DebugFormat("{0} GrabUpdate for {1}. ObjectID={2}", 
-                                        LogHeader, agentID.ToString(), objectID.ToString());
+                        // m_log.DebugFormat("{0} GrabUpdate for {1}. ObjectID={2}", 
+                        //                 LogHeader, agentID.ToString(), objectID.ToString());
                         Vector3 offset = data["offset"].AsVector3();
                         Vector3 pos = data["pos"].AsVector3();
                         OSDArray surfaceArray = (OSDArray)data["surfaceArgs"];

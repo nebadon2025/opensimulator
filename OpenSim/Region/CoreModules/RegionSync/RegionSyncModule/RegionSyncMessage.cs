@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using System.IO;
 using OpenMetaverse;
 using log4net;
@@ -204,6 +205,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public override string ToString()
         {
             return String.Format("{0} ({1} bytes)", m_type.ToString(), m_data.Length.ToString());
+        }
+        public string ToStringFull()
+        {
+            return String.Format("{0}:{1})", m_type.ToString(), Encoding.ASCII.GetString(m_data));
         }
         #endregion
 

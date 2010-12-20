@@ -137,15 +137,22 @@ namespace OpenSim.Region.Physics.Manager
             bool ret = false;
             if (localID != pa.LocalID) { localID = pa.LocalID; ret = true; }
             if (size != pa.Size) { size = pa.Size; ret = true; }
-            if (position != pa.Position) { position = pa.Position; ret = true; }
-            if (force != pa.Force) { force = pa.Force; ret = true; }
-            if (velocity != pa.Velocity) { velocity = pa.Velocity; ret = true; }
-            if (torque != pa.Torque) { torque = pa.Torque; ret = true; }
+            if (!AlmostEqual(position, pa.Position)) { position = pa.Position; ret = true; }
+            if (!AlmostEqual(force, pa.Force)) { force = pa.Force; ret = true; }
+            if (!AlmostEqual(velocity, pa.Velocity)) { velocity = pa.Velocity; ret = true; }
+            if (!AlmostEqual(torque, pa.Torque)) { torque = pa.Torque; ret = true; }
             if (orientation != pa.Orientation) { orientation = pa.Orientation; ret = true; }
             if (isPhysical != pa.IsPhysical) { isPhysical = pa.IsPhysical; ret = true; }
             if (flying != pa.Flying) { flying = pa.Flying; ret = true; }
             if (buoyancy != pa.Buoyancy) { buoyancy = pa.Buoyancy; ret = true; }
             return ret;
+        }
+        private bool AlmostEqual(Vector3 a, Vector3 b)
+        {
+            if (Math.Abs(a.X - b.X) > 0.001) return false;
+            if (Math.Abs(a.Y - b.Y) > 0.001) return false;
+            if (Math.Abs(a.Z - b.Z) > 0.001) return false;
+            return true;
         }
     }
 

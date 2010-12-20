@@ -156,6 +156,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //m_scene.EventManager.OnRezScript += SEConnectorOnRezScript;
             //m_scene.EventManager.OnScriptReset += SEConnectorOnScriptReset;
             //m_scene.EventManager.OnUpdateScript += SEConnectorOnUpdateScript;
+
             // Create a thread for the receive loop
             m_receive_loop = new Thread(new ThreadStart(delegate() { ReceiveLoop(); }));
             m_receive_loop.Name = Description;

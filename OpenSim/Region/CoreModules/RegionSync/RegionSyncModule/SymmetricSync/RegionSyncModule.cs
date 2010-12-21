@@ -17,18 +17,21 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 
+using Mono.Addins;
+
 /////////////////////////////////////////////////////////////////////////////////////////////
 //KittyL: created 12/17/2010, to start DSG Symmetric Synch implementation
 /////////////////////////////////////////////////////////////////////////////////////////////
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
-
-    //The connector that connects the local Scene (cache) and remote authoratative Scene
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AttachmentsModule")]
     public class RegionSyncModule : INonSharedRegionModule, IRegionSyncModule, ICommandableModule
+    //public class RegionSyncModule : IRegionModule, IRegionSyncModule, ICommandableModule
     {
         #region INonSharedRegionModule
 
         public void Initialise(IConfigSource config)
+        //public void Initialise(Scene scene, IConfigSource config)
         {
             m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -256,8 +259,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_regionSyncListener = new RegionSyncListener(m_syncListenerAddr, m_syncListenerPort, this);
             m_regionSyncListener.Start();
-            m_statsTimer.Elapsed += new System.Timers.ElapsedEventHandler(StatsTimerElapsed);
-            m_statsTimer.Start();
+            
+            //STATS TIMER: TO BE IMPLEMENTED
+            //m_statsTimer.Elapsed += new System.Timers.ElapsedEventHandler(StatsTimerElapsed);
+            //m_statsTimer.Start();
         }
 
         private void SyncStart(Object[] args)

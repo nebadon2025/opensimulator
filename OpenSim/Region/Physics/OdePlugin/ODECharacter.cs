@@ -208,7 +208,8 @@ namespace OpenSim.Region.Physics.OdePlugin
             if (PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
             {
                 // m_log.DebugFormat("[ODE CHARACTER]: Sending terse update for {0}", LocalID);
-                if (this.lastValues.Changed(this))
+                // if the values have changed and it was I who changed them, send an update
+                if (this.lastValues.Changed(this) && ChangingActorID == RegionSyncServerModule.ActorID)
                 {
                     PhysEngineToSceneConnectorModule.RouteUpdate(this);
                 }
@@ -426,6 +427,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             get { return _position; }
             set
             {
+                base.ChangingActorID = RegionSyncServerModule.ActorID;
                 if (Body == IntPtr.Zero || Shell == IntPtr.Zero)
                 {
                     if (value.IsFinite())
@@ -471,6 +473,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             get { return new Vector3(CAPSULE_RADIUS * 2, CAPSULE_RADIUS * 2, CAPSULE_LENGTH); }
             set
             {
+                base.ChangingActorID = RegionSyncServerModule.ActorID;
                 if (value.IsFinite())
                 {
                     m_pidControllerActive = true;
@@ -792,6 +795,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                 {
                     m_pidControllerActive = true;
                     _target_velocity = value;
+                    base.ChangingActorID = RegionSyncServerModule.ActorID;
                 }
                 else
                 {
@@ -848,6 +852,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         {
             if (force.IsFinite())
             {
+                base.ChangingActorID = RegionSyncServerModule.ActorID;
                 if (pushforce)
                 {
                     m_pidControllerActive = false;

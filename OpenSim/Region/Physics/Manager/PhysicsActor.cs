@@ -190,6 +190,8 @@ namespace OpenSim.Region.Physics.Manager
             get { return m_baseLocalID; } 
         }
         public PhysActorLastValues lastValues;
+        // ID of actor which last updated the values. Send if I did the change.
+        public string ChangingActorID = "YY";
 
         public abstract bool Grabbed { set; }
 

@@ -319,10 +319,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             try
             {
                 uint localID = data["localID"].AsUInteger();
+                string actorID = data["actorID"].AsString();
                 // m_log.DebugFormat("{0}: received PhysUpdateAttributes for {1}", LogHeader, localID);
                 PhysicsActor pa = FindPhysicsActor(localID);
                 if (pa != null)
                 {
+                    pa.ChangingActorID = actorID;
                     pa.Size = data["size"].AsVector3();
                     pa.Position = data["position"].AsVector3();
                     pa.Force = data["force"].AsVector3();
@@ -333,6 +335,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     pa.Flying = data["flying"].AsBoolean();      // receive??
                     pa.Kinematic = data["kinematic"].AsBoolean();    // receive??
                     pa.Buoyancy = (float)(data["buoyancy"].AsReal());
+                    pa.CollidingGround = data["isCollidingGround"].AsBoolean();
+                    pa.IsColliding = data["isCollidingGround"].AsBoolean();
                 }
                 else
                 {
@@ -369,6 +373,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // m_log.DebugFormat("{0}: sending PhysUpdateAttributes for {1}", LogHeader, pa.LocalID);
             OSDMap data = new OSDMap(9);
             data["localID"] = OSD.FromUInteger(pa.LocalID);
+            data["actorID"] = OSD.FromString(RegionSyncServerModule.ActorID);
             data["size"] = OSD.FromVector3(pa.Size);
             data["position"] = OSD.FromVector3(pa.Position);
             data["force"] = OSD.FromVector3(pa.Force);
@@ -378,6 +383,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["isPhysical"] = OSD.FromBoolean(pa.IsPhysical);
             data["flying"] = OSD.FromBoolean(pa.Flying);
             data["buoyancy"] = OSD.FromReal(pa.Buoyancy);
+            // data["isColliding"] = OSD.FromBoolean(pa.IsColliding);
+            // data["isCollidingGround"] = OSD.FromBoolean(pa.CollidingGround);
 
             RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.PhysUpdateAttributes, 
                                                                 OSDParser.SerializeJsonString(data));

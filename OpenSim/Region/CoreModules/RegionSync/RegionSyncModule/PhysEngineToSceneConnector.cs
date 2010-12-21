@@ -380,15 +380,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             try
             {
                 uint localID = data["localID"].AsUInteger();
+                string actorID = data["actorID"].AsString();
                 // m_log.DebugFormat("{0}: HandlPhysUpdateAttributes for {1}", LogHeader, localID);
                 PhysicsActor pa = FindPhysicsActor(localID);
                 if (pa != null)
                 {
-                    Vector3 sizeTemp = data["size"].AsVector3();
-                    if (sizeTemp.Z != 0)
-                    {
-                        // pa.Size = sizeTemp;
-                    }
+                    // pa.Size = data["size"].AsVector3();
+                    pa.ChangingActorID = actorID;
                     pa.Position = data["position"].AsVector3();
                     pa.Force = data["force"].AsVector3();
                     pa.Velocity = data["velocity"].AsVector3();
@@ -439,6 +437,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // m_log.DebugFormat("{0}: SendPhysUpdateAttributes for {1}", LogHeader, pa.LocalID);
             OSDMap data = new OSDMap(9);
             data["localID"] = OSD.FromUInteger(pa.LocalID);
+            data["actorID"] = OSD.FromString(RegionSyncServerModule.ActorID);
             data["size"] = OSD.FromVector3(pa.Size);
             data["position"] = OSD.FromVector3(pa.Position);
             data["force"] = OSD.FromVector3(pa.Force);
@@ -448,6 +447,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["isPhysical"] = OSD.FromBoolean(pa.IsPhysical);
             data["flying"] = OSD.FromBoolean(pa.Flying);
             data["buoyancy"] = OSD.FromReal(pa.Buoyancy);
+            data["isColliding"] = OSD.FromBoolean(pa.IsColliding);
+            data["isCollidingGround"] = OSD.FromBoolean(pa.CollidingGround);
 
             RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.PhysUpdateAttributes, 
                                                                 OSDParser.SerializeJsonString(data));

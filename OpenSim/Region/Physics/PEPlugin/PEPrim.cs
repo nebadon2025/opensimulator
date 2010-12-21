@@ -91,18 +91,21 @@ public sealed class PEPrim : PhysicsActor
         get { return _size; } 
         set { _size = value;
             // m_log.Debug("[RPE] PEPrim set Size");
+            ChangingActorID = RegionSyncServerModule.ActorID;
             Prop.Set(_localID, PropType.Size, _size);
         } 
     }
     public override PrimitiveBaseShape Shape { 
         set { _pbs = value; 
             m_log.Debug("[RPE] PEPrim set Shape");
+            ChangingActorID = RegionSyncServerModule.ActorID;
             Prop.Set(_localID, PropType.Shape, _pbs);
         } 
     }
     public override uint LocalID { 
         set { _localID = value; 
             // m_log.Debug("[RPE] PEPrim set LocalID");
+            ChangingActorID = RegionSyncServerModule.ActorID;
             Prop.Set(_localID, PropType.LocalID, _localID);
         }
         get { return _localID; }
@@ -127,6 +130,7 @@ public sealed class PEPrim : PhysicsActor
     public override Vector3 Position { 
         get { return _position; } 
         set { _position = value; 
+            ChangingActorID = RegionSyncServerModule.ActorID;
             // m_log.Debug("[RPE] PEPrim set Position");
             Prop.Set(_localID, PropType.Position, _position);
         } 
@@ -137,6 +141,7 @@ public sealed class PEPrim : PhysicsActor
     public override Vector3 Force { 
         get { return _force; } 
         set { _force = value; 
+            ChangingActorID = RegionSyncServerModule.ActorID;
             // m_log.Debug("[RPE] PEPrim set Force");
             Prop.Set(_localID, PropType.Force, _force);
         } 
@@ -159,18 +164,21 @@ public sealed class PEPrim : PhysicsActor
     public override Vector3 Velocity { 
         get { return _velocity; } 
         set { _velocity = value; 
+            ChangingActorID = RegionSyncServerModule.ActorID;
             Prop.Set(_localID, PropType.Velocity, _velocity);
         } 
     }
     public override Vector3 Torque { 
         get { return _torque; } 
         set { _torque = value; 
+            ChangingActorID = RegionSyncServerModule.ActorID;
             Prop.Set(_localID, PropType.Torque, _torque);
         } 
     }
     public override float CollisionScore { 
         get { return _collisionScore; } 
         set { _collisionScore = value; 
+            ChangingActorID = RegionSyncServerModule.ActorID;
             Prop.Set(_localID, PropType.CollisionScore, _collisionScore);
         } 
     }
@@ -180,22 +188,26 @@ public sealed class PEPrim : PhysicsActor
     public override Quaternion Orientation { 
         get { return _orientation; } 
         set { _orientation = value; 
+            ChangingActorID = RegionSyncServerModule.ActorID;
             Prop.Set(_localID, PropType.Orientation, _orientation);
         } 
     }
     public override int PhysicsActorType { 
         get { return _physicsActorType; } 
         set { _physicsActorType = value; 
+            ChangingActorID = RegionSyncServerModule.ActorID;
         } 
     }
     public override bool IsPhysical { 
         get { return _isPhysical; } 
         set { _isPhysical = value; 
+            ChangingActorID = RegionSyncServerModule.ActorID;
         } 
     }
     public override bool Flying { 
         get { return _flying; } 
         set { _flying = value; 
+            ChangingActorID = RegionSyncServerModule.ActorID;
         } 
     }
     public override bool 

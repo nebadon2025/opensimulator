@@ -48,6 +48,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
     public class RegionSyncServerModule : IRegionModule, IRegionSyncServerModule, ICommandableModule
     {
         private static int DefaultPort = 13000;
+        public static string ActorID = "XX";
 
         #region IRegionModule Members
         public void Initialise(Scene scene, IConfigSource config)
@@ -73,6 +74,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.Warn("[REGION SYNC SERVER MODULE] RegionSyncModule is not enabled. Shutting down.");
                 return;
             }
+
+            // get identifying actor ID whether in client or server mode
+            ActorID = syncConfig.GetString("ActorID", "ZZ");
 
             // If syncConfig does not indicate "server", do not start up server mode
             string mode = syncConfig.GetString("Mode", "server").ToLower();

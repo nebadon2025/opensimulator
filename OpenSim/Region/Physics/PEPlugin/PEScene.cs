@@ -108,7 +108,8 @@ public class PEScene : PhysicsScene
                 // m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
                 foreach (PEPrim prim in m_prims)
                 {
-                    if (prim.lastValues.Changed(prim))
+                    // if the values have changed and it was I who changed them, send an update
+                    if (prim.lastValues.Changed(prim) && prim.ChangingActorID == RegionSyncServerModule.ActorID)
                     {
                         SceneToPhysEngineSyncServer.RouteUpdate(prim);
                     }
@@ -116,7 +117,8 @@ public class PEScene : PhysicsScene
                 foreach (PECharacter actor in m_avatars)
                 {
                     // m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
-                    if (actor.lastValues.Changed(actor))
+                    // if the values have changed and it was I who changed them, send an update
+                    if (actor.lastValues.Changed(actor) && actor.ChangingActorID == RegionSyncServerModule.ActorID)
                     {
                         SceneToPhysEngineSyncServer.RouteUpdate(actor);
                     }

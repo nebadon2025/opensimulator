@@ -19,14 +19,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // The logfile
         private ILog m_log;
 
-        public SyncConnector(TcpClient tcpclient)
+        private int m_connectorNum;
+        public int ConnectorNum
         {
-            m_tcpConnection = tcpclient;
+            get { return m_connectorNum; }
         }
 
-        public SyncConnector(RegionSyncListenerInfo listenerInfo)
+        public SyncConnector(int connectorNum, TcpClient tcpclient)
+        {
+            m_tcpConnection = tcpclient;
+            m_connectorNum = connectorNum;
+            m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        }
+
+        public SyncConnector(int connectorNum, RegionSyncListenerInfo listenerInfo)
         {
             m_remoteListenerInfo = listenerInfo;
+            m_connectorNum = connectorNum;
+            m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         }
 
         //Start the connection

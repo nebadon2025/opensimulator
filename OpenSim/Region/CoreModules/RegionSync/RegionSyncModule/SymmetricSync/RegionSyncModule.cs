@@ -35,7 +35,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-            IConfig m_sysConfig = config.Configs["RegionSyncModule"];
+            m_sysConfig = config.Configs["RegionSyncModule"];
             m_active = false;
             if (m_sysConfig == null)
             {
@@ -231,6 +231,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private HashSet<RegionSyncListenerInfo> m_remoteSyncListeners;
 
+        private int m_syncConnectorNum = 0;
+
         private Scene m_scene;
         public Scene LocalScene
         {
@@ -242,7 +244,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //The list of SyncConnectors. ScenePersistence could have multiple SyncConnectors, each connecting to a differerent actor.
         //An actor could have several SyncConnectors as well, each connecting to a ScenePersistence that hosts a portion of the objects/avatars
         //the actor operates on.
-        private HashSet<SyncConnector> m_syncConnectors=null;
+        private HashSet<SyncConnector> m_syncConnectors= new HashSet<SyncConnector>();
         private object m_syncConnectorsLock = new object();
         
         //Timers for periodically status report has not been implemented yet.
@@ -268,8 +270,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //For now, we use configuration to access the information. Might be replaced by some Grid Service later on.
         private RegionSyncListenerInfo GetLocalSyncListenerInfo()
         {
-            string listenerAddrDefault = m_sysConfig.GetString("ServerIPAddress", "127.0.0.1");
-            string addr = m_sysConfig.GetString("SyncListenerIPAddress", listenerAddrDefault);
+            string addr = m_sysConfig.GetString("SyncListenerIPAddress", "127.0.0.1");
             int port = m_sysConfig.GetInt("SyncListenerPort", 13000);
             RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);
 
@@ -283,16 +284,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //And for now, we assume there is only 1 remote listener to connect to.
         private void GetRemoteSyncListenerInfo()
         {
-            string listenerAddrDefault = m_sysConfig.GetString("ServerIPAddress", "127.0.0.1");
-            string addr = m_sysConfig.GetString("SyncListenerIPAddress", listenerAddrDefault);
+            string addr = m_sysConfig.GetString("SyncListenerIPAddress", "127.0.0.1");
             int port = m_sysConfig.GetInt("SyncListenerPort", 13000);
             RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);
 
             if (m_remoteSyncListeners == null)
             {
                 m_remoteSyncListeners = new HashSet<RegionSyncListenerInfo>();
-                m_remoteSyncListeners.Add(info);
             }
+            m_remoteSyncListeners.Add(info);
         }
 
         private void SyncStart(Object[] args)
@@ -344,7 +344,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             foreach (RegionSyncListenerInfo remoteListener in m_remoteSyncListeners)
             {
-                SyncConnector syncConnector = new SyncConnector(remoteListener);
+                SyncConnector syncConnector = new SyncConnector(m_syncConnectorNum++, remoteListener);
                 if (syncConnector.Start())
                 {
                     AddSyncConnector(syncConnector);
@@ -358,7 +358,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //IPAddress addr = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Address;
             //int port = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Port;
 
-            SyncConnector syncConnector = new SyncConnector(tcpclient);
+            SyncConnector syncConnector = new SyncConnector(m_syncConnectorNum++, tcpclient);
             AddSyncConnector(syncConnector);
         }
 
@@ -376,6 +376,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                 m_syncConnectors = newlist;
             }
+
+            m_log.Debug("[REGION SYNC MODULE]: new connector " + syncConnector.ConnectorNum);
         }
 
         public void RemoveSyncConnector(SyncConnector syncConnector)

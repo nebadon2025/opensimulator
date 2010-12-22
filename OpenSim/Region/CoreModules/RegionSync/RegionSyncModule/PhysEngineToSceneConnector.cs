@@ -401,6 +401,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     {
                         pa.Shape = sop.Shape;
                     }
+                    m_validLocalScene.PhysicsScene.AddPhysicsActorTaint(pa);
                 }
                 else
                 {

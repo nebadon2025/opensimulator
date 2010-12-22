@@ -35,32 +35,29 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-            IConfig syncConfig = config.Configs["RegionSyncModule"];
+            IConfig m_sysConfig = config.Configs["RegionSyncModule"];
             m_active = false;
-            if (syncConfig == null)
+            if (m_sysConfig == null)
             {
                 m_log.Warn("[REGION SYNC MODULE] No RegionSyncModule config section found. Shutting down.");
                 return;
             }
-            else if (!syncConfig.GetBoolean("Enabled", false))
+            else if (!m_sysConfig.GetBoolean("Enabled", false))
             {
                 m_log.Warn("[REGION SYNC MODULE] RegionSyncModule is not enabled. Shutting down.");
                 return;
             }
 
-            m_actorID = syncConfig.GetString("ActorID", "");
+            m_actorID = m_sysConfig.GetString("ActorID", "");
             if (m_actorID == "")
             {
                 m_log.Error("ActorID not defined in [RegionSyncModule] section in config file");
                 return;
             }
 
-            m_isSyncRelay = syncConfig.GetBoolean("IsSyncRelay", false);
+            m_isSyncRelay = m_sysConfig.GetBoolean("IsSyncRelay", false);
 
-            m_isSyncListenerLocal = syncConfig.GetBoolean("IsSyncListenerLocal", false);
-            string listenerAddrDefault = syncConfig.GetString("ServerIPAddress", "127.0.0.1");
-            m_syncListenerAddr = syncConfig.GetString("SyncListenerIPAddress", listenerAddrDefault);
-            m_syncListenerPort = syncConfig.GetInt("SyncListenerPort", 13000);
+            m_isSyncListenerLocal = m_sysConfig.GetBoolean("IsSyncListenerLocal", false);
 
             m_active = true;
 
@@ -91,7 +88,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //For now, we use start topology, and ScenePersistence actor is always the one to start the listener.
             if (m_isSyncListenerLocal)
             {
-                StartSyncListener();
+                StartLocalSyncListener();
+            }
+            else
+            {
+                //Start connecting to the remote listener. TO BE IMPLEMENTED. 
+                //For now, the connection will be started by manually typing in "sync start".
             }
             
         }
@@ -147,7 +149,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_isSyncRelay; }
         }
 
-        private RegionSyncListener m_regionSyncListener = null;
+        private RegionSyncListener m_localSyncListener = null;
 
         public void SendObjectUpdates(List<SceneObjectGroup> sog)
         {
@@ -225,18 +227,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //private bool m_active = true;
 
         private bool m_isSyncListenerLocal = false;
-        private string m_syncListenerAddr;
-        public string SyncListenerAddr
-        {
-            get { return m_syncListenerAddr; }
-        }
+        //private RegionSyncListenerInfo m_localSyncListenerInfo 
 
-        private int m_syncListenerPort;
-        public int SyncListenerPort
-        {
-            get { return m_syncListenerPort; }
-        }
-
+        private HashSet<RegionSyncListenerInfo> m_remoteSyncListeners;
 
         private Scene m_scene;
         public Scene LocalScene
@@ -244,25 +237,62 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_scene; }
         }
 
+        private IConfig m_sysConfig = null;
+
+        //The list of SyncConnectors. ScenePersistence could have multiple SyncConnectors, each connecting to a differerent actor.
+        //An actor could have several SyncConnectors as well, each connecting to a ScenePersistence that hosts a portion of the objects/avatars
+        //the actor operates on.
         private HashSet<SyncConnector> m_syncConnectors=null;
         private object m_syncConnectorsLock = new object();
+        
+        //Timers for periodically status report has not been implemented yet.
         private System.Timers.Timer m_statsTimer = new System.Timers.Timer(1000);
-
-
         private void StatsTimerElapsed(object source, System.Timers.ElapsedEventArgs e)
         {
             //TO BE IMPLEMENTED
             m_log.Warn("[REGION SYNC MODULE]: StatsTimerElapsed -- NOT yet implemented.");
         }
 
-        private void StartSyncListener()
+        private void StartLocalSyncListener()
         {
-            m_regionSyncListener = new RegionSyncListener(m_syncListenerAddr, m_syncListenerPort, this);
-            m_regionSyncListener.Start();
+            RegionSyncListenerInfo localSyncListenerInfo = GetLocalSyncListenerInfo();
+            m_localSyncListener = new RegionSyncListener(localSyncListenerInfo, this);
+            m_localSyncListener.Start();
             
             //STATS TIMER: TO BE IMPLEMENTED
             //m_statsTimer.Elapsed += new System.Timers.ElapsedEventHandler(StatsTimerElapsed);
             //m_statsTimer.Start();
+        }
+
+        //Get the information for local IP:Port for listening incoming connection requests.
+        //For now, we use configuration to access the information. Might be replaced by some Grid Service later on.
+        private RegionSyncListenerInfo GetLocalSyncListenerInfo()
+        {
+            string listenerAddrDefault = m_sysConfig.GetString("ServerIPAddress", "127.0.0.1");
+            string addr = m_sysConfig.GetString("SyncListenerIPAddress", listenerAddrDefault);
+            int port = m_sysConfig.GetInt("SyncListenerPort", 13000);
+            RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);
+
+            return info;
+        }
+
+        //Get the information for remote [IP:Port] to connect to for synchronization purpose.
+        //For example, an actor may need to connect to several ScenePersistence's if the objects it operates are hosted collectively
+        //by these ScenePersistence.
+        //For now, we use configuration to access the information. Might be replaced by some Grid Service later on.
+        //And for now, we assume there is only 1 remote listener to connect to.
+        private void GetRemoteSyncListenerInfo()
+        {
+            string listenerAddrDefault = m_sysConfig.GetString("ServerIPAddress", "127.0.0.1");
+            string addr = m_sysConfig.GetString("SyncListenerIPAddress", listenerAddrDefault);
+            int port = m_sysConfig.GetInt("SyncListenerPort", 13000);
+            RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);
+
+            if (m_remoteSyncListeners == null)
+            {
+                m_remoteSyncListeners = new HashSet<RegionSyncListenerInfo>();
+                m_remoteSyncListeners.Add(info);
+            }
         }
 
         private void SyncStart(Object[] args)
@@ -270,18 +300,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             if (m_isSyncListenerLocal)
             {
-                if (m_regionSyncListener.IsListening)
+                if (m_localSyncListener.IsListening)
                 {
                     m_log.Warn("[REGION SYNC MODULE]: RegionSyncListener is local, already started");
                 }
                 else
                 {
-                    StartSyncListener();
+                    StartLocalSyncListener();
                 }
             }
             else
             {
-
+                GetRemoteSyncListenerInfo();
+                StartSyncConnections();
             }
         }
 
@@ -289,14 +320,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (m_isSyncListenerLocal)
             {
-                if (m_regionSyncListener.IsListening)
+                if (m_localSyncListener.IsListening)
                 {
-                    m_regionSyncListener.Shutdown();
+                    m_localSyncListener.Shutdown();
                 }
             }
             else
             {
-
+                //Shutdown all sync connectors
+                StopAllSyncConnectors();
             }
         }
 
@@ -305,6 +337,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //TO BE IMPLEMENTED
             m_log.Warn("[REGION SYNC MODULE]: SyncStatus() TO BE IMPLEMENTED !!!");
         }
+
+        //Start connections to each remote listener. 
+        //For now, there is only one remote listener.
+        private void StartSyncConnections()
+        {
+            foreach (RegionSyncListenerInfo remoteListener in m_remoteSyncListeners)
+            {
+                SyncConnector syncConnector = new SyncConnector(remoteListener);
+                if (syncConnector.Start())
+                {
+                    AddSyncConnector(syncConnector);
+                }
+            }
+        }
+
 
         public void AddSyncConnector(TcpClient tcpclient)
         {
@@ -347,15 +394,40 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        public void StopAllSyncConnectors()
+        {
+            lock (m_syncConnectorsLock)
+            {
+                foreach (SyncConnector syncConnector in m_syncConnectors)
+                {
+                    syncConnector.Stop();
+                }
+
+                m_syncConnectors.Clear();
+            }
+        }
+
         #endregion //RegionSyncModule members and functions
 
     }
 
+    public class RegionSyncListenerInfo
+    {
+        public IPAddress Addr;
+        public int Port;
+
+        //TO ADD: reference to RegionInfo that describes the shape/size of the space that the listener is associated with
+
+        public RegionSyncListenerInfo(string addr, int port)
+        {
+            Addr = IPAddress.Parse(addr);
+            Port = port;
+        }
+    }
 
     public class RegionSyncListener
     {
-        private IPAddress m_addr;
-        private Int32 m_port;
+        private RegionSyncListenerInfo m_listenerInfo;
         private RegionSyncModule m_regionSyncModule;
         private ILog m_log;
 
@@ -369,10 +441,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_isListening; }
         }
 
-        public RegionSyncListener(string addr, int port, RegionSyncModule regionSyncModule)
+        public RegionSyncListener(RegionSyncListenerInfo listenerInfo, RegionSyncModule regionSyncModule)
         {
-            m_addr = IPAddress.Parse(addr);
-            m_port = port;
+            m_listenerInfo = listenerInfo;
             m_regionSyncModule = regionSyncModule;
 
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
@@ -405,7 +476,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // When connected, start the ReceiveLoop for the new client
         private void Listen()
         {
-            m_listener = new TcpListener(m_addr, m_port);
+            m_listener = new TcpListener(m_listenerInfo.Addr, m_listenerInfo.Port);
 
             try
             {
@@ -414,7 +485,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 while (true)
                 {
                     // *** Move/Add TRY/CATCH to here, but we don't want to spin loop on the same error
-                    m_log.WarnFormat("[REGION SYNC SERVER] Listening for new connections on {0}:{1}...", m_addr.ToString(), m_port.ToString());
+                    m_log.WarnFormat("[REGION SYNC SERVER] Listening for new connections on {0}:{1}...", m_listenerInfo.Addr.ToString(), m_listenerInfo.Port.ToString());
                     TcpClient tcpclient = m_listener.AcceptTcpClient();
 
                     //pass the tcpclient information to RegionSyncModule, who will then create a SyncConnector

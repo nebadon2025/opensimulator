@@ -1414,7 +1414,7 @@ namespace OpenSim.Region.Framework.Scenes
                     // If it's a client manager, just send prim updates
                     // This will get fixed later to only send to locally logged in presences rather than all presences
                     // but requires pulling apart the concept of a client from the concept of a presence/avatar
-                    if (IsSyncedClient() || !RegionSyncEnabled)
+                    if (IsSyncedClient())
 
                     {
                         ForEachScenePresence(delegate(ScenePresence sp) { sp.SendPrimUpdates(); });

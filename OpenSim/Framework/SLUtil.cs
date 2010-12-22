@@ -98,8 +98,8 @@ namespace OpenSim.Framework
                     return "application/vnd.ll.outfitfolder";
                 case AssetType.MyOutfitsFolder:
                     return "application/vnd.ll.myoutfitsfolder";
-                case AssetType.InboxFolder:
-                    return "application/vnd.ll.inboxfolder";
+                //case AssetType.InboxFolder:
+                //    return "application/vnd.ll.inboxfolder";
                 case AssetType.Unknown:
                 default:
                     return "application/octet-stream";
@@ -209,8 +209,6 @@ namespace OpenSim.Framework
                     return (sbyte)AssetType.OutfitFolder;
                 case "application/vnd.ll.myoutfitsfolder":
                     return (sbyte)AssetType.MyOutfitsFolder;
-                case "application/vnd.ll.inboxfolder":
-                    return (sbyte)AssetType.InboxFolder;
                 case "application/octet-stream":
                 default:
                     return (sbyte)AssetType.Unknown;

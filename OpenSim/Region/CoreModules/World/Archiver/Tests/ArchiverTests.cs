@@ -134,8 +134,8 @@ namespace OpenSim.Region.CoreModules.World.Archiver.Tests
             m_scene.AddNewSceneObject(sog1, false);
 
             SceneObjectPart part2 = CreateSceneObjectPart2();
-            
-            AssetNotecard nc = new AssetNotecard("Hello World!");
+
+            AssetNotecard nc = new AssetNotecard();
             UUID ncAssetUuid = new UUID("00000000-0000-0000-1000-000000000000");
             UUID ncItemUuid = new UUID("00000000-0000-0000-1100-000000000000");
             AssetBase ncAsset 
@@ -328,7 +328,7 @@ namespace OpenSim.Region.CoreModules.World.Archiver.Tests
             tar.WriteDir(ArchiveConstants.TERRAINS_PATH);
             tar.WriteFile(ArchiveConstants.CONTROL_FILE_PATH, ArchiveWriteRequestExecution.Create0p2ControlFile());
 
-            RegionSettings rs = new RegionSettings();
+            OpenSim.Framework.RegionSettings rs = new OpenSim.Framework.RegionSettings();
             rs.AgentLimit = 17;
             rs.AllowDamage = true;
             rs.AllowLandJoinDivide = true;
@@ -372,7 +372,7 @@ namespace OpenSim.Region.CoreModules.World.Archiver.Tests
             }
             
             Assert.That(m_lastErrorMessage, Is.Null);
-            RegionSettings loadedRs = m_scene.RegionInfo.RegionSettings;
+            OpenSim.Framework.RegionSettings loadedRs = m_scene.RegionInfo.RegionSettings;
 
             Assert.That(loadedRs.AgentLimit, Is.EqualTo(17));
             Assert.That(loadedRs.AllowDamage, Is.True);

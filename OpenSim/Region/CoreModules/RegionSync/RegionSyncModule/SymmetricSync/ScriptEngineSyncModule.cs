@@ -20,8 +20,9 @@ using Mono.Addins;
 
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
+    
     [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AttachmentsModule")]
-    public class ScenePersistenceSyncModule : INonSharedRegionModule, IDSGActorSyncModule    
+    public class ScriptEngineSyncModule : INonSharedRegionModule, IDSGActorSyncModule
     {
         #region INonSharedRegionModule
 
@@ -43,7 +44,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             string actorType = syncConfig.GetString("DSGActorType", "").ToLower();
-            if (!actorType.Equals("scene_persistence"))
+            if (!actorType.Equals("script_engine"))
             {
                 m_log.Warn(LogHeader + ": not configured as Scene Persistence Actor. Shut down.");
                 return;
@@ -51,7 +52,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             m_active = true;
 
-            m_log.Warn(LogHeader+" Initialised");
+            m_log.Warn(LogHeader + " Initialised");
 
         }
 
@@ -81,7 +82,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (!m_active)
                 return;
-            m_log.Warn(LogHeader + " RegionLoaded() called");
 
         }
 
@@ -101,16 +101,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public string Name
         {
-            get { return "ScenePersistenceSyncModule"; }
+            get { return "ScriptEngineSyncModule"; }
         }
-
-
 
         #endregion //INonSharedRegionModule
 
         #region IDSGActorSyncModule members and functions
 
-        private DSGActorTypes m_actorType = DSGActorTypes.ScenePersistence;
+        private DSGActorTypes m_actorType = DSGActorTypes.ScriptEngine;
         public DSGActorTypes ActorType
         {
             get { return m_actorType; }
@@ -118,7 +116,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         #endregion //IDSGActorSyncModule
 
-        #region ScenePersistenceSyncModule memebers and functions
+
+        #region ScriptEngineSyncModule memebers and functions
         private ILog m_log;
         private bool m_active = false;
         public bool Active
@@ -128,7 +127,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private Scene m_scene;
 
-        private string LogHeader = "[ScenePersistenceSyncModule]";
+        private string LogHeader = "[ScriptEngineSyncModule]";
 
         public void OnPostSceneCreation(Scene createdScene)
         {
@@ -137,9 +136,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
             }
         }
-        #endregion //ScenePersistenceSyncModule
+        #endregion //ScriptEngineSyncModule
+
     }
-
-
+     
 
 }

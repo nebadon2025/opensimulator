@@ -315,14 +315,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //And for now, we assume there is only 1 remote listener to connect to.
         private void GetRemoteSyncListenerInfo()
         {
+            //For now, we assume there is only one remote listener to connect to. Later on, 
+            //we may need to modify the code to read in multiple listeners.
             string addr = m_sysConfig.GetString("SyncListenerIPAddress", "127.0.0.1");
             int port = m_sysConfig.GetInt("SyncListenerPort", 13000);
             RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);
 
-            if (m_remoteSyncListeners == null)
-            {
-                m_remoteSyncListeners = new HashSet<RegionSyncListenerInfo>();
-            }
+            m_remoteSyncListeners = new HashSet<RegionSyncListenerInfo>();
+            
             m_remoteSyncListeners.Add(info);
         }
 
@@ -348,7 +348,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             else
             {
-                GetRemoteSyncListenerInfo();
+                if (m_remoteSyncListeners == null)
+                {
+                    GetRemoteSyncListenerInfo();
+                }
                 StartSyncConnections();
                 DoInitialSync();
             }

@@ -3,21 +3,41 @@
  */
 
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
+using System.Text;
 using log4net;
+using OpenMetaverse;
 
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
+    // For implementations, a lot was copied from RegionSyncClientView, especially the SendLoop/ReceiveLoop.
     public class SyncConnector
     {
         private TcpClient m_tcpConnection = null;
         private RegionSyncListenerInfo m_remoteListenerInfo = null;
         private Thread m_rcvLoop;
+        private Thread m_send_loop;
+
         private string LogHeader = "[SYNC CONNECTOR]";
         // The logfile
         private ILog m_log;
+
+        //members for in/out messages queueing
+        object stats = new object();
+        private long queuedUpdates=0;
+        private long dequeuedUpdates=0;
+        private long msgsIn=0;
+        private long msgsOut=0;
+        private long bytesIn=0;
+        private long bytesOut=0;
+        private int msgCount = 0;
+        // A queue for outgoing traffic. 
+        private BlockingUpdateQueue m_outQ = new BlockingUpdateQueue();
+
+        private RegionSyncModule m_regionSyncModule = null;
 
         private int m_connectorNum;
         public int ConnectorNum
@@ -25,22 +45,55 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_connectorNum; }
         }
 
-        public SyncConnector(int connectorNum, TcpClient tcpclient)
+        //The region name of the other side of the connection
+        private string m_syncOtherSideRegionName="";
+        public string OtherSideRegionName
+        {
+            get { return m_syncOtherSideRegionName; }
+        }
+
+        // Check if the client is connected
+        public bool Connected
+        { get { return (m_tcpConnection !=null && m_tcpConnection.Connected); } }
+
+        public string Description
+        {
+            get
+            {
+                if (m_syncOtherSideRegionName == null)
+                    return String.Format("SyncConnector #{0}", m_connectorNum);
+                return String.Format("SyncConnector #{0} ({1:10})", m_connectorNum, m_syncOtherSideRegionName);
+            }
+        }
+
+        /// <summary>
+        /// The constructor that will be called when a SyncConnector is created passively: a remote SyncConnector has initiated the connection.
+        /// </summary>
+        /// <param name="connectorNum"></param>
+        /// <param name="tcpclient"></param>
+        public SyncConnector(int connectorNum, TcpClient tcpclient, RegionSyncModule syncModule)
         {
             m_tcpConnection = tcpclient;
             m_connectorNum = connectorNum;
+            m_regionSyncModule = syncModule;
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         }
 
-        public SyncConnector(int connectorNum, RegionSyncListenerInfo listenerInfo)
+        /// <summary>
+        /// The constructor that will be called when a SyncConnector is created actively: it is created to send connection request to a remote listener
+        /// </summary>
+        /// <param name="connectorNum"></param>
+        /// <param name="listenerInfo"></param>
+        public SyncConnector(int connectorNum, RegionSyncListenerInfo listenerInfo, RegionSyncModule syncModule)
         {
             m_remoteListenerInfo = listenerInfo;
             m_connectorNum = connectorNum;
+            m_regionSyncModule = syncModule;
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         }
 
-        //Start the connection
-        public bool Start()
+        //Connect to the remote listener
+        public bool Connect()
         {
             m_tcpConnection = new TcpClient();
             try
@@ -53,16 +106,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.Warn(e.Message);
                 return false;
             }
-
-            m_rcvLoop = new Thread(new ThreadStart(ReceiveLoop));
-            m_rcvLoop.Name = "SyncConnector ReceiveLoop";
-            m_log.WarnFormat("{0} Starting {1} thread", LogHeader, m_rcvLoop.Name);
-            m_rcvLoop.Start();
-
             return true;
         }
 
-        public void Stop()
+        /// <summary>
+        /// Start both the send and receive threads
+        /// </summary>
+        public void StartCommThreads()
+        {
+            // Create a thread for the receive loop
+            m_rcvLoop = new Thread(new ThreadStart(ReceiveLoop));
+            m_rcvLoop.Name = Description + " (ReceiveLoop)";
+            m_log.WarnFormat("{0} Starting {1} thread", LogHeader, m_rcvLoop.Name);
+            m_rcvLoop.Start();
+
+            // Create a thread for the send loop
+            m_send_loop = new Thread(new ThreadStart(delegate() { SendLoop(); }));
+            m_send_loop.Name = Description + " (SendLoop)";
+            m_log.WarnFormat("{0} Starting {1} thread", LogHeader, m_send_loop.Name);
+            m_send_loop.Start();
+        }
+
+        public void Shutdown()
         {
             // The remote scene will remove our avatars automatically when we disconnect
             //m_rcvLoop.Abort();
@@ -72,24 +137,102 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_tcpConnection.Close();
         }
 
-        // *** This is the main thread loop for each sync connection
+        ///////////////////////////////////////////////////////////
+        // Sending messages out to the other side of the connection
+        ///////////////////////////////////////////////////////////
+        // Send messages from the update Q as fast as we can DeQueue them
+        // *** This is the main send loop thread for each connected client
+        private void SendLoop()
+        {
+            try
+            {
+                while (true)
+                {
+                    // Dequeue is thread safe
+                    byte[] update = m_outQ.Dequeue();
+                    lock (stats)
+                        dequeuedUpdates++;
+                    Send(update);
+                }
+            }
+            catch (Exception e)
+            {
+                m_log.ErrorFormat("{0} has disconnected: {1} (SendLoop)", LogHeader, e.Message);
+            }
+            Shutdown();
+        }
+
+        /// <summary>
+        /// Enqueue update of an object/avatar into the outgoing queue, and return right away
+        /// </summary>
+        /// <param name="id">UUID of the object/avatar</param>
+        /// <param name="update">the update infomation in byte format</param>
+        public void EnqueueOutgoingUpdate(UUID id, byte[] update)
+        {
+            lock (stats)
+                queuedUpdates++;
+            // Enqueue is thread safe
+            m_outQ.Enqueue(id, update);
+        }
+
+        //Send out a messge directly. This should only by called for short messages that are not sent frequently.
+        //Don't call this function for sending out updates. Call EnqueueOutgoingUpdate instead
+        public void Send(SymmetricSyncMessage msg)
+        {
+            Send(msg.ToBytes());
+        }
+
+        private void Send(byte[] data)
+        {
+            if (m_tcpConnection.Connected)
+            {
+                try
+                {
+                    lock (stats)
+                    {
+                        msgsOut++;
+                        bytesOut += data.Length;
+                    }
+                    m_tcpConnection.GetStream().BeginWrite(data, 0, data.Length, ar =>
+                    {
+                        if (m_tcpConnection.Connected)
+                        {
+                            try
+                            {
+                                m_tcpConnection.GetStream().EndWrite(ar);
+                            }
+                            catch (Exception)
+                            { }
+                        }
+                    }, null);
+                }
+                catch (IOException)
+                {
+                    m_log.WarnFormat("{0}:{1} has disconnected.", LogHeader, m_connectorNum);
+                }
+            }
+        }
+
+        ///////////////////////////////////////////////////////////
+        // Receiving messages from the other side ofthe connection
+        ///////////////////////////////////////////////////////////
         private void ReceiveLoop()
         {
             m_log.WarnFormat("{0} Thread running: {1}", LogHeader, m_rcvLoop.Name);
             while (true && m_tcpConnection.Connected)
             {
-                RegionSyncMessage msg;
+                SymmetricSyncMessage msg;
                 // Try to get the message from the network stream
                 try
                 {
-                    msg = new RegionSyncMessage(m_tcpConnection.GetStream());
+                    msg = new SymmetricSyncMessage(m_tcpConnection.GetStream());
                     //m_log.WarnFormat("{0} Received: {1}", LogHeader, msg.ToString());
                 }
                 // If there is a problem reading from the client, shut 'er down. 
                 catch
                 {
                     //ShutdownClient();
-                    Stop();
+                    Shutdown();
                     return;
                 }
                 // Try handling the message
@@ -104,9 +247,30 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
-        private void HandleMessage(RegionSyncMessage msg)
+        private void HandleMessage(SymmetricSyncMessage msg)
         {
 
+            msgCount++;
+            switch (msg.Type)
+            {
+                case SymmetricSyncMessage.MsgType.RegionName:
+                    {
+                        m_syncOtherSideRegionName = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
+                        if (m_regionSyncModule.IsSyncRelay)
+                        {
+                            SymmetricSyncMessage outMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.RegionName, m_regionSyncModule.LocalScene.RegionInfo.RegionName);
+                            Send(outMsg);
+                        }
+                        m_log.DebugFormat("Syncing to region \"{0}\"", m_syncOtherSideRegionName); 
+                        return;
+                    }
+                default:
+                    break;
+            }
+
+            //For any other messages, we simply deliver the message to RegionSyncModule for now.
+            //Later on, we may deliver messages to different modules, say sync message to RegionSyncModule and event message to ActorSyncModule.
+            m_regionSyncModule.HandleIncomingMessage(msg);
         }
     }
 }

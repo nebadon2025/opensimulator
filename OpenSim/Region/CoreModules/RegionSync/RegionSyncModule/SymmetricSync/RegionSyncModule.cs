@@ -12,10 +12,12 @@ using OpenSim.Framework.Client;
 using OpenSim.Region.CoreModules.Framework.InterfaceCommander;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
+using OpenSim.Region.Framework.Scenes.Serialization;
 using log4net;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Text;
 
 using Mono.Addins;
 
@@ -240,6 +242,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         private IConfig m_sysConfig = null;
+        private string LogHeader = "[REGION SYNC MODULE]";
 
         //The list of SyncConnectors. ScenePersistence could have multiple SyncConnectors, each connecting to a differerent actor.
         //An actor could have several SyncConnectors as well, each connecting to a ScenePersistence that hosts a portion of the objects/avatars
@@ -313,6 +316,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 GetRemoteSyncListenerInfo();
                 StartSyncConnections();
+                DoInitialSync();
             }
         }
 
@@ -344,21 +348,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             foreach (RegionSyncListenerInfo remoteListener in m_remoteSyncListeners)
             {
-                SyncConnector syncConnector = new SyncConnector(m_syncConnectorNum++, remoteListener);
-                if (syncConnector.Start())
+                SyncConnector syncConnector = new SyncConnector(m_syncConnectorNum++, remoteListener, this);
+                if (syncConnector.Connect())
                 {
+                    syncConnector.StartCommThreads();
                     AddSyncConnector(syncConnector);
                 }
             }
         }
 
-
-        public void AddSyncConnector(TcpClient tcpclient)
+        //To be called when a SyncConnector needs to be created by that the local listener receives a connection request
+        public void AddNewSyncConnector(TcpClient tcpclient)
         {
-            //IPAddress addr = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Address;
-            //int port = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Port;
-
-            SyncConnector syncConnector = new SyncConnector(m_syncConnectorNum++, tcpclient);
+            //Create a SynConnector due to an incoming request, and starts its communication threads
+            SyncConnector syncConnector = new SyncConnector(m_syncConnectorNum++, tcpclient, this);
+            syncConnector.StartCommThreads();
             AddSyncConnector(syncConnector);
         }
 
@@ -402,12 +406,138 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 foreach (SyncConnector syncConnector in m_syncConnectors)
                 {
-                    syncConnector.Stop();
+                    syncConnector.Shutdown();
                 }
 
                 m_syncConnectors.Clear();
             }
         }
+
+        private void DoInitialSync()
+        {
+            m_scene.DeleteAllSceneObjects();
+            
+            SendSyncMessage(SymmetricSyncMessage.MsgType.RegionName, m_scene.RegionInfo.RegionName);
+            m_log.WarnFormat("Sending region name: \"{0}\"", m_scene.RegionInfo.RegionName);
+
+            SendSyncMessage(SymmetricSyncMessage.MsgType.GetTerrain);
+            //Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetObjects));
+            //Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetAvatars));
+
+            //We'll deal with Event a bit later
+
+            // Register for events which will be forwarded to authoritative scene
+            // m_scene.EventManager.OnNewClient += EventManager_OnNewClient;
+            //m_scene.EventManager.OnMakeRootAgent += EventManager_OnMakeRootAgent;
+            //m_scene.EventManager.OnMakeChildAgent += EventManager_OnMakeChildAgent;
+            //m_scene.EventManager.OnClientClosed += new EventManager.ClientClosed(RemoveLocalClient);
+        }
+
+        /// <summary>
+        /// This function will enqueue a message for each SyncConnector in the connector's outgoing queue.
+        /// Each SyncConnector has a SendLoop thread to send the messages in its outgoing queue.
+        /// </summary>
+        /// <param name="msgType"></param>
+        /// <param name="data"></param>
+        private void SendSyncMessage(SymmetricSyncMessage.MsgType msgType, string data)
+        {
+            //See RegionSyncClientView for initial implementation by Dan Lake
+
+            SymmetricSyncMessage msg = new SymmetricSyncMessage(msgType, data);
+            ForEachSyncConnector(delegate(SyncConnector syncConnector)
+            {
+                syncConnector.Send(msg);
+            });
+        }
+
+        private void SendSyncMessage(SymmetricSyncMessage.MsgType msgType)
+        {
+            //See RegionSyncClientView for initial implementation by Dan Lake
+
+            SendSyncMessage(msgType, "");
+        }
+
+        public void ForEachSyncConnector(Action<SyncConnector> action)
+        {
+            List<SyncConnector> closed = null;
+            foreach (SyncConnector syncConnector in m_syncConnectors)
+            {
+                // If connected, send the message.
+                if (syncConnector.Connected)
+                {
+                    action(syncConnector);
+                }                
+                    // Else, remove the SyncConnector from the list
+                else
+                {
+                    if (closed == null)
+                        closed = new List<SyncConnector>();
+                    closed.Add(syncConnector);
+                }
+            }
+
+            if (closed != null)
+            {
+                foreach (SyncConnector connector in closed)
+                {
+                    RemoveSyncConnector(connector);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The handler for processing incoming sync messages.
+        /// </summary>
+        /// <param name="msg"></param>
+        public void HandleIncomingMessage(SymmetricSyncMessage msg)
+        {
+            switch (msg.Type)
+            {
+                case SymmetricSyncMessage.MsgType.GetTerrain:
+                    {
+                        SendSyncMessage(SymmetricSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString());
+                        return;
+                    }
+                case SymmetricSyncMessage.MsgType.Terrain:
+                    {
+                        m_scene.Heightmap.LoadFromXmlString(Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
+                        m_log.Debug(LogHeader+": Synchronized terrain");
+                        return;
+                    }
+                case SymmetricSyncMessage.MsgType.GetObjects:
+                    {
+                        EntityBase[] entities = m_scene.GetEntities(); 
+                        foreach (EntityBase e in entities)
+                        {
+                            if (e is SceneObjectGroup)
+                            {
+                                string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)e);
+                                SendSyncMessage(SymmetricSyncMessage.MsgType.NewObject, sogxml);
+                            }
+                        }
+                        return;
+                    }
+                case SymmetricSyncMessage.MsgType.NewObject:
+                    {
+                        SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
+
+                        //HandleAddOrUpdateObjectInLocalScene(sog, true, true);
+                        HandleAddNewObject(sog);
+                    }
+                    return;
+                default:
+                    return;
+            }
+        }
+
+        private void HandleAddNewObject(SceneObjectGroup sog)
+        {
+            if (m_scene.AddNewSceneObject(sog, true)){
+
+            }
+        }
+
+ 
 
         #endregion //RegionSyncModule members and functions
 
@@ -474,7 +604,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_isListening = false;
         }
 
-        // Listen for connections from a new RegionSyncClient
+        // Listen for connections from a new SyncConnector
         // When connected, start the ReceiveLoop for the new client
         private void Listen()
         {
@@ -490,8 +620,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_log.WarnFormat("[REGION SYNC SERVER] Listening for new connections on {0}:{1}...", m_listenerInfo.Addr.ToString(), m_listenerInfo.Port.ToString());
                     TcpClient tcpclient = m_listener.AcceptTcpClient();
 
-                    //pass the tcpclient information to RegionSyncModule, who will then create a SyncConnector
-                    m_regionSyncModule.AddSyncConnector(tcpclient);
+                    //Create a SynConnector and starts it communication threads
+                    m_regionSyncModule.AddNewSyncConnector(tcpclient);
                 }
             }
             catch (SocketException e)

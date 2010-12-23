@@ -373,24 +373,14 @@ namespace OpenSim.Region.Framework.Scenes
 
             sceneObject.AttachToScene(m_parentScene);
 
-            //KittyL: edited to support script engine actor
-            //if (sendClientUpdates)
-            //    sceneObject.ScheduleGroupForFullUpdate();
             if (sendClientUpdates)
-            {
                 sceneObject.ScheduleGroupForFullUpdate();
-            }
-
+            
             Entities.Add(sceneObject);
 
-            //KittyL: edited to support script engine actor
-            //if (attachToBackup)
-            //    sceneObject.AttachToBackup();
-            if (attachToBackup && m_parentScene.IsAuthoritativeScene())
-            {
+            if (attachToBackup)
                 sceneObject.AttachToBackup();
-            }
-
+            
             if (OnObjectCreate != null)
                 OnObjectCreate(sceneObject);
 

@@ -73,6 +73,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Register for the OnPostSceneCreation event
             //m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
+
+            //Register for Scene/SceneGraph events
+            m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(ScenePersistence_OnObjectCreate);
         }
 
         //Called after AddRegion() has been called for all region modules of the scene.
@@ -137,6 +140,20 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
             }
         }
+
+        /// <summary>
+        /// ScenePersistence's actions upon an object is added to the local scene.
+        /// </summary>
+        private void ScenePersistence_OnObjectCreate(EntityBase entity)
+        {
+            if (entity is SceneObjectGroup)
+            {
+                m_log.Warn(LogHeader + ": link to backup for " + entity.UUID);
+                SceneObjectGroup sog = (SceneObjectGroup)entity;
+                sog.AttachToBackup();
+            }
+        }
+
         #endregion //ScenePersistenceSyncModule
     }
 

@@ -272,6 +272,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_log.Warn("[REGION SYNC MODULE]: StatsTimerElapsed -- NOT yet implemented.");
         }
 
+        //NOTE: We proably don't need to do this, and there might not be a need for OnPostSceneCreation event to let RegionSyncModule
+        //      and ActorSyncModules to gain some access to each other. We'll keep it here for a while, until we are sure it's not 
+        //      needed.
+        //      Now the communication between RegionSyncModule and ActorSyncModules are through SceneGraph or Scene.EventManager events.
         public void OnPostSceneCreation(Scene createdScene)
         {
             //If this is the local scene the actor is working on, find out the actor type.
@@ -282,7 +286,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     return;
                 }
                 m_actorType = m_scene.ActorSyncModule.ActorType;
-                m_log.Warn(LogHeader + " informed about ActorType: "+m_actorType);
             }
         }
 
@@ -569,13 +572,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void HandleAddNewObject(SceneObjectGroup sog)
         {
+            //RegionSyncModule only add object to SceneGraph. Any actor specific actions will be implemented 
+            //by each ActorSyncModule, which would be triggered its subcription to event SceneGraph.OnObjectCreate.
             bool attachToBackup = false;
 
-            //only need to persist the scene if this is the ScenePersistence
-            if (m_actorType == DSGActorTypes.ScenePersistence)
-            {
-                attachToBackup = true;
-            }
             if (m_scene.AddNewSceneObject(sog, attachToBackup))
             {
                 m_log.Debug(LogHeader + ": added obj " + sog.UUID);

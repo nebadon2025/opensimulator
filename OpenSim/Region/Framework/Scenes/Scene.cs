@@ -1293,15 +1293,6 @@ namespace OpenSim.Region.Framework.Scenes
             //SYMMETRIC SYNC (KittyL: started 12/23/2010)
             //////////////////////////////////////////////////////////////////////
             m_regionSyncModule = RequestModuleInterface<IRegionSyncModule>();
-            if (m_regionSyncModule == null)
-            {
-                m_log.Warn("Does not find a RegionSyncModule interface");
-            }
-            else
-            {
-                m_log.Warn("SetModuleInterfaces: RegionSyncModule interface set.");
-            }
-
             m_DSGActorSyncModule = RequestModuleInterface<IDSGActorSyncModule>();
 
             //////////////////////////////////////////////////////////////////////

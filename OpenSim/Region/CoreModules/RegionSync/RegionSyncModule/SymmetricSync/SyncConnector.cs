@@ -117,20 +117,22 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // Create a thread for the receive loop
             m_rcvLoop = new Thread(new ThreadStart(ReceiveLoop));
             m_rcvLoop.Name = Description + " (ReceiveLoop)";
-            m_log.WarnFormat("{0} Starting {1} thread", LogHeader, m_rcvLoop.Name);
+            m_log.WarnFormat("{0} Starting {1} thread", Description, m_rcvLoop.Name);
             m_rcvLoop.Start();
 
             // Create a thread for the send loop
             m_send_loop = new Thread(new ThreadStart(delegate() { SendLoop(); }));
             m_send_loop.Name = Description + " (SendLoop)";
-            m_log.WarnFormat("{0} Starting {1} thread", LogHeader, m_send_loop.Name);
+            m_log.WarnFormat("{0} Starting {1} thread", Description, m_send_loop.Name);
             m_send_loop.Start();
         }
 
         public void Shutdown()
         {
-            // The remote scene will remove our avatars automatically when we disconnect
-            //m_rcvLoop.Abort();
+            m_log.Warn(LogHeader + " shutdown connection");
+            // Abort receive and send loop
+            m_rcvLoop.Abort();
+            m_send_loop.Abort();
 
             // Close the connection
             m_tcpConnection.Client.Close();
@@ -157,7 +159,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             catch (Exception e)
             {
-                m_log.ErrorFormat("{0} has disconnected: {1} (SendLoop)", LogHeader, e.Message);
+                m_log.ErrorFormat("{0} has disconnected: {1} (SendLoop)", Description, e.Message);
             }
             Shutdown();
         }
@@ -208,7 +210,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
                 catch (IOException)
                 {
-                    m_log.WarnFormat("{0}:{1} has disconnected.", LogHeader, m_connectorNum);
+                    m_log.WarnFormat("{0}:{1} has disconnected.", Description, m_connectorNum);
                 }
             }
         }
@@ -232,6 +234,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 catch
                 {
                     //ShutdownClient();
+                    m_log.WarnFormat("{0}:{1} has disconnected.", Description, m_connectorNum);
                     Shutdown();
                     return;
                 }
@@ -242,7 +245,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
                 catch (Exception e)
                 {
-                    m_log.WarnFormat("{0} Encountered an exception: {1} (MSGTYPE = {2})", LogHeader, e.Message, msg.ToString());
+                    m_log.WarnFormat("{0} Encountered an exception: {1} (MSGTYPE = {2})", Description, e.Message, msg.ToString());
                 }
             }
         }

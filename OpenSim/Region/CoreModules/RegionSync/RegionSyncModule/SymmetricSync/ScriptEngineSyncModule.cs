@@ -74,6 +74,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Register for the OnPostSceneCreation event
             //m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
+
+            //Register for Scene/SceneGraph events
+            m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(ScriptEngine_OnObjectCreate);
         }
 
         //Called after AddRegion() has been called for all region modules of the scene.
@@ -136,6 +139,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
             }
         }
+
+        /// <summary>
+        /// Script Engine's action upon an object is added to the local scene
+        /// </summary>
+        private void ScriptEngine_OnObjectCreate(EntityBase entity)
+        {
+            if (entity is SceneObjectGroup)
+            {
+                m_log.Warn(LogHeader + ": start script for obj " + entity.UUID);
+                SceneObjectGroup sog = (SceneObjectGroup)entity; 
+                sog.CreateScriptInstances(0, false, m_scene.DefaultScriptEngine, 0);
+                sog.ResumeScripts();
+            }
+        }
+
         #endregion //ScriptEngineSyncModule
 
     }

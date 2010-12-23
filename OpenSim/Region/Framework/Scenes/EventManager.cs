@@ -2256,7 +2256,6 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     try
                     {
-                        m_log.Warn("TriggerOnPostSceneCreation");
                         d(createdScene);
                     }
                     catch (Exception e)

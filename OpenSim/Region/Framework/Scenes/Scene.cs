@@ -406,7 +406,10 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return m_AvatarFactory; }
         }
-        #region REGION SYNC
+
+
+        #region REGION SYNC -- Asymmetric sync, old style, depreciated ---------
+
         protected IRegionSyncServerModule m_regionSyncServerModule;
         protected IRegionSyncClientModule m_regionSyncClientModule;
 
@@ -574,6 +577,21 @@ namespace OpenSim.Region.Framework.Scenes
         // }
 
         #endregion 
+
+
+        #region SYMMETRIC SYNC
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        //KittyL: 12/23/2010. SYMMETRIC SYNC: Implementation for the symmetric synchronization model.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+
+        private IRegionSyncModule m_regionSyncModule = null;
+        public IRegionSyncModule RegionSyncModule
+        {
+            get { return m_regionSyncModule; }
+            set { m_regionSyncModule = value; }
+        }
+        #endregion //SYMMETRIC SYNC
+
         public ICapabilitiesModule CapsModule
         {
             get { return m_capsModule; }

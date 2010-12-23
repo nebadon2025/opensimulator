@@ -53,17 +53,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_actorID = m_sysConfig.GetString("ActorID", "");
             if (m_actorID == "")
             {
-                m_log.Error("ActorID not defined in [RegionSyncModule] section in config file");
+                m_log.Error("ActorID not defined in [RegionSyncModule] section in config file. Shutting down.");
                 return;
             }
 
             m_isSyncRelay = m_sysConfig.GetBoolean("IsSyncRelay", false);
-
             m_isSyncListenerLocal = m_sysConfig.GetBoolean("IsSyncListenerLocal", false);
 
             m_active = true;
 
             m_log.Warn("[REGION SYNC MODULE] Initialised for actor "+ m_actorID);
+
+            //The ActorType configuration will be read in and process by an ActorSyncModule, not here.
         }
 
         //Called after Initialise()
@@ -127,10 +128,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Synchronization related members and functions, exposed through IRegionSyncModule interface
         ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-        private DSGActorTypes m_actorType;
+        private DSGActorTypes m_actorType = DSGActorTypes.Unknown;
+        /// <summary>
+        /// The type of the actor running locally. This value will be set by an ActorSyncModule, so that 
+        /// no hard code needed in RegionSyncModule to recoganize the actor's type, thus make it easier
+        /// to add new ActorSyncModules w/o chaning the code in RegionSyncModule.
+        /// </summary>
         public DSGActorTypes DSGActorType
         {
             get { return m_actorType; }
+            set { m_actorType = value; }
         }
 
         private string m_actorID;
@@ -298,8 +305,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_remoteSyncListeners.Add(info);
         }
 
+        //Start SyncListener if a listener is supposed to run on this actor; Otherwise, initiate connections to remote listeners.
         private void SyncStart(Object[] args)
         {
+            if (m_actorType == DSGActorTypes.Unknown)
+            {
+                m_log.Error(LogHeader + ": SyncStart -- ActorType not set yet. Either it's not defined in config file (DSGActorType), or the ActorSyncModule (ScenePersistenceSyncModule, etc) didn't pass it on to RegionSyncModule");
+                return;
+            }
 
             if (m_isSyncListenerLocal)
             {
@@ -421,7 +434,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_log.WarnFormat("Sending region name: \"{0}\"", m_scene.RegionInfo.RegionName);
 
             SendSyncMessage(SymmetricSyncMessage.MsgType.GetTerrain);
-            //Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetObjects));
+            SendSyncMessage(SymmetricSyncMessage.MsgType.GetObjects);
             //Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetAvatars));
 
             //We'll deal with Event a bit later
@@ -532,8 +545,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void HandleAddNewObject(SceneObjectGroup sog)
         {
-            if (m_scene.AddNewSceneObject(sog, true)){
+            bool attachToBackup = false;
 
+            //only need to persist the scene if this is the ScenePersistence
+            if (m_actorType == DSGActorTypes.ScenePersistence)
+            {
+                attachToBackup = true;
+            }
+            if (m_scene.AddNewSceneObject(sog, attachToBackup))
+            {
+                m_log.Debug(LogHeader + ": added obj " + sog.UUID);
             }
         }
 

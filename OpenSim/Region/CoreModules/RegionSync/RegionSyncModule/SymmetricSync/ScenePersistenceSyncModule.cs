@@ -38,7 +38,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
     }
      * */
 
-    public class ScenePersistenceSyncModule : INonSharedRegionModule, IScenePersistenceSyncModule
+    public class ScenePersistenceSyncModule : INonSharedRegionModule, IDSGActorSyncModule    
     {
         #region INonSharedRegionModule
 
@@ -77,8 +77,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //connect with scene
             m_scene = scene;
 
-            //register the module
-            m_scene.RegisterModuleInterface<IScenePersistenceSyncModule>(this);
+            //register the module with SceneGraph. If needed, SceneGraph checks the module's ActorType to know what type of module it is.
+            m_scene.RegisterModuleInterface<IDSGActorSyncModule>(this);
 
             // Setup the command line interface
             //m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
@@ -88,7 +88,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //Called after AddRegion() has been called for all region modules of the scene
         public void RegionLoaded(Scene scene)
         {
-
+            if (m_scene.RegionSyncModule != null)
+            {
+                m_scene.RegionSyncModule.DSGActorType = m_actorType;
+            }
+            else
+            {
+                m_log.Warn("RegionSyncModule is not initiated!!");
+            }
         }
 
         public void RemoveRegion(Scene scene)
@@ -114,8 +121,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         #endregion //IRegionModule
 
-        #region RegionSyncModule members and functions
+        #region IDSGActorSyncModule members and functions
 
+        private DSGActorTypes m_actorType = DSGActorTypes.ScenePersistence;
+        public DSGActorTypes ActorType
+        {
+            get { return m_actorType; }
+        }
+
+        #endregion //INonSharedRegionModule 
+
+        #region ScenePersistenceSyncModule memebers and functions
         private ILog m_log;
         private bool m_active = false;
         public bool Active
@@ -124,56 +140,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         private Scene m_scene;
-        public Scene LocalScene
-        {
-            get { return m_scene; }
-        }
 
-        #endregion //INonSharedRegionModule members and functions
+
+        #endregion //ScenePersistenceSyncModule
     }
 
-    /*
-    public class RegionSyncListener
-    {
-        // Start the listener
-        public void Start()
-        {
-            m_listenerThread = new Thread(new ThreadStart(Listen));
-            m_listenerThread.Name = "RegionSyncServer Listener";
-            m_log.WarnFormat("[REGION SYNC SERVER] Starting {0} thread", m_listenerThread.Name);
-            m_listenerThread.Start();
-            //m_log.Warn("[REGION SYNC SERVER] Started");
-        }
 
-
-        // Listen for connections from a new RegionSyncClient
-        // When connected, start the ReceiveLoop for the new client
-        private void Listen()
-        {
-            m_listener = new TcpListener(m_addr, m_port);
-
-            try
-            {
-                // Start listening for clients
-                m_listener.Start();
-                while (true)
-                {
-                    // *** Move/Add TRY/CATCH to here, but we don't want to spin loop on the same error
-                    m_log.WarnFormat("[REGION SYNC SERVER] Listening for new connections on {0}:{1}...", m_addr.ToString(), m_port.ToString());
-                    TcpClient tcpclient = m_listener.AcceptTcpClient();
-                    IPAddress addr = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Address;
-                    int port = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Port;
-
-                    //pass the tcpclient information to RegionSyncModule, who will then create a SyncConnector
-                }
-            }
-            catch (SocketException e)
-            {
-                m_log.WarnFormat("[REGION SYNC SERVER] [Listen] SocketException: {0}", e);
-            }
-        }
-     
-    }
-     * */ 
 
 }

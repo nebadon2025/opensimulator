@@ -1060,12 +1060,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         public static void SOGToXml2(XmlTextWriter writer, SceneObjectGroup sog, Dictionary<string, object>options)
         {
             writer.WriteStartElement(String.Empty, "SceneObjectGroup", String.Empty);
-
-            //REGION SYNG
-            //Need to add LocX,LocY of the Scene that the object is located in.
-            //writer.WriteStartElement(String.Empty, "LocX", String.Empty);
-            //end of REGION SYGN
-
+            SOPToXml2(writer, sog.RootPart, options);
             writer.WriteStartElement(String.Empty, "OtherParts", String.Empty);
 
             sog.ForEachPart(delegate(SceneObjectPart sop)

@@ -16,28 +16,11 @@ using log4net;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using Mono.Addins;
 
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
-    /*
-    public class DSGActorBase
-    {
-        protected RegionSyncModule m_regionSyncModule;
-
-        public DSGActorBase(RegionSyncModule regionSyncModule)
-        {
-            m_regionSyncModule = regionSyncModule;
-        }
-
-        public virtual void init()
-        {
-
-        }
-
-
-    }
-     * */
-
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AttachmentsModule")]
     public class ScenePersistenceSyncModule : INonSharedRegionModule, IDSGActorSyncModule    
     {
         #region INonSharedRegionModule
@@ -66,6 +49,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
             }
 
+            m_active = true;
+
+            m_log.Warn(LogHeader+" Initialised");
+
         }
 
         //Called after Initialise()
@@ -73,7 +60,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (!m_active)
                 return;
-
+            m_log.Warn(LogHeader + " AddRegion() called");
             //connect with scene
             m_scene = scene;
 
@@ -83,19 +70,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // Setup the command line interface
             //m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
             //InstallInterfaces();
+
+            //Register for the OnPostSceneCreation event
+            //m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
         }
 
-        //Called after AddRegion() has been called for all region modules of the scene
+        //Called after AddRegion() has been called for all region modules of the scene.
+        //NOTE::However, at this point, Scene may not have requested all the needed region module interfaces yet.
         public void RegionLoaded(Scene scene)
         {
-            if (m_scene.RegionSyncModule != null)
-            {
-                m_scene.RegionSyncModule.DSGActorType = m_actorType;
-            }
-            else
-            {
-                m_log.Warn("RegionSyncModule is not initiated!!");
-            }
+            if (!m_active)
+                return;
+            m_log.Warn(LogHeader + " RegionLoaded() called");
+
         }
 
         public void RemoveRegion(Scene scene)
@@ -141,7 +128,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private Scene m_scene;
 
+        private string LogHeader = "[ScenePersistenceSyncModule]";
 
+        public void OnPostSceneCreation(Scene createdScene)
+        {
+            //If this is the local scene the actor is working on, do something
+            if (createdScene == m_scene)
+            {
+            }
+        }
         #endregion //ScenePersistenceSyncModule
     }
 

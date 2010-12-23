@@ -70,23 +70,30 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //Called after Initialise()
         public void AddRegion(Scene scene)
         {
+            m_log.Warn(LogHeader + " AddRegion() called");
+
             if (!m_active)
                 return;
 
             //connect with scene
             m_scene = scene;
 
-            //register the module
+            //register the module 
             m_scene.RegisterModuleInterface<IRegionSyncModule>(this);
 
             // Setup the command line interface
             m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
             InstallInterfaces();
+
+            //Register for the OnPostSceneCreation event
+            m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
         }
 
         //Called after AddRegion() has been called for all region modules of the scene
         public void RegionLoaded(Scene scene)
         {
+            m_log.Warn(LogHeader + " RegionLoaded() called");
+
             //If this one is configured to start a listener so that other actors can connect to form a overlay, start the listener.
             //For now, we use start topology, and ScenePersistence actor is always the one to start the listener.
             if (m_isSyncListenerLocal)
@@ -263,6 +270,20 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             //TO BE IMPLEMENTED
             m_log.Warn("[REGION SYNC MODULE]: StatsTimerElapsed -- NOT yet implemented.");
+        }
+
+        public void OnPostSceneCreation(Scene createdScene)
+        {
+            //If this is the local scene the actor is working on, find out the actor type.
+            if (createdScene.RegionInfo.RegionName == m_scene.RegionInfo.RegionName)
+            {
+                if(m_scene.ActorSyncModule == null){
+                    m_log.Error(LogHeader + "interface Scene.ActorSyncModule has not been set yet");
+                    return;
+                }
+                m_actorType = m_scene.ActorSyncModule.ActorType;
+                m_log.Warn(LogHeader + " informed about ActorType: "+m_actorType);
+            }
         }
 
         private void StartLocalSyncListener()
@@ -583,11 +604,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private RegionSyncListenerInfo m_listenerInfo;
         private RegionSyncModule m_regionSyncModule;
         private ILog m_log;
+        private string LogHeader = "[RegionSyncListener]";
 
         // The listener and the thread which listens for sync connection requests
         private TcpListener m_listener;
         private Thread m_listenerThread;
-
+        
         private bool m_isListening = false;
         public bool IsListening
         {
@@ -607,7 +629,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_listenerThread = new Thread(new ThreadStart(Listen));
             m_listenerThread.Name = "RegionSyncListener";
-            m_log.WarnFormat("[REGION SYNC LISTENER] Starting {0} thread", m_listenerThread.Name);
+            m_log.WarnFormat(LogHeader+" Starting {0} thread", m_listenerThread.Name);
             m_listenerThread.Start();
             m_isListening = true;
             //m_log.Warn("[REGION SYNC SERVER] Started");

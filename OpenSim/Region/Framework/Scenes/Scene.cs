@@ -588,8 +588,16 @@ namespace OpenSim.Region.Framework.Scenes
         public IRegionSyncModule RegionSyncModule
         {
             get { return m_regionSyncModule; }
-            set { m_regionSyncModule = value; }
+            //set { m_regionSyncModule = value; }
         }
+
+        private IDSGActorSyncModule m_DSGActorSyncModule = null;
+        public IDSGActorSyncModule ActorSyncModule
+        {
+            get { return m_DSGActorSyncModule; }
+
+        }
+
         #endregion //SYMMETRIC SYNC
 
         public ICapabilitiesModule CapsModule
@@ -1281,6 +1289,25 @@ namespace OpenSim.Region.Framework.Scenes
             RegionSyncClientModule = RequestModuleInterface<IRegionSyncClientModule>();
             ScriptEngineToSceneConnectorModule = RequestModuleInterface<IScriptEngineToSceneConnectorModule>();
 
+            //////////////////////////////////////////////////////////////////////
+            //SYMMETRIC SYNC (KittyL: started 12/23/2010)
+            //////////////////////////////////////////////////////////////////////
+            m_regionSyncModule = RequestModuleInterface<IRegionSyncModule>();
+            if (m_regionSyncModule == null)
+            {
+                m_log.Warn("Does not find a RegionSyncModule interface");
+            }
+            else
+            {
+                m_log.Warn("SetModuleInterfaces: RegionSyncModule interface set.");
+            }
+
+            m_DSGActorSyncModule = RequestModuleInterface<IDSGActorSyncModule>();
+
+            //////////////////////////////////////////////////////////////////////
+            //end of SYMMETRIC SYNC
+            //////////////////////////////////////////////////////////////////////
+            
             // Shoving this in here for now, because we have the needed
             // interfaces at this point
             //

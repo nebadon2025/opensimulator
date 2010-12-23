@@ -376,7 +376,6 @@ namespace OpenSim.Region.Framework.Scenes
         public delegate void RegionUp(GridRegion region);
         public event RegionUp OnRegionUp;
 
-
         public class MoneyTransferArgs : EventArgs
         {
             public UUID sender;
@@ -2243,5 +2242,32 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
         #endregion
+
+        //SYMMETRIC SYNC
+        public event PostSceneCreation OnPostSceneCreation;
+        public delegate void PostSceneCreation(Scene createdScene);
+
+        public void TriggerOnPostSceneCreation(Scene createdScene)
+        {
+            PostSceneCreation handler = OnPostSceneCreation;
+            if (handler != null)
+            {
+                foreach (PostSceneCreation d in handler.GetInvocationList())
+                {
+                    try
+                    {
+                        m_log.Warn("TriggerOnPostSceneCreation");
+                        d(createdScene);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerOnPostSceneCreation failed - continuing.  {0} {1}",
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+        //end of SYMMETRIC SYNC
     }
 }

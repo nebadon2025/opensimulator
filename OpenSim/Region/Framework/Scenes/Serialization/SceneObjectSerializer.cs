@@ -215,6 +215,10 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
                     sceneObject.AddPart(part);
 
+                    //SYMMETRIC SYNC
+                    //KittyL: 12/27/2010, added ActorID for symmetric synch model
+                    part.SetLastUpdateActorID();
+
                     // SceneObjectGroup.AddPart() tries to be smart and automatically set the LinkNum.
                     // We override that here
                     if (originalLinkNum != 0)
@@ -324,6 +328,12 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             m_SOPXmlProcessors.Add("MediaUrl", ProcessMediaUrl);
             m_SOPXmlProcessors.Add("TextureAnimation", ProcessTextureAnimation);
             m_SOPXmlProcessors.Add("ParticleSystem", ProcessParticleSystem);
+
+            //SYMMETRIC SYNC
+            m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
+            m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
+            //end of SYMMETRIC SYNC
+
             #endregion
 
             #region TaskInventoryXmlProcessors initialization
@@ -681,6 +691,19 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         {
             obj.ParticleSystem = Convert.FromBase64String(reader.ReadElementContentAsString("ParticleSystem", String.Empty));
         }
+
+        //SYMMETRIC SYNC
+        private static void ProcessUpdateTimeStamp(SceneObjectPart obj, XmlTextReader reader)
+        {
+            obj.LastUpdateTimeStamp = reader.ReadElementContentAsLong("LastUpdateTimeStamp", string.Empty);
+        }
+
+        private static void ProcessLastUpdateActorID(SceneObjectPart obj, XmlTextReader reader)
+        {
+            obj.LastUpdateActorID = reader.ReadElementContentAsString("LastUpdateActorID", string.Empty);
+        }
+        //end of SYMMETRIC SYNC
+
         #endregion
 
         #region TaskInventoryXmlProcessors
@@ -1160,6 +1183,11 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 writer.WriteElementString("MediaUrl", sop.MediaUrl.ToString());
             WriteBytes(writer, "TextureAnimation", sop.TextureAnimation);
             WriteBytes(writer, "ParticleSystem", sop.ParticleSystem);
+
+            //SYMMETRIC SYNC
+            writer.WriteElementString("LastUpdateTimeStamp", sop.LastUpdateTimeStamp.ToString());
+            writer.WriteElementString("LastUpdateActorID", sop.LastUpdateActorID);
+            //end of SYMMETRIC SYNC
 
             writer.WriteEndElement();
         }

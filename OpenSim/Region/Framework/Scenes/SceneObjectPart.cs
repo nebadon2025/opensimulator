@@ -2892,6 +2892,13 @@ namespace OpenSim.Region.Framework.Scenes
             //            m_log.DebugFormat(
             //                "[SCENE OBJECT PART]: Scheduling full  update for {0}, {1} at {2}",
             //                UUID, Name, TimeStampFull);
+
+            //SYMMETRIC SYNC
+
+            //update information (timestamp, actorID, etc) needed for synchronization across copies of Scene
+            SyncInfoUpdate();
+            
+            //end of SYMMETRIC SYNC
         }
 
         /// <summary>
@@ -2913,6 +2920,13 @@ namespace OpenSim.Region.Framework.Scenes
             //                m_log.DebugFormat(
             //                    "[SCENE OBJECT PART]: Scheduling terse update for {0}, {1} at {2}",
             //                    UUID, Name, TimeStampTerse);
+
+                //SYMMETRIC SYNC
+
+                //update information (timestamp, actorID, etc) needed for synchronization across copies of Scene
+                SyncInfoUpdate();
+
+                //end of SYMMETRIC SYNC
             }
         }
 
@@ -3130,6 +3144,10 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
             ClearUpdateSchedule();
+
+            //SYMMETRIC SYNC
+
+            //end of SYMMETRIC SYNC
         }
 
         /// <summary>
@@ -4894,6 +4912,57 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         #endregion
+
+        #region SYMMETRIC SYNC
+
+        //Time stamp for the most recent update on this prim. We only have one time-stamp per prim for now.
+        //The goal is to evetually have time-stamp per property bucket for each prim.
+        private long m_lastUpdateTimeStamp = DateTime.Now.Ticks;
+        public long LastUpdateTimeStamp
+        {
+            get { return m_lastUpdateTimeStamp; }
+            set { m_lastUpdateTimeStamp = value; }
+        }
+
+        //The ID the identifies which actor has caused the most recent update to the prim.
+        //We use type "string" for the ID only to make it human-readable. 
+        private string m_lastUpdateByActorID;
+        public string LastUpdateActorID
+        {
+            get { return m_lastUpdateByActorID; }
+            set { m_lastUpdateByActorID = value; }
+        }
+
+        public void UpdateTimestamp()
+        {
+            m_lastUpdateTimeStamp = DateTime.Now.Ticks;
+        }
+
+        public void SetLastUpdateActorID()
+        {
+            if (m_parentGroup != null)
+            {
+                m_lastUpdateByActorID = m_parentGroup.Scene.ActorSyncModule.ActorID;
+            }
+            else
+            {
+                m_log.Error("Prim " + UUID + " is not in a SceneObjectGroup yet");
+            }
+        }
+
+        private void SyncInfoUpdate()
+        {
+            //Trick: calling UpdateTimestamp here makes sure that when an object was received and de-serialized, before
+            //       its parts are linked together, neither TimeStamp or ActorID will be modified. This is because during de-serialization, 
+            //       ScheduleFullUpdate() is called when m_parentGroup == null
+            if (m_parentGroup != null)
+            {
+                UpdateTimestamp();
+                m_lastUpdateByActorID = m_parentGroup.Scene.ActorSyncModule.ActorID;
+            }
+        }
+
+        #endregion 
 
     }
 }

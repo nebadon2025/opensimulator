@@ -50,6 +50,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
             }
 
+            m_actorID = syncConfig.GetString("ActorID", "");
+            if (m_actorID.Equals(""))
+            {
+                m_log.Warn(LogHeader + ": ActorID not specified in config file. Shutting down.");
+                return;
+            }
+
             m_active = true;
 
             m_log.Warn(LogHeader + " Initialised");
@@ -115,6 +122,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public DSGActorTypes ActorType
         {
             get { return m_actorType; }
+        }
+
+        private string m_actorID;
+        public string ActorID
+        {
+            get { return m_actorID; }
         }
 
         #endregion //IDSGActorSyncModule

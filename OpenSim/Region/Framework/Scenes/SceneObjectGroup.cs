@@ -3456,5 +3456,9 @@ namespace OpenSim.Region.Framework.Scenes
             this.m_locY = updatedSog.LocY;
         }
 #endregion 
+
+        #region SYMMETRIC SYNC
+
+        #endregion
     }
 }

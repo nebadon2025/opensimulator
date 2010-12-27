@@ -167,10 +167,34 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private RegionSyncListener m_localSyncListener = null;
 
+        // Lock is used to synchronize access to the update status and update queues
+        private object m_updateSceneObjectPartLock = new object();
+        private Dictionary<UUID, SceneObjectGroup> m_primUpdates = new Dictionary<UUID, SceneObjectGroup>();
+        private object m_updatePresenceLock = new object();
+        private Dictionary<UUID, ScenePresence> m_presenceUpdates = new Dictionary<UUID, ScenePresence>();
+
+        public void QueueSceneObjectPartForUpdate(SceneObjectPart part)
+        {
+            lock (m_updateSceneObjectPartLock)
+            {
+                m_primUpdates[part.UUID] = part.ParentGroup;
+            }
+        }
+
+        public void QueueScenePresenceForTerseUpdate(ScenePresence presence)
+        {
+            lock (m_updateSceneObjectPartLock)
+            {
+                m_presenceUpdates[presence.UUID] = presence;
+            }
+        }
+
         public void SendObjectUpdates(List<SceneObjectGroup> sog)
         {
 
         }
+
+
 
         #endregion //IRegionSyncModule  
 
@@ -553,13 +577,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             {
                                 string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)e);
                                 SendSyncMessage(SymmetricSyncMessage.MsgType.NewObject, sogxml);
+
+                                //m_log.Debug(LogHeader + ": " + sogxml);
                             }
                         }
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.NewObject:
                     {
-                        SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
+                        string sogxml = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
+                        
+                        //m_log.Debug(LogHeader + ": " + sogxml);
+
+                        SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
 
                         //HandleAddOrUpdateObjectInLocalScene(sog, true, true);
                         HandleAddNewObject(sog);

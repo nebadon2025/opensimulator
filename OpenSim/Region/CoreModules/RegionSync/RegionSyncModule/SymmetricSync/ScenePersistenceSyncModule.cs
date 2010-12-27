@@ -45,7 +45,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             string actorType = syncConfig.GetString("DSGActorType", "").ToLower();
             if (!actorType.Equals("scene_persistence"))
             {
-                m_log.Warn(LogHeader + ": not configured as Scene Persistence Actor. Shut down.");
+                m_log.Warn(LogHeader + ": not configured as Scene Persistence Actor. Shutting down.");
+                return;
+            }
+
+            m_actorID = syncConfig.GetString("ActorID", "");
+            if (m_actorID.Equals(""))
+            {
+                m_log.Warn(LogHeader + ": ActorID not specified in config file. Shutting down.");
                 return;
             }
 
@@ -79,7 +86,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         //Called after AddRegion() has been called for all region modules of the scene.
-        //NOTE::However, at this point, Scene may not have requested all the needed region module interfaces yet.
+        //NOTE::However, at this point, Scene may not have requested all the needed region module interfaces yet. 
+        //      So to try to access other region modules in RegionLoaded, e.g. RegionSyncModule, is not a good idea.
         public void RegionLoaded(Scene scene)
         {
             if (!m_active)
@@ -107,8 +115,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return "ScenePersistenceSyncModule"; }
         }
 
-
-
         #endregion //INonSharedRegionModule
 
         #region IDSGActorSyncModule members and functions
@@ -117,6 +123,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public DSGActorTypes ActorType
         {
             get { return m_actorType; }
+        }
+
+        private string m_actorID;
+        public string ActorID
+        {
+            get { return m_actorID; }
         }
 
         #endregion //IDSGActorSyncModule

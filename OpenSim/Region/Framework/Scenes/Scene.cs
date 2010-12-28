@@ -598,6 +598,29 @@ namespace OpenSim.Region.Framework.Scenes
 
         }
 
+        //This enumeration would help to identify if after a NewObject/UpdatedObject message is received,
+        //the object is a new object and hence added to the scene graph, or it an object with some properties
+        //just updated, or the copy of the object in the UpdatedObject message is the same with local copy 
+        //(before we add time-stamp to identify updates from different actors/scene, it could be possible the same
+        //update be forwarded, say from script engine to scene, and then back to script engine.
+        public enum ObjectUpdateResult
+        {
+            New, //the New/UpdatedObject message ends up adding a new object to local scene graph
+            Updated, //the object has some property updated after processing the New/UpdatedObject 
+            Unchanged, //no property of the object has been changed after processing the New/UpdatedObject 
+            //(it probably is the same update this end has sent out before
+            Error //Errors happen during processing the message, e.g. the entity with the given UUID is not of type SceneObjectGroup 
+        }
+
+        //This function should only be called by an actor who's local Scene is just a cache of the authorative Scene.
+        //If the object already exists, use the new copy to replace it.
+        //Return true if added, false if just updated
+        public ObjectUpdateResult AddOrUpdateObjectBySynchronization(SceneObjectGroup sog)
+        {
+            return m_sceneGraph.AddOrUpdateObjectBySynchronization(sog);
+        }
+
+
         #endregion //SYMMETRIC SYNC
 
         public ICapabilitiesModule CapsModule
@@ -1484,24 +1507,14 @@ namespace OpenSim.Region.Framework.Scenes
                         m_regionSyncServerModule.SendUpdates();
                     }
 
-                    /*
-                    // The authoritative sim should not try to send coarse locations
-                    // Leave this up to the client managers
-                    if (!IsSyncedServer())
+                    //SYMMETRIC SYNC
+
+                    //NOTE: If it is configured as symmetric sync in opensim.ini, the above IsSyncedServer() or IsSyncedClient() should all return false
+                    if (RegionSyncModule != null)
                     {
-                        if (m_frame % m_update_coarse_locations == 0)
-                        {
-                            List<Vector3> coarseLocations;
-                            List<UUID> avatarUUIDs;
-                            SceneGraph.GetCoarseLocations(out coarseLocations, out avatarUUIDs, 60);
-                            // Send coarse locations to clients 
-                            ForEachScenePresence(delegate(ScenePresence presence)
-                            {
-                                presence.SendCoarseLocations(coarseLocations, avatarUUIDs);
-                            });
-                        }
+                        RegionSyncModule.SendSceneUpdates();
                     }
-                     * */
+                    //end of SYMMETRIC SYNC
 
                     int tmpPhysicsMS2 = Util.EnvironmentTickCount();
                     // Do not simulate physics locally if this is a synced client

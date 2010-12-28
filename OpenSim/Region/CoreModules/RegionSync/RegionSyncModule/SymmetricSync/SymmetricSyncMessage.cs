@@ -21,61 +21,22 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public enum MsgType
         {
             Null,
-            //ConnectSyncClient,
-            //DisconnectSyncClient,
-            // CM -> SIM(Scene)
-            ActorConnect,
-            AgentAdd,
-            AgentUpdate,
-            AgentRemove,
-            AgentRequestSit,
-            AgentSit,
-            GrabObject,
-            GrabUpdate,
-            DeGrabObject,
-            StartAnim,
-            StopAnim,
+            // Actor -> SIM(Scene)
             GetTerrain,
             GetObjects,
-            SubscribeObjects,
-            GetAvatars,
-            SubscribeAvatars,
-            ChatFromClient,
-            AvatarTeleportOut, // An LLClientView (real client) was converted to a RegionSyncAvatar
-            AvatarTeleportIn,  // A RegionSyncAvatar was converted to an LLClientView (real client)
+            
             // SIM -> CM
             Terrain,
             NewObject,       // objects
             UpdatedObject,   // objects
             RemovedObject,   // objects
-            NewAvatar,       // avatars
-            UpdatedAvatar,   // avatars
-            AnimateAvatar,
-            AvatarAppearance,
-            RemovedAvatar,   // avatars
-            BalanceClientLoad, // Tells CM a client load target and a place to teleport the extras
-            ChatFromSim,
-            SitResponse,
-            SendAnimations,
-            // BIDIR
-            EchoRequest,
-            EchoResponse,
-            RegionName,
-            RegionStatus,
-            //Added by KittyL
-            // Actor -> Scene
-            // ActorType, //to register the type (e.g. Client Manager or Script Engine) with Scene when sync channel is initialized
-            //SetObjectProperty,
-            // ActorStop,
-            ResetScene,
-            OnRezScript,
-            OnScriptReset,
-            OnUpdateScript,
-            //QuarkSubscription,
 
-            // Scene -> Script Engine
-            //NewObjectWithScript,
-            //SceneLocation,
+            // BIDIR
+            //EchoRequest,
+            //EchoResponse,
+            RegionName,
+            //RegionStatus,
+            ActorID,
         }
         #endregion
 
@@ -164,27 +125,27 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         #endregion
 
 
-        public static void HandleSuccess(string header, RegionSyncMessage msg, string message)
+        public static void HandleSuccess(string header, SymmetricSyncMessage msg, string message)
         {
             m_log.WarnFormat("{0} Handled {1}: {2}", header, msg.ToString(), message);
         }
 
-        public static void HandleTrivial(string header, RegionSyncMessage msg, string message)
+        public static void HandleTrivial(string header, SymmetricSyncMessage msg, string message)
         {
             m_log.WarnFormat("{0} Issue handling {1}: {2}", header, msg.ToString(), message);
         }
 
-        public static void HandleWarning(string header, RegionSyncMessage msg, string message)
+        public static void HandleWarning(string header, SymmetricSyncMessage msg, string message)
         {
             m_log.WarnFormat("{0} Warning handling {1}: {2}", header, msg.ToString(), message);
         }
 
-        public static void HandleError(string header, RegionSyncMessage msg, string message)
+        public static void HandleError(string header, SymmetricSyncMessage msg, string message)
         {
             m_log.WarnFormat("{0} Error handling {1}: {2}", header, msg.ToString(), message);
         }
 
-        public static bool HandlerDebug(string header, RegionSyncMessage msg, string message)
+        public static bool HandlerDebug(string header, SymmetricSyncMessage msg, string message)
         {
             m_log.WarnFormat("{0} DBG ({1}): {2}", header, msg.ToString(), message);
             return true;

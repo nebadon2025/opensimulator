@@ -170,30 +170,128 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Lock is used to synchronize access to the update status and update queues
         private object m_updateSceneObjectPartLock = new object();
         private Dictionary<UUID, SceneObjectGroup> m_primUpdates = new Dictionary<UUID, SceneObjectGroup>();
-        private object m_updatePresenceLock = new object();
+        private object m_updateScenePresenceLock = new object();
         private Dictionary<UUID, ScenePresence> m_presenceUpdates = new Dictionary<UUID, ScenePresence>();
+        private int m_sendingUpdates;
 
         public void QueueSceneObjectPartForUpdate(SceneObjectPart part)
         {
-            lock (m_updateSceneObjectPartLock)
+            //if the last update of the prim is caused by this actor itself, or if the actor is a relay node, then enqueue the update
+            if (part.LastUpdateActorID.Equals(m_actorID) || m_isSyncRelay)
             {
-                m_primUpdates[part.UUID] = part.ParentGroup;
+                lock (m_updateSceneObjectPartLock)
+                {
+                    m_primUpdates[part.UUID] = part.ParentGroup;
+                }
             }
         }
 
         public void QueueScenePresenceForTerseUpdate(ScenePresence presence)
         {
-            lock (m_updateSceneObjectPartLock)
+            lock (m_updateScenePresenceLock)
             {
                 m_presenceUpdates[presence.UUID] = presence;
             }
         }
 
-        public void SendObjectUpdates(List<SceneObjectGroup> sog)
+        public void SendSceneUpdates()
         {
+            // Existing value of 1 indicates that updates are currently being sent so skip updates this pass
+            if (Interlocked.Exchange(ref m_sendingUpdates, 1) == 1)
+            {
+                m_log.WarnFormat("[REGION SYNC SERVER MODULE] SendUpdates(): An update thread is already running.");
+                return;
+            }
 
+            List<SceneObjectGroup> primUpdates;
+            List<ScenePresence> presenceUpdates;
+
+            lock (m_updateSceneObjectPartLock)
+            {
+                primUpdates = new List<SceneObjectGroup>(m_primUpdates.Values);
+                //presenceUpdates = new List<ScenePresence>(m_presenceUpdates.Values);
+                m_primUpdates.Clear();
+                //m_presenceUpdates.Clear();
+            }
+
+            lock (m_updateScenePresenceLock)
+            {
+                presenceUpdates = new List<ScenePresence>(m_presenceUpdates.Values);
+                m_presenceUpdates.Clear();
+            }
+
+            // This could be another thread for sending outgoing messages or just have the Queue functions
+            // create and queue the messages directly into the outgoing server thread.
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                // Dan's note: Sending the message when it's first queued would yield lower latency but much higher load on the simulator
+                // as parts may be updated many many times very quickly. Need to implement a higher resolution send in heartbeat
+                foreach (SceneObjectGroup sog in primUpdates)
+                {
+                    //If this is a relay node, or at least one part of the object has the last update caused by this actor, then send the update
+                    if (m_isSyncRelay || CheckObjectForSendingUpdate(sog))
+                    {
+                        //send 
+                        List<SyncConnector> syncConnectors = GetSyncConnectorsForObjectUpdates(sog);
+
+                        foreach (SyncConnector connector in syncConnectors)
+                        {
+                            string sogxml = SceneObjectSerializer.ToXml2Format(sog);
+                            SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
+                            connector.EnqueueOutgoingUpdate(sog.UUID, syncMsg.ToBytes());
+                        }
+
+                    }
+                }
+                /*
+                foreach (ScenePresence presence in presenceUpdates)
+                {
+                    try
+                    {
+                        if (!presence.IsDeleted)
+                        {
+                            
+                            OSDMap data = new OSDMap(10);
+                            data["id"] = OSD.FromUUID(presence.UUID);
+                            // Do not include offset for appearance height. That will be handled by RegionSyncClient before sending to viewers
+                            if(presence.AbsolutePosition.IsFinite())
+                                data["pos"] = OSD.FromVector3(presence.AbsolutePosition);
+                            else
+                                data["pos"] = OSD.FromVector3(Vector3.Zero);
+                            if(presence.Velocity.IsFinite())
+                                data["vel"] = OSD.FromVector3(presence.Velocity);
+                            else
+                                data["vel"] = OSD.FromVector3(Vector3.Zero);
+                            data["rot"] = OSD.FromQuaternion(presence.Rotation);
+                            data["fly"] = OSD.FromBoolean(presence.Flying);
+                            data["flags"] = OSD.FromUInteger((uint)presence.AgentControlFlags);
+                            data["anim"] = OSD.FromString(presence.Animator.CurrentMovementAnimation);
+                            // needed for a full update
+                            if (presence.ParentID != presence.lastSentParentID)
+                            {
+                                data["coll"] = OSD.FromVector4(presence.CollisionPlane);
+                                data["off"] = OSD.FromVector3(presence.OffsetPosition);
+                                data["pID"] = OSD.FromUInteger(presence.ParentID);
+                                presence.lastSentParentID = presence.ParentID;
+                            }
+
+                            RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.UpdatedAvatar, OSDParser.SerializeJsonString(data));
+                            m_server.EnqueuePresenceUpdate(presence.UUID, rsm.ToBytes());
+                           
+
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat("[REGION SYNC SERVER MODULE] Caught exception sending presence updates for {0}: {1}", presence.Name, e.Message);
+                    }
+                }
+                 * */
+
+                // Indicate that the current batch of updates has been completed
+                Interlocked.Exchange(ref m_sendingUpdates, 0);
+            });
         }
-
 
 
         #endregion //IRegionSyncModule  
@@ -294,6 +392,60 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             //TO BE IMPLEMENTED
             m_log.Warn("[REGION SYNC MODULE]: StatsTimerElapsed -- NOT yet implemented.");
+        }
+
+        /// <summary>
+        /// Check if we need to send out an update message for the given object.
+        /// </summary>
+        /// <param name="sog"></param>
+        /// <returns></returns>
+        private bool CheckObjectForSendingUpdate(SceneObjectGroup sog)
+        {
+            if (sog == null || sog.IsDeleted)
+                return false;
+
+            //If any part in the object has the last update caused by this actor itself, then send the update
+            foreach (SceneObjectPart part in sog.Parts)
+            {
+                if (part.LastUpdateActorID.Equals(m_actorID))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Get the set of SyncConnectors to send updates of the given object. 
+        /// </summary>
+        /// <param name="sog"></param>
+        /// <returns></returns>
+        private List<SyncConnector> GetSyncConnectorsForObjectUpdates(SceneObjectGroup sog)
+        {
+            List<SyncConnector> syncConnectors = new List<SyncConnector>();
+            if (m_isSyncRelay)
+            {
+                //This is a relay node in the synchronization overlay, forward it to all connectors. 
+                //Note LastUpdateTimeStamp and LastUpdateActorID is one per SceneObjectPart, not one per SceneObjectGroup, 
+                //hence an actor sending in an update on one SceneObjectPart of a SceneObjectGroup may need to know updates
+                //in other parts as well, so we are sending to all connectors.
+                ForEachSyncConnector(delegate(SyncConnector connector)
+                {
+                    syncConnectors.Add(connector);
+                });
+            }
+            else
+            {
+                //This is a end node in the synchronization overlay (e.g. a non ScenePersistence actor). Get the right set of synconnectors.
+                //This may go more complex when an actor connects to several ScenePersistence actors.
+                ForEachSyncConnector(delegate(SyncConnector connector)
+                {
+                    syncConnectors.Add(connector);
+                });
+            }
+
+            return syncConnectors;
         }
 
         //NOTE: We proably don't need to do this, and there might not be a need for OnPostSceneCreation event to let RegionSyncModule
@@ -526,7 +678,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             List<SyncConnector> closed = null;
             foreach (SyncConnector syncConnector in m_syncConnectors)
             {
-                // If connected, send the message.
+                // If connected, apply the action
                 if (syncConnector.Connected)
                 {
                     action(syncConnector);
@@ -584,19 +736,47 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.NewObject:
+                case SymmetricSyncMessage.MsgType.UpdatedObject:
                     {
-                        string sogxml = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
-                        
-                        //m_log.Debug(LogHeader + ": " + sogxml);
-
-                        SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
-
-                        //HandleAddOrUpdateObjectInLocalScene(sog, true, true);
-                        HandleAddNewObject(sog);
+                        HandleAddOrUpdateObjectBySynchronization(msg);
+                        //HandleAddNewObject(sog);
+                        return;
                     }
-                    return;
                 default:
                     return;
+            }
+        }
+
+        public void HandleAddOrUpdateObjectBySynchronization(SymmetricSyncMessage msg)
+        {
+            string sogxml = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
+            SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
+
+            if (sog.IsDeleted)
+            {
+                SymmetricSyncMessage.HandleTrivial(LogHeader, msg, String.Format("Ignoring update on deleted object, UUID: {0}.", sog.UUID));
+                return;
+            }
+            else
+            {
+                Scene.ObjectUpdateResult updateResult = m_scene.AddOrUpdateObjectBySynchronization(sog);
+
+                //if (added)
+                switch (updateResult)
+                {
+                    case Scene.ObjectUpdateResult.New:
+                        m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) added.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
+                        break;
+                    case Scene.ObjectUpdateResult.Updated:
+                        m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) updated.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
+                        break;
+                    case Scene.ObjectUpdateResult.Error:
+                        m_log.WarnFormat("[{0} Object \"{1}\" ({1}) ({2}) -- add or update ERROR.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
+                        break;
+                    case Scene.ObjectUpdateResult.Unchanged:
+                        m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) unchanged after receiving an update.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
+                        break;
+                }
             }
         }
 

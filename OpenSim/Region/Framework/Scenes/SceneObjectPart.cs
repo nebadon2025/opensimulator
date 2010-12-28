@@ -4952,7 +4952,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        private void SyncInfoUpdate()
+        public void SyncInfoUpdate()
         {
             //Trick: calling UpdateTimestamp here makes sure that when an object was received and de-serialized, before
             //       its parts are linked together, neither TimeStamp or ActorID will be modified. This is because during de-serialization, 

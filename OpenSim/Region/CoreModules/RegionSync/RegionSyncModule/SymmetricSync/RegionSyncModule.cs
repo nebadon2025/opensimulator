@@ -20,6 +20,7 @@ using System.Threading;
 using System.Text;
 
 using Mono.Addins;
+using OpenMetaverse.StructuredData;
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 //KittyL: created 12/17/2010, to start DSG Symmetric Synch implementation
@@ -87,6 +88,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Register for the OnPostSceneCreation event
             m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
+            m_scene.EventManager.OnObjectBeingRemovedFromScene += new EventManager.ObjectBeingRemovedFromScene(RegionSyncModule_OnObjectBeingRemovedFromScene);
         }
 
         //Called after AddRegion() has been called for all region modules of the scene
@@ -229,18 +231,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 foreach (SceneObjectGroup sog in primUpdates)
                 {
                     //If this is a relay node, or at least one part of the object has the last update caused by this actor, then send the update
-                    if (m_isSyncRelay || CheckObjectForSendingUpdate(sog))
+                    if (m_isSyncRelay || (!sog.IsDeleted && CheckObjectForSendingUpdate(sog)))
                     {
                         //send 
-                        List<SyncConnector> syncConnectors = GetSyncConnectorsForObjectUpdates(sog);
-
-                        foreach (SyncConnector connector in syncConnectors)
-                        {
-                            string sogxml = SceneObjectSerializer.ToXml2Format(sog);
-                            SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
-                            connector.EnqueueOutgoingUpdate(sog.UUID, syncMsg.ToBytes());
-                        }
-
+                        string sogxml = SceneObjectSerializer.ToXml2Format(sog);
+                        SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
+                        SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
                     }
                 }
                 /*
@@ -292,6 +288,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 Interlocked.Exchange(ref m_sendingUpdates, 0);
             });
         }
+
 
 
         #endregion //IRegionSyncModule  
@@ -394,6 +391,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_log.Warn("[REGION SYNC MODULE]: StatsTimerElapsed -- NOT yet implemented.");
         }
 
+        private void SendObjectUpdateToRelevantSyncConnectors(SceneObjectGroup sog, SymmetricSyncMessage syncMsg)
+        {
+            List<SyncConnector> syncConnectors = GetSyncConnectorsForObjectUpdates(sog);
+
+            foreach (SyncConnector connector in syncConnectors)
+            {
+                //string sogxml = SceneObjectSerializer.ToXml2Format(sog);
+                //SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
+                connector.EnqueueOutgoingUpdate(sog.UUID, syncMsg.ToBytes());
+            }
+        }
+
         /// <summary>
         /// Check if we need to send out an update message for the given object.
         /// </summary>
@@ -401,9 +410,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <returns></returns>
         private bool CheckObjectForSendingUpdate(SceneObjectGroup sog)
         {
-            if (sog == null || sog.IsDeleted)
-                return false;
-
             //If any part in the object has the last update caused by this actor itself, then send the update
             foreach (SceneObjectPart part in sog.Parts)
             {
@@ -742,6 +748,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         //HandleAddNewObject(sog);
                         return;
                     }
+                case SymmetricSyncMessage.MsgType.RemovedObject:
+                    {
+                        HandleRemovedObject(msg);
+                        return;
+                    }
                 default:
                     return;
             }
@@ -780,6 +791,49 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        private void HandleRemovedObject(SymmetricSyncMessage msg)
+        {
+            // Get the data from message and error check
+            OSDMap data = DeserializeMessage(msg);
+
+            if (data == null)
+            {
+
+                SymmetricSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                return;
+            }
+
+            // Get the parameters from data
+            //ulong regionHandle = data["regionHandle"].AsULong();
+            //uint localID = data["UUID"].AsUInteger();
+            UUID sogUUID = data["UUID"].AsUUID();
+
+            SceneObjectGroup sog = m_scene.SceneGraph.GetGroupByPrim(sogUUID);
+            if (sog != null)
+            {
+                m_scene.DeleteSceneObjectBySynchronization(sog);
+            }
+        }
+
+        HashSet<string> exceptions = new HashSet<string>();
+        private OSDMap DeserializeMessage(SymmetricSyncMessage msg)
+        {
+            OSDMap data = null;
+            try
+            {
+                data = OSDParser.DeserializeJson(Encoding.ASCII.GetString(msg.Data, 0, msg.Length)) as OSDMap;
+            }
+            catch (Exception e)
+            {
+                lock (exceptions)
+                    // If this is a new message, then print the underlying data that caused it
+                    if (!exceptions.Contains(e.Message))
+                        m_log.Error(LogHeader + " " + Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
+                data = null;
+            }
+            return data;
+        }
+
         private void HandleAddNewObject(SceneObjectGroup sog)
         {
             //RegionSyncModule only add object to SceneGraph. Any actor specific actions will be implemented 
@@ -792,7 +846,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
- 
+
+        /// <summary>
+        /// Send a sync message to remove the given objects in all connected actors, if this is a relay node. 
+        /// UUID is used for identified a removed object.
+        /// </summary>
+        /// <param name="sog"></param>
+        private void RegionSyncModule_OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
+        {
+            //Only send the message out if this is a relay node for sync messages, or this actor caused deleting the object
+            if (m_isSyncRelay || CheckObjectForSendingUpdate(sog))
+            {
+                OSDMap data = new OSDMap(1);
+                //data["regionHandle"] = OSD.FromULong(regionHandle);
+                //data["localID"] = OSD.FromUInteger(sog.LocalId);
+                data["UUID"] = OSD.FromUUID(sog.UUID);
+
+                SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
+                SendObjectUpdateToRelevantSyncConnectors(sog, rsm);
+            }
+
+
+        }
 
         #endregion //RegionSyncModule members and functions
 

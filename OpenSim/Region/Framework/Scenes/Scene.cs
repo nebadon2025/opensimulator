@@ -620,6 +620,45 @@ namespace OpenSim.Region.Framework.Scenes
             return m_sceneGraph.AddOrUpdateObjectBySynchronization(sog);
         }
 
+        //Similar to DeleteSceneObject, except that this does not change LastUpdateActorID and LastUpdateTimeStamp
+        public void DeleteSceneObjectBySynchronization(SceneObjectGroup group)
+        {
+            //            m_log.DebugFormat("[SCENE]: Deleting scene object {0} {1}", group.Name, group.UUID);
+
+            //SceneObjectPart rootPart = group.GetChildPart(group.UUID);
+
+            // Serialise calls to RemoveScriptInstances to avoid
+            // deadlocking on m_parts inside SceneObjectGroup
+            lock (m_deleting_scene_object)
+            {
+                group.RemoveScriptInstances(true);
+            }
+
+            SceneObjectPart[] partList = group.Parts;
+
+            foreach (SceneObjectPart part in partList)
+            {
+                if (part.IsJoint() && ((part.Flags & PrimFlags.Physics) != 0))
+                {
+                    PhysicsScene.RequestJointDeletion(part.Name); // FIXME: what if the name changed?
+                }
+                else if (part.PhysActor != null)
+                {
+                    PhysicsScene.RemovePrim(part.PhysActor);
+                    part.PhysActor = null;
+                }
+            }
+
+            if (UnlinkSceneObject(group, false))
+            {
+                EventManager.TriggerObjectBeingRemovedFromScene(group);
+                EventManager.TriggerParcelPrimCountTainted();
+            }
+
+            bool silent = false; //do not suppress broadcasting changes to other clients, for debugging with viewers
+            group.DeleteGroupFromScene(silent);
+
+        }
 
         #endregion //SYMMETRIC SYNC
 
@@ -2364,6 +2403,15 @@ namespace OpenSim.Region.Framework.Scenes
             group.DeleteGroupFromScene(silent);
 
 //            m_log.DebugFormat("[SCENE]: Exit DeleteSceneObject() for {0} {1}", group.Name, group.UUID);            
+
+            //SYMMETRIC SYNC
+            //Set the ActorID and TimeStamp info for this latest update
+            foreach (SceneObjectPart part in group.Parts)
+            {
+                part.SyncInfoUpdate();
+            }
+            //end of SYMMETRIC SYNC
+
         }
 
         /// <summary>

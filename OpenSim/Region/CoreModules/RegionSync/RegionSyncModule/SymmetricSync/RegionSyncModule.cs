@@ -556,6 +556,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //Shutdown all sync connectors
                 StopAllSyncConnectors();
             }
+
+            //Trigger SyncStop event, ActorSyncModules can then take actor specific action if needed.
+            //For instance, script engine will save script states
+            //save script state and stop script instances
+            m_scene.EventManager.TriggerOnSymmetricSyncStop();
+            
         }
 
         private void SyncStatus(Object[] args)
@@ -854,6 +860,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="sog"></param>
         private void RegionSyncModule_OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
         {
+            //m_log.DebugFormat("RegionSyncModule_OnObjectBeingRemovedFromScene called at time {0}:{1}:{2}", DateTime.Now.Minute, DateTime.Now.Second, DateTime.Now.Millisecond);
+
             //Only send the message out if this is a relay node for sync messages, or this actor caused deleting the object
             if (m_isSyncRelay || CheckObjectForSendingUpdate(sog))
             {

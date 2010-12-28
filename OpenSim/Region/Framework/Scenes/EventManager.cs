@@ -2183,7 +2183,7 @@ namespace OpenSim.Region.Framework.Scenes
                     catch (Exception e)
                     {
                         m_log.ErrorFormat(
-                            "[EVENT MANAGER]: Delegate for TriggerOnSceneObjectLoaded failed - continuing.  {0} {1}", 
+                            "[EVENT MANAGER]: Delegate for TriggerScriptEngineSyncStop failed - continuing.  {0} {1}", 
                             e.Message, e.StackTrace);
                     }
                 }
@@ -2267,6 +2267,30 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
         }
+
+        public delegate void SymmetricSyncStop();
+        public event SymmetricSyncStop OnSymmetricSyncStop;
+        public void TriggerOnSymmetricSyncStop()
+        {
+            SymmetricSyncStop handlerSymmetricSyncStop = OnSymmetricSyncStop;
+            if (handlerSymmetricSyncStop != null)
+            {
+                foreach (SymmetricSyncStop d in handlerSymmetricSyncStop.GetInvocationList())
+                {
+                    try
+                    {
+                        d();
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerOnSymmetricSyncStop failed - continuing.  {0} {1}",
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+
         //end of SYMMETRIC SYNC
     }
 }

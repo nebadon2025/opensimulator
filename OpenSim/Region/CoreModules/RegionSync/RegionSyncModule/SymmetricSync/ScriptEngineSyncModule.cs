@@ -84,6 +84,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Register for Scene/SceneGraph events
             m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(ScriptEngine_OnObjectCreate);
+            m_scene.EventManager.OnSymmetricSyncStop += ScriptEngine_OnSymmetricSyncStop;
         }
 
         //Called after AddRegion() has been called for all region modules of the scene.
@@ -165,6 +166,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 sog.CreateScriptInstances(0, false, m_scene.DefaultScriptEngine, 0);
                 sog.ResumeScripts();
             }
+        }
+
+        public void ScriptEngine_OnSymmetricSyncStop()
+        {
+            //Inform script engine to save script states and stop scripts
+            m_scene.EventManager.TriggerScriptEngineSyncStop();
+            //remove all objects
+            m_scene.DeleteAllSceneObjects();
         }
 
         #endregion //ScriptEngineSyncModule

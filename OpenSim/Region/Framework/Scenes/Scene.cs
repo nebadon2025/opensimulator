@@ -612,6 +612,15 @@ namespace OpenSim.Region.Framework.Scenes
             Error //Errors happen during processing the message, e.g. the entity with the given UUID is not of type SceneObjectGroup 
         }
 
+        public string GetSyncActorID()
+        {
+            if (m_DSGActorSyncModule != null)
+            {
+                return m_DSGActorSyncModule.ActorID;
+            }
+            return "";
+        }
+
         //This function should only be called by an actor who's local Scene is just a cache of the authorative Scene.
         //If the object already exists, use the new copy to replace it.
         //Return true if added, false if just updated

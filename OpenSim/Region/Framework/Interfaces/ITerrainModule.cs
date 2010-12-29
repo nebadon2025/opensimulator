@@ -64,5 +64,11 @@ namespace OpenSim.Region.Framework.Interfaces
         void InstallPlugin(string name, ITerrainEffect plug);
 
         void UndoTerrain(ITerrainChannel channel);
+
+        //SYMMETRIC SYNC
+        void TaintTerrianBySynchronization(long timeStamp, string actorID);
+        bool TerrianModifiedLocally(string localActorID);
+        void GetSyncInfo(out long lastUpdateTimeStamp, out string lastUpdateActorID);
+        //end of SYMMETRIC SYNC
     }
 }

@@ -289,7 +289,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             });
         }
 
-
+        public void SendTerrainUpdates(string lastUpdateActorID)
+        {
+            if(m_isSyncRelay || m_actorID.Equals(lastUpdateActorID))
+            {
+                //m_scene.Heightmap should have been updated already by the caller, send it out
+                //SendSyncMessage(SymmetricSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString());
+                SendTerrainUpdateMessage();
+            }
+        }
 
         #endregion //IRegionSyncModule  
 
@@ -713,6 +721,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+
+
         /// <summary>
         /// The handler for processing incoming sync messages.
         /// </summary>
@@ -723,13 +733,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 case SymmetricSyncMessage.MsgType.GetTerrain:
                     {
-                        SendSyncMessage(SymmetricSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString());
+                        //SendSyncMessage(SymmetricSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString());
+                        SendTerrainUpdateMessage();
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.Terrain:
                     {
+                        /*
                         m_scene.Heightmap.LoadFromXmlString(Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
+                        //Inform the terrain module that terrain has been updated
+                        m_scene.RequestModuleInterface<ITerrainModule>().TaintTerrain();
                         m_log.Debug(LogHeader+": Synchronized terrain");
+                         * */
+                        HandleTerrainUpdateMessage(msg);
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.GetObjects:
@@ -764,7 +780,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
-        public void HandleAddOrUpdateObjectBySynchronization(SymmetricSyncMessage msg)
+        private void HandleTerrainUpdateMessage(SymmetricSyncMessage msg)
+        {
+            // Get the data from message and error check
+            OSDMap data = DeserializeMessage(msg);
+
+            if (data == null)
+            {
+                SymmetricSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                return;
+            }
+
+            string msgData = data["terrain"].AsString();
+            long lastUpdateTimeStamp = data["actorID"].AsLong();
+            string lastUpdateActorID = data["timeStamp"].AsString();
+
+            //set new terrain
+            m_scene.Heightmap.LoadFromXmlString(msgData);
+            m_scene.RequestModuleInterface<ITerrainModule>().TaintTerrianBySynchronization(lastUpdateTimeStamp, lastUpdateActorID); ;
+            m_log.Debug(LogHeader + ": Synchronized terrain");
+        }
+
+        private void HandleAddOrUpdateObjectBySynchronization(SymmetricSyncMessage msg)
         {
             string sogxml = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
             SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
@@ -795,6 +832,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         break;
                 }
             }
+        }
+
+        private void SendTerrainUpdateMessage()
+        {
+            string msgData = m_scene.Heightmap.SaveToXmlString();
+            long lastUpdateTimeStamp;
+            string lastUpdateActorID;
+            m_scene.RequestModuleInterface<ITerrainModule>().GetSyncInfo(out lastUpdateTimeStamp, out lastUpdateActorID);
+
+            OSDMap data = new OSDMap(3);
+            data["terrain"] = OSD.FromString(msgData);
+            data["actorID"] = OSD.FromString(lastUpdateActorID);
+            data["timeStamp"] = OSD.FromLong(lastUpdateTimeStamp);
+
+            SendSyncMessage(SymmetricSyncMessage.MsgType.Terrain, OSDParser.SerializeJsonString(data));
         }
 
         private void HandleRemovedObject(SymmetricSyncMessage msg)

@@ -30,7 +30,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             NewObject,       // objects
             UpdatedObject,   // objects
             RemovedObject,   // objects
-
             // BIDIR
             //EchoRequest,
             //EchoResponse,

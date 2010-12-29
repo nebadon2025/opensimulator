@@ -4928,11 +4928,11 @@ namespace OpenSim.Region.Framework.Scenes
 
         //The ID the identifies which actor has caused the most recent update to the prim.
         //We use type "string" for the ID only to make it human-readable. 
-        private string m_lastUpdateByActorID;
+        private string m_lastUpdateActorID;
         public string LastUpdateActorID
         {
-            get { return m_lastUpdateByActorID; }
-            set { m_lastUpdateByActorID = value; }
+            get { return m_lastUpdateActorID; }
+            set { m_lastUpdateActorID = value; }
         }
 
         public void UpdateTimestamp()
@@ -4944,7 +4944,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (m_parentGroup != null)
             {
-                m_lastUpdateByActorID = m_parentGroup.Scene.ActorSyncModule.ActorID;
+                m_lastUpdateActorID = m_parentGroup.Scene.ActorSyncModule.ActorID;
             }
             else
             {
@@ -4960,7 +4960,7 @@ namespace OpenSim.Region.Framework.Scenes
             if (m_parentGroup != null)
             {
                 UpdateTimestamp();
-                m_lastUpdateByActorID = m_parentGroup.Scene.ActorSyncModule.ActorID;
+                m_lastUpdateActorID = m_parentGroup.Scene.ActorSyncModule.ActorID;
             }
         }
 
@@ -4994,7 +4994,7 @@ namespace OpenSim.Region.Framework.Scenes
             if (m_lastUpdateTimeStamp == updatedPart.LastUpdateTimeStamp)
             {
                 //if (m_parentGroup.Scene.GetActorID() != updatedPart.LastUpdatedByActorID)
-                if (m_lastUpdateByActorID != updatedPart.LastUpdateActorID)
+                if (m_lastUpdateActorID != updatedPart.LastUpdateActorID)
                 {
                     m_log.Warn("Different actors modified SceneObjetPart " + UUID + " with the same TimeStamp, CONFLICT RESOLUTION TO BE IMPLEMENTED!!!!");
                     return Scene.ObjectUpdateResult.Unchanged;
@@ -5067,7 +5067,7 @@ namespace OpenSim.Region.Framework.Scenes
             this.ParticleSystem = updatedPart.ParticleSystem;
 
             //Update the timestamp and LastUpdatedByActorID first.
-            this.m_lastUpdateByActorID = updatedPart.LastUpdateActorID;
+            this.m_lastUpdateActorID = updatedPart.LastUpdateActorID;
             this.m_lastUpdateTimeStamp = updatedPart.LastUpdateTimeStamp;
 
 

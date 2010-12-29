@@ -455,7 +455,10 @@ namespace OpenSim.Region.Framework.Scenes
         protected internal void AddToUpdateList(SceneObjectGroup obj)
         {
             lock (m_updateList)
+            {
                 m_updateList[obj.UUID] = obj;
+                m_log.Debug("added " + obj.UUID + " to m_updateList");
+            }
         }
 
         /// <summary>
@@ -474,6 +477,13 @@ namespace OpenSim.Region.Framework.Scenes
                 lock (m_updateList)
                 {
                     updates = new List<SceneObjectGroup>(m_updateList.Values);
+
+                    if (updates.Count > 0)
+                    {
+                        m_log.Debug("SceneGraph: " + updates.Count + " objects to send updates for");
+                    }
+
+
                     m_updateList.Clear();
                 }
 
@@ -1950,6 +1960,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
             else
             {
+                m_log.Debug("AddSceneObjectByStateSynch to be called");
                 AddSceneObjectByStateSynch(updatedSog);
                 return Scene.ObjectUpdateResult.New;
             }

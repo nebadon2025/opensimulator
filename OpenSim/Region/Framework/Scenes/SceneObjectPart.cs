@@ -5087,7 +5087,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void ScheduleFullUpdate_SyncInfoUnchanged()
         {
-            //            m_log.DebugFormat("[SCENE OBJECT PART]: Scheduling full update for {0} {1}", Name, LocalId);
+            m_log.DebugFormat("[SCENE OBJECT PART]: ScheduleFullUpdate_SyncInfoUnchanged for {0} {1}", Name, LocalId);
 
             if (m_parentGroup != null)
             {

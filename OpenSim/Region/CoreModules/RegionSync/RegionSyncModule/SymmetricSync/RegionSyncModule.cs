@@ -524,7 +524,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (m_actorType == DSGActorTypes.Unknown)
             {
-                m_log.Error(LogHeader + ": SyncStart -- ActorType not set yet. Either it's not defined in config file (DSGActorType), or the ActorSyncModule (ScenePersistenceSyncModule, etc) didn't pass it on to RegionSyncModule");
+                m_log.Error(LogHeader + ": SyncStart -- ActorType not set yet. Either it's not defined in config file (DSGActorType), or the ActorSyncModule (ScenePersistenceSyncModule, ScriptEngineSyncModule etc) has not defined it.");
                 return;
             }
 

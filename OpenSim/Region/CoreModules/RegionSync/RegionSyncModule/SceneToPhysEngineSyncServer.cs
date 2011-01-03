@@ -545,6 +545,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         #endregion Event Handlers
 
         #region Load balancing members and functions
+        /*
         //keep track of idle physics engines that are in the process of load balancing (they are off the idle list, but not a working physics engine yet (not sync'ing with Scene yet)).
         private Dictionary<string, IdlePhysEngineInfo> m_loadBalancingIdleSEs = new Dictionary<string,IdlePhysEngineInfo>(); 
         public void HandleLoadBalanceRequest(SceneToPhysEngineConnector seConnctor)
@@ -616,6 +617,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 seConnctor.SendLoadBalanceRejection("no idle physics engines");
             }
         }
+        */
 
         HashSet<string> exceptions = new HashSet<string>();
         private OSDMap DeserializeMessage(RegionSyncMessage msg)

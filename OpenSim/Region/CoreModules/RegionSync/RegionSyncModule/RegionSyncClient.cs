@@ -396,7 +396,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         else
                         {
                             sp.IsSyncedAvatar = true;
-                            m_log.DebugFormat("{0}: Setting avatar local ID to {1}", LogHeader, localID);
+                            m_log.DebugFormat("{0}: Setting avatar local ID to {1}", LogHeader(), localID);
                             sp.LocalId = localID;
                             if (sp.PhysicsActor != null)
                             {
@@ -978,7 +978,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void HandleAgentRequestSit(object sender, UUID agentID, UUID targetID, Vector3 offset)
         {
-            m_log.DebugFormat("{0} HandleAgentRequestSit for {1}", LogHeader(), agentID.ToString());
+            // m_log.DebugFormat("{0} HandleAgentRequestSit for {1}", LogHeader(), agentID.ToString());
             OSDMap data = new OSDMap(3);
             data["agentID"] = OSD.FromUUID(agentID);
             data["targetID"] = OSD.FromUUID(targetID);
@@ -988,7 +988,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void HandleAgentSit(IClientAPI remoteClient, UUID agentID)
         {
-            m_log.DebugFormat("{0} HandleAgentSit for {1}", LogHeader(), agentID.ToString());
+            // m_log.DebugFormat("{0} HandleAgentSit for {1}", LogHeader(), agentID.ToString());
             OSDMap data = new OSDMap(1);
             data["agentID"] = OSD.FromUUID(agentID);
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentSit, OSDParser.SerializeJsonString(data)));
@@ -996,7 +996,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void HandleGrabObject(uint localID, Vector3 offsetPos, IClientAPI remoteClient, List<SurfaceTouchEventArgs> surfaceArgs)
         {
-            m_log.DebugFormat("{0} HandleGrabObject for {1}", LogHeader(), remoteClient.AgentId.ToString());
+            // m_log.DebugFormat("{0} HandleGrabObject for {1}", LogHeader(), remoteClient.AgentId.ToString());
             OSDMap data = new OSDMap(4);
             data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
             data["localID"] = OSD.FromUInteger(localID);
@@ -1007,7 +1007,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void HandleGrabUpdate(UUID objectID, Vector3 offset, Vector3 pos, IClientAPI remoteClient, List<SurfaceTouchEventArgs> surfaceArgs)
         {
-            m_log.DebugFormat("{0} HandleGrabUpdate for {1}", LogHeader(), remoteClient.AgentId.ToString());
+            // m_log.DebugFormat("{0} HandleGrabUpdate for {1}", LogHeader(), remoteClient.AgentId.ToString());
             OSDMap data = new OSDMap(5);
             data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
             data["objectID"] = OSD.FromUUID(objectID);
@@ -1019,7 +1019,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void HandleDeGrabObject(uint localID, IClientAPI remoteClient, List<SurfaceTouchEventArgs> surfaceArgs)
         {
-            m_log.DebugFormat("{0} HandleDeGrabObject for {1}", LogHeader(), remoteClient.AgentId.ToString());
+            // m_log.DebugFormat("{0} HandleDeGrabObject for {1}", LogHeader(), remoteClient.AgentId.ToString());
             OSDMap data = new OSDMap(3);
             data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
             data["localID"] = OSD.FromUInteger(localID);

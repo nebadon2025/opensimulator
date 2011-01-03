@@ -239,6 +239,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         Shutdown();
                     }
                     return;
+                    /*
                 case RegionSyncMessage.MsgType.LoadBalanceRequest:
                     {
                         m_syncServer.HandleLoadBalanceRequest(this);
@@ -260,6 +261,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         return;
                     }
+                    */
 
                 case RegionSyncMessage.MsgType.PhysTerseUpdate:
                     {
@@ -487,7 +489,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         #endregion Send/Receive messages to/from the remote Physics Engine
 
         #region Spacial query functions (should be eventually implemented within Scene)
-
+        /*
         //This should be a function of Scene, but since we don't have the quark concept in Scene yet, 
         //for now we implement it here.
         //Ideally, for quark based space representation, the Scene has a list of quarks, and each quark points
@@ -512,15 +514,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             return sogList;
         }
+        */
 
         #endregion 
 
         #region Load balancing functions
+        /*
         public void SendLoadBalanceRejection(string response)
         {
             RegionSyncMessage msg = new RegionSyncMessage(RegionSyncMessage.MsgType.LoadBalanceRejection, response);
             Send(msg);
         }
+        */
         #endregion  
     }
 }

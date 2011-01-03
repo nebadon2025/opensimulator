@@ -2476,6 +2476,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         private void SendInitialData()
         {
+            m_log.DebugFormat("[SP] SendInitialData: {0} ({1})", Name, UUID);
             // Moved this into CompleteMovement to ensure that m_appearance is initialized before
             // the inventory arrives
             // m_scene.GetAvatarAppearance(m_controllingClient, out m_appearance);
@@ -2526,6 +2527,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void SendAvatarDataToAllAgents()
         {
+            m_log.DebugFormat("[SP] SendAvatarDataToAllAgents: {0} ({1})", Name, UUID);
             // REGION SYNC
             // The server sends appearance to all client managers since there are no local clients
             if (m_scene.IsSyncedServer())
@@ -2591,7 +2593,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="avatar"></param>
         public void SendAvatarDataToAgent(ScenePresence avatar)
         {
-//            m_log.WarnFormat("[SP] Send avatar data from {0} to {1}",m_uuid,avatar.ControllingClient.AgentId);
+            m_log.DebugFormat("[SP] SendAvatarDataToAgent from {0} ({1}) to {2} ({3})", Name, UUID, avatar.Name, avatar.UUID);
 
             avatar.ControllingClient.SendAvatarDataImmediate(this);
             Animator.SendAnimPackToClient(avatar.ControllingClient);
@@ -2603,6 +2605,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void SendAppearanceToAllOtherAgents()
         {
+            m_log.DebugFormat("[SP] SendAppearanceToAllOtherAgents: {0} ({1})", Name, UUID);
             // REGION SYNC
             // The server should not be doing anything via the ForEachScenePresence method
             if (m_scene.IsSyncedServer())
@@ -2639,6 +2642,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void SendOtherAgentsAppearanceToMe()
         {
+            m_log.DebugFormat("[SP] SendOtherAgentsAppearanceToMe: {0} ({1})", Name, UUID);
             m_perfMonMS = Util.EnvironmentTickCount();
 
             int count = 0;
@@ -2665,7 +2669,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="avatar"></param>
         public void SendAppearanceToAgent(ScenePresence avatar)
         {
-            m_log.DebugFormat("[SP] Send appearance from {0} to {1}",m_uuid,avatar.ControllingClient.AgentId);
+            m_log.DebugFormat("[SP] SendAppearanceToAgent from {0} ({1}) to {2} ({3})", Name, UUID, avatar.Name, avatar.UUID);
 
             avatar.ControllingClient.SendAppearance(
                 m_appearance.Owner, m_appearance.VisualParams, m_appearance.Texture.GetBytes());

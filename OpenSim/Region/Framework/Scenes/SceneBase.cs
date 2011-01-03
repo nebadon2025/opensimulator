@@ -471,6 +471,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// Shows various details about the sim based on the parameters supplied by the console command in openSimMain.
         /// </summary>
         /// <param name="showParams">What to show</param>
+        /// 
+        /*
         public virtual void Show(string[] showParams)
         {
             switch (showParams[0])
@@ -486,7 +488,7 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                     break;
             }
-        }
+        }*/
 
         /// <summary>
         /// Call this from a region module to add a command to the OpenSim console.

@@ -4307,6 +4307,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        /*
         public override void Show(string[] showParams)
         {
             base.Show(showParams);
@@ -4332,7 +4333,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                     break;
             }
-        }
+        }*/
 
         #region Script Handling Methods
 

@@ -661,6 +661,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public virtual void SendXferPacket(ulong xferID, uint packet, byte[] data)
         {
         }
+        public virtual void SendAbortXferPacket(ulong xferID)
+        {
+        }
 
         public virtual void SendEconomyData(float EnergyEfficiency, int ObjectCapacity, int ObjectCount, int PriceEnergyUnit,
             int PriceGroupCreate, int PriceObjectClaim, float PriceObjectRent, float PriceObjectScaleFactor,
@@ -1255,9 +1258,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             throw new System.NotImplementedException();
         }
+
         public void StopFlying(ISceneEntity p)
         {
+            throw new System.NotImplementedException();
         }
 
+        public void SendPlacesReply(UUID queryID, UUID transactionID, PlacesReplyData[] data)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

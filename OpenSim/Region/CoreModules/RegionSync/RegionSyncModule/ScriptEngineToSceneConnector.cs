@@ -1050,7 +1050,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //set the LocX,LocY information of each object's copy, so that later we can figure out which SEtoSceneConnector to forwards setproperty request
             OpenSim.Services.Interfaces.GridRegion regionInfo = m_validLocalScene.GridService.GetRegionByName(UUID.Zero, regionName);
-            List<EntityBase> entities = m_validLocalScene.GetEntities();
+            EntityBase[] entities = m_validLocalScene.GetEntities();
             foreach (EntityBase group in entities)
             {
                 if (group is SceneObjectGroup)
@@ -1083,7 +1083,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_log.Debug(LogHeader + ": next start script instances");
             //m_validLocalScene.CreateScriptInstances();
 
-            List<EntityBase> entities = m_validLocalScene.GetEntities();
+            EntityBase[] entities = m_validLocalScene.GetEntities();
             foreach (EntityBase group in entities)
             {
                 if (group is SceneObjectGroup)
@@ -1313,7 +1313,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //the script's state, and migrate the state to the receiving end.
         private void HandleScriptStateSyncRequest(RegionSyncMessage msg)
         {
-            List<EntityBase> entities = m_validLocalScene.GetEntities();
+            EntityBase[] entities = m_validLocalScene.GetEntities();
             List<SceneObjectGroup> sogInMigrationSpace = new List<SceneObjectGroup>();
 
             //Inform the receiving end the script state synchronization now starts.

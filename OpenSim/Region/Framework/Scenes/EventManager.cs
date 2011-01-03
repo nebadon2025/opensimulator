@@ -57,7 +57,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public event OnTerrainTickDelegate OnTerrainTick;
 
-        public delegate void OnBackupDelegate(IRegionDataStore datastore, bool forceBackup);
+        public delegate void OnBackupDelegate(ISimulationDataService datastore, bool forceBackup);
 
         public event OnBackupDelegate OnBackup;
 
@@ -108,6 +108,8 @@ namespace OpenSim.Region.Framework.Scenes
         public delegate void OnSetRootAgentSceneDelegate(UUID agentID, Scene scene);
 
         public event OnSetRootAgentSceneDelegate OnSetRootAgentScene;
+
+        public event ParcelPropertiesUpdateRequest OnParcelPropertiesUpdateRequest;
 
         /// <summary>
         /// Fired when an object is touched/grabbed.
@@ -291,6 +293,17 @@ namespace OpenSim.Region.Framework.Scenes
         public event ChatFromClientEvent OnChatFromClient;
         
         /// <summary>
+        /// ChatToClientsEvent is triggered via ChatModule (or
+        /// substitutes thereof) when a chat message is actually sent to clients.  Clients will only be sent a 
+        /// received chat message if they satisfy various conditions (within audible range, etc.)
+        /// </summary>
+        public delegate void ChatToClientsEvent(
+            UUID senderID, HashSet<UUID> receiverIDs, 
+            string message, ChatTypeEnum type, Vector3 fromPos, string fromName, 
+            ChatSourceType src, ChatAudibleLevel level);
+        public event ChatToClientsEvent OnChatToClients;
+        
+        /// <summary>
         /// ChatBroadcastEvent is called via Scene when a broadcast chat message
         /// from world comes in
         /// </summary>
@@ -331,6 +344,34 @@ namespace OpenSim.Region.Framework.Scenes
         /// the avatarID is UUID.Zero (I know, this doesn't make much sense but now it's historical).
         public delegate void Attach(uint localID, UUID itemID, UUID avatarID);
         public event Attach OnAttach;
+        
+        /// <summary>
+        /// Called immediately after an object is loaded from storage.
+        /// </summary>
+        public event SceneObjectDelegate OnSceneObjectLoaded;
+        public delegate void SceneObjectDelegate(SceneObjectGroup so);
+        
+        /// <summary>
+        /// Called immediately before an object is saved to storage.
+        /// </summary>
+        /// <param name="persistingSo">
+        /// The scene object being persisted.
+        /// This is actually a copy of the original scene object so changes made here will be saved to storage but will not be kept in memory.
+        /// </param>
+        /// <param name="originalSo">
+        /// The original scene object being persisted.  Changes here will stay in memory but will not be saved to storage on this save.
+        /// </param>
+        public event SceneObjectPreSaveDelegate OnSceneObjectPreSave;
+        public delegate void SceneObjectPreSaveDelegate(SceneObjectGroup persistingSo, SceneObjectGroup originalSo);
+        
+        /// <summary>
+        /// Called when a scene object part is cloned within the region.
+        /// </summary>
+        /// <param name="copy"></param>
+        /// <param name="original"></param>
+        /// <param name="userExposed">True if the duplicate will immediately be in the scene, false otherwise</param>
+        public event SceneObjectPartCopyDelegate OnSceneObjectPartCopy;
+        public delegate void SceneObjectPartCopyDelegate(SceneObjectPart copy, SceneObjectPart original, bool userExposed);
 
         public delegate void RegionUp(GridRegion region);
         public event RegionUp OnRegionUp;
@@ -655,7 +696,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerOnBackup(IRegionDataStore dstore)
+        public void TriggerOnBackup(ISimulationDataService dstore, bool forced)
         {
             OnBackupDelegate handlerOnAttach = OnBackup;
             if (handlerOnAttach != null)
@@ -664,7 +705,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     try
                     {
-                        d(dstore, false);
+                        d(dstore, forced);
                     }
                     catch (Exception e)
                     {
@@ -1574,6 +1615,30 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
         }
+        
+        public void TriggerOnChatToClients(
+            UUID senderID, HashSet<UUID> receiverIDs, 
+            string message, ChatTypeEnum type, Vector3 fromPos, string fromName, 
+            ChatSourceType src, ChatAudibleLevel level)
+        {
+            ChatToClientsEvent handler = OnChatToClients;
+            if (handler != null)
+            {
+                foreach (ChatToClientsEvent d in handler.GetInvocationList())
+                {
+                    try
+                    {
+                        d(senderID, receiverIDs, message, type, fromPos, fromName, src, level);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerOnChatToClients failed - continuing.  {0} {1}", 
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
 
         public void TriggerOnChatBroadcast(Object sender, OSChatMessage chat)
         {
@@ -2015,9 +2080,93 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        public void TriggerOnSceneObjectLoaded(SceneObjectGroup so)
+        {
+            SceneObjectDelegate handler = OnSceneObjectLoaded;
+            if (handler != null)
+            {
+                foreach (SceneObjectDelegate d in handler.GetInvocationList())
+                {
+                    try
+                    {
+                        d(so);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerOnSceneObjectLoaded failed - continuing.  {0} {1}", 
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+
+        public void TriggerOnSceneObjectPreSave(SceneObjectGroup persistingSo, SceneObjectGroup originalSo)
+        {
+            SceneObjectPreSaveDelegate handler = OnSceneObjectPreSave;
+            if (handler != null)
+            {
+                foreach (SceneObjectPreSaveDelegate d in handler.GetInvocationList())
+                {
+                    try
+                    {
+                        d(persistingSo, originalSo);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerOnSceneObjectPreSave failed - continuing.  {0} {1}", 
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        } 
+        
+        public void TriggerOnSceneObjectPartCopy(SceneObjectPart copy, SceneObjectPart original, bool userExposed)
+        {
+            SceneObjectPartCopyDelegate handler = OnSceneObjectPartCopy;
+            if (handler != null)
+            {
+                foreach (SceneObjectPartCopyDelegate d in handler.GetInvocationList())
+                {
+                    try
+                    {
+                        d(copy, original, userExposed);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerOnSceneObjectPartCopy failed - continuing.  {0} {1}", 
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+
+        public void TriggerOnParcelPropertiesUpdateRequest(LandUpdateArgs args,
+                        int local_id, IClientAPI remote_client)
+        {
+            ParcelPropertiesUpdateRequest handler = OnParcelPropertiesUpdateRequest;
+            if (handler != null)
+            {
+                foreach (ParcelPropertiesUpdateRequest d in handler.GetInvocationList())
+                {
+                    try
+                    {
+                        d(args, local_id, remote_client);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerOnSceneObjectPartCopy failed - continuing.  {0} {1}", 
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+
         //REGION SYNC
         #region REGION SYNC RELATED EVENTS
-
         //OnScriptEngineSyncStop: triggered when user types "sync stop" on the script engine's console
         public delegate void ScriptEngineSyncStop();
         public event ScriptEngineSyncStop OnScriptEngineSyncStop;
@@ -2035,13 +2184,13 @@ namespace OpenSim.Region.Framework.Scenes
                     catch (Exception e)
                     {
                         m_log.ErrorFormat(
-                            "[EVENT MANAGER]: Delegate for TriggerScriptEngineSyncStop failed - continuing.  {0} {1}",
+                            "[EVENT MANAGER]: Delegate for TriggerOnSceneObjectLoaded failed - continuing.  {0} {1}", 
                             e.Message, e.StackTrace);
                     }
                 }
             }
         }
-
+                            
         //OnUpdateTaskInventoryScriptAsset: triggered after Scene receives client's upload of updated script and stores it as asset
         public delegate void UpdateScript(UUID clientID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID);
         public event UpdateScript OnUpdateScript;
@@ -2064,8 +2213,8 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                 }
             }
-        }
-
+        } 
+                            
         //OnPopulateLocalSceneList: Triggered by OpenSim to the valid local scene, should only happen in script engine
         public delegate void PopulateLocalSceneList(List<Scene> localScenes);
         public event PopulateLocalSceneList OnPopulateLocalSceneList;
@@ -2094,6 +2243,5 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
         #endregion
-
     }
 }

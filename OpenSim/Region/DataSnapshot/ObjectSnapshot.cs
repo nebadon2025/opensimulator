@@ -101,7 +101,8 @@ namespace OpenSim.Region.DataSnapshot.Providers
             XmlNode parent = nodeFactory.CreateNode(XmlNodeType.Element, "objectdata", "");
             XmlNode node;
 
-            foreach (EntityBase entity in m_scene.Entities)
+            EntityBase[] entities = m_scene.Entities.GetEntities();
+            foreach (EntityBase entity in entities)
             {
                 // only objects, not avatars
                 if (entity is SceneObjectGroup)
@@ -135,16 +136,25 @@ namespace OpenSim.Region.DataSnapshot.Providers
                             xmlobject.AppendChild(node);
 
                             node = nodeFactory.CreateNode(XmlNodeType.Element, "flags", "");
-                            node.InnerText = String.Format("{0:x}", m_rootPart.ObjectFlags);
+                            node.InnerText = String.Format("{0:x}", (uint)m_rootPart.Flags);
                             xmlobject.AppendChild(node);
 
                             node = nodeFactory.CreateNode(XmlNodeType.Element, "regionuuid", "");
                             node.InnerText = m_scene.RegionInfo.RegionSettings.RegionUUID.ToString();
                             xmlobject.AppendChild(node);
 
-                            node = nodeFactory.CreateNode(XmlNodeType.Element, "parceluuid", "");
-                            node.InnerText = land.LandData.GlobalID.ToString();
-                            xmlobject.AppendChild(node);
+                            if (land != null && land.LandData != null)
+                            {
+                                node = nodeFactory.CreateNode(XmlNodeType.Element, "parceluuid", "");
+                                node.InnerText = land.LandData.GlobalID.ToString();
+                                xmlobject.AppendChild(node);
+                            }
+                            else
+                            {
+                                // Something is wrong with this object. Let's not list it.
+                                m_log.WarnFormat("[DATASNAPSHOT]: Bad data for object {0} ({1}) in region {2}", obj.Name, obj.UUID, m_scene.RegionInfo.RegionName);
+                                continue;
+                            }
 
                             node = nodeFactory.CreateNode(XmlNodeType.Element, "location", "");
                             Vector3 loc = obj.AbsolutePosition;

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -72,12 +72,30 @@ namespace OpenSim.Services.Connectors.Simulation
 
         protected virtual string AgentPath()
         {
-            return "/agent/";
+            return "agent/";
         }
 
         public bool CreateAgent(GridRegion destination, AgentCircuitData aCircuit, uint flags, out string reason)
         {
+            HttpWebRequest AgentCreateRequest = null;
             reason = String.Empty;
+
+            if (SendRequest(destination, aCircuit, flags, out reason, out AgentCreateRequest))
+            {
+                string response = GetResponse(AgentCreateRequest, out reason);
+                bool success = true;
+                UnpackResponse(response, out success, out reason);
+                return success;
+            }
+
+            return false;
+        }
+
+
+        protected bool SendRequest(GridRegion destination, AgentCircuitData aCircuit, uint flags, out string reason, out HttpWebRequest AgentCreateRequest)
+        {
+            reason = String.Empty;
+            AgentCreateRequest = null;
 
             if (destination == null)
             {
@@ -86,22 +104,9 @@ namespace OpenSim.Services.Connectors.Simulation
                 return false;
             }
 
-            // Eventually, we want to use a caps url instead of the agentID
-            string uri = string.Empty;
-            try
-            {
-                uri = "http://" + destination.ExternalEndPoint.Address + ":" + destination.HttpPort + AgentPath() + aCircuit.AgentID + "/";
-            }
-            catch (Exception e)
-            {
-                m_log.Debug("[REMOTE SIMULATION CONNECTOR]: Unable to resolve external endpoint on agent create. Reason: " + e.Message);
-                reason = e.Message;
-                return false;
-            }
+            string uri = destination.ServerURI + AgentPath() + aCircuit.AgentID + "/";
 
-            //Console.WriteLine("   >>> DoCreateChildAgentCall <<< " + uri);
-
-            HttpWebRequest AgentCreateRequest = (HttpWebRequest)WebRequest.Create(uri);
+            AgentCreateRequest = (HttpWebRequest)WebRequest.Create(uri);
             AgentCreateRequest.Method = "POST";
             AgentCreateRequest.ContentType = "application/json";
             AgentCreateRequest.Timeout = 10000;
@@ -134,13 +139,13 @@ namespace OpenSim.Services.Connectors.Simulation
                 AgentCreateRequest.ContentLength = buffer.Length;   //Count bytes to send
                 os = AgentCreateRequest.GetRequestStream();
                 os.Write(buffer, 0, strBuffer.Length);         //Send it
-                m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: Posted CreateAgent request to remote sim {0}, region {1}, x={2} y={3}", 
+                m_log.DebugFormat("[REMOTE SIMULATION CONNECTOR]: Posted CreateAgent request to remote sim {0}, region {1}, x={2} y={3}",
                     uri, destination.RegionName, destination.RegionLocX, destination.RegionLocY);
             }
             //catch (WebException ex)
             catch
             {
-                //m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: Bad send on ChildAgentUpdate {0}", ex.Message);
+                //m_log.ErrorFormat("[REMOTE SIMULATION CONNECTOR]: Bad send on ChildAgentUpdate {0}", ex.Message);
                 reason = "cannot contact remote region";
                 return false;
             }
@@ -150,53 +155,38 @@ namespace OpenSim.Services.Connectors.Simulation
                     os.Close();
             }
 
+            return true;
+        }
+
+        protected string GetResponse(HttpWebRequest AgentCreateRequest, out string reason)
+        {
             // Let's wait for the response
             //m_log.Info("[REMOTE SIMULATION CONNECTOR]: Waiting for a reply after DoCreateChildAgentCall");
+            reason = string.Empty;
 
             WebResponse webResponse = null;
             StreamReader sr = null;
+            string response = string.Empty;
             try
             {
                 webResponse = AgentCreateRequest.GetResponse();
                 if (webResponse == null)
                 {
-                    m_log.Info("[REMOTE SIMULATION CONNECTOR]: Null reply on DoCreateChildAgentCall post");
+                    m_log.Debug("[REMOTE SIMULATION CONNECTOR]: Null reply on DoCreateChildAgentCall post");
                 }
                 else
                 {
 
                     sr = new StreamReader(webResponse.GetResponseStream());
-                    string response = sr.ReadToEnd().Trim();
-                    m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: DoCreateChildAgentCall reply was {0} ", response);
-
-                    if (!String.IsNullOrEmpty(response))
-                    {
-                        try
-                        {
-                            // we assume we got an OSDMap back
-                            OSDMap r = Util.GetOSDMap(response);
-                            bool success = r["success"].AsBoolean();
-                            reason = r["reason"].AsString();
-                            return success;
-                        }
-                        catch (NullReferenceException e)
-                        {
-                            m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of DoCreateChildAgentCall {0}", e.Message);
-
-                            // check for old style response
-                            if (response.ToLower().StartsWith("true"))
-                                return true;
-
-                            return false;
-                        }
-                    }
+                    response = sr.ReadToEnd().Trim();
+                    m_log.DebugFormat("[REMOTE SIMULATION CONNECTOR]: DoCreateChildAgentCall reply was {0} ", response);
                 }
             }
             catch (WebException ex)
             {
-                m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of DoCreateChildAgentCall {0}", ex.Message);
+                m_log.WarnFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of DoCreateChildAgentCall {0}", ex.Message);
                 reason = "Destination did not reply";
-                return false;
+                return string.Empty;
             }
             finally
             {
@@ -204,7 +194,33 @@ namespace OpenSim.Services.Connectors.Simulation
                     sr.Close();
             }
 
-            return true;
+            return response;
+        }
+
+        protected void UnpackResponse(string response, out bool result, out string reason)
+        {
+            result = true;
+            reason = string.Empty;
+            if (!String.IsNullOrEmpty(response))
+            {
+                try
+                {
+                    // we assume we got an OSDMap back
+                    OSDMap r = Util.GetOSDMap(response);
+                    result = r["success"].AsBoolean();
+                    reason = r["reason"].AsString();
+                }
+                catch (NullReferenceException e)
+                {
+                    m_log.WarnFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of DoCreateChildAgentCall {0}", e.Message);
+
+                    // check for old style response
+                    if (response.ToLower().StartsWith("true"))
+                        result = true;
+
+                    result = false;
+                }
+            }
         }
 
         protected virtual OSDMap PackCreateAgentArguments(AgentCircuitData aCircuit, GridRegion destination, uint flags)
@@ -216,9 +232,10 @@ namespace OpenSim.Services.Connectors.Simulation
             }
             catch (Exception e)
             {
-                m_log.Debug("[REMOTE SIMULATION CONNECTOR]: PackAgentCircuitData failed with exception: " + e.Message);
+                m_log.Warn("[REMOTE SIMULATION CONNECTOR]: PackAgentCircuitData failed with exception: " + e.Message);
                 return null;
             }
+            
             // Add the input arguments
             args["destination_x"] = OSD.FromString(destination.RegionLocX.ToString());
             args["destination_y"] = OSD.FromString(destination.RegionLocY.ToString());
@@ -242,22 +259,13 @@ namespace OpenSim.Services.Connectors.Simulation
         private bool UpdateAgent(GridRegion destination, IAgentData cAgentData)
         {
             // Eventually, we want to use a caps url instead of the agentID
-            string uri = string.Empty;
-            try
-            {
-                uri = "http://" + destination.ExternalEndPoint.Address + ":" + destination.HttpPort + AgentPath() + cAgentData.AgentID + "/";
-            }
-            catch (Exception e)
-            {
-                m_log.Debug("[REMOTE SIMULATION CONNECTOR]: Unable to resolve external endpoint on agent update. Reason: " + e.Message);
-                return false;
-            }
-            //Console.WriteLine("   >>> DoAgentUpdateCall <<< " + uri);
+
+            string uri = destination.ServerURI + AgentPath() + cAgentData.AgentID + "/";
 
             HttpWebRequest ChildUpdateRequest = (HttpWebRequest)WebRequest.Create(uri);
             ChildUpdateRequest.Method = "PUT";
             ChildUpdateRequest.ContentType = "application/json";
-            ChildUpdateRequest.Timeout = 10000;
+            ChildUpdateRequest.Timeout = 30000;
             //ChildUpdateRequest.KeepAlive = false;
 
             // Fill it in
@@ -268,7 +276,7 @@ namespace OpenSim.Services.Connectors.Simulation
             }
             catch (Exception e)
             {
-                m_log.Debug("[REMOTE SIMULATION CONNECTOR]: PackUpdateMessage failed with exception: " + e.Message);
+                m_log.Warn("[REMOTE SIMULATION CONNECTOR]: PackUpdateMessage failed with exception: " + e.Message);
             }
             // Add the input arguments
             args["destination_x"] = OSD.FromString(destination.RegionLocX.ToString());
@@ -297,12 +305,12 @@ namespace OpenSim.Services.Connectors.Simulation
                 ChildUpdateRequest.ContentLength = buffer.Length;   //Count bytes to send
                 os = ChildUpdateRequest.GetRequestStream();
                 os.Write(buffer, 0, strBuffer.Length);         //Send it
-                //m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: Posted AgentUpdate request to remote sim {0}", uri);
+                //m_log.DebugFormat("[REMOTE SIMULATION CONNECTOR]: Posted AgentUpdate request to remote sim {0}", uri);
             }
             catch (WebException ex)
             //catch
             {
-                m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: Bad send on AgentUpdate {0}", ex.Message);
+                m_log.WarnFormat("[REMOTE SIMULATION CONNECTOR]: Bad send on AgentUpdate {0}", ex.Message);
 
                 return false;
             }
@@ -313,7 +321,7 @@ namespace OpenSim.Services.Connectors.Simulation
             }
 
             // Let's wait for the response
-            //m_log.Info("[REMOTE SIMULATION CONNECTOR]: Waiting for a reply after ChildAgentUpdate");
+            //m_log.Debug("[REMOTE SIMULATION CONNECTOR]: Waiting for a reply after ChildAgentUpdate");
 
             WebResponse webResponse = null;
             StreamReader sr = null;
@@ -322,19 +330,19 @@ namespace OpenSim.Services.Connectors.Simulation
                 webResponse = ChildUpdateRequest.GetResponse();
                 if (webResponse == null)
                 {
-                    m_log.Info("[REMOTE SIMULATION CONNECTOR]: Null reply on ChilAgentUpdate post");
+                    m_log.Debug("[REMOTE SIMULATION CONNECTOR]: Null reply on ChilAgentUpdate post");
                 }
 
                 sr = new StreamReader(webResponse.GetResponseStream());
                 //reply = sr.ReadToEnd().Trim();
                 sr.ReadToEnd().Trim();
                 sr.Close();
-                //m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: ChilAgentUpdate reply was {0} ", reply);
+                //m_log.DebugFormat("[REMOTE SIMULATION CONNECTOR]: ChilAgentUpdate reply was {0} ", reply);
 
             }
             catch (WebException ex)
             {
-                m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of ChilAgentUpdate {0}", ex.Message);
+                m_log.WarnFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of ChilAgentUpdate from {0}: {1}", uri, ex.Message);
                 // ignore, really
             }
             finally
@@ -350,8 +358,7 @@ namespace OpenSim.Services.Connectors.Simulation
         {
             agent = null;
             // Eventually, we want to use a caps url instead of the agentID
-            string uri = "http://" + destination.ExternalEndPoint.Address + ":" + destination.HttpPort + AgentPath() + id + "/" + destination.RegionID.ToString() + "/";
-            //Console.WriteLine("   >>> DoRetrieveRootAgentCall <<< " + uri);
+            string uri = destination.ServerURI + AgentPath() + id + "/" + destination.RegionID.ToString() + "/";
 
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri);
             request.Method = "GET";
@@ -366,18 +373,17 @@ namespace OpenSim.Services.Connectors.Simulation
                 webResponse = (HttpWebResponse)request.GetResponse();
                 if (webResponse == null)
                 {
-                    m_log.Info("[REMOTE SIMULATION CONNECTOR]: Null reply on agent get ");
+                    m_log.Debug("[REMOTE SIMULATION CONNECTOR]: Null reply on agent get ");
                 }
 
                 sr = new StreamReader(webResponse.GetResponseStream());
                 reply = sr.ReadToEnd().Trim();
 
-                //Console.WriteLine("[REMOTE SIMULATION CONNECTOR]: ChilAgentUpdate reply was " + reply);
 
             }
             catch (WebException ex)
             {
-                m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of agent get {0}", ex.Message);
+                m_log.WarnFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of agent get {0}", ex.Message);
                 // ignore, really
                 return false;
             }
@@ -393,7 +399,6 @@ namespace OpenSim.Services.Connectors.Simulation
                 OSDMap args = Util.GetOSDMap(reply);
                 if (args == null)
                 {
-                    //Console.WriteLine("[REMOTE SIMULATION CONNECTOR]: Error getting OSDMap from reply");
                     return false;
                 }
 
@@ -402,7 +407,65 @@ namespace OpenSim.Services.Connectors.Simulation
                 return true;
             }
 
-            //Console.WriteLine("[REMOTE SIMULATION CONNECTOR]: DoRetrieveRootAgentCall returned status " + webResponse.StatusCode);
+            return false;
+        }
+
+        public bool QueryAccess(GridRegion destination, UUID id)
+        {
+            IPEndPoint ext = destination.ExternalEndPoint;
+            if (ext == null) return false;
+            // Eventually, we want to use a caps url instead of the agentID
+            string uri = destination.ServerURI + AgentPath() + id + "/" + destination.RegionID.ToString() + "/";
+
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(uri);
+            request.Method = "QUERYACCESS";
+            request.Timeout = 10000;
+            //request.Headers.Add("authorization", ""); // coming soon
+
+            HttpWebResponse webResponse = null;
+            string reply = string.Empty;
+            StreamReader sr = null;
+            try
+            {
+                webResponse = (HttpWebResponse)request.GetResponse();
+                if (webResponse == null)
+                {
+                    m_log.Debug("[REMOTE SIMULATION CONNECTOR]: Null reply on agent query ");
+                }
+
+                sr = new StreamReader(webResponse.GetResponseStream());
+                reply = sr.ReadToEnd().Trim();
+
+
+            }
+            catch (WebException ex)
+            {
+                m_log.WarnFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of agent query {0}", ex.Message);
+                // ignore, really
+                return false;
+            }
+            finally
+            {
+                if (sr != null)
+                    sr.Close();
+            }
+
+            if (webResponse.StatusCode == HttpStatusCode.OK)
+            {
+                try
+                {
+                    bool result;
+
+                    result = bool.Parse(reply);
+
+                    return result;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+
             return false;
         }
 
@@ -418,7 +481,7 @@ namespace OpenSim.Services.Connectors.Simulation
                 WebResponse webResponse = request.GetResponse();
                 if (webResponse == null)
                 {
-                    m_log.Info("[REMOTE SIMULATION CONNECTOR]: Null reply on ReleaseAgent");
+                    m_log.Debug("[REMOTE SIMULATION CONNECTOR]: Null reply on ReleaseAgent");
                 }
 
                 sr = new StreamReader(webResponse.GetResponseStream());
@@ -430,7 +493,7 @@ namespace OpenSim.Services.Connectors.Simulation
             }
             catch (WebException ex)
             {
-                m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of ReleaseAgent {0}", ex.Message);
+                m_log.WarnFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of ReleaseAgent {0}", ex.Message);
                 return false;
             }
             finally
@@ -444,18 +507,7 @@ namespace OpenSim.Services.Connectors.Simulation
 
         public bool CloseAgent(GridRegion destination, UUID id)
         {
-            string uri = string.Empty;
-            try
-            {
-                uri = "http://" + destination.ExternalEndPoint.Address + ":" + destination.HttpPort + AgentPath() + id + "/" + destination.RegionID.ToString() + "/";
-            }
-            catch (Exception e)
-            {
-                m_log.Debug("[REMOTE SIMULATION CONNECTOR]: Unable to resolve external endpoint on agent close. Reason: " + e.Message);
-                return false;
-            }
-
-            //Console.WriteLine("   >>> DoCloseAgentCall <<< " + uri);
+            string uri = destination.ServerURI + AgentPath() + id + "/" + destination.RegionID.ToString() + "/";
 
             WebRequest request = WebRequest.Create(uri);
             request.Method = "DELETE";
@@ -467,7 +519,7 @@ namespace OpenSim.Services.Connectors.Simulation
                 WebResponse webResponse = request.GetResponse();
                 if (webResponse == null)
                 {
-                    m_log.Info("[REMOTE SIMULATION CONNECTOR]: Null reply on agent delete ");
+                    m_log.Debug("[REMOTE SIMULATION CONNECTOR]: Null reply on agent delete ");
                 }
 
                 sr = new StreamReader(webResponse.GetResponseStream());
@@ -479,7 +531,7 @@ namespace OpenSim.Services.Connectors.Simulation
             }
             catch (WebException ex)
             {
-                m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of agent delete from {0}: {1}", destination.RegionName, ex.Message);
+                m_log.WarnFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of agent delete from {0}: {1}", destination.RegionName, ex.Message);
                 return false;
             }
             finally
@@ -497,13 +549,13 @@ namespace OpenSim.Services.Connectors.Simulation
 
         protected virtual string ObjectPath()
         {
-            return "/object/";
+            return "object/";
         }
 
         public bool CreateObject(GridRegion destination, ISceneObject sog, bool isLocalCall)
         {
             string uri
-                = "http://" + destination.ExternalEndPoint.Address + ":" + destination.HttpPort + ObjectPath() + sog.UUID + "/";
+                = destination.ServerURI + ObjectPath() + sog.UUID + "/";
             //m_log.Debug("   >>> DoCreateObjectCall <<< " + uri);
 
             WebRequest ObjectCreateRequest = WebRequest.Create(uri);
@@ -514,6 +566,7 @@ namespace OpenSim.Services.Connectors.Simulation
             OSDMap args = new OSDMap(2);
             args["sog"] = OSD.FromString(sog.ToXml2());
             args["extra"] = OSD.FromString(sog.ExtraToXmlString());
+            args["modified"] = OSD.FromBoolean(sog.HasGroupChanged);
             string state = sog.GetStateSnapshot();
             if (state.Length > 0)
                 args["state"] = OSD.FromString(state);
@@ -544,11 +597,11 @@ namespace OpenSim.Services.Connectors.Simulation
                 ObjectCreateRequest.ContentLength = buffer.Length;   //Count bytes to send
                 os = ObjectCreateRequest.GetRequestStream();
                 os.Write(buffer, 0, strBuffer.Length);         //Send it
-                m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: Posted CreateObject request to remote sim {0}", uri);
+                m_log.DebugFormat("[REMOTE SIMULATION CONNECTOR]: Posted CreateObject request to remote sim {0}", uri);
             }
             catch (WebException ex)
             {
-                m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: Bad send on CreateObject {0}", ex.Message);
+                m_log.WarnFormat("[REMOTE SIMULATION CONNECTOR]: Bad send on CreateObject {0}", ex.Message);
                 return false;
             }
             finally
@@ -566,7 +619,7 @@ namespace OpenSim.Services.Connectors.Simulation
                 WebResponse webResponse = ObjectCreateRequest.GetResponse();
                 if (webResponse == null)
                 {
-                    m_log.Info("[REMOTE SIMULATION CONNECTOR]: Null reply on CreateObject post");
+                    m_log.Warn("[REMOTE SIMULATION CONNECTOR]: Null reply on CreateObject post");
                     return false;
                 }
 
@@ -578,7 +631,7 @@ namespace OpenSim.Services.Connectors.Simulation
             }
             catch (WebException ex)
             {
-                m_log.InfoFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of CreateObject {0}", ex.Message);
+                m_log.WarnFormat("[REMOTE SIMULATION CONNECTOR]: exception on reply of CreateObject {0}", ex.Message);
                 return false;
             }
             finally

@@ -123,7 +123,9 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             if ((flags & (int)OpenSim.Data.RegionFlags.Hyperlink) != 0)
             {
                 m_log.DebugFormat("[HG ENTITY TRANSFER MODULE]: Destination region {0} is hyperlink", region.RegionID);
-                return m_GatekeeperConnector.GetHyperlinkRegion(region, region.RegionID);
+                GridRegion real_destination = m_GatekeeperConnector.GetHyperlinkRegion(region, region.RegionID);
+                m_log.DebugFormat("[HG ENTITY TRANSFER MODULE]: GetFinalDestination serveruri -> {0}", real_destination.ServerURI);
+                return real_destination;
             }
             return region;
         }
@@ -140,9 +142,18 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             return false;
         }
 
-        protected override bool CreateAgent(ScenePresence sp, GridRegion reg, GridRegion finalDestination, AgentCircuitData agentCircuit, uint teleportFlags, out string reason)
+        protected override void AgentHasMovedAway(UUID sessionID, bool logout)
         {
+            if (logout)
+                // Log them out of this grid
+                m_aScene.PresenceService.LogoutAgent(sessionID);
+        }
+
+        protected override bool CreateAgent(ScenePresence sp, GridRegion reg, GridRegion finalDestination, AgentCircuitData agentCircuit, uint teleportFlags, out string reason, out bool logout)
+        {
+            m_log.DebugFormat("[HG ENTITY TRANSFER MODULE]: CreateAgent {0} {1}", reg.ServerURI, finalDestination.ServerURI);
             reason = string.Empty;
+            logout = false;
             int flags = m_aScene.GridService.GetRegionFlags(m_aScene.RegionInfo.ScopeID, reg.RegionID);
             if (flags == -1 /* no region in DB */ || (flags & (int)OpenSim.Data.RegionFlags.Hyperlink) != 0)
             {
@@ -152,9 +163,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                     string userAgentDriver = agentCircuit.ServiceURLs["HomeURI"].ToString();
                     IUserAgentService connector = new UserAgentServiceConnector(userAgentDriver);
                     bool success = connector.LoginAgentToGrid(agentCircuit, reg, finalDestination, out reason);
-                    if (success)
-                        // Log them out of this grid
-                        m_aScene.PresenceService.LogoutAgent(agentCircuit.SessionID);
+                    logout = success; // flag for later logout from this grid; this is an HG TP
 
                     return success;
                 }
@@ -229,7 +238,9 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                 string url = aCircuit.ServiceURLs["HomeURI"].ToString();
                 IUserAgentService security = new UserAgentServiceConnector(url);
                 return security.VerifyClient(aCircuit.SessionID, token);
-            }
+            } 
+            else 
+                m_log.DebugFormat("[HG ENTITY TRANSFER MODULE]: Agent {0} {1} does not have a HomeURI OH NO!", aCircuit.firstname, aCircuit.lastname);
 
             return false;
         }

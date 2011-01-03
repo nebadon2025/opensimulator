@@ -49,7 +49,7 @@ namespace OpenSim
 
         public static string GetVersionString(string versionNumber, Flavour flavour)
         {
-            string versionString = "OpenSim " + versionNumber + " (" + flavour + ")";
+            string versionString = "OpenSim " + versionNumber + " " + flavour;
             return versionString.PadRight(VERSIONINFO_VERSION_LENGTH);
         }
 
@@ -69,6 +69,6 @@ namespace OpenSim
         /// of the code that is too old. 
         ///
         /// </value>
-        public readonly static int MajorInterfaceVersion = 6;
+        public readonly static int MajorInterfaceVersion = 7;
     }
 }

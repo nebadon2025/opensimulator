@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -27,13 +27,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text;
+using log4net;
 using OpenMetaverse;
 using OpenSim.Framework;
 using OpenSim.Region.Framework.Interfaces;
 
 namespace OpenSim.Region.Framework.Scenes
-{
+{        
     #region Delegates
     public delegate uint GenerateClientFlagsHandler(UUID userID, UUID objectID);
     public delegate void SetBypassPermissionsHandler(bool value);
@@ -64,7 +66,9 @@ namespace OpenSim.Region.Framework.Scenes
     public delegate bool RunConsoleCommandHandler(UUID user, Scene requestFromScene);
     public delegate bool IssueEstateCommandHandler(UUID user, Scene requestFromScene, bool ownerCommand);
     public delegate bool IsGodHandler(UUID user, Scene requestFromScene);
+    public delegate bool IsAdministratorHandler(UUID user);
     public delegate bool EditParcelHandler(UUID user, ILandObject parcel, Scene scene);
+    public delegate bool EditParcelPropertiesHandler(UUID user, ILandObject parcel, GroupPowers p, Scene scene);
     public delegate bool SellParcelHandler(UUID user, ILandObject parcel, Scene scene);
     public delegate bool AbandonParcelHandler(UUID user, ILandObject parcel, Scene scene);
     public delegate bool ReclaimParcelHandler(UUID user, ILandObject parcel, Scene scene);
@@ -81,10 +85,14 @@ namespace OpenSim.Region.Framework.Scenes
     public delegate bool CopyUserInventoryHandler(UUID itemID, UUID userID);
     public delegate bool DeleteUserInventoryHandler(UUID itemID, UUID userID);
     public delegate bool TeleportHandler(UUID userID, Scene scene);
+    public delegate bool ControlPrimMediaHandler(UUID userID, UUID primID, int face);
+    public delegate bool InteractWithPrimMediaHandler(UUID userID, UUID primID, int face);
     #endregion
 
     public class ScenePermissions
     {
+//        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        
         private Scene m_scene;
 
         public ScenePermissions(Scene scene)
@@ -122,7 +130,9 @@ namespace OpenSim.Region.Framework.Scenes
         public event RunConsoleCommandHandler OnRunConsoleCommand;
         public event IssueEstateCommandHandler OnIssueEstateCommand;
         public event IsGodHandler OnIsGod;
-        public event EditParcelHandler OnEditParcel;
+        public event IsAdministratorHandler OnIsAdministrator;
+//        public event EditParcelHandler OnEditParcel;
+        public event EditParcelPropertiesHandler OnEditParcelProperties;
         public event SellParcelHandler OnSellParcel;
         public event AbandonParcelHandler OnAbandonParcel;
         public event ReclaimParcelHandler OnReclaimParcel;
@@ -139,6 +149,8 @@ namespace OpenSim.Region.Framework.Scenes
         public event CopyUserInventoryHandler OnCopyUserInventory;
         public event DeleteUserInventoryHandler OnDeleteUserInventory;
         public event TeleportHandler OnTeleport;
+        public event ControlPrimMediaHandler OnControlPrimMedia;
+        public event InteractWithPrimMediaHandler OnInteractWithPrimMedia;
         #endregion
 
         #region Object Permission Checks
@@ -236,6 +248,8 @@ namespace OpenSim.Region.Framework.Scenes
         #region DELETE OBJECT
         public bool CanDeleteObject(UUID objectID, UUID deleter)
         {
+            bool result = true;
+            
             DeleteObjectHandler handler = OnDeleteObject;
             if (handler != null)
             {
@@ -243,10 +257,18 @@ namespace OpenSim.Region.Framework.Scenes
                 foreach (DeleteObjectHandler h in list)
                 {
                     if (h(objectID, deleter, m_scene) == false)
-                        return false;
+                    {
+                        result = false;
+                        break;
+                    }
                 }
             }
-            return true;
+            
+//            m_log.DebugFormat(
+//                "[SCENE PERMISSIONS]: CanDeleteObject() fired for object {0}, deleter {1}, result {2}", 
+//                objectID, deleter, result);
+                        
+            return result;
         }
 
         #endregion
@@ -254,6 +276,8 @@ namespace OpenSim.Region.Framework.Scenes
         #region TAKE OBJECT
         public bool CanTakeObject(UUID objectID, UUID AvatarTakingUUID)
         {
+            bool result = true;
+            
             TakeObjectHandler handler = OnTakeObject;
             if (handler != null)
             {
@@ -261,10 +285,18 @@ namespace OpenSim.Region.Framework.Scenes
                 foreach (TakeObjectHandler h in list)
                 {
                     if (h(objectID, AvatarTakingUUID, m_scene) == false)
-                        return false;
+                    {
+                        result = false;
+                        break;
+                    }
                 }
             }
-            return true;
+            
+//            m_log.DebugFormat(
+//                "[SCENE PERMISSIONS]: CanTakeObject() fired for object {0}, taker {1}, result {2}", 
+//                objectID, AvatarTakingUUID, result);
+                        
+            return result;
         }
 
         #endregion
@@ -272,6 +304,8 @@ namespace OpenSim.Region.Framework.Scenes
         #region TAKE COPY OBJECT
         public bool CanTakeCopyObject(UUID objectID, UUID userID)
         {
+            bool result = true;
+            
             TakeCopyObjectHandler handler = OnTakeCopyObject;
             if (handler != null)
             {
@@ -279,10 +313,18 @@ namespace OpenSim.Region.Framework.Scenes
                 foreach (TakeCopyObjectHandler h in list)
                 {
                     if (h(objectID, userID, m_scene) == false)
-                        return false;
+                    {
+                        result = false;
+                        break;
+                    }
                 }
             }
-            return true;
+            
+//            m_log.DebugFormat(
+//                "[SCENE PERMISSIONS]: CanTakeCopyObject() fired for object {0}, user {1}, result {2}", 
+//                objectID, userID, result);
+            
+            return result;
         }
 
         #endregion
@@ -377,6 +419,8 @@ namespace OpenSim.Region.Framework.Scenes
         #region RETURN OBJECT
         public bool CanReturnObjects(ILandObject land, UUID user, List<SceneObjectGroup> objects)
         {
+            bool result = true;
+            
             ReturnObjectsHandler handler = OnReturnObjects;
             if (handler != null)
             {
@@ -384,10 +428,18 @@ namespace OpenSim.Region.Framework.Scenes
                 foreach (ReturnObjectsHandler h in list)
                 {
                     if (h(land, user, objects, m_scene) == false)
-                        return false;
+                    {
+                        result = false;
+                        break;
+                    }
                 }
             }
-            return true;
+            
+//            m_log.DebugFormat(
+//                "[SCENE PERMISSIONS]: CanReturnObjects() fired for user {0} for {1} objects on {2}, result {3}", 
+//                user, objects.Count, land.LandData.Name, result);
+                        
+            return result;
         }
 
         #endregion
@@ -652,18 +704,34 @@ namespace OpenSim.Region.Framework.Scenes
             }
             return true;
         }
-        #endregion
 
-        #region EDIT PARCEL
-        public bool CanEditParcel(UUID user, ILandObject parcel)
+        public bool IsAdministrator(UUID user)
         {
-            EditParcelHandler handler = OnEditParcel;
+            IsAdministratorHandler handler = OnIsAdministrator;
             if (handler != null)
             {
                 Delegate[] list = handler.GetInvocationList();
-                foreach (EditParcelHandler h in list)
+                foreach (IsAdministratorHandler h in list)
                 {
-                    if (h(user, parcel, m_scene) == false)
+                    if (h(user) == false)
+                        return false;
+                }
+            }
+            return true;
+        }
+        #endregion
+
+        #region EDIT PARCEL
+
+        public bool CanEditParcelProperties(UUID user, ILandObject parcel, GroupPowers p)
+        {
+            EditParcelPropertiesHandler handler = OnEditParcelProperties;
+            if (handler != null)
+            {
+                Delegate[] list = handler.GetInvocationList();
+                foreach (EditParcelPropertiesHandler h in list)
+                {
+                    if (h(user, parcel, p, m_scene) == false)
                         return false;
                 }
             }
@@ -942,6 +1010,36 @@ namespace OpenSim.Region.Framework.Scenes
                 foreach (TeleportHandler h in list)
                 {
                     if (h(userID, m_scene) == false)
+                        return false;
+                }
+            }
+            return true;
+        }
+        
+        public bool CanControlPrimMedia(UUID userID, UUID primID, int face)
+        {
+            ControlPrimMediaHandler handler = OnControlPrimMedia;
+            if (handler != null)
+            {
+                Delegate[] list = handler.GetInvocationList();
+                foreach (ControlPrimMediaHandler h in list)
+                {
+                    if (h(userID, primID, face) == false)
+                        return false;
+                }
+            }
+            return true;
+        } 
+        
+        public bool CanInteractWithPrimMedia(UUID userID, UUID primID, int face)
+        {
+            InteractWithPrimMediaHandler handler = OnInteractWithPrimMedia;
+            if (handler != null)
+            {
+                Delegate[] list = handler.GetInvocationList();
+                foreach (InteractWithPrimMediaHandler h in list)
+                {
+                    if (h(userID, primID, face) == false)
                         return false;
                 }
             }

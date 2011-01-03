@@ -72,8 +72,6 @@ namespace OpenSim.Region.OptionalModules.World.MoneyModule
 
         private IConfigSource m_gConfig;
 
-
-
         /// <summary>
         /// Region UUIDS indexed by AgentID
         /// </summary>
@@ -85,7 +83,6 @@ namespace OpenSim.Region.OptionalModules.World.MoneyModule
 
         // private int m_stipend = 1000;
 
-        private int ObjectCapacity = 45000;
         private int ObjectCount = 0;
         private int PriceEnergyUnit = 0;
         private int PriceGroupCreate = 0;
@@ -137,7 +134,6 @@ namespace OpenSim.Region.OptionalModules.World.MoneyModule
 
         public void AddRegion(Scene scene)
         {
-            // Send ObjectCapacity to Scene..  Which sends it to the SimStatsReporter.
             if (m_enabled)
             {
                 scene.RegisterModuleInterface<IMoneyModule>(this);
@@ -267,13 +263,11 @@ namespace OpenSim.Region.OptionalModules.World.MoneyModule
                 PriceGroupCreate = startupConfig.GetInt("PriceGroupCreate", -1);
                 m_sellEnabled = startupConfig.GetBoolean("SellEnabled", false);
             }
-
         }
 
         private void GetClientFunds(IClientAPI client)
         {
             CheckExistAndRefreshFunds(client.AgentId);
-
         }
 
         /// <summary>
@@ -809,13 +803,40 @@ namespace OpenSim.Region.OptionalModules.World.MoneyModule
             }
 
             Scene s = LocateSceneClientIn(remoteClient.AgentId);
+
+            // Implmenting base sale data checking here so the default OpenSimulator implementation isn't useless 
+            // combined with other implementations.  We're actually validating that the client is sending the data
+            // that it should.   In theory, the client should already know what to send here because it'll see it when it
+            // gets the object data.   If the data sent by the client doesn't match the object, the viewer probably has an 
+            // old idea of what the object properties are.   Viewer developer Hazim informed us that the base module 
+            // didn't check the client sent data against the object do any.   Since the base modules are the 
+            // 'crowning glory' examples of good practice..
+
+            // Validate that the object exists in the scene the user is in
             SceneObjectPart part = s.GetSceneObjectPart(localID);
             if (part == null)
             {
                 remoteClient.SendAgentAlertMessage("Unable to buy now. The object was not found.", false);
                 return;
             }
-            s.PerformObjectBuy(remoteClient, categoryID, localID, saleType);
+            
+            // Validate that the client sent the price that the object is being sold for 
+            if (part.SalePrice != salePrice)
+            {
+                remoteClient.SendAgentAlertMessage("Cannot buy at this price. Buy Failed. If you continue to get this relog.", false);
+                return;
+            }
+
+            // Validate that the client sent the proper sale type the object has set 
+            if (part.ObjectSaleType != saleType)
+            {
+                remoteClient.SendAgentAlertMessage("Cannot buy this way. Buy Failed. If you continue to get this relog.", false);
+                return;
+            }
+
+            IBuySellModule module = s.RequestModuleInterface<IBuySellModule>();
+            if (module != null)
+                module.BuyObject(remoteClient, categoryID, localID, saleType, salePrice);
         }
     }
 
@@ -826,6 +847,4 @@ namespace OpenSim.Region.OptionalModules.World.MoneyModule
         Gift = 2,
         Purchase = 3
     }
-
-  
 }

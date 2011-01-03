@@ -88,7 +88,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public event DeRezObject OnDeRezObject;
         public event Action<IClientAPI> OnRegionHandShakeReply;
-        public event GenericCall2 OnRequestWearables;
+        public event GenericCall1 OnRequestWearables;
         public event GenericCall1 OnCompleteMovementToRegion;
         public event UpdateAgent OnPreAgentUpdate;
         public event UpdateAgent OnAgentUpdate;
@@ -330,7 +330,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_startPos = startPos;
             m_clientView = null;
 
-            m_log.Debug("[REGION SYNC AVATAR] instance");
+            m_log.DebugFormat("[REGION SYNC AVATAR] instance: uuid={0}, first={1}, last={2}, startPos={3}", agentID, first, last, startPos.ToString());
 
             //m_scene.EventManager.OnFrame += Update;
         }
@@ -345,7 +345,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_startPos = startPos;
             m_clientView = view;
 
-            m_log.Debug("[REGION SYNC AVATAR] instance");
+            m_log.DebugFormat("[REGION SYNC AVATAR] instance: uuid={0}, first={1}, last={2}, startPos={3}, RSCV", agentID, first, last, startPos.ToString());
 
             //m_scene.EventManager.OnFrame += Update;
         }
@@ -571,6 +571,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
         }
 
+        public void SendTeleportStart(uint flags)
+        {
+        }
+
+        public void SendTeleportProgress(uint flags, string message)
+        {
+        }
+
         public virtual void SendTeleportLocationStart()
         {
         }
@@ -651,6 +659,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         public virtual void SendXferPacket(ulong xferID, uint packet, byte[] data)
+        {
+        }
+        public virtual void SendAbortXferPacket(ulong xferID)
         {
         }
 
@@ -1247,9 +1258,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             throw new System.NotImplementedException();
         }
+
         public void StopFlying(ISceneEntity p)
         {
+            throw new System.NotImplementedException();
         }
 
+        public void SendPlacesReply(UUID queryID, UUID transactionID, PlacesReplyData[] data)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

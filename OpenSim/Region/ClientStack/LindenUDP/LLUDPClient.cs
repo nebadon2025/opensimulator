@@ -246,11 +246,28 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// Return statistics information about client packet queues.
+        /// </summary>
+        /// 
+        /// FIXME: This should really be done in a more sensible manner rather than sending back a formatted string.
+        /// 
+        /// <returns></returns>
         public string GetStats()
         {
-            // TODO: ???
-            return string.Format("{0,7} {1,7} {2,7} {3,7} {4,7} {5,7} {6,7} {7,7} {8,7} {9,7}",
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            return string.Format(
+                "{0,9} {1,9} {2,9} {3,8} {4,7} {5,7} {6,7} {7,7} {8,9} {9,7} {10,7}",
+                PacketsSent,
+                PacketsReceived,
+                UnackedBytes,
+                m_throttleCategories[(int)ThrottleOutPacketType.Resend].Content,
+                m_throttleCategories[(int)ThrottleOutPacketType.Land].Content,
+                m_throttleCategories[(int)ThrottleOutPacketType.Wind].Content,
+                m_throttleCategories[(int)ThrottleOutPacketType.Cloud].Content,
+                m_throttleCategories[(int)ThrottleOutPacketType.Task].Content,
+                m_throttleCategories[(int)ThrottleOutPacketType.Texture].Content,
+                m_throttleCategories[(int)ThrottleOutPacketType.Asset].Content,
+                m_throttleCategories[(int)ThrottleOutPacketType.State].Content);                                
         }
 
         public void SendPacketStats()
@@ -382,7 +399,16 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             return data;
         }
 
-        public bool EnqueueOutgoing(OutgoingPacket packet)
+        /// <summary>
+        /// Queue an outgoing packet if appropriate.
+        /// </summary>
+        /// <param name="packet"></param>
+        /// <param name="forceQueue">Always queue the packet if at all possible.</param>
+        /// <returns>
+        /// true if the packet has been queued, 
+        /// false if the packet has not been queued and should be sent immediately.
+        /// </returns>
+        public bool EnqueueOutgoing(OutgoingPacket packet, bool forceQueue)
         {
             int category = (int)packet.Category;
 
@@ -391,14 +417,14 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 OpenSim.Framework.LocklessQueue<OutgoingPacket> queue = m_packetOutboxes[category];
                 TokenBucket bucket = m_throttleCategories[category];
 
-                if (bucket.RemoveTokens(packet.Buffer.DataLength))
+                if (!forceQueue && bucket.RemoveTokens(packet.Buffer.DataLength))
                 {
                     // Enough tokens were removed from the bucket, the packet will not be queued
                     return false;
                 }
                 else
                 {
-                    // Not enough tokens in the bucket, queue this packet
+                    // Force queue specified or not enough tokens in the bucket, queue this packet
                     queue.Enqueue(packet);
                     return true;
                 }
@@ -412,8 +438,14 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         /// <summary>
         /// Loops through all of the packet queues for this client and tries to send
-        /// any outgoing packets, obeying the throttling bucket limits
+        /// an outgoing packet from each, obeying the throttling bucket limits
         /// </summary>
+        /// 
+        /// Packet queues are inspected in ascending numerical order starting from 0.  Therefore, queues with a lower 
+        /// ThrottleOutPacketType number will see their packet get sent first (e.g. if both Land and Wind queues have
+        /// packets, then the packet at the front of the Land queue will be sent before the packet at the front of the
+        /// wind queue).
+        /// 
         /// <remarks>This function is only called from a synchronous loop in the
         /// UDPServer so we don't need to bother making this thread safe</remarks>
         /// <returns>True if any packets were sent, otherwise false</returns>

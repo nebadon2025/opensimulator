@@ -218,18 +218,6 @@ namespace OpenSim.Region.Framework.Scenes
 
         #region admin stuff
 
-        /// <summary>
-        /// Region Restart - Seconds till restart.
-        /// </summary>
-        /// <param name="seconds"></param>
-        public virtual void Restart(int seconds)
-        {
-            m_log.Error("[REGION]: passing Restart Message up the namespace");
-            restart handlerPhysicsCrash = OnRestart;
-            if (handlerPhysicsCrash != null)
-                handlerPhysicsCrash(RegionInfo);
-        }
-
         public virtual bool PresenceChildStatus(UUID avatarID)
         {
             return false;
@@ -483,6 +471,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// Shows various details about the sim based on the parameters supplied by the console command in openSimMain.
         /// </summary>
         /// <param name="showParams">What to show</param>
+        /// 
+        /*
         public virtual void Show(string[] showParams)
         {
             switch (showParams[0])
@@ -498,7 +488,7 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                     break;
             }
-        }
+        }*/
 
         /// <summary>
         /// Call this from a region module to add a command to the OpenSim console.
@@ -521,7 +511,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="shorthelp"></param>
         /// <param name="longhelp"></param>
         /// <param name="descriptivehelp"></param>
-        /// <param name="callback"></param>        
+        /// <param name="callback"></param>
         public void AddCommand(
             object mod, string command, string shorthelp, string longhelp, string descriptivehelp, CommandDelegate callback)
         {
@@ -560,6 +550,14 @@ namespace OpenSim.Region.Framework.Scenes
         public virtual bool AllowScriptCrossings
         {
             get { return false; }
+        }
+
+        public void Restart()
+        {
+            // This has to be here to fire the event
+            restart handlerPhysicsCrash = OnRestart;
+            if (handlerPhysicsCrash != null)
+                handlerPhysicsCrash(RegionInfo);
         }
 
         public abstract bool CheckClient(UUID agentID, System.Net.IPEndPoint ep);

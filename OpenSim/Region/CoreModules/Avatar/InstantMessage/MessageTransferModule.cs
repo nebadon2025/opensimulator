@@ -132,20 +132,21 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
         {
             UUID toAgentID = new UUID(im.toAgentID);
 
-            m_log.DebugFormat("[INSTANT MESSAGE]: Attempting delivery of IM from {0} to {1}", im.fromAgentName, toAgentID.ToString());
-
             // Try root avatar only first
             foreach (Scene scene in m_Scenes)
             {
                 if (scene.Entities.ContainsKey(toAgentID) &&
                         scene.Entities[toAgentID] is ScenePresence)
                 {
-                    m_log.DebugFormat("[INSTANT MESSAGE]: Looking for {0} in {1}", toAgentID.ToString(), scene.RegionInfo.RegionName);
-                    // Local message
+//                    m_log.DebugFormat(
+//                        "[INSTANT MESSAGE]: Looking for root agent {0} in {1}", 
+//                        toAgentID.ToString(), scene.RegionInfo.RegionName);
+                                        
                     ScenePresence user = (ScenePresence) scene.Entities[toAgentID];
                     if (!user.IsChildAgent)
                     {
-                        m_log.DebugFormat("[INSTANT MESSAGE]: Delivering to client");
+                        // Local message
+                        m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to root agent {0} {1}", user.Name, toAgentID);
                         user.ControllingClient.SendInstantMessage(im);
 
                         // Message sent
@@ -167,7 +168,7 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
                     // Local message
                     ScenePresence user = (ScenePresence) scene.Entities[toAgentID];
 
-                    m_log.DebugFormat("[INSTANT MESSAGE]: Delivering to client");
+                    m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to child agent {0} {1}", user.Name, toAgentID);
                     user.ControllingClient.SendInstantMessage(im);
 
                     // Message sent
@@ -176,6 +177,7 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
                 }
             }
 
+            m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to {0} via XMLRPC", im.toAgentID);
             SendGridInstantMessageViaXMLRPC(im, result);
 
             return;
@@ -185,13 +187,16 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
         {
             UndeliveredMessage handlerUndeliveredMessage = OnUndeliveredMessage;
 
-            // If this event has handlers, then the IM will be considered
-            // delivered. This will suppress the error message.
+            // If this event has handlers, then an IM from an agent will be
+            // considered delivered. This will suppress the error message.
             //
             if (handlerUndeliveredMessage != null)
             {
                 handlerUndeliveredMessage(im);
-                result(true);
+                if (im.dialog == (byte)InstantMessageDialog.MessageFromAgent)
+                    result(true);
+                else
+                    result(false);
                 return;
             }
 
@@ -369,7 +374,7 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
                     gim.fromAgentName = fromAgentName;
                     gim.fromGroup = fromGroup;
                     gim.imSessionID = imSessionID.Guid;
-                    gim.RegionID = RegionID.Guid;
+                    gim.RegionID = UUID.Zero.Guid; // RegionID.Guid;
                     gim.timestamp = timestamp;
                     gim.toAgentID = toAgentID.Guid;
                     gim.message = message;
@@ -495,7 +500,16 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
                 // Non-cached user agent lookup.
                 PresenceInfo[] presences = PresenceService.GetAgents(new string[] { toAgentID.ToString() }); 
                 if (presences != null && presences.Length > 0)
-                    upd = presences[0];
+                {
+                    foreach (PresenceInfo p in presences)
+                    {
+                        if (p.RegionID != UUID.Zero)
+                        {
+                            upd = p;
+                            break;
+                        }
+                    }
+                }
 
                 if (upd != null)
                 {
@@ -504,14 +518,14 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
                     //
                     if (upd.RegionID == prevRegionID)
                     {
-                        m_log.Error("[GRID INSTANT MESSAGE]: Unable to deliver an instant message");
+                        // m_log.Error("[GRID INSTANT MESSAGE]: Unable to deliver an instant message");
                         HandleUndeliveredMessage(im, result);
                         return;
                     }
                 }
                 else
                 {
-                    m_log.Error("[GRID INSTANT MESSAGE]: Unable to deliver an instant message");
+                    // m_log.Error("[GRID INSTANT MESSAGE]: Unable to deliver an instant message");
                     HandleUndeliveredMessage(im, result);
                     return;
                 }
@@ -585,7 +599,7 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
             try
             {
 
-                XmlRpcResponse GridResp = GridReq.Send("http://" + reginfo.ExternalHostName + ":" + reginfo.HttpPort, 3000);
+                XmlRpcResponse GridResp = GridReq.Send(reginfo.ServerURI, 3000);
 
                 Hashtable responseData = (Hashtable)GridResp.Value;
 
@@ -607,8 +621,7 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
             }
             catch (WebException e)
             {
-                m_log.ErrorFormat("[GRID INSTANT MESSAGE]: Error sending message to http://{0}:{1} the host didn't respond ({2})", 
-                                  reginfo.ExternalHostName, reginfo.HttpPort, e.Message);
+                m_log.ErrorFormat("[GRID INSTANT MESSAGE]: Error sending message to {0} the host didn't respond " + e.ToString(), reginfo.ServerURI.ToString());
             }
 
             return false;

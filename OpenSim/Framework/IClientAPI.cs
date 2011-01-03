@@ -44,7 +44,7 @@ namespace OpenSim.Framework
 
     public delegate void TextureRequest(Object sender, TextureRequestArgs e);
 
-    public delegate void AvatarNowWearing(Object sender, AvatarWearingArgs e);
+    public delegate void AvatarNowWearing(IClientAPI sender, AvatarWearingArgs e);
 
     public delegate void ImprovedInstantMessage(IClientAPI remoteclient, GridInstantMessage im);
 
@@ -66,7 +66,7 @@ namespace OpenSim.Framework
 
     public delegate void NetworkStats(int inPackets, int outPackets, int unAckedBytes);
 
-    public delegate void SetAppearance(Primitive.TextureEntry textureEntry, byte[] visualParams);
+    public delegate void SetAppearance(IClientAPI remoteClient, Primitive.TextureEntry textureEntry, byte[] visualParams);
     public delegate void SetAppearanceRaw(IClientAPI sender, UUID agentID, byte[] vp, Primitive.TextureEntry te);
 
     public delegate void StartAnim(IClientAPI remoteClient, UUID animID);
@@ -177,9 +177,10 @@ namespace OpenSim.Framework
     public delegate void ParcelAccessListRequest(
         UUID agentID, UUID sessionID, uint flags, int sequenceID, int landLocalID, IClientAPI remote_client);
 
-    public delegate void ParcelAccessListUpdateRequest(
-        UUID agentID, UUID sessionID, uint flags, int landLocalID, List<ParcelManager.ParcelAccessEntry> entries,
-        IClientAPI remote_client);
+    public delegate void ParcelAccessListUpdateRequest(UUID agentID, uint flags,
+                    int landLocalID, UUID transactionID, int sequenceID,
+                    int sections, List<ParcelManager.ParcelAccessEntry> entries,
+                    IClientAPI remote_client);
 
     public delegate void ParcelPropertiesRequest(
         int start_x, int start_y, int end_x, int end_y, int sequence_id, bool snap_selection, IClientAPI remote_client);
@@ -576,12 +577,31 @@ namespace OpenSim.Framework
     {
         public ISceneEntity Entity;
         public PrimUpdateFlags Flags;
+        public float TimeDilation;
 
-        public EntityUpdate(ISceneEntity entity, PrimUpdateFlags flags)
+        public EntityUpdate(ISceneEntity entity, PrimUpdateFlags flags, float timedilation)
         {
             Entity = entity;
             Flags = flags;
+            TimeDilation = timedilation;
         }
+    }
+
+    public class PlacesReplyData
+    {
+        public UUID OwnerID;
+        public string Name;
+        public string Desc;
+        public int ActualArea;
+        public int BillableArea;
+        public byte Flags;
+        public uint GlobalX;
+        public uint GlobalY;
+        public uint GlobalZ;
+        public string SimName;
+        public UUID SnapshotID;
+        public uint Dwell;
+        public int Price;
     }
 
     /// <summary>
@@ -718,7 +738,7 @@ namespace OpenSim.Framework
         event TeleportLandmarkRequest OnTeleportLandmarkRequest;
         event DeRezObject OnDeRezObject;
         event Action<IClientAPI> OnRegionHandShakeReply;
-        event GenericCall2 OnRequestWearables;
+        event GenericCall1 OnRequestWearables;
         event GenericCall1 OnCompleteMovementToRegion;
         event UpdateAgent OnPreAgentUpdate;
         event UpdateAgent OnAgentUpdate;
@@ -1019,7 +1039,9 @@ namespace OpenSim.Framework
                                 uint flags, string capsURL);
 
         void SendTeleportFailed(string reason);
-        void SendTeleportLocationStart();
+        void SendTeleportStart(uint flags);
+        void SendTeleportProgress(uint flags, string message);
+
         void SendMoneyBalance(UUID transaction, bool success, byte[] description, int balance);
         void SendPayPrice(UUID objectID, int[] payPrice);
 
@@ -1061,6 +1083,8 @@ namespace OpenSim.Framework
         void SendBulkUpdateInventory(InventoryNodeBase node);
 
         void SendXferPacket(ulong xferID, uint packet, byte[] data);
+
+        void SendAbortXferPacket(ulong xferID);
 
         void SendEconomyData(float EnergyEfficiency, int ObjectCapacity, int ObjectCount, int PriceEnergyUnit,
                              int PriceGroupCreate, int PriceObjectClaim, float PriceObjectRent,
@@ -1317,5 +1341,7 @@ namespace OpenSim.Framework
         void SendTextBoxRequest(string message, int chatChannel, string objectname, string ownerFirstName, string ownerLastName, UUID objectId);
 
         void StopFlying(ISceneEntity presence);
+
+        void SendPlacesReply(UUID queryID, UUID transactionID, PlacesReplyData[] data);
     }
 }

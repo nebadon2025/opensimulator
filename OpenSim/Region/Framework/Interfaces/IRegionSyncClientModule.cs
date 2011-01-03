@@ -36,6 +36,7 @@ namespace OpenSim.Region.Framework.Interfaces
         bool Active { get; }
         bool Synced { get; }
         void SendCoarseLocations();
+        void SendAppearanceToScene(UUID agentID);
         void IncomingLoadBalanceConnection(ScenePresence presence);
     }
 }

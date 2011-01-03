@@ -340,33 +340,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private Dictionary<UUID, System.Threading.Timer> m_appearanceTimers = new Dictionary<UUID, Timer>();
 
-        public void SendAppearance(UUID agentID, byte[] vp, Primitive.TextureEntry te)
+        public void SendAppearance(UUID agentID)
         {
-            ScenePresence sp;
-            if (!m_scene.TryGetScenePresence(agentID, out sp))
-            {
-                m_log.WarnFormat("[REGION SYNC SERVER MODULE] <{0}> {1} SendAppearance could not locate presence!", "           ", agentID);
-                return;
-            }
-            m_log.DebugFormat("[REGION SYNC SERVER MODULE] <{0}> {1} ScenePresence called SendAppearance ({2})", sp.Name, agentID, te == null ? "  " : "te");
-            if(te == null)
-                return;
-            int delay = 1000;
-            //m_log.WarnFormat("[REGION SYNC SERVER MODULE] <{0}> {1} Waiting {2}ms before sending appearance to all client managers", sp.Name, agentID, delay);
-            OSDMap data = new OSDMap(3);
+            OSDMap data = new OSDMap(1);
             data["id"] = OSDUUID.FromUUID(agentID);
-            data["vp"] = new OSDBinary(vp);
-            data["te"] = te.GetOSD();
-            Timer appearanceSetter = new Timer(delegate(object obj)
-                            {
-                                m_log.DebugFormat("[REGION SYNC SERVER MODULE]  <{0}> {1} Broadcasting appearance to all client managers", sp.Name, agentID);
-                                m_server.Broadcast(new RegionSyncMessage(RegionSyncMessage.MsgType.AvatarAppearance, OSDParser.SerializeJsonString(data)));
-                                lock (m_appearanceTimers)
-                                    m_appearanceTimers.Remove(agentID);
-                            }, null, delay, Timeout.Infinite);
-            // Just keeps a reference to this timer
-            lock (m_appearanceTimers)
-                m_appearanceTimers[agentID] = appearanceSetter;
+            m_server.Broadcast(new RegionSyncMessage(RegionSyncMessage.MsgType.AvatarAppearance, OSDParser.SerializeJsonString(data)));
         }
 
         public void SendAnimations(UUID agentID, UUID[] animations, int[] seqs, UUID sourceAgentId, UUID[] objectIDs)
@@ -430,8 +408,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             get
             {
-                if (m_server == null || !m_server.Synced)
-                //if((m_server == null || !m_server.Synced) && (m_sceneToSESyncServer==null || !m_sceneToSESyncServer.Synced))
+                //if (m_server == null || !m_server.Synced)
+                if((m_server == null || !m_server.Synced) && (m_sceneToSESyncServer==null || !m_sceneToSESyncServer.Synced))
                     return false;
                 return true;
             }

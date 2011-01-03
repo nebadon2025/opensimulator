@@ -513,7 +513,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 else
                 {
                     //Before the load is migrated from overloaded script engine to the idle engine, sync with the DB to update the state in DB
-                    List<EntityBase> entities = m_scene.GetEntities();
+                    EntityBase[] entities = m_scene.GetEntities();
                     foreach (EntityBase entity in entities)
                     {
                         if (!entity.IsDeleted && entity is SceneObjectGroup && ((SceneObjectGroup)entity).HasGroupChanged)

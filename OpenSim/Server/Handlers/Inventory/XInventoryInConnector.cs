@@ -153,7 +153,7 @@ namespace OpenSim.Server.Handlers.Asset
             }
             catch (Exception e)
             {
-                m_log.Debug("[XINVENTORY HANDLER]: Exception {0}", e);
+                m_log.DebugFormat("[XINVENTORY HANDLER]: Exception {0}", e);
             }
 
             return FailureResult();
@@ -600,7 +600,14 @@ namespace OpenSim.Server.Handlers.Asset
             ret["AssetType"] = item.AssetType.ToString();
             ret["BasePermissions"] = item.BasePermissions.ToString();
             ret["CreationDate"] = item.CreationDate.ToString();
-            ret["CreatorId"] = item.CreatorId.ToString();
+            if (item.CreatorId != null)
+                ret["CreatorId"] = item.CreatorId.ToString();
+            else
+                ret["CreatorId"] = String.Empty;
+            if (item.CreatorData != null)
+                ret["CreatorData"] = item.CreatorData;
+            else
+                ret["CreatorData"] = String.Empty;
             ret["CurrentPermissions"] = item.CurrentPermissions.ToString();
             ret["Description"] = item.Description.ToString();
             ret["EveryOnePermissions"] = item.EveryOnePermissions.ToString();
@@ -646,6 +653,7 @@ namespace OpenSim.Server.Handlers.Asset
             item.InvType = int.Parse(data["InvType"].ToString());
             item.Folder = new UUID(data["Folder"].ToString());
             item.CreatorId = data["CreatorId"].ToString();
+            item.CreatorData = data["CreatorData"].ToString();
             item.Description = data["Description"].ToString();
             item.NextPermissions = uint.Parse(data["NextPermissions"].ToString());
             item.CurrentPermissions = uint.Parse(data["CurrentPermissions"].ToString());

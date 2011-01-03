@@ -68,7 +68,7 @@ namespace OpenSim.Region.CoreModules.World.Terrain
         #endregion
 
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
+        
         private readonly Commander m_commander = new Commander("terrain");
 
         private readonly Dictionary<StandardTerrainEffects, ITerrainFloodEffect> m_floodeffects =
@@ -381,8 +381,13 @@ namespace OpenSim.Region.CoreModules.World.Terrain
         private void LoadPlugins()
         {
             m_plugineffects = new Dictionary<string, ITerrainEffect>();
+            string plugineffectsPath = "Terrain";
+            
             // Load the files in the Terrain/ dir
-            string[] files = Directory.GetFiles("Terrain");
+            if (!Directory.Exists(plugineffectsPath))
+                return;
+            
+            string[] files = Directory.GetFiles(plugineffectsPath);
             foreach (string file in files)
             {
                 m_log.Info("Loading effects in " + file);
@@ -581,8 +586,9 @@ namespace OpenSim.Region.CoreModules.World.Terrain
             client.OnModifyTerrain += client_OnModifyTerrain;
             client.OnBakeTerrain += client_OnBakeTerrain;
             client.OnLandUndo += client_OnLandUndo;
+            client.OnUnackedTerrain += client_OnUnackedTerrain;
         }
-
+        
         /// <summary>
         /// Checks to see if the terrain has been modified since last check
         /// but won't attempt to limit those changes to the limits specified in the estate settings
@@ -802,6 +808,12 @@ namespace OpenSim.Region.CoreModules.World.Terrain
             {
                 InterfaceBakeTerrain(null); //bake terrain does not use the passed in parameter
             }
+        }
+        
+        protected void client_OnUnackedTerrain(IClientAPI client, int patchX, int patchY)
+        {
+            //m_log.Debug("Terrain packet unacked, resending patch: " + patchX + " , " + patchY);
+             client.SendLayerData(patchX, patchY, m_scene.Heightmap.GetFloatsSerialised());
         }
 
         private void StoreUndoState()

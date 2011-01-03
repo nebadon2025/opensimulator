@@ -411,6 +411,12 @@ namespace OpenSim
 
             scene.StartTimer();
 
+            //SYMMETRIC SYNC
+            //For INonSharedRegionModule, there is no more PostInitialise(). So we trigger OnPostSceneCreation event here
+            //to let the Sync modules to do their work once all modules are loaded and scene has interfaces to all of them.
+            scene.EventManager.TriggerOnPostSceneCreation(scene);
+            //end of SYMMETRIC SYNC
+
             return clientServer;
         }
 

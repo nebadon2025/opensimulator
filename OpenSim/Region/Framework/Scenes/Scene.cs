@@ -408,7 +408,10 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return m_AvatarFactory; }
         }
-        #region REGION SYNC
+
+
+        #region REGION SYNC -- Asymmetric sync, old style, depreciated ---------
+
         protected IRegionSyncServerModule m_regionSyncServerModule;
         protected IRegionSyncClientModule m_regionSyncClientModule;
 
@@ -576,6 +579,100 @@ namespace OpenSim.Region.Framework.Scenes
         // }
 
         #endregion 
+
+
+        #region SYMMETRIC SYNC
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+        //KittyL: 12/23/2010. SYMMETRIC SYNC: Implementation for the symmetric synchronization model.
+        ///////////////////////////////////////////////////////////////////////////////////////////////
+
+        private IRegionSyncModule m_regionSyncModule = null;
+        public IRegionSyncModule RegionSyncModule
+        {
+            get { return m_regionSyncModule; }
+            //set { m_regionSyncModule = value; }
+        }
+
+        private IDSGActorSyncModule m_DSGActorSyncModule = null;
+        public IDSGActorSyncModule ActorSyncModule
+        {
+            get { return m_DSGActorSyncModule; }
+
+        }
+
+        //This enumeration would help to identify if after a NewObject/UpdatedObject message is received,
+        //the object is a new object and hence added to the scene graph, or it an object with some properties
+        //just updated, or the copy of the object in the UpdatedObject message is the same with local copy 
+        //(before we add time-stamp to identify updates from different actors/scene, it could be possible the same
+        //update be forwarded, say from script engine to scene, and then back to script engine.
+        public enum ObjectUpdateResult
+        {
+            New, //the New/UpdatedObject message ends up adding a new object to local scene graph
+            Updated, //the object has some property updated after processing the New/UpdatedObject 
+            Unchanged, //no property of the object has been changed after processing the New/UpdatedObject 
+            //(it probably is the same update this end has sent out before
+            Error //Errors happen during processing the message, e.g. the entity with the given UUID is not of type SceneObjectGroup 
+        }
+
+        public string GetSyncActorID()
+        {
+            if (m_DSGActorSyncModule != null)
+            {
+                return m_DSGActorSyncModule.ActorID;
+            }
+            return "";
+        }
+
+        //This function should only be called by an actor who's local Scene is just a cache of the authorative Scene.
+        //If the object already exists, use the new copy to replace it.
+        //Return true if added, false if just updated
+        public ObjectUpdateResult AddOrUpdateObjectBySynchronization(SceneObjectGroup sog)
+        {
+            return m_sceneGraph.AddOrUpdateObjectBySynchronization(sog);
+        }
+
+        //Similar to DeleteSceneObject, except that this does not change LastUpdateActorID and LastUpdateTimeStamp
+        public void DeleteSceneObjectBySynchronization(SceneObjectGroup group)
+        {
+            //            m_log.DebugFormat("[SCENE]: Deleting scene object {0} {1}", group.Name, group.UUID);
+
+            //SceneObjectPart rootPart = group.GetChildPart(group.UUID);
+
+            // Serialise calls to RemoveScriptInstances to avoid
+            // deadlocking on m_parts inside SceneObjectGroup
+            lock (m_deleting_scene_object)
+            {
+                group.RemoveScriptInstances(true);
+            }
+
+            SceneObjectPart[] partList = group.Parts;
+
+            foreach (SceneObjectPart part in partList)
+            {
+                if (part.IsJoint() && ((part.Flags & PrimFlags.Physics) != 0))
+                {
+                    PhysicsScene.RequestJointDeletion(part.Name); // FIXME: what if the name changed?
+                }
+                else if (part.PhysActor != null)
+                {
+                    PhysicsScene.RemovePrim(part.PhysActor);
+                    part.PhysActor = null;
+                }
+            }
+
+            if (UnlinkSceneObject(group, false))
+            {
+                EventManager.TriggerObjectBeingRemovedFromScene(group);
+                EventManager.TriggerParcelPrimCountTainted();
+            }
+
+            bool silent = false; //do not suppress broadcasting changes to other clients, for debugging with viewers
+            group.DeleteGroupFromScene(silent);
+
+        }
+
+        #endregion //SYMMETRIC SYNC
+
         public ICapabilitiesModule CapsModule
         {
             get { return m_capsModule; }
@@ -1265,6 +1362,16 @@ namespace OpenSim.Region.Framework.Scenes
             RegionSyncClientModule = RequestModuleInterface<IRegionSyncClientModule>();
             ScriptEngineToSceneConnectorModule = RequestModuleInterface<IScriptEngineToSceneConnectorModule>();
 
+            //////////////////////////////////////////////////////////////////////
+            //SYMMETRIC SYNC (KittyL: started 12/23/2010)
+            //////////////////////////////////////////////////////////////////////
+            m_regionSyncModule = RequestModuleInterface<IRegionSyncModule>();
+            m_DSGActorSyncModule = RequestModuleInterface<IDSGActorSyncModule>();
+
+            //////////////////////////////////////////////////////////////////////
+            //end of SYMMETRIC SYNC
+            //////////////////////////////////////////////////////////////////////
+            
             // Shoving this in here for now, because we have the needed
             // interfaces at this point
             //
@@ -1416,7 +1523,7 @@ namespace OpenSim.Region.Framework.Scenes
                     // If it's a client manager, just send prim updates
                     // This will get fixed later to only send to locally logged in presences rather than all presences
                     // but requires pulling apart the concept of a client from the concept of a presence/avatar
-                    if (IsSyncedClient() || !RegionSyncEnabled)
+                    if (IsSyncedClient())
 
                     {
                         ForEachScenePresence(delegate(ScenePresence sp) { sp.SendPrimUpdates(); });
@@ -1450,24 +1557,14 @@ namespace OpenSim.Region.Framework.Scenes
                         m_regionSyncServerModule.SendUpdates();
                     }
 
-                    /*
-                    // The authoritative sim should not try to send coarse locations
-                    // Leave this up to the client managers
-                    if (!IsSyncedServer())
+                    //SYMMETRIC SYNC
+
+                    //NOTE: If it is configured as symmetric sync in opensim.ini, the above IsSyncedServer() or IsSyncedClient() should all return false
+                    if (RegionSyncModule != null)
                     {
-                        if (m_frame % m_update_coarse_locations == 0)
-                        {
-                            List<Vector3> coarseLocations;
-                            List<UUID> avatarUUIDs;
-                            SceneGraph.GetCoarseLocations(out coarseLocations, out avatarUUIDs, 60);
-                            // Send coarse locations to clients 
-                            ForEachScenePresence(delegate(ScenePresence presence)
-                            {
-                                presence.SendCoarseLocations(coarseLocations, avatarUUIDs);
-                            });
-                        }
+                        RegionSyncModule.SendSceneUpdates();
                     }
-                     * */
+                    //end of SYMMETRIC SYNC
 
                     int tmpPhysicsMS2 = Util.EnvironmentTickCount();
                     // Do not simulate physics locally if this is a synced client
@@ -2317,6 +2414,15 @@ namespace OpenSim.Region.Framework.Scenes
             group.DeleteGroupFromScene(silent);
 
 //            m_log.DebugFormat("[SCENE]: Exit DeleteSceneObject() for {0} {1}", group.Name, group.UUID);            
+
+            //SYMMETRIC SYNC
+            //Set the ActorID and TimeStamp info for this latest update
+            foreach (SceneObjectPart part in group.Parts)
+            {
+                part.SyncInfoUpdate();
+            }
+            //end of SYMMETRIC SYNC
+
         }
 
         /// <summary>

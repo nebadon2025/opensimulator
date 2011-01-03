@@ -376,7 +376,6 @@ namespace OpenSim.Region.Framework.Scenes
         public delegate void RegionUp(GridRegion region);
         public event RegionUp OnRegionUp;
 
-
         public class MoneyTransferArgs : EventArgs
         {
             public UUID sender;
@@ -2184,7 +2183,7 @@ namespace OpenSim.Region.Framework.Scenes
                     catch (Exception e)
                     {
                         m_log.ErrorFormat(
-                            "[EVENT MANAGER]: Delegate for TriggerOnSceneObjectLoaded failed - continuing.  {0} {1}", 
+                            "[EVENT MANAGER]: Delegate for TriggerScriptEngineSyncStop failed - continuing.  {0} {1}", 
                             e.Message, e.StackTrace);
                     }
                 }
@@ -2243,5 +2242,55 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
         #endregion
+
+        //SYMMETRIC SYNC
+        public event PostSceneCreation OnPostSceneCreation;
+        public delegate void PostSceneCreation(Scene createdScene);
+
+        public void TriggerOnPostSceneCreation(Scene createdScene)
+        {
+            PostSceneCreation handler = OnPostSceneCreation;
+            if (handler != null)
+            {
+                foreach (PostSceneCreation d in handler.GetInvocationList())
+                {
+                    try
+                    {
+                        d(createdScene);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerOnPostSceneCreation failed - continuing.  {0} {1}",
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+
+        public delegate void SymmetricSyncStop();
+        public event SymmetricSyncStop OnSymmetricSyncStop;
+        public void TriggerOnSymmetricSyncStop()
+        {
+            SymmetricSyncStop handlerSymmetricSyncStop = OnSymmetricSyncStop;
+            if (handlerSymmetricSyncStop != null)
+            {
+                foreach (SymmetricSyncStop d in handlerSymmetricSyncStop.GetInvocationList())
+                {
+                    try
+                    {
+                        d();
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerOnSymmetricSyncStop failed - continuing.  {0} {1}",
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+
+        //end of SYMMETRIC SYNC
     }
 }

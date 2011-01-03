@@ -64,5 +64,21 @@ namespace OpenSim.Region.Framework.Interfaces
         void InstallPlugin(string name, ITerrainEffect plug);
 
         void UndoTerrain(ITerrainChannel channel);
+
+        //SYMMETRIC SYNC
+        void TaintTerrianBySynchronization(long timeStamp, string actorID);
+        /// <summary>
+        /// Return true if the most recent update on terrain is done locally (i.e. not by receiving a terrain-sync message).
+        /// </summary>
+        /// <param name="localActorID"></param>
+        /// <returns></returns>
+        bool TerrianModifiedLocally(string localActorID);
+        /// <summary>
+        /// Obtain the timestemp and actorID information for the most recent update on terrain.
+        /// </summary>
+        /// <param name="lastUpdateTimeStamp"></param>
+        /// <param name="lastUpdateActorID"></param>
+        void GetSyncInfo(out long lastUpdateTimeStamp, out string lastUpdateActorID);
+        //end of SYMMETRIC SYNC
     }
 }

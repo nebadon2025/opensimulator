@@ -205,6 +205,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Simulation
 
         public bool UpdateAgent(GridRegion destination, AgentPosition cAgentData)
         {
+            return false;
             if (destination == null)
                 return false;
 

@@ -2892,6 +2892,13 @@ namespace OpenSim.Region.Framework.Scenes
             //            m_log.DebugFormat(
             //                "[SCENE OBJECT PART]: Scheduling full  update for {0}, {1} at {2}",
             //                UUID, Name, TimeStampFull);
+
+            //SYMMETRIC SYNC
+
+            //update information (timestamp, actorID, etc) needed for synchronization across copies of Scene
+            SyncInfoUpdate();
+            
+            //end of SYMMETRIC SYNC
         }
 
         /// <summary>
@@ -2913,6 +2920,13 @@ namespace OpenSim.Region.Framework.Scenes
             //                m_log.DebugFormat(
             //                    "[SCENE OBJECT PART]: Scheduling terse update for {0}, {1} at {2}",
             //                    UUID, Name, TimeStampTerse);
+
+                //SYMMETRIC SYNC
+
+                //update information (timestamp, actorID, etc) needed for synchronization across copies of Scene
+                SyncInfoUpdate();
+
+                //end of SYMMETRIC SYNC
             }
         }
 
@@ -3130,6 +3144,12 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
             ClearUpdateSchedule();
+
+            //SYMMETRIC SYNC
+
+            m_parentGroup.Scene.RegionSyncModule.QueueSceneObjectPartForUpdate(this);
+            
+            //end of SYMMETRIC SYNC
         }
 
         /// <summary>
@@ -4887,6 +4907,209 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         #endregion
+
+        #region SYMMETRIC SYNC
+
+        //Time stamp for the most recent update on this prim. We only have one time-stamp per prim for now.
+        //The goal is to evetually have time-stamp per property bucket for each prim.
+        private long m_lastUpdateTimeStamp = DateTime.Now.Ticks;
+        public long LastUpdateTimeStamp
+        {
+            get { return m_lastUpdateTimeStamp; }
+            set { m_lastUpdateTimeStamp = value; }
+        }
+
+        //The ID the identifies which actor has caused the most recent update to the prim.
+        //We use type "string" for the ID only to make it human-readable. 
+        private string m_lastUpdateActorID;
+        public string LastUpdateActorID
+        {
+            get { return m_lastUpdateActorID; }
+            set { m_lastUpdateActorID = value; }
+        }
+
+        public void UpdateTimestamp()
+        {
+            m_lastUpdateTimeStamp = DateTime.Now.Ticks;
+        }
+
+        public void SetLastUpdateActorID()
+        {
+            if (m_parentGroup != null)
+            {
+                m_lastUpdateActorID = m_parentGroup.Scene.ActorSyncModule.ActorID;
+            }
+            else
+            {
+                m_log.Error("Prim " + UUID + " is not in a SceneObjectGroup yet");
+            }
+        }
+
+        public void SyncInfoUpdate()
+        {
+            //Trick: calling UpdateTimestamp here makes sure that when an object was received and de-serialized, before
+            //       its parts are linked together, neither TimeStamp or ActorID will be modified. This is because during de-serialization, 
+            //       ScheduleFullUpdate() is called when m_parentGroup == null
+            if (m_parentGroup != null)
+            {
+                UpdateTimestamp();
+                m_lastUpdateActorID = m_parentGroup.Scene.ActorSyncModule.ActorID;
+            }
+        }
+
+        //!!!!!! -- TODO: 
+        //!!!!!! -- We should call UpdateXXX functions to update each property, cause some of such updates involves sanity checking.
+        public Scene.ObjectUpdateResult UpdateAllProperties(SceneObjectPart updatedPart)
+        {
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
+            //NOTE!!!: So far this function is written with Script Engine updating local Scene cache in mind.
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+            ////////////////////Assumptions: ////////////////////
+            //(1) prim's UUID and LocalID shall not change (UUID is the unique identifies, LocalID is used to refer to the prim by, say scripts)
+            //(2) RegionHandle won't be updated -- each copy of Scene is hosted on a region with different region handle
+            //(3) ParentID won't be updated -- if the rootpart of the SceneObjectGroup changed, that will be updated in SceneObjectGroup.UpdateObjectProperties
+
+            ////////////////////Furture enhancements:////////////////////
+            //For now, we only update the set of properties that are included in serialization. 
+            //See SceneObjectSerializer for the properties that are included in a serialized SceneObjectPart.
+            //Later on, we may implement update functions that allow updating certain properties or certain buckets of properties.
+
+            if (updatedPart == null)
+                return Scene.ObjectUpdateResult.Error;
+
+            if (m_lastUpdateTimeStamp > updatedPart.LastUpdateTimeStamp)
+            {
+                //Our timestamp is more update to date, keep our values of the properties. Do not update anything.
+                return Scene.ObjectUpdateResult.Unchanged;
+            }
+
+            if (m_lastUpdateTimeStamp == updatedPart.LastUpdateTimeStamp)
+            {
+                //if (m_parentGroup.Scene.GetActorID() != updatedPart.LastUpdatedByActorID)
+                if (m_lastUpdateActorID != updatedPart.LastUpdateActorID)
+                {
+                    m_log.Warn("Different actors modified SceneObjetPart " + UUID + " with the same TimeStamp, CONFLICT RESOLUTION TO BE IMPLEMENTED!!!!");
+                    return Scene.ObjectUpdateResult.Unchanged;
+                }
+
+                //My own update was relayed back. Don't relay it.
+                return Scene.ObjectUpdateResult.Unchanged;
+            }
+
+            //Otherwise, our timestamp is less up to date, update the prim with the received copy
+
+            Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Updated;
+
+            //See SceneObjectSerializer for the properties that are included in a serialized SceneObjectPart.
+            this.AllowedDrop = updatedPart.AllowedDrop;
+            this.CreatorID = updatedPart.CreatorID;
+            this.CreatorData = updatedPart.CreatorData;
+            this.FolderID = updatedPart.FolderID;
+            this.InventorySerial = updatedPart.InventorySerial;
+            this.TaskInventory = updatedPart.TaskInventory;
+            //Following two properties, UUID and LocalId, shall not be updated.
+            //this.UUID 
+            //this.LocalId
+            this.Name = updatedPart.Name;
+            this.Material = updatedPart.Material;
+            this.PassTouches = updatedPart.PassTouches;
+            //RegionHandle shall not be copied, since updatedSog is sent by a different actor, which has a different local region
+            //this.RegionHandle 
+            this.ScriptAccessPin = updatedPart.ScriptAccessPin;
+            this.GroupPosition = updatedPart.GroupPosition;
+            this.OffsetPosition = updatedPart.OffsetPosition;
+            this.RotationOffset = updatedPart.RotationOffset;
+            this.Velocity = updatedPart.Velocity;
+            this.AngularVelocity = updatedPart.AngularVelocity;
+            this.Acceleration = updatedPart.Acceleration;
+            this.Description = updatedPart.Description;
+            this.Color = updatedPart.Color;
+            this.Text = updatedPart.Text;
+            this.SitName = updatedPart.SitName;
+            this.TouchName = updatedPart.TouchName;
+            this.LinkNum = updatedPart.LinkNum;
+            this.ClickAction = updatedPart.ClickAction;
+            this.Shape = updatedPart.Shape;
+            this.Scale = updatedPart.Scale;
+            this.UpdateFlag = updatedPart.UpdateFlag;
+            this.SitTargetOrientation = updatedPart.SitTargetOrientation;
+            this.SitTargetPosition = updatedPart.SitTargetPosition;
+            this.SitTargetPositionLL = updatedPart.SitTargetPositionLL;
+            this.SitTargetOrientationLL = updatedPart.SitTargetOrientationLL;
+            //ParentID should still point to the rootpart in the local sog, do not update. If the root part changed, we will update it in SceneObjectGroup.UpdateObjectProperties()
+            //this.ParentID;
+            this.CreationDate = updatedPart.CreationDate;
+            this.Category = updatedPart.Category;
+            this.SalePrice = updatedPart.SalePrice;
+            this.ObjectSaleType = updatedPart.ObjectSaleType;
+            this.OwnershipCost = updatedPart.OwnershipCost;
+            this.GroupID = updatedPart.GroupID;
+            this.OwnerID = updatedPart.OwnerID;
+            this.LastOwnerID = updatedPart.LastOwnerID;
+            this.BaseMask = updatedPart.BaseMask;
+            this.OwnerMask = updatedPart.OwnerMask;
+            this.GroupMask = updatedPart.GroupMask;
+            this.EveryoneMask = updatedPart.EveryoneMask;
+            this.NextOwnerMask = updatedPart.NextOwnerMask;
+            this.Flags = updatedPart.Flags;
+            this.CollisionSound = updatedPart.CollisionSound;
+            this.CollisionSoundVolume = updatedPart.CollisionSoundVolume;
+            this.MediaUrl = updatedPart.MediaUrl;
+            this.TextureAnimation = updatedPart.TextureAnimation;
+            this.ParticleSystem = updatedPart.ParticleSystem;
+
+            //Update the timestamp and LastUpdatedByActorID first.
+            this.m_lastUpdateActorID = updatedPart.LastUpdateActorID;
+            this.m_lastUpdateTimeStamp = updatedPart.LastUpdateTimeStamp;
+
+
+            /*
+            this.m_inventory.Items = (TaskInventoryDictionary)updatedPart.m_inventory.Items.Clone();
+            //update shape information, for now, only update fileds in Shape whose set functions are defined in PrimitiveBaseShape
+            this.Shape = updatedPart.Shape.Copy();
+            this.Shape.TextureEntry = updatedPart.Shape.TextureEntry;
+             * */
+
+            return partUpdateResult;
+        }
+
+        /// <summary>
+        /// Schedules this prim for a full update, without changing the timestamp or actorID (info on when and who modified any property).
+        /// NOTE: this is the same as the original SceneObjectPart.ScheduleFullUpdate().
+        /// </summary>
+        public void ScheduleFullUpdate_SyncInfoUnchanged()
+        {
+            m_log.DebugFormat("[SCENE OBJECT PART]: ScheduleFullUpdate_SyncInfoUnchanged for {0} {1}", Name, LocalId);
+
+            if (m_parentGroup != null)
+            {
+                m_parentGroup.QueueForUpdateCheck();
+            }
+
+            int timeNow = Util.UnixTimeSinceEpoch();
+
+            // If multiple updates are scheduled on the same second, we still need to perform all of them
+            // So we'll force the issue by bumping up the timestamp so that later processing sees these need
+            // to be performed.
+            if (timeNow <= TimeStampFull)
+            {
+                TimeStampFull += 1;
+            }
+            else
+            {
+                TimeStampFull = (uint)timeNow;
+            }
+
+            m_updateFlag = 2;
+
+            //            m_log.DebugFormat(
+            //                "[SCENE OBJECT PART]: Scheduling full  update for {0}, {1} at {2}",
+            //                UUID, Name, TimeStampFull);
+
+        }
+
+        #endregion 
 
     }
 }

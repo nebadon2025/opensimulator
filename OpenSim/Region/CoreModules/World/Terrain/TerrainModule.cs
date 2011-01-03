@@ -589,6 +589,56 @@ namespace OpenSim.Region.CoreModules.World.Terrain
             client.OnUnackedTerrain += client_OnUnackedTerrain;
         }
         
+        //SYMMETRIC SYNC
+        private long m_lastUpdateTimeStamp = DateTime.Now.Ticks;
+        public long LastUpdateTimeStamp
+        {
+            get { return m_lastUpdateTimeStamp; }
+            set { m_lastUpdateTimeStamp = value; }
+        }
+
+        private string m_lastUpdateActorID;
+        public string LastUpdateActorID
+        {
+            get { return m_lastUpdateActorID; }
+            set { m_lastUpdateActorID = value; }
+        }
+
+        private void SyncInfoUpdate(long timeStamp, string actorID)
+        {
+            m_lastUpdateTimeStamp = timeStamp;
+            m_lastUpdateActorID = actorID;
+        }
+
+        /*
+        public void CheckForTerrainUpdatesBySynchronization(long timeStamp, string actorID)
+        {
+            SyncInfoUpdate(timeStamp, actorID);
+            CheckForTerrainUpdates(false);
+        }
+         * */
+
+        public void TaintTerrianBySynchronization(long timeStamp, string actorID)
+        {
+            SyncInfoUpdate(timeStamp, actorID);
+            CheckForTerrainUpdates(false, timeStamp, actorID);
+        }
+
+        public bool TerrianModifiedLocally(string localActorID)
+        {
+            if (localActorID == m_lastUpdateActorID)
+                return true;
+            return false;
+        }
+
+        public void GetSyncInfo(out long lastUpdateTimeStamp, out string lastUpdateActorID)
+        {
+            lastUpdateTimeStamp = m_lastUpdateTimeStamp;
+            lastUpdateActorID = m_lastUpdateActorID;
+        }
+
+        //end of SYMMETRIC SYNC
+
         /// <summary>
         /// Checks to see if the terrain has been modified since last check
         /// but won't attempt to limit those changes to the limits specified in the estate settings
@@ -596,7 +646,21 @@ namespace OpenSim.Region.CoreModules.World.Terrain
         /// </summary>
         private void CheckForTerrainUpdates()
         {
-            CheckForTerrainUpdates(false);
+            //SYMMETRIC SYNC
+
+            //Assumption: Thus function is only called when the terrain is updated by the local actor. 
+            //            Updating terrain during receiving sync messages from another actor will call CheckForTerrainUpdates.
+
+            //Update the timestamp to the current time tick, and set the LastUpdateActorID to be self
+            long currentTimeTick = DateTime.Now.Ticks;
+            string localActorID = m_scene.GetSyncActorID();
+            SyncInfoUpdate(currentTimeTick, localActorID);
+            //Check if the terrain has been modified and send out sync message if modified.
+            CheckForTerrainUpdates(false, currentTimeTick, localActorID);
+
+            //end of SYMMETRIC SYNC
+
+            //CheckForTerrainUpdates(false);
         }
 
         /// <summary>
@@ -607,7 +671,10 @@ namespace OpenSim.Region.CoreModules.World.Terrain
         /// currently invoked by client_OnModifyTerrain only and not the Commander interfaces
         /// <param name="respectEstateSettings">should height map deltas be limited to the estate settings limits</param>
         /// </summary>
-        private void CheckForTerrainUpdates(bool respectEstateSettings)
+        //private void CheckForTerrainUpdates(bool respectEstateSettings)
+        //SYMMETRIC SYNC: Change the interface, to input the right sync information for the most recent update
+        private void CheckForTerrainUpdates(bool respectEstateSettings, long lastUpdateTimeStamp, string lastUpdateActorID)
+        //end of SYMMETRIC SYNC
         {
             bool shouldTaint = false;
             float[] serialised = m_channel.GetFloatsSerialised();
@@ -636,6 +703,13 @@ namespace OpenSim.Region.CoreModules.World.Terrain
             if (shouldTaint)
             {
                 m_tainted = true;
+                //SYMMETRIC SYNC
+                //Terrain has been modified, send out sync message if needed
+                if (m_scene.RegionSyncModule != null)
+                {
+                    m_scene.RegionSyncModule.SendTerrainUpdates(m_lastUpdateActorID);
+                }
+                //end of SYMMETRIC SYNC
             }
         }
 
@@ -748,7 +822,10 @@ namespace OpenSim.Region.CoreModules.World.Terrain
                         m_painteffects[(StandardTerrainEffects) action].PaintEffect(
                             m_channel, allowMask, west, south, height, size, seconds);
 
-                        CheckForTerrainUpdates(!god); //revert changes outside estate limits
+                        //CheckForTerrainUpdates(!god); //revert changes outside estate limits
+                        //SYMMETRIC SYNC
+                        CheckForTerrainUpdates(!god, DateTime.Now.Ticks, m_scene.GetSyncActorID());
+                        //end of SYMMETRIC SYNC
                     }
                 }
                 else
@@ -789,7 +866,10 @@ namespace OpenSim.Region.CoreModules.World.Terrain
                         m_floodeffects[(StandardTerrainEffects) action].FloodEffect(
                             m_channel, fillArea, size);
 
-                        CheckForTerrainUpdates(!god); //revert changes outside estate limits
+                        //CheckForTerrainUpdates(!god); //revert changes outside estate limits
+                        //SYMMETRIC SYNC
+                        CheckForTerrainUpdates(!god, DateTime.Now.Ticks, m_scene.GetSyncActorID());
+                        //end of SYMMETRIC SYNC
                     }
                 }
                 else

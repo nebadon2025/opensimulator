@@ -79,7 +79,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             ActorID = syncConfig.GetString("ActorID", "ZZ");
 
             // If syncConfig does not indicate "server", do not start up server mode
-            string mode = syncConfig.GetString("Mode", "server").ToLower();
+            //string mode = syncConfig.GetString("Mode", "server").ToLower();
+            string mode = syncConfig.GetString("Mode", "").ToLower();
             if(mode != "server")
             {
                 scene.RegionSyncEnabled = false;

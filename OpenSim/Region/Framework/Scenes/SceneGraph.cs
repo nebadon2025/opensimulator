@@ -373,24 +373,14 @@ namespace OpenSim.Region.Framework.Scenes
 
             sceneObject.AttachToScene(m_parentScene);
 
-            //KittyL: edited to support script engine actor
-            //if (sendClientUpdates)
-            //    sceneObject.ScheduleGroupForFullUpdate();
             if (sendClientUpdates)
-            {
                 sceneObject.ScheduleGroupForFullUpdate();
-            }
-
+            
             Entities.Add(sceneObject);
 
-            //KittyL: edited to support script engine actor
-            //if (attachToBackup)
-            //    sceneObject.AttachToBackup();
-            if (attachToBackup && m_parentScene.IsAuthoritativeScene())
-            {
+            if (attachToBackup)
                 sceneObject.AttachToBackup();
-            }
-
+            
             if (OnObjectCreate != null)
                 OnObjectCreate(sceneObject);
 
@@ -465,7 +455,10 @@ namespace OpenSim.Region.Framework.Scenes
         protected internal void AddToUpdateList(SceneObjectGroup obj)
         {
             lock (m_updateList)
+            {
                 m_updateList[obj.UUID] = obj;
+                m_log.Debug("added " + obj.UUID + " to m_updateList");
+            }
         }
 
         /// <summary>
@@ -484,6 +477,13 @@ namespace OpenSim.Region.Framework.Scenes
                 lock (m_updateList)
                 {
                     updates = new List<SceneObjectGroup>(m_updateList.Values);
+
+                    if (updates.Count > 0)
+                    {
+                        m_log.Debug("SceneGraph: " + updates.Count + " objects to send updates for");
+                    }
+
+
                     m_updateList.Clear();
                 }
 
@@ -1925,10 +1925,106 @@ namespace OpenSim.Region.Framework.Scenes
 
                 return true;
             }
-            
+
         }
 
-        #endregion
+        #endregion // REGION SYNC
 
+        #region SYMMETRIC SYNC
+
+        public Scene.ObjectUpdateResult AddOrUpdateObjectBySynchronization(SceneObjectGroup updatedSog)
+        {
+            UUID sogID = updatedSog.UUID;
+
+            if (Entities.ContainsKey(sogID))
+            {
+                //update the object
+                EntityBase entity = Entities[sogID];
+                if (entity is SceneObjectGroup)
+                {
+                    SceneObjectGroup localSog = (SceneObjectGroup)entity;
+                    Scene.ObjectUpdateResult updateResult = localSog.UpdateObjectAllProperties(updatedSog);
+                    return updateResult;
+                }
+                else
+                {
+                    m_log.Warn("Entity with " + sogID + " is not of type SceneObjectGroup");
+                    //return false;
+                    return Scene.ObjectUpdateResult.Error;
+                }
+            }
+            else
+            {
+                m_log.Debug("AddSceneObjectByStateSynch to be called");
+                AddSceneObjectByStateSynch(updatedSog);
+                return Scene.ObjectUpdateResult.New;
+            }
+        }
+
+        //This is an object added due to receiving a state synchronization message from Scene or an actor. Do similar things as the original AddSceneObject(),
+        //but call ScheduleGroupForFullUpdate_TimeStampUnchanged() instead, so as not to modify the timestamp or actorID, since the object was not created
+        //locally.
+        protected bool AddSceneObjectByStateSynch(SceneObjectGroup sceneObject)
+        {
+            if (sceneObject == null || sceneObject.RootPart == null || sceneObject.RootPart.UUID == UUID.Zero)
+                return false;
+
+            if (Entities.ContainsKey(sceneObject.UUID))
+                return false;
+
+            SceneObjectPart[] children = sceneObject.Parts;
+
+            // Clamp child prim sizes and add child prims to the m_numPrim count
+            if (m_parentScene.m_clampPrimSize)
+            {
+                foreach (SceneObjectPart part in children)
+                {
+                    Vector3 scale = part.Shape.Scale;
+
+                    if (scale.X > m_parentScene.m_maxNonphys)
+                        scale.X = m_parentScene.m_maxNonphys;
+                    if (scale.Y > m_parentScene.m_maxNonphys)
+                        scale.Y = m_parentScene.m_maxNonphys;
+                    if (scale.Z > m_parentScene.m_maxNonphys)
+                        scale.Z = m_parentScene.m_maxNonphys;
+
+                    part.Shape.Scale = scale;
+                }
+            }
+            m_numPrim += children.Length;
+
+            sceneObject.AttachToScene(m_parentScene);
+
+            //SYMMETRIC SYNC, 
+            sceneObject.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
+            //end of SYMMETRIC SYNC, 
+
+            Entities.Add(sceneObject);
+
+            //ScenePersistenceSyncModule will attach the object to backup when it catches the OnObjectCreate event.
+            //if (attachToBackup)
+            //    sceneObject.AttachToBackup();
+
+            if (OnObjectCreate != null)
+                OnObjectCreate(sceneObject);
+
+            lock (SceneObjectGroupsByFullID)
+            {
+                SceneObjectGroupsByFullID[sceneObject.UUID] = sceneObject;
+                foreach (SceneObjectPart part in children)
+                    SceneObjectGroupsByFullID[part.UUID] = sceneObject;
+            }
+
+            lock (SceneObjectGroupsByLocalID)
+            {
+                SceneObjectGroupsByLocalID[sceneObject.LocalId] = sceneObject;
+                foreach (SceneObjectPart part in children)
+                    SceneObjectGroupsByLocalID[part.LocalId] = sceneObject;
+            }
+
+            return true;
+        }
+
+        #endregion //SYMMETRIC SYNC
     }
 }

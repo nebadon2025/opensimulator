@@ -252,6 +252,8 @@ namespace OpenSim.Region.Physics.OdePlugin
             m_taintadd = true;
             _parent_scene.AddPhysicsActorTaint(this);
             //  don't do .add() here; old geoms get recycled with the same hash
+            m_log.DebugFormat("[PHYSICS] Created ODEPrim: n={0}, m={1}, pbs={2}, phys={3}",
+                primName, mesh == null ? "NULL" : "DEFINED", pbs == null ? "NULL" : "DEFINED", pisPhysical);
         }
 
         public override void RequestPhysicsterseUpdate()
@@ -259,7 +261,8 @@ namespace OpenSim.Region.Physics.OdePlugin
             if (PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
             {
                 // if the values have changed and it was I who changed them, send an update
-                if (this.lastValues.Changed(this) && ChangingActorID == RegionSyncServerModule.ActorID)
+                // if (this.lastValues.Changed(this) && ChangingActorID == RegionSyncServerModule.ActorID)
+                if (this.lastValues.Changed(this))
                     PhysEngineToSceneConnectorModule.RouteUpdate(this);
             }
             else

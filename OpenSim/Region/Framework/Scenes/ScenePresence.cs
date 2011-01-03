@@ -1779,7 +1779,8 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                     // Reset sit target.
                     if (part.GetAvatarOnSitTarget() == UUID)
-                        part.SetAvatarOnSitTarget(UUID.Zero);
+                        part.SitTargetAvatar = UUID.Zero;
+                    part.ParentGroup.TriggerScriptChangedEvent(Changed.LINK);
 
                     m_parentPosition = part.GetWorldPosition();
                     ControllingClient.SendClearFollowCamProperties(part.ParentUUID);
@@ -1883,11 +1884,12 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if (SitTargetisSet && SitTargetUnOccupied)
                 {
-                    part.SetAvatarOnSitTarget(UUID);
+                    part.SitTargetAvatar = UUID;
                     offset = new Vector3(avSitOffSet.X, avSitOffSet.Y, avSitOffSet.Z);
                     sitOrientation = avSitOrientation;
                     autopilot = false;
                 }
+                part.ParentGroup.TriggerScriptChangedEvent(Changed.LINK);
 
                 pos = part.AbsolutePosition + offset;
                 //if (Math.Abs(part.AbsolutePosition.Z - AbsolutePosition.Z) > 1)
@@ -2301,33 +2303,6 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 // WHAT???
                 m_log.Debug("[SCENEPRESENCE]: AddNewMovement() called on child agent, making root agent!");
-
-                // we have to reset the user's child agent connections.
-                // Likely, here they've lost the eventqueue for other regions so border 
-                // crossings will fail at this point unless we reset them.
-
-                List<ulong> regions = new List<ulong>(KnownChildRegionHandles);
-                regions.Remove(m_scene.RegionInfo.RegionHandle);
-
-                MakeRootAgent(new Vector3(127f, 127f, 127f), true);
-
-                // Async command
-                if (m_scene.SceneGridService != null)
-                {
-                    m_scene.SceneGridService.SendCloseChildAgentConnections(UUID, regions);
-
-                    // Give the above command some time to try and close the connections.
-                    // this is really an emergency..   so sleep, or we'll get all discombobulated.
-                    System.Threading.Thread.Sleep(500);
-                }
-                
-                if (m_scene.SceneGridService != null)
-                {
-                    IEntityTransferModule m_agentTransfer = m_scene.RequestModuleInterface<IEntityTransferModule>();
-                    if (m_agentTransfer != null)
-                        m_agentTransfer.EnableChildAgents(this);
-                }
-                
                 return;
             }
 
@@ -2380,6 +2355,8 @@ namespace OpenSim.Region.Framework.Scenes
 
         #region Overridden Methods
 
+        private bool sendingPrims = false;
+
         public override void Update()
         {
             const float ROTATION_TOLERANCE = 0.01f;
@@ -2387,7 +2364,8 @@ namespace OpenSim.Region.Framework.Scenes
             const float POSITION_TOLERANCE = 0.05f;
             //const int TIME_MS_TOLERANCE = 3000;
 
-            SendPrimUpdates();
+            if (!sendingPrims)
+                Util.FireAndForget(delegate { sendingPrims = true; SendPrimUpdates(); sendingPrims = false; });
 
             if (m_isChildAgent == false)
             {
@@ -2415,6 +2393,7 @@ namespace OpenSim.Region.Framework.Scenes
                 // followed suggestion from mic bowman. reversed the two lines below.
                 if (m_parentID == 0 && m_physicsActor != null || m_parentID != 0) // Check that we have a physics actor or we're sitting on something
                     CheckForBorderCrossing();
+
                 CheckForSignificantMovement(); // sends update to the modules.
             }
         }
@@ -3327,8 +3306,11 @@ namespace OpenSim.Region.Framework.Scenes
                 Vector3 force = m_forceToApply.Value;
 
                 m_updateflag = true;
-//                movementvector = force;
-                Velocity = force;
+
+                // The magic constant 0.95f seems to make walking feel less jerky,
+                // probably because it hackishly accounts for the overall latency of
+                // these Velocity updates -- Diva
+                Velocity = force * .95F;
 
                 m_forceToApply = null;
             }

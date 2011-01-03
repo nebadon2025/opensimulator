@@ -220,10 +220,11 @@ namespace OpenSim
             m_console.Commands.AddCommand("region", false, "debug packet",
                                           "debug packet <level>",
                                           "Turn on packet debugging",
-                                          "If level > 255 then all incoming and outgoing packets are logged.\n"
+                                            "If level >  255 then all incoming and outgoing packets are logged.\n"
                                           + "If level <= 255 then incoming AgentUpdate and outgoing SimStats and SimulatorViewerTimeMessage packets are not logged.\n"
                                           + "If level <= 200 then incoming RequestImage and outgoing ImagePacket, ImageData, LayerData and CoarseLocationUpdate packets are not logged.\n"
                                           + "If level <= 100 then incoming ViewerEffect and AgentAnimation and outgoing ViewerEffect and AvatarAnimation packets are not logged.\n"
+                                          + "If level <=  50 then outgoing ImprovedTerseObjectUpdate packets are not logged.\n"
                                           + "If level <= 0 then no packets are logged.",
                                           Debug);
 
@@ -265,10 +266,11 @@ namespace OpenSim
                                           LoadOar);
 
             m_console.Commands.AddCommand("region", false, "save oar",
-                                          "save oar [-v|--version=<N>] [-p|--profile=<url>] [<OAR path>]",
+                                          //"save oar [-v|--version=<N>] [-p|--profile=<url>] [<OAR path>]",
+                                          "save oar [-p|--profile=<url>] [<OAR path>]",
                                           "Save a region's data to an OAR archive.",
-                                          "-v|--version=<N> generates scene objects as per older versions of the serialization (e.g. -v=0)" + Environment.NewLine
-                                          + "-p|--profile=<url> adds the url of the profile service to the saved user information" + Environment.NewLine
+//                                          "-v|--version=<N> generates scene objects as per older versions of the serialization (e.g. -v=0)" + Environment.NewLine
+                                          "-p|--profile=<url> adds the url of the profile service to the saved user information" + Environment.NewLine
                                           + "The OAR path must be a filesystem path."
                                           + "  If this is not given then the oar is saved to region.oar in the current directory.",
                                           SaveOar);

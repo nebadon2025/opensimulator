@@ -704,6 +704,11 @@ namespace OpenSim.Tests.Common.Mock
         {
         }
 
+        public virtual void SendAbortXferPacket(ulong xferID)
+        {
+
+        }
+
         public virtual void SendEconomyData(float EnergyEfficiency, int ObjectCapacity, int ObjectCount, int PriceEnergyUnit,
             int PriceGroupCreate, int PriceObjectClaim, float PriceObjectRent, float PriceObjectScaleFactor,
             int PriceParcelClaim, float PriceParcelClaimFactor, int PriceParcelRent, int PricePublicObjectDecay,
@@ -1226,6 +1231,10 @@ namespace OpenSim.Tests.Common.Mock
         }
 
         public void StopFlying(ISceneEntity presence)
+        {
+        }
+
+        public void SendPlacesReply(UUID queryID, UUID transactionID, PlacesReplyData[] data)
         {
         }
     }

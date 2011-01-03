@@ -55,7 +55,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
         /// <value>
         /// Enable or disable checking whether the iar user is actually logged in 
         /// </value>
-        public bool DisablePresenceChecks { get; set; }
+//        public bool DisablePresenceChecks { get; set; }
         
         public event InventoryArchiveSaved OnInventoryArchiveSaved;
         
@@ -95,10 +95,10 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
 
         public InventoryArchiverModule() {}
 
-        public InventoryArchiverModule(bool disablePresenceChecks)
-        {
-            DisablePresenceChecks = disablePresenceChecks;
-        }
+//        public InventoryArchiverModule(bool disablePresenceChecks)
+//        {
+//            DisablePresenceChecks = disablePresenceChecks;
+//        }
 
         public void Initialise(Scene scene, IConfigSource source)
         {
@@ -109,12 +109,10 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 
                 scene.AddCommand(
                     this, "load iar",
-                    "load iar <first> <last> <inventory path> <password> [<IAR path>]",
-                    //"load iar [--merge] <first> <last> <inventory path> <password> [<IAR path>]",
+                    "load iar [--merge] <first> <last> <inventory path> <password> [<IAR path>]",
                     "Load user inventory archive (IAR).",
-                    //"--merge is an option which merges the loaded IAR with existing inventory folders where possible, rather than always creating new ones"
-                    //+ "<first> is user's first name." + Environment.NewLine
-                    "<first> is user's first name." + Environment.NewLine
+                    "--merge is an option which merges the loaded IAR with existing inventory folders where possible, rather than always creating new ones"
+                    + "<first> is user's first name." + Environment.NewLine
                     + "<last> is user's last name." + Environment.NewLine
                     + "<inventory path> is the path inside the user's inventory where the IAR should be loaded." + Environment.NewLine
                     + "<password> is the user's password." + Environment.NewLine
@@ -124,7 +122,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 
                 scene.AddCommand(
                     this, "save iar",
-                    "save iar <first> <last> <inventory path> <password> [--p|-profile=<url>] [<IAR path>]",
+                    "save iar [--p|-profile=<url>] <first> <last> <inventory path> <password> [<IAR path>]",
                     "Save user inventory archive (IAR).", 
                     "<first> is the user's first name." + Environment.NewLine
                     + "<last> is the user's last name." + Environment.NewLine
@@ -172,8 +170,8 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
 
                 if (userInfo != null)
                 {
-                    if (CheckPresence(userInfo.PrincipalID))
-                    {
+//                    if (CheckPresence(userInfo.PrincipalID))
+//                    {
                         try
                         {
                             new InventoryArchiveWriteRequest(id, this, m_aScene, userInfo, invPath, saveStream).Execute(options, UserAccountService);
@@ -189,13 +187,13 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                         }
                     
                         return true;
-                    }
-                    else
-                    {
-                        m_log.ErrorFormat(
-                            "[INVENTORY ARCHIVER]: User {0} {1} {2} not logged in to this region simulator",
-                            userInfo.FirstName, userInfo.LastName, userInfo.PrincipalID);
-                    }
+//                    }
+//                    else
+//                    {
+//                        m_log.ErrorFormat(
+//                            "[INVENTORY ARCHIVER]: User {0} {1} {2} not logged in to this region simulator",
+//                            userInfo.FirstName, userInfo.LastName, userInfo.PrincipalID);
+//                    }
                 }
             }
 
@@ -212,8 +210,8 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 
                 if (userInfo != null)
                 {
-                    if (CheckPresence(userInfo.PrincipalID))
-                    {
+//                    if (CheckPresence(userInfo.PrincipalID))
+//                    {
                         try
                         {
                             new InventoryArchiveWriteRequest(id, this, m_aScene, userInfo, invPath, savePath).Execute(options, UserAccountService);
@@ -229,13 +227,13 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                         }
                     
                         return true;
-                    }
-                    else
-                    {
-                        m_log.ErrorFormat(
-                            "[INVENTORY ARCHIVER]: User {0} {1} {2} not logged in to this region simulator",
-                            userInfo.FirstName, userInfo.LastName, userInfo.PrincipalID);
-                    }
+//                    }
+//                    else
+//                    {
+//                        m_log.ErrorFormat(
+//                            "[INVENTORY ARCHIVER]: User {0} {1} {2} not logged in to this region simulator",
+//                            userInfo.FirstName, userInfo.LastName, userInfo.PrincipalID);
+//                    }
                 }
             }
             
@@ -257,9 +255,8 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
 
                 if (userInfo != null)
                 {
-                    if (CheckPresence(userInfo.PrincipalID))
-                    {
-
+//                    if (CheckPresence(userInfo.PrincipalID))
+//                    {
                         InventoryArchiveReadRequest request;
                         bool merge = (options.ContainsKey("merge") ? (bool)options["merge"] : false);
 
@@ -280,13 +277,13 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                         UpdateClientWithLoadedNodes(userInfo, request.Execute());
 
                         return true;
-                    }
-                    else
-                    {
-                        m_log.ErrorFormat(
-                            "[INVENTORY ARCHIVER]: User {0} {1} {2} not logged in to this region simulator",
-                            userInfo.FirstName, userInfo.LastName, userInfo.PrincipalID);
-                    }
+//                    }
+//                    else
+//                    {
+//                        m_log.ErrorFormat(
+//                            "[INVENTORY ARCHIVER]: User {0} {1} {2} not logged in to this region simulator",
+//                            userInfo.FirstName, userInfo.LastName, userInfo.PrincipalID);
+//                    }
                 }
                 else
                     m_log.ErrorFormat("[INVENTORY ARCHIVER]: User {0} {1} not found",
@@ -306,8 +303,8 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 
                 if (userInfo != null)
                 {
-                    if (CheckPresence(userInfo.PrincipalID))
-                    {
+//                    if (CheckPresence(userInfo.PrincipalID))
+//                    {
                         InventoryArchiveReadRequest request;
                         bool merge = (options.ContainsKey("merge") ? (bool)options["merge"] : false);
                         
@@ -328,13 +325,13 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                         UpdateClientWithLoadedNodes(userInfo, request.Execute());
 
                         return true;
-                    }
-                    else
-                    {
-                        m_log.ErrorFormat(
-                            "[INVENTORY ARCHIVER]: User {0} {1} {2} not logged in to this region simulator",
-                            userInfo.FirstName, userInfo.LastName, userInfo.PrincipalID);
-                    }
+//                    }
+//                    else
+//                    {
+//                        m_log.ErrorFormat(
+//                            "[INVENTORY ARCHIVER]: User {0} {1} {2} not logged in to this region simulator",
+//                            userInfo.FirstName, userInfo.LastName, userInfo.PrincipalID);
+//                    }
                 }
             }
 
@@ -359,7 +356,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 if (mainParams.Count < 6)
                 {
                     m_log.Error(
-                        "[INVENTORY ARCHIVER]: usage is load iar [--merge] <first name> <last name> <inventory path> <user password> [<load file path>]");
+                        "[INVENTORY ARCHIVER]: usage is load iar [--merge] <first name> <last name> <inventory path> <user password> [<load file path>]");                    
                     return;
                 }
     
@@ -405,7 +402,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 if (mainParams.Count < 6)
                 {
                     m_log.Error(
-                        "[INVENTORY ARCHIVER]: usage is save iar <first name> <last name> <inventory path> <user password> [<save file path>]");
+                        "[INVENTORY ARCHIVER]: usage is save iar [--p|-profile=<url>] <first name> <last name> <inventory path> <user password> [<save file path>]");
                     return;
                 }
     
@@ -529,28 +526,27 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
             }
         }
 
-        /// <summary>
-        /// Check if the given user is present in any of the scenes.
-        /// </summary>
-        /// <param name="userId">The user to check</param>
-        /// <returns>true if the user is in any of the scenes, false otherwise</returns>
-        protected bool CheckPresence(UUID userId)
-        {
-            if (DisablePresenceChecks)
-                return true;
-            
-            foreach (Scene scene in m_scenes.Values)
-            {
-                ScenePresence p;
-                if ((p = scene.GetScenePresence(userId)) != null)
-                {
-                    p.ControllingClient.SendAgentAlertMessage("Inventory operation has been started", false);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
+//        /// <summary>
+//        /// Check if the given user is present in any of the scenes.
+//        /// </summary>
+//        /// <param name="userId">The user to check</param>
+//        /// <returns>true if the user is in any of the scenes, false otherwise</returns>
+//        protected bool CheckPresence(UUID userId)
+//        {
+//            if (DisablePresenceChecks)
+//                return true;
+//            
+//            foreach (Scene scene in m_scenes.Values)
+//            {
+//                ScenePresence p;
+//                if ((p = scene.GetScenePresence(userId)) != null)
+//                {
+//                    p.ControllingClient.SendAgentAlertMessage("Inventory operation has been started", false);
+//                    return true;
+//                }
+//            }
+//
+//            return false;
+//        }
     }
 }

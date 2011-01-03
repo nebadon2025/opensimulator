@@ -692,6 +692,10 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         public virtual void SendXferPacket(ulong xferID, uint packet, byte[] data)
         {
         }
+        public virtual void SendAbortXferPacket(ulong xferID)
+        {
+
+        }
 
         public virtual void SendEconomyData(float EnergyEfficiency, int ObjectCapacity, int ObjectCount, int PriceEnergyUnit,
                                             int PriceGroupCreate, int PriceObjectClaim, float PriceObjectRent, float PriceObjectScaleFactor,
@@ -1169,6 +1173,10 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         }
         
         public void StopFlying(ISceneEntity presence)
+        {
+        }
+
+        public void SendPlacesReply(UUID queryID, UUID transactionID, PlacesReplyData[] data)
         {
         }
     }

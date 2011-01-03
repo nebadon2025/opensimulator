@@ -785,10 +785,16 @@ namespace OpenSim.Region.Framework.Scenes
                         item.BasePermissions, item.CurrentPermissions, item.EveryOnePermissions, item.NextPermissions, item.GroupPermissions, Util.UnixTimeSinceEpoch());
                 }
                 else
-                {
-                    CreateNewInventoryItem(
-                        remoteClient, item.CreatorId, item.CreatorData, newFolderID, newName, item.Flags, callbackID, asset, (sbyte)item.InvType,
-                        item.NextPermissions, item.NextPermissions, item.EveryOnePermissions & item.NextPermissions, item.NextPermissions, item.GroupPermissions, Util.UnixTimeSinceEpoch());
+                {  
+                    // If item is transfer or permissions are off or calling agent is allowed to copy item owner's inventory item.
+                    if (((item.CurrentPermissions & (uint)PermissionMask.Transfer) != 0) && (m_permissions.BypassPermissions() || m_permissions.CanCopyUserInventory(remoteClient.AgentId, oldItemID)))
+                    {
+                        CreateNewInventoryItem(
+                            remoteClient, item.CreatorId, item.CreatorData, newFolderID, newName, item.Flags, callbackID,
+                            asset, (sbyte) item.InvType,
+                            item.NextPermissions, item.NextPermissions, item.EveryOnePermissions & item.NextPermissions,
+                            item.NextPermissions, item.GroupPermissions, Util.UnixTimeSinceEpoch());
+                    }
                 }
             }
             else
@@ -1026,23 +1032,12 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="primLocalID"></param>
         public void RequestTaskInventory(IClientAPI remoteClient, uint primLocalID)
         {
-            SceneObjectGroup group = GetGroupByPrim(primLocalID);
-            if (group != null)
-            {
-                bool fileChange = group.GetPartInventoryFileName(remoteClient, primLocalID);
-                if (fileChange)
-                {
-                    if (XferManager != null)
-                    {
-                        group.RequestInventoryFile(remoteClient, primLocalID, XferManager);
-                    }
-                }
-            }
-            else
-            {
-                m_log.ErrorFormat(
-                    "[PRIM INVENTORY]: Inventory requested of prim {0} which doesn't exist", primLocalID);
-            }
+            SceneObjectPart part = GetSceneObjectPart(primLocalID);
+            if (part == null)
+                return;
+
+            if (XferManager != null)
+                part.Inventory.RequestInventoryFile(remoteClient, XferManager);
         }
 
         /// <summary>

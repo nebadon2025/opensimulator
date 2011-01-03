@@ -43,10 +43,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        private string LogHeader()
+        {
+            return String.Format("[REGION SYNC SERVER ({0})]", m_scene.RegionInfo.RegionName);
+        }
+
         public void ReportStats(System.IO.TextWriter tw)
         {
-            tw.WriteLine("{0}: [REGION SYNC SERVER]                      TOTAL        LOCAL        REMOTE               TO_SCENE                              FROM_SCENE", DateTime.Now.ToLongTimeString());
-            tw.WriteLine("{0}: [REGION SYNC SERVER]                                                          MSGS  ( /s )    BYTES    (  Mbps  )   MSGS  ( /s )    BYTES    (  Mbps  )     QUEUE", DateTime.Now.ToLongTimeString());
+            tw.WriteLine("{0}: {1}                      TOTAL        LOCAL        REMOTE               TO_SCENE                              FROM_SCENE", DateTime.Now.ToLongTimeString(), LogHeader());
+            tw.WriteLine("{0}: {1}                                                          MSGS  ( /s )    BYTES    (  Mbps  )   MSGS  ( /s )    BYTES    (  Mbps  )     QUEUE", DateTime.Now.ToLongTimeString(), LogHeader());
             m_ClientBalancer.ForEachClientManager(delegate(RegionSyncClientView rscv) {
             {
                 tw.WriteLine("{0}: [{1}] {2}", DateTime.Now.ToLongTimeString(), rscv.Description, rscv.GetStats());
@@ -58,8 +63,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void ReportStatus()
         {
             int cvcount = m_ClientBalancer.Count;
-            m_log.ErrorFormat("[REGION SYNC SERVER] Connected to {0} remote client managers", cvcount);
-            m_log.ErrorFormat("[REGION SYNC SERVER] Local scene contains {0} presences", m_scene.SceneGraph.GetRootAgentCount());
+            m_log.ErrorFormat("{0} Connected to {1} remote client managers", LogHeader(), cvcount);
+            m_log.ErrorFormat("{0} Local scene contains {1} presences", LogHeader(), m_scene.SceneGraph.GetRootAgentCount());
             m_ClientBalancer.ForEachClientManager(delegate(RegionSyncClientView rscv){rscv.ReportStatus();});
         }
 
@@ -70,7 +75,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public RegionSyncServer(Scene scene, string addr, int port, int maxClientsPerManager)
         {
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-            //m_log.Warn("[REGION SYNC SERVER] Constructed");
             m_scene = scene;
             m_addr = IPAddress.Parse(addr);
             m_port = port;
@@ -82,9 +86,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_listenerThread = new Thread(new ThreadStart(Listen));
             m_listenerThread.Name = "RegionSyncServer Listener";
-            m_log.WarnFormat("[REGION SYNC SERVER] Starting {0} thread", m_listenerThread.Name);
+            m_log.WarnFormat("{0} Starting {1} thread", LogHeader(), m_listenerThread.Name);
             m_listenerThread.Start();
-            //m_log.Warn("[REGION SYNC SERVER] Started");
         }
 
 
@@ -118,7 +121,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 while (true)
                 {
                     // *** Move/Add TRY/CATCH to here, but we don't want to spin loop on the same error
-                    m_log.WarnFormat("[REGION SYNC SERVER] Listening for new connections on {0}:{1}...", m_addr.ToString(), m_port.ToString());
+                    m_log.WarnFormat("{0} Listening for new connections on {1}:{2}...", LogHeader(), m_addr.ToString(), m_port.ToString());
                     TcpClient tcpclient = m_listener.AcceptTcpClient();
                     IPAddress addr = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Address;
                     int port = ((IPEndPoint)tcpclient.Client.RemoteEndPoint).Port;
@@ -127,13 +130,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     // so that messages coming from the scene do not get lost before the client view is added but
                     // not sent before it is ready to process them.
                     RegionSyncClientView rscv = new RegionSyncClientView(++clientCounter, m_scene, tcpclient);
-                    m_log.WarnFormat("[REGION SYNC SERVER] New connection from {0}", rscv.Description);
+                    m_log.WarnFormat("{0} New connection from {1}", LogHeader(), rscv.Description);
                     m_ClientBalancer.AddSyncedClient(rscv);
                 }
             }
             catch (SocketException e)
             {
-                m_log.WarnFormat("[REGION SYNC SERVER] [Listen] SocketException: {0}", e);
+                m_log.WarnFormat("{0} [Listen] SocketException: {1}", LogHeader(), e);
             }
         }
 

@@ -60,7 +60,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // The logfile
         private ILog m_log;
 
-        private string LogHeader = "[REGION SYNC CLIENT]";
+        private string LogHeader()
+        {
+            return String.Format("[REGION SYNC CLIENT ({0})]", m_scene.RegionInfo.RegionName);
+        }
 
         // The listener and the thread which listens for connections from client managers
         private Thread m_rcvLoop;
@@ -99,17 +102,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             catch (Exception e)
             {
-                m_log.WarnFormat("{0} [Start] Could not connect to RegionSyncServer at {1}:{2}", LogHeader, m_addr, m_port);
+                m_log.WarnFormat("{0} [Start] Could not connect to RegionSyncServer at {1}:{2}", LogHeader(), m_addr, m_port);
                 m_log.Warn(e.Message);
             }
 
-            m_log.WarnFormat("{0} Connected to RegionSyncServer at {1}:{2}", LogHeader, m_addr, m_port);
+            m_log.WarnFormat("{0} Connected to RegionSyncServer at {1}:{2}", LogHeader(), m_addr, m_port);
 
             m_rcvLoop = new Thread(new ThreadStart(ReceiveLoop));
             m_rcvLoop.Name = "RegionSyncClient ReceiveLoop";
-            m_log.WarnFormat("{0} Starting {1} thread", LogHeader, m_rcvLoop.Name);
+            m_log.WarnFormat("{0} Starting {1} thread", LogHeader(), m_rcvLoop.Name);
             m_rcvLoop.Start();
-            //m_log.WarnFormat("{0} Started", LogHeader);
+            //m_log.WarnFormat("{0} Started", LogHeader());
             DoInitialSync();
             m_statsTimer.Start();
         }
@@ -127,29 +130,29 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             Dictionary<UUID, IClientAPI> locals = LocalAvatars;
             Dictionary<UUID, RegionSyncAvatar> remotes = RemoteAvatars;
 
-            m_log.WarnFormat("{0}: {1,4} Local avatars", LogHeader, locals.Count);
+            m_log.WarnFormat("{0}: {1,4} Local avatars", LogHeader(), locals.Count);
             foreach (KeyValuePair<UUID, IClientAPI> kvp in locals)
             {
                 ScenePresence sp;
                 bool inScene = m_scene.TryGetScenePresence(kvp.Value.AgentId, out sp);
-                m_log.WarnFormat("{0}:     {1} {2} {3}", LogHeader, kvp.Value.AgentId, kvp.Value.Name, inScene ? "" : "(NOT IN SCENE)");
+                m_log.WarnFormat("{0}:     {1} {2} {3}", LogHeader(), kvp.Value.AgentId, kvp.Value.Name, inScene ? "" : "(NOT IN SCENE)");
             }
-            m_log.WarnFormat("{0}: {1,4} Remote avatars", LogHeader, remotes.Count);
+            m_log.WarnFormat("{0}: {1,4} Remote avatars", LogHeader(), remotes.Count);
             foreach (KeyValuePair<UUID, RegionSyncAvatar> kvp in remotes)
             {
                 ScenePresence sp;
                 bool inScene = m_scene.TryGetScenePresence(kvp.Value.AgentId, out sp);
-                m_log.WarnFormat("{0}:     {1} {2} {3}", LogHeader, kvp.Value.AgentId, kvp.Value.Name, inScene ? "" : "(NOT IN SCENE)");
+                m_log.WarnFormat("{0}:     {1} {2} {3}", LogHeader(), kvp.Value.AgentId, kvp.Value.Name, inScene ? "" : "(NOT IN SCENE)");
             }
-            m_log.WarnFormat("{0}: ===================================================", LogHeader);
-            m_log.WarnFormat("{0} Synchronized to RegionSyncServer at {1}:{2}", LogHeader, m_addr, m_port);
-            m_log.WarnFormat("{0}: {1,4} Local avatars", LogHeader, locals.Count);
-            m_log.WarnFormat("{0}: {1,4} Remote avatars", LogHeader, remotes.Count);
+            m_log.WarnFormat("{0}: ===================================================", LogHeader());
+            m_log.WarnFormat("{0} Synchronized to RegionSyncServer at {1}:{2}", LogHeader(), m_addr, m_port);
+            m_log.WarnFormat("{0}: {1,4} Local avatars", LogHeader(), locals.Count);
+            m_log.WarnFormat("{0}: {1,4} Remote avatars", LogHeader(), remotes.Count);
         }
 
         private void ShutdownClient()
         {
-            m_log.WarnFormat("{0} Disconnected from RegionSyncServer. Shutting down.", LogHeader);
+            m_log.WarnFormat("{0} Disconnected from RegionSyncServer. Shutting down.", LogHeader());
 
             // Remove remote avatars from local scene
             try
@@ -192,7 +195,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // *** This is the main thread loop for each connected client
         private void ReceiveLoop()
         {
-            m_log.WarnFormat("{0} Thread running: {1}", LogHeader, m_rcvLoop.Name);
+            m_log.WarnFormat("{0} Thread running: {1}", LogHeader(), m_rcvLoop.Name);
             while (true && m_client.Connected)
             {
                 RegionSyncMessage msg;
@@ -200,7 +203,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 try
                 {
                     msg = new RegionSyncMessage(m_client.GetStream());
-                    //m_log.WarnFormat("{0} Received: {1}", LogHeader, msg.ToString());
+                    //m_log.WarnFormat("{0} Received: {1}", LogHeader(), msg.ToString());
                 }
                 // If there is a problem reading from the client, shut 'er down. 
                 catch
@@ -215,7 +218,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
                 catch (Exception e)
                 {
-                    m_log.WarnFormat("{0} Encountered an exception: {1} (MSGTYPE = {2})", LogHeader, e.Message, msg.ToString());
+                    m_log.WarnFormat("{0} Encountered an exception: {1} (MSGTYPE = {2})", LogHeader(), e.Message, msg.ToString());
                 }
             }
         }
@@ -231,7 +234,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void Send(RegionSyncMessage msg)
         {
             Send(msg.ToBytes());
-            //m_log.WarnFormat("{0} Sent {1}", LogHeader, msg.ToString());
+            //m_log.WarnFormat("{0} Sent {1}", LogHeader(), msg.ToString());
         }
 
         private void Send(byte[] data)
@@ -283,13 +286,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case RegionSyncMessage.MsgType.RegionName:
                     {
                         m_regionName = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
-                        RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Syncing to region \"{0}\"", m_regionName));
+                        RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Syncing to region \"{0}\"", m_regionName));
                         return;
                     }
                 case RegionSyncMessage.MsgType.Terrain:
                     {
                         m_scene.Heightmap.LoadFromXmlString(Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
-                        RegionSyncMessage.HandleSuccess(LogHeader, msg, "Synchronized terrain");
+                        RegionSyncMessage.HandleSuccess(LogHeader(), msg, "Synchronized terrain");
                         return;
                     }
                 case RegionSyncMessage.MsgType.NewObject:
@@ -298,22 +301,22 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
                         if (sog.IsDeleted)
                         {
-                            RegionSyncMessage.HandleTrivial(LogHeader, msg, String.Format("Ignoring update on deleted LocalId {0}.", sog.LocalId.ToString()));
+                            RegionSyncMessage.HandleTrivial(LogHeader(), msg, String.Format("Ignoring update on deleted LocalId {0}.", sog.LocalId.ToString()));
                             return;
                         }
 
                         /*
-                        m_log.DebugFormat("{0} NewObject '{1}'", LogHeader, sog.Name);
+                        m_log.DebugFormat("{0} NewObject '{1}'", LogHeader(), sog.Name);
                         sog.ForEachPart(delegate(SceneObjectPart part)
                         {
-                            m_log.DebugFormat("{0}     Part {1}, lf={2} f={3}", LogHeader, part.Name, 
+                            m_log.DebugFormat("{0}     Part {1}, lf={2} f={3}", LogHeader(), part.Name, 
                                         part.LocalFlags.ToString(), part.Flags.ToString());
                         });
                          */
                         if (m_scene.AddNewSceneObject(sog, true));
-                            //RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Object \"{0}\" ({1}) ({1}) updated.", sog.Name, sog.UUID.ToString(), sog.LocalId.ToString()));
+                            //RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Object \"{0}\" ({1}) ({1}) updated.", sog.Name, sog.UUID.ToString(), sog.LocalId.ToString()));
                         //else
-                            //RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Object \"{0}\" ({1}) ({1}) added.", sog.Name, sog.UUID.ToString(), sog.LocalId.ToString()));
+                        //RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Object \"{0}\" ({1}) ({1}) added.", sog.Name, sog.UUID.ToString(), sog.LocalId.ToString()));
                         sog.ScheduleGroupForFullUpdate();
                         return;
                     }
@@ -323,7 +326,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         OSDMap data = DeserializeMessage(msg);
                         if (data == null)
                         {
-                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            RegionSyncMessage.HandleError(LogHeader(), msg, "Could not deserialize JSON data.");
                             return;
                         }
 
@@ -335,13 +338,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         SceneObjectGroup sog = m_scene.SceneGraph.GetGroupByPrim(localID);
                         if (sog == null)
                         {
-                            //RegionSyncMessage.HandleWarning(LogHeader, msg, String.Format("localID {0} not found.", localID.ToString()));
+                            //RegionSyncMessage.HandleWarning(LogHeader(), msg, String.Format("localID {0} not found.", localID.ToString()));
                             return;
                         }
 
                         // Delete the object from the scene
                         m_scene.DeleteSceneObject(sog, false);
-                        RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("localID {0} deleted.", localID.ToString()));
+                        RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("localID {0} deleted.", localID.ToString()));
                         return;
                     }
                 case RegionSyncMessage.MsgType.NewAvatar:
@@ -350,7 +353,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         OSDMap data = DeserializeMessage(msg);
                         if (data == null)
                         {
-                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            RegionSyncMessage.HandleError(LogHeader(), msg, "Could not deserialize JSON data.");
                             return;
                         }
 
@@ -361,22 +364,22 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         Vector3 startPos = data["startPos"].AsVector3();
                         if (agentID == null || agentID == UUID.Zero || first == null || last == null || startPos == null)
                         {
-                            RegionSyncMessage.HandleError(LogHeader, msg, "Missing or invalid JSON data.");
+                            RegionSyncMessage.HandleError(LogHeader(), msg, "Missing or invalid JSON data.");
                             return;
                         }
 
-                        m_log.DebugFormat("{0} Handle NewAvater for \"{1} {2}\"", LogHeader, first, last);
+                        m_log.DebugFormat("{0} Handle NewAvater for \"{1} {2}\"", LogHeader(), first, last);
                         if (m_remoteAvatars.ContainsKey(agentID))
                         {
-                            RegionSyncMessage.HandleWarning(LogHeader, msg, String.Format("Attempted to add duplicate avatar \"{0} {1}\" ({2})", first, last, agentID.ToString()));
+                            RegionSyncMessage.HandleWarning(LogHeader(), msg, String.Format("Attempted to add duplicate avatar \"{0} {1}\" ({2})", first, last, agentID.ToString()));
                             return;
                         }
 
                         ScenePresence sp;
                         if (m_scene.TryGetScenePresence(agentID, out sp))
                         {
-                            //RegionSyncMessage.HandlerDebug(LogHeader, msg, String.Format("Confirmation of new avatar \"{0}\" ({1})", sp.Name, sp.UUID.ToString()));
-                            RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Confirmation of new avatar \"{0}\" ({1})", sp.Name, sp.UUID.ToString()));
+                            //RegionSyncMessage.HandlerDebug(LogHeader(), msg, String.Format("Confirmation of new avatar \"{0}\" ({1})", sp.Name, sp.UUID.ToString()));
+                            RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Confirmation of new avatar \"{0}\" ({1})", sp.Name, sp.UUID.ToString()));
                             return;
                         }
 
@@ -386,14 +389,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         m_scene.TryGetScenePresence(agentID, out sp);
                         if (sp == null)
                         {
-                            m_log.ErrorFormat("{0} Could not get newly added scene presence.", LogHeader);
+                            m_log.ErrorFormat("{0} Could not get newly added scene presence.", LogHeader());
                         }
                         else
                         {
                             sp.IsSyncedAvatar = true;
                         }
-                        //RegionSyncMessage.HandlerDebug(LogHeader, msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));
-                        RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));
+                        //RegionSyncMessage.HandlerDebug(LogHeader(), msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));
+                        RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));
                         return;
                         
                     }
@@ -403,7 +406,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         OSDMap data = DeserializeMessage(msg);
                         if (data == null)
                         {
-                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            RegionSyncMessage.HandleError(LogHeader(), msg, "Could not deserialize JSON data.");
                             return;
                         }
 
@@ -442,11 +445,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         catch (Exception e)
                         {
-                            m_log.ErrorFormat("{0} Caught exception in UpdatedAvatar handler (Decoding JSON): {1}", LogHeader, e.Message);
+                            m_log.ErrorFormat("{0} Caught exception in UpdatedAvatar handler (Decoding JSON): {1}", LogHeader(), e.Message);
                         }
                         if (agentID == null || agentID == UUID.Zero )
                         {
-                            RegionSyncMessage.HandleError(LogHeader, msg, "Missing or invalid JSON data.");
+                            RegionSyncMessage.HandleError(LogHeader(), msg, "Missing or invalid JSON data.");
                             return;
                         }
 
@@ -455,7 +458,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         m_scene.TryGetScenePresence(agentID, out presence);
                         if (presence == null)
                         {
-                            //RegionSyncMessage.HandleWarning(LogHeader, msg, String.Format("agentID {0} not found.", agentID.ToString()));
+                            //RegionSyncMessage.HandleWarning(LogHeader(), msg, String.Format("agentID {0} not found.", agentID.ToString()));
                             return;
                         }
 
@@ -469,7 +472,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 }
                                 else
                                 {
-                                    m_log.WarnFormat("{0} Received update for balancing avatar not in local avatar list. \"{1}\"", LogHeader, presence.Name);
+                                    m_log.WarnFormat("{0} Received update for balancing avatar not in local avatar list. \"{1}\"", LogHeader(), presence.Name);
                                     return;
                                 }
                             }
@@ -506,7 +509,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         catch(Exception e)
                         {
-                            m_log.ErrorFormat("{0} Caught exception in UpdatedAvatar handler (setting presence values) for {1}: {2}", LogHeader, presence.Name, e.Message);
+                            m_log.ErrorFormat("{0} Caught exception in UpdatedAvatar handler (setting presence values) for {1}: {2}", LogHeader(), presence.Name, e.Message);
                         }
                         try
                         {
@@ -521,7 +524,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         catch (Exception e)
                         {
-                            m_log.ErrorFormat("{0} Caught exception in UpdatedAvatar handler (SendTerseUpdateToAllClients): {1}", LogHeader, e.Message);
+                            m_log.ErrorFormat("{0} Caught exception in UpdatedAvatar handler (SendTerseUpdateToAllClients): {1}", LogHeader(), e.Message);
                         }
                         /*
                         foreach (KeyValuePair<UUID, IClientAPI> kvp in LocalAvatars)
@@ -537,7 +540,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         catch (Exception e)
                         {
-                            m_log.ErrorFormat("{0} Caught exception in UpdatedAvatar handler (TrySetMovementAnimation): {1}", LogHeader, e.Message);
+                            m_log.ErrorFormat("{0} Caught exception in UpdatedAvatar handler (TrySetMovementAnimation): {1}", LogHeader(), e.Message);
                         }
                         /*
                          * result = String.Format("Avatar \"{0}\" ({1}) ({2}) updated (pos:{3}, vel:{4}, rot:{5}, fly:{6})",
@@ -554,7 +557,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         OSDMap data = DeserializeMessage(msg);
                         if (data == null)
                         {
-                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            RegionSyncMessage.HandleError(LogHeader(), msg, "Could not deserialize JSON data.");
                             return;
                         }
 
@@ -562,7 +565,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         UUID agentID = data["agentID"].AsUUID();
                         if (agentID == UUID.Zero)
                         {
-                            RegionSyncMessage.HandleError(LogHeader, msg, "Missing or invalid JSON data.");
+                            RegionSyncMessage.HandleError(LogHeader(), msg, "Missing or invalid JSON data.");
                             return;
                         }
 
@@ -589,11 +592,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 // local scene so we should find it there.
                                 if (presence == null)
                                 {
-                                    RegionSyncMessage.HandleError(LogHeader, msg, String.Format("Couldn't remove remote avatar \"{0}\" because it's not in local scene", name));
+                                    RegionSyncMessage.HandleError(LogHeader(), msg, String.Format("Couldn't remove remote avatar \"{0}\" because it's not in local scene", name));
                                     return;
                                 }
                                 m_scene.RemoveClient(agentID);
-                                RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Remote avatar \"{0}\" removed from scene", name));
+                                RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Remote avatar \"{0}\" removed from scene", name));
                                 return;
                             }
                             else if (LocalAvatars.ContainsKey(agentID))
@@ -608,19 +611,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 // and the presence should not be in our scene at this time.
                                 if (presence != null)
                                 {
-                                    RegionSyncMessage.HandleError(LogHeader, msg, String.Format("Remove avatar confirmation received for \"{0}\" still in the local scene.", name));
+                                    RegionSyncMessage.HandleError(LogHeader(), msg, String.Format("Remove avatar confirmation received for \"{0}\" still in the local scene.", name));
                                     return;
                                 }
-                                RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Received confirmation of removed avatar \"{0}\"", name));
+                                RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Received confirmation of removed avatar \"{0}\"", name));
                                 return;
                             }
                         }
                         // Getting here is always an error because we have been asked to remove and avatar 
                         // so it should have been in either the local or remote collections
                         if (presence == null)
-                            RegionSyncMessage.HandleError(LogHeader, msg, String.Format("Avatar is not local OR remote and was not found in scene: \"{0}\" {1}", presence.Name, agentID.ToString()));
+                            RegionSyncMessage.HandleError(LogHeader(), msg, String.Format("Avatar is not local OR remote and was not found in scene: \"{0}\" {1}", presence.Name, agentID.ToString()));
                         else
-                            RegionSyncMessage.HandleError(LogHeader, msg, String.Format("Avatar is not local OR remote but was found in scene: {1}", agentID.ToString()));
+                            RegionSyncMessage.HandleError(LogHeader(), msg, String.Format("Avatar is not local OR remote but was found in scene: {1}", agentID.ToString()));
                         return;
                     }
                 case RegionSyncMessage.MsgType.ChatFromClient:
@@ -629,7 +632,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         OSDMap data = DeserializeMessage(msg);
                         if (data == null)
                         {
-                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            RegionSyncMessage.HandleError(LogHeader(), msg, "Could not deserialize JSON data.");
                             return;
                         }
                         OSChatMessage args = new OSChatMessage();
@@ -638,7 +641,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         args.Position = data["pos"].AsVector3();
                         args.From = data["name"].AsString();
                         UUID id = data["id"].AsUUID();
-                        // m_log.DebugFormat("{0} chat. chan={1}, from='{2}', msg='{3}'", LogHeader, args.Channel, args.From, args.Message);
+                        // m_log.DebugFormat("{0} chat. chan={1}, from='{2}', msg='{3}'", LogHeader(), args.Channel, args.From, args.Message);
                         args.Scene = m_scene;
                         args.Type = ChatTypeEnum.Say;
                         ScenePresence sp;
@@ -655,18 +658,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             m_scene.EventManager.TriggerOnChatFromWorld(null, args);
                         }
 
-                        //RegionSyncMessage.HandlerDebug(LogHeader, msg, String.Format("Received chat from \"{0}\"", args.From));
-                        RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Received chat from \"{0}\"", args.From));
+                        //RegionSyncMessage.HandlerDebug(LogHeader(), msg, String.Format("Received chat from \"{0}\"", args.From));
+                        RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Received chat from \"{0}\"", args.From));
                         return;
                     }
                 case RegionSyncMessage.MsgType.AvatarAppearance:
                     {
-                        m_log.DebugFormat("{0} START of AvatarAppearance handler", LogHeader);
+                        m_log.DebugFormat("{0} START of AvatarAppearance handler", LogHeader());
                         // Get the data from message and error check
                         OSDMap data = DeserializeMessage(msg);
                         if (data == null)
                         {
-                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            RegionSyncMessage.HandleError(LogHeader(), msg, "Could not deserialize JSON data.");
                             return;
                         }
 
@@ -674,14 +677,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         UUID agentID = data["id"].AsUUID();
                         if (agentID == null || agentID == UUID.Zero)
                         {
-                            RegionSyncMessage.HandleError(LogHeader, msg, "Missing or invalid JSON data.");
+                            RegionSyncMessage.HandleError(LogHeader(), msg, "Missing or invalid JSON data.");
                             return;
                         }
 
                         // Tells the avatar factory to pull an updated appearance from the avatar service
                         m_scene.AvatarFactory.RefreshAppearance(agentID);
 
-                        m_log.DebugFormat("{0} END of AvatarAppearance handler", LogHeader);
+                        m_log.DebugFormat("{0} END of AvatarAppearance handler", LogHeader());
                         return;
                     }
                 case RegionSyncMessage.MsgType.SitResponse:
@@ -689,11 +692,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         OSDMap data = DeserializeMessage(msg);
                         if (data == null)
                         {
-                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            RegionSyncMessage.HandleError(LogHeader(), msg, "Could not deserialize JSON data.");
                             return;
                         }
                         UUID agentID = data["agentID"].AsUUID();
-                        m_log.DebugFormat("{0} SitResponse for {1}", LogHeader, agentID);
+                        m_log.DebugFormat("{0} SitResponse for {1}", LogHeader(), agentID);
                         UUID targetID = data["targetID"].AsUUID();
                         Vector3 offsetPos = data["offsetPos"].AsVector3();
                         Quaternion sitOrientation = data["sitOrientation"].AsQuaternion();
@@ -709,7 +712,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         else
                         {
-                            RegionSyncMessage.HandleWarning(LogHeader, msg,
+                            RegionSyncMessage.HandleWarning(LogHeader(), msg,
                                 String.Format("Agent {0} not found in the scene for SitResponse.", agentID));
                         }
 
@@ -720,12 +723,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         OSDMap data = DeserializeMessage(msg);
                         if (data == null)
                         {
-                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            RegionSyncMessage.HandleError(LogHeader(), msg, "Could not deserialize JSON data.");
                             return;
                         }
 
                         UUID agentID = data["agentID"].AsUUID();
-                        // m_log.DebugFormat("{0} SendAnimations for {1}", LogHeader, agentID.ToString());
+                        // m_log.DebugFormat("{0} SendAnimations for {1}", LogHeader(), agentID.ToString());
 
                         OSDArray animatA = (OSDArray)data["animations"];
                         UUID[] animIDs = new UUID[animatA.Count];
@@ -757,7 +760,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         else
                         {
                             m_log.WarnFormat("{0} Could not send animation for {1} because scene presence not found",
-                                LogHeader, agentID.ToString());
+                                LogHeader(), agentID.ToString());
                         }
                         return;
                     }
@@ -767,18 +770,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         OSDMap data = DeserializeMessage(msg);
                         if (data == null)
                         {
-                            RegionSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                            RegionSyncMessage.HandleError(LogHeader(), msg, "Could not deserialize JSON data.");
                             return;
                         }
                         int targetLoad = data["endCount"].AsInteger();
                         string destinationRegion = data["toRegion"].AsString();
-                        RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Balancing load from {0} to {1} via region \"{2}\"", m_localAvatars.Count, targetLoad, destinationRegion));
+                        RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Balancing load from {0} to {1} via region \"{2}\"", m_localAvatars.Count, targetLoad, destinationRegion));
                         BalanceClientLoad(targetLoad, destinationRegion);
                         return;
                     }
                 default:
                     {
-                        RegionSyncMessage.HandleError(LogHeader, msg, String.Format("{0} Unsupported message type: {1}", LogHeader, ((int)msg.Type).ToString()));
+                        RegionSyncMessage.HandleError(LogHeader(), msg, String.Format("{0} Unsupported message type: {1}", LogHeader(), ((int)msg.Type).ToString()));
                         return;
                     }
             }
@@ -798,7 +801,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 lock (exceptions)
                     // If this is a new message, then print the underlying data that caused it
                     if (!exceptions.Contains(e.Message))
-                        m_log.Error(LogHeader + " " + Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
+                        m_log.Error(LogHeader() + " " + Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
                 data = null;
             }
             return data;
@@ -849,8 +852,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_localAvatars = newlocals;
             }
 
-            m_log.WarnFormat("{0} New local client \"{1}\" ({2}) being added to remote scene.", 
-                    LogHeader, client.Name, client.AgentId.ToString());
+            m_log.WarnFormat("{0} New local client \"{1}\" ({2}) being added to remote scene.",
+                    LogHeader(), client.Name, client.AgentId.ToString());
             // Let the auth sim know that a new agent has connected
             OSDMap data = new OSDMap(4);
             data["agentID"] = OSD.FromUUID(client.AgentId);
@@ -877,8 +880,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void EventManager_OnMakeChildAgent(ScenePresence scenep)
         {
             // if demoting from root, tell the server not to track our child
-            m_log.DebugFormat("{0} Demotion to child. Sending remove for {1}/{2}", 
-                LogHeader, scenep.ControllingClient.Name, scenep.ControllingClient.AgentId);
+            m_log.DebugFormat("{0} Demotion to child. Sending remove for {1}/{2}",
+                LogHeader(), scenep.ControllingClient.Name, scenep.ControllingClient.AgentId);
             OSDMap data = new OSDMap(1);
             data["agentID"] = OSD.FromUUID(scenep.ControllingClient.AgentId);
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentRemove, OSDParser.SerializeJsonString(data)));
@@ -921,14 +924,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     // If we are still connected, let the auth sim know that an agent has disconnected
                     if (m_client.Connected)
                     {
-                        m_log.WarnFormat("{0} Local client ({1}) has left the scene. Notifying remote scene.", LogHeader, clientID.ToString());
+                        m_log.WarnFormat("{0} Local client ({1}) has left the scene. Notifying remote scene.", LogHeader(), clientID.ToString());
                         OSDMap data = new OSDMap(1);
                         data["agentID"] = OSD.FromUUID(clientID);
                         Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentRemove, OSDParser.SerializeJsonString(data)));
                     }
                     else
                     {
-                        m_log.WarnFormat("{0} Local client ({1}) has left the scene.", LogHeader, clientID.ToString());
+                        m_log.WarnFormat("{0} Local client ({1}) has left the scene.", LogHeader(), clientID.ToString());
                         // Remove it from our list of local avatars (we will never receive a confirmation since we are disconnected)
                         Dictionary<UUID, IClientAPI> newlocals = new Dictionary<UUID, IClientAPI>(LocalAvatars);
                         newlocals.Remove(clientID);
@@ -953,21 +956,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             string name = "NOT FOUND";
             if (m_scene.TryGetScenePresence(agentID, out sp))
                 name = sp.Name;
-            m_log.WarnFormat("{0} Received LLClientView.SetAppearance ({1,3},{2,2}) for {3} (\"{4}\")", LogHeader, vp.Length.ToString(), (te == null) ? "" : "te", agentID.ToString(), sp.Name);
+            m_log.WarnFormat("{0} Received LLClientView.SetAppearance ({1,3},{2,2}) for {3} (\"{4}\")", LogHeader(), vp.Length.ToString(), (te == null) ? "" : "te", agentID.ToString(), sp.Name);
             if (sp == null)
             {
-                m_log.WarnFormat("{0} Scene presence could not be found to set appearance.", LogHeader);
+                m_log.WarnFormat("{0} Scene presence could not be found to set appearance.", LogHeader());
                 return;
             }
 
             // Set the appearance on the presence. This will generate the needed exchange with the client if rebakes need to take place.
-            m_log.WarnFormat("{0} Setting appearance on ScenePresence {1} \"{2}\"", LogHeader, sp.UUID, sp.Name);
+            m_log.WarnFormat("{0} Setting appearance on ScenePresence {1} \"{2}\"", LogHeader(), sp.UUID, sp.Name);
             m_scene.AvatarFactory.SetAppearance(sp.ControllingClient, te, vp);
         }
 
         public void HandleAgentRequestSit(object sender, UUID agentID, UUID targetID, Vector3 offset)
         {
-            m_log.DebugFormat("[REGION SYNC CLIENT] HandleAgentRequestSit for {0}", agentID.ToString());
+            m_log.DebugFormat("{0} HandleAgentRequestSit for {1}", LogHeader(), agentID.ToString());
             OSDMap data = new OSDMap(3);
             data["agentID"] = OSD.FromUUID(agentID);
             data["targetID"] = OSD.FromUUID(targetID);
@@ -977,7 +980,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void HandleAgentSit(IClientAPI remoteClient, UUID agentID)
         {
-            m_log.DebugFormat("[REGION SYNC CLIENT] HandleAgentSit for {0}", agentID.ToString());
+            m_log.DebugFormat("{0} HandleAgentSit for {1}", LogHeader(), agentID.ToString());
             OSDMap data = new OSDMap(1);
             data["agentID"] = OSD.FromUUID(agentID);
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentSit, OSDParser.SerializeJsonString(data)));
@@ -985,7 +988,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void HandleGrabObject(uint localID, Vector3 offsetPos, IClientAPI remoteClient, List<SurfaceTouchEventArgs> surfaceArgs)
         {
-            m_log.DebugFormat("[REGION SYNC CLIENT] HandleGrabObject for {0}", remoteClient.AgentId.ToString());
+            m_log.DebugFormat("{0} HandleGrabObject for {1}", LogHeader(), remoteClient.AgentId.ToString());
             OSDMap data = new OSDMap(4);
             data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
             data["localID"] = OSD.FromUInteger(localID);
@@ -996,7 +999,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void HandleGrabUpdate(UUID objectID, Vector3 offset, Vector3 pos, IClientAPI remoteClient, List<SurfaceTouchEventArgs> surfaceArgs)
         {
-            m_log.DebugFormat("[REGION SYNC CLIENT] HandleGrabUpdate for {0}", remoteClient.AgentId.ToString());
+            m_log.DebugFormat("{0} HandleGrabUpdate for {1}", LogHeader(), remoteClient.AgentId.ToString());
             OSDMap data = new OSDMap(5);
             data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
             data["objectID"] = OSD.FromUUID(objectID);
@@ -1008,7 +1011,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void HandleDeGrabObject(uint localID, IClientAPI remoteClient, List<SurfaceTouchEventArgs> surfaceArgs)
         {
-            m_log.DebugFormat("[REGION SYNC CLIENT] HandleDeGrabObject for {0}", remoteClient.AgentId.ToString());
+            m_log.DebugFormat("{0} HandleDeGrabObject for {1}", LogHeader(), remoteClient.AgentId.ToString());
             OSDMap data = new OSDMap(3);
             data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
             data["localID"] = OSD.FromUInteger(localID);
@@ -1100,7 +1103,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["total"] = OSD.FromInteger(t);
             data["local"] = OSD.FromInteger(l);
             data["remote"] = OSD.FromInteger(r);
-            //m_log.WarnFormat("{0}: Sent stats: {1},{2},{3}", LogHeader, t, l, r);
+            //m_log.WarnFormat("{0}: Sent stats: {1},{2},{3}", LogHeader(), t, l, r);
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.RegionStatus, OSDParser.SerializeJsonString(data)));
         }
         
@@ -1121,7 +1124,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_scene.TryGetScenePresence(kvp.Key, out sp);
                 if (sp == null)
                 {
-                    m_log.ErrorFormat("{0} Could not find scene presence {1} to teleport", LogHeader, kvp.Value.Name);
+                    m_log.ErrorFormat("{0} Could not find scene presence {1} to teleport", LogHeader(), kvp.Value.Name);
                     continue;
                 }
 
@@ -1144,7 +1147,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Here we will subscribe to interesting client events
         public void IncomingLoadBalanceConnection(ScenePresence presence)
         {
-            m_log.WarnFormat("{0} IncomingLoadBalanceConnection", LogHeader);
+            m_log.WarnFormat("{0} IncomingLoadBalanceConnection", LogHeader());
             IClientAPI client = presence.ControllingClient;
 
             // Let the auth sim know we just picked up responsibility for this client

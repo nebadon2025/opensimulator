@@ -217,7 +217,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
                     //SYMMETRIC SYNC
                     //KittyL: 12/27/2010, added ActorID for symmetric synch model
-                    part.SetLastUpdateActorID();
+                    //part.SetLastUpdateActorID();
 
                     // SceneObjectGroup.AddPart() tries to be smart and automatically set the LinkNum.
                     // We override that here

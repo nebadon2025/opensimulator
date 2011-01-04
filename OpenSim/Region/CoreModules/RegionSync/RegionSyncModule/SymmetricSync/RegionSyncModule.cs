@@ -774,7 +774,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)e);
                                 SendSyncMessage(SymmetricSyncMessage.MsgType.NewObject, sogxml);
 
-                                //m_log.Debug(LogHeader + ": " + sogxml);
+                                m_log.Debug(LogHeader + ": " + sogxml);
                             }
                         }
                         return;

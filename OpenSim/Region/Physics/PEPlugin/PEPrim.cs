@@ -81,7 +81,7 @@ public sealed class PEPrim : PhysicsActor
         _position = pos;
         _size = size;
         _orientation = rotation;
-        // SendCreatePrim(primName, parent_scene, pos, size, rotation, mesh, pbs, pisPhysical, dode);
+        // m_log.DebugFormat("[REMOTE PRIM ENGINE] PEPrim creation of {0}", primName);
     }
     
     public override bool Stopped { 
@@ -90,21 +90,21 @@ public sealed class PEPrim : PhysicsActor
     public override Vector3 Size { 
         get { return _size; } 
         set { _size = value;
-            // m_log.Debug("[RPE] PEPrim set Size");
+            // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Size");
             ChangingActorID = RegionSyncServerModule.ActorID;
             Prop.Set(_localID, PropType.Size, _size);
         } 
     }
     public override PrimitiveBaseShape Shape { 
         set { _pbs = value; 
-            m_log.Debug("[RPE] PEPrim set Shape");
+            m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Shape");
             ChangingActorID = RegionSyncServerModule.ActorID;
             Prop.Set(_localID, PropType.Shape, _pbs);
         } 
     }
     public override uint LocalID { 
         set { _localID = value; 
-            // m_log.Debug("[RPE] PEPrim set LocalID");
+            // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set LocalID");
             ChangingActorID = RegionSyncServerModule.ActorID;
             Prop.Set(_localID, PropType.LocalID, _localID);
         }
@@ -112,13 +112,13 @@ public sealed class PEPrim : PhysicsActor
     }
     public override bool Grabbed { 
         set { _grabbed = value; 
-            m_log.Debug("[RPE] PEPrim set Grabbed");
+            m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Grabbed");
             Prop.Set(_localID, PropType.Grabbed, _grabbed);
         } 
     }
     public override bool Selected { 
         set { _selected = value; 
-            m_log.Debug("[RPE] PEPrim set Selected");
+            m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Selected");
             Prop.Set(_localID, PropType.Selected, _selected);
         } 
     }
@@ -131,7 +131,7 @@ public sealed class PEPrim : PhysicsActor
         get { return _position; } 
         set { _position = value; 
             ChangingActorID = RegionSyncServerModule.ActorID;
-            // m_log.Debug("[RPE] PEPrim set Position");
+            // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Position");
             Prop.Set(_localID, PropType.Position, _position);
         } 
     }
@@ -142,7 +142,7 @@ public sealed class PEPrim : PhysicsActor
         get { return _force; } 
         set { _force = value; 
             ChangingActorID = RegionSyncServerModule.ActorID;
-            // m_log.Debug("[RPE] PEPrim set Force");
+            // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Force");
             Prop.Set(_localID, PropType.Force, _force);
         } 
     }

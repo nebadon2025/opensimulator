@@ -87,7 +87,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             IConfig syncConfig = config.Configs["RegionSyncModule"];
             if (syncConfig != null 
                     && syncConfig.GetBoolean("Enabled", false)
-                    && syncConfig.GetString("Mode", "").ToLower() == "client"
+                    // && syncConfig.GetString("Mode", "").ToLower() == "client"
                     && syncConfig.GetBoolean("PhysEngineClient", false)
                 )
             {

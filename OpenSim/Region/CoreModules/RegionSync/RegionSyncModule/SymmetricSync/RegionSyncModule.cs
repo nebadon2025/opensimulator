@@ -302,7 +302,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         #endregion //IRegionSyncModule  
 
         #region ICommandableModule Members
-        private readonly Commander m_commander = new Commander("sync");
+        private readonly Commander m_commander = new Commander("ssync");
         public ICommander CommandInterface
         {
             get { return m_commander; }
@@ -340,7 +340,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="args">Commandline arguments</param>
         private void EventManager_OnPluginConsole(string[] args)
         {
-            if (args[0] == "sync")
+            if (args[0] == "ssync")
             {
                 if (args.Length == 1)
                 {

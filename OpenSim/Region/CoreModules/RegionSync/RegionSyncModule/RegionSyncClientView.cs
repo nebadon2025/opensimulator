@@ -302,26 +302,34 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Syncing to region \"{0}\"", m_regionName));
                         return;
                     }
+                //SYMMETRIC SYNC: do not handle terrian and object updates
                 case RegionSyncMessage.MsgType.GetTerrain:
                     {
-                        Send(new RegionSyncMessage(RegionSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString()));
-                        RegionSyncMessage.HandleSuccess(LogHeader, msg, "Terrain sent");
+                        if (!m_scene.RegionSyncServerModule.IsSymSync)
+                        {
+                            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString()));
+                            RegionSyncMessage.HandleSuccess(LogHeader, msg, "Terrain sent");
+                        }
                         return;
                     }
                 case RegionSyncMessage.MsgType.GetObjects:
                     {
-                        EntityBase[] entities = m_scene.GetEntities();
-                        foreach(EntityBase e in entities)
+                        if (!m_scene.RegionSyncServerModule.IsSymSync)
                         {
-                            if (e is SceneObjectGroup)
+                            EntityBase[] entities = m_scene.GetEntities();
+                            foreach (EntityBase e in entities)
                             {
-                                string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)e);
-                                Send(new RegionSyncMessage(RegionSyncMessage.MsgType.NewObject, sogxml));
+                                if (e is SceneObjectGroup)
+                                {
+                                    string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)e);
+                                    Send(new RegionSyncMessage(RegionSyncMessage.MsgType.NewObject, sogxml));
+                                }
                             }
+                            RegionSyncMessage.HandleSuccess(LogHeader, msg, "Sent all scene objects");
                         }
-                        RegionSyncMessage.HandleSuccess(LogHeader, msg, "Sent all scene objects");
                         return;
                     }
+                //end of SYMMETRIC SYNC
                 case RegionSyncMessage.MsgType.GetAvatars:
                     {
                         m_scene.ForEachScenePresence(delegate(ScenePresence presence)

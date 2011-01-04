@@ -366,6 +366,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Synchronization related functions, NOT exposed through IRegionSyncModule interface
         /////////////////////////////////////////////////////////////////////////////////////////
 
+        private static int PortUnknown = -1;
+        private static string IPAddrUnknown = "";
+
         private ILog m_log;
         //private bool m_active = true;
 
@@ -482,8 +485,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void StartLocalSyncListener()
         {
             RegionSyncListenerInfo localSyncListenerInfo = GetLocalSyncListenerInfo();
-            m_localSyncListener = new RegionSyncListener(localSyncListenerInfo, this);
-            m_localSyncListener.Start();
+
+            if (localSyncListenerInfo!=null)
+            {
+                m_log.Warn(LogHeader + " Starting SyncListener");
+                m_localSyncListener = new RegionSyncListener(localSyncListenerInfo, this);
+                m_localSyncListener.Start();
+            }
             
             //STATS TIMER: TO BE IMPLEMENTED
             //m_statsTimer.Elapsed += new System.Timers.ElapsedEventHandler(StatsTimerElapsed);
@@ -494,11 +502,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //For now, we use configuration to access the information. Might be replaced by some Grid Service later on.
         private RegionSyncListenerInfo GetLocalSyncListenerInfo()
         {
-            string addr = m_sysConfig.GetString("SyncListenerIPAddress", "127.0.0.1");
-            int port = m_sysConfig.GetInt("SyncListenerPort", 13000);
-            RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);
+            string addr = m_sysConfig.GetString("SyncListenerIPAddress", IPAddrUnknown);
+            int port = m_sysConfig.GetInt("SyncListenerPort", PortUnknown);
 
-            return info;
+            m_log.Warn(LogHeader + ", listener addr: " + addr + ", port: " + port);
+
+            if (!addr.Equals(IPAddrUnknown) && port != PortUnknown)
+            {
+                RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);
+                return info;
+            }
+
+            return null;
         }
 
         //Get the information for remote [IP:Port] to connect to for synchronization purpose.
@@ -510,13 +525,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             //For now, we assume there is only one remote listener to connect to. Later on, 
             //we may need to modify the code to read in multiple listeners.
-            string addr = m_sysConfig.GetString("SyncListenerIPAddress", "127.0.0.1");
-            int port = m_sysConfig.GetInt("SyncListenerPort", 13000);
-            RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);
-
-            m_remoteSyncListeners = new HashSet<RegionSyncListenerInfo>();
-            
-            m_remoteSyncListeners.Add(info);
+            string addr = m_sysConfig.GetString("SyncListenerIPAddress", IPAddrUnknown);
+            int port = m_sysConfig.GetInt("SyncListenerPort", PortUnknown);
+            if (!addr.Equals(IPAddrUnknown) && port != PortUnknown)
+            {
+                RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);
+                m_remoteSyncListeners = new HashSet<RegionSyncListenerInfo>();
+                m_remoteSyncListeners.Add(info);
+            }
         }
 
         //Start SyncListener if a listener is supposed to run on this actor; Otherwise, initiate connections to remote listeners.

@@ -48,6 +48,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
     public class RegionSyncServerModule : IRegionModule, IRegionSyncServerModule, ICommandableModule
     {
         private static int DefaultPort = 13000;
+        private static int PortUnknown = -1;
+        private static string IPAddrUnknown = "";
 
         #region IRegionModule Members
         public void Initialise(Scene scene, IConfigSource config)
@@ -96,19 +98,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Get sync server info for Client Manager actors 
             string serverAddr = scene.RegionInfo.RegionName + "_ServerIPAddress";
-            m_serveraddr = syncConfig.GetString(serverAddr, "127.0.0.1");
+            m_serveraddr = syncConfig.GetString(serverAddr, IPAddrUnknown);
             string serverPort = scene.RegionInfo.RegionName + "_ServerPort";
-            m_serverport = syncConfig.GetInt(serverPort, DefaultPort);
+            m_serverport = syncConfig.GetInt(serverPort, PortUnknown);
             // Client manager load balancing
             m_maxClientsPerManager = syncConfig.GetInt("MaxClientsPerManager", 100);
             DefaultPort++;
 
             //Get sync server info for Script Engine actors 
             string seServerAddr = scene.RegionInfo.RegionName + "_SceneToSESyncServerIP";
-            m_seSyncServeraddr = syncConfig.GetString(seServerAddr, "127.0.0.1");
+            m_seSyncServeraddr = syncConfig.GetString(seServerAddr, IPAddrUnknown);
             string seServerPort = scene.RegionInfo.RegionName + "_SceneToSESyncServerPort";
-            m_seSyncServerport = syncConfig.GetInt(seServerPort, DefaultPort);
+            m_seSyncServerport = syncConfig.GetInt(seServerPort, PortUnknown);
             DefaultPort++;
+
+            m_symsync = syncConfig.GetBoolean("SymSync", false);
 
             //Get quark information
             QuarkInfo.SizeX = syncConfig.GetInt("QuarkSizeX", (int)Constants.RegionSize);
@@ -138,23 +142,34 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.OnNewClient += new EventManager.OnNewClientDelegate(EventManager_OnNewClient);
             //m_scene.EventManager.OnNewPresence += new EventManager.OnNewPresenceDelegate(EventManager_OnNewPresence);
             m_scene.EventManager.OnRemovePresence += new EventManager.OnRemovePresenceDelegate(EventManager_OnRemovePresence);
-            m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(SceneGraph_OnObjectCreate);
-            m_scene.SceneGraph.OnObjectDuplicate += new ObjectDuplicateDelegate(SceneGraph_OnObjectDuplicate);
-            //m_scene.SceneGraph.OnObjectRemove += new ObjectDeleteDelegate(SceneGraph_OnObjectRemove);
-            //m_scene.StatsReporter.OnSendStatsResult += new SimStatsReporter.SendStatResult(StatsReporter_OnSendStatsResult);
-            m_scene.EventManager.OnOarFileLoaded += new EventManager.OarFileLoaded(EventManager_OnOarFileLoaded);
-
-            m_log.Warn("[REGION SYNC SERVER MODULE] Starting RegionSyncServer");
+            
+            //SYMMETRIC SYNC: do not handle object updates
+            if (!m_symsync)
+            {
+                m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(SceneGraph_OnObjectCreate);
+                m_scene.SceneGraph.OnObjectDuplicate += new ObjectDuplicateDelegate(SceneGraph_OnObjectDuplicate);
+                //m_scene.SceneGraph.OnObjectRemove += new ObjectDeleteDelegate(SceneGraph_OnObjectRemove);
+                //m_scene.StatsReporter.OnSendStatsResult += new SimStatsReporter.SendStatResult(StatsReporter_OnSendStatsResult);
+                m_scene.EventManager.OnOarFileLoaded += new EventManager.OarFileLoaded(EventManager_OnOarFileLoaded);
+            }
+            //end of SYMMETRIC SYNC
             // Start the server and listen for RegionSyncClients
-            m_server = new RegionSyncServer(m_scene, m_serveraddr, m_serverport, m_maxClientsPerManager);
-            m_server.Start();
-            m_statsTimer.Elapsed += new System.Timers.ElapsedEventHandler(StatsTimerElapsed);
-            m_statsTimer.Start();
+            if (!m_serveraddr.Equals(IPAddrUnknown) && m_serverport != PortUnknown)
+            {
+                m_log.Warn("[REGION SYNC SERVER MODULE] Starting RegionSyncServer");
+                m_server = new RegionSyncServer(m_scene, m_serveraddr, m_serverport, m_maxClientsPerManager);
+                m_server.Start();
+                m_statsTimer.Elapsed += new System.Timers.ElapsedEventHandler(StatsTimerElapsed);
+                m_statsTimer.Start();
+            }
 
-            m_log.Warn("[REGION SYNC SERVER MODULE] Starting SceneToScriptEngineSyncServer");
-            //Start the sync server for script engines
-            m_sceneToSESyncServer = new SceneToScriptEngineSyncServer(m_scene, m_seSyncServeraddr, m_seSyncServerport);
-            m_sceneToSESyncServer.Start();
+            if (!m_seSyncServeraddr.Equals(IPAddrUnknown) && m_seSyncServerport != PortUnknown)
+            {
+                m_log.Warn("[REGION SYNC SERVER MODULE] Starting SceneToScriptEngineSyncServer");
+                //Start the sync server for script engines
+                m_sceneToSESyncServer = new SceneToScriptEngineSyncServer(m_scene, m_seSyncServeraddr, m_seSyncServerport);
+                m_sceneToSESyncServer.Start();
+            }
             //m_log.Warn("[REGION SYNC SERVER MODULE] Post-Initialised");
         }
 
@@ -259,25 +274,23 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 // Sending the message when it's first queued would yield lower latency but much higher load on the simulator
                 // as parts may be updated many many times very quickly. Need to implement a higher resolution send in heartbeat
-                foreach (SceneObjectGroup sog in primUpdates)
+
+                //SYMMETRIC SYNC: do not handle object updates
+                if (!m_symsync)
                 {
-                    if (!sog.IsDeleted)
+                    foreach (SceneObjectGroup sog in primUpdates)
                     {
-                        /*
-                        string sogxml = SceneObjectSerializer.ToXml2Format(sog);
-
-                        m_log.Debug("[REGION SYNC SERVER MODULE]: to update object " + sog.UUID + ", localID: "+sog.LocalId
-                            + ", with color " + sog.RootPart.Shape.Textures.DefaultTexture.RGBA.A 
-                            + "," + sog.RootPart.Shape.Textures.DefaultTexture.RGBA.B + "," + sog.RootPart.Shape.Textures.DefaultTexture.RGBA.G 
-                            + "," + sog.RootPart.Shape.Textures.DefaultTexture.RGBA.R);
-
-                        m_server.Broadcast(new RegionSyncMessage(RegionSyncMessage.MsgType.UpdatedObject, sogxml));
-                         * */
-                        //KittyL: modified to broadcast to different types of actors
-                        m_server.BroadcastToCM(RegionSyncMessage.MsgType.UpdatedObject, sog);
-                        m_sceneToSESyncServer.SendToSE(RegionSyncMessage.MsgType.UpdatedObject, sog);
+                        if (!sog.IsDeleted)
+                        {
+                            //KittyL: modified to broadcast to different types of actors
+                            if (m_server != null)
+                                m_server.BroadcastToCM(RegionSyncMessage.MsgType.UpdatedObject, sog);
+                            if (m_sceneToSESyncServer != null)
+                                m_sceneToSESyncServer.SendToSE(RegionSyncMessage.MsgType.UpdatedObject, sog);
+                        }
                     }
                 }
+                //end of SYMMETRIC SYNC
                 foreach (ScenePresence presence in presenceUpdates)
                 {
                     try
@@ -363,7 +376,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["localID"] = OSD.FromUInteger(localID);
             RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
             //m_server.BroadcastToCM(rsm);
-            m_server.Broadcast(rsm);
+            if(m_server!=null)
+                m_server.Broadcast(rsm);
 
             //KittyL: Second, tell script engine to remove the object, identified by UUID
             //UUID objID = m_scene.GetSceneObjectPart(localID).ParentGroup.UUID;
@@ -378,7 +392,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //when an object is deleted, this function (DeleteObject) could be triggered more than once. So we check 
                 //if the object part is already removed is the scene (part==null)
                 m_log.Debug("Inform script engine about the deleted object");
-                m_sceneToSESyncServer.SendToSE(rsm, part.ParentGroup);
+                if(m_sceneToSESyncServer!=null)
+                    m_sceneToSESyncServer.SendToSE(rsm, part.ParentGroup);
             }
             
         }
@@ -403,9 +418,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void SendLoadWorldMap(ITerrainChannel heightMap)
         {
             RegionSyncMessage msg = new RegionSyncMessage(RegionSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString());
-            m_server.Broadcast(msg);
+            if(m_server!=null)
+                m_server.Broadcast(msg);
             //KittyL: added for SE
-            m_sceneToSESyncServer.SendToAllConnectedSE(msg);
+            if(m_sceneToSESyncServer!=null)
+                m_sceneToSESyncServer.SendToAllConnectedSE(msg);
         }
 
         #region cruft
@@ -469,6 +486,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private int m_seSyncServerport;
         private SceneToScriptEngineSyncServer m_sceneToSESyncServer = null;
         
+        //a boolean variable to indicate in symmetric sync is configured
+        private bool m_symsync = false;
+
+        public bool IsSymSync
+        {
+            get { return IsSymSync; }
+        }
         //quark related information
         //private int QuarkInfo.SizeX;
         //private int QuarkInfo.SizeY;

@@ -41,9 +41,50 @@ namespace OpenSim.Region.Framework.Scenes
     //SYMMETRIC SYNC: Rename the original EventManager as EventManagerBase, and implement a new EventManager that inherits from EventManagerBase
 
     /// <summary>
-    /// A class for triggering remote scene events.
+    /// A wrapper class to implement handle event differently depending on if they are initiated locally or remotelly (i.e. by another actor)
     /// </summary>
-    public class EventManager
+    public class EventManager: EventManagerBase
+    {
+        private Scene m_scene;
+
+        //the events that we'll handle specially in sym-sync
+        public enum EventNames
+        {
+            UpdateScript,
+        }
+
+        public EventManager(Scene scene)
+        {
+            m_scene = scene;
+        }
+        public override void TriggerUpdateScript(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
+        {
+            //publish the event to other actors who are intersted in it
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[5];
+                eventArgs[0] = (Object) clientId;
+                eventArgs[1] = (Object)itemId;
+                eventArgs[2] = (Object)primId;
+                eventArgs[3] = (Object)isScriptRunning;
+                eventArgs[4] = (Object)newAssetID;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.UpdateScript, eventArgs);
+            }
+           
+            //trigger event locally, as the legacy code does
+            TriggerUpdateScriptLocally(clientId, itemId, primId, isScriptRunning, newAssetID);
+        }
+
+        public void TriggerUpdateScriptLocally(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
+        {
+            base.TriggerUpdateScript(clientId, itemId, primId, isScriptRunning, newAssetID);
+        }
+    }
+
+    /// <summary>
+    /// A class for triggering scene events.
+    /// </summary>
+    public class EventManagerBase
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         
@@ -2195,7 +2236,7 @@ namespace OpenSim.Region.Framework.Scenes
         //OnUpdateTaskInventoryScriptAsset: triggered after Scene receives client's upload of updated script and stores it as asset
         public delegate void UpdateScript(UUID clientID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID);
         public event UpdateScript OnUpdateScript;
-        public void TriggerUpdateScript(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
+        public virtual void TriggerUpdateScript(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
         {
             UpdateScript handlerUpdateScript = OnUpdateScript;
             if (handlerUpdateScript != null)
@@ -2292,28 +2333,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public event UpdateScriptBySync OnUpdateScriptBySync;
-        public delegate void UpdateScriptBySync(UUID agentID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID);
-        public void TriggerOnUpdateScriptBySync(UUID agentID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
-        {
-            UpdateScriptBySync handlerUpdateScriptBySync = OnUpdateScriptBySync;
-            if (handlerUpdateScriptBySync != null)
-            {
-                foreach (UpdateScriptBySync d in handlerUpdateScriptBySync.GetInvocationList())
-                {
-                    try
-                    {
-                        d(agentID, itemId, primId, isScriptRunning, newAssetID);
-                    }
-                    catch (Exception e)
-                    {
-                        m_log.ErrorFormat(
-                            "[EVENT MANAGER]: Delegate for TriggerOnUpdateScriptBySync failed - continuing.  {0} {1}",
-                            e.Message, e.StackTrace);
-                    }
-                }
-            }
-        }
         //end of SYMMETRIC SYNC
     }
 }

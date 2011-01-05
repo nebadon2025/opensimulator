@@ -87,12 +87,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
             InstallInterfaces();
 
-            //Register for Scene events
+            //Register for local Scene events
             m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
             m_scene.EventManager.OnObjectBeingRemovedFromScene += new EventManager.ObjectBeingRemovedFromScene(RegionSyncModule_OnObjectBeingRemovedFromScene);
 
-            //Register for scene events that need to be propogated to other actors
-            m_scene.EventManager.OnUpdateScript += RegionSyncModule_OnUpdateScript;
         }
 
         //Called after AddRegion() has been called for all region modules of the scene
@@ -842,9 +840,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         return;
                     }
                     //EVENTS PROCESSING
-                case SymmetricSyncMessage.MsgType.OnUpdateScript:
+                case SymmetricSyncMessage.MsgType.UpdateScript:
                     {
-                        HandleEvent_OnUpdateScript(msg);
+                        HandleRemoteEvent_OnUpdateScript(msg);
                         return;
                     }
                 default:
@@ -980,7 +978,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// Handler for SymmetricSyncMessage.MsgType.OnUpdateScript
         /// </summary>
         /// <param name="msg"></param>
-        private void HandleEvent_OnUpdateScript(SymmetricSyncMessage msg)
+        private void HandleRemoteEvent_OnUpdateScript(SymmetricSyncMessage msg)
         {
             m_log.Debug(LogHeader + ", " + m_actorID + ": received OnUpdateScript");
 
@@ -993,10 +991,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             UUID primID = data["primID"].AsUUID();
             bool isRunning = data["running"].AsBoolean();
             UUID assetID = data["assetID"].AsUUID();
-            //m_scene.EventManager.TriggerUpdateScript(agentID, itemID, primID, isRunning, assetID);
+            m_scene.EventManager.TriggerUpdateScriptLocally(agentID, itemID, primID, isRunning, assetID);
 
             //trigger the OnUpdateScriptBySync event, so that the handler of the event knows it is event initiated remotely
-            m_scene.EventManager.TriggerOnUpdateScriptBySync(agentID, itemID, primID, isRunning, assetID);
+            //m_scene.EventManager.TriggerOnUpdateScriptBySync(agentID, itemID, primID, isRunning, assetID);
            
 
             //if this is a relay node, forwards the event
@@ -1031,6 +1029,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         }
 
+        public void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs)
+        {
+            switch (ev)
+            {
+                case EventManager.EventNames.UpdateScript:
+                    if (evArgs.Length < 5)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for UpdateScript");
+                        return;
+                    }
+                    m_log.Debug(LogHeader + " PublishSceneEvent UpdateScript");
+                    OnLocalUpdateScript((UUID)evArgs[0], (UUID)evArgs[1], (UUID)evArgs[2], (bool)evArgs[3], (UUID)evArgs[4]);
+                    return;
+                default:
+                    return;
+            }
+        }
+
         /// <summary>
         /// The handler for (locally initiated) event OnUpdateScript: publish it to other actors.
         /// </summary>
@@ -1039,7 +1055,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="primId"></param>
         /// <param name="isScriptRunning"></param>
         /// <param name="newAssetID"></param>
-        public void RegionSyncModule_OnUpdateScript(UUID agentID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
+        private void OnLocalUpdateScript(UUID agentID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
         {
             m_log.Debug(LogHeader + " RegionSyncModule_OnUpdateScript");
 
@@ -1050,9 +1066,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["running"] = OSD.FromBoolean(isScriptRunning);
             data["assetID"] = OSD.FromUUID(newAssetID);
 
-            PublishSceneEvent(data);
+            data["actorID"] = OSD.FromString(m_actorID);
+            data["seqNum"] = OSD.FromULong(GetNextEventSeq());
+
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdateScript, OSDParser.SerializeJsonString(data));
+            //send to actors who are interested in the event
+            SendSceneEventToRelevantSyncConnectors(m_actorID, rsm);
         }
 
+
+        /*
         private void PublishSceneEvent(OSDMap data)
         {
             data["actorID"] = OSD.FromString(m_actorID);
@@ -1061,6 +1084,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.OnUpdateScript, OSDParser.SerializeJsonString(data));
             SendSceneEventToRelevantSyncConnectors(m_actorID, rsm);
         }
+         * */ 
 
         private ulong GetNextEventSeq()
         {

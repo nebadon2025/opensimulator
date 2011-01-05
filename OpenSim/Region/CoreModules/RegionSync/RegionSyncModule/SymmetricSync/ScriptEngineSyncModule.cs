@@ -90,7 +90,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //for local OnUpdateScript, we'll handle it the same way as a remove OnUpdateScript. 
             //RegionSyncModule will capture a locally initiated OnUpdateScript event and publish it to other actors.
             m_scene.EventManager.OnUpdateScript += ScriptEngine_OnUpdateScript; 
-            m_scene.EventManager.OnUpdateScriptBySync += ScriptEngine_OnUpdateScript;
+            //m_scene.EventManager.OnUpdateScriptBySync += ScriptEngine_OnUpdateScript;
         }
 
         //Called after AddRegion() has been called for all region modules of the scene.

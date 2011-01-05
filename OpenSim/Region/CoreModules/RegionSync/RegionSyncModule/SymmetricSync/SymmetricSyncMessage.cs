@@ -34,7 +34,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //RegionStatus,
             ActorID,
             //events
-            OnUpdateScript,
+            UpdateScript,
         }
         #endregion
 

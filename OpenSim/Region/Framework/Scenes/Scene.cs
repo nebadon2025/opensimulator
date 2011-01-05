@@ -821,7 +821,10 @@ namespace OpenSim.Region.Framework.Scenes
             m_physicalPrim = physicalPrim;
             m_seeIntoRegionFromNeighbor = SeeIntoRegionFromNeighbor;
 
-            m_eventManager = new EventManager();
+            //SYMMETRIC SYNC: pass Scene reference to EventManager
+            //m_eventManager = new EventManager();
+            m_eventManager = new EventManager(this);
+            //end of SYMMETRIC SYNC
             m_permissions = new ScenePermissions(this);
 
             m_asyncSceneObjectDeleter = new AsyncSceneObjectGroupDeleter(this);
@@ -1029,7 +1032,11 @@ namespace OpenSim.Region.Framework.Scenes
             BordersLocked = false;
 
             m_regInfo = regInfo;
-            m_eventManager = new EventManager();
+
+            //SYMMETRIC SYNC: pass Scene reference to EventManager
+            //m_eventManager = new EventManager();
+            m_eventManager = new EventManager(this);
+            //end of SYMMETRIC SYNC
 
             m_lastUpdate = Util.EnvironmentTickCount();
         }

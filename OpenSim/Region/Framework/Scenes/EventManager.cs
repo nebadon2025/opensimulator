@@ -38,6 +38,8 @@ using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 
 namespace OpenSim.Region.Framework.Scenes
 {
+    //SYMMETRIC SYNC: Rename the original EventManager as EventManagerBase, and implement a new EventManager that inherits from EventManagerBase
+
     /// <summary>
     /// A class for triggering remote scene events.
     /// </summary>
@@ -2246,7 +2248,6 @@ namespace OpenSim.Region.Framework.Scenes
         //SYMMETRIC SYNC
         public event PostSceneCreation OnPostSceneCreation;
         public delegate void PostSceneCreation(Scene createdScene);
-
         public void TriggerOnPostSceneCreation(Scene createdScene)
         {
             PostSceneCreation handler = OnPostSceneCreation;
@@ -2291,6 +2292,28 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        public event UpdateScriptBySync OnUpdateScriptBySync;
+        public delegate void UpdateScriptBySync(UUID agentID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID);
+        public void TriggerOnUpdateScriptBySync(UUID agentID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
+        {
+            UpdateScriptBySync handlerUpdateScriptBySync = OnUpdateScriptBySync;
+            if (handlerUpdateScriptBySync != null)
+            {
+                foreach (UpdateScriptBySync d in handlerUpdateScriptBySync.GetInvocationList())
+                {
+                    try
+                    {
+                        d(agentID, itemId, primId, isScriptRunning, newAssetID);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerOnUpdateScriptBySync failed - continuing.  {0} {1}",
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
         //end of SYMMETRIC SYNC
     }
 }

@@ -25,17 +25,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             GetTerrain,
             GetObjects,
             
-            // SIM -> CM
+            // SIM <-> CM
             Terrain,
             NewObject,       // objects
             UpdatedObject,   // objects
             RemovedObject,   // objects
-            // BIDIR
-            //EchoRequest,
-            //EchoResponse,
             RegionName,
             //RegionStatus,
             ActorID,
+            //events
+            OnUpdateScript,
         }
         #endregion
 

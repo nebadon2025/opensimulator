@@ -63,6 +63,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             m_active = true;
 
+            LogHeader += "-" + m_actorID;
             m_log.Warn("[REGION SYNC MODULE] Initialised for actor "+ m_actorID);
 
             //The ActorType configuration will be read in and process by an ActorSyncModule, not here.
@@ -86,9 +87,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
             InstallInterfaces();
 
-            //Register for the OnPostSceneCreation event
+            //Register for Scene events
             m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
             m_scene.EventManager.OnObjectBeingRemovedFromScene += new EventManager.ObjectBeingRemovedFromScene(RegionSyncModule_OnObjectBeingRemovedFromScene);
+
+            //Register for scene events that need to be propogated to other actors
+            m_scene.EventManager.OnUpdateScript += RegionSyncModule_OnUpdateScript;
         }
 
         //Called after AddRegion() has been called for all region modules of the scene
@@ -393,7 +397,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //the actor operates on.
         private HashSet<SyncConnector> m_syncConnectors= new HashSet<SyncConnector>();
         private object m_syncConnectorsLock = new object();
-        
+
+        //seq number for scene events that are sent out to other actors
+        private ulong m_eventSeq = 0;
+
         //Timers for periodically status report has not been implemented yet.
         private System.Timers.Timer m_statsTimer = new System.Timers.Timer(1000);
         private void StatsTimerElapsed(object source, System.Timers.ElapsedEventArgs e)
@@ -411,6 +418,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //string sogxml = SceneObjectSerializer.ToXml2Format(sog);
                 //SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
                 connector.EnqueueOutgoingUpdate(sog.UUID, syncMsg.ToBytes());
+            }
+        }
+
+        private void SendSceneEventToRelevantSyncConnectors(string init_actorID, SymmetricSyncMessage rsm)
+        {
+            List<SyncConnector> syncConnectors = GetSyncConnectorsForSceneEvents(init_actorID, rsm);
+
+            foreach (SyncConnector connector in syncConnectors)
+            {
+                connector.Send(rsm);
             }
         }
 
@@ -455,6 +472,39 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             else
             {
                 //This is a end node in the synchronization overlay (e.g. a non ScenePersistence actor). Get the right set of synconnectors.
+                //This may go more complex when an actor connects to several ScenePersistence actors.
+                ForEachSyncConnector(delegate(SyncConnector connector)
+                {
+                    syncConnectors.Add(connector);
+                });
+            }
+
+            return syncConnectors;
+        }
+
+        /// <summary>
+        /// Get the set of SyncConnectors to send certain scene events. 
+        /// </summary>
+        /// <param name="sog"></param>
+        /// <returns></returns>
+        private List<SyncConnector> GetSyncConnectorsForSceneEvents(string init_actorID, SymmetricSyncMessage rsm)
+        {
+            List<SyncConnector> syncConnectors = new List<SyncConnector>();
+            if (m_isSyncRelay)
+            {
+                //This is a relay node in the synchronization overlay, forward it to all connectors, except the one that sends in the event
+                ForEachSyncConnector(delegate(SyncConnector connector)
+                {
+                    if (connector.OtherSideActorID != init_actorID)
+                    {
+                        syncConnectors.Add(connector);
+                    }
+                });
+            }
+            else
+            {
+                //This is a end node in the synchronization overlay (e.g. a non ScenePersistence actor). Get the right set of synconnectors.
+                //For now, there is only one syncconnector that connects to ScenePersistence, due to the star topology.
                 //This may go more complex when an actor connects to several ScenePersistence actors.
                 ForEachSyncConnector(delegate(SyncConnector connector)
                 {
@@ -774,7 +824,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)e);
                                 SendSyncMessage(SymmetricSyncMessage.MsgType.NewObject, sogxml);
 
-                                m_log.Debug(LogHeader + ": " + sogxml);
+                                //m_log.Debug(LogHeader + ": " + sogxml);
                             }
                         }
                         return;
@@ -789,6 +839,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.RemovedObject:
                     {
                         HandleRemovedObject(msg);
+                        return;
+                    }
+                    //EVENTS PROCESSING
+                case SymmetricSyncMessage.MsgType.OnUpdateScript:
+                    {
+                        HandleEvent_OnUpdateScript(msg);
                         return;
                     }
                 default:
@@ -920,6 +976,36 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        /// <summary>
+        /// Handler for SymmetricSyncMessage.MsgType.OnUpdateScript
+        /// </summary>
+        /// <param name="msg"></param>
+        private void HandleEvent_OnUpdateScript(SymmetricSyncMessage msg)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received OnUpdateScript");
+
+            OSDMap data = DeserializeMessage(msg);
+
+            //get the event parameters, trigger the event in the local scene
+            string init_actorID = data["actorID"].AsString();
+            UUID agentID = data["agentID"].AsUUID();
+            UUID itemID = data["itemID"].AsUUID();
+            UUID primID = data["primID"].AsUUID();
+            bool isRunning = data["running"].AsBoolean();
+            UUID assetID = data["assetID"].AsUUID();
+            //m_scene.EventManager.TriggerUpdateScript(agentID, itemID, primID, isRunning, assetID);
+
+            //trigger the OnUpdateScriptBySync event, so that the handler of the event knows it is event initiated remotely
+            m_scene.EventManager.TriggerOnUpdateScriptBySync(agentID, itemID, primID, isRunning, assetID);
+           
+
+            //if this is a relay node, forwards the event
+            if (m_isSyncRelay)
+            {
+                SendSceneEventToRelevantSyncConnectors(init_actorID, msg);
+            }
+        }
+
 
         /// <summary>
         /// Send a sync message to remove the given objects in all connected actors, if this is a relay node. 
@@ -943,6 +1029,42 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
 
+        }
+
+        /// <summary>
+        /// The handler for (locally initiated) event OnUpdateScript: publish it to other actors.
+        /// </summary>
+        /// <param name="agentID"></param>
+        /// <param name="itemId"></param>
+        /// <param name="primId"></param>
+        /// <param name="isScriptRunning"></param>
+        /// <param name="newAssetID"></param>
+        public void RegionSyncModule_OnUpdateScript(UUID agentID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
+        {
+            m_log.Debug(LogHeader + " RegionSyncModule_OnUpdateScript");
+
+            OSDMap data = new OSDMap();
+            data["agentID"] = OSD.FromUUID(agentID);
+            data["itemID"] = OSD.FromUUID(itemId);
+            data["primID"] = OSD.FromUUID(primId);
+            data["running"] = OSD.FromBoolean(isScriptRunning);
+            data["assetID"] = OSD.FromUUID(newAssetID);
+
+            PublishSceneEvent(data);
+        }
+
+        private void PublishSceneEvent(OSDMap data)
+        {
+            data["actorID"] = OSD.FromString(m_actorID);
+            data["seqNum"] = OSD.FromULong(GetNextEventSeq());
+
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.OnUpdateScript, OSDParser.SerializeJsonString(data));
+            SendSceneEventToRelevantSyncConnectors(m_actorID, rsm);
+        }
+
+        private ulong GetNextEventSeq()
+        {
+            return m_eventSeq++;
         }
 
         #endregion //RegionSyncModule members and functions

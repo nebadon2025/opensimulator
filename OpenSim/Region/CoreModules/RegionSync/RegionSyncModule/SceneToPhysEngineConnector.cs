@@ -293,7 +293,27 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void HandlePhysTerseUpdate(RegionSyncMessage msg)
         {
-            // TODO: 
+            OSDMap data = RegionSyncUtil.DeserializeMessage(msg, LogHeader);
+            try
+            {
+                uint localID = data["localID"].AsUInteger();
+                // m_log.DebugFormat("{0}: received PhysUpdateAttributes for {1}", LogHeader, localID);
+                PhysicsActor pa = FindPhysicsActor(localID);
+                if (pa != null)
+                {
+                    pa.RequestPhysicsterseUpdate();
+                }
+                else
+                {
+                    m_log.WarnFormat("{0}: terse update for unknown localID {1}", LogHeader, localID);
+                    return;
+                }
+            }
+            catch (Exception e)
+            {
+                m_log.WarnFormat("{0}: EXCEPTION processing PhysTerseUpdate: {1}", LogHeader, e);
+                return;
+            }
             return;
         }
 
@@ -316,7 +336,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="msg"></param>
         private void HandlePhysUpdateAttributes(RegionSyncMessage msg)
         {
-            // TODO: 
             OSDMap data = RegionSyncUtil.DeserializeMessage(msg, LogHeader);
             try
             {
@@ -339,6 +358,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     pa.Buoyancy = (float)(data["buoyancy"].AsReal());
                     pa.CollidingGround = data["isCollidingGround"].AsBoolean();
                     pa.IsColliding = data["isCollidingGround"].AsBoolean();
+
+                    pa.RequestPhysicsterseUpdate(); // tell the system the values have changed
                 }
                 else
                 {

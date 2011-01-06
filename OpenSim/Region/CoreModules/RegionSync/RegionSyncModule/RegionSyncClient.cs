@@ -47,6 +47,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         Dictionary<UUID, RegionSyncAvatar> m_remoteAvatars = new Dictionary<UUID, RegionSyncAvatar>();
         Dictionary<UUID, IClientAPI> m_localAvatars = new Dictionary<UUID, IClientAPI>();
 
+        private bool m_symSync = false;
+
         private Dictionary<UUID, RegionSyncAvatar> RemoteAvatars
         {
             get { return m_remoteAvatars; }
@@ -275,6 +277,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AvatarAppearance, OSDParser.SerializeJsonString(data)));
         }
 
+        public void SetSymSync(bool symSync)
+        {
+            m_symSync = symSync;
+        }
+
         // Handle an incoming message
         // TODO: This should not be synchronous with the receive!
         // Instead, handle messages from an incoming Queue so server doesn't block sending
@@ -288,15 +295,20 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Syncing to region \"{0}\"", m_regionName));
                         return;
                     }
+                //SYMMETRIC SYNC: do not handle terrian and object updates
                 case RegionSyncMessage.MsgType.Terrain:
                     {
+                        if(!m_symSync)
+                        {
                         m_scene.Heightmap.LoadFromXmlString(Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
                         RegionSyncMessage.HandleSuccess(LogHeader(), msg, "Synchronized terrain");
+                        }
                         return;
                     }
                 case RegionSyncMessage.MsgType.NewObject:
                 case RegionSyncMessage.MsgType.UpdatedObject:
                     {
+                        if(!m_symSync){
                         SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
                         if (sog.IsDeleted)
                         {
@@ -304,23 +316,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             return;
                         }
 
-                        /*
-                        m_log.DebugFormat("{0} NewObject '{1}'", LogHeader(), sog.Name);
-                        sog.ForEachPart(delegate(SceneObjectPart part)
-                        {
-                            m_log.DebugFormat("{0}     Part {1}, lf={2} f={3}", LogHeader(), part.Name, 
-                                        part.LocalFlags.ToString(), part.Flags.ToString());
-                        });
-                         */
                         if (m_scene.AddNewSceneObject(sog, true));
                             //RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Object \"{0}\" ({1}) ({1}) updated.", sog.Name, sog.UUID.ToString(), sog.LocalId.ToString()));
                         //else
                         //RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Object \"{0}\" ({1}) ({1}) added.", sog.Name, sog.UUID.ToString(), sog.LocalId.ToString()));
                         sog.ScheduleGroupForFullUpdate();
+                        }
                         return;
                     }
                 case RegionSyncMessage.MsgType.RemovedObject:
                     {
+                        if(!m_symSync)
+                        {
                         // Get the data from message and error check
                         OSDMap data = DeserializeMessage(msg);
                         if (data == null)
@@ -344,8 +351,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         // Delete the object from the scene
                         m_scene.DeleteSceneObject(sog, false);
                         RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("localID {0} deleted.", localID.ToString()));
+                        }
                         return;
                     }
+                    //end of SYMMETRIC SYNC
                 case RegionSyncMessage.MsgType.NewAvatar:
                     {
                         // Get the data from message and error check
@@ -818,8 +827,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.RegionName, m_scene.RegionInfo.RegionName));
             m_log.WarnFormat("Sending region name: \"{0}\"", m_scene.RegionInfo.RegionName);
-            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetTerrain));
-            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetObjects));
+            //SYMMETRIC SYNC: commenting out terrian and object updates
+            if (!m_symSync)
+            {
+                Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetTerrain));
+                Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetObjects));
+            }
+            //end of SYMMETRIC SYNC
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetAvatars));
 
             // Register for events which will be forwarded to authoritative scene

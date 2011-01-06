@@ -233,7 +233,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="pa"></param>
         public static void RouteUpdate(PhysicsActor pa)
         {
-            SceneObjectPart sop = null;
+            SceneObjectPart sop;
+            ScenePresence sp;
             Scene s = null;
             foreach (Scene ss in m_allScenes)
             {
@@ -250,13 +251,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     s = ss;
                     break;
                 }
+                try
                 {
-                    ScenePresence sp = ss.GetScenePresence(pa.LocalID);
-                    if (sp != null)
-                    {
-                        s = ss;
-                        break;
-                    }
+                    sp = ss.GetScenePresence(pa.LocalID);
+                }
+                catch
+                {
+                    sp = null;
+                }
+                if (sp != null)
+                {
+                    s = ss;
+                    break;
                 }
             }
             if (s != null)
@@ -447,7 +453,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_log.Warn(LogHeader + " Not currently synchronized");
                     return;
                 }
-                m_log.Warn(LogHeader + " Synchronized");
                 foreach (KeyValuePair<string, PhysEngineToSceneConnector> pair in m_PEToSceneConnectors)
                 {
                     PhysEngineToSceneConnector sceneConnector = pair.Value;

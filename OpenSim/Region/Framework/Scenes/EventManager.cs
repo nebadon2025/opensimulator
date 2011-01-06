@@ -51,12 +51,15 @@ namespace OpenSim.Region.Framework.Scenes
         public enum EventNames
         {
             UpdateScript,
+            ScriptReset,
         }
 
         public EventManager(Scene scene)
         {
             m_scene = scene;
         }
+
+#region UpdateScript
         public override void TriggerUpdateScript(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
         {
             //publish the event to other actors who are intersted in it
@@ -74,11 +77,29 @@ namespace OpenSim.Region.Framework.Scenes
             //trigger event locally, as the legacy code does
             TriggerUpdateScriptLocally(clientId, itemId, primId, isScriptRunning, newAssetID);
         }
-
         public void TriggerUpdateScriptLocally(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
         {
             base.TriggerUpdateScript(clientId, itemId, primId, isScriptRunning, newAssetID);
         }
+#endregion //UpdateScript
+
+        #region ScriptReset
+        public virtual void TriggerScriptReset(uint localID, UUID itemID)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[2];
+                eventArgs[0] = (Object)localID;
+                eventArgs[1] = (Object)itemID;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ScriptReset, eventArgs);
+            }
+        }
+        public virtual void TriggerScriptResetLocally(uint localID, UUID itemID)
+        {
+            base.TriggerScriptReset(localID, itemID);
+        }
+
+        #endregion //UpdateScript
     }
 
     /// <summary>
@@ -948,7 +969,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerScriptReset(uint localID, UUID itemID)
+        //public void TriggerScriptReset(uint localID, UUID itemID)
+        public virtual void TriggerScriptReset(uint localID, UUID itemID)
         {
             ScriptResetDelegate handlerScriptReset = OnScriptReset;
             if (handlerScriptReset != null)

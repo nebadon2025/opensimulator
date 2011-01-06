@@ -841,8 +841,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     //EVENTS PROCESSING
                 case SymmetricSyncMessage.MsgType.UpdateScript:
+                case SymmetricSyncMessage.MsgType.ScriptReset:
                     {
-                        HandleRemoteEvent_OnUpdateScript(msg);
+                        HandleRemoteEvent(msg);
                         return;
                     }
                 default:
@@ -975,33 +976,69 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         /// <summary>
-        /// Handler for SymmetricSyncMessage.MsgType.OnUpdateScript
+        /// The common actions for handling remote events (event initiated at other actors and propogated here)
         /// </summary>
         /// <param name="msg"></param>
-        private void HandleRemoteEvent_OnUpdateScript(SymmetricSyncMessage msg)
+        private void HandleRemoteEvent(SymmetricSyncMessage msg)
         {
-            m_log.Debug(LogHeader + ", " + m_actorID + ": received OnUpdateScript");
-
             OSDMap data = DeserializeMessage(msg);
-
-            //get the event parameters, trigger the event in the local scene
             string init_actorID = data["actorID"].AsString();
-            UUID agentID = data["agentID"].AsUUID();
-            UUID itemID = data["itemID"].AsUUID();
-            UUID primID = data["primID"].AsUUID();
-            bool isRunning = data["running"].AsBoolean();
-            UUID assetID = data["assetID"].AsUUID();
-            m_scene.EventManager.TriggerUpdateScriptLocally(agentID, itemID, primID, isRunning, assetID);
+            ulong evSeqNum = data["seqNum"].AsULong();
 
-            //trigger the OnUpdateScriptBySync event, so that the handler of the event knows it is event initiated remotely
-            //m_scene.EventManager.TriggerOnUpdateScriptBySync(agentID, itemID, primID, isRunning, assetID);
-           
+            switch (msg.Type)
+            {
+                case SymmetricSyncMessage.MsgType.UpdateScript:
+                    HandleRemoteEvent_OnUpdateScript(init_actorID, evSeqNum, data);
+                    break; 
+                case SymmetricSyncMessage.MsgType.ScriptReset:
+                    HandleRemoteEvent_OnScriptReset(init_actorID, evSeqNum, data);
+                    break;
+            }
 
             //if this is a relay node, forwards the event
             if (m_isSyncRelay)
             {
                 SendSceneEventToRelevantSyncConnectors(init_actorID, msg);
             }
+        }
+
+        /// <summary>
+        /// Special actions for remote event UpdateScript
+        /// </summary>
+        /// <param name="data">OSDMap data of event args</param>
+        private void HandleRemoteEvent_OnUpdateScript(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received UpdateScript");
+
+            UUID agentID = data["agentID"].AsUUID();
+            UUID itemID = data["itemID"].AsUUID();
+            UUID primID = data["primID"].AsUUID();
+            bool isRunning = data["running"].AsBoolean();
+            UUID assetID = data["assetID"].AsUUID();
+
+            //trigger the event in the local scene
+            m_scene.EventManager.TriggerUpdateScriptLocally(agentID, itemID, primID, isRunning, assetID);           
+        }
+
+        /// <summary>
+        /// Special actions for remote event UpdateScript
+        /// </summary>
+        /// <param name="data">OSDMap data of event args</param>
+        private void HandleRemoteEvent_OnScriptReset(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received ScriptReset");
+
+            UUID agentID = data["agentID"].AsUUID();
+            UUID itemID = data["itemID"].AsUUID();
+            UUID primID = data["primID"].AsUUID();
+
+            SceneObjectPart part = m_scene.GetSceneObjectPart(primID);
+            if (part == null || part.ParentGroup.IsDeleted)
+            {
+                m_log.Warn(LogHeader + " part " + primID + " not exist, all is deleted");
+                return;
+            }
+            m_scene.EventManager.TriggerScriptResetLocally(part.LocalId, itemID);
         }
 
 
@@ -1042,6 +1079,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_log.Debug(LogHeader + " PublishSceneEvent UpdateScript");
                     OnLocalUpdateScript((UUID)evArgs[0], (UUID)evArgs[1], (UUID)evArgs[2], (bool)evArgs[3], (UUID)evArgs[4]);
                     return;
+                case EventManager.EventNames.ScriptReset:
+                    if (evArgs.Length < 2)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for ScriptReset");
+                        return;
+                    }
+                    OnLocalScriptReset((uint)evArgs[0], (UUID)evArgs[1]);
+                    return;
                 default:
                     return;
             }
@@ -1074,6 +1119,27 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SendSceneEventToRelevantSyncConnectors(m_actorID, rsm);
         }
 
+        private void OnLocalScriptReset(uint localID, UUID itemID)
+        {
+            //we will use the prim's UUID as the identifier, not the localID, to publish the event for the prim                
+            SceneObjectPart part = m_scene.GetSceneObjectPart(localID);
+
+            OSDMap data = new OSDMap();
+            data["primID"] = OSD.FromUUID(part.UUID);
+            data["itemID"] = OSD.FromUUID(itemID);
+
+            SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptReset, data);
+        }
+
+        private void SendSceneEvent(SymmetricSyncMessage.MsgType msgType, OSDMap data)
+        {
+            data["actorID"] = OSD.FromString(m_actorID);
+            data["seqNum"] = OSD.FromULong(GetNextEventSeq());
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(msgType, OSDParser.SerializeJsonString(data));
+
+            //send to actors who are interested in the event
+            SendSceneEventToRelevantSyncConnectors(m_actorID, rsm);
+        }
 
         /*
         private void PublishSceneEvent(OSDMap data)

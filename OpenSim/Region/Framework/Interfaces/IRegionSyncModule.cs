@@ -26,7 +26,7 @@
  */
 
 //KittyL: Added to support running script engine actor
-
+using System;
 using System.Collections.Generic;
 
 using OpenMetaverse;
@@ -64,6 +64,9 @@ namespace OpenSim.Region.Framework.Interfaces
         void SendSceneUpdates();
         void SendTerrainUpdates(string lastUpdateActorID);
         //void SendDeleteObject(SceneObjectGroup sog);
+
+        //For propogating scene events to other actors
+        void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs);
 
         //TODO LIST:
         //Special API for handling avatars

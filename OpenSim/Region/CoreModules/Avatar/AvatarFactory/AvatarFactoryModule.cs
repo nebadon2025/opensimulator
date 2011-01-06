@@ -293,10 +293,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                     sp.Appearance = appearance;
                     if (sp.Appearance.AvatarHeight > 0)
                         sp.SetHeight(sp.Appearance.AvatarHeight);
-                    // Send the appearance to everyone in the scene
-                    sp.SendAppearanceToAllOtherAgents();
-                    // Send animations back to the avatar as well
-                    sp.Animator.SendAnimPack();
+                    QueueAppearanceSend(agentid);
                 }
                 else
                 {
@@ -331,6 +328,8 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                 m_log.WarnFormat("[AVFACTORY]: Agent {0} no longer in the scene", agentid);
                 return;
             }
+            if (sp.IsSyncedAvatar)
+                return;
 
             // m_log.WarnFormat("[AVFACTORY] avatar {0} save appearance",agentid);
 

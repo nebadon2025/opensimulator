@@ -3146,7 +3146,8 @@ namespace OpenSim.Region.Framework.Scenes
             ClearUpdateSchedule();
 
             //SYMMETRIC SYNC
-
+            if (m_parentGroup.Scene.RegionSyncModule == null)
+                return;
             m_parentGroup.Scene.RegionSyncModule.QueueSceneObjectPartForUpdate(this);
             
             //end of SYMMETRIC SYNC
@@ -4947,6 +4948,8 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void SyncInfoUpdate()
         {
+            if (m_parentGroup.Scene.ActorSyncModule == null || m_parentGroup.Scene.ActorSyncModule.ActorID == null)
+                return;
             //Trick: calling UpdateTimestamp here makes sure that when an object was received and de-serialized, before
             //       its parts are linked together, neither TimeStamp or ActorID will be modified. This is because during de-serialization, 
             //       ScheduleFullUpdate() is called when m_parentGroup == null

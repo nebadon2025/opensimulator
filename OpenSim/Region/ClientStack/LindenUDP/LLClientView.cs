@@ -83,7 +83,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         public event Action<IClientAPI> OnRegionHandShakeReply;
         public event GenericCall1 OnRequestWearables;
         public event SetAppearance OnSetAppearance;
-        public event SetAppearanceRaw OnSetAppearanceRaw;
         public event AvatarNowWearing OnAvatarNowWearing;
         public event RezSingleAttachmentFromInv OnRezSingleAttachmentFromInv;
         public event RezMultipleAttachmentsFromInv OnRezMultipleAttachmentsFromInv;
@@ -5770,7 +5769,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             #endregion
 
             SetAppearance handlerSetAppearance = OnSetAppearance;
-            SetAppearanceRaw handlerSetAppearanceRaw = OnSetAppearanceRaw;
             //if (handlerSetAppearance != null)
             {
                 // Temporarily protect ourselves from the mantis #951 failure.

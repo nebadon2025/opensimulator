@@ -547,13 +547,13 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void LoadPrimsFromStorageInGivenSpace(string regionName, float minX, float minY, float maxX, float maxY)
         {
-            m_log.Info("[SCENE]: Loading objects from datastore");
+            m_log.InfoFormat("[SCENE ({0})]: Loading objects from datastore", regionName);
 
             GridRegion regionInfo = GridService.GetRegionByName(UUID.Zero, regionName);
             //TODO: need to load objects from the specified space
             List<SceneObjectGroup> PrimsFromDB = m_SimulationDataService.LoadObjectsInGivenSpace(regionInfo.RegionID, minX, minY, maxX, maxY);
 
-            m_log.Info("[SCENE]: Loaded " + PrimsFromDB.Count + " objects from the datastore");
+            m_log.InfoFormat("[SCENE ({0})]: Loaded " + PrimsFromDB.Count + " objects from the datastore", regionName);
 
             foreach (SceneObjectGroup group in PrimsFromDB)
             {
@@ -570,7 +570,7 @@ namespace OpenSim.Region.Framework.Scenes
                 group.CheckSculptAndLoad();
                 //rootPart.DoPhysicsPropertyUpdate(UsePhysics, true);
             }
-            m_log.Info("[SCENE]: Loaded " + PrimsFromDB.Count.ToString() + " SceneObject(s)");
+            m_log.InfoFormat("[SCENE ({0})]: Loaded " + PrimsFromDB.Count.ToString() + " SceneObject(s)", regionName);
         }
 
         //public void ToInformActorsLoadOar()
@@ -1277,7 +1277,7 @@ namespace OpenSim.Region.Framework.Scenes
         // This is the method that shuts down the scene.
         public override void Close()
         {
-            m_log.InfoFormat("[SCENE]: Closing down the single simulator: {0}", RegionInfo.RegionName);
+            m_log.InfoFormat("[SCENE]: Closing down the single simulator: {0}", m_regionName);
 
             m_restartTimer.Stop();
             m_restartTimer.Close();
@@ -1304,7 +1304,7 @@ namespace OpenSim.Region.Framework.Scenes
             //m_heartbeatTimer.Close();
             shuttingdown = true;
 
-            m_log.Debug("[SCENE]: Persisting changed objects");
+            m_log.DebugFormat("[SCENE ({0})]: Persisting changed objects", m_regionName);
             EntityBase[] entities = GetEntities();
             foreach (EntityBase entity in entities)
             {
@@ -2034,7 +2034,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="regionID">Unique Identifier of the Region to load parcel data for</param>
         public void loadAllLandObjectsFromStorage(UUID regionID)
         {
-            m_log.Info("[SCENE]: Loading land objects from storage");
+            m_log.InfoFormat("[SCENE ({0})]: Loading land objects from storage", m_regionName);
             List<LandData> landData = SimulationDataService.LoadLandObjects(regionID);
 
             if (LandChannel != null)
@@ -2064,11 +2064,11 @@ namespace OpenSim.Region.Framework.Scenes
         public virtual void LoadPrimsFromStorage(UUID regionID)
         {
             LoadingPrims = true;
-            m_log.Info("[SCENE]: Loading objects from datastore");
+            m_log.InfoFormat("[SCENE ({0})]: Loading objects from datastore", m_regionName);
 
             List<SceneObjectGroup> PrimsFromDB = SimulationDataService.LoadObjects(regionID);
 
-            m_log.Info("[SCENE]: Loaded " + PrimsFromDB.Count + " objects from the datastore");
+            m_log.InfoFormat("[SCENE ({0})]: Loaded " + PrimsFromDB.Count + " objects from the datastore", m_regionName);
 
             foreach (SceneObjectGroup group in PrimsFromDB)
             {
@@ -2089,7 +2089,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //rootPart.DoPhysicsPropertyUpdate(UsePhysics, true);
             }
 
-            m_log.Info("[SCENE]: Loaded " + PrimsFromDB.Count.ToString() + " SceneObject(s)");
+            m_log.InfoFormat("[SCENE ({0})]: Loaded " + PrimsFromDB.Count.ToString() + " SceneObject(s)", m_regionName);
             LoadingPrims = false;
         }
 
@@ -2708,7 +2708,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (!AddSceneObject(newObject))
             {
-                m_log.DebugFormat("[SCENE]: Problem adding scene object {0} in {1} ", sog.UUID, RegionInfo.RegionName);
+                m_log.DebugFormat("[SCENE ({0})]: Problem adding scene object {1} ", RegionInfo.RegionName, sog.UUID);
                 return false;
             }
 
@@ -2878,7 +2878,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (m_restorePresences.ContainsKey(client.AgentId))
             {
-                m_log.DebugFormat("[SCENE]: Restoring agent {0} {1} in {2}", client.Name, client.AgentId, RegionInfo.RegionName);
+                m_log.DebugFormat("[SCENE ({0})]: Restoring agent {1} ({2})", m_regionName, client.Name, client.AgentId);
 
                 m_clientManager.Add(client);
                 SubscribeToClientEvents(client);
@@ -2912,7 +2912,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (GetScenePresence(client.AgentId) == null) // ensure there is no SP here
                 {
-                    m_log.Debug("[SCENE]: Adding new agent " + client.Name + " to scene " + RegionInfo.RegionName);
+                    m_log.DebugFormat("[SCENE ({0})]: Adding new agent {1} ({2}) to scene.", m_regionName, client.Name, client.AgentId);
 
                     m_clientManager.Add(client);
                     SubscribeToClientEvents(client);
@@ -2967,8 +2967,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             else if ((aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaLogin) != 0)
             {
-                m_log.DebugFormat("[SCENE]: Incoming client {0} {1} in region {2} via regular login. Client IP verification not performed.",
-                    aCircuit.firstname, aCircuit.lastname, RegionInfo.RegionName);
+                m_log.DebugFormat("[SCENE ({0})]: Incoming client {1} {2} via regular login. Client IP verification not performed.",
+                    m_regionName, aCircuit.firstname, aCircuit.lastname);
                 vialogin = true;
             }
 
@@ -4080,14 +4080,14 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 catch (Exception e)
                 {
-                    m_log.ErrorFormat("[SCENE]: Unable to do agent crossing, exception {0}", e);
+                    m_log.ErrorFormat("[SCENE ({0})]: Unable to do agent crossing, exception {1}", m_regionName, e);
                 }
             }
             else
             {
                 m_log.ErrorFormat(
-                    "[SCENE]: Could not find presence for agent {0} crossing into scene {1}",
-                    agentID, RegionInfo.RegionName);
+                    "[SCENE ({0})]: Could not find presence for agent {1} crossing into scene {2}",
+                    m_regionName, agentID, m_regionName);
             }
         }
 
@@ -4101,7 +4101,7 @@ namespace OpenSim.Region.Framework.Scenes
         public virtual bool IncomingChildAgentDataUpdate(AgentData cAgentData)
         {
             m_log.DebugFormat(
-                "[SCENE]: Incoming child agent update for {0} in {1}", cAgentData.AgentID, RegionInfo.RegionName);
+                "[SCENE ({0})]: Incoming child agent update for {1}", m_regionName, cAgentData.AgentID);
 
             // XPTO: if this agent is not allowed here as root, always return false
 

@@ -177,7 +177,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     RemoveLocalClient(kvp.Key, m_scene);
                     // Remove the agent update handler from the client
                     kvp.Value.OnAgentUpdateRaw -= HandleAgentUpdateRaw;
-                    kvp.Value.OnSetAppearanceRaw -= HandleSetAppearanceRaw;
                 }
             }
             catch (Exception e)
@@ -368,7 +367,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             return;
                         }
 
-                        m_log.DebugFormat("{0} Handle NewAvater for \"{1} {2}\"", LogHeader(), first, last);
+                        m_log.DebugFormat("{0} Handle NewAvatar for \"{1} {2}\"", LogHeader(), first, last);
                         if (m_remoteAvatars.ContainsKey(agentID))
                         {
                             RegionSyncMessage.HandleWarning(LogHeader(), msg, String.Format("Attempted to add duplicate avatar \"{0} {1}\" ({2})", first, last, agentID.ToString()));
@@ -681,6 +680,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             return;
                         }
 
+                        // If we are receiving appearance for a presence connected here, ignore it. 
+                        // This is just a confirmation of appearance we sent to scene.
+                        if (m_localAvatars.ContainsKey(agentID))
+                            return;
                         // Tells the avatar factory to pull an updated appearance from the avatar service
                         m_scene.AvatarFactory.RefreshAppearance(agentID);
 
@@ -866,7 +869,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // Register for interesting client events which will be forwarded to auth sim
             // These are the raw packet data blocks from the client, intercepted and sent up to the sim
             client.OnAgentUpdateRaw += HandleAgentUpdateRaw;
-            client.OnSetAppearanceRaw += HandleSetAppearanceRaw;
             client.OnChatFromClientRaw += HandleChatFromClientRaw;
             client.OnAgentRequestSit += HandleAgentRequestSit;
             client.OnAgentSit += HandleAgentSit;
@@ -947,25 +949,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void HandleAgentUpdateRaw(object sender, byte[] agentData)
         {
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentUpdate, agentData));
-        }
-
-        public void HandleSetAppearanceRaw(object sender, UUID agentID, byte[] vp, Primitive.TextureEntry te)
-        {
-            // Try to find the scene presence we want to set the appearance for
-            ScenePresence sp;
-            string name = "NOT FOUND";
-            if (m_scene.TryGetScenePresence(agentID, out sp))
-                name = sp.Name;
-            m_log.WarnFormat("{0} Received LLClientView.SetAppearance ({1,3},{2,2}) for {3} (\"{4}\")", LogHeader(), vp.Length.ToString(), (te == null) ? "" : "te", agentID.ToString(), sp.Name);
-            if (sp == null)
-            {
-                m_log.WarnFormat("{0} Scene presence could not be found to set appearance.", LogHeader());
-                return;
-            }
-
-            // Set the appearance on the presence. This will generate the needed exchange with the client if rebakes need to take place.
-            m_log.WarnFormat("{0} Setting appearance on ScenePresence {1} \"{2}\"", LogHeader(), sp.UUID, sp.Name);
-            m_scene.AvatarFactory.SetAppearance(sp.ControllingClient, te, vp);
         }
 
         public void HandleAgentRequestSit(object sender, UUID agentID, UUID targetID, Vector3 offset)
@@ -1168,7 +1151,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // Register for interesting client events which will be forwarded to auth sim
             // These are the raw packet data blocks from the client, intercepted and sent up to the sim
             client.OnAgentUpdateRaw += HandleAgentUpdateRaw;
-            client.OnSetAppearanceRaw += HandleSetAppearanceRaw;
             client.OnChatFromClientRaw += HandleChatFromClientRaw;
             presence.IsSyncedAvatar = false;
         }

@@ -550,12 +550,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //For now, we use configuration to access the information. Might be replaced by some Grid Service later on.
         private RegionSyncListenerInfo GetLocalSyncListenerInfo()
         {
-            m_log.Debug("reading in " + m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress" + " and " + m_scene.RegionInfo.RegionName + "_SyncListenerPort");
+            m_log.Debug(LogHeader + ": Reading in " + m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress" + " and " + m_scene.RegionInfo.RegionName + "_SyncListenerPort");
 
             string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName+"_SyncListenerIPAddress", IPAddrUnknown);
             int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName+"_SyncListenerPort", PortUnknown);
 
-            m_log.Warn(LogHeader + ", listener addr: " + addr + ", port: " + port);
+            m_log.Warn(LogHeader + ": listener addr: " + addr + ", port: " + port);
 
             if (!addr.Equals(IPAddrUnknown) && port != PortUnknown)
             {

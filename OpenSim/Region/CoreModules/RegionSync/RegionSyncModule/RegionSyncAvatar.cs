@@ -600,6 +600,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void SendPrimUpdate(ISceneEntity entity, PrimUpdateFlags updateFlags)
         {
+            m_log.Error("[REGION SYNC AVATAR] SendPrimUpdate");
         }
 
         public virtual void AttachObject(uint localID, Quaternion rotation, byte attachPoint, UUID ownerID)

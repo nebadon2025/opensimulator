@@ -2417,7 +2417,7 @@ namespace OpenSim.Region.Framework.Scenes
                 Vector3 pos = m_pos;
                 pos.Z += m_appearance.HipOffset;
 
-                //m_log.DebugFormat("[SCENE PRESENCE]: TerseUpdate: Pos={0} Rot={1} Vel={2}", m_pos, m_bodyRot, m_velocity);
+                //m_log.DebugFormat("[SCENE PRESENCE]: " + Name + " sending TerseUpdate to " + remoteClient.Name + " : Pos={0} Rot={1} Vel={2}", m_pos, m_bodyRot, m_velocity);
 
                 remoteClient.SendPrimUpdate(
                     this, 

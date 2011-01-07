@@ -52,6 +52,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             UpdateScript,
             ScriptReset,
+            ChatFromClient,
         }
 
         public EventManager(Scene scene)
@@ -59,7 +60,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_scene = scene;
         }
 
-#region UpdateScript
+        #region UpdateScript
         public override void TriggerUpdateScript(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
         {
             //publish the event to other actors who are intersted in it
@@ -84,8 +85,9 @@ namespace OpenSim.Region.Framework.Scenes
 #endregion //UpdateScript
 
         #region ScriptReset
-        public virtual void TriggerScriptReset(uint localID, UUID itemID)
+        public override void TriggerScriptReset(uint localID, UUID itemID)
         {
+            //publish the event to other actors who are intersted in it
             if (m_scene.RegionSyncModule != null)
             {
                 Object[] eventArgs = new Object[2];
@@ -93,13 +95,43 @@ namespace OpenSim.Region.Framework.Scenes
                 eventArgs[1] = (Object)itemID;
                 m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ScriptReset, eventArgs);
             }
+            //trigger event locally, as the legacy code does
+            TriggerScriptResetLocally(localID, itemID);
         }
-        public virtual void TriggerScriptResetLocally(uint localID, UUID itemID)
+        public void TriggerScriptResetLocally(uint localID, UUID itemID)
         {
             base.TriggerScriptReset(localID, itemID);
         }
 
         #endregion //UpdateScript
+
+        #region ChatFromClient
+        public override void TriggerOnChatFromClient(Object sender, OSChatMessage chat)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[2];
+                eventArgs[0] = sender;
+                eventArgs[1] = (Object)chat;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ChatFromClient, eventArgs);
+            }
+            TriggerOnChatFromClientLocally(sender, chat);
+        }
+        public void TriggerOnChatFromClientLocally(Object sender, OSChatMessage chat)
+        {
+            base.TriggerOnChatFromClient(sender, chat);
+        }
+        #endregion //ChatFromClient
+
+        public void TriggerOnChatBroadcastLocally(Object sender, OSChatMessage chat) 
+        {
+            base.TriggerOnChatBroadcast(sender, chat);
+        }
+
+        public void TriggerOnChatFromWorldLocally(Object sender, OSChatMessage chat)
+        {
+            base.TriggerOnChatFromWorld(sender, chat);
+        }
     }
 
     /// <summary>
@@ -1659,7 +1691,9 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerOnChatFromClient(Object sender, OSChatMessage chat)
+        //SYMMETRIC SYNC: overiding this in the inherited class
+        //public void TriggerOnChatFromClient(Object sender, OSChatMessage chat)
+        public virtual void TriggerOnChatFromClient(Object sender, OSChatMessage chat)
         {
             ChatFromClientEvent handlerChatFromClient = OnChatFromClient;
             if (handlerChatFromClient != null)

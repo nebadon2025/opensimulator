@@ -125,6 +125,9 @@ namespace OpenSim.Region.CoreModules.Scripting.WorldComm
             m_listenerManager = new ListenerManager(maxlisteners, maxhandles);
             m_scene.EventManager.OnChatFromClient += DeliverClientMessage;
             m_scene.EventManager.OnChatBroadcast += DeliverClientMessage;
+            //SYMMETRIC SYNC
+            m_scene.EventManager.OnChatFromWorld += DeliverClientMessage;
+            //end SYMMETRIC SYNC
             m_pendingQ = new Queue();
             m_pending = Queue.Synchronized(m_pendingQ);
         }

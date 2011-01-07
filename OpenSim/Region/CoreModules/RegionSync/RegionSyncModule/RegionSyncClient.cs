@@ -883,7 +883,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // Register for interesting client events which will be forwarded to auth sim
             // These are the raw packet data blocks from the client, intercepted and sent up to the sim
             client.OnAgentUpdateRaw += HandleAgentUpdateRaw;
-            client.OnChatFromClientRaw += HandleChatFromClientRaw;
+            //SYMMETRIC SYNC: do not subscribe to OnChatFromClientRaw, we may remove this event entirely later
+            //client.OnChatFromClientRaw += HandleChatFromClientRaw;
             client.OnAgentRequestSit += HandleAgentRequestSit;
             client.OnAgentSit += HandleAgentSit;
             client.OnGrabObject += HandleGrabObject;

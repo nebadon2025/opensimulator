@@ -36,6 +36,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //events
             UpdateScript,
             ScriptReset,
+            ChatFromClient,
         }
         #endregion
 

@@ -550,6 +550,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //For now, we use configuration to access the information. Might be replaced by some Grid Service later on.
         private RegionSyncListenerInfo GetLocalSyncListenerInfo()
         {
+            m_log.Debug("reading in " + m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress" + " and " + m_scene.RegionInfo.RegionName + "_SyncListenerPort");
+
             string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName+"_SyncListenerIPAddress", IPAddrUnknown);
             int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName+"_SyncListenerPort", PortUnknown);
 
@@ -573,8 +575,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             //For now, we assume there is only one remote listener to connect to. Later on, 
             //we may need to modify the code to read in multiple listeners.
-            string addr = m_sysConfig.GetString("SyncListenerIPAddress", IPAddrUnknown);
-            int port = m_sysConfig.GetInt("SyncListenerPort", PortUnknown);
+            string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress", IPAddrUnknown);
+            int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName + "_SyncListenerPort", PortUnknown);
             if (!addr.Equals(IPAddrUnknown) && port != PortUnknown)
             {
                 RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);
@@ -594,7 +596,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             if (m_isSyncListenerLocal)
             {
-                if (m_localSyncListener.IsListening)
+                if (m_localSyncListener!=null && m_localSyncListener.IsListening)
                 {
                     m_log.Warn("[REGION SYNC MODULE]: RegionSyncListener is local, already started");
                 }
@@ -618,7 +620,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (m_isSyncListenerLocal)
             {
-                if (m_localSyncListener.IsListening)
+                if (m_localSyncListener!=null && m_localSyncListener.IsListening)
                 {
                     m_localSyncListener.Shutdown();
                 }
@@ -646,6 +648,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //For now, there is only one remote listener.
         private void StartSyncConnections()
         {
+            if (m_remoteSyncListeners == null)
+            {
+                m_log.Error(LogHeader + " SyncListener's address or port has not been configured.");
+                return;
+            }
+
             foreach (RegionSyncListenerInfo remoteListener in m_remoteSyncListeners)
             {
                 SyncConnector syncConnector = new SyncConnector(m_syncConnectorNum++, remoteListener, this);
@@ -719,6 +727,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             
             SendSyncMessage(SymmetricSyncMessage.MsgType.RegionName, m_scene.RegionInfo.RegionName);
             m_log.WarnFormat("Sending region name: \"{0}\"", m_scene.RegionInfo.RegionName);
+
+            SendSyncMessage(SymmetricSyncMessage.MsgType.ActorID, m_actorID);
 
             SendSyncMessage(SymmetricSyncMessage.MsgType.GetTerrain);
             SendSyncMessage(SymmetricSyncMessage.MsgType.GetObjects);
@@ -842,6 +852,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //EVENTS PROCESSING
                 case SymmetricSyncMessage.MsgType.UpdateScript:
                 case SymmetricSyncMessage.MsgType.ScriptReset:
+                case SymmetricSyncMessage.MsgType.ChatFromClient:
                     {
                         HandleRemoteEvent(msg);
                         return;
@@ -993,6 +1004,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.ScriptReset:
                     HandleRemoteEvent_OnScriptReset(init_actorID, evSeqNum, data);
                     break;
+                case SymmetricSyncMessage.MsgType.ChatFromClient:
+                    HandleRemoteEvent_OnChatFromClient(init_actorID, evSeqNum, data);
+                    break;
             }
 
             //if this is a relay node, forwards the event
@@ -1041,6 +1055,46 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.TriggerScriptResetLocally(part.LocalId, itemID);
         }
 
+        /// <summary>
+        /// Special actions for remote event ChatFromClient
+        /// </summary>
+        /// <param name="data">OSDMap data of event args</param>
+        private void HandleRemoteEvent_OnChatFromClient(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received ChatFromClient from "+actorID+", seq "+evSeqNum);
+
+            OSChatMessage args = new OSChatMessage();
+            args.Channel = data["channel"].AsInteger();
+            args.Message = data["msg"].AsString();
+            args.Position = data["pos"].AsVector3();
+            args.From = data["name"].AsString();
+            UUID id = data["id"].AsUUID();
+            args.Scene = m_scene;
+            //args.Type = ChatTypeEnum.Say;
+            args.Type = (ChatTypeEnum) data["type"].AsInteger();
+            ScenePresence sp;
+            m_scene.TryGetScenePresence(id, out sp);
+
+
+            //m_scene.EventManager.TriggerOnChatFromClientLocally(sp, args);
+
+            m_scene.EventManager.TriggerOnChatFromWorldLocally(sp, args);
+            /*
+            if (sp != null)
+            {
+                args.Sender = sp.ControllingClient;
+                args.SenderUUID = id;
+                m_scene.EventManager.TriggerOnChatBroadcastLocally(sp.ControllingClient, args); 
+            }
+            else
+            {
+                args.Sender = null;
+                args.SenderUUID = id;
+                m_scene.EventManager.TriggerOnChatFromWorldLocally(null, args);
+            }
+             * */ 
+            //m_scene.EventManager
+        }
 
         /// <summary>
         /// Send a sync message to remove the given objects in all connected actors, if this is a relay node. 
@@ -1087,6 +1141,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     OnLocalScriptReset((uint)evArgs[0], (UUID)evArgs[1]);
                     return;
+                case EventManager.EventNames.ChatFromClient:
+                    if (evArgs.Length < 2)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for ChatFromClient");
+                        return;
+                    }
+                    OnLocalChatFromClient(evArgs[0], (OSChatMessage)evArgs[1]);
+                    return;
                 default:
                     return;
             }
@@ -1111,12 +1173,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["running"] = OSD.FromBoolean(isScriptRunning);
             data["assetID"] = OSD.FromUUID(newAssetID);
 
+            /*
             data["actorID"] = OSD.FromString(m_actorID);
             data["seqNum"] = OSD.FromULong(GetNextEventSeq());
 
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdateScript, OSDParser.SerializeJsonString(data));
             //send to actors who are interested in the event
             SendSceneEventToRelevantSyncConnectors(m_actorID, rsm);
+             * */
+            SendSceneEvent(SymmetricSyncMessage.MsgType.UpdateScript, data);
         }
 
         private void OnLocalScriptReset(uint localID, UUID itemID)
@@ -1129,6 +1194,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["itemID"] = OSD.FromUUID(itemID);
 
             SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptReset, data);
+        }
+
+
+        private void OnLocalChatFromClient(Object sender, OSChatMessage chat)
+        {
+            ScenePresence avatar = m_scene.GetScenePresence(chat.SenderUUID);
+
+            if (avatar == null)
+            {
+                m_log.Warn(LogHeader + "avatar " + chat.SenderUUID + " not exist locally, NOT sending out ChatFromClient");
+                return;
+            }
+
+            OSDMap data = new OSDMap();
+            data["channel"] = OSD.FromInteger(chat.Channel);
+            data["msg"] = OSD.FromString(chat.Message);
+            data["pos"] = OSD.FromVector3(chat.Position);
+            //data["name"] = OSD.FromString(chat.From);
+            data["name"] = OSD.FromString(avatar.Name);
+            data["id"] = OSD.FromUUID(chat.SenderUUID);
+            data["type"] = OSD.FromInteger((int)chat.Type);
+            SendSceneEvent(SymmetricSyncMessage.MsgType.ChatFromClient, data);
         }
 
         private void SendSceneEvent(SymmetricSyncMessage.MsgType msgType, OSDMap data)

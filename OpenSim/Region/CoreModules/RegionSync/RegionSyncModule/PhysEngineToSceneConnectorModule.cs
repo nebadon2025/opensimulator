@@ -91,11 +91,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     && syncConfig.GetBoolean("PhysEngineClient", false)
                 )
             {
-                scene.RegionSyncEnabled = true;
+                //scene.RegionSyncEnabled = true;
             }
             else
             {
-                scene.RegionSyncEnabled = false;
+                //scene.RegionSyncEnabled = false;
                 m_log.Warn(LogHeader + ": Not in physics engine client mode. Shutting down.");
                 return;
             }

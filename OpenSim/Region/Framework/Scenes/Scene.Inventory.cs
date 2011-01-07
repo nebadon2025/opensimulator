@@ -251,6 +251,8 @@ namespace OpenSim.Region.Framework.Scenes
             AssetService.Store(asset);
 
             //REGION SYNC: if RegionSyncEnabled, move script related operations to be after update inventory item
+            //SYMMETRIC SYNC: commenting out old REGION SYNC code, the RemoveScriptInstance would be handled by ScriptEngineSyncModule
+            /*
             if (!RegionSyncEnabled)
             {
                 if (isScriptRunning)
@@ -258,6 +260,7 @@ namespace OpenSim.Region.Framework.Scenes
                     part.Inventory.RemoveScriptInstance(item.ItemID, false);
                 }
             }
+             * */ 
 
             // Update item with new asset
             item.AssetID = asset.FullID;
@@ -267,6 +270,8 @@ namespace OpenSim.Region.Framework.Scenes
             part.GetProperties(remoteClient);
 
             ////REGION SYNC 
+            //SYMMETRIC SYNC: commenting out old REGION SYNC code, the RemoveScriptInstance would be handled by ScriptEngineSyncModule
+            /*
             if (!RegionSyncEnabled)
             {
                 //Original OpenSim code below
@@ -302,6 +307,18 @@ namespace OpenSim.Region.Framework.Scenes
                 return errors;
 
             }
+             * */
+
+            //SYMMETRIC SYNC: Distributed Scene Graph implementation  
+            m_log.Debug("Scene.Inventory: to call EventManager.TriggerUpdateTaskInventoryScriptAsset, agentID: " + remoteClient.AgentId);
+            //Trigger OnUpdateScript event.
+            EventManager.TriggerUpdateScript(remoteClient.AgentId, itemId, primId, isScriptRunning, item.AssetID);
+
+            //For now, we simple tell client that script saved while waiting for remote script engine to re-rez the script.
+            //Later will change the BaseHttpServer's code to return error list to client.
+            //remoteClient.SendAgentAlertMessage("Script saved", false);
+            ArrayList errors = new ArrayList();
+            return errors;
         }
 
         #region REGION SYNC
@@ -314,8 +331,9 @@ namespace OpenSim.Region.Framework.Scenes
         public ArrayList OnUpdateScript(UUID avatarID, UUID itemID, UUID primID, bool isScriptRunning, UUID newAssetID)
         {
             ArrayList errors = new ArrayList();
-            //This function is supposed to be executed only on a remote script engine, not an authorative Scene
-            if (!IsSyncedScriptEngine())
+
+            //In the old async model, this function is supposed to be executed only on a remote script engine, not an authorative Scene
+            if (RegionSyncModule==null && !IsSyncedScriptEngine())
             {
                 m_log.Warn("This is not the script engine. Should not have received OnUpdateScript event.");
                 return errors;
@@ -350,7 +368,44 @@ namespace OpenSim.Region.Framework.Scenes
         }
         #endregion 
 
-        /// <summary>
+        #region SYMMETRIC SYNC
+        //only a script engine actor is supposed to call this function
+        public ArrayList SymSync_OnUpdateScript(UUID avatarID, UUID itemID, UUID primID, bool isScriptRunning, UUID newAssetID)
+        {
+            ArrayList errors = new ArrayList();
+
+            SceneObjectPart part = GetSceneObjectPart(primID);
+            SceneObjectGroup group = part.ParentGroup;
+            if (isScriptRunning)
+            {
+                m_log.Debug("To RemoveScriptInstance");
+                part.Inventory.RemoveScriptInstance(itemID, false);
+            }
+
+            // Retrieve item
+            TaskInventoryItem item = group.GetInventoryItem(part.LocalId, itemID);
+
+            // Update item with new asset
+            item.AssetID = newAssetID;
+            group.UpdateInventoryItem(item);
+            m_log.Debug("UpdateInventoryItem on object "+group.UUID);
+
+            if (isScriptRunning)
+            {
+                // Needs to determine which engine was running it and use that
+                m_log.Debug("To CreateScriptInstance");
+                part.Inventory.CreateScriptInstance(itemID, 0, false, DefaultScriptEngine, 0);
+                errors = part.Inventory.GetScriptErrors(itemID);
+            }
+
+            part.ParentGroup.ResumeScripts();
+
+            return errors;
+        }
+        #endregion //SYMMETRIC SYNC
+
+
+         /// <summary>
         /// <see>CapsUpdateTaskInventoryScriptAsset(IClientAPI, UUID, UUID, bool, byte[])</see>
         /// </summary>
         public ArrayList CapsUpdateTaskInventoryScriptAsset(UUID avatarId, UUID itemId,

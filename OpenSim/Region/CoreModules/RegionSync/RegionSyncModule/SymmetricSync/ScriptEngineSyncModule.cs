@@ -59,6 +59,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             m_active = true;
 
+            LogHeader += "-" + m_actorID;
             m_log.Warn(LogHeader + " Initialised");
 
         }
@@ -85,6 +86,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //Register for Scene/SceneGraph events
             m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(ScriptEngine_OnObjectCreate);
             m_scene.EventManager.OnSymmetricSyncStop += ScriptEngine_OnSymmetricSyncStop;
+
+            //for local OnUpdateScript, we'll handle it the same way as a remove OnUpdateScript. 
+            //RegionSyncModule will capture a locally initiated OnUpdateScript event and publish it to other actors.
+            m_scene.EventManager.OnUpdateScript += ScriptEngine_OnUpdateScript; 
+            //m_scene.EventManager.OnUpdateScriptBySync += ScriptEngine_OnUpdateScript;
         }
 
         //Called after AddRegion() has been called for all region modules of the scene.
@@ -176,9 +182,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.DeleteAllSceneObjects();
         }
 
+        //Assumption, when this function is triggered, the new script asset has already been saved.
+        public void ScriptEngine_OnUpdateScript(UUID agentID, UUID itemID, UUID primID, bool isScriptRunning, UUID newAssetID)
+        {
+            m_log.Debug(LogHeader + " ScriptEngine_OnUpdateScript");
+            m_scene.SymSync_OnUpdateScript(agentID, itemID, primID, isScriptRunning, newAssetID);
+        }
+
         #endregion //ScriptEngineSyncModule
 
     }
-     
 
 }

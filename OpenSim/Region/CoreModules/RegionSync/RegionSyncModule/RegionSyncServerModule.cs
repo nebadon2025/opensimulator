@@ -391,7 +391,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 
                 //when an object is deleted, this function (DeleteObject) could be triggered more than once. So we check 
                 //if the object part is already removed is the scene (part==null)
-                m_log.Debug("Inform script engine about the deleted object");
+                //m_log.Debug("Inform script engine about the deleted object");
                 if(m_sceneToSESyncServer!=null)
                     m_sceneToSESyncServer.SendToSE(rsm, part.ParentGroup);
             }
@@ -572,7 +572,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                     //when an object is deleted, this function (DeleteObject) could be triggered more than once. So we check 
                     //if the object part is already removed is the scene (part==null)
-                    m_log.Debug("Inform script engine about the deleted object");
+                    //m_log.Debug("Inform script engine about the deleted object");
                     m_sceneToSESyncServer.SendToSE(rsm, part.ParentGroup);
                 }
             }

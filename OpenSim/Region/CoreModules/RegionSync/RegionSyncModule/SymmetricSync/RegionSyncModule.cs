@@ -63,6 +63,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             m_active = true;
 
+            LogHeader += "-" + m_actorID;
             m_log.Warn("[REGION SYNC MODULE] Initialised for actor "+ m_actorID);
 
             //The ActorType configuration will be read in and process by an ActorSyncModule, not here.
@@ -86,9 +87,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
             InstallInterfaces();
 
-            //Register for the OnPostSceneCreation event
+            //Register for local Scene events
             m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
             m_scene.EventManager.OnObjectBeingRemovedFromScene += new EventManager.ObjectBeingRemovedFromScene(RegionSyncModule_OnObjectBeingRemovedFromScene);
+
         }
 
         //Called after AddRegion() has been called for all region modules of the scene
@@ -393,7 +395,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //the actor operates on.
         private HashSet<SyncConnector> m_syncConnectors= new HashSet<SyncConnector>();
         private object m_syncConnectorsLock = new object();
-        
+
+        //seq number for scene events that are sent out to other actors
+        private ulong m_eventSeq = 0;
+
         //Timers for periodically status report has not been implemented yet.
         private System.Timers.Timer m_statsTimer = new System.Timers.Timer(1000);
         private void StatsTimerElapsed(object source, System.Timers.ElapsedEventArgs e)
@@ -411,6 +416,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //string sogxml = SceneObjectSerializer.ToXml2Format(sog);
                 //SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
                 connector.EnqueueOutgoingUpdate(sog.UUID, syncMsg.ToBytes());
+            }
+        }
+
+        private void SendSceneEventToRelevantSyncConnectors(string init_actorID, SymmetricSyncMessage rsm)
+        {
+            List<SyncConnector> syncConnectors = GetSyncConnectorsForSceneEvents(init_actorID, rsm);
+
+            foreach (SyncConnector connector in syncConnectors)
+            {
+                connector.Send(rsm);
             }
         }
 
@@ -465,6 +480,39 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return syncConnectors;
         }
 
+        /// <summary>
+        /// Get the set of SyncConnectors to send certain scene events. 
+        /// </summary>
+        /// <param name="sog"></param>
+        /// <returns></returns>
+        private List<SyncConnector> GetSyncConnectorsForSceneEvents(string init_actorID, SymmetricSyncMessage rsm)
+        {
+            List<SyncConnector> syncConnectors = new List<SyncConnector>();
+            if (m_isSyncRelay)
+            {
+                //This is a relay node in the synchronization overlay, forward it to all connectors, except the one that sends in the event
+                ForEachSyncConnector(delegate(SyncConnector connector)
+                {
+                    if (connector.OtherSideActorID != init_actorID)
+                    {
+                        syncConnectors.Add(connector);
+                    }
+                });
+            }
+            else
+            {
+                //This is a end node in the synchronization overlay (e.g. a non ScenePersistence actor). Get the right set of synconnectors.
+                //For now, there is only one syncconnector that connects to ScenePersistence, due to the star topology.
+                //This may go more complex when an actor connects to several ScenePersistence actors.
+                ForEachSyncConnector(delegate(SyncConnector connector)
+                {
+                    syncConnectors.Add(connector);
+                });
+            }
+
+            return syncConnectors;
+        }
+
         //NOTE: We proably don't need to do this, and there might not be a need for OnPostSceneCreation event to let RegionSyncModule
         //      and ActorSyncModules to gain some access to each other. We'll keep it here for a while, until we are sure it's not 
         //      needed.
@@ -502,6 +550,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //For now, we use configuration to access the information. Might be replaced by some Grid Service later on.
         private RegionSyncListenerInfo GetLocalSyncListenerInfo()
         {
+            m_log.Debug("reading in " + m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress" + " and " + m_scene.RegionInfo.RegionName + "_SyncListenerPort");
+
             string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName+"_SyncListenerIPAddress", IPAddrUnknown);
             int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName+"_SyncListenerPort", PortUnknown);
 
@@ -546,7 +596,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             if (m_isSyncListenerLocal)
             {
-                if (m_localSyncListener.IsListening)
+                if (m_localSyncListener!=null && m_localSyncListener.IsListening)
                 {
                     m_log.Warn("[REGION SYNC MODULE]: RegionSyncListener is local, already started");
                 }
@@ -570,7 +620,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (m_isSyncListenerLocal)
             {
-                if (m_localSyncListener.IsListening)
+                if (m_localSyncListener!=null && m_localSyncListener.IsListening)
                 {
                     m_localSyncListener.Shutdown();
                 }
@@ -598,6 +648,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //For now, there is only one remote listener.
         private void StartSyncConnections()
         {
+            if (m_remoteSyncListeners == null)
+            {
+                m_log.Error(LogHeader + " SyncListener's address or port has not been configured.");
+                return;
+            }
+
             foreach (RegionSyncListenerInfo remoteListener in m_remoteSyncListeners)
             {
                 SyncConnector syncConnector = new SyncConnector(m_syncConnectorNum++, remoteListener, this);
@@ -671,6 +727,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             
             SendSyncMessage(SymmetricSyncMessage.MsgType.RegionName, m_scene.RegionInfo.RegionName);
             m_log.WarnFormat("Sending region name: \"{0}\"", m_scene.RegionInfo.RegionName);
+
+            SendSyncMessage(SymmetricSyncMessage.MsgType.ActorID, m_actorID);
 
             SendSyncMessage(SymmetricSyncMessage.MsgType.GetTerrain);
             SendSyncMessage(SymmetricSyncMessage.MsgType.GetObjects);
@@ -789,6 +847,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.RemovedObject:
                     {
                         HandleRemovedObject(msg);
+                        return;
+                    }
+                    //EVENTS PROCESSING
+                case SymmetricSyncMessage.MsgType.UpdateScript:
+                case SymmetricSyncMessage.MsgType.ScriptReset:
+                case SymmetricSyncMessage.MsgType.ChatFromClient:
+                    {
+                        HandleRemoteEvent(msg);
                         return;
                     }
                 default:
@@ -920,6 +986,115 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        /// <summary>
+        /// The common actions for handling remote events (event initiated at other actors and propogated here)
+        /// </summary>
+        /// <param name="msg"></param>
+        private void HandleRemoteEvent(SymmetricSyncMessage msg)
+        {
+            OSDMap data = DeserializeMessage(msg);
+            string init_actorID = data["actorID"].AsString();
+            ulong evSeqNum = data["seqNum"].AsULong();
+
+            switch (msg.Type)
+            {
+                case SymmetricSyncMessage.MsgType.UpdateScript:
+                    HandleRemoteEvent_OnUpdateScript(init_actorID, evSeqNum, data);
+                    break; 
+                case SymmetricSyncMessage.MsgType.ScriptReset:
+                    HandleRemoteEvent_OnScriptReset(init_actorID, evSeqNum, data);
+                    break;
+                case SymmetricSyncMessage.MsgType.ChatFromClient:
+                    HandleRemoteEvent_OnChatFromClient(init_actorID, evSeqNum, data);
+                    break;
+            }
+
+            //if this is a relay node, forwards the event
+            if (m_isSyncRelay)
+            {
+                SendSceneEventToRelevantSyncConnectors(init_actorID, msg);
+            }
+        }
+
+        /// <summary>
+        /// Special actions for remote event UpdateScript
+        /// </summary>
+        /// <param name="data">OSDMap data of event args</param>
+        private void HandleRemoteEvent_OnUpdateScript(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received UpdateScript");
+
+            UUID agentID = data["agentID"].AsUUID();
+            UUID itemID = data["itemID"].AsUUID();
+            UUID primID = data["primID"].AsUUID();
+            bool isRunning = data["running"].AsBoolean();
+            UUID assetID = data["assetID"].AsUUID();
+
+            //trigger the event in the local scene
+            m_scene.EventManager.TriggerUpdateScriptLocally(agentID, itemID, primID, isRunning, assetID);           
+        }
+
+        /// <summary>
+        /// Special actions for remote event UpdateScript
+        /// </summary>
+        /// <param name="data">OSDMap data of event args</param>
+        private void HandleRemoteEvent_OnScriptReset(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received ScriptReset");
+
+            UUID agentID = data["agentID"].AsUUID();
+            UUID itemID = data["itemID"].AsUUID();
+            UUID primID = data["primID"].AsUUID();
+
+            SceneObjectPart part = m_scene.GetSceneObjectPart(primID);
+            if (part == null || part.ParentGroup.IsDeleted)
+            {
+                m_log.Warn(LogHeader + " part " + primID + " not exist, all is deleted");
+                return;
+            }
+            m_scene.EventManager.TriggerScriptResetLocally(part.LocalId, itemID);
+        }
+
+        /// <summary>
+        /// Special actions for remote event ChatFromClient
+        /// </summary>
+        /// <param name="data">OSDMap data of event args</param>
+        private void HandleRemoteEvent_OnChatFromClient(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received ChatFromClient from "+actorID+", seq "+evSeqNum);
+
+            OSChatMessage args = new OSChatMessage();
+            args.Channel = data["channel"].AsInteger();
+            args.Message = data["msg"].AsString();
+            args.Position = data["pos"].AsVector3();
+            args.From = data["name"].AsString();
+            UUID id = data["id"].AsUUID();
+            args.Scene = m_scene;
+            //args.Type = ChatTypeEnum.Say;
+            args.Type = (ChatTypeEnum) data["type"].AsInteger();
+            ScenePresence sp;
+            m_scene.TryGetScenePresence(id, out sp);
+
+
+            //m_scene.EventManager.TriggerOnChatFromClientLocally(sp, args);
+
+            m_scene.EventManager.TriggerOnChatFromWorldLocally(sp, args);
+            /*
+            if (sp != null)
+            {
+                args.Sender = sp.ControllingClient;
+                args.SenderUUID = id;
+                m_scene.EventManager.TriggerOnChatBroadcastLocally(sp.ControllingClient, args); 
+            }
+            else
+            {
+                args.Sender = null;
+                args.SenderUUID = id;
+                m_scene.EventManager.TriggerOnChatFromWorldLocally(null, args);
+            }
+             * */ 
+            //m_scene.EventManager
+        }
 
         /// <summary>
         /// Send a sync message to remove the given objects in all connected actors, if this is a relay node. 
@@ -943,6 +1118,130 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
 
+        }
+
+        public void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs)
+        {
+            switch (ev)
+            {
+                case EventManager.EventNames.UpdateScript:
+                    if (evArgs.Length < 5)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for UpdateScript");
+                        return;
+                    }
+                    m_log.Debug(LogHeader + " PublishSceneEvent UpdateScript");
+                    OnLocalUpdateScript((UUID)evArgs[0], (UUID)evArgs[1], (UUID)evArgs[2], (bool)evArgs[3], (UUID)evArgs[4]);
+                    return;
+                case EventManager.EventNames.ScriptReset:
+                    if (evArgs.Length < 2)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for ScriptReset");
+                        return;
+                    }
+                    OnLocalScriptReset((uint)evArgs[0], (UUID)evArgs[1]);
+                    return;
+                case EventManager.EventNames.ChatFromClient:
+                    if (evArgs.Length < 2)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for ChatFromClient");
+                        return;
+                    }
+                    OnLocalChatFromClient(evArgs[0], (OSChatMessage)evArgs[1]);
+                    return;
+                default:
+                    return;
+            }
+        }
+
+        /// <summary>
+        /// The handler for (locally initiated) event OnUpdateScript: publish it to other actors.
+        /// </summary>
+        /// <param name="agentID"></param>
+        /// <param name="itemId"></param>
+        /// <param name="primId"></param>
+        /// <param name="isScriptRunning"></param>
+        /// <param name="newAssetID"></param>
+        private void OnLocalUpdateScript(UUID agentID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
+        {
+            m_log.Debug(LogHeader + " RegionSyncModule_OnUpdateScript");
+
+            OSDMap data = new OSDMap();
+            data["agentID"] = OSD.FromUUID(agentID);
+            data["itemID"] = OSD.FromUUID(itemId);
+            data["primID"] = OSD.FromUUID(primId);
+            data["running"] = OSD.FromBoolean(isScriptRunning);
+            data["assetID"] = OSD.FromUUID(newAssetID);
+
+            /*
+            data["actorID"] = OSD.FromString(m_actorID);
+            data["seqNum"] = OSD.FromULong(GetNextEventSeq());
+
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdateScript, OSDParser.SerializeJsonString(data));
+            //send to actors who are interested in the event
+            SendSceneEventToRelevantSyncConnectors(m_actorID, rsm);
+             * */
+            SendSceneEvent(SymmetricSyncMessage.MsgType.UpdateScript, data);
+        }
+
+        private void OnLocalScriptReset(uint localID, UUID itemID)
+        {
+            //we will use the prim's UUID as the identifier, not the localID, to publish the event for the prim                
+            SceneObjectPart part = m_scene.GetSceneObjectPart(localID);
+
+            OSDMap data = new OSDMap();
+            data["primID"] = OSD.FromUUID(part.UUID);
+            data["itemID"] = OSD.FromUUID(itemID);
+
+            SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptReset, data);
+        }
+
+
+        private void OnLocalChatFromClient(Object sender, OSChatMessage chat)
+        {
+            ScenePresence avatar = m_scene.GetScenePresence(chat.SenderUUID);
+
+            if (avatar == null)
+            {
+                m_log.Warn(LogHeader + "avatar " + chat.SenderUUID + " not exist locally, NOT sending out ChatFromClient");
+                return;
+            }
+
+            OSDMap data = new OSDMap();
+            data["channel"] = OSD.FromInteger(chat.Channel);
+            data["msg"] = OSD.FromString(chat.Message);
+            data["pos"] = OSD.FromVector3(chat.Position);
+            //data["name"] = OSD.FromString(chat.From);
+            data["name"] = OSD.FromString(avatar.Name);
+            data["id"] = OSD.FromUUID(chat.SenderUUID);
+            data["type"] = OSD.FromInteger((int)chat.Type);
+            SendSceneEvent(SymmetricSyncMessage.MsgType.ChatFromClient, data);
+        }
+
+        private void SendSceneEvent(SymmetricSyncMessage.MsgType msgType, OSDMap data)
+        {
+            data["actorID"] = OSD.FromString(m_actorID);
+            data["seqNum"] = OSD.FromULong(GetNextEventSeq());
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(msgType, OSDParser.SerializeJsonString(data));
+
+            //send to actors who are interested in the event
+            SendSceneEventToRelevantSyncConnectors(m_actorID, rsm);
+        }
+
+        /*
+        private void PublishSceneEvent(OSDMap data)
+        {
+            data["actorID"] = OSD.FromString(m_actorID);
+            data["seqNum"] = OSD.FromULong(GetNextEventSeq());
+
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.OnUpdateScript, OSDParser.SerializeJsonString(data));
+            SendSceneEventToRelevantSyncConnectors(m_actorID, rsm);
+        }
+         * */ 
+
+        private ulong GetNextEventSeq()
+        {
+            return m_eventSeq++;
         }
 
         #endregion //RegionSyncModule members and functions

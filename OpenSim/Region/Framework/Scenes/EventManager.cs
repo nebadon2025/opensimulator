@@ -38,10 +38,106 @@ using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 
 namespace OpenSim.Region.Framework.Scenes
 {
+    //SYMMETRIC SYNC: Rename the original EventManager as EventManagerBase, and implement a new EventManager that inherits from EventManagerBase
+
     /// <summary>
-    /// A class for triggering remote scene events.
+    /// A wrapper class to implement handle event differently depending on if they are initiated locally or remotelly (i.e. by another actor)
     /// </summary>
-    public class EventManager
+    public class EventManager: EventManagerBase
+    {
+        private Scene m_scene;
+
+        //the events that we'll handle specially in sym-sync
+        public enum EventNames
+        {
+            UpdateScript,
+            ScriptReset,
+            ChatFromClient,
+        }
+
+        public EventManager(Scene scene)
+        {
+            m_scene = scene;
+        }
+
+        #region UpdateScript
+        public override void TriggerUpdateScript(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
+        {
+            //publish the event to other actors who are intersted in it
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[5];
+                eventArgs[0] = (Object) clientId;
+                eventArgs[1] = (Object)itemId;
+                eventArgs[2] = (Object)primId;
+                eventArgs[3] = (Object)isScriptRunning;
+                eventArgs[4] = (Object)newAssetID;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.UpdateScript, eventArgs);
+            }
+           
+            //trigger event locally, as the legacy code does
+            TriggerUpdateScriptLocally(clientId, itemId, primId, isScriptRunning, newAssetID);
+        }
+        public void TriggerUpdateScriptLocally(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
+        {
+            base.TriggerUpdateScript(clientId, itemId, primId, isScriptRunning, newAssetID);
+        }
+#endregion //UpdateScript
+
+        #region ScriptReset
+        public override void TriggerScriptReset(uint localID, UUID itemID)
+        {
+            //publish the event to other actors who are intersted in it
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[2];
+                eventArgs[0] = (Object)localID;
+                eventArgs[1] = (Object)itemID;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ScriptReset, eventArgs);
+            }
+            //trigger event locally, as the legacy code does
+            TriggerScriptResetLocally(localID, itemID);
+        }
+        public void TriggerScriptResetLocally(uint localID, UUID itemID)
+        {
+            base.TriggerScriptReset(localID, itemID);
+        }
+
+        #endregion //UpdateScript
+
+        #region ChatFromClient
+        public override void TriggerOnChatFromClient(Object sender, OSChatMessage chat)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[2];
+                eventArgs[0] = sender;
+                eventArgs[1] = (Object)chat;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ChatFromClient, eventArgs);
+            }
+            TriggerOnChatFromClientLocally(sender, chat);
+        }
+        public void TriggerOnChatFromClientLocally(Object sender, OSChatMessage chat)
+        {
+            base.TriggerOnChatFromClient(sender, chat);
+        }
+        #endregion //ChatFromClient
+
+        public void TriggerOnChatBroadcastLocally(Object sender, OSChatMessage chat) 
+        {
+            base.TriggerOnChatBroadcast(sender, chat);
+        }
+
+        public void TriggerOnChatFromWorldLocally(Object sender, OSChatMessage chat)
+        {
+            base.TriggerOnChatFromWorld(sender, chat);
+        }
+    }
+
+    /// <summary>
+    /// A class for triggering scene events.
+    /// </summary>
+    public class EventManagerBase
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         
@@ -905,7 +1001,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerScriptReset(uint localID, UUID itemID)
+        //public void TriggerScriptReset(uint localID, UUID itemID)
+        public virtual void TriggerScriptReset(uint localID, UUID itemID)
         {
             ScriptResetDelegate handlerScriptReset = OnScriptReset;
             if (handlerScriptReset != null)
@@ -1594,7 +1691,9 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerOnChatFromClient(Object sender, OSChatMessage chat)
+        //SYMMETRIC SYNC: overiding this in the inherited class
+        //public void TriggerOnChatFromClient(Object sender, OSChatMessage chat)
+        public virtual void TriggerOnChatFromClient(Object sender, OSChatMessage chat)
         {
             ChatFromClientEvent handlerChatFromClient = OnChatFromClient;
             if (handlerChatFromClient != null)
@@ -2193,7 +2292,7 @@ namespace OpenSim.Region.Framework.Scenes
         //OnUpdateTaskInventoryScriptAsset: triggered after Scene receives client's upload of updated script and stores it as asset
         public delegate void UpdateScript(UUID clientID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID);
         public event UpdateScript OnUpdateScript;
-        public void TriggerUpdateScript(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
+        public virtual void TriggerUpdateScript(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
         {
             UpdateScript handlerUpdateScript = OnUpdateScript;
             if (handlerUpdateScript != null)
@@ -2246,7 +2345,6 @@ namespace OpenSim.Region.Framework.Scenes
         //SYMMETRIC SYNC
         public event PostSceneCreation OnPostSceneCreation;
         public delegate void PostSceneCreation(Scene createdScene);
-
         public void TriggerOnPostSceneCreation(Scene createdScene)
         {
             PostSceneCreation handler = OnPostSceneCreation;

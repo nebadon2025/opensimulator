@@ -179,8 +179,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // *** This is the main receive loop thread for each connected client
         private void ReceiveLoop()
         {
-            m_scene.EventManager.OnChatFromClient += new EventManager.ChatFromClientEvent(EventManager_OnChatFromClient);
-            m_scene.EventManager.OnChatFromWorld += new EventManager.ChatFromWorldEvent(EventManager_OnChatFromClient);
+            //SYMMETRIC SYNC: commenting out the code for handling chats
+           // m_scene.EventManager.OnChatFromClient += new EventManager.ChatFromClientEvent(EventManager_OnChatFromClient);
+           // m_scene.EventManager.OnChatFromWorld += new EventManager.ChatFromWorldEvent(EventManager_OnChatFromClient);
+            //end of SYMMETRIC SYNC
 
             
             // Reset stats and time

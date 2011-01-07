@@ -188,8 +188,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // *** This is the main thread loop for each connected client
         private void ReceiveLoop()
         {
-            //m_scene.EventManager.OnChatFromClient += new EventManager.ChatFromClientEvent(EventManager_OnChatFromClient);
-
             // Reset stats and time
             lastStatTime = DateTime.Now;
             msgsIn = msgsOut = bytesIn = bytesOut = 0;

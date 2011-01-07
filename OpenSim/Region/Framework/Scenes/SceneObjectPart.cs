@@ -4922,7 +4922,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         //The ID the identifies which actor has caused the most recent update to the prim.
         //We use type "string" for the ID only to make it human-readable. 
-        private string m_lastUpdateActorID;
+        private string m_lastUpdateActorID="";
         public string LastUpdateActorID
         {
             get { return m_lastUpdateActorID; }
@@ -4948,12 +4948,12 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void SyncInfoUpdate()
         {
-            if (m_parentGroup.Scene.ActorSyncModule == null || m_parentGroup.Scene.ActorSyncModule.ActorID == null)
-                return;
+            //if (m_parentGroup == null || m_parentGroup.Scene==null || m_parentGroup.Scene.ActorSyncModule == null || m_parentGroup.Scene.ActorSyncModule.ActorID == null)
+            //    return;
             //Trick: calling UpdateTimestamp here makes sure that when an object was received and de-serialized, before
             //       its parts are linked together, neither TimeStamp or ActorID will be modified. This is because during de-serialization, 
             //       ScheduleFullUpdate() is called when m_parentGroup == null
-            if (m_parentGroup != null)
+            if (m_parentGroup != null && m_parentGroup.Scene != null && m_parentGroup.Scene.ActorSyncModule!=null)
             {
                 UpdateTimestamp();
                 m_lastUpdateActorID = m_parentGroup.Scene.ActorSyncModule.ActorID;

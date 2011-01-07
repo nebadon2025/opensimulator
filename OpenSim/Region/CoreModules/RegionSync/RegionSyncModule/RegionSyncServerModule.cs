@@ -776,27 +776,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.Error("No RegionSyncClients connected");
         }
         #endregion
-
-
-        private static readonly Vector3 CenterOfRegion = new Vector3(((int)Constants.RegionSize * 0.5f), ((int)Constants.RegionSize * 0.5f),20);
-        // -----------------------------------------------------------------   
-        // -----------------------------------------------------------------   
-        internal void LocalChat(string msg, int channel)
-        {
-            OSChatMessage osm = new OSChatMessage();
-            osm.From = "RegionSyncServerModule";
-            osm.Message = msg;
-            osm.Type = ChatTypeEnum.Region;
-            osm.Position = CenterOfRegion;
-            osm.Sender = null;
-            osm.SenderUUID = OpenMetaverse.UUID.Zero; // Hmph! Still?
-
-            osm.Channel = channel;
-
-            m_log.DebugFormat("[REGION SYNC SERVER MODULE]  LocalChat({0},{1})", msg, channel);
-            m_scene.EventManager.TriggerOnChatBroadcast(this, osm);
-        }
-
     }
 
 }

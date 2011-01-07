@@ -525,8 +525,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             //For now, we assume there is only one remote listener to connect to. Later on, 
             //we may need to modify the code to read in multiple listeners.
-            string addr = m_sysConfig.GetString("SyncListenerIPAddress", IPAddrUnknown);
-            int port = m_sysConfig.GetInt("SyncListenerPort", PortUnknown);
+            string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress", IPAddrUnknown);
+            int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName + "_SyncListenerPort", PortUnknown);
             if (!addr.Equals(IPAddrUnknown) && port != PortUnknown)
             {
                 RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);

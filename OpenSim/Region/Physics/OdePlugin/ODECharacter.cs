@@ -32,6 +32,7 @@ using OpenMetaverse;
 using Ode.NET;
 using OpenSim.Framework;
 using OpenSim.Region.Physics.Manager;
+using OpenSim.Region.CoreModules.RegionSync.RegionSyncModule;
 using log4net;
 
 namespace OpenSim.Region.Physics.OdePlugin
@@ -202,6 +203,23 @@ namespace OpenSim.Region.Physics.OdePlugin
             m_name = avName;
         }
 
+        public override void RequestPhysicsterseUpdate()
+        {
+            if (PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
+            {
+                // m_log.DebugFormat("[ODE CHARACTER]: Sending terse update for {0}", LocalID);
+                // if the values have changed and it was I who changed them, send an update
+                if (this.lastValues.Changed(this) && ChangingActorID == RegionSyncServerModule.ActorID)
+                {
+                    PhysEngineToSceneConnectorModule.RouteUpdate(this);
+                }
+            }
+            else
+            {
+                base.RequestPhysicsterseUpdate();
+            }
+        }
+
         public override int PhysicsActorType
         {
             get { return (int) ActorTypes.Agent; }
@@ -220,6 +238,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         public override uint LocalID
         {
             set { m_localID = value; }
+            get { return m_localID; }
         }
 
         public override bool Grabbed
@@ -408,6 +427,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             get { return _position; }
             set
             {
+                base.ChangingActorID = RegionSyncServerModule.ActorID;
                 if (Body == IntPtr.Zero || Shell == IntPtr.Zero)
                 {
                     if (value.IsFinite())
@@ -453,6 +473,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             get { return new Vector3(CAPSULE_RADIUS * 2, CAPSULE_RADIUS * 2, CAPSULE_LENGTH); }
             set
             {
+                base.ChangingActorID = RegionSyncServerModule.ActorID;
                 if (value.IsFinite())
                 {
                     m_pidControllerActive = true;
@@ -774,6 +795,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                 {
                     m_pidControllerActive = true;
                     _target_velocity = value;
+                    base.ChangingActorID = RegionSyncServerModule.ActorID;
                 }
                 else
                 {
@@ -830,6 +852,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         {
             if (force.IsFinite())
             {
+                base.ChangingActorID = RegionSyncServerModule.ActorID;
                 if (pushforce)
                 {
                     m_pidControllerActive = false;
@@ -1144,7 +1167,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                 if (!m_lastUpdateSent)
                 {
                     m_lastUpdateSent = true;
-                    //base.RequestPhysicsterseUpdate();
+                    // base.RequestPhysicsterseUpdate();
 
                 }
             }
@@ -1181,6 +1204,10 @@ namespace OpenSim.Region.Physics.OdePlugin
                     m_hackSentFly = false;
                     m_hackSentFall = false;
                 }
+            }
+            if (!m_lastUpdateSent)
+            {
+                this.RequestPhysicsterseUpdate();
             }
         }
 
@@ -1348,7 +1375,8 @@ namespace OpenSim.Region.Physics.OdePlugin
                     _position.Z = m_taintPosition.Z;
                 }
             }
-
+            Console.WriteLine("ODECharacter: ProcessTaints: doing update");
+            this.RequestPhysicsterseUpdate();
         }
 
         internal void AddCollisionFrameTime(int p)

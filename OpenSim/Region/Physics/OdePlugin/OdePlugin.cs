@@ -2769,6 +2769,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                                         //Watchdog.UpdateThread();
                                     }
 
+                                    #region Ninja Joints
                                     if (SupportsNINJAJoints)
                                     {
                                         // Create pending joints, if possible
@@ -2950,6 +2951,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                                             }
                                         }
                                     }
+#endregion Ninja Joints
 
                                     if (processedtaints)
 //Console.WriteLine("Simulate calls Clear of _taintedPrim list");

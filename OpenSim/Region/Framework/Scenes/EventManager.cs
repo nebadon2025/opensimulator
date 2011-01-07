@@ -52,7 +52,8 @@ namespace OpenSim.Region.Framework.Scenes
         {
             UpdateScript,
             ScriptReset,
-            ChatFromClient,
+            ChatFromClient, //chats from avatars
+            ChatFromWorld,  //chats from objects
         }
 
         public EventManager(Scene scene)
@@ -128,10 +129,25 @@ namespace OpenSim.Region.Framework.Scenes
             base.TriggerOnChatBroadcast(sender, chat);
         }
 
+        #region ChatFromWorld
+
+        public override void TriggerOnChatFromWorld(Object sender, OSChatMessage chat)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[2];
+                eventArgs[0] = sender;
+                eventArgs[1] = (Object)chat;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ChatFromWorld, eventArgs);
+            }
+            TriggerOnChatFromWorldLocally(sender, chat);
+        }
+
         public void TriggerOnChatFromWorldLocally(Object sender, OSChatMessage chat)
         {
             base.TriggerOnChatFromWorld(sender, chat);
         }
+        #endregion //ChatFromWorld
     }
 
     /// <summary>
@@ -1670,7 +1686,9 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerOnChatFromWorld(Object sender, OSChatMessage chat)
+        //SYMMETRIC SYNC: the function is overridden in new EventManager
+        //public void TriggerOnChatFromWorld(Object sender, OSChatMessage chat)
+        public virtual void TriggerOnChatFromWorld(Object sender, OSChatMessage chat)
         {
             ChatFromWorldEvent handlerChatFromWorld = OnChatFromWorld;
             if (handlerChatFromWorld != null)

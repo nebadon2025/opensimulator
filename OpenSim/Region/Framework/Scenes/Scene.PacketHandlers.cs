@@ -69,6 +69,8 @@ namespace OpenSim.Region.Framework.Scenes
                 EventManager.TriggerOnChatBroadcast(this, args);
             else
                 EventManager.TriggerOnChatFromWorld(this, args);
+
+            m_log.Debug("end of SimChat");
         }
         
         /// <summary>

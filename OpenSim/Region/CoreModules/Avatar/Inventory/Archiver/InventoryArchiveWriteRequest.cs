@@ -138,8 +138,12 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
         }
 
         protected void SaveInvItem(InventoryItemBase inventoryItem, string path, Dictionary<string, object> options, IUserAccountService userAccountService)
-        {
+        {            
             string filename = path + CreateArchiveItemName(inventoryItem);
+            
+            m_log.DebugFormat(
+                "[INVENTORY ARCHIVER]: Saving metadata for item {0} {1} at {2}", 
+                inventoryItem.Name, inventoryItem.ID, filename);            
 
             // Record the creator of this item for user record purposes (which might go away soon)
             m_userUuids[inventoryItem.CreatorIdAsUuid] = 1;
@@ -162,6 +166,10 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
             InventoryFolderBase inventoryFolder, string path, bool saveThisFolderItself, 
             Dictionary<string, object> options, IUserAccountService userAccountService)
         {
+            m_log.DebugFormat(
+                "[INVENTORY ARCHIVER]: Saving metadata for folder {0} {1} at {2}", 
+                inventoryFolder.Name, inventoryFolder.ID, path);
+            
             if (saveThisFolderItself)
             {
                 path += CreateArchiveFolderName(inventoryFolder);
@@ -279,6 +287,8 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
             
                 // Don't put all this profile information into the archive right now.
                 //SaveUsers();
+                
+                m_log.DebugFormat("[INVENTORY ARCHIVER]: Finished saving item metadata for {0}", m_userInfo.Name);
                             
                 new AssetsRequest(
                     new AssetsArchiver(m_archiveWriter), 

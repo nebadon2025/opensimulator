@@ -48,6 +48,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
     public class RegionSyncServerModule : IRegionModule, IRegionSyncServerModule, ICommandableModule
     {
         private static int DefaultPort = 13000;
+        public static string ActorID = "XX";
         private static int PortUnknown = -1;
         private static string IPAddrUnknown = "";
 
@@ -75,6 +76,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.Warn("[REGION SYNC SERVER MODULE] RegionSyncModule is not enabled. Shutting down.");
                 return;
             }
+
+            // get identifying actor ID whether in client or server mode
+            ActorID = syncConfig.GetString("ActorID", "ZZ");
 
             // If syncConfig does not indicate "server", do not start up server mode
             //string mode = syncConfig.GetString("Mode", "server").ToLower();
@@ -112,6 +116,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_seSyncServerport = syncConfig.GetInt(seServerPort, PortUnknown);
             DefaultPort++;
 
+            //Get sync server info for Physics Engine actors 
+            string peServerAddr = scene.RegionInfo.RegionName + "_SceneToPESyncServerIP";
+            m_peSyncServeraddr = syncConfig.GetString(peServerAddr, "127.0.0.1");
+            string peServerPort = scene.RegionInfo.RegionName + "_SceneToPESyncServerPort";
+            m_peSyncServerport = syncConfig.GetInt(peServerPort, DefaultPort);
+            DefaultPort++;
+            
             m_symsync = syncConfig.GetBoolean("SymSync", false);
 
             //Get quark information
@@ -169,6 +180,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //Start the sync server for script engines
                 m_sceneToSESyncServer = new SceneToScriptEngineSyncServer(m_scene, m_seSyncServeraddr, m_seSyncServerport);
                 m_sceneToSESyncServer.Start();
+            }
+
+            if (!m_peSyncServeraddr.Equals(IPAddrUnknown) && m_peSyncServerport != PortUnknown)
+            {
+                m_log.Warn("[REGION SYNC SERVER MODULE] Starting SceneToPhysEngineSyncServer");
+                //Start the sync server for physics engines
+                m_sceneToPESyncServer = new SceneToPhysEngineSyncServer(m_scene, m_peSyncServeraddr, m_peSyncServerport);
+                m_sceneToPESyncServer.Start();
             }
             //m_log.Warn("[REGION SYNC SERVER MODULE] Post-Initialised");
         }
@@ -485,6 +504,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private string m_seSyncServeraddr;
         private int m_seSyncServerport;
         private SceneToScriptEngineSyncServer m_sceneToSESyncServer = null;
+
+        //Sync-server for physics engine
+        private string m_peSyncServeraddr;
+        private int m_peSyncServerport;
+        private SceneToPhysEngineSyncServer m_sceneToPESyncServer = null;
         
         //a boolean variable to indicate in symmetric sync is configured
         private bool m_symsync = false;
@@ -687,6 +711,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // Let the client managers know that a new agent has connected
             OSDMap data = new OSDMap(1);
             data["agentID"] = OSD.FromUUID(client.AgentId);
+            data["localID"] = OSD.FromUInteger(m_scene.GetScenePresence(client.AgentId).LocalId);
             data["first"] = OSD.FromString(client.FirstName);
             data["last"] = OSD.FromString(client.LastName);
             data["startPos"] = OSD.FromVector3(client.StartPos);

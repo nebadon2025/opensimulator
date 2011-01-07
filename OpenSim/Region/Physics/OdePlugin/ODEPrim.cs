@@ -47,7 +47,9 @@ using log4net;
 using OpenMetaverse;
 using Ode.NET;
 using OpenSim.Framework;
+using OpenSim.Region.Framework;
 using OpenSim.Region.Physics.Manager;
+using OpenSim.Region.CoreModules.RegionSync.RegionSyncModule;
 
 namespace OpenSim.Region.Physics.OdePlugin
 {
@@ -251,6 +253,23 @@ namespace OpenSim.Region.Physics.OdePlugin
             m_taintadd = true;
             _parent_scene.AddPhysicsActorTaint(this);
             //  don't do .add() here; old geoms get recycled with the same hash
+            // m_log.DebugFormat("[PHYSICS] Created ODEPrim: n={0}, m={1}, pbs={2}, phys={3}",
+            //     primName, mesh == null ? "NULL" : "DEFINED", pbs == null ? "NULL" : "DEFINED", pisPhysical);
+        }
+
+        public override void RequestPhysicsterseUpdate()
+        {
+            if (PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
+            {
+                // if the values have changed and it was I who changed them, send an update
+                // if (this.lastValues.Changed(this) && ChangingActorID == RegionSyncServerModule.ActorID)
+                if (this.lastValues.Changed(this))
+                    PhysEngineToSceneConnectorModule.RouteUpdate(this);
+            }
+            else
+            {
+                base.RequestPhysicsterseUpdate();
+            }
         }
 
         public override int PhysicsActorType
@@ -270,6 +289,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             set {
                 //m_log.Info("[PHYSICS]: Setting TrackerID: " + value);
                 m_localID = value; }
+            get { return m_localID; }
         }
 
         public override bool Grabbed
@@ -2280,6 +2300,7 @@ Console.WriteLine(" JointCreateFixed");
             get { return _position; }
 
             set { _position = value;
+                base.ChangingActorID = RegionSyncServerModule.ActorID;
                 //m_log.Info("[PHYSICS]: " + _position.ToString());
             }
         }
@@ -2292,6 +2313,7 @@ Console.WriteLine(" JointCreateFixed");
                 if (value.IsFinite())
                 {
                     _size = value;
+                    base.ChangingActorID = RegionSyncServerModule.ActorID;
                 }
                 else
                 {
@@ -2314,6 +2336,7 @@ Console.WriteLine(" JointCreateFixed");
                 if (value.IsFinite())
                 {
                     m_force = value;
+                    base.ChangingActorID = RegionSyncServerModule.ActorID;
                 }
                 else
                 {
@@ -2372,6 +2395,7 @@ Console.WriteLine(" JointCreateFixed");
             {
                 _pbs = value;
                 m_taintshape = true;
+                base.ChangingActorID = RegionSyncServerModule.ActorID;
             }
         }
 
@@ -2394,6 +2418,7 @@ Console.WriteLine(" JointCreateFixed");
             {
                 if (value.IsFinite())
                 {
+                    base.ChangingActorID = RegionSyncServerModule.ActorID;
                     _velocity = value;
 
                     m_taintVelocity = value;
@@ -2423,6 +2448,7 @@ Console.WriteLine(" JointCreateFixed");
                 {
                     m_taintTorque = value;
                     _parent_scene.AddPhysicsActorTaint(this);
+                    base.ChangingActorID = RegionSyncServerModule.ActorID;
                 }
                 else
                 {
@@ -2451,6 +2477,7 @@ Console.WriteLine(" JointCreateFixed");
                 if (QuaternionIsFinite(value))
                 {
                     _orientation = value;
+                    base.ChangingActorID = RegionSyncServerModule.ActorID;
                 }
                 else
                     m_log.WarnFormat("[PHYSICS]: Got NaN quaternion Orientation from Scene in Object {0}", Name);
@@ -2629,7 +2656,7 @@ Console.WriteLine(" JointCreateFixed");
                             _position = l_position;
                             //_parent_scene.remActivePrim(this);
                             if (_parent == null)
-                                base.RequestPhysicsterseUpdate();
+                                this.RequestPhysicsterseUpdate();
                             return;
                         }
                         else
@@ -2664,7 +2691,7 @@ Console.WriteLine(" JointCreateFixed");
                         m_rotationalVelocity.Z = 0;
 
                         if (_parent == null)
-                            base.RequestPhysicsterseUpdate();
+                            this.RequestPhysicsterseUpdate();
 
                         m_throttleUpdates = false;
                         throttleCounter = 0;
@@ -2717,7 +2744,7 @@ Console.WriteLine(" JointCreateFixed");
 
                             if (_parent == null)
                             {
-                                base.RequestPhysicsterseUpdate();
+                                this.RequestPhysicsterseUpdate();
                             }
 
                             m_lastUpdateSent = true;
@@ -2729,7 +2756,7 @@ Console.WriteLine(" JointCreateFixed");
                         {
                             if (_parent == null)
                             {
-                                base.RequestPhysicsterseUpdate();
+                                this.RequestPhysicsterseUpdate();
                             }
                         }
 
@@ -2764,7 +2791,7 @@ Console.WriteLine(" JointCreateFixed");
                         {
                             if (_parent == null)
                             {
-                                base.RequestPhysicsterseUpdate();
+                                this.RequestPhysicsterseUpdate();
                             }
                         }
                         else

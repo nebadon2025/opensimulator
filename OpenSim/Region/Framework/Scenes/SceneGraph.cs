@@ -457,7 +457,7 @@ namespace OpenSim.Region.Framework.Scenes
             lock (m_updateList)
             {
                 m_updateList[obj.UUID] = obj;
-                m_log.Debug("added " + obj.UUID + " to m_updateList");
+                //m_log.Debug("added " + obj.UUID + " to m_updateList");
             }
         }
 

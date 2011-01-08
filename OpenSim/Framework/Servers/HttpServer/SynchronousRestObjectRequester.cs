@@ -100,6 +100,7 @@ namespace OpenSim.Framework.Servers.HttpServer
                 }
             }
 
+            Console.WriteLine("Before write stream");
             try
             {
                 using (WebResponse resp = request.GetResponse())
@@ -117,6 +118,12 @@ namespace OpenSim.Framework.Servers.HttpServer
             {
                 // This is what happens when there is invalid XML
             }
+            catch (Exception e)
+            {
+                Console.WriteLine("OOPS! " + e);
+            }
+            Console.WriteLine("After write stream");
+
             return deserial;
         }
     }

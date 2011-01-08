@@ -86,6 +86,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="assetUuids">The assets gathered</param>
         public void GatherAssetUuids(UUID assetUuid, AssetType assetType, IDictionary<UUID, AssetType> assetUuids)
         {
+            m_log.DebugFormat("[UUID GATHERER]: Gathering for {0} of type {1}", assetUuid, assetType);
+
             // avoid infinite loops
             if (assetUuids.ContainsKey(assetUuid))
                 return;
@@ -211,6 +213,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <returns></returns>
         protected virtual AssetBase GetAsset(UUID uuid)
         {
+            m_log.DebugFormat("[UUID GATHERER]: Getting {0}", uuid);
             return m_assetCache.Get(uuid.ToString());
 /*
             m_waitingForObjectAsset = true;

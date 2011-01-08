@@ -70,13 +70,13 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             //m_log.DebugFormat("[SOG]: Starting deserialization of SOG");
             //int time = System.Environment.TickCount;
 
+            StringReader sr = null;
+            XmlTextReader reader = null;
             try
             {
-                StringReader  sr;
-                XmlTextReader reader;
-                XmlNodeList   parts;
-                XmlDocument   doc;
-                int           linkNum;
+                XmlNodeList parts;
+                XmlDocument doc;
+                int linkNum;
 
                 doc = new XmlDocument();
                 doc.LoadXml(xmlData);
@@ -88,8 +88,6 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 sr = new StringReader(parts[0].InnerXml);
                 reader = new XmlTextReader(sr);
                 SceneObjectGroup sceneObject = new SceneObjectGroup(SceneObjectPart.FromXml(fromUserInventoryItemID, reader));
-                reader.Close();
-                sr.Close();
 
                 parts = doc.GetElementsByTagName("Part");
 
@@ -118,6 +116,11 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 m_log.ErrorFormat(
                     "[SERIALIZER]: Deserialization of xml failed with {0}.  xml was {1}", e, xmlData);
                 return null;
+            }
+            finally
+            {
+                if (reader != null) reader.Close();
+                if (sr != null) sr.Close();
             }
         }
 

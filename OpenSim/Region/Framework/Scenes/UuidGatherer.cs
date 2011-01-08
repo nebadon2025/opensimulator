@@ -211,6 +211,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <returns></returns>
         protected virtual AssetBase GetAsset(UUID uuid)
         {
+            return m_assetCache.Get(uuid.ToString());
+/*
             m_waitingForObjectAsset = true;
             m_assetCache.Get(uuid.ToString(), this, AssetReceived);
 
@@ -230,6 +232,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             return m_requestedObjectAsset;
+ */
         }
 
         /// <summary>

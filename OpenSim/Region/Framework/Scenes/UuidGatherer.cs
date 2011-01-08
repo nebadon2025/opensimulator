@@ -301,11 +301,15 @@ namespace OpenSim.Region.Framework.Scenes
         {
             AssetBase objectAsset = GetAsset(sceneObjectUuid);
 
+            m_log.DebugFormat("[UUID GATHERER]: Got asset {0}. Asset null? {1}", 
+                sceneObjectUuid, ((objectAsset == null) ? "yes" : "no"));
             if (null != objectAsset)
             {
                 string xml = Utils.BytesToString(objectAsset.Data);
-                SceneObjectGroup sog = SceneObjectSerializer.FromOriginalXmlFormat(xml);
+                if (sceneObjectUuid.ToString() == "74ab3053-a5ae-496a-af01-4f2218086639")
+                    m_log.DebugFormat("[UUID GATHERER]: {0}", xml);
 
+                SceneObjectGroup sog = SceneObjectSerializer.FromOriginalXmlFormat(xml);
                 if (null != sog)
                     GatherAssetUuids(sog, assetUuids);
             }

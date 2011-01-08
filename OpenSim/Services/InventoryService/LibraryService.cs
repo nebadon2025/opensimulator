@@ -56,7 +56,11 @@ namespace OpenSim.Services.InventoryService
             get { return m_LibraryRootFolder; }
         }
 
-        private UUID libOwner = new UUID("11111111-1111-0000-0000-000100bba000");
+        public static UUID LibOwner 
+        {
+            get { return s_libOwner; }
+        }
+        protected static UUID s_libOwner = new UUID("11111111-1111-0000-0000-000100bba000");
 
         /// <summary>
         /// Holds the root library folder and all its descendents.  This is really only used during inventory
@@ -81,7 +85,7 @@ namespace OpenSim.Services.InventoryService
             m_log.Debug("[LIBRARY]: Starting library service...");
 
             m_LibraryRootFolder = new InventoryFolderImpl();
-            m_LibraryRootFolder.Owner = libOwner;
+            m_LibraryRootFolder.Owner = LibOwner;
             m_LibraryRootFolder.ID = new UUID("00000112-000f-0000-0000-000100bba000");
             m_LibraryRootFolder.Name = pLibName;
             m_LibraryRootFolder.ParentID = UUID.Zero;
@@ -97,8 +101,8 @@ namespace OpenSim.Services.InventoryService
                                             int assetType, int invType, UUID parentFolderID)
         {
             InventoryItemBase item = new InventoryItemBase();
-            item.Owner = libOwner;
-            item.CreatorId = libOwner.ToString();
+            item.Owner = LibOwner;
+            item.CreatorId = LibOwner.ToString();
             item.ID = inventoryID;
             item.AssetID = assetID;
             item.Description = description;
@@ -157,7 +161,7 @@ namespace OpenSim.Services.InventoryService
             folderInfo.ParentID = new UUID(config.GetString("parentFolderID", m_LibraryRootFolder.ID.ToString()));
             folderInfo.Type = (short)config.GetInt("type", 8);
 
-            folderInfo.Owner = libOwner;
+            folderInfo.Owner = LibOwner;
             folderInfo.Version = 1;
 
             if (libraryFolders.ContainsKey(folderInfo.ParentID))
@@ -184,8 +188,8 @@ namespace OpenSim.Services.InventoryService
         private void ReadItemFromConfig(IConfig config, string path)
         {
             InventoryItemBase item = new InventoryItemBase();
-            item.Owner = libOwner;
-            item.CreatorId = libOwner.ToString();
+            item.Owner = LibOwner;
+            item.CreatorId = LibOwner.ToString();
             item.ID = new UUID(config.GetString("inventoryID", m_LibraryRootFolder.ID.ToString()));
             item.AssetID = new UUID(config.GetString("assetID", item.ID.ToString()));
             item.Folder = new UUID(config.GetString("folderID", m_LibraryRootFolder.ID.ToString()));

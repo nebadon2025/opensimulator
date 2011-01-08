@@ -149,7 +149,12 @@ namespace OpenSim.Services.InventoryService
             defaultShape.ID = AvatarWearable.DEFAULT_BODY_ITEM;
             defaultShape.AssetID = AvatarWearable.DEFAULT_BODY_ASSET;
             defaultShape.Folder = bodypartFolder.ID;
-            defaultShape.CreatorId = UUID.Zero.ToString();
+            defaultShape.CreatorId = LibraryService.LibOwner.ToString();
+            defaultShape.Owner = principalID;
+            defaultShape.BasePermissions = (uint)PermissionMask.All;
+            defaultShape.CurrentPermissions = (uint)PermissionMask.All;
+            defaultShape.EveryOnePermissions = (uint)PermissionMask.None;
+            defaultShape.NextPermissions = (uint)PermissionMask.All;
             AddItem(defaultShape);                        
             
             InventoryItemBase defaultSkin = new InventoryItemBase();
@@ -161,7 +166,12 @@ namespace OpenSim.Services.InventoryService
             defaultSkin.ID = AvatarWearable.DEFAULT_SKIN_ITEM;
             defaultSkin.AssetID = AvatarWearable.DEFAULT_SKIN_ASSET;
             defaultSkin.Folder = bodypartFolder.ID;
-            defaultSkin.CreatorId = UUID.Zero.ToString();
+            defaultSkin.CreatorId = LibraryService.LibOwner.ToString();
+            defaultSkin.Owner = principalID;
+            defaultSkin.BasePermissions = (uint)PermissionMask.All;
+            defaultSkin.CurrentPermissions = (uint)PermissionMask.All;
+            defaultSkin.EveryOnePermissions = (uint)PermissionMask.None;
+            defaultSkin.NextPermissions = (uint)PermissionMask.All;            
             AddItem(defaultSkin);   
             
             InventoryItemBase defaultHair = new InventoryItemBase();
@@ -173,7 +183,12 @@ namespace OpenSim.Services.InventoryService
             defaultHair.ID = AvatarWearable.DEFAULT_HAIR_ITEM;
             defaultHair.AssetID = AvatarWearable.DEFAULT_HAIR_ASSET;
             defaultHair.Folder = bodypartFolder.ID;
-            defaultHair.CreatorId = UUID.Zero.ToString();
+            defaultHair.CreatorId = LibraryService.LibOwner.ToString();
+            defaultHair.Owner = principalID;
+            defaultHair.BasePermissions = (uint)PermissionMask.All;
+            defaultHair.CurrentPermissions = (uint)PermissionMask.All;
+            defaultHair.EveryOnePermissions = (uint)PermissionMask.None;
+            defaultHair.NextPermissions = (uint)PermissionMask.All;            
             AddItem(defaultHair); 
             
             InventoryItemBase defaultEyes = new InventoryItemBase();
@@ -185,7 +200,12 @@ namespace OpenSim.Services.InventoryService
             defaultEyes.ID = AvatarWearable.DEFAULT_EYES_ITEM;
             defaultEyes.AssetID = AvatarWearable.DEFAULT_EYES_ASSET;
             defaultEyes.Folder = bodypartFolder.ID;
-            defaultEyes.CreatorId = UUID.Zero.ToString();
+            defaultEyes.CreatorId = LibraryService.LibOwner.ToString();
+            defaultEyes.Owner = principalID;
+            defaultEyes.BasePermissions = (uint)PermissionMask.All;
+            defaultEyes.CurrentPermissions = (uint)PermissionMask.All;
+            defaultEyes.EveryOnePermissions = (uint)PermissionMask.None;
+            defaultEyes.NextPermissions = (uint)PermissionMask.All;            
             AddItem(defaultEyes);   
             
             // Default minimum clothes for viewer 2 non-naked appearance
@@ -198,7 +218,12 @@ namespace OpenSim.Services.InventoryService
             defaultShirt.ID = AvatarWearable.DEFAULT_SHIRT_ITEM;
             defaultShirt.AssetID = AvatarWearable.DEFAULT_SHIRT_ASSET;
             defaultShirt.Folder = clothingFolder.ID;
-            defaultShirt.CreatorId = UUID.Zero.ToString();
+            defaultShirt.CreatorId = LibraryService.LibOwner.ToString();
+            defaultShirt.Owner = principalID;
+            defaultShirt.BasePermissions = (uint)PermissionMask.All;
+            defaultShirt.CurrentPermissions = (uint)PermissionMask.All;
+            defaultShirt.EveryOnePermissions = (uint)PermissionMask.None;
+            defaultShirt.NextPermissions = (uint)PermissionMask.All;            
             AddItem(defaultShirt);   
             
             InventoryItemBase defaultPants = new InventoryItemBase();
@@ -210,7 +235,12 @@ namespace OpenSim.Services.InventoryService
             defaultPants.ID = AvatarWearable.DEFAULT_PANTS_ITEM;
             defaultPants.AssetID = AvatarWearable.DEFAULT_PANTS_ASSET;
             defaultPants.Folder = clothingFolder.ID;
-            defaultPants.CreatorId = UUID.Zero.ToString();
+            defaultPants.CreatorId = LibraryService.LibOwner.ToString();
+            defaultPants.Owner = principalID;
+            defaultPants.BasePermissions = (uint)PermissionMask.All;
+            defaultPants.CurrentPermissions = (uint)PermissionMask.All;
+            defaultPants.EveryOnePermissions = (uint)PermissionMask.None;
+            defaultPants.NextPermissions = (uint)PermissionMask.All;            
             AddItem(defaultPants);                  
 
             return result;

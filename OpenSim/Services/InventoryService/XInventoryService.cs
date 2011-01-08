@@ -137,8 +137,9 @@ namespace OpenSim.Services.InventoryService
                 CreateFolder(principalID, rootFolder.ID, (int)AssetType.TrashFolder, "Trash");
             
             InventoryFolderBase bodypartFolder = GetFolderForType(principalID, AssetType.Bodypart);
+            InventoryFolderBase clothingFolder = GetFolderForType(principalID, AssetType.Clothing);
             
-            // Default items
+            // Default minimum body parts for viewer 2 appearance
             InventoryItemBase defaultShape = new InventoryItemBase();
             defaultShape.Name = "Default shape";
             defaultShape.Description = "Default shape description";
@@ -185,7 +186,32 @@ namespace OpenSim.Services.InventoryService
             defaultEyes.AssetID = UUID.Parse("6522e74d-1660-4e7f-b601-6f48c1659a77");
             defaultEyes.Folder = bodypartFolder.ID;
             defaultEyes.CreatorId = UUID.Zero.ToString();
-            AddItem(defaultEyes);               
+            AddItem(defaultEyes);   
+            
+            // Default minimum clothes for viewer 2 non-naked appearance
+            InventoryItemBase defaultShirt = new InventoryItemBase();
+            defaultShirt.Name = "Default shirt";
+            defaultShirt.Description = "Default shirt description";
+            defaultShirt.AssetType = (int)AssetType.Clothing;
+            defaultShirt.InvType = (int)InventoryType.Wearable;
+            defaultShirt.Flags = (uint)WearableType.Shirt;
+            defaultShirt.ID = AvatarWearable.DEFAULT_SHIRT_ITEM;
+            defaultShirt.AssetID = AvatarWearable.DEFAULT_SHIRT_ASSET;
+            defaultShirt.Folder = clothingFolder.ID;
+            defaultShirt.CreatorId = UUID.Zero.ToString();
+            AddItem(defaultShirt);   
+            
+            InventoryItemBase defaultPants = new InventoryItemBase();
+            defaultPants.Name = "Default pants";
+            defaultPants.Description = "Default pants description";
+            defaultPants.AssetType = (int)AssetType.Clothing;
+            defaultPants.InvType = (int)InventoryType.Wearable;
+            defaultPants.Flags = (uint)WearableType.Pants;
+            defaultPants.ID = AvatarWearable.DEFAULT_PANTS_ITEM;
+            defaultPants.AssetID = AvatarWearable.DEFAULT_PANTS_ASSET;
+            defaultPants.Folder = clothingFolder.ID;
+            defaultPants.CreatorId = UUID.Zero.ToString();
+            AddItem(defaultPants);                  
 
             return result;
         }

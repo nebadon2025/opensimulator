@@ -34,6 +34,14 @@
     <Key Name="assetType" Value="13" />
     <Key Name="fileName" Value="base_shape.dat"/>
   </Section>
+
+  <Section Name="Eyes">
+    <Key Name="assetID" Value="6522e74d-1660-4e7f-b601-6f48c1659a77"/>
+    <Key Name="name" Value="Eyes"/>
+    <Key Name="assetType" Value="13"/>
+    <Key Name="fileName" Value="base_eyes.dat"/>
+  </Section>
+
 <!--
   <Section Name="Jim Shape">
     <Key Name="assetID" Value="66c41e39-38f9-f75a-024e-585989bfab74"/>

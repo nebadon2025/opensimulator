@@ -173,7 +173,19 @@ namespace OpenSim.Services.InventoryService
             defaultHair.AssetID = AvatarWearable.DEFAULT_HAIR_ASSET;
             defaultHair.Folder = bodypartFolder.ID;
             defaultHair.CreatorId = UUID.Zero.ToString();
-            AddItem(defaultHair);            
+            AddItem(defaultHair); 
+            
+            InventoryItemBase defaultEyes = new InventoryItemBase();
+            defaultEyes.Name = "Default eyes";
+            defaultEyes.Description = "Default eyes description";
+            defaultEyes.AssetType = (int)AssetType.Bodypart;
+            defaultEyes.InvType = (int)InventoryType.Wearable;
+            defaultEyes.Flags = (uint)WearableType.Eyes;
+            defaultEyes.ID = UUID.Random();
+            defaultEyes.AssetID = UUID.Parse("6522e74d-1660-4e7f-b601-6f48c1659a77");
+            defaultEyes.Folder = bodypartFolder.ID;
+            defaultEyes.CreatorId = UUID.Zero.ToString();
+            AddItem(defaultEyes);               
 
             return result;
         }

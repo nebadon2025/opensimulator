@@ -61,6 +61,7 @@ namespace OpenSim.Framework.Servers.HttpServer
             TResponse deserial = default(TResponse);
 
             WebRequest request = WebRequest.Create(requestUrl);
+            request.Timeout = 10000;
             request.Method = verb;
 
             if ((verb == "POST") || (verb == "PUT"))

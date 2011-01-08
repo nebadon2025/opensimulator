@@ -135,6 +135,45 @@ namespace OpenSim.Services.InventoryService
                 CreateFolder(principalID, rootFolder.ID, (int)AssetType.Texture, "Textures");
             if (!Array.Exists(sysFolders, delegate (XInventoryFolder f) { if (f.type == (int)AssetType.TrashFolder) return true; return false; }))
                 CreateFolder(principalID, rootFolder.ID, (int)AssetType.TrashFolder, "Trash");
+            
+            InventoryFolderBase bodypartFolder = GetFolderForType(principalID, AssetType.Bodypart);
+            
+            // Default items
+            InventoryItemBase defaultShape = new InventoryItemBase();
+            defaultShape.Name = "Default shape";
+            defaultShape.Description = "Default shape description";
+            defaultShape.AssetType = (int)AssetType.Bodypart;
+            defaultShape.InvType = (int)InventoryType.Wearable;
+            defaultShape.Flags = (uint)WearableType.Shape;
+            defaultShape.ID = AvatarWearable.DEFAULT_BODY_ITEM;
+            defaultShape.AssetID = AvatarWearable.DEFAULT_BODY_ASSET;
+            defaultShape.Folder = bodypartFolder.ID;
+            defaultShape.CreatorId = UUID.Zero.ToString();
+            AddItem(defaultShape);                        
+            
+            InventoryItemBase defaultSkin = new InventoryItemBase();
+            defaultSkin.Name = "Default skin";
+            defaultSkin.Description = "Default skin description";
+            defaultSkin.AssetType = (int)AssetType.Bodypart;
+            defaultSkin.InvType = (int)InventoryType.Wearable;
+            defaultSkin.Flags = (uint)WearableType.Skin;
+            defaultSkin.ID = AvatarWearable.DEFAULT_SKIN_ITEM;
+            defaultSkin.AssetID = AvatarWearable.DEFAULT_SKIN_ASSET;
+            defaultSkin.Folder = bodypartFolder.ID;
+            defaultSkin.CreatorId = UUID.Zero.ToString();
+            AddItem(defaultSkin);   
+            
+            InventoryItemBase defaultHair = new InventoryItemBase();
+            defaultHair.Name = "Default hair";
+            defaultHair.Description = "Default hair description";
+            defaultHair.AssetType = (int)AssetType.Bodypart;
+            defaultHair.InvType = (int)InventoryType.Wearable;
+            defaultHair.Flags = (uint)WearableType.Hair;
+            defaultHair.ID = AvatarWearable.DEFAULT_HAIR_ITEM;
+            defaultHair.AssetID = AvatarWearable.DEFAULT_HAIR_ASSET;
+            defaultHair.Folder = bodypartFolder.ID;
+            defaultHair.CreatorId = UUID.Zero.ToString();
+            AddItem(defaultHair);            
 
             return result;
         }

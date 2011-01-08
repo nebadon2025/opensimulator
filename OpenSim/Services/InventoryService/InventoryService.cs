@@ -506,9 +506,10 @@ namespace OpenSim.Services.InventoryService
         private void AddNewInventorySet(UsersInventory inventory)
         {
             foreach (InventoryFolderBase folder in inventory.Folders.Values)
-            {
                 AddFolder(folder);
-            }
+
+            foreach (InventoryItemBase item in inventory.Items.Values)
+                AddItem(item);
         }
 
         public InventoryItemBase GetInventoryItem(UUID itemID)
@@ -592,14 +593,14 @@ namespace OpenSim.Services.InventoryService
                 folder.Version = 1;
                 Folders.Add(folder.ID, folder);
 
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Clothing";
-                folder.Type = (short)AssetType.Clothing;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
+                InventoryFolderBase clothingFolder = new InventoryFolderBase();
+                clothingFolder.ParentID = rootFolder;
+                clothingFolder.Owner = user;
+                clothingFolder.ID = UUID.Random();
+                clothingFolder.Name = "Clothing";
+                clothingFolder.Type = (short)AssetType.Clothing;
+                clothingFolder.Version = 1;
+                Folders.Add(clothingFolder.ID, clothingFolder);                                                                               
 
                 folder = new InventoryFolderBase();
                 folder.ParentID = rootFolder;
@@ -690,6 +691,18 @@ namespace OpenSim.Services.InventoryService
                 folder.Type = (short)AssetType.TrashFolder;
                 folder.Version = 1;
                 Folders.Add(folder.ID, folder);
+                
+                // Not worth creating default items for this old inventory service since it's only currently used by
+                // tests (and then to test other things, rather than the service itself).
+//                // Default items
+//                InventoryItemBase defaultShape = new InventoryItemBase();
+//                defaultShape.Name = "Default shape";
+//                defaultShape.AssetType = (int)AssetType.Bodypart;
+//                defaultShape.InvType = (int)InventoryType.Wearable;
+//                defaultShape.ID = AvatarWearable.DEFAULT_BODY_ITEM;
+//                defaultShape.AssetID = AvatarWearable.DEFAULT_BODY_ASSET;
+//                defaultShape.Folder = clothingFolder.ID;
+//                Items.Add(defaultShape.ID, defaultShape);                
             }
         }
     }

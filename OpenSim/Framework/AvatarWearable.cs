@@ -81,6 +81,11 @@ namespace OpenSim.Framework
 
         public static readonly UUID DEFAULT_PANTS_ITEM = new UUID("77c41e39-38f9-f75a-0000-5859892f1111");
         public static readonly UUID DEFAULT_PANTS_ASSET = new UUID("00000000-38f9-1111-024e-222222111120");
+        
+        // No obvious external default appears for eyes, so these are specific to OpenSim!
+        // Does this matter?
+        public static readonly UUID DEFAULT_EYES_ITEM = new UUID("3a8d1e5c-998a-4c81-bdfb-89cd301e795e");
+        public static readonly UUID DEFAULT_EYES_ASSET = new UUID("6522e74d-1660-4e7f-b601-6f48c1659a77");        
 
 //        public static readonly UUID DEFAULT_ALPHA_ITEM = new UUID("bfb9923c-4838-4d2d-bf07-608c5b1165c8");
 //        public static readonly UUID DEFAULT_ALPHA_ASSET = new UUID("1578a2b1-5179-4b53-b618-fe00ca5a5594");
@@ -239,6 +244,9 @@ namespace OpenSim.Framework
 
                 // Pants
                 defaultWearables[PANTS].Add(DEFAULT_PANTS_ITEM, DEFAULT_PANTS_ASSET);
+                
+                // Eyes
+                defaultWearables[EYES].Add(DEFAULT_EYES_ITEM, DEFAULT_EYES_ASSET);
                 
 //                // Alpha
 //                defaultWearables[ALPHA].Add(DEFAULT_ALPHA_ITEM, DEFAULT_ALPHA_ASSET);

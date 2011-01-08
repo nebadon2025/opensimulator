@@ -182,8 +182,8 @@ namespace OpenSim.Services.InventoryService
             defaultEyes.AssetType = (int)AssetType.Bodypart;
             defaultEyes.InvType = (int)InventoryType.Wearable;
             defaultEyes.Flags = (uint)WearableType.Eyes;
-            defaultEyes.ID = UUID.Random();
-            defaultEyes.AssetID = UUID.Parse("6522e74d-1660-4e7f-b601-6f48c1659a77");
+            defaultEyes.ID = AvatarWearable.DEFAULT_EYES_ITEM;
+            defaultEyes.AssetID = AvatarWearable.DEFAULT_EYES_ASSET;
             defaultEyes.Folder = bodypartFolder.ID;
             defaultEyes.CreatorId = UUID.Zero.ToString();
             AddItem(defaultEyes);   

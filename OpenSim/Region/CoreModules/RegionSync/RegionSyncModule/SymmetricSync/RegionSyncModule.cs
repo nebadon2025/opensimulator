@@ -854,6 +854,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.ScriptReset:
                 case SymmetricSyncMessage.MsgType.ChatFromClient:
                 case SymmetricSyncMessage.MsgType.ChatFromWorld:
+                case SymmetricSyncMessage.MsgType.ObjectGrab:
+                case SymmetricSyncMessage.MsgType.ObjectGrabbing:
+                case SymmetricSyncMessage.MsgType.ObjectDeGrab:
                     {
                         HandleRemoteEvent(msg);
                         return;
@@ -1011,6 +1014,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.ChatFromWorld:
                     HandleRemoteEvent_OnChatFromWorld(init_actorID, evSeqNum, data);
                     break;
+                case SymmetricSyncMessage.MsgType.ObjectGrab:
+                    HandleRemoteEvent_OnObjectGrab(init_actorID, evSeqNum, data);
+                    break;
+                case SymmetricSyncMessage.MsgType.ObjectGrabbing:
+                    HandleRemoteEvent_OnObjectGrabbing(init_actorID, evSeqNum, data);
+                    break;
+                case SymmetricSyncMessage.MsgType.ObjectDeGrab:
+                    HandleRemoteEvent_OnObjectDeGrab(init_actorID, evSeqNum, data);
+                    break;
             }
 
             //if this is a relay node, forwards the event
@@ -1102,6 +1114,120 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.TriggerOnChatFromWorldLocally(m_scene, args);
         }
 
+        /// <summary>
+        /// Special actions for remote event ChatFromClient
+        /// </summary>
+        /// <param name="data">OSDMap data of event args</param>
+        private void HandleRemoteEvent_OnObjectGrab(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received GrabObject from " + actorID + ", seq " + evSeqNum);
+
+
+            UUID agentID = data["agentID"].AsUUID();
+            UUID primID = data["primID"].AsUUID();
+            UUID originalPrimID = data["originalPrimID"].AsUUID();
+            Vector3 offsetPos = data["offsetPos"].AsVector3();
+            SurfaceTouchEventArgs surfaceArgs = new SurfaceTouchEventArgs();
+            surfaceArgs.Binormal = data["binormal"].AsVector3();
+            surfaceArgs.FaceIndex = data["faceIndex"].AsInteger();
+            surfaceArgs.Normal = data["normal"].AsVector3();
+            surfaceArgs.Position = data["position"].AsVector3();
+            surfaceArgs.STCoord = data["stCoord"].AsVector3();
+            surfaceArgs.UVCoord = data["uvCoord"].AsVector3();
+
+            //Create an instance of IClientAPI to pass along agentID, see SOPObject.EventManager_OnObjectGrab()
+            //We don't really need RegionSyncAvatar's implementation here, just borrow it's IClientAPI interface. 
+            //If we decide to remove RegionSyncAvatar later, we can simple just define a very simple class that implements
+            //ICleintAPI to be used here. 
+            IClientAPI remoteClinet = new RegionSyncAvatar(m_scene, agentID, "", "", Vector3.Zero);
+            SceneObjectPart part = m_scene.GetSceneObjectPart(primID);
+            if (part == null)
+            {
+                m_log.Error(LogHeader + ": no prim with ID " + primID);
+                return;
+            }
+            uint originalID = 0;
+            if (originalPrimID != UUID.Zero)
+            {
+                SceneObjectPart originalPart = m_scene.GetSceneObjectPart(originalPrimID);
+                originalID = originalPart.LocalId;
+            }
+            m_scene.EventManager.TriggerObjectGrabLocally(part.LocalId, originalID, offsetPos, remoteClinet, surfaceArgs);
+        }
+
+        private void HandleRemoteEvent_OnObjectGrabbing(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received GrabObject from " + actorID + ", seq " + evSeqNum);
+
+            UUID agentID = data["agentID"].AsUUID();
+            UUID primID = data["primID"].AsUUID();
+            UUID originalPrimID = data["originalPrimID"].AsUUID();
+            Vector3 offsetPos = data["offsetPos"].AsVector3();
+            SurfaceTouchEventArgs surfaceArgs = new SurfaceTouchEventArgs();
+            surfaceArgs.Binormal = data["binormal"].AsVector3();
+            surfaceArgs.FaceIndex = data["faceIndex"].AsInteger();
+            surfaceArgs.Normal = data["normal"].AsVector3();
+            surfaceArgs.Position = data["position"].AsVector3();
+            surfaceArgs.STCoord = data["stCoord"].AsVector3();
+            surfaceArgs.UVCoord = data["uvCoord"].AsVector3();
+
+            //Create an instance of IClientAPI to pass along agentID, see SOPObject.EventManager_OnObjectGrab()
+            //We don't really need RegionSyncAvatar's implementation here, just borrow it's IClientAPI interface. 
+            //If we decide to remove RegionSyncAvatar later, we can simple just define a very simple class that implements
+            //ICleintAPI to be used here. 
+            IClientAPI remoteClinet = new RegionSyncAvatar(m_scene, agentID, "", "", Vector3.Zero);
+            SceneObjectPart part = m_scene.GetSceneObjectPart(primID);
+            if (part == null)
+            {
+                m_log.Error(LogHeader + ": no prim with ID " + primID);
+                return;
+            }
+            uint originalID = 0;
+            if (originalPrimID != UUID.Zero)
+            {
+                SceneObjectPart originalPart = m_scene.GetSceneObjectPart(originalPrimID);
+                originalID = originalPart.LocalId;
+            }
+
+            m_scene.EventManager.TriggerObjectGrabbingLocally(part.LocalId, originalID, offsetPos, remoteClinet, surfaceArgs);
+        }
+
+        private void HandleRemoteEvent_OnObjectDeGrab(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received GrabObject from " + actorID + ", seq " + evSeqNum);
+
+            UUID agentID = data["agentID"].AsUUID();
+            UUID primID = data["primID"].AsUUID();
+            UUID originalPrimID = data["originalPrimID"].AsUUID();
+            
+            SurfaceTouchEventArgs surfaceArgs = new SurfaceTouchEventArgs();
+            surfaceArgs.Binormal = data["binormal"].AsVector3();
+            surfaceArgs.FaceIndex = data["faceIndex"].AsInteger();
+            surfaceArgs.Normal = data["normal"].AsVector3();
+            surfaceArgs.Position = data["position"].AsVector3();
+            surfaceArgs.STCoord = data["stCoord"].AsVector3();
+            surfaceArgs.UVCoord = data["uvCoord"].AsVector3();
+
+            //Create an instance of IClientAPI to pass along agentID, see SOPObject.EventManager_OnObjectGrab()
+            //We don't really need RegionSyncAvatar's implementation here, just borrow it's IClientAPI interface. 
+            //If we decide to remove RegionSyncAvatar later, we can simple just define a very simple class that implements
+            //ICleintAPI to be used here. 
+            IClientAPI remoteClinet = new RegionSyncAvatar(m_scene, agentID, "", "", Vector3.Zero);
+            SceneObjectPart part = m_scene.GetSceneObjectPart(primID);
+            if (part == null)
+            {
+                m_log.Error(LogHeader + ": no prim with ID " + primID);
+                return;
+            }
+            uint originalID = 0;
+            if (originalPrimID != UUID.Zero)
+            {
+                SceneObjectPart originalPart = m_scene.GetSceneObjectPart(originalPrimID);
+                originalID = originalPart.LocalId;
+            }
+
+            m_scene.EventManager.TriggerObjectDeGrabLocally(part.LocalId, originalID, remoteClinet, surfaceArgs);
+        }
 
         /// <summary>
         /// Send a sync message to remove the given objects in all connected actors, if this is a relay node. 
@@ -1164,6 +1290,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     OnLocalChatFromWorld(evArgs[0], (OSChatMessage)evArgs[1]);
                     return;
+                case EventManager.EventNames.ObjectGrab:
+                    OnLocalGrabObject((uint)evArgs[0], (uint)evArgs[1], (Vector3) evArgs[2], (IClientAPI) evArgs[3], (SurfaceTouchEventArgs)evArgs[4]);
+                    return;
+                case EventManager.EventNames.ObjectGrabbing:
+                    OnLocalObjectGrabbing((uint)evArgs[0], (uint)evArgs[1], (Vector3)evArgs[2], (IClientAPI)evArgs[3], (SurfaceTouchEventArgs)evArgs[4]);
+                    return;
+                case EventManager.EventNames.ObjectDeGrab:
+                    OnLocalDeGrabObject((uint)evArgs[0], (uint)evArgs[1], (IClientAPI)evArgs[2], (SurfaceTouchEventArgs)evArgs[3]);
+                    return;
                 default:
                     return;
             }
@@ -1203,6 +1338,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             //we will use the prim's UUID as the identifier, not the localID, to publish the event for the prim                
             SceneObjectPart part = m_scene.GetSceneObjectPart(localID);
+
+            if (part == null)
+            {
+                m_log.Warn(LogHeader + ": part with localID " + localID + " not exist");
+                return;
+            }
 
             OSDMap data = new OSDMap();
             data["primID"] = OSD.FromUUID(part.UUID);
@@ -1244,6 +1385,117 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["id"] = OSD.FromUUID(chat.SenderUUID);
             data["type"] = OSD.FromInteger((int)chat.Type);
             SendSceneEvent(SymmetricSyncMessage.MsgType.ChatFromWorld, data);
+        }
+        
+        private void OnLocalGrabObject(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            /*
+            //we will use the prim's UUID as the identifier, not the localID, to publish the event for the prim                
+            SceneObjectPart part = m_scene.GetSceneObjectPart(localID);
+            if (part == null)
+            {
+                m_log.Warn(LogHeader + ": part with localID " + localID + " not exist");
+                return;
+            }
+
+            //this seems to be useful if the prim touched and the prim handling the touch event are different:
+            //i.e. a child part is touched, pass the event to root, and root handles the event. then root is the "part",
+            //and the child part is the "originalPart"
+            SceneObjectPart originalPart = null;
+            if (originalID != 0)
+            {
+                originalPart = m_scene.GetSceneObjectPart(originalID);
+                if (originalPart == null)
+                {
+                    m_log.Warn(LogHeader + ": part with localID " + localID + " not exist");
+                    return;
+                }
+            }
+
+            OSDMap data = new OSDMap();
+            data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
+            data["primID"] = OSD.FromUUID(part.UUID);
+            if (originalID != 0)
+            {
+                data["originalPrimID"] = OSD.FromUUID(originalPart.UUID);
+            }
+            else
+            {
+                data["originalPrimID"] = OSD.FromUUID(UUID.Zero);
+            }
+            data["offsetPos"] = OSD.FromVector3(offsetPos);
+            
+            data["binormal"] = OSD.FromVector3(surfaceArgs.Binormal);
+            data["faceIndex"] = OSD.FromInteger(surfaceArgs.FaceIndex);
+            data["normal"] = OSD.FromVector3(surfaceArgs.Normal);
+            data["position"] = OSD.FromVector3(surfaceArgs.Position);
+            data["stCoord"] = OSD.FromVector3(surfaceArgs.STCoord);
+            data["uvCoord"] = OSD.FromVector3(surfaceArgs.UVCoord);
+             * */
+            OSDMap data = PrepareObjectGrabArgs(localID, originalID, offsetPos, remoteClient, surfaceArgs);
+            SendSceneEvent(SymmetricSyncMessage.MsgType.ObjectGrab, data);
+        }
+
+        private void OnLocalObjectGrabbing(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            OSDMap data = PrepareObjectGrabArgs(localID, originalID, offsetPos, remoteClient, surfaceArgs);
+            if (data != null)
+            {
+                SendSceneEvent(SymmetricSyncMessage.MsgType.ObjectGrabbing, data);
+            }
+        }
+
+        private OSDMap PrepareObjectGrabArgs(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            //we will use the prim's UUID as the identifier, not the localID, to publish the event for the prim                
+            SceneObjectPart part = m_scene.GetSceneObjectPart(localID);
+            if (part == null)
+            {
+                m_log.Warn(LogHeader + ": PrepareObjectGrabArgs - part with localID " + localID + " not exist");
+                return null;
+            }
+
+            //this seems to be useful if the prim touched and the prim handling the touch event are different:
+            //i.e. a child part is touched, pass the event to root, and root handles the event. then root is the "part",
+            //and the child part is the "originalPart"
+            SceneObjectPart originalPart = null;
+            if (originalID != 0)
+            {
+                originalPart = m_scene.GetSceneObjectPart(originalID);
+                if (originalPart == null)
+                {
+                    m_log.Warn(LogHeader + ": PrepareObjectGrabArgs - part with localID " + localID + " not exist");
+                    return null;
+                }
+            }
+
+            OSDMap data = new OSDMap();
+            data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
+            data["primID"] = OSD.FromUUID(part.UUID);
+            if (originalID != 0)
+            {
+                data["originalPrimID"] = OSD.FromUUID(originalPart.UUID);
+            }
+            else
+            {
+                data["originalPrimID"] = OSD.FromUUID(UUID.Zero);
+            }
+            data["offsetPos"] = OSD.FromVector3(offsetPos);
+
+            data["binormal"] = OSD.FromVector3(surfaceArgs.Binormal);
+            data["faceIndex"] = OSD.FromInteger(surfaceArgs.FaceIndex);
+            data["normal"] = OSD.FromVector3(surfaceArgs.Normal);
+            data["position"] = OSD.FromVector3(surfaceArgs.Position);
+            data["stCoord"] = OSD.FromVector3(surfaceArgs.STCoord);
+            data["uvCoord"] = OSD.FromVector3(surfaceArgs.UVCoord);
+
+            return data;
+        }
+
+
+        private void OnLocalDeGrabObject(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+
         }
 
         private void SendSceneEvent(SymmetricSyncMessage.MsgType msgType, OSDMap data)

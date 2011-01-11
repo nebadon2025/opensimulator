@@ -2517,7 +2517,7 @@ namespace OpenSim.Region.Framework.Scenes
                 // If the avatars baked textures are all in the cache, then we have a 
                 // complete appearance... send it out, if not, then we'll send it when
                 // the avatar finishes updating its appearance
-                SendAppearanceToAllOtherAgents();
+                m_scene.AvatarFactory.QueueAppearanceSend(UUID);
             }
         }
 

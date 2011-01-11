@@ -333,7 +333,8 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
 
             // m_log.WarnFormat("[AVFACTORY] avatar {0} save appearance",agentid);
 
-            m_scene.AvatarService.SetAppearance(agentid, sp.Appearance);
+            // Disable saving of appearance for demonstrations
+            // m_scene.AvatarService.SetAppearance(agentid, sp.Appearance);
             // REGION SYNC
             // If this is a client manager, we have received new appearance from a client and saved
             // it to the avatar service. Now let's tell the parent scene about it.

@@ -54,6 +54,10 @@ namespace OpenSim.Region.Framework.Scenes
             ScriptReset,
             ChatFromClient, //chats from avatars
             ChatFromWorld,  //chats from objects
+            ObjectGrab,
+            ObjectGrabbing,
+            ObjectDeGrab,
+
         }
 
         public EventManager(Scene scene)
@@ -148,6 +152,68 @@ namespace OpenSim.Region.Framework.Scenes
             base.TriggerOnChatFromWorld(sender, chat);
         }
         #endregion //ChatFromWorld
+
+        #region ObjectGrab, ObjectGrabbing, ObjectDeGrab
+        public override void TriggerObjectGrab(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[5];
+                eventArgs[0] = (Object)localID;
+                eventArgs[1] = (Object)originalID;
+                eventArgs[2] = (Object)offsetPos;
+                eventArgs[3] = (Object)remoteClient;
+                eventArgs[4] = (Object)surfaceArgs;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ObjectGrab, eventArgs);
+            }
+            TriggerObjectGrabLocally(localID, originalID, offsetPos, remoteClient, surfaceArgs);
+        }
+        public void TriggerObjectGrabLocally(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            base.TriggerObjectGrab(localID, originalID, offsetPos, remoteClient, surfaceArgs);
+        }
+
+        public override void TriggerObjectGrabbing(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[5];
+                eventArgs[0] = (Object)localID;
+                eventArgs[1] = (Object)originalID;
+                eventArgs[2] = (Object)offsetPos;
+                eventArgs[3] = (Object)remoteClient;
+                eventArgs[4] = (Object)surfaceArgs;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ObjectGrabbing, eventArgs);
+            }
+            TriggerObjectGrabbingLocally(localID, originalID, offsetPos, remoteClient, surfaceArgs);
+        }
+
+        public void TriggerObjectGrabbingLocally(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            base.TriggerObjectGrabbing(localID, originalID, offsetPos, remoteClient, surfaceArgs);
+        }
+
+        public override void TriggerObjectDeGrab(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[4];
+                eventArgs[0] = (Object)localID;
+                eventArgs[1] = (Object)originalID;
+                eventArgs[2] = (Object)remoteClient;
+                eventArgs[3] = (Object)surfaceArgs;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ObjectDeGrab, eventArgs);
+            }
+
+            TriggerObjectDeGrabLocally(localID, originalID, remoteClient, surfaceArgs);
+        }
+
+        public void TriggerObjectDeGrabLocally(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            base.TriggerObjectDeGrab(localID, originalID, remoteClient, surfaceArgs);
+        }
+
+        #endregion //GrabObject
     }
 
     /// <summary>
@@ -954,7 +1020,9 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerObjectGrab(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        //SYMMETRIC SYNC: overridden at new EventManager class
+        //public void TriggerObjectGrab(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        public virtual void TriggerObjectGrab(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         {
             ObjectGrabDelegate handlerObjectGrab = OnObjectGrab;
             if (handlerObjectGrab != null)
@@ -975,7 +1043,9 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerObjectGrabbing(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        //SYMMETRIC SYNC: overridden at new EventManager class
+        //public void TriggerObjectGrabbing(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        public virtual void TriggerObjectGrabbing(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         {
             ObjectGrabDelegate handlerObjectGrabbing = OnObjectGrabbing;
             if (handlerObjectGrabbing != null)
@@ -996,7 +1066,9 @@ namespace OpenSim.Region.Framework.Scenes
             }
          }
 
-        public void TriggerObjectDeGrab(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        //SYMMETRIC SYNC: overridden at new EventManager class
+        //public void TriggerObjectDeGrab(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        public virtual void TriggerObjectDeGrab(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         {
             ObjectDeGrabDelegate handlerObjectDeGrab = OnObjectDeGrab;
             if (handlerObjectDeGrab != null)

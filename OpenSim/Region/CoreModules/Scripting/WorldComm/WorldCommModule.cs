@@ -34,8 +34,8 @@ using OpenSim.Framework;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 
-using log4net;
-using System.Reflection;
+//using log4net;
+//using System.Reflection;
 
 
 /*****************************************************
@@ -98,7 +98,7 @@ namespace OpenSim.Region.CoreModules.Scripting.WorldComm
         private int m_saydistance = 30;
         private int m_shoutdistance = 100;
 
-        private ILog m_log;
+        //private ILog m_log;
 
         #region IRegionModule Members
 
@@ -130,7 +130,7 @@ namespace OpenSim.Region.CoreModules.Scripting.WorldComm
             //SYMMETRIC SYNC
             //m_scene.EventManager.OnChatFromWorld += DeliverClientMessage;
             //Kitty: temp debug
-            m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+            //m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
             //end SYMMETRIC SYNC
             m_pendingQ = new Queue();
             m_pending = Queue.Synchronized(m_pendingQ);
@@ -248,8 +248,8 @@ namespace OpenSim.Region.CoreModules.Scripting.WorldComm
         /// <param name="msg">msg to sent</param>
         public void DeliverMessage(ChatTypeEnum type, int channel, string name, UUID id, string msg, Vector3 position)
         {
-            m_log.DebugFormat("[WorldComm] got[2] type {0}, channel {1}, name {2}, id {3}, msg {4}",
-                               type, channel, name, id, msg);
+            //m_log.DebugFormat("[WorldComm] got[2] type {0}, channel {1}, name {2}, id {3}, msg {4}",
+            //                   type, channel, name, id, msg);
 
             // Determine which listen event filters match the given set of arguments, this results
             // in a limited set of listeners, each belonging a host. If the host is in range, add them

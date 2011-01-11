@@ -478,10 +478,12 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     updates = new List<SceneObjectGroup>(m_updateList.Values);
 
+                    /*
                     if (updates.Count > 0)
                     {
                         m_log.Debug("SceneGraph: " + updates.Count + " objects to send updates for");
                     }
+                     * */ 
 
 
                     m_updateList.Clear();

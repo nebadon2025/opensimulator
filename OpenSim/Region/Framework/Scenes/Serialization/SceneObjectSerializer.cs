@@ -1174,7 +1174,10 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             writer.WriteElementString("GroupMask", sop.GroupMask.ToString());
             writer.WriteElementString("EveryoneMask", sop.EveryoneMask.ToString());
             writer.WriteElementString("NextOwnerMask", sop.NextOwnerMask.ToString());
-            WriteFlags(writer, "Flags", sop.Flags.ToString(), options);
+            //SYMMETRIC SYNC: also serialize SceneObjectPart:LocalFlags, so that it can be propogated across actors
+            //WriteFlags(writer, "Flags", sop.Flags.ToString(), options);
+            WriteFlags(writer, "Flags", sop.GetEffectiveObjectFlags().ToString(), options);
+            //end SYMMETRIC SYNC
             WriteUUID(writer, "CollisionSound", sop.CollisionSound, options);
             writer.WriteElementString("CollisionSoundVolume", sop.CollisionSoundVolume.ToString());
             if (sop.MediaUrl != null)

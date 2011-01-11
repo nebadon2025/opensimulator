@@ -38,6 +38,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             ScriptReset,
             ChatFromClient,
             ChatFromWorld,
+            ObjectGrab,
+            ObjectGrabbing,
+            ObjectDeGrab,
         }
         #endregion
 

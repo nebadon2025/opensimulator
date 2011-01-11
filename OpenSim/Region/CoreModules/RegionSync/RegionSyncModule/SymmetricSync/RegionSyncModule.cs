@@ -72,7 +72,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //Called after Initialise()
         public void AddRegion(Scene scene)
         {
-            m_log.Warn(LogHeader + " AddRegion() called");
+            //m_log.Warn(LogHeader + " AddRegion() called");
 
             if (!m_active)
                 return;
@@ -96,10 +96,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //Called after AddRegion() has been called for all region modules of the scene
         public void RegionLoaded(Scene scene)
         {
-            m_log.Warn(LogHeader + " RegionLoaded() called");
+            //m_log.Warn(LogHeader + " RegionLoaded() called");
 
+            /*
             //If this one is configured to start a listener so that other actors can connect to form a overlay, start the listener.
-            //For now, we use start topology, and ScenePersistence actor is always the one to start the listener.
+            //For now, we use the star topology, and ScenePersistence actor is always the one to start the listener.
             if (m_isSyncListenerLocal)
             {
                 StartLocalSyncListener();
@@ -108,7 +109,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 //Start connecting to the remote listener. TO BE IMPLEMENTED. 
                 //For now, the connection will be started by manually typing in "sync start".
+
             }
+             * */
+
+            //Start symmetric synchronization initialization automatically
+            //SyncStart(null);
             
         }
 
@@ -528,6 +534,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
                 m_actorType = m_scene.ActorSyncModule.ActorType;
             }
+
+            //Start symmetric synchronization initialization automatically
+            SyncStart(null);
         }
 
         private void StartLocalSyncListener()
@@ -914,7 +923,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         m_log.WarnFormat("[{0} Object \"{1}\" ({1}) ({2}) -- add or update ERROR.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
                         break;
                     case Scene.ObjectUpdateResult.Unchanged:
-                        m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) unchanged after receiving an update.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
+                        //m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) unchanged after receiving an update.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
                         break;
                 }
             }

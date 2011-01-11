@@ -5066,14 +5066,6 @@ namespace OpenSim.Region.Framework.Scenes
             this.m_lastUpdateActorID = updatedPart.LastUpdateActorID;
             this.m_lastUpdateTimeStamp = updatedPart.LastUpdateTimeStamp;
 
-
-            /*
-            this.m_inventory.Items = (TaskInventoryDictionary)updatedPart.m_inventory.Items.Clone();
-            //update shape information, for now, only update fileds in Shape whose set functions are defined in PrimitiveBaseShape
-            this.Shape = updatedPart.Shape.Copy();
-            this.Shape.TextureEntry = updatedPart.Shape.TextureEntry;
-             * */
-
             return partUpdateResult;
         }
 
@@ -5083,7 +5075,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void ScheduleFullUpdate_SyncInfoUnchanged()
         {
-            m_log.DebugFormat("[SCENE OBJECT PART]: ScheduleFullUpdate_SyncInfoUnchanged for {0} {1}", Name, LocalId);
+            //m_log.DebugFormat("[SCENE OBJECT PART]: ScheduleFullUpdate_SyncInfoUnchanged for {0} {1}", Name, LocalId);
 
             if (m_parentGroup != null)
             {

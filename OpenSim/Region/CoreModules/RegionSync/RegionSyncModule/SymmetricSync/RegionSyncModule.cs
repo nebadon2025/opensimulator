@@ -935,29 +935,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SendSyncMessage(SymmetricSyncMessage.MsgType.Terrain, OSDParser.SerializeJsonString(data));
         }
 
-        private void HandleRemovedObject(SymmetricSyncMessage msg)
-        {
-            // Get the data from message and error check
-            OSDMap data = DeserializeMessage(msg);
 
-            if (data == null)
-            {
-
-                SymmetricSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
-                return;
-            }
-
-            // Get the parameters from data
-            //ulong regionHandle = data["regionHandle"].AsULong();
-            //uint localID = data["UUID"].AsUInteger();
-            UUID sogUUID = data["UUID"].AsUUID();
-
-            SceneObjectGroup sog = m_scene.SceneGraph.GetGroupByPrim(sogUUID);
-            if (sog != null)
-            {
-                m_scene.DeleteSceneObjectBySynchronization(sog);
-            }
-        }
 
         HashSet<string> exceptions = new HashSet<string>();
         private OSDMap DeserializeMessage(SymmetricSyncMessage msg)
@@ -987,6 +965,34 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (m_scene.AddNewSceneObject(sog, attachToBackup))
             {
                 m_log.Debug(LogHeader + ": added obj " + sog.UUID);
+            }
+        }
+
+        private void HandleRemovedObject(SymmetricSyncMessage msg)
+        {
+            // Get the data from message and error check
+            OSDMap data = DeserializeMessage(msg);
+            string init_actorID = data["actorID"].AsString();
+
+            if (data == null)
+            {
+
+                SymmetricSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                return;
+            }
+
+            UUID sogUUID = data["UUID"].AsUUID();
+
+            SceneObjectGroup sog = m_scene.SceneGraph.GetGroupByPrim(sogUUID);
+            if (sog != null)
+            {
+                m_scene.DeleteSceneObjectBySynchronization(sog);
+            }
+
+            //if this is a relay node, forwards the event
+            if (m_isSyncRelay)
+            {
+                SendSceneEventToRelevantSyncConnectors(init_actorID, msg);
             }
         }
 
@@ -1230,8 +1236,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         /// <summary>
-        /// Send a sync message to remove the given objects in all connected actors, if this is a relay node. 
-        /// UUID is used for identified a removed object.
+        /// Send a sync message to remove the given objects in all connected actors. 
+        /// UUID is used for identified a removed object. This function now should
+        /// only be triggered by an object removal that is initiated locally.
         /// </summary>
         /// <param name="sog"></param>
         private void RegionSyncModule_OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
@@ -1239,18 +1246,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //m_log.DebugFormat("RegionSyncModule_OnObjectBeingRemovedFromScene called at time {0}:{1}:{2}", DateTime.Now.Minute, DateTime.Now.Second, DateTime.Now.Millisecond);
 
             //Only send the message out if this is a relay node for sync messages, or this actor caused deleting the object
-            if (m_isSyncRelay || CheckObjectForSendingUpdate(sog))
-            {
-                OSDMap data = new OSDMap(1);
-                //data["regionHandle"] = OSD.FromULong(regionHandle);
-                //data["localID"] = OSD.FromUInteger(sog.LocalId);
-                data["UUID"] = OSD.FromUUID(sog.UUID);
-
-                SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
-                SendObjectUpdateToRelevantSyncConnectors(sog, rsm);
-            }
+            //if (m_isSyncRelay || CheckObjectForSendingUpdate(sog))
 
 
+            OSDMap data = new OSDMap(1);
+            //data["regionHandle"] = OSD.FromULong(regionHandle);
+            //data["localID"] = OSD.FromUInteger(sog.LocalId);
+            data["UUID"] = OSD.FromUUID(sog.UUID);
+            data["actorID"] = OSD.FromString(m_actorID);
+
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
+            SendObjectUpdateToRelevantSyncConnectors(sog, rsm);
         }
 
         public void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs)

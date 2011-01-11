@@ -662,7 +662,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (UnlinkSceneObject(group, false))
             {
-                EventManager.TriggerObjectBeingRemovedFromScene(group);
+                //For object removals caused by remote events (by other actors), do not trigger local event ObjectBeingRemovedFromScene
+                //EventManager.TriggerObjectBeingRemovedFromScene(group);
                 EventManager.TriggerParcelPrimCountTainted();
             }
 
@@ -2424,12 +2425,13 @@ namespace OpenSim.Region.Framework.Scenes
 
             //SYMMETRIC SYNC
             //Set the ActorID and TimeStamp info for this latest update
+            /*
             foreach (SceneObjectPart part in group.Parts)
             {
                 part.SyncInfoUpdate();
             }
             //end of SYMMETRIC SYNC
-
+             * */
         }
 
         /// <summary>

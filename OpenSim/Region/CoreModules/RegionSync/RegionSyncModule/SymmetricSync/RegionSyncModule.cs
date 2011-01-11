@@ -176,6 +176,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         private RegionSyncListener m_localSyncListener = null;
+        private bool m_synced = false;
 
         // Lock is used to synchronize access to the update status and update queues
         private object m_updateSceneObjectPartLock = new object();
@@ -620,8 +621,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     GetRemoteSyncListenerInfo();
                 }
-                StartSyncConnections();
-                DoInitialSync();
+                if (StartSyncConnections())
+                {
+                    DoInitialSync();
+                }
             }
         }
 
@@ -655,12 +658,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         //Start connections to each remote listener. 
         //For now, there is only one remote listener.
-        private void StartSyncConnections()
+        private bool StartSyncConnections()
         {
             if (m_remoteSyncListeners == null)
             {
                 m_log.Error(LogHeader + " SyncListener's address or port has not been configured.");
-                return;
+                return false;
+            }
+
+            if (m_synced)
+            {
+                m_log.Warn(LogHeader + ": Already synced.");
+                return false;
             }
 
             foreach (RegionSyncListenerInfo remoteListener in m_remoteSyncListeners)
@@ -672,6 +681,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     AddSyncConnector(syncConnector);
                 }
             }
+
+            m_synced = true;
+
+            return true;
         }
 
         //To be called when a SyncConnector needs to be created by that the local listener receives a connection request

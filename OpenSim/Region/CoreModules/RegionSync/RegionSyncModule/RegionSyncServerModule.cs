@@ -308,7 +308,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 data["vel"] = OSD.FromVector3(presence.Velocity);
                             else
                                 data["vel"] = OSD.FromVector3(Vector3.Zero);
-                            data["rot"] = OSD.FromQuaternion(presence.Rotation);
+                            if(System.Single.IsNaN(presence.Rotation.X))
+                                data["rot"] = OSD.FromQuaternion(Quaternion.Identity);
+                            else
+                                data["rot"] = OSD.FromQuaternion(presence.Rotation);
                             data["fly"] = OSD.FromBoolean(presence.Flying);
                             data["flags"] = OSD.FromUInteger((uint)presence.AgentControlFlags);
                             data["anim"] = OSD.FromString(presence.Animator.CurrentMovementAnimation);

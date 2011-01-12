@@ -635,18 +635,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 if (m_localSyncListener!=null && m_localSyncListener.IsListening)
                 {
                     m_localSyncListener.Shutdown();
+                    //Trigger SyncStop event, ActorSyncModules can then take actor specific action if needed.
+                    //For instance, script engine will save script states
+                    //save script state and stop script instances
+                    m_scene.EventManager.TriggerOnSymmetricSyncStop();
                 }
             }
             else
             {
                 //Shutdown all sync connectors
-                StopAllSyncConnectors();
+                if (m_synced)
+                {
+                    StopAllSyncConnectors();
+                    m_synced = false;
+
+                    //Trigger SyncStop event, ActorSyncModules can then take actor specific action if needed.
+                    //For instance, script engine will save script states
+                    //save script state and stop script instances
+                    m_scene.EventManager.TriggerOnSymmetricSyncStop();
+                }
             }
 
-            //Trigger SyncStop event, ActorSyncModules can then take actor specific action if needed.
-            //For instance, script engine will save script states
-            //save script state and stop script instances
-            m_scene.EventManager.TriggerOnSymmetricSyncStop();
+
             
         }
 

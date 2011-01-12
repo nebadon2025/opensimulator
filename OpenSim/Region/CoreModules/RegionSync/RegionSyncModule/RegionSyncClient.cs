@@ -821,7 +821,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void DoInitialSync()
         {
-            m_scene.DeleteAllSceneObjects();
+            //m_scene.DeleteAllSceneObjects();
             //KittyL: added to distinguish different actors
             //Send(new RegionSyncMessage(RegionSyncMessage.MsgType.ActorType, m_actorType.ToString()));
 

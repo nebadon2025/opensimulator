@@ -376,6 +376,17 @@ namespace OpenSim.Region.Framework.Scenes
 
             SceneObjectPart part = GetSceneObjectPart(primID);
             SceneObjectGroup group = part.ParentGroup;
+
+            if (null == group)
+            {
+                m_log.ErrorFormat(
+                    "[PRIM INVENTORY]: " +
+                    "Prim inventory update requested for item ID {0} in prim ID {1} but this prim does not exist",
+                    itemID, primID);
+
+                return new ArrayList();
+            }
+
             if (isScriptRunning)
             {
                 m_log.Debug("To RemoveScriptInstance");
@@ -384,6 +395,16 @@ namespace OpenSim.Region.Framework.Scenes
 
             // Retrieve item
             TaskInventoryItem item = group.GetInventoryItem(part.LocalId, itemID);
+
+            if (null == item)
+            {
+                m_log.ErrorFormat(
+                    "[PRIM INVENTORY]: Tried to retrieve item ID {0} from prim {1}, {2} for caps script update "
+                        + " but the item does not exist in this inventory",
+                    itemID, part.Name, part.UUID);
+
+                return new ArrayList();
+            }
 
             // Update item with new asset
             item.AssetID = newAssetID;

@@ -89,7 +89,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Register for local Scene events
             m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
-            m_scene.EventManager.OnObjectBeingRemovedFromScene += new EventManager.ObjectBeingRemovedFromScene(RegionSyncModule_OnObjectBeingRemovedFromScene);
+            //m_scene.EventManager.OnObjectBeingRemovedFromScene += new EventManager.ObjectBeingRemovedFromScene(RegionSyncModule_OnObjectBeingRemovedFromScene);
 
         }
 
@@ -1273,7 +1273,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// only be triggered by an object removal that is initiated locally.
         /// </summary>
         /// <param name="sog"></param>
-        private void RegionSyncModule_OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
+        //private void RegionSyncModule_OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
+        public void SendDeleteObject(SceneObjectGroup sog)
         {
             //m_log.DebugFormat("RegionSyncModule_OnObjectBeingRemovedFromScene called at time {0}:{1}:{2}", DateTime.Now.Minute, DateTime.Now.Second, DateTime.Now.Millisecond);
 

@@ -662,8 +662,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (UnlinkSceneObject(group, false))
             {
-                //For object removals caused by remote events (by other actors), do not trigger local event ObjectBeingRemovedFromScene
-                //EventManager.TriggerObjectBeingRemovedFromScene(group);
+                EventManager.TriggerObjectBeingRemovedFromScene(group);
                 EventManager.TriggerParcelPrimCountTainted();
             }
 
@@ -2430,8 +2429,16 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 part.SyncInfoUpdate();
             }
-            //end of SYMMETRIC SYNC
+             *  
              * */
+
+            //Propagate the RemovedObject message
+            if (RegionSyncModule != null)
+            {
+                RegionSyncModule.SendDeleteObject(group);
+            }
+            //end of SYMMETRIC SYNC
+             
         }
 
         /// <summary>
@@ -3592,9 +3599,12 @@ namespace OpenSim.Region.Framework.Scenes
 
             ForEachClient(delegate(IClientAPI client) { client.SendKillObject(m_regionHandle, localID); });
 
+            //SYMMETRIC SYNC: object remove should be handled through RegionSyncModule
             // REGION SYNC
+            /*
             if( IsSyncedServer() )
                 RegionSyncServerModule.DeleteObject(m_regionHandle, localID, part);
+             * */ 
         }
 
         #endregion

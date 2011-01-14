@@ -1163,7 +1163,8 @@ namespace OpenSim.Region.Framework.Scenes
                     Scene.RegionSyncServerModule.DeleteObject(part.RegionHandle, part.LocalId, part);
                     //return;
                 }
-                 * */ 
+                 * */
+                //end of SYMMETRIC SYNC
 
                 Scene.ForEachScenePresence(delegate(ScenePresence avatar)
                 {

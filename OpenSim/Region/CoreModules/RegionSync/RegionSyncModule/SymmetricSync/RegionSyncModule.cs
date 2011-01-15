@@ -91,6 +91,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
             //m_scene.EventManager.OnObjectBeingRemovedFromScene += new EventManager.ObjectBeingRemovedFromScene(RegionSyncModule_OnObjectBeingRemovedFromScene);
 
+            LogHeader += "-" + scene.RegionInfo.RegionName;
         }
 
         //Called after AddRegion() has been called for all region modules of the scene
@@ -882,6 +883,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         return;
                     }
                     //EVENTS PROCESSING
+                case SymmetricSyncMessage.MsgType.NewScript:
                 case SymmetricSyncMessage.MsgType.UpdateScript:
                 case SymmetricSyncMessage.MsgType.ScriptReset:
                 case SymmetricSyncMessage.MsgType.ChatFromClient:
@@ -1040,6 +1042,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             switch (msg.Type)
             {
+                case SymmetricSyncMessage.MsgType.NewScript:
+                    HandleRemoteEvent_OnNewScript(init_actorID, evSeqNum, data);
+                    break;
                 case SymmetricSyncMessage.MsgType.UpdateScript:
                     HandleRemoteEvent_OnUpdateScript(init_actorID, evSeqNum, data);
                     break; 
@@ -1071,8 +1076,53 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="actorID">the ID of the actor that initiates the event</param>
+        /// <param name="evSeqNum">sequence num of the event from the actor</param>
+        /// <param name="data">OSDMap data of event args</param>
+        private void HandleRemoteEvent_OnNewScript(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received NewScript");
+
+            UUID agentID = data["agentID"].AsUUID();
+            UUID primID = data["primID"].AsUUID();
+            UUID itemID = data["itemID"].AsUUID();
+
+            string sogXml = data["sog"].AsString();
+            SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogXml);
+            SceneObjectPart part = null;
+            
+            foreach (SceneObjectPart prim in sog.Parts)
+            {
+                if(prim.UUID.Equals(primID)){
+                    part = prim;
+                    break;
+                }
+            }
+            if(part == null)
+            {
+                m_log.Warn(LogHeader+": part "+primID+" not exist in the serialized object, do nothing");
+                return;
+            }
+            //Update the object first
+            Scene.ObjectUpdateResult updateResult = m_scene.AddOrUpdateObjectBySynchronization(sog);
+
+            if (updateResult == Scene.ObjectUpdateResult.Updated || updateResult == Scene.ObjectUpdateResult.New)
+            {
+                m_log.Debug(LogHeader + ": TriggerNewScriptLocally");
+                //Next, trigger creating the new script
+                SceneObjectPart localPart = m_scene.GetSceneObjectPart(primID);
+                m_scene.EventManager.TriggerNewScriptLocally(agentID, localPart, itemID);
+            }
+        }
+       
+
+        /// <summary>
         /// Special actions for remote event UpdateScript
         /// </summary>
+        /// <param name="actorID">the ID of the actor that initiates the event</param>
+        /// <param name="evSeqNum">sequence num of the event from the actor</param>
         /// <param name="data">OSDMap data of event args</param>
         private void HandleRemoteEvent_OnUpdateScript(string actorID, ulong evSeqNum, OSDMap data)
         {
@@ -1089,7 +1139,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         /// <summary>
-        /// Special actions for remote event UpdateScript
+        /// Special actions for remote event ScriptReset
         /// </summary>
         /// <param name="data">OSDMap data of event args</param>
         private void HandleRemoteEvent_OnScriptReset(string actorID, ulong evSeqNum, OSDMap data)
@@ -1296,13 +1346,20 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             switch (ev)
             {
+                case EventManager.EventNames.NewScript:
+                    if (evArgs.Length < 3)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for NewScript");
+                        return;
+                    }
+                    OnLocalNewScript((UUID)evArgs[0], (SceneObjectPart)evArgs[1], (UUID)evArgs[2]);
+                    return;
                 case EventManager.EventNames.UpdateScript:
                     if (evArgs.Length < 5)
                     {
                         m_log.Error(LogHeader + " not enough event args for UpdateScript");
                         return;
                     }
-                    m_log.Debug(LogHeader + " PublishSceneEvent UpdateScript");
                     OnLocalUpdateScript((UUID)evArgs[0], (UUID)evArgs[1], (UUID)evArgs[2], (bool)evArgs[3], (UUID)evArgs[4]);
                     return;
                 case EventManager.EventNames.ScriptReset:
@@ -1341,6 +1398,32 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 default:
                     return;
             }
+        }
+
+        /// <summary>
+        /// The handler for (locally initiated) event OnNewScript: triggered by client's RezSript packet, publish it to other actors.
+        /// </summary>
+        /// <param name="clientID">ID of the client who creates the new script</param>
+        /// <param name="part">the prim that contains the new script</param>
+        private void OnLocalNewScript(UUID clientID, SceneObjectPart part, UUID itemID)
+        {
+            m_log.Debug(LogHeader + " RegionSyncModule_OnLocalNewScript");
+
+            SceneObjectGroup sog = part.ParentGroup;
+            if(sog==null){
+                m_log.Warn(LogHeader + ": part " + part.UUID + " not in an SceneObjectGroup yet. Will not propagating new script event");
+                //sog = new SceneObjectGroup(part);
+                return;
+            }
+            //For simplicity, we just leverage a SOP's serialization method to transmit the information of new inventory item for the script).
+            //This can certainly be optimized later (e.g. only sending serialization of the inventory item)
+            OSDMap data = new OSDMap();
+            data["agentID"] = OSD.FromUUID(clientID);
+            data["primID"] = OSD.FromUUID(part.UUID);
+            data["itemID"] = OSD.FromUUID(itemID); //id of the new inventory item of the part
+            data["sog"] = OSD.FromString(SceneObjectSerializer.ToXml2Format(sog));
+
+            SendSceneEvent(SymmetricSyncMessage.MsgType.NewScript, data);
         }
 
         /// <summary>

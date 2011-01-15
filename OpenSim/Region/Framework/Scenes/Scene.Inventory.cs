@@ -310,7 +310,7 @@ namespace OpenSim.Region.Framework.Scenes
              * */
 
             //SYMMETRIC SYNC: Distributed Scene Graph implementation  
-            m_log.Debug("Scene.Inventory: to call EventManager.TriggerUpdateTaskInventoryScriptAsset, agentID: " + remoteClient.AgentId);
+            m_log.Debug("Scene.Inventory: to call EventManager.TriggerUpdateScript, agentID: " + remoteClient.AgentId);
             //Trigger OnUpdateScript event.
             EventManager.TriggerUpdateScript(remoteClient.AgentId, itemId, primId, isScriptRunning, item.AssetID);
 
@@ -369,6 +369,14 @@ namespace OpenSim.Region.Framework.Scenes
         #endregion 
 
         #region SYMMETRIC SYNC
+        public void SymSync_OnNewScript(UUID avatarID, UUID itemID, SceneObjectPart part)
+        {
+            TaskInventoryItem item = part.Inventory.GetInventoryItem(itemID);
+
+            part.Inventory.CreateScriptInstance(item, 0, false, DefaultScriptEngine, 0);
+            part.ParentGroup.ResumeScripts();
+        }
+
         //only a script engine actor is supposed to call this function
         public ArrayList SymSync_OnUpdateScript(UUID avatarID, UUID itemID, UUID primID, bool isScriptRunning, UUID newAssetID)
         {
@@ -1663,6 +1671,10 @@ namespace OpenSim.Region.Framework.Scenes
                             return;
 
                         part.ParentGroup.AddInventoryItem(remoteClient, localID, item, copyID);
+                        part.GetProperties(remoteClient);
+
+                        //SYMMETRIC SYNC
+                        /* Original OpenSim code, commented out 
                         // TODO: switch to posting on_rez here when scripts
                         // have state in inventory
                         part.Inventory.CreateScriptInstance(copyID, 0, false, DefaultScriptEngine, 0);
@@ -1670,8 +1682,26 @@ namespace OpenSim.Region.Framework.Scenes
                         //                        m_log.InfoFormat("[PRIMINVENTORY]: " +
                         //                                         "Rezzed script {0} into prim local ID {1} for user {2}",
                         //                                         item.inventoryName, localID, remoteClient.Name);
-                        part.GetProperties(remoteClient);
+                        //part.GetProperties(remoteClient);
                         part.ParentGroup.ResumeScripts();
+                         * */
+                        if (RegionSyncModule != null)
+                        {
+                            part.SyncInfoUpdate();
+                            EventManager.TriggerNewScript(remoteClient.AgentId, part, copyID);
+                        }
+                        else
+                        {
+                            part.Inventory.CreateScriptInstance(copyID, 0, false, DefaultScriptEngine, 0);
+
+                            //                        m_log.InfoFormat("[PRIMINVENTORY]: " +
+                            //                                         "Rezzed script {0} into prim local ID {1} for user {2}",
+                            //                                         item.inventoryName, localID, remoteClient.Name);
+                            //part.GetProperties(remoteClient);
+                            part.ParentGroup.ResumeScripts();
+                        }
+                        //end of SYMMETRIC SYNC
+
                     }
                     else
                     {
@@ -1730,8 +1760,25 @@ namespace OpenSim.Region.Framework.Scenes
                 part.Inventory.AddInventoryItem(taskItem, false);
                 part.GetProperties(remoteClient);
 
-                part.Inventory.CreateScriptInstance(taskItem, 0, false, DefaultScriptEngine, 0);
-                part.ParentGroup.ResumeScripts();
+                //SYMMETRIC SYNC
+                //part.Inventory.CreateScriptInstance(taskItem, 0, false, DefaultScriptEngine, 0);
+                //part.ParentGroup.ResumeScripts();
+                if (RegionSyncModule != null)
+                {
+                    part.SyncInfoUpdate();
+                    EventManager.TriggerNewScript(remoteClient.AgentId, part, taskItem.ItemID);
+                }
+                else
+                {
+                    part.Inventory.CreateScriptInstance(taskItem, 0, false, DefaultScriptEngine, 0);
+
+                    //                        m_log.InfoFormat("[PRIMINVENTORY]: " +
+                    //                                         "Rezzed script {0} into prim local ID {1} for user {2}",
+                    //                                         item.inventoryName, localID, remoteClient.Name);
+                    //part.GetProperties(remoteClient);
+                    part.ParentGroup.ResumeScripts();
+                }
+                //end of SYMMETRIC SYNC
             }
         }
 

@@ -908,6 +908,7 @@ namespace OpenSim.Region.Framework.Scenes
                     SetHeight(m_appearance.AvatarHeight);
             }
 
+            m_log.DebugFormat("[XXX] MakeRoot 2.1");
             if (m_forceFly)
             {
                 m_physicsActor.Flying = true;
@@ -932,10 +933,12 @@ namespace OpenSim.Region.Framework.Scenes
             
             // On the next prim update, all objects will be sent
             //
+            m_log.DebugFormat("[XXX] MakeRoot 2.2");
             m_sceneViewer.Reset();
 
             m_isChildAgent = false;
 
+            m_log.DebugFormat("[XXX] MakeRoot 2.3");
             // send the animations of the other presences to me
             m_scene.ForEachScenePresence(delegate(ScenePresence presence)
             {

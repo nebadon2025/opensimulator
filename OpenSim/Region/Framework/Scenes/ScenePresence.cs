@@ -924,6 +924,7 @@ namespace OpenSim.Region.Framework.Scenes
             // Animator.SendAnimPack();
 
             m_scene.SwapRootAgentCount(false);
+            m_log.DebugFormat("[XXX] MakeRoot 2.2");
             
             //CachedUserInfo userInfo = m_scene.CommsManager.UserProfileCacheService.GetUserDetails(m_uuid);
             //if (userInfo != null)
@@ -933,12 +934,12 @@ namespace OpenSim.Region.Framework.Scenes
             
             // On the next prim update, all objects will be sent
             //
-            m_log.DebugFormat("[XXX] MakeRoot 2.2");
+            m_log.DebugFormat("[XXX] MakeRoot 2.3");
             m_sceneViewer.Reset();
 
             m_isChildAgent = false;
 
-            m_log.DebugFormat("[XXX] MakeRoot 2.3");
+            m_log.DebugFormat("[XXX] MakeRoot 2.4");
             // send the animations of the other presences to me
             m_scene.ForEachScenePresence(delegate(ScenePresence presence)
             {

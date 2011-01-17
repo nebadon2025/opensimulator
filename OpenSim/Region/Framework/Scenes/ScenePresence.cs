@@ -935,7 +935,7 @@ namespace OpenSim.Region.Framework.Scenes
             // On the next prim update, all objects will be sent
             //
             m_log.DebugFormat("[XXX] MakeRoot 2.3");
-            m_sceneViewer.Reset();
+            //m_sceneViewer.Reset();
 
             m_isChildAgent = false;
 
@@ -2961,8 +2961,8 @@ namespace OpenSim.Region.Framework.Scenes
                 ControllingClient.SetChildAgentThrottle(cAgentData.Throttles);
 
             // Sends out the objects in the user's draw distance if m_sendTasksToChild is true.
-            if (m_scene.m_seeIntoRegionFromNeighbor)
-                m_sceneViewer.Reset();
+            //if (m_scene.m_seeIntoRegionFromNeighbor)
+            //    m_sceneViewer.Reset();
 
             //cAgentData.AVHeight;
             m_rootRegionHandle = cAgentData.RegionHandle;

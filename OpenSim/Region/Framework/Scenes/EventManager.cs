@@ -50,15 +50,45 @@ namespace OpenSim.Region.Framework.Scenes
         //the events that we'll handle specially in sym-sync
         public enum EventNames
         {
+            NewScript,
             UpdateScript,
             ScriptReset,
-            ChatFromClient,
+            ChatFromClient, //chats from avatars
+            ChatFromWorld,  //chats from objects
+            ObjectGrab,
+            ObjectGrabbing,
+            ObjectDeGrab,
+
         }
 
         public EventManager(Scene scene)
         {
             m_scene = scene;
         }
+
+        #region UpdateScript 
+        //triggered by client.OnRezScript
+        public override void TriggerNewScript(UUID clientID, SceneObjectPart part, UUID itemID)
+        {
+            //publish the event to other actors who are intersted in it
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[3];
+                eventArgs[0] = (Object)clientID;
+                eventArgs[1] = (Object)part;
+                eventArgs[2] = (Object)itemID;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.NewScript, eventArgs);
+            }
+
+            //trigger event locally, 
+            TriggerNewScriptLocally(clientID, part, itemID);
+        }
+        //public void TriggerNewScriptLocally(UUID clientID, UUID itemId, UUID primId, UUID newAssetID)
+        public void TriggerNewScriptLocally(UUID clientID, SceneObjectPart part, UUID itemID)
+        {
+            base.TriggerNewScript(clientID, part, itemID);
+        }
+        #endregion //UpdateScript
 
         #region UpdateScript
         public override void TriggerUpdateScript(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
@@ -75,7 +105,7 @@ namespace OpenSim.Region.Framework.Scenes
                 m_scene.RegionSyncModule.PublishSceneEvent(EventNames.UpdateScript, eventArgs);
             }
            
-            //trigger event locally, as the legacy code does
+            //trigger event locally,
             TriggerUpdateScriptLocally(clientId, itemId, primId, isScriptRunning, newAssetID);
         }
         public void TriggerUpdateScriptLocally(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
@@ -128,10 +158,87 @@ namespace OpenSim.Region.Framework.Scenes
             base.TriggerOnChatBroadcast(sender, chat);
         }
 
+        #region ChatFromWorld
+
+        public override void TriggerOnChatFromWorld(Object sender, OSChatMessage chat)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[2];
+                eventArgs[0] = sender;
+                eventArgs[1] = (Object)chat;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ChatFromWorld, eventArgs);
+            }
+            TriggerOnChatFromWorldLocally(sender, chat);
+        }
+
         public void TriggerOnChatFromWorldLocally(Object sender, OSChatMessage chat)
         {
             base.TriggerOnChatFromWorld(sender, chat);
         }
+        #endregion //ChatFromWorld
+
+        #region ObjectGrab, ObjectGrabbing, ObjectDeGrab
+        public override void TriggerObjectGrab(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[5];
+                eventArgs[0] = (Object)localID;
+                eventArgs[1] = (Object)originalID;
+                eventArgs[2] = (Object)offsetPos;
+                eventArgs[3] = (Object)remoteClient;
+                eventArgs[4] = (Object)surfaceArgs;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ObjectGrab, eventArgs);
+            }
+            TriggerObjectGrabLocally(localID, originalID, offsetPos, remoteClient, surfaceArgs);
+        }
+        public void TriggerObjectGrabLocally(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            base.TriggerObjectGrab(localID, originalID, offsetPos, remoteClient, surfaceArgs);
+        }
+
+        public override void TriggerObjectGrabbing(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[5];
+                eventArgs[0] = (Object)localID;
+                eventArgs[1] = (Object)originalID;
+                eventArgs[2] = (Object)offsetPos;
+                eventArgs[3] = (Object)remoteClient;
+                eventArgs[4] = (Object)surfaceArgs;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ObjectGrabbing, eventArgs);
+            }
+            TriggerObjectGrabbingLocally(localID, originalID, offsetPos, remoteClient, surfaceArgs);
+        }
+
+        public void TriggerObjectGrabbingLocally(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            base.TriggerObjectGrabbing(localID, originalID, offsetPos, remoteClient, surfaceArgs);
+        }
+
+        public override void TriggerObjectDeGrab(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[4];
+                eventArgs[0] = (Object)localID;
+                eventArgs[1] = (Object)originalID;
+                eventArgs[2] = (Object)remoteClient;
+                eventArgs[3] = (Object)surfaceArgs;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ObjectDeGrab, eventArgs);
+            }
+
+            TriggerObjectDeGrabLocally(localID, originalID, remoteClient, surfaceArgs);
+        }
+
+        public void TriggerObjectDeGrabLocally(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            base.TriggerObjectDeGrab(localID, originalID, remoteClient, surfaceArgs);
+        }
+
+        #endregion //GrabObject
     }
 
     /// <summary>
@@ -938,7 +1045,9 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerObjectGrab(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        //SYMMETRIC SYNC: overridden at new EventManager class
+        //public void TriggerObjectGrab(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        public virtual void TriggerObjectGrab(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         {
             ObjectGrabDelegate handlerObjectGrab = OnObjectGrab;
             if (handlerObjectGrab != null)
@@ -959,7 +1068,9 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerObjectGrabbing(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        //SYMMETRIC SYNC: overridden at new EventManager class
+        //public void TriggerObjectGrabbing(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        public virtual void TriggerObjectGrabbing(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         {
             ObjectGrabDelegate handlerObjectGrabbing = OnObjectGrabbing;
             if (handlerObjectGrabbing != null)
@@ -980,7 +1091,9 @@ namespace OpenSim.Region.Framework.Scenes
             }
          }
 
-        public void TriggerObjectDeGrab(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        //SYMMETRIC SYNC: overridden at new EventManager class
+        //public void TriggerObjectDeGrab(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        public virtual void TriggerObjectDeGrab(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         {
             ObjectDeGrabDelegate handlerObjectDeGrab = OnObjectDeGrab;
             if (handlerObjectDeGrab != null)
@@ -1670,7 +1783,9 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerOnChatFromWorld(Object sender, OSChatMessage chat)
+        //SYMMETRIC SYNC: the function is overridden in new EventManager
+        //public void TriggerOnChatFromWorld(Object sender, OSChatMessage chat)
+        public virtual void TriggerOnChatFromWorld(Object sender, OSChatMessage chat)
         {
             ChatFromWorldEvent handlerChatFromWorld = OnChatFromWorld;
             if (handlerChatFromWorld != null)
@@ -2288,8 +2403,32 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
         }
-                            
-        //OnUpdateTaskInventoryScriptAsset: triggered after Scene receives client's upload of updated script and stores it as asset
+
+        public delegate void NewScript(UUID clientID, SceneObjectPart part, UUID itemID);
+        public event NewScript OnNewScript;
+        public virtual void TriggerNewScript(UUID clientID, SceneObjectPart part, UUID itemID)
+        {
+            NewScript handlerNewScript = OnNewScript;
+            if (handlerNewScript != null)
+            {
+                foreach (NewScript d in handlerNewScript.GetInvocationList())
+                {
+                    try
+                    {
+                        d(clientID, part, itemID);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerNewScript failed - continuing.  {0} {1}",
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+
+
+        //TriggerUpdateScript: triggered after Scene receives client's upload of updated script and stores it as asset
         public delegate void UpdateScript(UUID clientID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID);
         public event UpdateScript OnUpdateScript;
         public virtual void TriggerUpdateScript(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)

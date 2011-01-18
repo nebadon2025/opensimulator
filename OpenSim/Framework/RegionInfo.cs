@@ -386,6 +386,14 @@ namespace OpenSim.Framework
         public string RemotingAddress;
         public UUID ScopeID = UUID.Zero;
 
+        //SYMMETRIC SYNC
+        //IP:port for the symmetric sync listener this actor is configured to connect to
+        private string m_syncListenerAddr = String.Empty;
+        private int m_syncListenerPort;
+        //IP:port for the avatar sync server this actor is configured to connect to
+        private string m_serverAddr = String.Empty;
+        private int m_serverPort;
+        //end of SYMMETRIC SYNC
 
         // Apparently, we're applying the same estatesettings regardless of whether it's local or remote.
 
@@ -676,6 +684,25 @@ namespace OpenSim.Framework
             get { return Util.UIntsToLong((RegionLocX * (uint) Constants.RegionSize), (RegionLocY * (uint) Constants.RegionSize)); }
         }
 
+        //SYMMETRIC SYNC
+        public string SyncListenerAddress
+        {
+            get { return m_syncListenerAddr; }
+        }
+        public int SyncListenerPort
+        {
+            get { return m_syncListenerPort; }
+        }
+        public string ServerIPAddress
+        {
+            get { return m_serverAddr; }
+        }
+        public int ServerPort
+        {
+            get { return m_serverPort; }
+        }
+        //end of SYMMETRIC SYNC
+
         public void SetEndPoint(string ipaddr, int port)
         {
             IPAddress tmpIP = IPAddress.Parse(ipaddr);
@@ -830,6 +857,21 @@ namespace OpenSim.Framework
             // Multi-tenancy
             //
             ScopeID = new UUID(config.GetString("ScopeID", UUID.Zero.ToString()));
+
+            // SYMMETRIC SYNC
+            m_syncListenerAddr = config.GetString("SyncListenerIPAddress", String.Empty);
+            m_syncListenerPort = config.GetInt("SyncListenerPort", -1);
+            //if either IP or port is not configured, we set IP to empty to raise warning later
+            if (m_syncListenerPort == -1) 
+                m_syncListenerAddr = String.Empty;
+
+            m_serverAddr = config.GetString("ServerIPAddress", String.Empty);
+            m_serverPort = config.GetInt("ServerPort", -1);
+            if (m_serverPort == -1)
+                m_serverAddr = String.Empty;
+
+            // end of SYMMETRIC SYNC
+
         }
 
         private void WriteNiniConfig(IConfigSource source)

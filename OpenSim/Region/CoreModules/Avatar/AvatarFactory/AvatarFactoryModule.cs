@@ -71,7 +71,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                 {
                     m_savetime = Convert.ToInt32(sconfig.GetString("DelayBeforeAppearanceSave",Convert.ToString(m_savetime)));
                     m_sendtime = Convert.ToInt32(sconfig.GetString("DelayBeforeAppearanceSend",Convert.ToString(m_sendtime)));
-                    // m_log.InfoFormat("[AVFACTORY] configured for {0} save and {1} send",m_savetime,m_sendtime);
+                    m_log.WarnFormat("[AVFACTORY] configured for {0} save and {1} send",m_savetime,m_sendtime);
                 }
             }
 
@@ -261,6 +261,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                 m_sendqueue[agentid] = timestamp;
                 m_updateTimer.Start();
             }
+            m_log.WarnFormat("[AVFACTORY]: Queue appearance send for {0} at {1} (now is {2})", agentid, timestamp,DateTime.Now.Ticks);
         }
 
         public void QueueAppearanceSave(UUID agentid)
@@ -278,16 +279,37 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
 
         public void RefreshAppearance(UUID agentid)
         {
-            ScenePresence sp;
-            if(!m_scene.TryGetScenePresence(agentid, out sp))
-            {
-                m_log.WarnFormat("[AVFACTORY]: RefreshAppearance unable to find presence for {0}", agentid);
-                return;
-            }
             m_log.DebugFormat("[AVFACTORY]: FireAndForget called for RefreshAppearance on agentid {0}", agentid);
             Util.FireAndForget(delegate(object o)
             {
-                AvatarAppearance appearance = m_scene.AvatarService.GetAppearance(agentid);
+                int trycount = 20;
+                ScenePresence sp;
+                while (!m_scene.TryGetScenePresence(agentid, out sp))
+                {   
+                    m_log.WarnFormat("[AVFACTORY]: RefreshAppearance unable to find presence for {0}", agentid);
+                    Thread.Sleep(500);
+                    if (trycount-- <= 0)
+                        return; 
+                }
+                trycount = 5;
+                AvatarAppearance appearance = null;
+                while (appearance == null)
+                {
+                    try
+                    {
+                        appearance = m_scene.AvatarService.GetAppearance(agentid);
+                    }
+                    catch (System.Net.WebException e)
+                    {
+                        if (trycount-- <= 0)
+                        {
+                            m_log.WarnFormat("[AVFACTORY]: RefreshAppearance failed to get appearance from AvatarService: {0}", e.Message);
+                            return;
+                        }
+                    }
+                    Thread.Sleep(500);
+                }
+
                 if (appearance.Texture != null && appearance.VisualParams != null)
                 {
                     sp.Appearance = appearance;
@@ -333,7 +355,8 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
 
             // m_log.WarnFormat("[AVFACTORY] avatar {0} save appearance",agentid);
 
-            m_scene.AvatarService.SetAppearance(agentid, sp.Appearance);
+            // Disable saving of appearance for demonstrations
+            // m_scene.AvatarService.SetAppearance(agentid, sp.Appearance);
             // REGION SYNC
             // If this is a client manager, we have received new appearance from a client and saved
             // it to the avatar service. Now let's tell the parent scene about it.
@@ -352,6 +375,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                 {
                     if (kvp.Value < now)
                     {
+                        m_log.WarnFormat("[AVFACTORY]: send appearance for {0} at time {1}", kvp.Key, now);
                         Util.FireAndForget(delegate(object o) { HandleAppearanceSend(kvp.Key); });
                         m_sendqueue.Remove(kvp.Key);
                     }

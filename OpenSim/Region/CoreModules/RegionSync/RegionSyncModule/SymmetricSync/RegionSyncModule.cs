@@ -72,7 +72,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //Called after Initialise()
         public void AddRegion(Scene scene)
         {
-            m_log.Warn(LogHeader + " AddRegion() called");
+            //m_log.Warn(LogHeader + " AddRegion() called");
 
             if (!m_active)
                 return;
@@ -89,17 +89,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Register for local Scene events
             m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
-            m_scene.EventManager.OnObjectBeingRemovedFromScene += new EventManager.ObjectBeingRemovedFromScene(RegionSyncModule_OnObjectBeingRemovedFromScene);
+            //m_scene.EventManager.OnObjectBeingRemovedFromScene += new EventManager.ObjectBeingRemovedFromScene(RegionSyncModule_OnObjectBeingRemovedFromScene);
 
+            LogHeader += "-" + scene.RegionInfo.RegionName;
         }
 
         //Called after AddRegion() has been called for all region modules of the scene
         public void RegionLoaded(Scene scene)
         {
-            m_log.Warn(LogHeader + " RegionLoaded() called");
+            //m_log.Warn(LogHeader + " RegionLoaded() called");
 
+            /*
             //If this one is configured to start a listener so that other actors can connect to form a overlay, start the listener.
-            //For now, we use start topology, and ScenePersistence actor is always the one to start the listener.
+            //For now, we use the star topology, and ScenePersistence actor is always the one to start the listener.
             if (m_isSyncListenerLocal)
             {
                 StartLocalSyncListener();
@@ -108,7 +110,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 //Start connecting to the remote listener. TO BE IMPLEMENTED. 
                 //For now, the connection will be started by manually typing in "sync start".
+
             }
+             * */
+
+            //Start symmetric synchronization initialization automatically
+            //SyncStart(null);
             
         }
 
@@ -170,6 +177,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         private RegionSyncListener m_localSyncListener = null;
+        private bool m_synced = false;
 
         // Lock is used to synchronize access to the update status and update queues
         private object m_updateSceneObjectPartLock = new object();
@@ -203,7 +211,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // Existing value of 1 indicates that updates are currently being sent so skip updates this pass
             if (Interlocked.Exchange(ref m_sendingUpdates, 1) == 1)
             {
-                m_log.WarnFormat("[REGION SYNC SERVER MODULE] SendUpdates(): An update thread is already running.");
+                m_log.WarnFormat("[REGION SYNC MODULE] SendUpdates(): An update thread is already running.");
                 return;
             }
 
@@ -281,7 +289,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     catch (Exception e)
                     {
-                        m_log.ErrorFormat("[REGION SYNC SERVER MODULE] Caught exception sending presence updates for {0}: {1}", presence.Name, e.Message);
+                        m_log.ErrorFormat("[REGION SYNC MODULE] Caught exception sending presence updates for {0}: {1}", presence.Name, e.Message);
                     }
                 }
                  * */
@@ -369,7 +377,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /////////////////////////////////////////////////////////////////////////////////////////
 
         private static int PortUnknown = -1;
-        private static string IPAddrUnknown = "";
+        private static string IPAddrUnknown = String.Empty;
 
         private ILog m_log;
         //private bool m_active = true;
@@ -528,6 +536,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
                 m_actorType = m_scene.ActorSyncModule.ActorType;
             }
+
+            //Start symmetric synchronization initialization automatically
+            SyncStart(null);
         }
 
         private void StartLocalSyncListener()
@@ -552,8 +563,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_log.Debug(LogHeader + ": Reading in " + m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress" + " and " + m_scene.RegionInfo.RegionName + "_SyncListenerPort");
 
-            string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName+"_SyncListenerIPAddress", IPAddrUnknown);
-            int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName+"_SyncListenerPort", PortUnknown);
+            //string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName+"_SyncListenerIPAddress", IPAddrUnknown);
+            //int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName+"_SyncListenerPort", PortUnknown);
+
+            string addr = m_scene.RegionInfo.SyncListenerAddress;
+            int port = m_scene.RegionInfo.SyncListenerPort;
 
             m_log.Warn(LogHeader + ": listener addr: " + addr + ", port: " + port);
 
@@ -575,8 +589,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             //For now, we assume there is only one remote listener to connect to. Later on, 
             //we may need to modify the code to read in multiple listeners.
-            string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress", IPAddrUnknown);
-            int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName + "_SyncListenerPort", PortUnknown);
+            //string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress", IPAddrUnknown);
+            //int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName + "_SyncListenerPort", PortUnknown);
+
+            string addr = m_scene.RegionInfo.SyncListenerAddress;
+            int port = m_scene.RegionInfo.SyncListenerPort;
+
             if (!addr.Equals(IPAddrUnknown) && port != PortUnknown)
             {
                 RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);
@@ -611,8 +629,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     GetRemoteSyncListenerInfo();
                 }
-                StartSyncConnections();
-                DoInitialSync();
+                if (StartSyncConnections())
+                {
+                    DoInitialSync();
+                }
             }
         }
 
@@ -623,18 +643,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 if (m_localSyncListener!=null && m_localSyncListener.IsListening)
                 {
                     m_localSyncListener.Shutdown();
+                    //Trigger SyncStop event, ActorSyncModules can then take actor specific action if needed.
+                    //For instance, script engine will save script states
+                    //save script state and stop script instances
+                    m_scene.EventManager.TriggerOnSymmetricSyncStop();
                 }
             }
             else
             {
                 //Shutdown all sync connectors
-                StopAllSyncConnectors();
+                if (m_synced)
+                {
+                    StopAllSyncConnectors();
+                    m_synced = false;
+
+                    //Trigger SyncStop event, ActorSyncModules can then take actor specific action if needed.
+                    //For instance, script engine will save script states
+                    //save script state and stop script instances
+                    m_scene.EventManager.TriggerOnSymmetricSyncStop();
+                }
             }
 
-            //Trigger SyncStop event, ActorSyncModules can then take actor specific action if needed.
-            //For instance, script engine will save script states
-            //save script state and stop script instances
-            m_scene.EventManager.TriggerOnSymmetricSyncStop();
+
             
         }
 
@@ -646,12 +676,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         //Start connections to each remote listener. 
         //For now, there is only one remote listener.
-        private void StartSyncConnections()
+        private bool StartSyncConnections()
         {
             if (m_remoteSyncListeners == null)
             {
                 m_log.Error(LogHeader + " SyncListener's address or port has not been configured.");
-                return;
+                return false;
+            }
+
+            if (m_synced)
+            {
+                m_log.Warn(LogHeader + ": Already synced.");
+                return false;
             }
 
             foreach (RegionSyncListenerInfo remoteListener in m_remoteSyncListeners)
@@ -663,6 +699,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     AddSyncConnector(syncConnector);
                 }
             }
+
+            m_synced = true;
+
+            return true;
         }
 
         //To be called when a SyncConnector needs to be created by that the local listener receives a connection request
@@ -850,9 +890,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         return;
                     }
                     //EVENTS PROCESSING
+                case SymmetricSyncMessage.MsgType.NewScript:
                 case SymmetricSyncMessage.MsgType.UpdateScript:
                 case SymmetricSyncMessage.MsgType.ScriptReset:
                 case SymmetricSyncMessage.MsgType.ChatFromClient:
+                case SymmetricSyncMessage.MsgType.ChatFromWorld:
+                case SymmetricSyncMessage.MsgType.ObjectGrab:
+                case SymmetricSyncMessage.MsgType.ObjectGrabbing:
+                case SymmetricSyncMessage.MsgType.ObjectDeGrab:
                     {
                         HandleRemoteEvent(msg);
                         return;
@@ -910,7 +955,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         m_log.WarnFormat("[{0} Object \"{1}\" ({1}) ({2}) -- add or update ERROR.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
                         break;
                     case Scene.ObjectUpdateResult.Unchanged:
-                        m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) unchanged after receiving an update.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
+                        //m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) unchanged after receiving an update.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
                         break;
                 }
             }
@@ -931,29 +976,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SendSyncMessage(SymmetricSyncMessage.MsgType.Terrain, OSDParser.SerializeJsonString(data));
         }
 
-        private void HandleRemovedObject(SymmetricSyncMessage msg)
-        {
-            // Get the data from message and error check
-            OSDMap data = DeserializeMessage(msg);
 
-            if (data == null)
-            {
-
-                SymmetricSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
-                return;
-            }
-
-            // Get the parameters from data
-            //ulong regionHandle = data["regionHandle"].AsULong();
-            //uint localID = data["UUID"].AsUInteger();
-            UUID sogUUID = data["UUID"].AsUUID();
-
-            SceneObjectGroup sog = m_scene.SceneGraph.GetGroupByPrim(sogUUID);
-            if (sog != null)
-            {
-                m_scene.DeleteSceneObjectBySynchronization(sog);
-            }
-        }
 
         HashSet<string> exceptions = new HashSet<string>();
         private OSDMap DeserializeMessage(SymmetricSyncMessage msg)
@@ -986,6 +1009,34 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        private void HandleRemovedObject(SymmetricSyncMessage msg)
+        {
+            // Get the data from message and error check
+            OSDMap data = DeserializeMessage(msg);
+            string init_actorID = data["actorID"].AsString();
+
+            if (data == null)
+            {
+
+                SymmetricSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                return;
+            }
+
+            UUID sogUUID = data["UUID"].AsUUID();
+
+            SceneObjectGroup sog = m_scene.SceneGraph.GetGroupByPrim(sogUUID);
+            if (sog != null)
+            {
+                m_scene.DeleteSceneObjectBySynchronization(sog);
+            }
+
+            //if this is a relay node, forwards the event
+            if (m_isSyncRelay)
+            {
+                SendSceneEventToRelevantSyncConnectors(init_actorID, msg);
+            }
+        }
+
         /// <summary>
         /// The common actions for handling remote events (event initiated at other actors and propogated here)
         /// </summary>
@@ -998,6 +1049,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             switch (msg.Type)
             {
+                case SymmetricSyncMessage.MsgType.NewScript:
+                    HandleRemoteEvent_OnNewScript(init_actorID, evSeqNum, data);
+                    break;
                 case SymmetricSyncMessage.MsgType.UpdateScript:
                     HandleRemoteEvent_OnUpdateScript(init_actorID, evSeqNum, data);
                     break; 
@@ -1006,6 +1060,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     break;
                 case SymmetricSyncMessage.MsgType.ChatFromClient:
                     HandleRemoteEvent_OnChatFromClient(init_actorID, evSeqNum, data);
+                    break;
+                case SymmetricSyncMessage.MsgType.ChatFromWorld:
+                    HandleRemoteEvent_OnChatFromWorld(init_actorID, evSeqNum, data);
+                    break;
+                case SymmetricSyncMessage.MsgType.ObjectGrab:
+                    HandleRemoteEvent_OnObjectGrab(init_actorID, evSeqNum, data);
+                    break;
+                case SymmetricSyncMessage.MsgType.ObjectGrabbing:
+                    HandleRemoteEvent_OnObjectGrabbing(init_actorID, evSeqNum, data);
+                    break;
+                case SymmetricSyncMessage.MsgType.ObjectDeGrab:
+                    HandleRemoteEvent_OnObjectDeGrab(init_actorID, evSeqNum, data);
                     break;
             }
 
@@ -1017,8 +1083,53 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="actorID">the ID of the actor that initiates the event</param>
+        /// <param name="evSeqNum">sequence num of the event from the actor</param>
+        /// <param name="data">OSDMap data of event args</param>
+        private void HandleRemoteEvent_OnNewScript(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received NewScript");
+
+            UUID agentID = data["agentID"].AsUUID();
+            UUID primID = data["primID"].AsUUID();
+            UUID itemID = data["itemID"].AsUUID();
+
+            string sogXml = data["sog"].AsString();
+            SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogXml);
+            SceneObjectPart part = null;
+            
+            foreach (SceneObjectPart prim in sog.Parts)
+            {
+                if(prim.UUID.Equals(primID)){
+                    part = prim;
+                    break;
+                }
+            }
+            if(part == null)
+            {
+                m_log.Warn(LogHeader+": part "+primID+" not exist in the serialized object, do nothing");
+                return;
+            }
+            //Update the object first
+            Scene.ObjectUpdateResult updateResult = m_scene.AddOrUpdateObjectBySynchronization(sog);
+
+            if (updateResult == Scene.ObjectUpdateResult.Updated || updateResult == Scene.ObjectUpdateResult.New)
+            {
+                m_log.Debug(LogHeader + ": TriggerNewScriptLocally");
+                //Next, trigger creating the new script
+                SceneObjectPart localPart = m_scene.GetSceneObjectPart(primID);
+                m_scene.EventManager.TriggerNewScriptLocally(agentID, localPart, itemID);
+            }
+        }
+       
+
+        /// <summary>
         /// Special actions for remote event UpdateScript
         /// </summary>
+        /// <param name="actorID">the ID of the actor that initiates the event</param>
+        /// <param name="evSeqNum">sequence num of the event from the actor</param>
         /// <param name="data">OSDMap data of event args</param>
         private void HandleRemoteEvent_OnUpdateScript(string actorID, ulong evSeqNum, OSDMap data)
         {
@@ -1035,7 +1146,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         /// <summary>
-        /// Special actions for remote event UpdateScript
+        /// Special actions for remote event ScriptReset
         /// </summary>
         /// <param name="data">OSDMap data of event args</param>
         private void HandleRemoteEvent_OnScriptReset(string actorID, ulong evSeqNum, OSDMap data)
@@ -1075,62 +1186,187 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             ScenePresence sp;
             m_scene.TryGetScenePresence(id, out sp);
 
+            m_scene.EventManager.TriggerOnChatFromClientLocally(sp, args); //Let WorldCommModule and other modules to catch the event
+            m_scene.EventManager.TriggerOnChatFromWorldLocally(sp, args); //This is to let ChatModule to get the event and deliver it to avatars
+        }
 
-            //m_scene.EventManager.TriggerOnChatFromClientLocally(sp, args);
+        private void HandleRemoteEvent_OnChatFromWorld(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received ChatFromWorld from " + actorID + ", seq " + evSeqNum);
 
-            m_scene.EventManager.TriggerOnChatFromWorldLocally(sp, args);
-            /*
-            if (sp != null)
-            {
-                args.Sender = sp.ControllingClient;
-                args.SenderUUID = id;
-                m_scene.EventManager.TriggerOnChatBroadcastLocally(sp.ControllingClient, args); 
-            }
-            else
-            {
-                args.Sender = null;
-                args.SenderUUID = id;
-                m_scene.EventManager.TriggerOnChatFromWorldLocally(null, args);
-            }
-             * */ 
-            //m_scene.EventManager
+            OSChatMessage args = new OSChatMessage();
+            args.Channel = data["channel"].AsInteger();
+            args.Message = data["msg"].AsString();
+            args.Position = data["pos"].AsVector3();
+            args.From = data["name"].AsString();
+            UUID id = data["id"].AsUUID();
+            args.Scene = m_scene;
+            //args.Type = ChatTypeEnum.Say;
+            args.Type = (ChatTypeEnum)data["type"].AsInteger();
+            //ScenePresence sp;
+            //m_scene.TryGetScenePresence(id, out sp);
+
+            m_scene.EventManager.TriggerOnChatFromWorldLocally(m_scene, args);
         }
 
         /// <summary>
-        /// Send a sync message to remove the given objects in all connected actors, if this is a relay node. 
-        /// UUID is used for identified a removed object.
+        /// Special actions for remote event ChatFromClient
+        /// </summary>
+        /// <param name="data">OSDMap data of event args</param>
+        private void HandleRemoteEvent_OnObjectGrab(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received GrabObject from " + actorID + ", seq " + evSeqNum);
+
+
+            UUID agentID = data["agentID"].AsUUID();
+            UUID primID = data["primID"].AsUUID();
+            UUID originalPrimID = data["originalPrimID"].AsUUID();
+            Vector3 offsetPos = data["offsetPos"].AsVector3();
+            SurfaceTouchEventArgs surfaceArgs = new SurfaceTouchEventArgs();
+            surfaceArgs.Binormal = data["binormal"].AsVector3();
+            surfaceArgs.FaceIndex = data["faceIndex"].AsInteger();
+            surfaceArgs.Normal = data["normal"].AsVector3();
+            surfaceArgs.Position = data["position"].AsVector3();
+            surfaceArgs.STCoord = data["stCoord"].AsVector3();
+            surfaceArgs.UVCoord = data["uvCoord"].AsVector3();
+
+            //Create an instance of IClientAPI to pass along agentID, see SOPObject.EventManager_OnObjectGrab()
+            //We don't really need RegionSyncAvatar's implementation here, just borrow it's IClientAPI interface. 
+            //If we decide to remove RegionSyncAvatar later, we can simple just define a very simple class that implements
+            //ICleintAPI to be used here. 
+            IClientAPI remoteClinet = new RegionSyncAvatar(m_scene, agentID, "", "", Vector3.Zero);
+            SceneObjectPart part = m_scene.GetSceneObjectPart(primID);
+            if (part == null)
+            {
+                m_log.Error(LogHeader + ": no prim with ID " + primID);
+                return;
+            }
+            uint originalID = 0;
+            if (originalPrimID != UUID.Zero)
+            {
+                SceneObjectPart originalPart = m_scene.GetSceneObjectPart(originalPrimID);
+                originalID = originalPart.LocalId;
+            }
+            m_scene.EventManager.TriggerObjectGrabLocally(part.LocalId, originalID, offsetPos, remoteClinet, surfaceArgs);
+        }
+
+        private void HandleRemoteEvent_OnObjectGrabbing(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received GrabObject from " + actorID + ", seq " + evSeqNum);
+
+            UUID agentID = data["agentID"].AsUUID();
+            UUID primID = data["primID"].AsUUID();
+            UUID originalPrimID = data["originalPrimID"].AsUUID();
+            Vector3 offsetPos = data["offsetPos"].AsVector3();
+            SurfaceTouchEventArgs surfaceArgs = new SurfaceTouchEventArgs();
+            surfaceArgs.Binormal = data["binormal"].AsVector3();
+            surfaceArgs.FaceIndex = data["faceIndex"].AsInteger();
+            surfaceArgs.Normal = data["normal"].AsVector3();
+            surfaceArgs.Position = data["position"].AsVector3();
+            surfaceArgs.STCoord = data["stCoord"].AsVector3();
+            surfaceArgs.UVCoord = data["uvCoord"].AsVector3();
+
+            //Create an instance of IClientAPI to pass along agentID, see SOPObject.EventManager_OnObjectGrab()
+            //We don't really need RegionSyncAvatar's implementation here, just borrow it's IClientAPI interface. 
+            //If we decide to remove RegionSyncAvatar later, we can simple just define a very simple class that implements
+            //ICleintAPI to be used here. 
+            IClientAPI remoteClinet = new RegionSyncAvatar(m_scene, agentID, "", "", Vector3.Zero);
+            SceneObjectPart part = m_scene.GetSceneObjectPart(primID);
+            if (part == null)
+            {
+                m_log.Error(LogHeader + ": no prim with ID " + primID);
+                return;
+            }
+            uint originalID = 0;
+            if (originalPrimID != UUID.Zero)
+            {
+                SceneObjectPart originalPart = m_scene.GetSceneObjectPart(originalPrimID);
+                originalID = originalPart.LocalId;
+            }
+
+            m_scene.EventManager.TriggerObjectGrabbingLocally(part.LocalId, originalID, offsetPos, remoteClinet, surfaceArgs);
+        }
+
+        private void HandleRemoteEvent_OnObjectDeGrab(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            m_log.Debug(LogHeader + ", " + m_actorID + ": received GrabObject from " + actorID + ", seq " + evSeqNum);
+
+            UUID agentID = data["agentID"].AsUUID();
+            UUID primID = data["primID"].AsUUID();
+            UUID originalPrimID = data["originalPrimID"].AsUUID();
+            
+            SurfaceTouchEventArgs surfaceArgs = new SurfaceTouchEventArgs();
+            surfaceArgs.Binormal = data["binormal"].AsVector3();
+            surfaceArgs.FaceIndex = data["faceIndex"].AsInteger();
+            surfaceArgs.Normal = data["normal"].AsVector3();
+            surfaceArgs.Position = data["position"].AsVector3();
+            surfaceArgs.STCoord = data["stCoord"].AsVector3();
+            surfaceArgs.UVCoord = data["uvCoord"].AsVector3();
+
+            //Create an instance of IClientAPI to pass along agentID, see SOPObject.EventManager_OnObjectGrab()
+            //We don't really need RegionSyncAvatar's implementation here, just borrow it's IClientAPI interface. 
+            //If we decide to remove RegionSyncAvatar later, we can simple just define a very simple class that implements
+            //ICleintAPI to be used here. 
+            IClientAPI remoteClinet = new RegionSyncAvatar(m_scene, agentID, "", "", Vector3.Zero);
+            SceneObjectPart part = m_scene.GetSceneObjectPart(primID);
+            if (part == null)
+            {
+                m_log.Error(LogHeader + ": no prim with ID " + primID);
+                return;
+            }
+            uint originalID = 0;
+            if (originalPrimID != UUID.Zero)
+            {
+                SceneObjectPart originalPart = m_scene.GetSceneObjectPart(originalPrimID);
+                originalID = originalPart.LocalId;
+            }
+
+            m_scene.EventManager.TriggerObjectDeGrabLocally(part.LocalId, originalID, remoteClinet, surfaceArgs);
+        }
+
+        /// <summary>
+        /// Send a sync message to remove the given objects in all connected actors. 
+        /// UUID is used for identified a removed object. This function now should
+        /// only be triggered by an object removal that is initiated locally.
         /// </summary>
         /// <param name="sog"></param>
-        private void RegionSyncModule_OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
+        //private void RegionSyncModule_OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
+        public void SendDeleteObject(SceneObjectGroup sog)
         {
             //m_log.DebugFormat("RegionSyncModule_OnObjectBeingRemovedFromScene called at time {0}:{1}:{2}", DateTime.Now.Minute, DateTime.Now.Second, DateTime.Now.Millisecond);
 
             //Only send the message out if this is a relay node for sync messages, or this actor caused deleting the object
-            if (m_isSyncRelay || CheckObjectForSendingUpdate(sog))
-            {
-                OSDMap data = new OSDMap(1);
-                //data["regionHandle"] = OSD.FromULong(regionHandle);
-                //data["localID"] = OSD.FromUInteger(sog.LocalId);
-                data["UUID"] = OSD.FromUUID(sog.UUID);
-
-                SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
-                SendObjectUpdateToRelevantSyncConnectors(sog, rsm);
-            }
+            //if (m_isSyncRelay || CheckObjectForSendingUpdate(sog))
 
 
+            OSDMap data = new OSDMap(1);
+            //data["regionHandle"] = OSD.FromULong(regionHandle);
+            //data["localID"] = OSD.FromUInteger(sog.LocalId);
+            data["UUID"] = OSD.FromUUID(sog.UUID);
+            data["actorID"] = OSD.FromString(m_actorID);
+
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
+            SendObjectUpdateToRelevantSyncConnectors(sog, rsm);
         }
 
         public void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs)
         {
             switch (ev)
             {
+                case EventManager.EventNames.NewScript:
+                    if (evArgs.Length < 3)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for NewScript");
+                        return;
+                    }
+                    OnLocalNewScript((UUID)evArgs[0], (SceneObjectPart)evArgs[1], (UUID)evArgs[2]);
+                    return;
                 case EventManager.EventNames.UpdateScript:
                     if (evArgs.Length < 5)
                     {
                         m_log.Error(LogHeader + " not enough event args for UpdateScript");
                         return;
                     }
-                    m_log.Debug(LogHeader + " PublishSceneEvent UpdateScript");
                     OnLocalUpdateScript((UUID)evArgs[0], (UUID)evArgs[1], (UUID)evArgs[2], (bool)evArgs[3], (UUID)evArgs[4]);
                     return;
                 case EventManager.EventNames.ScriptReset:
@@ -1149,9 +1385,52 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     OnLocalChatFromClient(evArgs[0], (OSChatMessage)evArgs[1]);
                     return;
+                case EventManager.EventNames.ChatFromWorld:
+                    if (evArgs.Length < 2)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for ChatFromWorld");
+                        return;
+                    }
+                    OnLocalChatFromWorld(evArgs[0], (OSChatMessage)evArgs[1]);
+                    return;
+                case EventManager.EventNames.ObjectGrab:
+                    OnLocalGrabObject((uint)evArgs[0], (uint)evArgs[1], (Vector3) evArgs[2], (IClientAPI) evArgs[3], (SurfaceTouchEventArgs)evArgs[4]);
+                    return;
+                case EventManager.EventNames.ObjectGrabbing:
+                    OnLocalObjectGrabbing((uint)evArgs[0], (uint)evArgs[1], (Vector3)evArgs[2], (IClientAPI)evArgs[3], (SurfaceTouchEventArgs)evArgs[4]);
+                    return;
+                case EventManager.EventNames.ObjectDeGrab:
+                    OnLocalDeGrabObject((uint)evArgs[0], (uint)evArgs[1], (IClientAPI)evArgs[2], (SurfaceTouchEventArgs)evArgs[3]);
+                    return;
                 default:
                     return;
             }
+        }
+
+        /// <summary>
+        /// The handler for (locally initiated) event OnNewScript: triggered by client's RezSript packet, publish it to other actors.
+        /// </summary>
+        /// <param name="clientID">ID of the client who creates the new script</param>
+        /// <param name="part">the prim that contains the new script</param>
+        private void OnLocalNewScript(UUID clientID, SceneObjectPart part, UUID itemID)
+        {
+            m_log.Debug(LogHeader + " RegionSyncModule_OnLocalNewScript");
+
+            SceneObjectGroup sog = part.ParentGroup;
+            if(sog==null){
+                m_log.Warn(LogHeader + ": part " + part.UUID + " not in an SceneObjectGroup yet. Will not propagating new script event");
+                //sog = new SceneObjectGroup(part);
+                return;
+            }
+            //For simplicity, we just leverage a SOP's serialization method to transmit the information of new inventory item for the script).
+            //This can certainly be optimized later (e.g. only sending serialization of the inventory item)
+            OSDMap data = new OSDMap();
+            data["agentID"] = OSD.FromUUID(clientID);
+            data["primID"] = OSD.FromUUID(part.UUID);
+            data["itemID"] = OSD.FromUUID(itemID); //id of the new inventory item of the part
+            data["sog"] = OSD.FromString(SceneObjectSerializer.ToXml2Format(sog));
+
+            SendSceneEvent(SymmetricSyncMessage.MsgType.NewScript, data);
         }
 
         /// <summary>
@@ -1189,6 +1468,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //we will use the prim's UUID as the identifier, not the localID, to publish the event for the prim                
             SceneObjectPart part = m_scene.GetSceneObjectPart(localID);
 
+            if (part == null)
+            {
+                m_log.Warn(LogHeader + ": part with localID " + localID + " not exist");
+                return;
+            }
+
             OSDMap data = new OSDMap();
             data["primID"] = OSD.FromUUID(part.UUID);
             data["itemID"] = OSD.FromUUID(itemID);
@@ -1211,11 +1496,135 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["channel"] = OSD.FromInteger(chat.Channel);
             data["msg"] = OSD.FromString(chat.Message);
             data["pos"] = OSD.FromVector3(chat.Position);
-            //data["name"] = OSD.FromString(chat.From);
-            data["name"] = OSD.FromString(avatar.Name);
+            data["name"] = OSD.FromString(avatar.Name); //note this is different from OnLocalChatFromWorld
             data["id"] = OSD.FromUUID(chat.SenderUUID);
             data["type"] = OSD.FromInteger((int)chat.Type);
             SendSceneEvent(SymmetricSyncMessage.MsgType.ChatFromClient, data);
+        }
+
+
+        private void OnLocalChatFromWorld(Object sender, OSChatMessage chat)
+        {
+
+            OSDMap data = new OSDMap();
+            data["channel"] = OSD.FromInteger(chat.Channel);
+            data["msg"] = OSD.FromString(chat.Message);
+            data["pos"] = OSD.FromVector3(chat.Position);
+            data["name"] = OSD.FromString(chat.From); //note this is different from OnLocalChatFromClient
+            data["id"] = OSD.FromUUID(chat.SenderUUID);
+            data["type"] = OSD.FromInteger((int)chat.Type);
+            SendSceneEvent(SymmetricSyncMessage.MsgType.ChatFromWorld, data);
+        }
+        
+        private void OnLocalGrabObject(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            /*
+            //we will use the prim's UUID as the identifier, not the localID, to publish the event for the prim                
+            SceneObjectPart part = m_scene.GetSceneObjectPart(localID);
+            if (part == null)
+            {
+                m_log.Warn(LogHeader + ": part with localID " + localID + " not exist");
+                return;
+            }
+
+            //this seems to be useful if the prim touched and the prim handling the touch event are different:
+            //i.e. a child part is touched, pass the event to root, and root handles the event. then root is the "part",
+            //and the child part is the "originalPart"
+            SceneObjectPart originalPart = null;
+            if (originalID != 0)
+            {
+                originalPart = m_scene.GetSceneObjectPart(originalID);
+                if (originalPart == null)
+                {
+                    m_log.Warn(LogHeader + ": part with localID " + localID + " not exist");
+                    return;
+                }
+            }
+
+            OSDMap data = new OSDMap();
+            data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
+            data["primID"] = OSD.FromUUID(part.UUID);
+            if (originalID != 0)
+            {
+                data["originalPrimID"] = OSD.FromUUID(originalPart.UUID);
+            }
+            else
+            {
+                data["originalPrimID"] = OSD.FromUUID(UUID.Zero);
+            }
+            data["offsetPos"] = OSD.FromVector3(offsetPos);
+            
+            data["binormal"] = OSD.FromVector3(surfaceArgs.Binormal);
+            data["faceIndex"] = OSD.FromInteger(surfaceArgs.FaceIndex);
+            data["normal"] = OSD.FromVector3(surfaceArgs.Normal);
+            data["position"] = OSD.FromVector3(surfaceArgs.Position);
+            data["stCoord"] = OSD.FromVector3(surfaceArgs.STCoord);
+            data["uvCoord"] = OSD.FromVector3(surfaceArgs.UVCoord);
+             * */
+            OSDMap data = PrepareObjectGrabArgs(localID, originalID, offsetPos, remoteClient, surfaceArgs);
+            SendSceneEvent(SymmetricSyncMessage.MsgType.ObjectGrab, data);
+        }
+
+        private void OnLocalObjectGrabbing(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            OSDMap data = PrepareObjectGrabArgs(localID, originalID, offsetPos, remoteClient, surfaceArgs);
+            if (data != null)
+            {
+                SendSceneEvent(SymmetricSyncMessage.MsgType.ObjectGrabbing, data);
+            }
+        }
+
+        private OSDMap PrepareObjectGrabArgs(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+            //we will use the prim's UUID as the identifier, not the localID, to publish the event for the prim                
+            SceneObjectPart part = m_scene.GetSceneObjectPart(localID);
+            if (part == null)
+            {
+                m_log.Warn(LogHeader + ": PrepareObjectGrabArgs - part with localID " + localID + " not exist");
+                return null;
+            }
+
+            //this seems to be useful if the prim touched and the prim handling the touch event are different:
+            //i.e. a child part is touched, pass the event to root, and root handles the event. then root is the "part",
+            //and the child part is the "originalPart"
+            SceneObjectPart originalPart = null;
+            if (originalID != 0)
+            {
+                originalPart = m_scene.GetSceneObjectPart(originalID);
+                if (originalPart == null)
+                {
+                    m_log.Warn(LogHeader + ": PrepareObjectGrabArgs - part with localID " + localID + " not exist");
+                    return null;
+                }
+            }
+
+            OSDMap data = new OSDMap();
+            data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
+            data["primID"] = OSD.FromUUID(part.UUID);
+            if (originalID != 0)
+            {
+                data["originalPrimID"] = OSD.FromUUID(originalPart.UUID);
+            }
+            else
+            {
+                data["originalPrimID"] = OSD.FromUUID(UUID.Zero);
+            }
+            data["offsetPos"] = OSD.FromVector3(offsetPos);
+
+            data["binormal"] = OSD.FromVector3(surfaceArgs.Binormal);
+            data["faceIndex"] = OSD.FromInteger(surfaceArgs.FaceIndex);
+            data["normal"] = OSD.FromVector3(surfaceArgs.Normal);
+            data["position"] = OSD.FromVector3(surfaceArgs.Position);
+            data["stCoord"] = OSD.FromVector3(surfaceArgs.STCoord);
+            data["uvCoord"] = OSD.FromVector3(surfaceArgs.UVCoord);
+
+            return data;
+        }
+
+
+        private void OnLocalDeGrabObject(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+        {
+
         }
 
         private void SendSceneEvent(SymmetricSyncMessage.MsgType msgType, OSDMap data)

@@ -51,6 +51,8 @@ using OpenSim.Region.ScriptEngine.Shared.ScriptBase;
 using OpenSim.Region.ScriptEngine.Shared.CodeTools;
 using OpenSim.Region.ScriptEngine.Interfaces;
 
+using log4net;
+
 namespace OpenSim.Region.ScriptEngine.Shared.Instance
 {
     public class ScriptInstance : MarshalByRefObject, IScriptInstance
@@ -214,12 +216,17 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
             get { return m_thisScriptTask; }
         }
 
+        private ILog m_log;
+
         public ScriptInstance(IScriptEngine engine, SceneObjectPart part,
                 UUID itemID, UUID assetID, string assembly,
                 AppDomain dom, string primName, string scriptName,
                 int startParam, bool postOnRez, StateSource stateSource,
                 int maxScriptQueue)
         {
+            //Kitty: temp debug
+            m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
             m_Engine = engine;
 
             m_LocalID = part.LocalId;
@@ -732,7 +739,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                         }
                         catch (Exception e)
                         {
-                            // m_log.DebugFormat("[SCRIPT] Exception: {0}", e.Message);
+                             m_log.DebugFormat("[SCRIPT] Exception: {0}", e.Message);
                             m_InEvent = false;
                             m_CurrentEvent = String.Empty;
 

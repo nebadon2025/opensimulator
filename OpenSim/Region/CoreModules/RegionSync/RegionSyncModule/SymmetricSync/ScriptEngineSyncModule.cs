@@ -89,8 +89,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //for local OnUpdateScript, we'll handle it the same way as a remove OnUpdateScript. 
             //RegionSyncModule will capture a locally initiated OnUpdateScript event and publish it to other actors.
+            m_scene.EventManager.OnNewScript += ScriptEngine_OnNewScript;
             m_scene.EventManager.OnUpdateScript += ScriptEngine_OnUpdateScript; 
             //m_scene.EventManager.OnUpdateScriptBySync += ScriptEngine_OnUpdateScript;
+
+            LogHeader += "-" + m_actorID + "-" + m_scene.RegionInfo.RegionName;
         }
 
         //Called after AddRegion() has been called for all region modules of the scene.
@@ -180,6 +183,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.TriggerScriptEngineSyncStop();
             //remove all objects
             m_scene.DeleteAllSceneObjects();
+        }
+
+        public void ScriptEngine_OnNewScript(UUID agentID, SceneObjectPart part, UUID itemID)
+        {
+            m_log.Debug(LogHeader + " ScriptEngine_OnUpdateScript");
+
+            m_scene.SymSync_OnNewScript(agentID, itemID, part);
         }
 
         //Assumption, when this function is triggered, the new script asset has already been saved.

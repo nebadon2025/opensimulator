@@ -377,7 +377,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /////////////////////////////////////////////////////////////////////////////////////////
 
         private static int PortUnknown = -1;
-        private static string IPAddrUnknown = "";
+        private static string IPAddrUnknown = String.Empty;
 
         private ILog m_log;
         //private bool m_active = true;
@@ -563,8 +563,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_log.Debug("reading in " + m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress" + " and " + m_scene.RegionInfo.RegionName + "_SyncListenerPort");
 
-            string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName+"_SyncListenerIPAddress", IPAddrUnknown);
-            int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName+"_SyncListenerPort", PortUnknown);
+            //string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName+"_SyncListenerIPAddress", IPAddrUnknown);
+            //int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName+"_SyncListenerPort", PortUnknown);
+
+            string addr = m_scene.RegionInfo.SyncListenerAddress;
+            int port = m_scene.RegionInfo.SyncListenerPort;
 
             m_log.Warn(LogHeader + ", listener addr: " + addr + ", port: " + port);
 
@@ -586,8 +589,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             //For now, we assume there is only one remote listener to connect to. Later on, 
             //we may need to modify the code to read in multiple listeners.
-            string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress", IPAddrUnknown);
-            int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName + "_SyncListenerPort", PortUnknown);
+            //string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress", IPAddrUnknown);
+            //int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName + "_SyncListenerPort", PortUnknown);
+
+            string addr = m_scene.RegionInfo.SyncListenerAddress;
+            int port = m_scene.RegionInfo.SyncListenerPort;
+
             if (!addr.Equals(IPAddrUnknown) && port != PortUnknown)
             {
                 RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);

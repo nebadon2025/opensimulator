@@ -97,10 +97,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_statsWriter = File.AppendText(syncstats);
 
             //Get sync server info for Client Manager actors 
-            string serverAddr = scene.RegionInfo.RegionName + "_ServerIPAddress";
-            m_serveraddr = syncConfig.GetString(serverAddr, IPAddrUnknown);
-            string serverPort = scene.RegionInfo.RegionName + "_ServerPort";
-            m_serverport = syncConfig.GetInt(serverPort, PortUnknown);
+            //string serverAddr = scene.RegionInfo.RegionName + "_ServerIPAddress";
+            //m_serveraddr = syncConfig.GetString(serverAddr, IPAddrUnknown);
+            //string serverPort = scene.RegionInfo.RegionName + "_ServerPort";
+            //m_serverport = syncConfig.GetInt(serverPort, PortUnknown);
+
             // Client manager load balancing
             m_maxClientsPerManager = syncConfig.GetInt("MaxClientsPerManager", 100);
             DefaultPort++;
@@ -154,6 +155,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             //end of SYMMETRIC SYNC
             // Start the server and listen for RegionSyncClients
+            m_serveraddr = m_scene.RegionInfo.ServerIPAddress;
+            m_serverport = m_scene.RegionInfo.ServerPort;
+
+            m_log.Debug("[REGION SYNC SERVER MODULE] to start server on " + m_serveraddr + ":" + m_serverport);
+
             if (!m_serveraddr.Equals(IPAddrUnknown) && m_serverport != PortUnknown)
             {
                 m_log.Warn("[REGION SYNC SERVER MODULE] Starting RegionSyncServer");

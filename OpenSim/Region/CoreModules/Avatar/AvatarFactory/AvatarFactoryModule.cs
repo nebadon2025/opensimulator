@@ -282,16 +282,21 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
             m_log.DebugFormat("[AVFACTORY]: FireAndForget called for RefreshAppearance on agentid {0}", agentid);
             Util.FireAndForget(delegate(object o)
             {
-                int trycount = 20;
+                int maxtries = 10;
+                int trycount = maxtries;
+                int interval = 5000;
                 ScenePresence sp;
                 while (!m_scene.TryGetScenePresence(agentid, out sp))
                 {   
-                    m_log.WarnFormat("[AVFACTORY]: RefreshAppearance unable to find presence for {0}", agentid);
-                    Thread.Sleep(500);
+                    //m_log.WarnFormat("[AVFACTORY]: RefreshAppearance unable to find presence for {0}", agentid);
+                    Thread.Sleep(interval);
                     if (trycount-- <= 0)
+                    {
+                        m_log.ErrorFormat("[AVFACTORY]: RefreshAppearance unable to find presence for {0} after {1} attempts at {2}ms intervals", agentid, maxtries, interval);
                         return; 
+                    }
                 }
-                trycount = 5;
+                trycount = maxtries;
                 AvatarAppearance appearance = null;
                 while (appearance == null)
                 {
@@ -303,11 +308,11 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                     {
                         if (trycount-- <= 0)
                         {
-                            m_log.WarnFormat("[AVFACTORY]: RefreshAppearance failed to get appearance from AvatarService: {0}", e.Message);
+                            m_log.WarnFormat("[AVFACTORY]: RefreshAppearance unable to get appearance from AvatarService for {0} after {1} attempts at {2}ms intervals: {3}", agentid, maxtries, interval, e.Message);
                             return;
                         }
                     }
-                    Thread.Sleep(500);
+                    Thread.Sleep(interval);
                 }
 
                 if (appearance.Texture != null && appearance.VisualParams != null)

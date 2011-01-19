@@ -253,7 +253,7 @@ namespace OpenSim.Services.Connectors.Simulation
 
         public bool UpdateAgent(GridRegion destination, AgentPosition data)
         {
-            return UpdateAgent(destination, (IAgentData)data);
+            return false; //UpdateAgent(destination, (IAgentData)data);
         }
 
         private bool UpdateAgent(GridRegion destination, IAgentData cAgentData)

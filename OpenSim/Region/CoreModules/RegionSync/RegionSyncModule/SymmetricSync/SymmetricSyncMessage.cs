@@ -34,9 +34,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //RegionStatus,
             ActorID,
             //events
+            NewScript,
             UpdateScript,
             ScriptReset,
             ChatFromClient,
+            ChatFromWorld,
+            ObjectGrab,
+            ObjectGrabbing,
+            ObjectDeGrab,
         }
         #endregion
 

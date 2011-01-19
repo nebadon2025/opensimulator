@@ -1593,6 +1593,7 @@ namespace OpenSim.Region.Framework.Scenes
                         PhysActor.SOPName = this.Name; // save object name and desc into the PhysActor so ODE internals know the joint/body info
                         PhysActor.SOPDescription = this.Description;
                         PhysActor.LocalID = LocalId;
+                        PhysActor.UUID = UUID;
                         DoPhysicsPropertyUpdate(RigidBody, true);
                         PhysActor.SetVolumeDetect(VolumeDetectActive ? 1 : 0);
                     }
@@ -4440,6 +4441,7 @@ namespace OpenSim.Region.Framework.Scenes
                     if (pa != null)
                     {
                         pa.LocalID = LocalId;
+                        pa.UUID = this.UUID;
                         DoPhysicsPropertyUpdate(UsePhysics, true);
                         if (m_parentGroup != null)
                         {
@@ -4922,7 +4924,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         //The ID the identifies which actor has caused the most recent update to the prim.
         //We use type "string" for the ID only to make it human-readable. 
-        private string m_lastUpdateActorID;
+        private string m_lastUpdateActorID="";
         public string LastUpdateActorID
         {
             get { return m_lastUpdateActorID; }
@@ -4948,12 +4950,12 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void SyncInfoUpdate()
         {
-            if (m_parentGroup.Scene.ActorSyncModule == null || m_parentGroup.Scene.ActorSyncModule.ActorID == null)
-                return;
+            //if (m_parentGroup == null || m_parentGroup.Scene==null || m_parentGroup.Scene.ActorSyncModule == null || m_parentGroup.Scene.ActorSyncModule.ActorID == null)
+            //    return;
             //Trick: calling UpdateTimestamp here makes sure that when an object was received and de-serialized, before
             //       its parts are linked together, neither TimeStamp or ActorID will be modified. This is because during de-serialization, 
             //       ScheduleFullUpdate() is called when m_parentGroup == null
-            if (m_parentGroup != null)
+            if (m_parentGroup != null && m_parentGroup.Scene != null && m_parentGroup.Scene.ActorSyncModule!=null)
             {
                 UpdateTimestamp();
                 m_lastUpdateActorID = m_parentGroup.Scene.ActorSyncModule.ActorID;
@@ -5066,14 +5068,6 @@ namespace OpenSim.Region.Framework.Scenes
             this.m_lastUpdateActorID = updatedPart.LastUpdateActorID;
             this.m_lastUpdateTimeStamp = updatedPart.LastUpdateTimeStamp;
 
-
-            /*
-            this.m_inventory.Items = (TaskInventoryDictionary)updatedPart.m_inventory.Items.Clone();
-            //update shape information, for now, only update fileds in Shape whose set functions are defined in PrimitiveBaseShape
-            this.Shape = updatedPart.Shape.Copy();
-            this.Shape.TextureEntry = updatedPart.Shape.TextureEntry;
-             * */
-
             return partUpdateResult;
         }
 
@@ -5083,7 +5077,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void ScheduleFullUpdate_SyncInfoUnchanged()
         {
-            m_log.DebugFormat("[SCENE OBJECT PART]: ScheduleFullUpdate_SyncInfoUnchanged for {0} {1}", Name, LocalId);
+            //m_log.DebugFormat("[SCENE OBJECT PART]: ScheduleFullUpdate_SyncInfoUnchanged for {0} {1}", Name, LocalId);
 
             if (m_parentGroup != null)
             {

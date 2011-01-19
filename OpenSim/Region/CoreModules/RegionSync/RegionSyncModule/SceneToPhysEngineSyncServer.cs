@@ -231,7 +231,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 try
                 {
-                    sop = ss.GetSceneObjectPart(pa.LocalID);
+                    sop = ss.GetSceneObjectPart(pa.UUID);
                 }
                 catch
                 {
@@ -244,7 +244,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
                 else
                 {
-                    ScenePresence sp = ss.GetScenePresence(pa.LocalID);
+                    ScenePresence sp = ss.GetScenePresence(pa.UUID);
                     if (sp != null)
                     {
                         s = ss;
@@ -260,12 +260,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
                 else
                 {
-                    Console.WriteLine("RouteUpdate: SceneToPhysEngineSyncServer is no available");
+                    Console.WriteLine("RouteUpdate: SceneToPhysEngineSyncServer is not available");
                 }
             }
             else
             {
-                Console.WriteLine("RouteUpdate: no SOP for update of {0}", pa.LocalID);
+                Console.WriteLine("RouteUpdate: no SOP for update of {0}", pa.UUID);
             }
             return;
         }

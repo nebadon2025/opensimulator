@@ -1155,12 +1155,16 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 SceneObjectPart part = parts[i];
 
+                //SYMMETRIC SYNC: object remove should be handled through RegionSyncModule
+                /*
                 // REGION SYNC
                 if (Scene.IsSyncedServer())
                 {
                     Scene.RegionSyncServerModule.DeleteObject(part.RegionHandle, part.LocalId, part);
                     //return;
                 }
+                 * */
+                //end of SYMMETRIC SYNC
 
                 Scene.ForEachScenePresence(delegate(ScenePresence avatar)
                 {
@@ -1464,6 +1468,7 @@ namespace OpenSim.Region.Framework.Scenes
                             part.PhysActor.IsPhysical);
     
                     part.PhysActor.LocalID = part.LocalId;
+                    part.PhysActor.UUID = part.UUID;
                     part.DoPhysicsPropertyUpdate(part.PhysActor.IsPhysical, true);
                 }
             }

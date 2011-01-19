@@ -169,7 +169,7 @@ namespace OpenSim.Region.OptionalModules.World.NPC
 
                         sp.Appearance.SetTextureEntries(x.Texture);
                         sp.Appearance.SetVisualParams((byte[])x.VisualParams.Clone());
-                        sp.SendAppearanceToAllOtherAgents();
+                        p_scene.AvatarFactory.QueueAppearanceSend(sp.UUID);
                     }
 
                     m_avatars.Add(npcAvatar.AgentId, npcAvatar);

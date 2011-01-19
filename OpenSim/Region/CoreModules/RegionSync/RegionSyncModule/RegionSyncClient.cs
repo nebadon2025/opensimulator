@@ -404,12 +404,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         else
                         {
                             sp.IsSyncedAvatar = true;
-                            m_log.DebugFormat("{0}: Setting avatar local ID to {1}", LogHeader(), localID);
-                            sp.LocalId = localID;
-                            if (sp.PhysicsActor != null)
-                            {
-                                sp.PhysicsActor.LocalID = localID;
-                            }
                         }
                         //RegionSyncMessage.HandlerDebug(LogHeader(), msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));
                         RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));
@@ -828,7 +822,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void DoInitialSync()
         {
-            m_scene.DeleteAllSceneObjects();
+            //m_scene.DeleteAllSceneObjects();
             //KittyL: added to distinguish different actors
             //Send(new RegionSyncMessage(RegionSyncMessage.MsgType.ActorType, m_actorType.ToString()));
 
@@ -890,13 +884,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // Register for interesting client events which will be forwarded to auth sim
             // These are the raw packet data blocks from the client, intercepted and sent up to the sim
             client.OnAgentUpdateRaw += HandleAgentUpdateRaw;
-            //SYMMETRIC SYNC: do not subscribe to OnChatFromClientRaw, we may remove this event entirely later
+            //SYMMETRIC SYNC: do not subscribe to OnChatFromClientRaw: RegionSyncModule + Scene.EventManager will handle this. 
             //client.OnChatFromClientRaw += HandleChatFromClientRaw;
             client.OnAgentRequestSit += HandleAgentRequestSit;
             client.OnAgentSit += HandleAgentSit;
-            client.OnGrabObject += HandleGrabObject;
-            client.OnGrabUpdate += HandleGrabUpdate;
-            client.OnDeGrabObject += HandleDeGrabObject;
+            //SYMMETRIC SYNC: do not subscribe to OnGrabObject, OnGrabUpdate, and OnDeGrabObject: RegionSyncModule + Scene.EventManager will handle this. 
+            //client.OnGrabObject += HandleGrabObject;
+            //client.OnGrabUpdate += HandleGrabUpdate;
+            //client.OnDeGrabObject += HandleDeGrabObject;
             client.OnStartAnim += HandleStartAnim;
             client.OnStopAnim += HandleStopAnim;
         }

@@ -310,7 +310,7 @@ namespace OpenSim.Region.Framework.Scenes
              * */
 
             //SYMMETRIC SYNC: Distributed Scene Graph implementation  
-            m_log.Debug("Scene.Inventory: to call EventManager.TriggerUpdateTaskInventoryScriptAsset, agentID: " + remoteClient.AgentId);
+            m_log.Debug("Scene.Inventory: to call EventManager.TriggerUpdateScript, agentID: " + remoteClient.AgentId);
             //Trigger OnUpdateScript event.
             EventManager.TriggerUpdateScript(remoteClient.AgentId, itemId, primId, isScriptRunning, item.AssetID);
 
@@ -369,6 +369,14 @@ namespace OpenSim.Region.Framework.Scenes
         #endregion 
 
         #region SYMMETRIC SYNC
+        public void SymSync_OnNewScript(UUID avatarID, UUID itemID, SceneObjectPart part)
+        {
+            TaskInventoryItem item = part.Inventory.GetInventoryItem(itemID);
+
+            part.Inventory.CreateScriptInstance(item, 0, false, DefaultScriptEngine, 0);
+            part.ParentGroup.ResumeScripts();
+        }
+
         //only a script engine actor is supposed to call this function
         public ArrayList SymSync_OnUpdateScript(UUID avatarID, UUID itemID, UUID primID, bool isScriptRunning, UUID newAssetID)
         {
@@ -376,6 +384,17 @@ namespace OpenSim.Region.Framework.Scenes
 
             SceneObjectPart part = GetSceneObjectPart(primID);
             SceneObjectGroup group = part.ParentGroup;
+
+            if (null == group)
+            {
+                m_log.ErrorFormat(
+                    "[PRIM INVENTORY]: " +
+                    "Prim inventory update requested for item ID {0} in prim ID {1} but this prim does not exist",
+                    itemID, primID);
+
+                return new ArrayList();
+            }
+
             if (isScriptRunning)
             {
                 m_log.Debug("To RemoveScriptInstance");
@@ -384,6 +403,16 @@ namespace OpenSim.Region.Framework.Scenes
 
             // Retrieve item
             TaskInventoryItem item = group.GetInventoryItem(part.LocalId, itemID);
+
+            if (null == item)
+            {
+                m_log.ErrorFormat(
+                    "[PRIM INVENTORY]: Tried to retrieve item ID {0} from prim {1}, {2} for caps script update "
+                        + " but the item does not exist in this inventory",
+                    itemID, part.Name, part.UUID);
+
+                return new ArrayList();
+            }
 
             // Update item with new asset
             item.AssetID = newAssetID;
@@ -1642,6 +1671,10 @@ namespace OpenSim.Region.Framework.Scenes
                             return;
 
                         part.ParentGroup.AddInventoryItem(remoteClient, localID, item, copyID);
+                        part.GetProperties(remoteClient);
+
+                        //SYMMETRIC SYNC
+                        /* Original OpenSim code, commented out 
                         // TODO: switch to posting on_rez here when scripts
                         // have state in inventory
                         part.Inventory.CreateScriptInstance(copyID, 0, false, DefaultScriptEngine, 0);
@@ -1649,8 +1682,26 @@ namespace OpenSim.Region.Framework.Scenes
                         //                        m_log.InfoFormat("[PRIMINVENTORY]: " +
                         //                                         "Rezzed script {0} into prim local ID {1} for user {2}",
                         //                                         item.inventoryName, localID, remoteClient.Name);
-                        part.GetProperties(remoteClient);
+                        //part.GetProperties(remoteClient);
                         part.ParentGroup.ResumeScripts();
+                         * */
+                        if (RegionSyncModule != null)
+                        {
+                            part.SyncInfoUpdate();
+                            EventManager.TriggerNewScript(remoteClient.AgentId, part, copyID);
+                        }
+                        else
+                        {
+                            part.Inventory.CreateScriptInstance(copyID, 0, false, DefaultScriptEngine, 0);
+
+                            //                        m_log.InfoFormat("[PRIMINVENTORY]: " +
+                            //                                         "Rezzed script {0} into prim local ID {1} for user {2}",
+                            //                                         item.inventoryName, localID, remoteClient.Name);
+                            //part.GetProperties(remoteClient);
+                            part.ParentGroup.ResumeScripts();
+                        }
+                        //end of SYMMETRIC SYNC
+
                     }
                     else
                     {
@@ -1709,8 +1760,25 @@ namespace OpenSim.Region.Framework.Scenes
                 part.Inventory.AddInventoryItem(taskItem, false);
                 part.GetProperties(remoteClient);
 
-                part.Inventory.CreateScriptInstance(taskItem, 0, false, DefaultScriptEngine, 0);
-                part.ParentGroup.ResumeScripts();
+                //SYMMETRIC SYNC
+                //part.Inventory.CreateScriptInstance(taskItem, 0, false, DefaultScriptEngine, 0);
+                //part.ParentGroup.ResumeScripts();
+                if (RegionSyncModule != null)
+                {
+                    part.SyncInfoUpdate();
+                    EventManager.TriggerNewScript(remoteClient.AgentId, part, taskItem.ItemID);
+                }
+                else
+                {
+                    part.Inventory.CreateScriptInstance(taskItem, 0, false, DefaultScriptEngine, 0);
+
+                    //                        m_log.InfoFormat("[PRIMINVENTORY]: " +
+                    //                                         "Rezzed script {0} into prim local ID {1} for user {2}",
+                    //                                         item.inventoryName, localID, remoteClient.Name);
+                    //part.GetProperties(remoteClient);
+                    part.ParentGroup.ResumeScripts();
+                }
+                //end of SYMMETRIC SYNC
             }
         }
 

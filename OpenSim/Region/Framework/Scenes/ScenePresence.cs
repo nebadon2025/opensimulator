@@ -2517,7 +2517,7 @@ namespace OpenSim.Region.Framework.Scenes
                 // If the avatars baked textures are all in the cache, then we have a 
                 // complete appearance... send it out, if not, then we'll send it when
                 // the avatar finishes updating its appearance
-                SendAppearanceToAllOtherAgents();
+                m_scene.AvatarFactory.QueueAppearanceSend(UUID);
             }
         }
 
@@ -3342,8 +3342,9 @@ namespace OpenSim.Region.Framework.Scenes
             m_physicsActor.OnOutOfBounds += OutOfBoundsCall; // Called for PhysicsActors when there's something wrong
             m_physicsActor.SubscribeEvents(500);
             m_physicsActor.LocalID = LocalId;
+            m_physicsActor.UUID = this.UUID;
         }
-
+        
         private void OutOfBoundsCall(Vector3 pos)
         {
             //bool flying = m_physicsActor.Flying;

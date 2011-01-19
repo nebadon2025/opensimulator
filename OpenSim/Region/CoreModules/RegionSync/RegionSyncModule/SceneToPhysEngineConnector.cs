@@ -296,16 +296,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             OSDMap data = RegionSyncUtil.DeserializeMessage(msg, LogHeader);
             try
             {
-                uint localID = data["localID"].AsUInteger();
-                // m_log.DebugFormat("{0}: received PhysUpdateAttributes for {1}", LogHeader, localID);
-                PhysicsActor pa = FindPhysicsActor(localID);
+                UUID uuid = data["uuid"].AsUUID();
+                // m_log.DebugFormat("{0}: received PhysUpdateAttributes for {1}", LogHeader, uuid);
+                PhysicsActor pa = FindPhysicsActor(uuid);
                 if (pa != null)
                 {
                     pa.RequestPhysicsterseUpdate();
                 }
                 else
                 {
-                    m_log.WarnFormat("{0}: terse update for unknown localID {1}", LogHeader, localID);
+                    m_log.WarnFormat("{0}: terse update for unknown uuid {1}", LogHeader, uuid);
                     return;
                 }
             }
@@ -339,10 +339,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             OSDMap data = RegionSyncUtil.DeserializeMessage(msg, LogHeader);
             try
             {
-                uint localID = data["localID"].AsUInteger();
+                UUID uuid = data["uuid"].AsUUID();
                 string actorID = data["actorID"].AsString();
-                // m_log.DebugFormat("{0}: received PhysUpdateAttributes for {1}", LogHeader, localID);
-                PhysicsActor pa = FindPhysicsActor(localID);
+                // m_log.DebugFormat("{0}: received PhysUpdateAttributes for {1}", LogHeader, uuid);
+                PhysicsActor pa = FindPhysicsActor(uuid);
                 if (pa != null)
                 {
                     pa.ChangingActorID = actorID;
@@ -363,7 +363,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
                 else
                 {
-                    m_log.WarnFormat("{0}: attribute update for unknown localID {1}", LogHeader, localID);
+                    m_log.WarnFormat("{0}: attribute update for unknown uuid {1}", LogHeader, uuid);
                     return;
                 }
             }
@@ -376,14 +376,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         // Find the physics actor whether it is an object or a scene presence
-        private PhysicsActor FindPhysicsActor(uint localID)
+        private PhysicsActor FindPhysicsActor(UUID uuid)
         {
-            SceneObjectPart sop = m_scene.GetSceneObjectPart(localID);
+            SceneObjectPart sop = m_scene.GetSceneObjectPart(uuid);
             if (sop != null)
             {
                 return sop.PhysActor;
             }
-            ScenePresence sp = m_scene.GetScenePresence(localID);
+            ScenePresence sp = m_scene.GetScenePresence(uuid);
             if (sp != null)
             {
                 return sp.PhysicsActor;
@@ -393,9 +393,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void SendPhysUpdateAttributes(PhysicsActor pa)
         {
-            // m_log.DebugFormat("{0}: sending PhysUpdateAttributes for {1}", LogHeader, pa.LocalID);
+            // m_log.DebugFormat("{0}: sending PhysUpdateAttributes for {1}", LogHeader, pa.UUID);
             OSDMap data = new OSDMap(9);
             data["localID"] = OSD.FromUInteger(pa.LocalID);
+            data["uuid"] = OSD.FromUUID(pa.UUID);
             data["actorID"] = OSD.FromString(RegionSyncServerModule.ActorID);
             data["size"] = OSD.FromVector3(pa.Size);
             data["position"] = OSD.FromVector3(pa.Position);

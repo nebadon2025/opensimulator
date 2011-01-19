@@ -69,10 +69,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_active = true;
                 m_scene.RegionSyncEnabled = true;
                 m_scene.RegionSyncMode = "client";
-                string serverAddrDefault = syncConfig.GetString("ServerIPAddress", "127.0.0.1");
-                m_serveraddr = syncConfig.GetString(scene.RegionInfo.RegionName+"_ServerIPAddress", serverAddrDefault);
-                int serverPortDefault = syncConfig.GetInt("ServerPort", 13000);
-                m_serverport = syncConfig.GetInt(scene.RegionInfo.RegionName+"_ServerPort", serverPortDefault);
+
+                //string serverAddrDefault = syncConfig.GetString("ServerIPAddress", "127.0.0.1");
+                //m_serveraddr = syncConfig.GetString(scene.RegionInfo.RegionName+"_ServerIPAddress", serverAddrDefault);
+                //int serverPortDefault = syncConfig.GetInt("ServerPort", 13000);
+                //m_serverport = syncConfig.GetInt(scene.RegionInfo.RegionName+"_ServerPort", serverPortDefault);
+
                 m_scene.RegisterModuleInterface<IRegionSyncClientModule>(this);
 
                 m_symsync = syncConfig.GetBoolean("SymSync", false);
@@ -230,7 +232,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void Start()
         {
-            
+            m_serveraddr = m_scene.RegionInfo.ServerIPAddress;
+            m_serverport = m_scene.RegionInfo.ServerPort;
+
+            if (m_serveraddr.Equals(String.Empty) || m_serverport == -1)
+            {
+                m_log.Warn("[REGION SYNC CLIENT MODULE] No IP or port of RegionSyncServer has been configured. Shut down.");
+                m_active = false;
+                return;
+            }
+
             lock (m_client_lock)
             {
                 if (m_client != null)

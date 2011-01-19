@@ -177,7 +177,12 @@ namespace OpenSim.Region.CoreModules.Framework.EventQueue
             {
                 Queue<OSD> queue = GetQueue(avatarID);
                 if (queue != null)
-                    queue.Enqueue(ev);
+                {
+                    lock (queue)
+                    {
+                        queue.Enqueue(ev);
+                    }
+                }
             } 
             catch(NullReferenceException e)
             {

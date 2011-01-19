@@ -185,9 +185,16 @@ namespace OpenSim.Region.Physics.Manager
 
         // RA: used to be abstract but changed to allow 'get' without changing all the phys engines
         uint m_baseLocalID;
-        public virtual uint LocalID { 
+        public virtual uint LocalID 
+        { 
             set { m_baseLocalID = value; } 
             get { return m_baseLocalID; } 
+        }
+        public UUID m_UUID;
+        public virtual UUID UUID
+        {
+            set { m_UUID = value; }
+            get { return m_UUID; }
         }
         public PhysActorLastValues lastValues;
         // ID of actor which last updated the values. Send if I did the change.

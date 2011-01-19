@@ -2464,12 +2464,21 @@ namespace OpenSim.Region.Framework.Scenes
 
             //SYMMETRIC SYNC
             //Set the ActorID and TimeStamp info for this latest update
+            /*
             foreach (SceneObjectPart part in group.Parts)
             {
                 part.SyncInfoUpdate();
             }
-            //end of SYMMETRIC SYNC
+             *  
+             * */
 
+            //Propagate the RemovedObject message
+            if (RegionSyncModule != null)
+            {
+                RegionSyncModule.SendDeleteObject(group);
+            }
+            //end of SYMMETRIC SYNC
+             
         }
 
         /// <summary>
@@ -3111,12 +3120,13 @@ namespace OpenSim.Region.Framework.Scenes
             client.OnUpdatePrimFlags += m_sceneGraph.UpdatePrimFlags;
             client.OnRequestObjectPropertiesFamily += m_sceneGraph.RequestObjectPropertiesFamily;
             client.OnObjectPermissions += HandleObjectPermissionsUpdate;
-            if (IsSyncedServer())
-            {
+            //SYMMETRIC SYNC: return the code back to its original OpenSim version
+            //if (IsSyncedServer())
+            //{
                 client.OnGrabObject += ProcessObjectGrab;
                 client.OnGrabUpdate += ProcessObjectGrabUpdate;
                 client.OnDeGrabObject += ProcessObjectDeGrab;
-            }
+            //}
             client.OnUndo += m_sceneGraph.HandleUndo;
             client.OnRedo += m_sceneGraph.HandleRedo;
             client.OnObjectDescription += m_sceneGraph.PrimDescription;
@@ -3629,9 +3639,12 @@ namespace OpenSim.Region.Framework.Scenes
 
             ForEachClient(delegate(IClientAPI client) { client.SendKillObject(m_regionHandle, localID); });
 
+            //SYMMETRIC SYNC: object remove should be handled through RegionSyncModule
             // REGION SYNC
+            /*
             if( IsSyncedServer() )
                 RegionSyncServerModule.DeleteObject(m_regionHandle, localID, part);
+             * */ 
         }
 
         #endregion

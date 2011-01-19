@@ -404,12 +404,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         else
                         {
                             sp.IsSyncedAvatar = true;
-                            m_log.DebugFormat("{0}: Setting avatar local ID to {1}", LogHeader(), localID);
-                            sp.LocalId = localID;
-                            if (sp.PhysicsActor != null)
-                            {
-                                sp.PhysicsActor.LocalID = localID;
-                            }
                         }
                         //RegionSyncMessage.HandlerDebug(LogHeader(), msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));
                         RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));

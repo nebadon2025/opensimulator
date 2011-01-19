@@ -240,7 +240,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 try
                 {
-                    sop = ss.GetSceneObjectPart(pa.LocalID);
+                    sop = ss.GetSceneObjectPart(pa.UUID);
                 }
                 catch
                 {
@@ -253,7 +253,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
                 try
                 {
-                    sp = ss.GetScenePresence(pa.LocalID);
+                    sp = ss.GetScenePresence(pa.UUID);
                 }
                 catch
                 {
@@ -278,7 +278,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             else
             {
-                Console.WriteLine("RouteUpdate: no SOP found for {0}", pa.LocalID);
+                Console.WriteLine("RouteUpdate: no SOP found for {0}", pa.UUID);
             }
             return;
         }

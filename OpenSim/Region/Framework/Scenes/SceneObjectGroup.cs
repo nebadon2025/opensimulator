@@ -1468,6 +1468,7 @@ namespace OpenSim.Region.Framework.Scenes
                             part.PhysActor.IsPhysical);
     
                     part.PhysActor.LocalID = part.LocalId;
+                    part.PhysActor.UUID = part.UUID;
                     part.DoPhysicsPropertyUpdate(part.PhysActor.IsPhysical, true);
                 }
             }

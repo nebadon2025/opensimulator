@@ -334,7 +334,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
             // Make the remote storage request
             try
             {
-                HttpWebRequest request = (HttpWebRequest)HttpWebRequest.Create(m_serverUrl);
+                HttpWebRequest request = (HttpWebRequest)HttpWebRequest.Create(m_serverUrl + asset.FullID.ToString());
                 
                 HttpWebResponse response = MultipartForm.Post(request, postParameters);
                 using (Stream responseStream = response.GetResponseStream())

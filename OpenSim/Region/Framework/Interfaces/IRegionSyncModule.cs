@@ -63,7 +63,7 @@ namespace OpenSim.Region.Framework.Interfaces
         //void SendUpdatesToSynchronizeState(List<SceneObjectGroup> sog);
         void SendSceneUpdates();
         void SendTerrainUpdates(string lastUpdateActorID);
-        //void SendDeleteObject(SceneObjectGroup sog);
+        void SendDeleteObject(SceneObjectGroup sog);
 
         //For propogating scene events to other actors
         void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs);

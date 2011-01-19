@@ -539,6 +539,9 @@ namespace OpenSim.Region.Framework.Scenes
             //m_inventorySerial += 2;
             HasInventoryChanged = true;
             m_part.ParentGroup.HasGroupChanged = true;
+
+            //SYMMETRIC SYNC: add ScheduleFullUpdate to enable synchronization across actors
+            m_part.ScheduleFullUpdate();
         }
 
         /// <summary>

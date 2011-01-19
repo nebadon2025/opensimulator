@@ -1945,7 +1945,7 @@ namespace OpenSim.Region.Framework.Scenes
                 if (entity is SceneObjectGroup)
                 {
                     SceneObjectGroup localSog = (SceneObjectGroup)entity;
-                    Scene.ObjectUpdateResult updateResult = localSog.UpdateObjectAllProperties(updatedSog);
+                    Scene.ObjectUpdateResult updateResult = localSog.UpdateObjectGroupBySync(updatedSog);
                     return updateResult;
                 }
                 else

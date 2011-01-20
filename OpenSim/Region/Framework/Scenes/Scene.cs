@@ -709,7 +709,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         }
 
-        public void AddNewSceneObjectPart(SceneObjectPart newPart, SceneObjectGroup parentGroup)
+        public void AddNewSceneObjectPartBySync(SceneObjectPart newPart, SceneObjectGroup parentGroup)
         {
             //assign a local ID.
             newPart.LocalId = AllocateLocalId();
@@ -717,6 +717,13 @@ namespace OpenSim.Region.Framework.Scenes
             m_sceneGraph.AddNewSceneObjectPart(newPart, parentGroup);
         }
 
+        public void AddNewSceneObjectBySync(SceneObjectGroup group, bool attachToBackup)
+        {
+            if(attachToBackup)
+                group.HasGroupChanged = true;
+
+            m_sceneGraph.AddSceneObjectByStateSynch(group);
+        }
 
         #endregion //SYMMETRIC SYNC
 

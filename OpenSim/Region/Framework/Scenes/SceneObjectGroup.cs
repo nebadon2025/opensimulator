@@ -3498,8 +3498,6 @@ namespace OpenSim.Region.Framework.Scenes
 
             Scene.ObjectUpdateResult groupUpdateResult = Scene.ObjectUpdateResult.Unchanged;
             Dictionary<UUID, SceneObjectPart> updatedParts = new Dictionary<UUID, SceneObjectPart>();
-            bool partsRemoved = false; //has any old part been removed?
-            bool rootPartChanged = false; //has the rootpart be changed to a different prim?
 
             lock (m_parts.SyncRoot)
             {
@@ -3528,12 +3526,20 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                     else
                     {
-                        //in case the part is in the SceneGraph already
+                        //in case the part is in the SceneGraph already (e.g. LinkObject event)
                         SceneObjectPart localPart = m_scene.GetSceneObjectPart(partUUID);
-                        if(localPart!=null)
-                            newParts.Add(partUUID, localPart);
+                        if (localPart != null)
+                        {
+                            //newParts.Add(partUUID, localPart);
+                            //we should simply add the part into the object, sync-protocol should send another messge to soft-delete the previous group the part was in
+                            AddPart(localPart);
+                            //SceneGraph.GetGroupByPrim will corrent the mapping of <part,group> once it is called. 
+                        }
                         else
-                            newParts.Add(partUUID, updatedPart);    
+                        {
+                            //This shall not happen, but wired synchronization timing might lead here
+                            newParts.Add(partUUID, updatedPart);
+                        }
                     }
                 }
 
@@ -3543,18 +3549,25 @@ namespace OpenSim.Region.Framework.Scenes
                         removedParts.Add(localPart.UUID, localPart);
                 }
 
+                //For new parts or removed parts, they should be empty except maybe in some wired timing conditions (TO BE VALIDATED)
                 //Add in new parts
                 foreach (SceneObjectPart newPart in newParts.Values)
                 {
                     //AddPart(newPart);
+                    m_log.Warn("UpdateObjectGroupBySync: prim " + newPart.UUID + " a brand new part, not in any SceneObjectGroup yet:: not supposed to happen. Checking on sync message time!!!!!");
                     AddNewPart(newPart);
                 }
 
                 //remove parts that are no longer in the group -- !!!!! need to further test how to do correct book-keeping and synchornized with other actors !!!!!!!!
                 foreach (SceneObjectPart rmPart in removedParts.Values)
                 {
-                    DelinkFromGroup(rmPart, true);
+                    //m_log.Warn("UpdateObjectGroupBySync: prim " + rmPart.UUID + " no longer in SceneObjectGroup " + this.UUID + ":: not supposed to happen. Checking on sync message time!!!!!");
+                    //If we send out DelinkObject message right after the delink operation at the initiating actor and before any updates of the objects involved
+                    //have been sent out, this shall not happen. Let's worry about this later if it does appear occasionally.
+
+                    DelinkFromGroupBySync(rmPart, true);
                 }
+
 
                 if (newParts.Count > 0 || removedParts.Count > 0)
                 {
@@ -3643,8 +3656,81 @@ namespace OpenSim.Region.Framework.Scenes
             //set the parent relationship
             AddPart(newPart);
 
-            m_scene.AddNewSceneObjectPart(newPart, this);
+            m_scene.AddNewSceneObjectPartBySync(newPart, this);
         }
+
+        //Similar actions with DelinkFromGroup, except that m_scene.AddNewSceneObjectBySync is called
+        private  SceneObjectGroup DelinkFromGroupBySync(SceneObjectPart linkPart, bool sendEvents)
+        {
+//                m_log.DebugFormat(
+//                    "[SCENE OBJECT GROUP]: Delinking part {0}, {1} from group with root part {2}, {3}",
+//                    linkPart.Name, linkPart.UUID, RootPart.Name, RootPart.UUID);
+            
+            linkPart.ClearUndoState();
+
+            Quaternion worldRot = linkPart.GetWorldRotation();
+
+            // Remove the part from this object
+            lock (m_parts.SyncRoot)
+            {
+                m_parts.Remove(linkPart.UUID);
+
+                SceneObjectPart[] parts = m_parts.GetArray();
+
+                if (parts.Length == 1 && RootPart != null)
+                {
+                    // Single prim left
+                    RootPart.LinkNum = 0;
+                }
+                else
+                {
+                    for (int i = 0; i < parts.Length; i++)
+                    {
+                        SceneObjectPart part = parts[i];
+                        if (part.LinkNum > linkPart.LinkNum)
+                            part.LinkNum--;
+                    }
+                }
+            }
+
+            linkPart.ParentID = 0;
+            linkPart.LinkNum = 0;
+
+            if (linkPart.PhysActor != null)
+            {
+                m_scene.PhysicsScene.RemovePrim(linkPart.PhysActor);
+            }
+
+            // We need to reset the child part's position
+            // ready for life as a separate object after being a part of another object
+            Quaternion parentRot = m_rootPart.RotationOffset;
+
+            Vector3 axPos = linkPart.OffsetPosition;
+
+            axPos *= parentRot;
+            linkPart.OffsetPosition = new Vector3(axPos.X, axPos.Y, axPos.Z);
+            linkPart.GroupPosition = AbsolutePosition + linkPart.OffsetPosition;
+            linkPart.OffsetPosition = new Vector3(0, 0, 0);
+
+            linkPart.RotationOffset = worldRot;
+
+            SceneObjectGroup objectGroup = new SceneObjectGroup(linkPart);
+
+            m_scene.AddNewSceneObjectBySync(objectGroup, true);
+
+            if (sendEvents)
+                linkPart.TriggerScriptChangedEvent(Changed.LINK);
+
+            linkPart.Rezzed = RootPart.Rezzed;
+
+            // When we delete a group, we currently have to force persist to the database if the object id has changed
+            // (since delete works by deleting all rows which have a given object id)
+            objectGroup.HasGroupChangedDueToDelink = true;
+
+            return objectGroup;
+        }
+
+
 
         public void ScheduleGroupForFullUpdate_SyncInfoUnchanged()
         {

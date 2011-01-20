@@ -1966,7 +1966,7 @@ namespace OpenSim.Region.Framework.Scenes
         //This is an object added due to receiving a state synchronization message from Scene or an actor. Do similar things as the original AddSceneObject(),
         //but call ScheduleGroupForFullUpdate_TimeStampUnchanged() instead, so as not to modify the timestamp or actorID, since the object was not created
         //locally.
-        protected bool AddSceneObjectByStateSynch(SceneObjectGroup sceneObject)
+        public bool AddSceneObjectByStateSynch(SceneObjectGroup sceneObject)
         {
             if (sceneObject == null || sceneObject.RootPart == null || sceneObject.RootPart.UUID == UUID.Zero)
                 return false;

@@ -1013,7 +1013,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             // Get the data from message and error check
             OSDMap data = DeserializeMessage(msg);
-            string init_actorID = data["actorID"].AsString();
 
             if (data == null)
             {
@@ -1023,11 +1022,20 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             UUID sogUUID = data["UUID"].AsUUID();
+            string init_actorID = data["actorID"].AsString();
+            bool softDelete = data["softDelete"].AsBoolean();
 
             SceneObjectGroup sog = m_scene.SceneGraph.GetGroupByPrim(sogUUID);
             if (sog != null)
             {
-                m_scene.DeleteSceneObjectBySynchronization(sog);
+                if (!softDelete)
+                {
+                    m_scene.DeleteSceneObjectBySynchronization(sog);
+                }
+                else
+                {
+                    m_scene.UnlinkSceneObject(sog, true);
+                }
             }
 
             //if this is a relay node, forwards the event
@@ -1331,7 +1339,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// </summary>
         /// <param name="sog"></param>
         //private void RegionSyncModule_OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
-        public void SendDeleteObject(SceneObjectGroup sog)
+        public void SendDeleteObject(SceneObjectGroup sog, bool softDelete)
         {
             //m_log.DebugFormat("RegionSyncModule_OnObjectBeingRemovedFromScene called at time {0}:{1}:{2}", DateTime.Now.Minute, DateTime.Now.Second, DateTime.Now.Millisecond);
 
@@ -1344,6 +1352,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //data["localID"] = OSD.FromUInteger(sog.LocalId);
             data["UUID"] = OSD.FromUUID(sog.UUID);
             data["actorID"] = OSD.FromString(m_actorID);
+            data["softDelete"] = OSD.FromBoolean(softDelete);
 
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
             SendObjectUpdateToRelevantSyncConnectors(sog, rsm);

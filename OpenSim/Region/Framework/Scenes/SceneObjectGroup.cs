@@ -2041,9 +2041,9 @@ namespace OpenSim.Region.Framework.Scenes
             //    objectGroup.RootPart.SendScheduledUpdates();
             //}
 
-//            m_log.DebugFormat(
-//                "[SCENE OBJECT GROUP]: Linking group with root part {0}, {1} to group with root part {2}, {3}",
-//                objectGroup.RootPart.Name, objectGroup.RootPart.UUID, RootPart.Name, RootPart.UUID);
+            //            m_log.DebugFormat(
+            //                "[SCENE OBJECT GROUP]: Linking group with root part {0}, {1} to group with root part {2}, {3}",
+            //                objectGroup.RootPart.Name, objectGroup.RootPart.UUID, RootPart.Name, RootPart.UUID);
 
             SceneObjectPart linkPart = objectGroup.m_rootPart;
 
@@ -2112,9 +2112,9 @@ namespace OpenSim.Region.Framework.Scenes
             objectGroup.m_isDeleted = true;
 
             objectGroup.m_parts.Clear();
-            
+
             // Can't do this yet since backup still makes use of the root part without any synchronization
-//            objectGroup.m_rootPart = null;
+            //            objectGroup.m_rootPart = null;
 
             AttachToBackup();
 
@@ -2125,6 +2125,12 @@ namespace OpenSim.Region.Framework.Scenes
 
             //HasGroupChanged = true;
             //ScheduleGroupForFullUpdate();
+
+            //SYMMETRIC SYNC
+            if (m_scene.RegionSyncModule != null)
+                m_scene.RegionSyncModule.SendDeleteObject(objectGroup, true);
+            //end of SYMMETRIC SYNC
+
         }
 
         /// <summary>

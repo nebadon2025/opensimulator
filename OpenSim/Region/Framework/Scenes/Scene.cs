@@ -2475,7 +2475,7 @@ namespace OpenSim.Region.Framework.Scenes
             //Propagate the RemovedObject message
             if (RegionSyncModule != null)
             {
-                RegionSyncModule.SendDeleteObject(group);
+                RegionSyncModule.SendDeleteObject(group, false);
             }
             //end of SYMMETRIC SYNC
              

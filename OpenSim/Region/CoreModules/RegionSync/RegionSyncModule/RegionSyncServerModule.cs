@@ -166,8 +166,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             //end of SYMMETRIC SYNC
             // Start the server and listen for RegionSyncClients
-            m_serveraddr = m_scene.RegionInfo.ServerIPAddress;
-            m_serverport = m_scene.RegionInfo.ServerPort;
+            m_serveraddr = m_scene.RegionInfo.AvatarSyncServerAddress;
+            m_serverport = m_scene.RegionInfo.AvatarSyncServerPort;
 
             m_log.Debug("[REGION SYNC SERVER MODULE] to start server on " + m_serveraddr + ":" + m_serverport);
 

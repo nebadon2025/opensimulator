@@ -709,6 +709,15 @@ namespace OpenSim.Region.Framework.Scenes
 
         }
 
+        public void AddNewSceneObjectPart(SceneObjectPart newPart, SceneObjectGroup parentGroup)
+        {
+            //assign a local ID.
+            newPart.LocalId = AllocateLocalId();
+            //add it to SceneGraph's record.
+            m_sceneGraph.AddNewSceneObjectPart(newPart, parentGroup);
+        }
+
+
         #endregion //SYMMETRIC SYNC
 
         public ICapabilitiesModule CapsModule
@@ -2475,7 +2484,7 @@ namespace OpenSim.Region.Framework.Scenes
             //Propagate the RemovedObject message
             if (RegionSyncModule != null)
             {
-                RegionSyncModule.SendDeleteObject(group);
+                RegionSyncModule.SendDeleteObject(group, false);
             }
             //end of SYMMETRIC SYNC
              

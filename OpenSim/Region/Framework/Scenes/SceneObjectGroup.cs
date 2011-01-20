@@ -2041,9 +2041,9 @@ namespace OpenSim.Region.Framework.Scenes
             //    objectGroup.RootPart.SendScheduledUpdates();
             //}
 
-//            m_log.DebugFormat(
-//                "[SCENE OBJECT GROUP]: Linking group with root part {0}, {1} to group with root part {2}, {3}",
-//                objectGroup.RootPart.Name, objectGroup.RootPart.UUID, RootPart.Name, RootPart.UUID);
+            //            m_log.DebugFormat(
+            //                "[SCENE OBJECT GROUP]: Linking group with root part {0}, {1} to group with root part {2}, {3}",
+            //                objectGroup.RootPart.Name, objectGroup.RootPart.UUID, RootPart.Name, RootPart.UUID);
 
             SceneObjectPart linkPart = objectGroup.m_rootPart;
 
@@ -2112,9 +2112,9 @@ namespace OpenSim.Region.Framework.Scenes
             objectGroup.m_isDeleted = true;
 
             objectGroup.m_parts.Clear();
-            
+
             // Can't do this yet since backup still makes use of the root part without any synchronization
-//            objectGroup.m_rootPart = null;
+            //            objectGroup.m_rootPart = null;
 
             AttachToBackup();
 
@@ -2125,6 +2125,12 @@ namespace OpenSim.Region.Framework.Scenes
 
             //HasGroupChanged = true;
             //ScheduleGroupForFullUpdate();
+
+            //SYMMETRIC SYNC
+            if (m_scene.RegionSyncModule != null)
+                m_scene.RegionSyncModule.SendDeleteObject(objectGroup, true);
+            //end of SYMMETRIC SYNC
+
         }
 
         /// <summary>
@@ -3474,10 +3480,11 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         /// <param name="updatedSog"></param>
         /// <returns></returns>
-        public Scene.ObjectUpdateResult UpdateObjectAllProperties(SceneObjectGroup updatedSog)
+        public Scene.ObjectUpdateResult UpdateObjectGroupBySync(SceneObjectGroup updatedSog)
         {
-            if (!this.GroupID.Equals(updatedSog.GroupID))
-                return Scene.ObjectUpdateResult.Error;
+            //This GroupID check should be done by the actor who initiates the object update
+            //if (!this.GroupID.Equals(updatedSog.GroupID))
+            //    return Scene.ObjectUpdateResult.Error;
 
             ////////////////////////////////////////////////////////////////////////////////////////////////////
             //NOTE!!! 
@@ -3494,16 +3501,84 @@ namespace OpenSim.Region.Framework.Scenes
             bool partsRemoved = false; //has any old part been removed?
             bool rootPartChanged = false; //has the rootpart be changed to a different prim?
 
-            lock (m_parts)
+            lock (m_parts.SyncRoot)
             {
                 //update rootpart, if changed
+                /*
                 if (m_rootPart.UUID != updatedSog.RootPart.UUID)
                 {
                     m_rootPart = updatedSog.RootPart;
                     rootPartChanged = true;
                 }
+                 * */
 
                 //foreach (KeyValuePair<UUID, SceneObjectPart> pair in updatedSog.Parts)
+                Dictionary<UUID, SceneObjectPart> remainedParts = new Dictionary<UUID, SceneObjectPart>();
+                Dictionary<UUID, SceneObjectPart> removedParts = new Dictionary<UUID, SceneObjectPart>();
+                Dictionary<UUID, SceneObjectPart> newParts = new Dictionary<UUID, SceneObjectPart>();
+
+                //Compare the parts in updatedSog and sort them into remained/removed/newParts groups
+                foreach (SceneObjectPart updatedPart in updatedSog.Parts)
+                {
+                    UUID partUUID = updatedPart.UUID;
+                    if (ContainsPart(partUUID))
+                    {
+                        SceneObjectPart localPart = GetChildPart(partUUID);
+                        remainedParts.Add(partUUID, localPart);
+                    }
+                    else
+                    {
+                        //in case the part is in the SceneGraph already
+                        SceneObjectPart localPart = m_scene.GetSceneObjectPart(partUUID);
+                        if(localPart!=null)
+                            newParts.Add(partUUID, localPart);
+                        else
+                            newParts.Add(partUUID, updatedPart);    
+                    }
+                }
+
+                foreach (SceneObjectPart localPart in this.Parts)
+                {
+                    if (!remainedParts.ContainsKey(localPart.UUID))
+                        removedParts.Add(localPart.UUID, localPart);
+                }
+
+                //Add in new parts
+                foreach (SceneObjectPart newPart in newParts.Values)
+                {
+                    //AddPart(newPart);
+                    AddNewPart(newPart);
+                }
+
+                //remove parts that are no longer in the group -- !!!!! need to further test how to do correct book-keeping and synchornized with other actors !!!!!!!!
+                foreach (SceneObjectPart rmPart in removedParts.Values)
+                {
+                    DelinkFromGroup(rmPart, true);
+                }
+
+                if (newParts.Count > 0 || removedParts.Count > 0)
+                {
+                    groupUpdateResult = Scene.ObjectUpdateResult.Updated;
+                }
+
+                //now update properties of the parts
+                foreach (SceneObjectPart part in this.Parts)
+                {
+                    Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Unchanged;
+                    SceneObjectPart updatedPart = updatedSog.GetChildPart(part.UUID);
+                    partUpdateResult = part.UpdateAllProperties(updatedPart);
+
+                    if (partUpdateResult != Scene.ObjectUpdateResult.Unchanged)
+                    {
+                        groupUpdateResult = partUpdateResult;
+                    }
+                }
+
+                //Just to make sure the parts each has the right localID of the rootpart
+                UpdateParentIDs();
+
+                /*
+                //old code below
                 foreach (SceneObjectPart updatedPart in updatedSog.Parts)
                 {
                     UUID partUUID = updatedPart.UUID;
@@ -3547,26 +3622,8 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     UpdateParentIDs();
                 }
+                 * */ 
             }
-
-            if (partsRemoved)
-            {
-                groupUpdateResult = Scene.ObjectUpdateResult.Updated;
-            }
-
-            /*
-            //update the authoritative scene that this object is located, which is identified by (LocX, LocY)
-            if (this.m_locX != updatedSog.LocX)
-            {
-                this.m_locX = updatedSog.LocX;
-                groupUpdateResult = Scene.ObjectUpdateResult.Updated;
-            }
-            if (this.m_locY != updatedSog.LocY)
-            {
-                this.m_locY = updatedSog.LocY;
-                groupUpdateResult = Scene.ObjectUpdateResult.Updated;
-            }
-             * */
 
             //Schedule updates to be sent out, if the local copy has just been updated
             //(1) if we are debugging the actor with a viewer attaching to it,
@@ -3579,6 +3636,14 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             return groupUpdateResult;
+        }
+
+        private void AddNewPart(SceneObjectPart newPart)
+        {
+            //set the parent relationship
+            AddPart(newPart);
+
+            m_scene.AddNewSceneObjectPart(newPart, this);
         }
 
         public void ScheduleGroupForFullUpdate_SyncInfoUnchanged()

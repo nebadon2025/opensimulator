@@ -391,8 +391,10 @@ namespace OpenSim.Framework
         private string m_syncListenerAddr = String.Empty;
         private int m_syncListenerPort;
         //IP:port for the avatar sync server this actor is configured to connect to
-        private string m_serverAddr = String.Empty;
-        private int m_serverPort;
+        private string m_avatarSyncServerAddr = String.Empty;
+        private int m_avatarSyncServerPort;
+        private uint m_quarkLocX;
+        private uint m_quarkLocY;
         //end of SYMMETRIC SYNC
 
         // Apparently, we're applying the same estatesettings regardless of whether it's local or remote.
@@ -693,13 +695,25 @@ namespace OpenSim.Framework
         {
             get { return m_syncListenerPort; }
         }
-        public string ServerIPAddress
+        public string AvatarSyncServerAddress
         {
-            get { return m_serverAddr; }
+            get { return m_avatarSyncServerAddr; }
         }
-        public int ServerPort
+        public int AvatarSyncServerPort
         {
-            get { return m_serverPort; }
+            get { return m_avatarSyncServerPort; }
+        }
+
+        public uint SyncQuarkLocationX
+        {
+            get { return m_quarkLocX; }
+            set { m_quarkLocX = value; }
+        }
+
+        public uint SyncQuarkLocationY
+        {
+            get { return m_quarkLocY; }
+            set { m_quarkLocY = value; }
         }
         //end of SYMMETRIC SYNC
 
@@ -859,16 +873,24 @@ namespace OpenSim.Framework
             ScopeID = new UUID(config.GetString("ScopeID", UUID.Zero.ToString()));
 
             // SYMMETRIC SYNC
-            m_syncListenerAddr = config.GetString("SyncListenerIPAddress", String.Empty);
+            m_syncListenerAddr = config.GetString("SyncListenerAddress", String.Empty);
             m_syncListenerPort = config.GetInt("SyncListenerPort", -1);
             //if either IP or port is not configured, we set IP to empty to raise warning later
             if (m_syncListenerPort == -1) 
                 m_syncListenerAddr = String.Empty;
 
-            m_serverAddr = config.GetString("ServerIPAddress", String.Empty);
-            m_serverPort = config.GetInt("ServerPort", -1);
-            if (m_serverPort == -1)
-                m_serverAddr = String.Empty;
+            m_avatarSyncServerAddr = config.GetString("AvatarSyncServerAddress", String.Empty);
+            m_avatarSyncServerPort = config.GetInt("AvatarSyncServerPort", -1);
+            if (m_avatarSyncServerPort == -1)
+                m_avatarSyncServerAddr = String.Empty;
+
+            string quarkLocation = config.GetString("SyncQuarkLocation", String.Empty);
+
+            string[] quarkLocElements = location.Split(new char[] { ',' });
+
+            m_quarkLocX = Convert.ToUInt32(quarkLocElements[0]);
+            m_quarkLocY = Convert.ToUInt32(quarkLocElements[1]);
+
 
             // end of SYMMETRIC SYNC
 

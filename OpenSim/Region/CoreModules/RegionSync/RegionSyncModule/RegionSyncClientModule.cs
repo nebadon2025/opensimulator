@@ -232,8 +232,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void Start()
         {
-            m_serveraddr = m_scene.RegionInfo.ServerIPAddress;
-            m_serverport = m_scene.RegionInfo.ServerPort;
+            m_serveraddr = m_scene.RegionInfo.AvatarSyncServerAddress;
+            m_serverport = m_scene.RegionInfo.AvatarSyncServerPort;
 
             if (m_serveraddr.Equals(String.Empty) || m_serverport == -1)
             {

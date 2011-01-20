@@ -2027,6 +2027,26 @@ namespace OpenSim.Region.Framework.Scenes
             return true;
         }
 
+        public void AddNewSceneObjectPart(SceneObjectPart newPart, SceneObjectGroup parentGroup)
+        {
+            SceneObjectPart[] children = parentGroup.Parts;
+
+            lock (SceneObjectGroupsByFullID)
+            {
+                SceneObjectGroupsByFullID[parentGroup.UUID] = parentGroup;
+                foreach (SceneObjectPart part in children)
+                    SceneObjectGroupsByFullID[newPart.UUID] = parentGroup;
+            }
+
+            lock (SceneObjectGroupsByLocalID)
+            {
+                SceneObjectGroupsByLocalID[parentGroup.LocalId] = parentGroup;
+                foreach (SceneObjectPart part in children)
+                    SceneObjectGroupsByLocalID[newPart.LocalId] = parentGroup;
+            }
+        }
+
+
         #endregion //SYMMETRIC SYNC
     }
 }

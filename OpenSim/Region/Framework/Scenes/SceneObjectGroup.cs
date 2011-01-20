@@ -3546,7 +3546,8 @@ namespace OpenSim.Region.Framework.Scenes
                 //Add in new parts
                 foreach (SceneObjectPart newPart in newParts.Values)
                 {
-                    AddPart(newPart);
+                    //AddPart(newPart);
+                    AddNewPart(newPart);
                 }
 
                 //remove parts that are no longer in the group -- !!!!! need to further test how to do correct book-keeping and synchornized with other actors !!!!!!!!
@@ -3635,6 +3636,14 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             return groupUpdateResult;
+        }
+
+        private void AddNewPart(SceneObjectPart newPart)
+        {
+            //set the parent relationship
+            AddPart(newPart);
+
+            m_scene.AddNewSceneObjectPart(newPart, this);
         }
 
         public void ScheduleGroupForFullUpdate_SyncInfoUnchanged()

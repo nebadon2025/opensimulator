@@ -118,11 +118,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             DefaultPort++;
 
             //Get sync server info for Physics Engine actors 
-            string peServerAddr = scene.RegionInfo.RegionName + "_SceneToPESyncServerIP";
-            m_peSyncServeraddr = syncConfig.GetString(peServerAddr, "127.0.0.1");
-            string peServerPort = scene.RegionInfo.RegionName + "_SceneToPESyncServerPort";
-            m_peSyncServerport = syncConfig.GetInt(peServerPort, DefaultPort);
-            DefaultPort++;
+            // string peServerAddr = scene.RegionInfo.RegionName + "_SceneToPESyncServerIP";
+            // m_peSyncServeraddr = syncConfig.GetString(peServerAddr, "127.0.0.1");
+            // string peServerPort = scene.RegionInfo.RegionName + "_SceneToPESyncServerPort";
+            // m_peSyncServerport = syncConfig.GetInt(peServerPort, DefaultPort);
+            // DefaultPort++;
             
             // m_symsync = syncConfig.GetBoolean("SymSync", false);
 
@@ -190,6 +190,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_sceneToSESyncServer.Start();
             }
 
+            m_peSyncServeraddr = m_scene.RegionInfo.PhysicsSyncServerAddress;
+            m_peSyncServerport = m_scene.RegionInfo.PhysicsSyncServerPort;
             if (!m_peSyncServeraddr.Equals(IPAddrUnknown) && m_peSyncServerport != PortUnknown)
             {
                 m_log.Warn("[REGION SYNC SERVER MODULE] Starting SceneToPhysEngineSyncServer");

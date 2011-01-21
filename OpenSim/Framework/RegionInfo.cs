@@ -393,6 +393,9 @@ namespace OpenSim.Framework
         //IP:port for the avatar sync server this actor is configured to connect to
         private string m_avatarSyncServerAddr = String.Empty;
         private int m_avatarSyncServerPort;
+        //IP:port for the physics sync server this actor is configured to connect to
+        private string m_physicsSyncServerAddr = String.Empty;
+        private int m_physicsSyncServerPort;
         private uint m_quarkLocX;
         private uint m_quarkLocY;
         //end of SYMMETRIC SYNC
@@ -703,6 +706,14 @@ namespace OpenSim.Framework
         {
             get { return m_avatarSyncServerPort; }
         }
+        public string PhysicsSyncServerAddress
+        {
+            get { return m_physicsSyncServerAddr; }
+        }
+        public int PhysicsSyncServerPort
+        {
+            get { return m_physicsSyncServerPort; }
+        }
 
         public uint SyncQuarkLocationX
         {
@@ -883,6 +894,11 @@ namespace OpenSim.Framework
             m_avatarSyncServerPort = config.GetInt("AvatarSyncServerPort", -1);
             if (m_avatarSyncServerPort == -1)
                 m_avatarSyncServerAddr = String.Empty;
+
+            m_physicsSyncServerAddr = config.GetString("PhysicsSyncServerAddress", String.Empty);
+            m_physicsSyncServerPort = config.GetInt("PhysicsSyncServerPort", -1);
+            if (m_physicsSyncServerPort == -1)
+                m_physicsSyncServerAddr = String.Empty;
 
             string quarkLocation = config.GetString("SyncQuarkLocation", "1000,1000");
 

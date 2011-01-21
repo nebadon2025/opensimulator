@@ -105,10 +105,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             m_log.Debug(LogHeader + " Init PEToSceneConnectorModule, for local scene " + scene.RegionInfo.RegionName);
 
-            string configString = scene.RegionInfo.RegionName + "_SceneToPESyncServerIP";
-            m_serveraddr = syncConfig.GetString(configString, "127.0.0.1");
-            configString = scene.RegionInfo.RegionName + "_SceneToPESyncServerPort";
-            m_serverport = syncConfig.GetInt(configString, 13000);
+            // string configString = scene.RegionInfo.RegionName + "_SceneToPESyncServerIP";
+            // m_serveraddr = syncConfig.GetString(configString, "127.0.0.1");
+            // configString = scene.RegionInfo.RegionName + "_SceneToPESyncServerPort";
+            // m_serverport = syncConfig.GetInt(configString, 13000);
 
             m_scene = scene;
             m_scene.RegisterModuleInterface<IPhysEngineToSceneConnectorModule>(this);
@@ -133,8 +133,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
             InstallInterfaces();
 
-            SyncStart(null);    // fake a 'phys start' to get things going
-
             m_log.Warn(LogHeader + " Initialised");
 
             // collect all the scenes for later routing
@@ -148,6 +146,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (!m_active)
                 return;
+
+            Start();    // fake a 'phys start' to get things going
 
             //m_log.Warn(LogHeader + " Post-Initialised");
         }
@@ -364,6 +364,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void SyncStart(Object[] args)
         {
+            Start();
+        }
+
+        private void Start()
+        {
+            m_serveraddr = m_scene.RegionInfo.PhysicsSyncServerAddress;
+            m_serverport = m_scene.RegionInfo.PhysicsSyncServerPort;
+
             lock (m_client_lock)
             {
                 //m_log.Warn(LogHeader + " Starting synchronization");

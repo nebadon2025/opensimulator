@@ -307,15 +307,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //SYMMETRIC SYNC: do not handle terrian and object updates
                 case RegionSyncMessage.MsgType.GetTerrain:
                     {
+                        /*
                         if (!m_scene.RegionSyncServerModule.IsSymSync)
                         {
                             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString()));
                             RegionSyncMessage.HandleSuccess(LogHeader, msg, "Terrain sent");
                         }
+                         * */ 
                         return;
                     }
                 case RegionSyncMessage.MsgType.GetObjects:
                     {
+                        /*
                         if (!m_scene.RegionSyncServerModule.IsSymSync)
                         {
                             EntityBase[] entities = m_scene.GetEntities();
@@ -329,6 +332,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             }
                             RegionSyncMessage.HandleSuccess(LogHeader, msg, "Sent all scene objects");
                         }
+                         * */ 
                         return;
                     }
                 //end of SYMMETRIC SYNC

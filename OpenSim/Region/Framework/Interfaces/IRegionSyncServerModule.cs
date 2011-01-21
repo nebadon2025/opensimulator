@@ -39,7 +39,7 @@ namespace OpenSim.Region.Framework.Interfaces
         bool Active { get; }
         bool Synced { get; }
 
-        bool IsSymSync { get; } //If SymSync is set to true in the config file, then Symmetric Sync is running and object updates should be handled through RegionSyncModule
+        //bool IsSymSync { get; } //If SymSync is set to true in the config file, then Symmetric Sync is running and object updates should be handled through RegionSyncModule
 
         void QueuePartForUpdate(SceneObjectPart part);
         void QueuePresenceForTerseUpdate(ScenePresence presence);

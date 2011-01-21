@@ -124,7 +124,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_peSyncServerport = syncConfig.GetInt(peServerPort, DefaultPort);
             DefaultPort++;
             
-            m_symsync = syncConfig.GetBoolean("SymSync", false);
+            // m_symsync = syncConfig.GetBoolean("SymSync", false);
 
             //Get quark information
             QuarkInfo.SizeX = syncConfig.GetInt("QuarkSizeX", (int)Constants.RegionSize);
@@ -156,6 +156,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.OnRemovePresence += new EventManager.OnRemovePresenceDelegate(EventManager_OnRemovePresence);
             
             //SYMMETRIC SYNC: do not handle object updates
+            /*
             if (!m_symsync)
             {
                 m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(SceneGraph_OnObjectCreate);
@@ -164,6 +165,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //m_scene.StatsReporter.OnSendStatsResult += new SimStatsReporter.SendStatResult(StatsReporter_OnSendStatsResult);
                 m_scene.EventManager.OnOarFileLoaded += new EventManager.OarFileLoaded(EventManager_OnOarFileLoaded);
             }
+             * */
             //end of SYMMETRIC SYNC
             // Start the server and listen for RegionSyncClients
             m_serveraddr = m_scene.RegionInfo.AvatarSyncServerAddress;
@@ -301,6 +303,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 // as parts may be updated many many times very quickly. Need to implement a higher resolution send in heartbeat
 
                 //SYMMETRIC SYNC: do not handle object updates
+                /*
                 if (!m_symsync)
                 {
                     foreach (SceneObjectGroup sog in primUpdates)
@@ -315,6 +318,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                     }
                 }
+                 * */ 
                 //end of SYMMETRIC SYNC
                 foreach (ScenePresence presence in presenceUpdates)
                 {
@@ -520,12 +524,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private SceneToPhysEngineSyncServer m_sceneToPESyncServer = null;
         
         //a boolean variable to indicate in symmetric sync is configured
-        private bool m_symsync = false;
+        //private bool m_symsync = false;
 
+        /*
         public bool IsSymSync
         {
             get { return IsSymSync; }
         }
+         * */
+
         //quark related information
         //private int QuarkInfo.SizeX;
         //private int QuarkInfo.SizeY;

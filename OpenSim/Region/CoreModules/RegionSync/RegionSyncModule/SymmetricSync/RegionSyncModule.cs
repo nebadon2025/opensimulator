@@ -566,8 +566,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName+"_SyncListenerIPAddress", IPAddrUnknown);
             //int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName+"_SyncListenerPort", PortUnknown);
 
-            string addr = m_scene.RegionInfo.SyncListenerAddress;
-            int port = m_scene.RegionInfo.SyncListenerPort;
+            string addr = m_scene.RegionInfo.SyncServerAddress;
+            int port = m_scene.RegionInfo.SyncServerPort;
 
             m_log.Warn(LogHeader + ": listener addr: " + addr + ", port: " + port);
 
@@ -592,8 +592,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress", IPAddrUnknown);
             //int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName + "_SyncListenerPort", PortUnknown);
 
-            string addr = m_scene.RegionInfo.SyncListenerAddress;
-            int port = m_scene.RegionInfo.SyncListenerPort;
+            string addr = m_scene.RegionInfo.SyncServerAddress;
+            int port = m_scene.RegionInfo.SyncServerPort;
 
             if (!addr.Equals(IPAddrUnknown) && port != PortUnknown)
             {

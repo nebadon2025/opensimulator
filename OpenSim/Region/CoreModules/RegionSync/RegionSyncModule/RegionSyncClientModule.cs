@@ -77,7 +77,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                 m_scene.RegisterModuleInterface<IRegionSyncClientModule>(this);
 
-                m_symsync = syncConfig.GetBoolean("SymSync", false);
+                //m_symsync = syncConfig.GetBoolean("SymSync", false);
 
                 // Setup the command line interface
                 m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
@@ -160,7 +160,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private Object m_client_lock = new Object();
         private RegionSyncClient m_client = null;
 
-        private bool m_symsync = false;
+        //private bool m_symsync = false;
 
         #endregion
 
@@ -253,7 +253,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.Warn("[REGION SYNC CLIENT MODULE] Starting RegionSyncClient");
 
                 m_client = new RegionSyncClient(m_scene, m_serveraddr, m_serverport);
-                m_client.SetSymSync(m_symsync);
+                //m_client.SetSymSync(m_symsync);
                 m_client.Start();
             }
         }

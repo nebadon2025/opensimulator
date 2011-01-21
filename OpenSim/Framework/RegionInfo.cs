@@ -388,8 +388,8 @@ namespace OpenSim.Framework
 
         //SYMMETRIC SYNC
         //IP:port for the symmetric sync listener this actor is configured to connect to
-        private string m_syncListenerAddr = String.Empty;
-        private int m_syncListenerPort;
+        private string m_syncServerAddr = String.Empty;
+        private int m_syncServerPort;
         //IP:port for the avatar sync server this actor is configured to connect to
         private string m_avatarSyncServerAddr = String.Empty;
         private int m_avatarSyncServerPort;
@@ -687,13 +687,13 @@ namespace OpenSim.Framework
         }
 
         //SYMMETRIC SYNC
-        public string SyncListenerAddress
+        public string SyncServerAddress
         {
-            get { return m_syncListenerAddr; }
+            get { return m_syncServerAddr; }
         }
-        public int SyncListenerPort
+        public int SyncServerPort
         {
-            get { return m_syncListenerPort; }
+            get { return m_syncServerPort; }
         }
         public string AvatarSyncServerAddress
         {
@@ -873,18 +873,18 @@ namespace OpenSim.Framework
             ScopeID = new UUID(config.GetString("ScopeID", UUID.Zero.ToString()));
 
             // SYMMETRIC SYNC
-            m_syncListenerAddr = config.GetString("SyncListenerAddress", String.Empty);
-            m_syncListenerPort = config.GetInt("SyncListenerPort", -1);
+            m_syncServerAddr = config.GetString("SyncServerAddress", String.Empty);
+            m_syncServerPort = config.GetInt("SyncServerPort", -1);
             //if either IP or port is not configured, we set IP to empty to raise warning later
-            if (m_syncListenerPort == -1) 
-                m_syncListenerAddr = String.Empty;
+            if (m_syncServerPort == -1) 
+                m_syncServerAddr = String.Empty;
 
             m_avatarSyncServerAddr = config.GetString("AvatarSyncServerAddress", String.Empty);
             m_avatarSyncServerPort = config.GetInt("AvatarSyncServerPort", -1);
             if (m_avatarSyncServerPort == -1)
                 m_avatarSyncServerAddr = String.Empty;
 
-            string quarkLocation = config.GetString("SyncQuarkLocation", String.Empty);
+            string quarkLocation = config.GetString("SyncQuarkLocation", "1000,1000");
 
             string[] quarkLocElements = location.Split(new char[] { ',' });
 

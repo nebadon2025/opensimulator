@@ -158,10 +158,17 @@ namespace OpenSim.Services.Connectors.Hypergrid
             try
             {
                 WebClient c = new WebClient();
-                //m_log.Debug("JPEG: " + imageURL);
                 string name = regionID.ToString();
                 filename = Path.Combine(storagePath, name + ".jpg");
-                c.DownloadFile(imageURL, filename);
+                m_log.DebugFormat("[GATEKEEPER SERVICE CONNECTOR]: Map image at {0}, cached at {1}", imageURL, filename);
+                if (!File.Exists(filename))
+                {
+                    m_log.DebugFormat("[GATEKEEPER SERVICE CONNECTOR]: downloading...");
+                    c.DownloadFile(imageURL, filename);
+                }
+                else
+                    m_log.DebugFormat("[GATEKEEPER SERVICE CONNECTOR]: using cached image");
+
                 bitmap = new Bitmap(filename);
                 //m_log.Debug("Size: " + m.PhysicalDimension.Height + "-" + m.PhysicalDimension.Width);
                 byte[] imageData = OpenJPEG.EncodeFromImage(bitmap, true);
@@ -172,10 +179,11 @@ namespace OpenSim.Services.Connectors.Hypergrid
 
                 ass.Data = imageData;
 
-                m_AssetService.Store(ass);
+                mapTile = ass.FullID;
 
                 // finally
-                mapTile = ass.FullID;
+                m_AssetService.Store(ass);
+
             }
             catch // LEGIT: Catching problems caused by OpenJPEG p/invoke
             {
@@ -283,46 +291,52 @@ namespace OpenSim.Services.Connectors.Hypergrid
 
         public bool CreateAgent(GridRegion destination, AgentCircuitData aCircuit, uint flags, out string myipaddress, out string reason)
         {
-            HttpWebRequest AgentCreateRequest = null;
+            // m_log.DebugFormat("[GATEKEEPER SERVICE CONNECTOR]: CreateAgent start");
+
             myipaddress = String.Empty;
             reason = String.Empty;
 
-            if (SendRequest(destination, aCircuit, flags, out reason, out AgentCreateRequest))
+            if (destination == null)
             {
-                string response = GetResponse(AgentCreateRequest, out reason);
-                bool success = true;
-                UnpackResponse(response, out success, out reason, out myipaddress);
-                return success;
+                m_log.Debug("[GATEKEEPER SERVICE CONNECTOR]: Given destination is null");
+                return false;
+            }
+
+            string uri = destination.ServerURI + AgentPath() + aCircuit.AgentID + "/";
+
+            try
+            {
+                OSDMap args = aCircuit.PackAgentCircuitData();
+
+                args["destination_x"] = OSD.FromString(destination.RegionLocX.ToString());
+                args["destination_y"] = OSD.FromString(destination.RegionLocY.ToString());
+                args["destination_name"] = OSD.FromString(destination.RegionName);
+                args["destination_uuid"] = OSD.FromString(destination.RegionID.ToString());
+                args["teleport_flags"] = OSD.FromString(flags.ToString());
+
+                OSDMap result = WebUtil.PostToService(uri,args);
+                if (result["Success"].AsBoolean())
+                {
+                    OSDMap unpacked = (OSDMap)result["_Result"];
+
+                    if (unpacked != null)
+                    {
+                        reason = unpacked["reason"].AsString();
+                        myipaddress = unpacked["your_ip"].AsString();
+                        return unpacked["success"].AsBoolean();
+                    }
+                }
+                
+                reason = result["Message"] != null ? result["Message"].AsString() : "error";
+                return false;
+            }
+            catch (Exception e)
+            {
+                m_log.Warn("[REMOTE SIMULATION CONNECTOR]: CreateAgent failed with exception: " + e.ToString());
+                reason = e.Message;
             }
 
             return false;
         }
-
-        protected void UnpackResponse(string response, out bool result, out string reason, out string ipaddress)
-        {
-            result = true;
-            reason = string.Empty;
-            ipaddress = string.Empty;
-
-            if (!String.IsNullOrEmpty(response))
-            {
-                try
-                {
-                    // we assume we got an OSDMap back
-                    OSDMap r = Util.GetOSDMap(response);
-                    result = r["success"].AsBoolean();
-                    reason = r["reason"].AsString();
-                    ipaddress = r["your_ip"].AsString();
-                }
-                catch (NullReferenceException e)
-                {
-                    m_log.InfoFormat("[GATEKEEPER SERVICE CONNECTOR]: exception on UnpackResponse of DoCreateChildAgentCall {0}", e.Message);
-                    reason = "Internal error";
-                    result = false;
-                }
-            }
-        }
-
-
     }
 }

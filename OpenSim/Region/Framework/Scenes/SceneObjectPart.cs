@@ -4962,6 +4962,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        private Object propertyUpdateLock = new Object();
+
         //!!!!!! -- TODO: 
         //!!!!!! -- We should call UpdateXXX functions to update each property, cause some of such updates involves sanity checking.
         public Scene.ObjectUpdateResult UpdateAllProperties(SceneObjectPart updatedPart)
@@ -5005,70 +5007,94 @@ namespace OpenSim.Region.Framework.Scenes
             //Otherwise, our timestamp is less up to date, update the prim with the received copy
 
             Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Updated;
+            bool collisionSoundUpdated = false;
+            lock (propertyUpdateLock)
+            {
 
-            //See SceneObjectSerializer for the properties that are included in a serialized SceneObjectPart.
-            this.AllowedDrop = updatedPart.AllowedDrop;
-            this.CreatorID = updatedPart.CreatorID;
-            this.CreatorData = updatedPart.CreatorData;
-            this.FolderID = updatedPart.FolderID;
-            this.InventorySerial = updatedPart.InventorySerial;
-            this.TaskInventory = updatedPart.TaskInventory;
-            //Following two properties, UUID and LocalId, shall not be updated.
-            //this.UUID 
-            //this.LocalId
-            this.Name = updatedPart.Name;
-            this.Material = updatedPart.Material;
-            this.PassTouches = updatedPart.PassTouches;
-            //RegionHandle shall not be copied, since updatedSog is sent by a different actor, which has a different local region
-            //this.RegionHandle 
-            this.ScriptAccessPin = updatedPart.ScriptAccessPin;
-            this.GroupPosition = updatedPart.GroupPosition;
-            this.OffsetPosition = updatedPart.OffsetPosition;
-            this.RotationOffset = updatedPart.RotationOffset;
-            this.Velocity = updatedPart.Velocity;
-            this.AngularVelocity = updatedPart.AngularVelocity;
-            this.Acceleration = updatedPart.Acceleration;
-            this.Description = updatedPart.Description;
-            this.Color = updatedPart.Color;
-            this.Text = updatedPart.Text;
-            this.SitName = updatedPart.SitName;
-            this.TouchName = updatedPart.TouchName;
-            this.LinkNum = updatedPart.LinkNum;
-            this.ClickAction = updatedPart.ClickAction;
-            this.Shape = updatedPart.Shape;
-            this.Scale = updatedPart.Scale;
-            this.UpdateFlag = updatedPart.UpdateFlag;
-            this.SitTargetOrientation = updatedPart.SitTargetOrientation;
-            this.SitTargetPosition = updatedPart.SitTargetPosition;
-            this.SitTargetPositionLL = updatedPart.SitTargetPositionLL;
-            this.SitTargetOrientationLL = updatedPart.SitTargetOrientationLL;
-            //ParentID should still point to the rootpart in the local sog, do not update. If the root part changed, we will update it in SceneObjectGroup.UpdateObjectProperties()
-            //this.ParentID;
-            this.CreationDate = updatedPart.CreationDate;
-            this.Category = updatedPart.Category;
-            this.SalePrice = updatedPart.SalePrice;
-            this.ObjectSaleType = updatedPart.ObjectSaleType;
-            this.OwnershipCost = updatedPart.OwnershipCost;
-            this.GroupID = updatedPart.GroupID;
-            this.OwnerID = updatedPart.OwnerID;
-            this.LastOwnerID = updatedPart.LastOwnerID;
-            this.BaseMask = updatedPart.BaseMask;
-            this.OwnerMask = updatedPart.OwnerMask;
-            this.GroupMask = updatedPart.GroupMask;
-            this.EveryoneMask = updatedPart.EveryoneMask;
-            this.NextOwnerMask = updatedPart.NextOwnerMask;
-            this.Flags = updatedPart.Flags;
-            this.CollisionSound = updatedPart.CollisionSound;
-            this.CollisionSoundVolume = updatedPart.CollisionSoundVolume;
-            this.MediaUrl = updatedPart.MediaUrl;
-            this.TextureAnimation = updatedPart.TextureAnimation;
-            this.ParticleSystem = updatedPart.ParticleSystem;
+                //See SceneObjectSerializer for the properties that are included in a serialized SceneObjectPart.
+                this.AllowedDrop = updatedPart.AllowedDrop;
+                this.CreatorID = updatedPart.CreatorID;
+                this.CreatorData = updatedPart.CreatorData;
+                this.FolderID = updatedPart.FolderID;
+                this.InventorySerial = updatedPart.InventorySerial;
+                this.TaskInventory = updatedPart.TaskInventory;
+                //Following two properties, UUID and LocalId, shall not be updated.
+                //this.UUID 
+                //this.LocalId
+                this.Name = updatedPart.Name;
+                this.Material = updatedPart.Material;
+                this.PassTouches = updatedPart.PassTouches;
+                //RegionHandle shall not be copied, since updatedSog is sent by a different actor, which has a different local region
+                //this.RegionHandle 
+                this.ScriptAccessPin = updatedPart.ScriptAccessPin;
+                this.GroupPosition = updatedPart.GroupPosition;
+                this.OffsetPosition = updatedPart.OffsetPosition;
+                this.RotationOffset = updatedPart.RotationOffset;
+                this.Velocity = updatedPart.Velocity;
+                this.AngularVelocity = updatedPart.AngularVelocity;
+                this.Acceleration = updatedPart.Acceleration;
+                this.Description = updatedPart.Description;
+                this.Color = updatedPart.Color;
+                this.Text = updatedPart.Text;
+                this.SitName = updatedPart.SitName;
+                this.TouchName = updatedPart.TouchName;
+                this.LinkNum = updatedPart.LinkNum;
+                this.ClickAction = updatedPart.ClickAction;
+                this.Shape = updatedPart.Shape;
+                this.Scale = updatedPart.Scale;
+                this.UpdateFlag = updatedPart.UpdateFlag;
+                this.SitTargetOrientation = updatedPart.SitTargetOrientation;
+                this.SitTargetPosition = updatedPart.SitTargetPosition;
+                this.SitTargetPositionLL = updatedPart.SitTargetPositionLL;
+                this.SitTargetOrientationLL = updatedPart.SitTargetOrientationLL;
+                //ParentID should still point to the rootpart in the local sog, do not update. If the root part changed, we will update it in SceneObjectGroup.UpdateObjectProperties()
+                //this.ParentID;
+                this.CreationDate = updatedPart.CreationDate;
+                this.Category = updatedPart.Category;
+                this.SalePrice = updatedPart.SalePrice;
+                this.ObjectSaleType = updatedPart.ObjectSaleType;
+                this.OwnershipCost = updatedPart.OwnershipCost;
+                this.GroupID = updatedPart.GroupID;
+                this.OwnerID = updatedPart.OwnerID;
+                this.LastOwnerID = updatedPart.LastOwnerID;
+                this.BaseMask = updatedPart.BaseMask;
+                this.OwnerMask = updatedPart.OwnerMask;
+                this.GroupMask = updatedPart.GroupMask;
+                this.EveryoneMask = updatedPart.EveryoneMask;
+                this.NextOwnerMask = updatedPart.NextOwnerMask;
+                this.Flags = updatedPart.Flags;
 
-            //Update the timestamp and LastUpdatedByActorID first.
-            this.m_lastUpdateActorID = updatedPart.LastUpdateActorID;
-            this.m_lastUpdateTimeStamp = updatedPart.LastUpdateTimeStamp;
+                //We will update CollisionSound with special care so that it does not lead to ScheduleFullUpdate of this part, to make the actor think it just made an update and 
+                //need to propogate that update to other actors.
+                //this.CollisionSound = updatedPart.CollisionSound;
+                collisionSoundUpdated = UpdateCollisionSound(updatedPart.CollisionSound);
+
+                this.CollisionSoundVolume = updatedPart.CollisionSoundVolume;
+                this.MediaUrl = updatedPart.MediaUrl;
+                this.TextureAnimation = updatedPart.TextureAnimation;
+                this.ParticleSystem = updatedPart.ParticleSystem;
+
+                //Update the timestamp and LastUpdatedByActorID first.
+                this.m_lastUpdateActorID = updatedPart.LastUpdateActorID;
+                this.m_lastUpdateTimeStamp = updatedPart.LastUpdateTimeStamp;
+            }
+
+            if (collisionSoundUpdated)
+            {
+                m_parentGroup.Scene.EventManager.TriggerAggregateScriptEvents(this);
+            }
 
             return partUpdateResult;
+        }
+
+        private bool UpdateCollisionSound(UUID updatedCollisionSound)
+        {
+            if (this.CollisionSound != updatedCollisionSound)
+            {
+                m_collisionSound = updatedCollisionSound;
+                return true;
+            }
+            return false;
         }
 
         /// <summary>

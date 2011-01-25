@@ -84,14 +84,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
 
             //Register for Scene/SceneGraph events
-            m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(ScriptEngine_OnObjectCreate);
+            //m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(ScriptEngine_OnObjectCreate);
+            m_scene.SceneGraph.OnObjectCreateBySync += new ObjectCreateBySyncDelegate(ScriptEngine_OnObjectCreateBySync);
             m_scene.EventManager.OnSymmetricSyncStop += ScriptEngine_OnSymmetricSyncStop;
 
             //for local OnUpdateScript, we'll handle it the same way as a remove OnUpdateScript. 
             //RegionSyncModule will capture a locally initiated OnUpdateScript event and publish it to other actors.
             m_scene.EventManager.OnNewScript += ScriptEngine_OnNewScript;
-            m_scene.EventManager.OnUpdateScript += ScriptEngine_OnUpdateScript; 
-            //m_scene.EventManager.OnUpdateScriptBySync += ScriptEngine_OnUpdateScript;
+            m_scene.EventManager.OnUpdateScript += ScriptEngine_OnUpdateScript;
+
+            m_scene.EventManager.OnAggregateScriptEvents += ScriptEngine_OnAggregateScriptEvents;
 
             LogHeader += "-" + m_actorID + "-" + m_scene.RegionInfo.RegionName;
         }
@@ -166,7 +168,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <summary>
         /// Script Engine's action upon an object is added to the local scene
         /// </summary>
-        private void ScriptEngine_OnObjectCreate(EntityBase entity)
+        private void ScriptEngine_OnObjectCreateBySync(EntityBase entity)
         {
             if (entity is SceneObjectGroup)
             {
@@ -197,6 +199,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_log.Debug(LogHeader + " ScriptEngine_OnUpdateScript");
             m_scene.SymSync_OnUpdateScript(agentID, itemID, primID, isScriptRunning, newAssetID);
+        }
+
+        public void ScriptEngine_OnAggregateScriptEvents(SceneObjectPart part)
+        {
+            part.aggregateScriptEvents();
         }
 
         #endregion //ScriptEngineSyncModule

@@ -85,7 +85,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
 
             //Register for Scene/SceneGraph events
-            m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(PhysicsEngine_OnObjectCreate);
+            //m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(PhysicsEngine_OnObjectCreate);
+            m_scene.SceneGraph.OnObjectCreateBySync += new ObjectCreateBySyncDelegate(PhysicsEngine_OnObjectCreateBySync);
             m_scene.EventManager.OnSymmetricSyncStop += PhysicsEngine_OnSymmetricSyncStop;
         }
 
@@ -151,7 +152,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <summary>
         /// Script Engine's action upon an object is added to the local scene
         /// </summary>
-        private void PhysicsEngine_OnObjectCreate(EntityBase entity)
+        private void PhysicsEngine_OnObjectCreateBySync(EntityBase entity)
         {
             if (entity is SceneObjectGroup)
             {

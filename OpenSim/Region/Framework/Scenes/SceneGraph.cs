@@ -47,6 +47,11 @@ namespace OpenSim.Region.Framework.Scenes
 
     public delegate void ObjectDeleteDelegate(EntityBase obj);
 
+    //SYMMETRIC SYNC
+    public delegate void ObjectCreateBySyncDelegate(EntityBase obj);
+    //end of SYMMETRIC SYNC
+
+
     /// <summary>
     /// This class used to be called InnerScene and may not yet truly be a SceneGraph.  The non scene graph components
     /// should be migrated out over time.
@@ -63,6 +68,10 @@ namespace OpenSim.Region.Framework.Scenes
         public event ObjectDuplicateDelegate OnObjectDuplicate;
         public event ObjectCreateDelegate OnObjectCreate;
         public event ObjectDeleteDelegate OnObjectRemove;
+
+        //SYMMETRIC SYNC
+        public event ObjectCreateBySyncDelegate OnObjectCreateBySync;
+        //end of SYMMETRIC SYNC
 
         #endregion
 
@@ -1963,9 +1972,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        //This is an object added due to receiving a state synchronization message from Scene or an actor. Do similar things as the original AddSceneObject(),
-        //but call ScheduleGroupForFullUpdate_TimeStampUnchanged() instead, so as not to modify the timestamp or actorID, since the object was not created
-        //locally.
+        //This is called when an object is added due to receiving a state synchronization message from Scene or an actor. Do similar things as the original AddSceneObject(),
+        //but call ScheduleGroupForFullUpdate_TimeStampUnchanged() instead, so as not to modify the timestamp or actorID, since the object was not created locally.
         public bool AddSceneObjectByStateSynch(SceneObjectGroup sceneObject)
         {
             if (sceneObject == null || sceneObject.RootPart == null || sceneObject.RootPart.UUID == UUID.Zero)
@@ -2007,8 +2015,12 @@ namespace OpenSim.Region.Framework.Scenes
             //if (attachToBackup)
             //    sceneObject.AttachToBackup();
 
-            if (OnObjectCreate != null)
-                OnObjectCreate(sceneObject);
+            //if (OnObjectCreate != null)
+            //    OnObjectCreate(sceneObject);
+
+            if (OnObjectCreateBySync != null)
+                OnObjectCreateBySync(sceneObject);
+
 
             lock (SceneObjectGroupsByFullID)
             {

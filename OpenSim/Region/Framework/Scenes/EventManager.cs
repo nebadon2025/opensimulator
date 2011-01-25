@@ -2528,6 +2528,28 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        public delegate void AggregateScriptEvents(SceneObjectPart part);
+        public event AggregateScriptEvents OnAggregateScriptEvents;
+        public void TriggerAggregateScriptEvents(SceneObjectPart part)
+        {
+            AggregateScriptEvents handlerAggregateScriptEvents = OnAggregateScriptEvents;
+            if (handlerAggregateScriptEvents != null)
+            {
+                foreach (AggregateScriptEvents d in handlerAggregateScriptEvents.GetInvocationList())
+                {
+                    try
+                    {
+                        d(part);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerAggregateScriptEvents failed - continuing.  {0} {1}",
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
         //end of SYMMETRIC SYNC
     }
 }

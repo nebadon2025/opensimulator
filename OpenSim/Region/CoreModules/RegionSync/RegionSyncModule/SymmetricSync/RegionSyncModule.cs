@@ -215,21 +215,27 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
             }
 
-            List<SceneObjectGroup> primUpdates;
-            List<ScenePresence> presenceUpdates;
+            List<SceneObjectGroup> primUpdates=null;
+            List<ScenePresence> presenceUpdates=null;
 
-            lock (m_updateSceneObjectPartLock)
+            if (m_primUpdates.Count > 0)
             {
-                primUpdates = new List<SceneObjectGroup>(m_primUpdates.Values);
-                //presenceUpdates = new List<ScenePresence>(m_presenceUpdates.Values);
-                m_primUpdates.Clear();
-                //m_presenceUpdates.Clear();
+                lock (m_updateSceneObjectPartLock)
+                {
+                    primUpdates = new List<SceneObjectGroup>(m_primUpdates.Values);
+                    //presenceUpdates = new List<ScenePresence>(m_presenceUpdates.Values);
+                    m_primUpdates.Clear();
+                    //m_presenceUpdates.Clear();
+                }
             }
 
-            lock (m_updateScenePresenceLock)
+            if (m_presenceUpdates.Count > 0)
             {
-                presenceUpdates = new List<ScenePresence>(m_presenceUpdates.Values);
-                m_presenceUpdates.Clear();
+                lock (m_updateScenePresenceLock)
+                {
+                    presenceUpdates = new List<ScenePresence>(m_presenceUpdates.Values);
+                    m_presenceUpdates.Clear();
+                }
             }
 
             // This could be another thread for sending outgoing messages or just have the Queue functions
@@ -238,18 +244,23 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 // Dan's note: Sending the message when it's first queued would yield lower latency but much higher load on the simulator
                 // as parts may be updated many many times very quickly. Need to implement a higher resolution send in heartbeat
-                foreach (SceneObjectGroup sog in primUpdates)
+
+                if (primUpdates != null)
                 {
-                    //If this is a relay node, or at least one part of the object has the last update caused by this actor, then send the update
-                    if (m_isSyncRelay || (!sog.IsDeleted && CheckObjectForSendingUpdate(sog)))
+                    foreach (SceneObjectGroup sog in primUpdates)
                     {
-                        //send 
-                        string sogxml = SceneObjectSerializer.ToXml2Format(sog);
-                        SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
-                        SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
+                        //If this is a relay node, or at least one part of the object has the last update caused by this actor, then send the update
+                        if (m_isSyncRelay || (!sog.IsDeleted && CheckObjectForSendingUpdate(sog)))
+                        {
+                            //send 
+                            string sogxml = SceneObjectSerializer.ToXml2Format(sog);
+                            SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
+                            SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
+                        }
                     }
                 }
                 /*
+                if(presenceUpdates!=null){
                 foreach (ScenePresence presence in presenceUpdates)
                 {
                     try
@@ -291,7 +302,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     {
                         m_log.ErrorFormat("[REGION SYNC MODULE] Caught exception sending presence updates for {0}: {1}", presence.Name, e.Message);
                     }
-                }
+                }}
                  * */
 
                 // Indicate that the current batch of updates has been completed
@@ -415,6 +426,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_log.Warn("[REGION SYNC MODULE]: StatsTimerElapsed -- NOT yet implemented.");
         }
 
+        //Object updates are sent by enqueuing into each connector's outQueue.
         private void SendObjectUpdateToRelevantSyncConnectors(SceneObjectGroup sog, SymmetricSyncMessage syncMsg)
         {
             List<SyncConnector> syncConnectors = GetSyncConnectorsForObjectUpdates(sog);
@@ -427,6 +439,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        //Events are send out right away, without being put into the connector's outQueue first. 
+        //May need a better method for managing the outgoing messages (i.e. prioritizing object updates and events)
         private void SendSceneEventToRelevantSyncConnectors(string init_actorID, SymmetricSyncMessage rsm)
         {
             List<SyncConnector> syncConnectors = GetSyncConnectorsForSceneEvents(init_actorID, rsm);
@@ -784,8 +798,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         /// <summary>
-        /// This function will enqueue a message for each SyncConnector in the connector's outgoing queue.
-        /// Each SyncConnector has a SendLoop thread to send the messages in its outgoing queue.
+        /// This function will send out the sync message right away, without putting it into the SyncConnector's queue.
+        /// Should only be called for infrequent or high prority messages.
         /// </summary>
         /// <param name="msgType"></param>
         /// <param name="data"></param>

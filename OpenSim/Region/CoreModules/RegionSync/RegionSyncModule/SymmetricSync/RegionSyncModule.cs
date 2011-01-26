@@ -206,6 +206,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        //SendSceneUpdates put each update into an outgoing queue of each SyncConnector
         public void SendSceneUpdates()
         {
             // Existing value of 1 indicates that updates are currently being sent so skip updates this pass
@@ -310,6 +311,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             });
         }
 
+        //The following Sendxxx calls,send out a message immediately, w/o putting it in the SyncConnector's outgoing queue.
+        //May need some optimization there on the priorities.
+
         public void SendTerrainUpdates(string lastUpdateActorID)
         {
             if(m_isSyncRelay || m_actorID.Equals(lastUpdateActorID))
@@ -319,6 +323,114 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 SendTerrainUpdateMessage();
             }
         }
+
+        /// <summary>
+        /// Send a sync message to remove the given objects in all connected actors. 
+        /// UUID is used for identified a removed object. This function now should
+        /// only be triggered by an object removal that is initiated locally.
+        /// </summary>
+        /// <param name="sog"></param>
+        //private void RegionSyncModule_OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
+        public void SendDeleteObject(SceneObjectGroup sog, bool softDelete)
+        {
+            //m_log.DebugFormat("RegionSyncModule_OnObjectBeingRemovedFromScene called at time {0}:{1}:{2}", DateTime.Now.Minute, DateTime.Now.Second, DateTime.Now.Millisecond);
+
+            //Only send the message out if this is a relay node for sync messages, or this actor caused deleting the object
+            //if (m_isSyncRelay || CheckObjectForSendingUpdate(sog))
+
+
+            OSDMap data = new OSDMap();
+            //data["regionHandle"] = OSD.FromULong(regionHandle);
+            //data["localID"] = OSD.FromUInteger(sog.LocalId);
+            data["UUID"] = OSD.FromUUID(sog.UUID);
+            data["actorID"] = OSD.FromString(m_actorID);
+            data["softDelete"] = OSD.FromBoolean(softDelete);
+
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
+            SendObjectUpdateToRelevantSyncConnectors(sog, rsm);
+        }
+
+
+        public void SendLinkObject(SceneObjectPart root, List<SceneObjectPart> children)
+        {
+            if(children.Count==0) return;
+
+            OSDMap data = new OSDMap();
+            //string sogxml = SceneObjectSerializer.ToXml2Format(linkedGroup);
+            //data["linkedGroup"]=OSD.FromString(sogxml);
+            data["root"] = OSD.FromUUID(root.UUID);
+            data["partCount"] = OSD.FromInteger(children.Count);
+            data["actorID"] = OSD.FromString(m_actorID);
+            int partNum = 0;
+            foreach(SceneObjectPart part in children){
+                string partTempID = "part"+partNum;
+                data[partTempID] = OSD.FromUUID(part.UUID);
+                partNum++;
+            }
+
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.LinkObject, OSDParser.SerializeJsonString(data));
+            SendObjectUpdateToRelevantSyncConnectors(root.ParentGroup, rsm);
+        }
+
+
+        public void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs)
+        {
+            switch (ev)
+            {
+                case EventManager.EventNames.NewScript:
+                    if (evArgs.Length < 3)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for NewScript");
+                        return;
+                    }
+                    OnLocalNewScript((UUID)evArgs[0], (SceneObjectPart)evArgs[1], (UUID)evArgs[2]);
+                    return;
+                case EventManager.EventNames.UpdateScript:
+                    if (evArgs.Length < 5)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for UpdateScript");
+                        return;
+                    }
+                    OnLocalUpdateScript((UUID)evArgs[0], (UUID)evArgs[1], (UUID)evArgs[2], (bool)evArgs[3], (UUID)evArgs[4]);
+                    return;
+                case EventManager.EventNames.ScriptReset:
+                    if (evArgs.Length < 2)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for ScriptReset");
+                        return;
+                    }
+                    OnLocalScriptReset((uint)evArgs[0], (UUID)evArgs[1]);
+                    return;
+                case EventManager.EventNames.ChatFromClient:
+                    if (evArgs.Length < 2)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for ChatFromClient");
+                        return;
+                    }
+                    OnLocalChatFromClient(evArgs[0], (OSChatMessage)evArgs[1]);
+                    return;
+                case EventManager.EventNames.ChatFromWorld:
+                    if (evArgs.Length < 2)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for ChatFromWorld");
+                        return;
+                    }
+                    OnLocalChatFromWorld(evArgs[0], (OSChatMessage)evArgs[1]);
+                    return;
+                case EventManager.EventNames.ObjectGrab:
+                    OnLocalGrabObject((uint)evArgs[0], (uint)evArgs[1], (Vector3)evArgs[2], (IClientAPI)evArgs[3], (SurfaceTouchEventArgs)evArgs[4]);
+                    return;
+                case EventManager.EventNames.ObjectGrabbing:
+                    OnLocalObjectGrabbing((uint)evArgs[0], (uint)evArgs[1], (Vector3)evArgs[2], (IClientAPI)evArgs[3], (SurfaceTouchEventArgs)evArgs[4]);
+                    return;
+                case EventManager.EventNames.ObjectDeGrab:
+                    OnLocalDeGrabObject((uint)evArgs[0], (uint)evArgs[1], (IClientAPI)evArgs[2], (SurfaceTouchEventArgs)evArgs[3]);
+                    return;
+                default:
+                    return;
+            }
+        }
+
 
         #endregion //IRegionSyncModule  
 
@@ -855,7 +967,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// The handler for processing incoming sync messages.
         /// </summary>
         /// <param name="msg"></param>
-        public void HandleIncomingMessage(SymmetricSyncMessage msg)
+        public void HandleIncomingMessage(SymmetricSyncMessage msg, string senderActorID)
         {
             switch (msg.Type)
             {
@@ -901,6 +1013,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.RemovedObject:
                     {
                         HandleRemovedObject(msg);
+                        return;
+                    }
+                case SymmetricSyncMessage.MsgType.LinkObject:
+                    {
+                        HandleLinkObject(msg);
                         return;
                     }
                     //EVENTS PROCESSING
@@ -1051,6 +1168,38 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_scene.UnlinkSceneObject(sog, true);
                 }
             }
+
+            //if this is a relay node, forwards the event
+            if (m_isSyncRelay)
+            {
+                SendSceneEventToRelevantSyncConnectors(init_actorID, msg);
+            }
+        }
+
+        private void HandleLinkObject(SymmetricSyncMessage msg)
+        {
+            // Get the data from message and error check
+            OSDMap data = DeserializeMessage(msg);
+            if (data == null)
+            {
+                SymmetricSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                return;
+            }
+
+            string init_actorID = data["actorID"].AsString();
+            //string sogxml = data["linkedGroup"].AsString();
+            //SceneObjectGroup linkedGroup = SceneObjectSerializer.FromXml2Format(sogxml);
+            UUID rootID = data["root"].AsUUID();
+            int partCount = data["partCount"].AsInteger();
+            List<UUID> childrenIDs = new List<UUID>();
+
+            for (int i = 0; i < partCount; i++)
+            {
+                string partTempID = "part" + i;
+                childrenIDs.Add(data[partTempID].AsUUID());
+            }
+
+            m_scene.LinkObjectBySync(rootID, childrenIDs);
 
             //if this is a relay node, forwards the event
             if (m_isSyncRelay)
@@ -1346,89 +1495,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.TriggerObjectDeGrabLocally(part.LocalId, originalID, remoteClinet, surfaceArgs);
         }
 
-        /// <summary>
-        /// Send a sync message to remove the given objects in all connected actors. 
-        /// UUID is used for identified a removed object. This function now should
-        /// only be triggered by an object removal that is initiated locally.
-        /// </summary>
-        /// <param name="sog"></param>
-        //private void RegionSyncModule_OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
-        public void SendDeleteObject(SceneObjectGroup sog, bool softDelete)
-        {
-            //m_log.DebugFormat("RegionSyncModule_OnObjectBeingRemovedFromScene called at time {0}:{1}:{2}", DateTime.Now.Minute, DateTime.Now.Second, DateTime.Now.Millisecond);
-
-            //Only send the message out if this is a relay node for sync messages, or this actor caused deleting the object
-            //if (m_isSyncRelay || CheckObjectForSendingUpdate(sog))
-
-
-            OSDMap data = new OSDMap(1);
-            //data["regionHandle"] = OSD.FromULong(regionHandle);
-            //data["localID"] = OSD.FromUInteger(sog.LocalId);
-            data["UUID"] = OSD.FromUUID(sog.UUID);
-            data["actorID"] = OSD.FromString(m_actorID);
-            data["softDelete"] = OSD.FromBoolean(softDelete);
-
-            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
-            SendObjectUpdateToRelevantSyncConnectors(sog, rsm);
-        }
-
-        public void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs)
-        {
-            switch (ev)
-            {
-                case EventManager.EventNames.NewScript:
-                    if (evArgs.Length < 3)
-                    {
-                        m_log.Error(LogHeader + " not enough event args for NewScript");
-                        return;
-                    }
-                    OnLocalNewScript((UUID)evArgs[0], (SceneObjectPart)evArgs[1], (UUID)evArgs[2]);
-                    return;
-                case EventManager.EventNames.UpdateScript:
-                    if (evArgs.Length < 5)
-                    {
-                        m_log.Error(LogHeader + " not enough event args for UpdateScript");
-                        return;
-                    }
-                    OnLocalUpdateScript((UUID)evArgs[0], (UUID)evArgs[1], (UUID)evArgs[2], (bool)evArgs[3], (UUID)evArgs[4]);
-                    return;
-                case EventManager.EventNames.ScriptReset:
-                    if (evArgs.Length < 2)
-                    {
-                        m_log.Error(LogHeader + " not enough event args for ScriptReset");
-                        return;
-                    }
-                    OnLocalScriptReset((uint)evArgs[0], (UUID)evArgs[1]);
-                    return;
-                case EventManager.EventNames.ChatFromClient:
-                    if (evArgs.Length < 2)
-                    {
-                        m_log.Error(LogHeader + " not enough event args for ChatFromClient");
-                        return;
-                    }
-                    OnLocalChatFromClient(evArgs[0], (OSChatMessage)evArgs[1]);
-                    return;
-                case EventManager.EventNames.ChatFromWorld:
-                    if (evArgs.Length < 2)
-                    {
-                        m_log.Error(LogHeader + " not enough event args for ChatFromWorld");
-                        return;
-                    }
-                    OnLocalChatFromWorld(evArgs[0], (OSChatMessage)evArgs[1]);
-                    return;
-                case EventManager.EventNames.ObjectGrab:
-                    OnLocalGrabObject((uint)evArgs[0], (uint)evArgs[1], (Vector3) evArgs[2], (IClientAPI) evArgs[3], (SurfaceTouchEventArgs)evArgs[4]);
-                    return;
-                case EventManager.EventNames.ObjectGrabbing:
-                    OnLocalObjectGrabbing((uint)evArgs[0], (uint)evArgs[1], (Vector3)evArgs[2], (IClientAPI)evArgs[3], (SurfaceTouchEventArgs)evArgs[4]);
-                    return;
-                case EventManager.EventNames.ObjectDeGrab:
-                    OnLocalDeGrabObject((uint)evArgs[0], (uint)evArgs[1], (IClientAPI)evArgs[2], (SurfaceTouchEventArgs)evArgs[3]);
-                    return;
-                default:
-                    return;
-            }
-        }
 
         /// <summary>
         /// The handler for (locally initiated) event OnNewScript: triggered by client's RezSript packet, publish it to other actors.

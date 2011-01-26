@@ -654,6 +654,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
             if (m_Suspended)
                 return 0;
 
+            
             lock (m_Script)
             {
                 EventParams data = null;
@@ -673,6 +674,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                         }
                         return 0;
                     }
+
+                    m_log.DebugFormat("[Script] processing event {2} in state {3} to {0}.{1}, localID -{4}", m_PrimName, m_ScriptName, data.EventName, m_State, m_LocalID);
+
 
                     if (data.EventName == "timer")
                         m_TimerQueued = false;
@@ -712,8 +716,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                     {
                         SceneObjectPart part = m_Engine.World.GetSceneObjectPart(
                             m_LocalID);
-        //                m_log.DebugFormat("[Script] Delivered event {2} in state {3} to {0}.{1}",
-        //                        m_PrimName, m_ScriptName, data.EventName, m_State);
 
                         try
                         {
@@ -785,6 +787,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                         }
                     }
                 }
+
+                m_log.DebugFormat("[Script] processing event {2} in state {3} to {0}.{1}, localID -{4}; to trigger QueueEventHandler", m_PrimName, m_ScriptName, data.EventName, m_State, m_LocalID);
 
                 lock (m_EventQueue)
                 {

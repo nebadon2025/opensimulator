@@ -30,6 +30,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             NewObject,       // objects
             UpdatedObject,   // objects
             RemovedObject,   // objects
+            LinkObject,
             RegionName,
             //RegionStatus,
             ActorID,

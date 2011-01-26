@@ -1576,6 +1576,24 @@ namespace OpenSim.Region.Framework.Scenes
                     return; // parent is null so not in this region
                 }
 
+
+                //SYMMETRIC SYNC
+                //Send out a LinkObject message for synchronization purpose, before other object-update sync messages are sent out.
+                //We need to do this before the calling to parentGroup.LinkToGroup() below, as LinkToGroup will trigger
+                //SendDeleteObject message to be sent out.
+
+                // ------------- NOTE: This needs further optimization, as we don't want to block on sending messages while inside the lock. -------------
+                //      However, we also want to make sure that the LinkObject message is sent out with high priority and sent 
+                //      earlier than the object update message triggered by the ScheduleGroupForFullUpdate() function below
+                if (m_parentScene.RegionSyncModule != null)
+                {
+                    //Tell other actors to link the SceneObjectParts together as a new group. But not updating the properties yet.
+                    //The properties will be updated later when parentGroup.ScheduleGroupForFullUpdate() is called below.
+                    m_parentScene.RegionSyncModule.SendLinkObject(root, children);
+                }
+
+                //end of SYMMETRIC SYNC
+
                 foreach (SceneObjectGroup child in childGroups)
                 {
                     parentGroup.LinkToGroup(child);
@@ -1584,6 +1602,7 @@ namespace OpenSim.Region.Framework.Scenes
                     // Don't remove!  Bad juju!  Stay away! or fix physics!
                     child.AbsolutePosition = child.AbsolutePosition;
                 }
+
 
                 // We need to explicitly resend the newly link prim's object properties since no other actions
                 // occur on link to invoke this elsewhere (such as object selection)
@@ -1946,6 +1965,7 @@ namespace OpenSim.Region.Framework.Scenes
         public Scene.ObjectUpdateResult AddOrUpdateObjectBySynchronization(SceneObjectGroup updatedSog)
         {
             UUID sogID = updatedSog.UUID;
+            Scene.ObjectUpdateResult updateResult = Scene.ObjectUpdateResult.Unchanged;
 
             if (Entities.ContainsKey(sogID))
             {
@@ -1954,22 +1974,27 @@ namespace OpenSim.Region.Framework.Scenes
                 if (entity is SceneObjectGroup)
                 {
                     SceneObjectGroup localSog = (SceneObjectGroup)entity;
-                    Scene.ObjectUpdateResult updateResult = localSog.UpdateObjectGroupBySync(updatedSog);
-                    return updateResult;
+                    updateResult = localSog.UpdateObjectGroupBySync(updatedSog);
                 }
                 else
                 {
                     m_log.Warn("Entity with " + sogID + " is not of type SceneObjectGroup");
                     //return false;
-                    return Scene.ObjectUpdateResult.Error;
+                    updateResult = Scene.ObjectUpdateResult.Error;
                 }
             }
             else
             {
                 m_log.Debug("AddSceneObjectByStateSynch to be called");
                 AddSceneObjectByStateSynch(updatedSog);
-                return Scene.ObjectUpdateResult.New;
+                updateResult = Scene.ObjectUpdateResult.New;
             }
+
+            //Debug
+            m_log.Debug("after AddOrUpdateObjectBySynchronization");
+            m_parentScene.DebugSceneObjectGroups();
+
+            return updateResult;
         }
 
         //This is called when an object is added due to receiving a state synchronization message from Scene or an actor. Do similar things as the original AddSceneObject(),
@@ -2055,6 +2080,62 @@ namespace OpenSim.Region.Framework.Scenes
                 SceneObjectGroupsByLocalID[parentGroup.LocalId] = parentGroup;
                 foreach (SceneObjectPart part in children)
                     SceneObjectGroupsByLocalID[newPart.LocalId] = parentGroup;
+            }
+        }
+
+        public void LinkObjectsBySync(SceneObjectPart root, List<SceneObjectPart> children)
+        {
+            Monitor.Enter(m_updateLock);
+            try
+            {
+                SceneObjectGroup parentGroup = root.ParentGroup;
+
+                List<SceneObjectGroup> childGroups = new List<SceneObjectGroup>();
+                if (parentGroup != null)
+                {
+                    // We do this in reverse to get the link order of the prims correct
+                    for (int i = children.Count - 1; i >= 0; i--)
+                    {
+                        SceneObjectGroup child = children[i].ParentGroup;
+
+                        if (child != null)
+                        {
+                            // Make sure no child prim is set for sale
+                            // So that, on delink, no prims are unwittingly
+                            // left for sale and sold off
+                            child.RootPart.ObjectSaleType = 0;
+                            child.RootPart.SalePrice = 10;
+                            childGroups.Add(child);
+                        }
+                    }
+                }
+                else
+                {
+                    return; // parent is null so not in this region
+                }
+
+                foreach (SceneObjectGroup child in childGroups)
+                {
+                    parentGroup.LinkToGroupBySync(child);
+
+                    // this is here so physics gets updated!
+                    // Don't remove!  Bad juju!  Stay away! or fix physics!
+                    child.AbsolutePosition = child.AbsolutePosition;
+                }
+
+
+                // We need to explicitly resend the newly link prim's object properties since no other actions
+                // occur on link to invoke this elsewhere (such as object selection)
+                parentGroup.RootPart.CreateSelected = true;
+                parentGroup.TriggerScriptChangedEvent(Changed.LINK);
+                parentGroup.HasGroupChanged = true;
+                //Do not change the timestamp and actorID values
+                parentGroup.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
+
+            }
+            finally
+            {
+                Monitor.Exit(m_updateLock);
             }
         }
 

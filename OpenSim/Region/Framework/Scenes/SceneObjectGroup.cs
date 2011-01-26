@@ -2127,6 +2127,7 @@ namespace OpenSim.Region.Framework.Scenes
             //ScheduleGroupForFullUpdate();
 
             //SYMMETRIC SYNC
+            //The DeleteObject message will be enqueued to be sent out by another thread, and the call will return quickly.
             if (m_scene.RegionSyncModule != null)
                 m_scene.RegionSyncModule.SendDeleteObject(objectGroup, true);
             //end of SYMMETRIC SYNC
@@ -3648,7 +3649,31 @@ namespace OpenSim.Region.Framework.Scenes
                 ScheduleGroupForFullUpdate_SyncInfoUnchanged();
             }
 
+            //debug the update result
+            if (groupUpdateResult == Scene.ObjectUpdateResult.Updated)
+            {
+                DebugObjectUpdateResult();
+            }
+
             return groupUpdateResult;
+        }
+
+        public string DebugObjectUpdateResult()
+        {
+            //m_log.Debug("ObjectGroup " + UUID + " updated. Rootpart: " +m_rootPart.DebugObjectPartProperties());
+            string sogDebug = "ObjectGroup " + UUID + ".\n Rootpart: " + m_rootPart.DebugObjectPartProperties();
+
+            int partNum = 1;
+            foreach (SceneObjectPart part in Parts)
+            {
+                if (part.UUID != m_rootPart.UUID)
+                {
+                    //m_log.Debug("part " + partNum + ", " + part.DebugObjectPartProperties());
+                    sogDebug += "\n"+part.DebugObjectPartProperties();
+                    partNum++;
+                }
+            }
+            return sogDebug;
         }
 
         private void AddNewPart(SceneObjectPart newPart)
@@ -3749,6 +3774,91 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
         }
+
+        //Similar to LinkToGroup(), except that not calling RegionSyncModule.SendDeleteObject
+        public void LinkToGroupBySync(SceneObjectGroup objectGroup)
+        {
+
+            SceneObjectPart linkPart = objectGroup.m_rootPart;
+
+            Vector3 oldGroupPosition = linkPart.GroupPosition;
+            Quaternion oldRootRotation = linkPart.RotationOffset;
+
+            linkPart.OffsetPosition = linkPart.GroupPosition - AbsolutePosition;
+            linkPart.GroupPosition = AbsolutePosition;
+            Vector3 axPos = linkPart.OffsetPosition;
+
+            Quaternion parentRot = m_rootPart.RotationOffset;
+            axPos *= Quaternion.Inverse(parentRot);
+
+            linkPart.OffsetPosition = axPos;
+            Quaternion oldRot = linkPart.RotationOffset;
+            Quaternion newRot = Quaternion.Inverse(parentRot) * oldRot;
+            linkPart.RotationOffset = newRot;
+
+            linkPart.ParentID = m_rootPart.LocalId;
+            if (m_rootPart.LinkNum == 0)
+                m_rootPart.LinkNum = 1;
+
+            lock (m_parts.SyncRoot)
+            {
+                m_parts.Add(linkPart.UUID, linkPart);
+
+                // Insert in terms of link numbers, the new links
+                // before the current ones (with the exception of 
+                // the root prim. Shuffle the old ones up
+                SceneObjectPart[] parts = m_parts.GetArray();
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    SceneObjectPart part = parts[i];
+                    if (part.LinkNum != 1)
+                    {
+                        // Don't update root prim link number
+                        part.LinkNum += objectGroup.PrimCount;
+                    }
+                }
+
+                linkPart.LinkNum = 2;
+
+                linkPart.SetParent(this);
+                linkPart.CreateSelected = true;
+
+                //if (linkPart.PhysActor != null)
+                //{
+                // m_scene.PhysicsScene.RemovePrim(linkPart.PhysActor);
+
+                //linkPart.PhysActor = null;
+                //}
+
+                //TODO: rest of parts
+                int linkNum = 3;
+                SceneObjectPart[] ogParts = objectGroup.Parts;
+                for (int i = 0; i < ogParts.Length; i++)
+                {
+                    SceneObjectPart part = ogParts[i];
+                    if (part.UUID != objectGroup.m_rootPart.UUID)
+                        LinkNonRootPart(part, oldGroupPosition, oldRootRotation, linkNum++);
+                    part.ClearUndoState();
+                }
+            }
+
+            m_scene.UnlinkSceneObject(objectGroup, true);
+            objectGroup.m_isDeleted = true;
+
+            objectGroup.m_parts.Clear();
+
+            // Can't do this yet since backup still makes use of the root part without any synchronization
+            //            objectGroup.m_rootPart = null;
+
+            AttachToBackup();
+
+            // Here's the deal, this is ABSOLUTELY CRITICAL so the physics scene gets the update about the 
+            // position of linkset prims.  IF YOU CHANGE THIS, YOU MUST TEST colliding with just linked and 
+            // unmoved prims!
+            ResetChildPrimPhysicsPositions();
+
+        }
+
 
         #endregion
     }

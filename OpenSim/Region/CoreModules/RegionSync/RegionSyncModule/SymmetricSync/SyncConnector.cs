@@ -292,7 +292,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //For any other messages, we simply deliver the message to RegionSyncModule for now.
             //Later on, we may deliver messages to different modules, say sync message to RegionSyncModule and event message to ActorSyncModule.
-            m_regionSyncModule.HandleIncomingMessage(msg);
+            m_regionSyncModule.HandleIncomingMessage(msg, m_syncOtherSideActorID);
         }
     }
 }

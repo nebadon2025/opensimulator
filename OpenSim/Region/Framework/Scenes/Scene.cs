@@ -725,6 +725,74 @@ namespace OpenSim.Region.Framework.Scenes
             m_sceneGraph.AddSceneObjectByStateSynch(group);
         }
 
+        public void DebugSceneObjectGroups()
+        {
+            EntityBase[] entities = Entities.GetEntities();
+            List<SceneObjectGroup> groups = new List<SceneObjectGroup>();
+
+            foreach (EntityBase ent in entities)
+            {
+                if (ent is SceneObjectGroup)
+                {
+                    SceneObjectGroup sog = (SceneObjectGroup)ent;
+                    groups.Add(sog);
+                }
+            }
+
+            m_log.Debug("Scene " + m_regInfo.RegionName + " has " + groups.Count + " SOGs");
+            foreach (SceneObjectGroup sog in groups)
+            {
+                string sogDebug = sog.DebugObjectUpdateResult();
+                m_log.Debug(sogDebug);
+            }
+        }
+
+        //Assuming that the permission and owner checking is done at the actor that initiates the link operation, so 
+        //no checking of permissions here.
+        /// <summary>
+        /// Update the grouping relations of the SceneObjectParts as identified by the rootID and childrenIDs, and update the properties of all the parts in the new object group.
+        /// </summary>
+        /// <param name="linkedGroup"></param>
+        /// <param name="rootID"></param>
+        /// <param name="childrenIDs"></param>
+        public void LinkObjectBySync(UUID rootID, List<UUID> childrenIDs)
+        {
+            m_log.Debug("Start to LinkObjectBySync");
+            DebugSceneObjectGroups();
+
+            List<SceneObjectPart> children = new List<SceneObjectPart>();
+            SceneObjectPart root = GetSceneObjectPart(rootID);
+
+            if (root == null)
+            {
+                m_log.Warn("LinkObjectBySync: root part " + rootID + " not found at local Scene copy");
+                return;
+            }
+
+            foreach (UUID childID in childrenIDs)
+            {
+                SceneObjectPart part = GetSceneObjectPart(childID);
+
+                if (part == null)
+                {
+                    m_log.Warn("LinkObjectBySync: child part " + rootID + " not found at local Scene copy");
+                    continue;
+                }
+
+                children.Add(part);
+            }
+
+            //Leverage the LinkObject implementation to get the book keeping of Group and Parts relations right
+            m_sceneGraph.LinkObjectsBySync(root, children);
+
+            //The properties of the newly linked object should be updated later with another UpdatedObject message. 
+
+            //Set the property values as in the incoming copy of the object group
+            //SceneObjectGroup localGroup = root.ParentGroup;
+            //localGroup.UpdateObjectProperties(linkedGroup);
+
+        }
+
         #endregion //SYMMETRIC SYNC
 
         public ICapabilitiesModule CapsModule

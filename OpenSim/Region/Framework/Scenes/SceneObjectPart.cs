@@ -5084,6 +5084,8 @@ namespace OpenSim.Region.Framework.Scenes
                 m_parentGroup.Scene.EventManager.TriggerAggregateScriptEvents(this);
             }
 
+            m_log.Debug("SceneObjectPart Name-" +Name+", localID-" + m_localId + " updated");
+
             return partUpdateResult;
         }
 
@@ -5095,6 +5097,12 @@ namespace OpenSim.Region.Framework.Scenes
                 return true;
             }
             return false;
+        }
+
+        public string DebugObjectPartProperties()
+        {
+            string debugMsg = "UUID " + UUID + ", Name " + Name + ", localID " + LocalId + ", lastUpdateActorID " + LastUpdateActorID + ", lastUpdateTimeStamp " + LastUpdateTimeStamp;
+            return debugMsg;
         }
 
         /// <summary>

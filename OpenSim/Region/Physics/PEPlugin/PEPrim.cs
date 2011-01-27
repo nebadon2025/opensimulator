@@ -92,34 +92,29 @@ public sealed class PEPrim : PhysicsActor
         set { _size = value;
             // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Size");
             ChangingActorID = RegionSyncServerModule.ActorID;
-            Prop.Set(_localID, PropType.Size, _size);
         } 
     }
     public override PrimitiveBaseShape Shape { 
         set { _pbs = value; 
             m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Shape");
             ChangingActorID = RegionSyncServerModule.ActorID;
-            Prop.Set(_localID, PropType.Shape, _pbs);
         } 
     }
     public override uint LocalID { 
         set { _localID = value; 
             // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set LocalID");
             ChangingActorID = RegionSyncServerModule.ActorID;
-            Prop.Set(_localID, PropType.LocalID, _localID);
         }
         get { return _localID; }
     }
     public override bool Grabbed { 
         set { _grabbed = value; 
             m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Grabbed");
-            Prop.Set(_localID, PropType.Grabbed, _grabbed);
         } 
     }
     public override bool Selected { 
         set { _selected = value; 
             m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Selected");
-            Prop.Set(_localID, PropType.Selected, _selected);
         } 
     }
     public override void CrossingFailure() { return; }
@@ -132,7 +127,6 @@ public sealed class PEPrim : PhysicsActor
         set { _position = value; 
             ChangingActorID = RegionSyncServerModule.ActorID;
             // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Position");
-            Prop.Set(_localID, PropType.Position, _position);
         } 
     }
     public override float Mass { 
@@ -143,7 +137,6 @@ public sealed class PEPrim : PhysicsActor
         set { _force = value; 
             ChangingActorID = RegionSyncServerModule.ActorID;
             // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Force");
-            Prop.Set(_localID, PropType.Force, _force);
         } 
     }
 
@@ -165,21 +158,18 @@ public sealed class PEPrim : PhysicsActor
         get { return _velocity; } 
         set { _velocity = value; 
             ChangingActorID = RegionSyncServerModule.ActorID;
-            Prop.Set(_localID, PropType.Velocity, _velocity);
         } 
     }
     public override Vector3 Torque { 
         get { return _torque; } 
         set { _torque = value; 
             ChangingActorID = RegionSyncServerModule.ActorID;
-            Prop.Set(_localID, PropType.Torque, _torque);
         } 
     }
     public override float CollisionScore { 
         get { return _collisionScore; } 
         set { _collisionScore = value; 
             ChangingActorID = RegionSyncServerModule.ActorID;
-            Prop.Set(_localID, PropType.CollisionScore, _collisionScore);
         } 
     }
     public override Vector3 Acceleration { 
@@ -189,7 +179,6 @@ public sealed class PEPrim : PhysicsActor
         get { return _orientation; } 
         set { _orientation = value; 
             ChangingActorID = RegionSyncServerModule.ActorID;
-            Prop.Set(_localID, PropType.Orientation, _orientation);
         } 
     }
     public override int PhysicsActorType { 

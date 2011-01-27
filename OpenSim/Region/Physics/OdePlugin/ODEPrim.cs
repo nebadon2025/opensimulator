@@ -2501,6 +2501,7 @@ Console.WriteLine(" JointCreateFixed");
         public override Vector3 Acceleration
         {
             get { return _acceleration; }
+            set { _acceleration = value; }
         }
 
 

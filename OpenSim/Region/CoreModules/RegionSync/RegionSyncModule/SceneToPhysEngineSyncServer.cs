@@ -273,7 +273,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void SendUpdate(PhysicsActor pa)
         {
             // m_log.DebugFormat("{0}: SendUpdate for {1}", LogHeader, pa.LocalID);
-            this.m_sceneToPhysEngineConnector.SendPhysUpdateAttributes(pa);
+            if (m_sceneToPhysEngineConnector != null)
+            {
+                this.m_sceneToPhysEngineConnector.SendPhysUpdateAttributes(pa);
+            }
         }
 
         #endregion

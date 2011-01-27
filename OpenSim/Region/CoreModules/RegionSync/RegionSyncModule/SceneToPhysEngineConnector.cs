@@ -350,6 +350,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     pa.Position = data["position"].AsVector3();
                     pa.Force = data["force"].AsVector3();
                     pa.Velocity = data["velocity"].AsVector3();
+                    pa.RotationalVelocity = data["rotationalVelocity"].AsVector3();
+                    pa.Acceleration = data["acceleration"].AsVector3();
                     pa.Torque = data["torque"].AsVector3();
                     pa.Orientation = data["orientantion"].AsQuaternion();
                     pa.IsPhysical = data["isPhysical"].AsBoolean();  // receive??
@@ -402,6 +404,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["position"] = OSD.FromVector3(pa.Position);
             data["force"] = OSD.FromVector3(pa.Force);
             data["velocity"] = OSD.FromVector3(pa.Velocity);
+            data["rotationalVelocity"] = OSD.FromVector3(pa.RotationalVelocity);
+            data["acceleration"] = OSD.FromVector3(pa.Acceleration);
             data["torque"] = OSD.FromVector3(pa.Torque);
             data["orientation"] = OSD.FromQuaternion(pa.Orientation);
             data["isPhysical"] = OSD.FromBoolean(pa.IsPhysical);

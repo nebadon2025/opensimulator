@@ -127,6 +127,7 @@ namespace OpenSim.Region.Physics.Manager
         public Vector3 position;
         public Vector3 force;
         public Vector3 velocity;
+        public Vector3 rotationalVelocity;
         public Vector3 torque;
         public Quaternion orientation;
         public Boolean isPhysical;
@@ -140,6 +141,7 @@ namespace OpenSim.Region.Physics.Manager
             if (!AlmostEqual(position, pa.Position)) { position = pa.Position; ret = true; }
             if (!AlmostEqual(force, pa.Force)) { force = pa.Force; ret = true; }
             if (!AlmostEqual(velocity, pa.Velocity)) { velocity = pa.Velocity; ret = true; }
+            if (!AlmostEqual(rotationalVelocity, pa.RotationalVelocity)) { rotationalVelocity = pa.RotationalVelocity; ret = true; }
             if (!AlmostEqual(torque, pa.Torque)) { torque = pa.Torque; ret = true; }
             if (orientation != pa.Orientation) { orientation = pa.Orientation; ret = true; }
             if (isPhysical != pa.IsPhysical) { isPhysical = pa.IsPhysical; ret = true; }
@@ -149,9 +151,9 @@ namespace OpenSim.Region.Physics.Manager
         }
         private bool AlmostEqual(Vector3 a, Vector3 b)
         {
-            if (Math.Abs(a.X - b.X) > 0.001) return false;
-            if (Math.Abs(a.Y - b.Y) > 0.001) return false;
-            if (Math.Abs(a.Z - b.Z) > 0.001) return false;
+            if (Math.Abs(a.X - b.X) > 0.01) return false;
+            if (Math.Abs(a.Y - b.Y) > 0.01) return false;
+            if (Math.Abs(a.Z - b.Z) > 0.01) return false;
             return true;
         }
     }
@@ -273,7 +275,12 @@ namespace OpenSim.Region.Physics.Manager
         public abstract Vector3 Velocity { get; set; }
         public abstract Vector3 Torque { get; set; }
         public abstract float CollisionScore { get; set;}
-        public abstract Vector3 Acceleration { get; }
+        // RA: used to be abstract but made virtual so 'set' does not need to be added to all phys engines
+        private Vector3 _acceleration;
+        public virtual Vector3 Acceleration {
+            get { return _acceleration; }
+            set { _acceleration = value; }
+        }
         public abstract Quaternion Orientation { get; set; }
         public abstract int PhysicsActorType { get; set; }
         public abstract bool IsPhysical { get; set; }
@@ -471,6 +478,7 @@ namespace OpenSim.Region.Physics.Manager
         public override Vector3 Acceleration
         {
             get { return Vector3.Zero; }
+            set { }
         }
 
         public override bool IsPhysical

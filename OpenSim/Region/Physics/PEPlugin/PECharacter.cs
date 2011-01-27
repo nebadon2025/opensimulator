@@ -44,7 +44,10 @@ public class PECharacter : PhysicsActor
     private bool _grabbed;
     private bool _selected;
     private Vector3 _position;
-    private float _mass;
+    private float _mass = 80f;
+    public float _density = 60f;
+    public float CAPSULE_RADIUS = 0.37f;
+    public float CAPSULE_LENGTH = 2.140599f;
     private Vector3 _force;
     private Vector3 _velocity;
     private Vector3 _torque;
@@ -79,6 +82,7 @@ public class PECharacter : PhysicsActor
     {
         _position = pos;
         _size = size;
+        _density = density;
         return;
     }
 
@@ -88,30 +92,25 @@ public class PECharacter : PhysicsActor
     public override Vector3 Size { 
         get { return _size; } 
         set { _size = value;
-            Prop.Set(_localID, PropType.Size, _size);
         } 
     }
     public override PrimitiveBaseShape Shape { 
         set { _pbs = value; 
-            Prop.Set(_localID, PropType.Shape, _pbs);
         } 
     }
     public override uint LocalID { 
         set { _localID = value; 
-            Prop.Set(_localID, PropType.LocalID, _localID);
         }
         get { return _localID; }
     }
     public override bool Grabbed { 
         set { _grabbed = value; 
             m_log.Debug("[RPE] PEChar set Grabbed");
-            Prop.Set(_localID, PropType.Grabbed, _grabbed);
         } 
     }
     public override bool Selected { 
         set { _selected = value; 
             m_log.Debug("[RPE] PEChar set Selected");
-            Prop.Set(_localID, PropType.Selected, _selected);
         } 
     }
     public override void CrossingFailure() { return; }
@@ -122,16 +121,18 @@ public class PECharacter : PhysicsActor
     public override Vector3 Position { 
         get { return _position; } 
         set { _position = value; 
-            Prop.Set(_localID, PropType.Position, _position);
         } 
     }
     public override float Mass { 
-        get { return _mass; } 
+        get { 
+            float AVvolume = (float) (Math.PI*Math.Pow(CAPSULE_RADIUS, 2)*CAPSULE_LENGTH);
+            _mass = _density*AVvolume;
+            return _mass; 
+        } 
     }
     public override Vector3 Force { 
         get { return _force; } 
         set { _force = value; 
-            Prop.Set(_localID, PropType.Force, _force);
         } 
     }
 
@@ -152,19 +153,16 @@ public class PECharacter : PhysicsActor
     public override Vector3 Velocity { 
         get { return _velocity; } 
         set { _velocity = value; 
-            Prop.Set(_localID, PropType.Velocity, _velocity);
         } 
     }
     public override Vector3 Torque { 
         get { return _torque; } 
         set { _torque = value; 
-            Prop.Set(_localID, PropType.Torque, _torque);
         } 
     }
     public override float CollisionScore { 
         get { return _collisionScore; } 
         set { _collisionScore = value; 
-            Prop.Set(_localID, PropType.CollisionScore, _collisionScore);
         } 
     }
     public override Vector3 Acceleration { 
@@ -173,7 +171,6 @@ public class PECharacter : PhysicsActor
     public override Quaternion Orientation { 
         get { return _orientation; } 
         set { _orientation = value; 
-            Prop.Set(_localID, PropType.Orientation, _orientation);
         } 
     }
     public override int PhysicsActorType { 
@@ -261,6 +258,18 @@ public class PECharacter : PhysicsActor
     public override float APIDDamping { set { return; } }
 
     public override void AddForce(Vector3 force, bool pushforce) { 
+        if (force.IsFinite())
+        {
+            // base.ChangingActorID = RegionSyncServerModule.ActorID;
+            _velocity.X += force.X;
+            _velocity.Y += force.Y;
+            _velocity.Z += force.Z;
+        }
+        else
+        {
+            m_log.Warn("[PHYSICS]: Got a NaN force applied to a Character");
+        }
+        //m_lastUpdateSent = false;
     }
     public override void AddAngularForce(Vector3 force, bool pushforce) { 
     }

@@ -333,7 +333,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //private void RegionSyncModule_OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
         public void SendDeleteObject(SceneObjectGroup sog, bool softDelete)
         {
-            //m_log.DebugFormat("RegionSyncModule_OnObjectBeingRemovedFromScene called at time {0}:{1}:{2}", DateTime.Now.Minute, DateTime.Now.Second, DateTime.Now.Millisecond);
+            m_log.DebugFormat("SendDeleteObject called for object {0}", sog.UUID);
 
             //Only send the message out if this is a relay node for sync messages, or this actor caused deleting the object
             //if (m_isSyncRelay || CheckObjectForSendingUpdate(sog))
@@ -351,14 +351,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
 
-        public void SendLinkObject(SceneObjectPart root, List<SceneObjectPart> children)
+        public void SendLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children)
         {
             if(children.Count==0) return;
 
             OSDMap data = new OSDMap();
-            //string sogxml = SceneObjectSerializer.ToXml2Format(linkedGroup);
-            //data["linkedGroup"]=OSD.FromString(sogxml);
-            data["root"] = OSD.FromUUID(root.UUID);
+            string sogxml = SceneObjectSerializer.ToXml2Format(linkedGroup);
+            data["linkedGroup"]=OSD.FromString(sogxml);
+            data["rootID"] = OSD.FromUUID(root.UUID);
             data["partCount"] = OSD.FromInteger(children.Count);
             data["actorID"] = OSD.FromString(m_actorID);
             int partNum = 0;
@@ -369,7 +369,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.LinkObject, OSDParser.SerializeJsonString(data));
-            SendObjectUpdateToRelevantSyncConnectors(root.ParentGroup, rsm);
+            SendObjectUpdateToRelevantSyncConnectors(linkedGroup, rsm);
         }
 
 
@@ -1073,6 +1073,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 Scene.ObjectUpdateResult updateResult = m_scene.AddOrUpdateObjectBySynchronization(sog);
 
+                m_log.Debug(LogHeader + " handle update message of object " + sog.UUID);
+
                 //if (added)
                 switch (updateResult)
                 {
@@ -1157,14 +1159,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             bool softDelete = data["softDelete"].AsBoolean();
 
             SceneObjectGroup sog = m_scene.SceneGraph.GetGroupByPrim(sogUUID);
+
             if (sog != null)
             {
                 if (!softDelete)
                 {
+                    m_log.Debug(LogHeader + " hard delete object " + sog.UUID);
                     m_scene.DeleteSceneObjectBySynchronization(sog);
                 }
                 else
                 {
+                    m_log.Debug(LogHeader + " soft delete object " + sog.UUID);
                     m_scene.UnlinkSceneObject(sog, true);
                 }
             }
@@ -1187,9 +1192,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             string init_actorID = data["actorID"].AsString();
-            //string sogxml = data["linkedGroup"].AsString();
-            //SceneObjectGroup linkedGroup = SceneObjectSerializer.FromXml2Format(sogxml);
-            UUID rootID = data["root"].AsUUID();
+            string sogxml = data["linkedGroup"].AsString();
+            SceneObjectGroup linkedGroup = SceneObjectSerializer.FromXml2Format(sogxml);
+            UUID rootID = data["rootID"].AsUUID();
             int partCount = data["partCount"].AsInteger();
             List<UUID> childrenIDs = new List<UUID>();
 
@@ -1199,7 +1204,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 childrenIDs.Add(data[partTempID].AsUUID());
             }
 
-            m_scene.LinkObjectBySync(rootID, childrenIDs);
+            m_scene.LinkObjectBySync(linkedGroup, rootID, childrenIDs);
 
             //if this is a relay node, forwards the event
             if (m_isSyncRelay)

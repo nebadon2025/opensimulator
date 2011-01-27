@@ -610,14 +610,6 @@ namespace OpenSim.Region.CoreModules.World.Terrain
             m_lastUpdateActorID = actorID;
         }
 
-        /*
-        public void CheckForTerrainUpdatesBySynchronization(long timeStamp, string actorID)
-        {
-            SyncInfoUpdate(timeStamp, actorID);
-            CheckForTerrainUpdates(false);
-        }
-         * */
-
         public void TaintTerrianBySynchronization(long timeStamp, string actorID)
         {
             SyncInfoUpdate(timeStamp, actorID);

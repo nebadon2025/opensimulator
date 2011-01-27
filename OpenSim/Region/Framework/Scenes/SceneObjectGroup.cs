@@ -2128,8 +2128,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             //SYMMETRIC SYNC
             //The DeleteObject message will be enqueued to be sent out by another thread, and the call will return quickly.
-            if (m_scene.RegionSyncModule != null)
-                m_scene.RegionSyncModule.SendDeleteObject(objectGroup, true);
+            //if (m_scene.RegionSyncModule != null)
+            //    m_scene.RegionSyncModule.SendDeleteObject(objectGroup, true);
             //end of SYMMETRIC SYNC
 
         }
@@ -3859,6 +3859,15 @@ namespace OpenSim.Region.Framework.Scenes
 
         }
 
+        public void SyncInfoUpdate()
+        {
+            long timeStamp = DateTime.Now.Ticks;
+            string actorID = m_scene.ActorSyncModule.ActorID;
+            foreach (SceneObjectPart part in Parts)
+            {
+                part.SyncInfoUpdate(timeStamp, actorID);
+            }
+        }
 
         #endregion
     }

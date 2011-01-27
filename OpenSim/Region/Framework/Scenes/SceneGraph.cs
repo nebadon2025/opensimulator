@@ -1577,25 +1577,11 @@ namespace OpenSim.Region.Framework.Scenes
                 }
 
 
-                //SYMMETRIC SYNC
-                //Send out a LinkObject message for synchronization purpose, before other object-update sync messages are sent out.
-                //We need to do this before the calling to parentGroup.LinkToGroup() below, as LinkToGroup will trigger
-                //SendDeleteObject message to be sent out.
-
-                // ------------- NOTE: This needs further optimization, as we don't want to block on sending messages while inside the lock. -------------
-                //      However, we also want to make sure that the LinkObject message is sent out with high priority and sent 
-                //      earlier than the object update message triggered by the ScheduleGroupForFullUpdate() function below
-                if (m_parentScene.RegionSyncModule != null)
-                {
-                    //Tell other actors to link the SceneObjectParts together as a new group. But not updating the properties yet.
-                    //The properties will be updated later when parentGroup.ScheduleGroupForFullUpdate() is called below.
-                    m_parentScene.RegionSyncModule.SendLinkObject(root, children);
-                }
-
-                //end of SYMMETRIC SYNC
 
                 foreach (SceneObjectGroup child in childGroups)
                 {
+                    m_log.Debug("linking child " + child.UUID + " to parentGroup " + parentGroup.UUID);
+
                     parentGroup.LinkToGroup(child);
 
                     // this is here so physics gets updated!
@@ -1603,13 +1589,25 @@ namespace OpenSim.Region.Framework.Scenes
                     child.AbsolutePosition = child.AbsolutePosition;
                 }
 
-
-                // We need to explicitly resend the newly link prim's object properties since no other actions
-                // occur on link to invoke this elsewhere (such as object selection)
                 parentGroup.RootPart.CreateSelected = true;
                 parentGroup.TriggerScriptChangedEvent(Changed.LINK);
                 parentGroup.HasGroupChanged = true;
-                parentGroup.ScheduleGroupForFullUpdate();
+
+                //SYMMETRIC SYNC
+                //Schedule a LinkObject message for synchronization purpose. This will lead to enqueue a LinkObject message in SyncConnector's outgoingQueue,
+                //so should return quickly. 
+                if (m_parentScene.RegionSyncModule != null)
+                {
+                    //Tell other actors to link the SceneObjectParts together as a new group. But not updating the properties yet.
+                    //The properties will be updated later when parentGroup.ScheduleGroupForFullUpdate() is called below.
+                    parentGroup.SyncInfoUpdate();
+                    m_parentScene.RegionSyncModule.SendLinkObject(parentGroup, root, children);
+                }
+
+                //Schedule updates as in legacy OpenSim code, to send updates to viewers connected to this actor (at least needed for client managers)
+                parentGroup.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
+
+                //end of SYMMETRIC SYNC
                 
             }
             finally

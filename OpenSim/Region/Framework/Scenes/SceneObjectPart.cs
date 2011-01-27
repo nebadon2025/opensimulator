@@ -4931,9 +4931,9 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_lastUpdateActorID = value; }
         }
 
-        public void UpdateTimestamp()
+        public void UpdateTimestamp(long time)
         {
-            m_lastUpdateTimeStamp = DateTime.Now.Ticks;
+            m_lastUpdateTimeStamp = time;
         }
 
         public void SetLastUpdateActorID()
@@ -4948,17 +4948,26 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        private Object m_SyncInfoLock = new Object();
+        public void SyncInfoUpdate(long timeStamp, string actorID)
+        {
+            //update timestamp and actorID atomically
+            lock (m_SyncInfoLock)
+            {
+                UpdateTimestamp(timeStamp);
+                m_lastUpdateActorID = actorID;
+            }
+        }
+       
+
         public void SyncInfoUpdate()
         {
-            //if (m_parentGroup == null || m_parentGroup.Scene==null || m_parentGroup.Scene.ActorSyncModule == null || m_parentGroup.Scene.ActorSyncModule.ActorID == null)
-            //    return;
             //Trick: calling UpdateTimestamp here makes sure that when an object was received and de-serialized, before
             //       its parts are linked together, neither TimeStamp or ActorID will be modified. This is because during de-serialization, 
             //       ScheduleFullUpdate() is called when m_parentGroup == null
-            if (m_parentGroup != null && m_parentGroup.Scene != null && m_parentGroup.Scene.ActorSyncModule!=null)
+            if (m_parentGroup != null && m_parentGroup.Scene != null && m_parentGroup.Scene.ActorSyncModule != null)
             {
-                UpdateTimestamp();
-                m_lastUpdateActorID = m_parentGroup.Scene.ActorSyncModule.ActorID;
+                SyncInfoUpdate(DateTime.Now.Ticks, m_parentGroup.Scene.ActorSyncModule.ActorID);
             }
         }
 
@@ -5102,6 +5111,7 @@ namespace OpenSim.Region.Framework.Scenes
         public string DebugObjectPartProperties()
         {
             string debugMsg = "UUID " + UUID + ", Name " + Name + ", localID " + LocalId + ", lastUpdateActorID " + LastUpdateActorID + ", lastUpdateTimeStamp " + LastUpdateTimeStamp;
+            debugMsg += ", parentID " + ParentID + ", parentUUID " + ParentUUID;
             return debugMsg;
         }
 

@@ -68,7 +68,7 @@ namespace OpenSim.Region.Framework.Interfaces
         //May need some optimization there on the priorities.
         void SendTerrainUpdates(string lastUpdateActorID);
         void SendDeleteObject(SceneObjectGroup sog, bool softDelete);
-        void SendLinkObject(SceneObjectPart root, List<SceneObjectPart> children);
+        void SendLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children);
 
         //For propogating scene events to other actors
         void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs);

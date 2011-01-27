@@ -1073,8 +1073,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 Scene.ObjectUpdateResult updateResult = m_scene.AddOrUpdateObjectBySynchronization(sog);
 
-                m_log.Debug(LogHeader + " handle update message of object " + sog.UUID);
-
                 //if (added)
                 switch (updateResult)
                 {
@@ -1348,7 +1346,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="data">OSDMap data of event args</param>
         private void HandleRemoteEvent_OnChatFromClient(string actorID, ulong evSeqNum, OSDMap data)
         {
-            m_log.Debug(LogHeader + ", " + m_actorID + ": received ChatFromClient from "+actorID+", seq "+evSeqNum);
+            //m_log.Debug(LogHeader + ": received ChatFromClient from "+actorID+", seq "+evSeqNum);
 
             OSChatMessage args = new OSChatMessage();
             args.Channel = data["channel"].AsInteger();
@@ -1368,7 +1366,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void HandleRemoteEvent_OnChatFromWorld(string actorID, ulong evSeqNum, OSDMap data)
         {
-            m_log.Debug(LogHeader + ", " + m_actorID + ": received ChatFromWorld from " + actorID + ", seq " + evSeqNum);
+            //m_log.Debug(LogHeader + ", " + m_actorID + ": received ChatFromWorld from " + actorID + ", seq " + evSeqNum);
 
             OSChatMessage args = new OSChatMessage();
             args.Channel = data["channel"].AsInteger();

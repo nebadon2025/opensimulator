@@ -675,7 +675,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                         return 0;
                     }
 
-                    m_log.DebugFormat("[Script] processing event {2} in state {3} to {0}.{1}, localID-{4}", m_PrimName, m_ScriptName, data.EventName, m_State, m_LocalID);
+                    //m_log.DebugFormat("[Script] processing event {2} in state {3} to {0}.{1}, localID-{4}", m_PrimName, m_ScriptName, data.EventName, m_State, m_LocalID);
 
 
                     if (data.EventName == "timer")
@@ -788,7 +788,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                     }
                 }
 
-                m_log.DebugFormat("[Script] processing event {2} in state {3} to {0}.{1}, localID -{4}; to trigger QueueEventHandler", m_PrimName, m_ScriptName, data.EventName, m_State, m_LocalID);
+                //m_log.DebugFormat("[Script] processing event {2} in state {3} to {0}.{1}, localID -{4}; to trigger QueueEventHandler", m_PrimName, m_ScriptName, data.EventName, m_State, m_LocalID);
 
                 lock (m_EventQueue)
                 {

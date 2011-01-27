@@ -1989,8 +1989,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             //Debug
-            m_log.Debug("after AddOrUpdateObjectBySynchronization");
-            m_parentScene.DebugSceneObjectGroups();
+            //m_log.Debug("after AddOrUpdateObjectBySynchronization");
+            //m_parentScene.DebugSceneObjectGroups();
 
             return updateResult;
         }

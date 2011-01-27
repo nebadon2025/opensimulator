@@ -239,76 +239,83 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
             }
 
-            // This could be another thread for sending outgoing messages or just have the Queue functions
-            // create and queue the messages directly into the outgoing server thread.
-            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            if (primUpdates != null || presenceUpdates != null)
             {
-                // Dan's note: Sending the message when it's first queued would yield lower latency but much higher load on the simulator
-                // as parts may be updated many many times very quickly. Need to implement a higher resolution send in heartbeat
-
-                if (primUpdates != null)
+                // This could be another thread for sending outgoing messages or just have the Queue functions
+                // create and queue the messages directly into the outgoing server thread.
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate
                 {
-                    foreach (SceneObjectGroup sog in primUpdates)
+                    // Dan's note: Sending the message when it's first queued would yield lower latency but much higher load on the simulator
+                    // as parts may be updated many many times very quickly. Need to implement a higher resolution send in heartbeat
+
+                    if (primUpdates != null)
                     {
-                        //If this is a relay node, or at least one part of the object has the last update caused by this actor, then send the update
-                        if (m_isSyncRelay || (!sog.IsDeleted && CheckObjectForSendingUpdate(sog)))
+                        foreach (SceneObjectGroup sog in primUpdates)
                         {
-                            //send 
-                            string sogxml = SceneObjectSerializer.ToXml2Format(sog);
-                            SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
-                            SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
+                            //If this is a relay node, or at least one part of the object has the last update caused by this actor, then send the update
+                            if (m_isSyncRelay || (!sog.IsDeleted && CheckObjectForSendingUpdate(sog)))
+                            {
+                                //send 
+                                string sogxml = SceneObjectSerializer.ToXml2Format(sog);
+                                SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
+                                SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
+                            }
                         }
                     }
-                }
-                /*
-                if(presenceUpdates!=null){
-                foreach (ScenePresence presence in presenceUpdates)
-                {
-                    try
+                    /*
+                    if(presenceUpdates!=null){
+                    foreach (ScenePresence presence in presenceUpdates)
                     {
-                        if (!presence.IsDeleted)
+                        try
                         {
-                            
-                            OSDMap data = new OSDMap(10);
-                            data["id"] = OSD.FromUUID(presence.UUID);
-                            // Do not include offset for appearance height. That will be handled by RegionSyncClient before sending to viewers
-                            if(presence.AbsolutePosition.IsFinite())
-                                data["pos"] = OSD.FromVector3(presence.AbsolutePosition);
-                            else
-                                data["pos"] = OSD.FromVector3(Vector3.Zero);
-                            if(presence.Velocity.IsFinite())
-                                data["vel"] = OSD.FromVector3(presence.Velocity);
-                            else
-                                data["vel"] = OSD.FromVector3(Vector3.Zero);
-                            data["rot"] = OSD.FromQuaternion(presence.Rotation);
-                            data["fly"] = OSD.FromBoolean(presence.Flying);
-                            data["flags"] = OSD.FromUInteger((uint)presence.AgentControlFlags);
-                            data["anim"] = OSD.FromString(presence.Animator.CurrentMovementAnimation);
-                            // needed for a full update
-                            if (presence.ParentID != presence.lastSentParentID)
+                            if (!presence.IsDeleted)
                             {
-                                data["coll"] = OSD.FromVector4(presence.CollisionPlane);
-                                data["off"] = OSD.FromVector3(presence.OffsetPosition);
-                                data["pID"] = OSD.FromUInteger(presence.ParentID);
-                                presence.lastSentParentID = presence.ParentID;
-                            }
+                            
+                                OSDMap data = new OSDMap(10);
+                                data["id"] = OSD.FromUUID(presence.UUID);
+                                // Do not include offset for appearance height. That will be handled by RegionSyncClient before sending to viewers
+                                if(presence.AbsolutePosition.IsFinite())
+                                    data["pos"] = OSD.FromVector3(presence.AbsolutePosition);
+                                else
+                                    data["pos"] = OSD.FromVector3(Vector3.Zero);
+                                if(presence.Velocity.IsFinite())
+                                    data["vel"] = OSD.FromVector3(presence.Velocity);
+                                else
+                                    data["vel"] = OSD.FromVector3(Vector3.Zero);
+                                data["rot"] = OSD.FromQuaternion(presence.Rotation);
+                                data["fly"] = OSD.FromBoolean(presence.Flying);
+                                data["flags"] = OSD.FromUInteger((uint)presence.AgentControlFlags);
+                                data["anim"] = OSD.FromString(presence.Animator.CurrentMovementAnimation);
+                                // needed for a full update
+                                if (presence.ParentID != presence.lastSentParentID)
+                                {
+                                    data["coll"] = OSD.FromVector4(presence.CollisionPlane);
+                                    data["off"] = OSD.FromVector3(presence.OffsetPosition);
+                                    data["pID"] = OSD.FromUInteger(presence.ParentID);
+                                    presence.lastSentParentID = presence.ParentID;
+                                }
 
-                            RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.UpdatedAvatar, OSDParser.SerializeJsonString(data));
-                            m_server.EnqueuePresenceUpdate(presence.UUID, rsm.ToBytes());
+                                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.UpdatedAvatar, OSDParser.SerializeJsonString(data));
+                                m_server.EnqueuePresenceUpdate(presence.UUID, rsm.ToBytes());
                            
 
+                            }
                         }
-                    }
-                    catch (Exception e)
-                    {
-                        m_log.ErrorFormat("[REGION SYNC MODULE] Caught exception sending presence updates for {0}: {1}", presence.Name, e.Message);
-                    }
-                }}
-                 * */
+                        catch (Exception e)
+                        {
+                            m_log.ErrorFormat("[REGION SYNC MODULE] Caught exception sending presence updates for {0}: {1}", presence.Name, e.Message);
+                        }
+                    }}
+                     * */
 
-                // Indicate that the current batch of updates has been completed
+                    // Indicate that the current batch of updates has been completed
+                    Interlocked.Exchange(ref m_sendingUpdates, 0);
+                });
+            }
+            else
+            {
                 Interlocked.Exchange(ref m_sendingUpdates, 0);
-            });
+            }
         }
 
         //The following Sendxxx calls,send out a message immediately, w/o putting it in the SyncConnector's outgoing queue.
@@ -985,7 +992,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         m_scene.RequestModuleInterface<ITerrainModule>().TaintTerrain();
                         m_log.Debug(LogHeader+": Synchronized terrain");
                          * */
-                        HandleTerrainUpdateMessage(msg);
+                        HandleTerrainUpdateMessage(msg, senderActorID);
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.GetObjects:
@@ -1006,18 +1013,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.NewObject:
                 case SymmetricSyncMessage.MsgType.UpdatedObject:
                     {
-                        HandleAddOrUpdateObjectBySynchronization(msg);
+                        HandleAddOrUpdateObjectBySynchronization(msg, senderActorID);
                         //HandleAddNewObject(sog);
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.RemovedObject:
                     {
-                        HandleRemovedObject(msg);
+                        HandleRemovedObject(msg, senderActorID);
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.LinkObject:
                     {
-                        HandleLinkObject(msg);
+                        HandleLinkObject(msg, senderActorID);
                         return;
                     }
                     //EVENTS PROCESSING
@@ -1030,7 +1037,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.ObjectGrabbing:
                 case SymmetricSyncMessage.MsgType.ObjectDeGrab:
                     {
-                        HandleRemoteEvent(msg);
+                        HandleRemoteEvent(msg, senderActorID);
                         return;
                     }
                 default:
@@ -1038,7 +1045,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
-        private void HandleTerrainUpdateMessage(SymmetricSyncMessage msg)
+        private void HandleTerrainUpdateMessage(SymmetricSyncMessage msg, string senderActorID)
         {
             // Get the data from message and error check
             OSDMap data = DeserializeMessage(msg);
@@ -1059,7 +1066,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_log.Debug(LogHeader + ": Synchronized terrain");
         }
 
-        private void HandleAddOrUpdateObjectBySynchronization(SymmetricSyncMessage msg)
+        private void HandleAddOrUpdateObjectBySynchronization(SymmetricSyncMessage msg, string senderActorID)
         {
             string sogxml = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
             SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
@@ -1140,7 +1147,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
-        private void HandleRemovedObject(SymmetricSyncMessage msg)
+        private void HandleRemovedObject(SymmetricSyncMessage msg, string senderActorID)
         {
             // Get the data from message and error check
             OSDMap data = DeserializeMessage(msg);
@@ -1175,11 +1182,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //if this is a relay node, forwards the event
             if (m_isSyncRelay)
             {
-                SendSceneEventToRelevantSyncConnectors(init_actorID, msg);
+                //SendSceneEventToRelevantSyncConnectors(init_actorID, msg);
+                SendSceneEventToRelevantSyncConnectors(senderActorID, msg);
             }
         }
 
-        private void HandleLinkObject(SymmetricSyncMessage msg)
+        private void HandleLinkObject(SymmetricSyncMessage msg, string senderActorID)
         {
             // Get the data from message and error check
             OSDMap data = DeserializeMessage(msg);
@@ -1207,7 +1215,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //if this is a relay node, forwards the event
             if (m_isSyncRelay)
             {
-                SendSceneEventToRelevantSyncConnectors(init_actorID, msg);
+                //SendSceneEventToRelevantSyncConnectors(init_actorID, msg);
+                SendSceneEventToRelevantSyncConnectors(senderActorID, msg);
             }
         }
 
@@ -1215,7 +1224,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// The common actions for handling remote events (event initiated at other actors and propogated here)
         /// </summary>
         /// <param name="msg"></param>
-        private void HandleRemoteEvent(SymmetricSyncMessage msg)
+        private void HandleRemoteEvent(SymmetricSyncMessage msg, string senderActorID)
         {
             OSDMap data = DeserializeMessage(msg);
             string init_actorID = data["actorID"].AsString();
@@ -1252,7 +1261,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //if this is a relay node, forwards the event
             if (m_isSyncRelay)
             {
-                SendSceneEventToRelevantSyncConnectors(init_actorID, msg);
+                //SendSceneEventToRelevantSyncConnectors(init_actorID, msg);
+                SendSceneEventToRelevantSyncConnectors(senderActorID, msg);
             }
         }
 

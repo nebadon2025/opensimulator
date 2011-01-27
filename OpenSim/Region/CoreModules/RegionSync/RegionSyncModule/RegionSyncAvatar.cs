@@ -34,11 +34,12 @@ using OpenMetaverse;
 using OpenMetaverse.Packets;
 using OpenMetaverse.StructuredData;
 using OpenSim.Framework;
+using OpenSim.Framework.Client;
 using OpenSim.Region.Framework.Scenes;
 
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
-    public class RegionSyncAvatar : IClientAPI
+    public class RegionSyncAvatar : IClientAPI, IClientCore
     {
         private uint movementFlag = 0;
         private short flyState = 0;
@@ -600,7 +601,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void SendPrimUpdate(ISceneEntity entity, PrimUpdateFlags updateFlags)
         {
-            m_log.Error("[REGION SYNC AVATAR] SendPrimUpdate");
+            m_log.Debug("[REGION SYNC AVATAR] SendPrimUpdate");
         }
 
         public virtual void AttachObject(uint localID, Quaternion rotation, byte attachPoint, UUID ownerID)
@@ -1268,5 +1269,54 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             throw new System.NotImplementedException();
         }
+
+        #region IClientCore
+
+        private readonly Dictionary<Type, object> m_clientInterfaces = new Dictionary<Type, object>();
+
+        /// <summary>
+        /// Register an interface on this client, should only be called in the constructor.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="iface"></param>
+        protected void RegisterInterface<T>(T iface)
+        {
+            lock (m_clientInterfaces)
+            {
+                if (!m_clientInterfaces.ContainsKey(typeof(T)))
+                {
+                    m_clientInterfaces.Add(typeof(T), iface);
+                }
+            }
+        }
+
+        public bool TryGet<T>(out T iface)
+        {
+            if (m_clientInterfaces.ContainsKey(typeof(T)))
+            {
+                iface = (T)m_clientInterfaces[typeof(T)];
+                return true;
+            }
+            iface = default(T);
+            return false;
+        }
+
+        public T Get<T>()
+        {
+            return (T)m_clientInterfaces[typeof(T)];
+        }
+
+        public void Disconnect(string reason)
+        {
+            Close();
+        }
+
+        public void Disconnect()
+        {
+            Close();
+        }
+
+        #endregion
+
     }
 }

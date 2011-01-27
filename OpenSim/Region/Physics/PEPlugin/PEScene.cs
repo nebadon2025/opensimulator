@@ -55,7 +55,7 @@ public class PEScene : PhysicsScene
     {
         PECharacter actor = new PECharacter(avName, this, position, null, size, 0f, 0f, .5f, 1f,
             1f, 1f, .5f, .5f);
-        m_avatars.Add(actor);
+        lock (m_avatars) m_avatars.Add(actor);
         return actor;
     }
 
@@ -63,7 +63,7 @@ public class PEScene : PhysicsScene
     {
         try
         {
-            m_avatars.Remove((PECharacter)actor);
+            lock (m_avatars) m_avatars.Remove((PECharacter)actor);
         }
         catch (Exception e)
         {
@@ -75,7 +75,7 @@ public class PEScene : PhysicsScene
     {
         try
         {
-            m_prims.Remove((PEPrim)prim);
+            lock (m_prims) m_prims.Remove((PEPrim)prim);
         }
         catch (Exception e)
         {
@@ -92,7 +92,7 @@ public class PEScene : PhysicsScene
                                               Vector3 size, Quaternion rotation, bool isPhysical)
     {
         PEPrim prim = new PEPrim(primName, this, position, size, rotation, null, pbs, isPhysical, null);
-        m_prims.Add(prim);
+        lock (m_prims) m_prims.Add(prim);
         return prim;
     }
 
@@ -106,21 +106,27 @@ public class PEScene : PhysicsScene
             if (SceneToPhysEngineSyncServer.IsActivePhysEngineScene2S())
             {
                 // m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
-                foreach (PEPrim prim in m_prims)
+                lock (m_prims)
                 {
-                    // if the values have changed and it was I who changed them, send an update
-                    if (prim.lastValues.Changed(prim) && prim.ChangingActorID == RegionSyncServerModule.ActorID)
+                    foreach (PEPrim prim in m_prims)
                     {
-                        SceneToPhysEngineSyncServer.RouteUpdate(prim);
+                        // if the values have changed and it was I who changed them, send an update
+                        if (prim.lastValues.Changed(prim) && prim.ChangingActorID == RegionSyncServerModule.ActorID)
+                        {
+                            SceneToPhysEngineSyncServer.RouteUpdate(prim);
+                        }
                     }
                 }
-                foreach (PECharacter actor in m_avatars)
+                lock (m_avatars)
                 {
-                    // m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
-                    // if the values have changed and it was I who changed them, send an update
-                    if (actor.lastValues.Changed(actor) && actor.ChangingActorID == RegionSyncServerModule.ActorID)
+                    foreach (PECharacter actor in m_avatars)
                     {
-                        SceneToPhysEngineSyncServer.RouteUpdate(actor);
+                        // m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
+                        // if the values have changed and it was I who changed them, send an update
+                        if (actor.lastValues.Changed(actor) && actor.ChangingActorID == RegionSyncServerModule.ActorID)
+                        {
+                            SceneToPhysEngineSyncServer.RouteUpdate(actor);
+                        }
                     }
                 }
             }

@@ -301,7 +301,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void SendUpdate(PhysicsActor pa)
         {
-            this.m_physEngineToSceneConnector.SendPhysUpdateAttributes(pa);
+            if (this.m_physEngineToSceneConnector != null)
+            {
+                this.m_physEngineToSceneConnector.SendPhysUpdateAttributes(pa);
+            }
         }
 
         #region Console Command Interface

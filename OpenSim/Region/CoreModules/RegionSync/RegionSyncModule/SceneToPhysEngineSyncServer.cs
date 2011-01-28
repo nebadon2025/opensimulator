@@ -677,5 +677,89 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         #endregion Load balancing functions 
+
+        #region Message Logging
+        public static bool logInput = false;
+        public static bool logOutput = true;
+        public static bool logEnabled = true;
+        private class PhysMsgLogger
+        {
+            public DateTime startTime;
+            public string path = null;
+            public System.IO.TextWriter Log = null;
+        }
+        private static PhysMsgLogger logWriter = null;
+        private static TimeSpan logMaxFileTime = new TimeSpan(0, 5, 0);   // (h,m,s) => 5 minutes
+        public static string logDir = "/stats/stats";
+        private static object logLocker = new Object();
+
+        public static void PhysLogMessage(bool direction, RegionSyncMessage rsm)
+        {
+            if (!logEnabled) return;    // save to work of the ToStringFull if not enabled
+            PhysLogMessage(direction, rsm.ToStringFull());
+        }
+
+        /// <summary>
+        /// Log a physics bucket message
+        /// </summary>
+        /// <param name="direction">True of message originated from the agent</param>
+        /// <param name="msg">the message to log</param>
+        public static void PhysLogMessage(bool direction, string msg)
+        {
+            if (!logEnabled) return;
+
+            lock (logLocker)
+            {
+                try
+                {
+                    DateTime now = DateTime.Now;
+                    if (logWriter == null || (now > logWriter.startTime + logMaxFileTime))
+                    {
+                        if (logWriter != null && logWriter.Log != null)
+                        {
+                            logWriter.Log.Close();
+                            logWriter.Log.Dispose();
+                            logWriter.Log = null;
+                        }
+
+                        // First log file or time has expired, start writing to a new log file
+                        logWriter = new PhysMsgLogger();
+                        logWriter.startTime = now;
+                        logWriter.path = (logDir.Length > 0 ? logDir + System.IO.Path.DirectorySeparatorChar.ToString() : "")
+                                + String.Format("physics-{0}.log", now.ToString("yyyyMMddHHmmss"));
+                        logWriter.Log = new StreamWriter(File.Open(logWriter.path, FileMode.Append, FileAccess.Write));
+                    }
+                    if (logWriter != null && logWriter.Log != null)
+                    {
+                        StringBuilder buff = new StringBuilder();
+                        buff.Append(now.ToString("yyyyMMddHHmmssfff"));
+                        buff.Append(" ");
+                        buff.Append(direction ? "A->S:" : "S->A:");
+                        buff.Append(msg);
+                        buff.Append("\r\n");
+                        logWriter.Log.Write(buff.ToString());
+                    }
+                }
+                catch (Exception e)
+                {
+                    // m_log.ErrorFormat("{0}: FAILURE WRITING TO LOGFILE: {1}", LogHeader, e);
+                    logEnabled = false;
+                }
+            }
+            return;
+        }
+
+        public static void PhysLogMessageClose()
+        {
+            if (logWriter != null && logWriter.Log != null)
+            {
+                logWriter.Log.Close();
+                logWriter.Log.Dispose();
+                logWriter.Log = null;
+                logWriter = null;
+            }
+            logEnabled = false;
+        }
+        #endregion Message Logging
     }
 }

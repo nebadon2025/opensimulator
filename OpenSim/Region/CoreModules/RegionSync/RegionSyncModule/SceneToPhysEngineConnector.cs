@@ -230,6 +230,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // We could handle messages from an incoming Queue
         private void HandleMessage(RegionSyncMessage msg)
         {
+            SceneToPhysEngineSyncServer.PhysLogMessage(true, msg);
             msgCount++;
             //string handlerMessage = "";
             switch (msg.Type)
@@ -345,7 +346,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 PhysicsActor pa = FindPhysicsActor(uuid);
                 if (pa != null)
                 {
-                    pa.ChangingActorID = actorID;
                     pa.Size = data["size"].AsVector3();
                     pa.Position = data["position"].AsVector3();
                     pa.Force = data["force"].AsVector3();
@@ -353,13 +353,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     pa.RotationalVelocity = data["rotationalVelocity"].AsVector3();
                     pa.Acceleration = data["acceleration"].AsVector3();
                     pa.Torque = data["torque"].AsVector3();
-                    pa.Orientation = data["orientantion"].AsQuaternion();
+                    pa.Orientation = data["orientation"].AsQuaternion();
                     pa.IsPhysical = data["isPhysical"].AsBoolean();  // receive??
                     pa.Flying = data["flying"].AsBoolean();      // receive??
                     pa.Kinematic = data["kinematic"].AsBoolean();    // receive??
                     pa.Buoyancy = (float)(data["buoyancy"].AsReal());
                     pa.CollidingGround = data["isCollidingGround"].AsBoolean();
                     pa.IsColliding = data["isCollidingGround"].AsBoolean();
+                    pa.ChangingActorID = actorID;
 
                     pa.RequestPhysicsterseUpdate(); // tell the system the values have changed
                 }
@@ -396,7 +397,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void SendPhysUpdateAttributes(PhysicsActor pa)
         {
             // m_log.DebugFormat("{0}: sending PhysUpdateAttributes for {1}", LogHeader, pa.UUID);
-            OSDMap data = new OSDMap(9);
+            OSDMap data = new OSDMap(15);
+            data["time"] = OSD.FromString(DateTime.Now.ToString("yyyyMMddHHmmssfff"));
             data["localID"] = OSD.FromUInteger(pa.LocalID);
             data["uuid"] = OSD.FromUUID(pa.UUID);
             data["actorID"] = OSD.FromString(RegionSyncServerModule.ActorID);

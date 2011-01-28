@@ -108,8 +108,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //m_statsTimer.Elapsed += new System.Timers.ElapsedEventHandler(StatsTimerElapsed);
             m_sysConfig = sysConfig;
 
-            logEnabled = m_sysConfig.GetBoolean("LogEnabled", false);
-            logDir = m_sysConfig.GetString("LogDir", ".");
+            SceneToPhysEngineSyncServer.logEnabled = m_sysConfig.GetBoolean("LogEnabled", false);
+            SceneToPhysEngineSyncServer.logDir = m_sysConfig.GetString("LogDir", ".");
 
             //assume we are connecting to the whole scene as one big quark
             m_subscribedQuarks = new QuarkSubsriptionInfo(0, 0, (int)Constants.RegionSize, (int)Constants.RegionSize);
@@ -258,7 +258,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_client.Client.Close();
                 m_client.Close();
             }
-            LogMessageClose();
+            SceneToPhysEngineSyncServer.PhysLogMessageClose();
         }
 
         // Listen for messages from a RegionSyncServer
@@ -301,14 +301,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Send a message to a single connected RegionSyncServer
         private void Send(string msg)
         {
-            LogMessage(logOutput, msg);
             byte[] bmsg = System.Text.Encoding.ASCII.GetBytes(msg + System.Environment.NewLine);
             Send(bmsg);
         }
 
         private void Send(RegionSyncMessage msg)
         {
-            LogMessage(logOutput, msg);
             Send(msg.ToBytes());
             //m_log.WarnFormat("{0} Sent {1}", LogHeader, msg.ToString());
         }
@@ -347,7 +345,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             //TO FINISH: 
 
-            LogMessage(logInput, msg);
+            SceneToPhysEngineSyncServer.PhysLogMessage(false, msg);
             switch (msg.Type)
             {
                 case RegionSyncMessage.MsgType.RegionName:
@@ -386,14 +384,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 if (pa != null)
                 {
                     // pa.Size = data["size"].AsVector3();
-                    pa.ChangingActorID = actorID;
                     pa.Position = data["position"].AsVector3();
                     pa.Force = data["force"].AsVector3();
                     pa.Velocity = data["velocity"].AsVector3();
                     pa.RotationalVelocity = data["rotationalVelocity"].AsVector3();
                     pa.Acceleration = data["acceleration"].AsVector3();
                     pa.Torque = data["torque"].AsVector3();
-                    pa.Orientation = data["orientantion"].AsQuaternion();
+                    pa.Orientation = data["orientation"].AsQuaternion();
                     pa.IsPhysical = data["isPhysical"].AsBoolean();  // receive??
                     pa.Flying = data["flying"].AsBoolean();      // receive??
                     pa.Kinematic = data["kinematic"].AsBoolean();    // receive??
@@ -403,6 +400,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     {
                         pa.Shape = sop.Shape;
                     }
+                    pa.ChangingActorID = actorID;
                     m_validLocalScene.PhysicsScene.AddPhysicsActorTaint(pa);
                 }
                 else
@@ -438,7 +436,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void SendPhysUpdateAttributes(PhysicsActor pa)
         {
             // m_log.DebugFormat("{0}: SendPhysUpdateAttributes for {1}", LogHeader, pa.UUID);
-            OSDMap data = new OSDMap(9);
+            OSDMap data = new OSDMap(17);
+            data["time"] = OSD.FromString(DateTime.Now.ToString("yyyyMMddHHmmssfff"));
             data["localID"] = OSD.FromUInteger(pa.LocalID);
             data["uuid"] = OSD.FromUUID(pa.UUID);
             data["actorID"] = OSD.FromString(RegionSyncServerModule.ActorID);
@@ -526,84 +525,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         #endregion Handlers for events/updates from Scene
-        #region Message Logging
-        private bool logInput = false;
-        private bool logOutput = true;
-        private bool logEnabled = true;
-        private class MsgLogger
-        {
-            public DateTime startTime;
-            public string path = null;
-            public System.IO.TextWriter Log = null;
-        }
-        private MsgLogger logWriter = null;
-        private TimeSpan logMaxFileTime = new TimeSpan(0, 5, 0);   // (h,m,s) => 5 minutes
-        private string logDir = "/stats/stats";
-        private object logLocker = new Object();
-
-        private void LogMessage(bool direction, RegionSyncMessage rsm)
-        {
-            if (!logEnabled) return;    // save to work of the ToStringFull if not enabled
-            LogMessage(direction, rsm.ToStringFull());
-        }
-
-        private void LogMessage(bool direction, string msg)
-        {
-            if (!logEnabled) return;
-
-            lock (logLocker)
-            {
-                try
-                {
-                    DateTime now = DateTime.Now;
-                    if (logWriter == null || (now > logWriter.startTime + logMaxFileTime))
-                    {
-                        if (logWriter != null && logWriter.Log != null)
-                        {
-                            logWriter.Log.Close();
-                            logWriter.Log.Dispose();
-                            logWriter.Log = null;
-                        }
-
-                        // First log file or time has expired, start writing to a new log file
-                        logWriter = new MsgLogger();
-                        logWriter.startTime = now;
-                        logWriter.path = (logDir.Length > 0 ? logDir + System.IO.Path.DirectorySeparatorChar.ToString() : "")
-                                + String.Format("physics-{0}.log", now.ToString("yyyyMMddHHmmss"));
-                        logWriter.Log = new StreamWriter(File.Open(logWriter.path, FileMode.Append, FileAccess.Write));
-                    }
-                    if (logWriter != null && logWriter.Log != null)
-                    {
-                        StringBuilder buff = new StringBuilder();
-                        buff.Append(now.ToString("yyyyMMddHHmmss"));
-                        buff.Append(" ");
-                        buff.Append(direction ? "A->S:" : "S->A:");
-                        buff.Append(msg);
-                        buff.Append("\r\n");
-                        logWriter.Log.Write(buff.ToString());
-                    }
-                }
-                catch (Exception e)
-                {
-                    m_log.ErrorFormat("{0}: FAILURE WRITING TO LOGFILE: {1}", LogHeader, e);
-                    logEnabled = false;
-                }
-            }
-            return;
-        }
-
-        private void LogMessageClose()
-        {
-            if (logWriter != null && logWriter.Log != null)
-            {
-                logWriter.Log.Close();
-                logWriter.Log.Dispose();
-                logWriter.Log = null;
-                logWriter = null;
-            }
-            logEnabled = false;
-        }
-        #endregion Message Logging
 
     }
 }

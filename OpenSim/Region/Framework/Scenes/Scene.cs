@@ -808,6 +808,11 @@ namespace OpenSim.Region.Framework.Scenes
              * */ 
         }
 
+        public void DelinkObjectsBySync(List<UUID> delinkPrimIDs, List<UUID> beforeDelinkGroupIDs, List<SceneObjectGroup> incomingAfterDelinkGroups)
+        {
+            m_sceneGraph.DelinkObjectsBySync(delinkPrimIDs, beforeDelinkGroupIDs, incomingAfterDelinkGroups);
+        }
+
         #endregion //SYMMETRIC SYNC
 
         public ICapabilitiesModule CapsModule

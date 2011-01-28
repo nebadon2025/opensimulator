@@ -3685,7 +3685,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         //Similar actions with DelinkFromGroup, except that m_scene.AddNewSceneObjectBySync is called
-        private  SceneObjectGroup DelinkFromGroupBySync(SceneObjectPart linkPart, bool sendEvents)
+        public  SceneObjectGroup DelinkFromGroupBySync(SceneObjectPart linkPart, bool sendEvents)
         {
 //                m_log.DebugFormat(
 //                    "[SCENE OBJECT GROUP]: Delinking part {0}, {1} from group with root part {2}, {3}",

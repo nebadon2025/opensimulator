@@ -5093,7 +5093,7 @@ namespace OpenSim.Region.Framework.Scenes
                 m_parentGroup.Scene.EventManager.TriggerAggregateScriptEvents(this);
             }
 
-            m_log.Debug("SceneObjectPart Name-" +Name+", localID-" + m_localId + " updated");
+            m_log.Debug("SceneObjectPart Name-" +Name+", UUID-"+UUID+" localID-" + m_localId + " updated");
 
             return partUpdateResult;
         }

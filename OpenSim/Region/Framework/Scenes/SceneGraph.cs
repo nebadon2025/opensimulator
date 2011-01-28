@@ -2177,6 +2177,371 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
 
+        /// <summary>
+        /// Delink the prims as indicated in localPrimIDs, and regroup them as the object-groups indicated in incomingAfterDelinkGroups.
+        /// </summary>
+        /// <param name="localPrims"></param>
+        /// <param name="beforeDelinkGroupIDs"></param>
+        /// <param name="incomingAfterDelinkGroups"></param>
+        public void DelinkObjectsBySync(List<UUID> delinkPrimIDs, List<UUID> beforeDelinkGroupIDs, List<SceneObjectGroup> incomingAfterDelinkGroups)
+        {
+            Dictionary<UUID, SceneObjectGroup> localBeforeDelinkGroups = new Dictionary<UUID, SceneObjectGroup>();
+            Dictionary<UUID, SceneObjectPart> delinkPrims = new Dictionary<UUID, SceneObjectPart>();
+            bool beforeStateConsistent = true;
+            bool afterStateConsistent = true;
+
+            Monitor.Enter(m_updateLock);
+            try
+            {
+                //get the before-delink-groups, and all the prims to delink
+                foreach (UUID primID in delinkPrimIDs)
+                {
+                    SceneObjectPart localPart = GetSceneObjectPart(primID);
+                    if (!delinkPrims.ContainsKey(primID))
+                    {
+                        delinkPrims.Add(primID, localPart);
+                    }
+                    SceneObjectGroup localGroup = localPart.ParentGroup;
+                    if (!localBeforeDelinkGroups.ContainsKey(localGroup.UUID))
+                    {
+                        localBeforeDelinkGroups.Add(localGroup.UUID, localGroup);
+                    }
+                }
+
+                //Next, do some sanity check to see if the local copy agrees with remote copy on the before-link state. 
+                //TODO:: Actions to be taken after detecting conflicts. For now, we just assume the chance that conflict will happen is almost 0.
+
+                //First, check if the groups match
+                if (beforeDelinkGroupIDs.Count != localBeforeDelinkGroups.Count)
+                {
+                    //detected conflict on editing object groups
+                    m_log.Warn("DelinkObjectsBySync: the # of groups in before-delink-groups is different from the incoming delink message. NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
+                    beforeStateConsistent = false;
+                    //TODO: further actions
+                }
+                else
+                {
+                    foreach (UUID beforeGroupID in beforeDelinkGroupIDs)
+                    {
+                        if (!localBeforeDelinkGroups.ContainsKey(beforeGroupID))
+                        {
+                            m_log.Warn("DelinkObjectsBySync: the local state of before-delink-groups is different from the incoming delink message. NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
+                            beforeStateConsistent = false;
+                            break;
+                        }
+                    }
+                    //TODO: further actions
+                }
+
+                if(beforeStateConsistent){
+                    //Second, check if the prims match
+                    List<SceneObjectPart> allPrimsInLocalGroups = new List<SceneObjectPart>();
+                    foreach (KeyValuePair<UUID, SceneObjectGroup> pair in localBeforeDelinkGroups)
+                    {
+                        foreach (SceneObjectPart part in pair.Value.Parts)
+                        {
+                            allPrimsInLocalGroups.Add(part);
+                        }
+                    }
+                    if (allPrimsInLocalGroups.Count != delinkPrims.Count)
+                    {
+                        m_log.Warn("DelinkObjectsBySync: the # of prims of before-delink-groups is different from the incoming delink message. NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
+                        beforeStateConsistent = false;
+                        //TODO: further action
+                    }else{
+                        foreach (SceneObjectPart part in allPrimsInLocalGroups)
+                        {
+                            if (!delinkPrims.ContainsKey(part.UUID))
+                            {
+                                m_log.Warn("DelinkObjectsBySync: some local prims in before-delink-groups not exist in the incoming delink message. NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
+                                beforeStateConsistent = false;
+                                break;
+                                //TODO: further action
+                            }
+                        }
+                    }
+                }
+                //end of sanity checking
+
+                if(!beforeStateConsistent){
+                    m_log.Warn("DelinkObjectsBySync: before-delink state not consistent in local copy and the incoming copy. Return without further operations.");
+                }else{
+                    //Next, apply the delink operation locally.
+                    List<SceneObjectGroup> localAfterDelinkGroups = DelinkObjectsBySync(new List<SceneObjectPart>(delinkPrims.Values));
+
+                    
+                    //Check if local after-state agrees with that in the remote copy, and update the groups' properties
+                    if (localAfterDelinkGroups.Count != incomingAfterDelinkGroups.Count)
+                    {
+                        m_log.Warn("DelinkObjectsBySync: local state after delink does not agree with the incoming delink message (# of groups are different). NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
+                        afterStateConsistent = false;
+                    }
+                    else
+                    {
+                        Dictionary<UUID, SceneObjectGroup> incomingAfterDelinkGroupsDictionary = new Dictionary<UUID,SceneObjectGroup>();
+                        foreach (SceneObjectGroup incomingGroup in incomingAfterDelinkGroups){
+                            incomingAfterDelinkGroupsDictionary.Add(incomingGroup.UUID, incomingGroup);
+                        }
+                        foreach (SceneObjectGroup localAfterGroup in localAfterDelinkGroups)
+                        {
+                            if (!incomingAfterDelinkGroupsDictionary.ContainsKey(localAfterGroup.UUID))
+                            {
+                                m_log.Warn("DelinkObjectsBySync: local state after delink does not agree with the incoming delink message. NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
+                                afterStateConsistent = false;
+                            }
+                            else
+                            {
+                                localAfterGroup.UpdateObjectProperties(incomingAfterDelinkGroupsDictionary[localAfterGroup.UUID]);
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                Monitor.Exit(m_updateLock);
+            }
+
+            if(beforeStateConsistent && afterStateConsistent){
+                m_log.Debug("DelinkObjectsBySync successful");
+            }
+        }
+
+        //Similar to DelinkObjects(), w/o triggering any ScheduleFullUpdate(),
+        private List<SceneObjectGroup> DelinkObjectsBySync(List<SceneObjectPart> prims)
+        {
+            //!!!Caller of this function should already lock on m_updateLock, so no locking here !!!
+
+            List<SceneObjectGroup> afterDelinkGroups = new List<SceneObjectGroup>();
+
+            List<SceneObjectPart> childParts = new List<SceneObjectPart>();
+            List<SceneObjectPart> rootParts = new List<SceneObjectPart>();
+            List<SceneObjectGroup> affectedGroups = new List<SceneObjectGroup>();
+
+            foreach (SceneObjectPart part in prims)
+            {
+                if (part != null)
+                {
+                    if (part.ParentGroup.PrimCount != 1) // Skip single
+                    {
+                        if (part.LinkNum < 2) // Root
+                            rootParts.Add(part);
+                        else
+                            childParts.Add(part);
+
+                        SceneObjectGroup group = part.ParentGroup;
+                        if (!affectedGroups.Contains(group))
+                        {
+                            affectedGroups.Add(group);
+                        }
+                    }
+                }
+            }
+
+            foreach (SceneObjectPart child in childParts)
+            {
+                // Unlink all child parts from their groups, w/o triggering unwanted events or syncinfo updates
+                child.ParentGroup.DelinkFromGroupBySync(child, true);
+
+                // These are not in affected groups and will not be
+                // handled further. Do the honors here.
+                child.ParentGroup.HasGroupChanged = true;
+
+                //record the after-delink-groups
+                afterDelinkGroups.Add(child.ParentGroup);
+            }
+
+            foreach (SceneObjectPart root in rootParts)
+            {
+                // In most cases, this will run only one time, and the prim
+                // will be a solo prim
+                // However, editing linked parts and unlinking may be different
+                //
+                SceneObjectGroup group = root.ParentGroup;
+
+                List<SceneObjectPart> newSet = new List<SceneObjectPart>(group.Parts);
+                int numChildren = newSet.Count;
+
+                // If there are prims left in a link set, but the root is
+                // slated for unlink, we need to do this
+                //
+                if (numChildren != 1)
+                {
+                    // Unlink the remaining set
+                    //
+                    bool sendEventsToRemainder = true;
+                    if (numChildren > 1)
+                        sendEventsToRemainder = false;
+
+                    foreach (SceneObjectPart p in newSet)
+                    {
+                        if (p != group.RootPart)
+                            group.DelinkFromGroupBySync(p, sendEventsToRemainder);
+                    }
+
+                    // If there is more than one prim remaining, we
+                    // need to re-link
+                    //
+                    if (numChildren > 2)
+                    {
+                        // Remove old root
+                        //
+                        if (newSet.Contains(root))
+                            newSet.Remove(root);
+
+                        // Preserve link ordering
+                        //
+                        newSet.Sort(delegate(SceneObjectPart a, SceneObjectPart b)
+                        {
+                            return a.LinkNum.CompareTo(b.LinkNum);
+                        });
+
+                        // Determine new root
+                        //
+                        SceneObjectPart newRoot = newSet[0];
+                        newSet.RemoveAt(0);
+
+                        foreach (SceneObjectPart newChild in newSet)
+                            newChild.UpdateFlag = 0;
+
+                        LinkObjectsBySync(newRoot, newSet);
+                        if (!affectedGroups.Contains(newRoot.ParentGroup))
+                            affectedGroups.Add(newRoot.ParentGroup);
+                    }
+                }
+            }
+
+            foreach (SceneObjectGroup g in affectedGroups)
+            {
+                g.TriggerScriptChangedEvent(Changed.LINK);
+                g.HasGroupChanged = true; // Persist
+
+                afterDelinkGroups.Add(g);
+            }
+
+            return afterDelinkGroups;
+        }
+
+
+        /*
+         * //Initial effort to delink objects by copying from the linksets from remote copy. Too much book-keeping updating work to make sure all details are right.
+         * //So we switched to letting local actor to apply the same "delink" operation as the remote actor did, and check if the "before-state" and "after-state"
+         * //agrees. 
+        public void DelinkObjectsBySync(List<UUID> delinkPrimIDs, List<UUID> beforeDelinkGroupIDs, List<SceneObjectGroup> incomingAfterDelinkGroups)
+        {
+            Monitor.Enter(m_updateLock);
+            try
+            {
+                Dictionary<UUID, SceneObjectGroup> localBeforeDelinkGroups = new Dictionary<UUID, SceneObjectGroup>();
+                Dictionary<UUID, SceneObjectPart> delinkPrims = new Dictionary<UUID, SceneObjectPart>();
+
+                //get the before-delink-groups, and all the prims to delink
+                foreach (UUID primID in delinkPrimIDs)
+                {
+                    SceneObjectPart localPart = GetSceneObjectPart(primID);
+                    if (!delinkPrims.ContainsKey(primID))
+                    {
+                        delinkPrims.Add(primID, localPart);
+                    }
+                    SceneObjectGroup localGroup = localPart.ParentGroup;
+                    if (!localBeforeDelinkGroups.ContainsKey(localGroup.UUID))
+                    {
+                        localBeforeDelinkGroups.Add(localGroup.UUID, localGroup);
+                    }
+                }
+
+                //Next, do some sanity check to see if the local copy agrees with remote copy on the before-link state. 
+                //TODO:: Actions to be taken after detecting conflicts. For now, we just assume the chance that conflict will happen is almost 0.
+
+                //First, check if the groups match
+                if (beforeDelinkGroupIDs.Count != localBeforeDelinkGroups.Count)
+                {
+                    //detected conflict on editing object groups
+                    m_log.Warn("DelinkObjectsBySync: the # of groups in before-delink-groups is different from the incoming delink message. NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
+                    //TODO: further actions
+                }
+                else 
+                {
+                    foreach (UUID beforeGroupID in beforeDelinkGroupIDs)
+                    {
+                        if (!localBeforeDelinkGroups.ContainsKey(beforeGroupID))
+                        {
+                            m_log.Warn("DelinkObjectsBySync: the local state of before-delink-groups is different from the incoming delink message. NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
+                        }
+                    }
+                    //TODO: further actions
+                }
+                //Second, check if the prims match
+                List<SceneObjectPart> allPrimsInLocalGroups = new List<SceneObjectPart>();
+                foreach (KeyValuePair<UUID, SceneObjectGroup> pair in localBeforeDelinkGroups)
+                {
+                    foreach (SceneObjectPart part in pair.Value.Parts)
+                    {
+                        allPrimsInLocalGroups.Add(part);
+                    }
+                }
+                if (allPrimsInLocalGroups.Count != delinkPrims.Count)
+                {
+                    m_log.Warn("DelinkObjectsBySync: the # of prims of before-delink-groups is different from the incoming delink message. NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
+                    //TODO: further action
+                }
+                foreach (SceneObjectPart part in allPrimsInLocalGroups)
+                {
+                    if (!delinkPrims.ContainsKey(part.UUID))
+                    {
+                        m_log.Warn("DelinkObjectsBySync: some local prims in before-delink-groups not exist in the incoming delink message. NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
+                        //TODO: further action
+                    }
+                }
+                //end of sanity checking
+
+                //now work with localBeforeDelinkGroups, delinkPrims, and incomingAfterDelinkGroups
+                List<SceneObjectGroup> localAfterDelinkGroups = new List<SceneObjectGroup>();
+                List<SceneObjectGroup> remoteOldGroups = new List<SceneObjectGroup>();
+                List<SceneObjectGroup> remoteNewGroups = new List<SceneObjectGroup>();
+
+                foreach (SceneObjectGroup remoteGroup in incomingAfterDelinkGroups)
+                {
+                    if (localBeforeDelinkGroups.ContainsKey(remoteGroup.UUID))
+                    {
+                        remoteOldGroups.Add(remoteGroup);
+                    }
+                    else
+                    {
+                        remoteNewGroups.Add(remoteGroup);
+                    }
+                }
+
+                //update parts in old groups
+                foreach (SceneObjectGroup remoteGroupCopy in remoteOldGroups)
+                {
+                    SceneObjectGroup localGroupCopy = localBeforeDelinkGroups[remoteGroupCopy.UUID];
+                    //update the parts in local copy with those in the remote copy
+
+
+                }
+
+                //add new groups
+
+
+            }
+            finally
+            {
+                Monitor.Exit(m_updateLock);
+            }
+        }
+
+        //update the parts in local copy with those in the updated copy
+        private void UpdatePartsInGroup(SceneObjectGroup localGroup, SceneObjectGroup updatedGroup)
+        {
+            //caller of this function should already lock on m_updateLock, hence no locking here
+            foreach (SceneObjectPart part in localGroup.Parts){
+
+            }
+        }
+         * */ 
+
+
         #endregion //SYMMETRIC SYNC
     }
 }

@@ -404,7 +404,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             //include the property values of each object after delinking, for synchronizing the values
-            data["afterGroupsCount"] = OSD.FromInteger(beforeDelinkGroups.Count);
+            data["afterGroupsCount"] = OSD.FromInteger(afterDelinkGroups.Count);
             groupNum = 0;
             foreach (SceneObjectGroup afterGroup in afterDelinkGroups)
             {
@@ -1031,8 +1031,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// The handler for processing incoming sync messages.
         /// </summary>
         /// <param name="msg"></param>
+        /// <param name="senderActorID">ActorID of the sender</param>
         public void HandleIncomingMessage(SymmetricSyncMessage msg, string senderActorID)
         {
+            //Added senderActorID, so that we don't have to include actorID in sync messages -- TODO
             switch (msg.Type)
             {
                 case SymmetricSyncMessage.MsgType.GetTerrain:
@@ -1082,6 +1084,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.LinkObject:
                     {
                         HandleLinkObject(msg, senderActorID);
+                        return;
+                    }
+                case SymmetricSyncMessage.MsgType.DelinkObject:
+                    {
+                        HandleDelinkObject(msg, senderActorID);
                         return;
                     }
                     //EVENTS PROCESSING
@@ -1254,7 +1261,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
             }
 
-            string init_actorID = data["actorID"].AsString();
+            //string init_actorID = data["actorID"].AsString();
             string sogxml = data["linkedGroup"].AsString();
             SceneObjectGroup linkedGroup = SceneObjectSerializer.FromXml2Format(sogxml);
             UUID rootID = data["rootID"].AsUUID();
@@ -1277,6 +1284,57 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        private void HandleDelinkObject(SymmetricSyncMessage msg, string senderActorID)
+        {
+            OSDMap data = DeserializeMessage(msg);
+            if (data == null)
+            {
+                SymmetricSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                return;
+            }
+
+            //List<SceneObjectPart> localPrims = new List<SceneObjectPart>();
+            List<UUID> delinkPrimIDs = new List<UUID>();
+            List<UUID> beforeDelinkGroupIDs = new List<UUID>();
+            List<SceneObjectGroup> incomingAfterDelinkGroups = new List<SceneObjectGroup>();
+
+            int partCount = data["partCount"].AsInteger();
+            for (int i = 0; i < partCount; i++)
+            {
+                string partTempID = "part" + i;
+                UUID primID = data[partTempID].AsUUID();
+                //SceneObjectPart localPart = m_scene.GetSceneObjectPart(primID);
+                //localPrims.Add(localPart);
+                delinkPrimIDs.Add(primID);
+            }
+
+            int beforeGroupCount = data["beforeGroupsCount"].AsInteger();
+            for (int i = 0; i < beforeGroupCount; i++)
+            {
+                string groupTempID = "beforeGroup" + i;
+                UUID beforeGroupID = data[groupTempID].AsUUID();
+                beforeDelinkGroupIDs.Add(beforeGroupID);
+            }
+
+            int afterGroupsCount = data["afterGroupsCount"].AsInteger();
+            for (int i = 0; i < afterGroupsCount; i++)
+            {
+                string groupTempID = "afterGroup" + i;
+                string sogxml = data[groupTempID].AsString();
+                SceneObjectGroup afterGroup = SceneObjectSerializer.FromXml2Format(sogxml);
+                incomingAfterDelinkGroups.Add(afterGroup);
+            }
+
+            m_scene.DelinkObjectsBySync(delinkPrimIDs, beforeDelinkGroupIDs, incomingAfterDelinkGroups);
+
+            //if this is a relay node, forwards the event
+            if (m_isSyncRelay)
+            {
+                //SendSceneEventToRelevantSyncConnectors(init_actorID, msg);
+                SendSceneEventToRelevantSyncConnectors(senderActorID, msg);
+            }
+        }
+
         /// <summary>
         /// The common actions for handling remote events (event initiated at other actors and propogated here)
         /// </summary>
@@ -1284,6 +1342,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void HandleRemoteEvent(SymmetricSyncMessage msg, string senderActorID)
         {
             OSDMap data = DeserializeMessage(msg);
+            if (data == null)
+            {
+                SymmetricSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                return;
+            }
+
             string init_actorID = data["actorID"].AsString();
             ulong evSeqNum = data["seqNum"].AsULong();
 

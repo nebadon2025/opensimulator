@@ -200,12 +200,21 @@ namespace OpenSim.Server.Handlers.Simulation
 
             // We're behind a proxy
             Hashtable headers = (Hashtable)request["headers"];
-            if (headers.ContainsKey("X-Forwarded-For") && headers["X-Forwarded-For"] != null)
+            string xff = "X-Forwarded-For";
+            if (headers.ContainsKey(xff.ToLower()))
+                xff = xff.ToLower();
+
+            if (!headers.ContainsKey(xff) || headers[xff] == null)
             {
-                IPEndPoint ep = Util.GetClientIPFromXFF((string)headers["X-Forwarded-For"]);
-                if (ep != null)
-                    return ep.Address.ToString();
+                m_log.WarnFormat("[AGENT HANDLER]: No XFF header");
+                return Util.GetCallerIP(request);
             }
+
+            m_log.DebugFormat("[AGENT HANDLER]: XFF is {0}", headers[xff]);
+
+            IPEndPoint ep = Util.GetClientIPFromXFF((string)headers[xff]);
+            if (ep != null)
+                return ep.Address.ToString();
 
             // Oops
             return Util.GetCallerIP(request);
@@ -317,10 +326,17 @@ namespace OpenSim.Server.Handlers.Simulation
                 return;
             }
 
+            // m_log.DebugFormat("[AGENT HANDLER]: Received QUERYACCESS with {0}", (string)request["body"]);
+            OSDMap args = Utils.GetOSDMap((string)request["body"]);
+
+            Vector3 position = Vector3.Zero;
+            if (args.ContainsKey("position"))
+                position = Vector3.Parse(args["position"].AsString());
+
             GridRegion destination = new GridRegion();
             destination.RegionID = regionID;
 
-            bool result = m_SimulationService.QueryAccess(destination, id);
+            bool result = m_SimulationService.QueryAccess(destination, id, position);
 
             responsedata["int_response_code"] = HttpStatusCode.OK;
             responsedata["str_response_string"] = result.ToString();

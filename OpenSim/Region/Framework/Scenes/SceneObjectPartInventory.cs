@@ -178,6 +178,8 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     item.LastOwnerID = item.OwnerID;
                     item.OwnerID = ownerId;
+                    item.PermsMask = 0;
+                    item.PermsGranter = UUID.Zero;
                 }
             }
         }
@@ -629,14 +631,19 @@ namespace OpenSim.Region.Framework.Scenes
 
             group.SetGroup(m_part.GroupID, null);
 
-            if ((rootPart.OwnerID != item.OwnerID) || (item.CurrentPermissions & 16) != 0)
+            // TODO: Remove magic number badness
+            if ((rootPart.OwnerID != item.OwnerID) || (item.CurrentPermissions & 16) != 0 || (item.Flags & (uint)InventoryItemFlags.ObjectSlamPerm) != 0) // Magic number
             {
                 if (m_part.ParentGroup.Scene.Permissions.PropagatePermissions())
                 {
                     foreach (SceneObjectPart part in partList)
                     {
-                        part.EveryoneMask = item.EveryonePermissions;
-                        part.NextOwnerMask = item.NextPermissions;
+                        if ((item.Flags & (uint)InventoryItemFlags.ObjectOverwriteEveryone) != 0)
+                            part.EveryoneMask = item.EveryonePermissions;
+                        if ((item.Flags & (uint)InventoryItemFlags.ObjectOverwriteNextOwner) != 0)
+                            part.NextOwnerMask = item.NextPermissions;
+                        if ((item.Flags & (uint)InventoryItemFlags.ObjectOverwriteGroup) != 0)
+                            part.GroupMask = item.GroupPermissions;
                     }
                     
                     group.ApplyNextOwnerPermissions();
@@ -645,15 +652,20 @@ namespace OpenSim.Region.Framework.Scenes
 
             foreach (SceneObjectPart part in partList)
             {
-                if ((part.OwnerID != item.OwnerID) || (item.CurrentPermissions & 16) != 0)
+                // TODO: Remove magic number badness
+                if ((part.OwnerID != item.OwnerID) || (item.CurrentPermissions & 16) != 0 || (item.Flags & (uint)InventoryItemFlags.ObjectSlamPerm) != 0) // Magic number
                 {
                     part.LastOwnerID = part.OwnerID;
                     part.OwnerID = item.OwnerID;
                     part.Inventory.ChangeInventoryOwner(item.OwnerID);
                 }
                 
-                part.EveryoneMask = item.EveryonePermissions;
-                part.NextOwnerMask = item.NextPermissions;
+                if ((item.Flags & (uint)InventoryItemFlags.ObjectOverwriteEveryone) != 0)
+                    part.EveryoneMask = item.EveryonePermissions;
+                if ((item.Flags & (uint)InventoryItemFlags.ObjectOverwriteNextOwner) != 0)
+                    part.NextOwnerMask = item.NextPermissions;
+                if ((item.Flags & (uint)InventoryItemFlags.ObjectOverwriteGroup) != 0)
+                    part.GroupMask = item.GroupPermissions;
             }
             
             rootPart.TrimPermissions(); 
@@ -685,7 +697,6 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 item.ParentID = m_part.UUID;
                 item.ParentPartID = m_part.UUID;
-                item.Flags = m_items[item.ItemID].Flags;
 
                 // If group permissions have been set on, check that the groupID is up to date in case it has
                 // changed since permissions were last set.
@@ -840,7 +851,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="xferManager"></param>
         public void RequestInventoryFile(IClientAPI client, IXfer xferManager)
         {
-            bool changed = CreateInventoryFile();
+            CreateInventoryFile();
 
             if (m_inventorySerial == 0) // No inventory
             {
@@ -946,6 +957,13 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 foreach (TaskInventoryItem item in m_items.Values)
                 {
+                    if ((item.CurrentPermissions & item.NextPermissions & (uint)PermissionMask.Copy) == 0)
+                        mask &= ~((uint)PermissionMask.Copy >> 13);
+                    if ((item.CurrentPermissions & item.NextPermissions & (uint)PermissionMask.Transfer) == 0)
+                        mask &= ~((uint)PermissionMask.Transfer >> 13);
+                    if ((item.CurrentPermissions & item.NextPermissions & (uint)PermissionMask.Modify) == 0)
+                        mask &= ~((uint)PermissionMask.Modify >> 13);
+
                     if (item.InvType != (int)InventoryType.Object)
                     {
                         if ((item.CurrentPermissions & item.NextPermissions & (uint)PermissionMask.Copy) == 0)
@@ -996,6 +1014,8 @@ namespace OpenSim.Region.Framework.Scenes
                     item.BasePermissions &= item.NextPermissions;
                     item.EveryonePermissions &= item.NextPermissions;
                     item.OwnerChanged = true;
+                    item.PermsMask = 0;
+                    item.PermsGranter = UUID.Zero;
                 }
             }
         }
@@ -1010,6 +1030,8 @@ namespace OpenSim.Region.Framework.Scenes
                     item.BasePermissions = perms;
                 }
             }
+            m_inventorySerial++;
+            HasInventoryChanged = true;
         }
 
         public bool ContainsScripts()

@@ -498,12 +498,6 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_sceneGraph.Entities; }
         }
 
-        public Dictionary<UUID, ScenePresence> m_restorePresences
-        {
-            get { return m_sceneGraph.RestorePresences; }
-            set { m_sceneGraph.RestorePresences = value; }
-        }
-
         #endregion Properties
 
         #region Constructors
@@ -2483,56 +2477,26 @@ namespace OpenSim.Region.Framework.Scenes
                        (aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaLogin) != 0;
 
             CheckHeartbeat();
-            ScenePresence presence;
 
-            if (m_restorePresences.ContainsKey(client.AgentId))
+            if (GetScenePresence(client.AgentId) == null) // ensure there is no SP here
             {
-                m_log.DebugFormat("[SCENE]: Restoring agent {0} {1} in {2}", client.Name, client.AgentId, RegionInfo.RegionName);
+                m_log.Debug("[SCENE]: Adding new agent " + client.Name + " to scene " + RegionInfo.RegionName);
 
                 m_clientManager.Add(client);
                 SubscribeToClientEvents(client);
 
-                presence = m_restorePresences[client.AgentId];
-                m_restorePresences.Remove(client.AgentId);
+                ScenePresence sp = m_sceneGraph.CreateAndAddChildScenePresence(client, aCircuit.Appearance);
+                m_eventManager.TriggerOnNewPresence(sp);
 
-                // This is one of two paths to create avatars that are
-                // used.  This tends to get called more in standalone
-                // than grid, not really sure why, but as such needs
-                // an explicity appearance lookup here.
-                AvatarAppearance appearance = null;
-                GetAvatarAppearance(client, out appearance);
-                presence.Appearance = appearance;
+                sp.TeleportFlags = (TeleportFlags)aCircuit.teleportFlags;
 
-                presence.initializeScenePresence(client, RegionInfo, this);
-
-                m_sceneGraph.AddScenePresence(presence);
-
-                lock (m_restorePresences)
+                // HERE!!! Do the initial attachments right here
+                // first agent upon login is a root agent by design.
+                // All other AddNewClient calls find aCircuit.child to be true
+                if (aCircuit.child == false)
                 {
-                    Monitor.PulseAll(m_restorePresences);
-                }
-            }
-            else
-            {
-                if (GetScenePresence(client.AgentId) == null) // ensure there is no SP here
-                {
-                    m_log.Debug("[SCENE]: Adding new agent " + client.Name + " to scene " + RegionInfo.RegionName);
-
-                    m_clientManager.Add(client);
-                    SubscribeToClientEvents(client);
-
-                    ScenePresence sp = CreateAndAddScenePresence(client);
-                    if (aCircuit != null)
-                        sp.Appearance = aCircuit.Appearance;
-
-                    // HERE!!! Do the initial attachments right here
-                    // first agent upon login is a root agent by design.
-                    // All other AddNewClient calls find aCircuit.child to be true
-                    if (aCircuit == null || (aCircuit != null && aCircuit.child == false))
-                    {
-                        sp.IsChildAgent = false;
-                        Util.FireAndForget(delegate(object o) { sp.RezAttachments(); });
-                    }
+                    sp.IsChildAgent = false;
+                    Util.FireAndForget(delegate(object o) { sp.RezAttachments(); });
                 }
             }
 
@@ -2997,25 +2961,6 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Create a child agent scene presence and add it to this scene.
-        /// </summary>
-        /// <param name="client"></param>
-        /// <returns></returns>
-        protected virtual ScenePresence CreateAndAddScenePresence(IClientAPI client)
-        {
-            CheckHeartbeat();
-            AvatarAppearance appearance = null;
-            GetAvatarAppearance(client, out appearance);
-
-            ScenePresence avatar = m_sceneGraph.CreateAndAddChildScenePresence(client, appearance);
-            //avatar.KnownRegions = GetChildrenSeeds(avatar.UUID);
-
-            m_eventManager.TriggerOnNewPresence(avatar);
-
-            return avatar;
-        }
-
-        /// <summary>
         /// Get the avatar apperance for the given client.
         /// </summary>
         /// <param name="client"></param>
@@ -3324,6 +3269,10 @@ namespace OpenSim.Region.Framework.Scenes
             }
             else
             {
+                // Let the SP know how we got here. This has a lot of interesting
+                // uses down the line.
+                sp.TeleportFlags = (TeleportFlags)teleportFlags;
+
                 if (sp.IsChildAgent)
                 {
                     m_log.DebugFormat(
@@ -3912,14 +3861,16 @@ namespace OpenSim.Region.Framework.Scenes
             RequestTeleportLocation(remoteClient, info.RegionHandle, position, Vector3.Zero, (uint)(TPFlags.SetLastToTarget | TPFlags.ViaLandmark));
         }
 
-        public void CrossAgentToNewRegion(ScenePresence agent, bool isFlying)
+        public bool CrossAgentToNewRegion(ScenePresence agent, bool isFlying)
         {
             if (m_teleportModule != null)
-                m_teleportModule.Cross(agent, isFlying);
+                return m_teleportModule.Cross(agent, isFlying);
             else
             {
                 m_log.DebugFormat("[SCENE]: Unable to cross agent to neighbouring region, because there is no AgentTransferModule");
             }
+
+            return false;
         }
 
         public void SendOutChildAgentUpdates(AgentPosition cadu, ScenePresence presence)
@@ -4970,7 +4921,7 @@ namespace OpenSim.Region.Framework.Scenes
         // from logging into the region, teleporting into the region
         // or corssing the broder walking, but will NOT prevent
         // child agent creation, thereby emulating the SL behavior.
-        public bool QueryAccess(UUID agentID)
+        public bool QueryAccess(UUID agentID, Vector3 position)
         {
             return true;
         }

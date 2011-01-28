@@ -30,6 +30,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
+using System.Text;
 using log4net;
 using Nini.Config;
 using OpenMetaverse;
@@ -37,19 +38,22 @@ using OpenMetaverse.StructuredData;
 using OpenMetaverse.Messages.Linden;
 using OpenSim.Framework;
 using OpenSim.Framework.Capabilities;
+using OpenSim.Framework.Console;
 using OpenSim.Framework.Servers;
 using OpenSim.Framework.Servers.HttpServer;
-using OpenSim.Services.Interfaces;
+using OpenSim.Region.CoreModules.Framework.InterfaceCommander;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Physics.Manager;
-using Caps=OpenSim.Framework.Capabilities.Caps;
+using OpenSim.Services.Interfaces;
+using Caps = OpenSim.Framework.Capabilities.Caps;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 
 namespace OpenSim.Region.CoreModules.World.Land
 {
     // used for caching
-    internal class ExtendedLandData {
+    internal class ExtendedLandData 
+    {
         public LandData LandData;
         public ulong RegionHandle;
         public uint X, Y;
@@ -65,6 +69,9 @@ namespace OpenSim.Region.CoreModules.World.Land
 
         private LandChannel landChannel;
         private Scene m_scene;
+        protected Commander m_commander = new Commander("land");
+        
+        protected IUserManagement m_userManager;
 
         // Minimum for parcels to work is 64m even if we don't actually use them.
         #pragma warning disable 0429
@@ -127,19 +134,27 @@ namespace OpenSim.Region.CoreModules.World.Land
             m_scene.EventManager.OnRequestParcelPrimCountUpdate += EventManagerOnRequestParcelPrimCountUpdate;
             m_scene.EventManager.OnParcelPrimCountTainted += EventManagerOnParcelPrimCountTainted;
             m_scene.EventManager.OnRegisterCaps += EventManagerOnRegisterCaps;
+            m_scene.EventManager.OnPluginConsole += EventManagerOnPluginConsole;
 
             lock (m_scene)
             {
                 m_scene.LandChannel = (ILandChannel)landChannel;
             }
+            
+            InstallInterfaces();
         }
 
         public void RegionLoaded(Scene scene)
         {
+             m_userManager = m_scene.RequestModuleInterface<IUserManagement>();         
         }
 
         public void RemoveRegion(Scene scene)
-        {
+        {            
+            // TODO: Also release other event manager listeners here
+            
+            m_scene.EventManager.OnPluginConsole -= EventManagerOnPluginConsole;
+            m_scene.UnregisterModuleCommander(m_commander.Name);            
         }
 
 //        private bool OnVerifyUserConnection(ScenePresence scenePresence, out string reason)
@@ -148,6 +163,29 @@ namespace OpenSim.Region.CoreModules.World.Land
 //            reason = "You are not allowed to enter this sim.";
 //            return nearestParcel != null;
 //        }
+        
+        /// <summary>
+        /// Processes commandline input. Do not call directly.
+        /// </summary>
+        /// <param name="args">Commandline arguments</param>
+        protected void EventManagerOnPluginConsole(string[] args)
+        {
+            if (args[0] == "land")
+            {
+                if (args.Length == 1)
+                {
+                    m_commander.ProcessConsoleCommand("help", new string[0]);
+                    return;
+                }
+
+                string[] tmpArgs = new string[args.Length - 2];
+                int i;
+                for (i = 2; i < args.Length; i++)
+                    tmpArgs[i - 2] = args[i];
+
+                m_commander.ProcessConsoleCommand(args[1], tmpArgs);
+            }
+        }        
 
         void EventManagerOnNewClient(IClientAPI client)
         {
@@ -209,11 +247,6 @@ namespace OpenSim.Region.CoreModules.World.Land
             }
         }
 
-
-        public void PostInitialise()
-        {
-        }
-
         public void Close()
         {
         }
@@ -221,11 +254,6 @@ namespace OpenSim.Region.CoreModules.World.Land
         public string Name
         {
             get { return "LandManagementModule"; }
-        }
-
-        public bool IsSharedModule
-        {
-            get { return false; }
         }
 
         #endregion
@@ -270,13 +298,19 @@ namespace OpenSim.Region.CoreModules.World.Land
                 m_lastLandLocalID = LandChannel.START_LAND_LOCAL_ID - 1;
                 m_landIDList.Initialize();
             }
-
+        }
+        
+        /// <summary>
+        /// Create a default parcel that spans the entire region and is owned by the estate owner.
+        /// </summary>
+        /// <returns>The parcel created.</returns>
+        protected ILandObject CreateDefaultParcel()
+        {
             ILandObject fullSimParcel = new LandObject(UUID.Zero, false, m_scene);
-
             fullSimParcel.SetLandBitmap(fullSimParcel.GetSquareLandBitmap(0, 0, (int)Constants.RegionSize, (int)Constants.RegionSize));
             fullSimParcel.LandData.OwnerID = m_scene.RegionInfo.EstateSettings.EstateOwner;
             fullSimParcel.LandData.ClaimDate = Util.UnixTimeSinceEpoch();
-            AddLandObject(fullSimParcel);
+            return AddLandObject(fullSimParcel);            
         }
 
         public List<ILandObject> AllParcels()
@@ -550,15 +584,6 @@ namespace OpenSim.Region.CoreModules.World.Land
         }
 
         /// <summary>
-        /// Creates a basic Parcel object without an owner (a zeroed key)
-        /// </summary>
-        /// <returns></returns>
-        public ILandObject CreateBaseLand()
-        {
-            return new LandObject(UUID.Zero, false, m_scene);
-        }
-
-        /// <summary>
         /// Adds a land object to the stored list and adds them to the landIDList to what they own
         /// </summary>
         /// <param name="new_land">The land object being added</param>
@@ -617,6 +642,28 @@ namespace OpenSim.Region.CoreModules.World.Land
                 m_landList.Remove(local_id);
             }
         }
+        
+        /// <summary>
+        /// Clear the scene of all parcels
+        /// </summary>        
+        public void Clear(bool setupDefaultParcel)
+        {
+            lock (m_landList)
+            {
+                foreach (ILandObject lo in m_landList.Values)
+                {
+                    //m_scene.SimulationDataService.RemoveLandObject(lo.LandData.GlobalID);
+                    m_scene.EventManager.TriggerLandObjectRemoved(lo.LandData.GlobalID);
+                }
+                
+                m_landList.Clear();
+            }
+            
+            ResetSimLandObjects();
+            
+            if (setupDefaultParcel)
+                CreateDefaultParcel();
+        }
 
         private void performFinalLandJoin(ILandObject master, ILandObject slave)
         {
@@ -662,7 +709,7 @@ namespace OpenSim.Region.CoreModules.World.Land
             int x;
             int y;
 
-            if (x_float > Constants.RegionSize || x_float <= 0 || y_float > Constants.RegionSize || y_float <= 0)
+            if (x_float >= Constants.RegionSize || x_float < 0 || y_float >= Constants.RegionSize || y_float < 0)
                 return null;
 
             try
@@ -704,10 +751,10 @@ namespace OpenSim.Region.CoreModules.World.Land
             {
                 try
                 {
-                    if (m_landList.ContainsKey(m_landIDList[x / 4, y / 4]))
+                    //if (m_landList.ContainsKey(m_landIDList[x / 4, y / 4]))
                         return m_landList[m_landIDList[x / 4, y / 4]];
-                    else
-                        return null;
+                    //else
+                    //    return null;
                 }
                 catch (IndexOutOfRangeException)
                 {
@@ -1283,7 +1330,6 @@ namespace OpenSim.Region.CoreModules.World.Land
             }
         }
 
-
         void ClientOnParcelDeedToGroup(int parcelLocalID, UUID groupID, IClientAPI remote_client)
         {
             ILandObject land;
@@ -1299,9 +1345,7 @@ namespace OpenSim.Region.CoreModules.World.Land
             {
                 land.DeedToGroup(groupID);
             }
-
         }
-
 
         #region Land Object From Storage Functions
 
@@ -1337,6 +1381,7 @@ namespace OpenSim.Region.CoreModules.World.Land
         public void EventManagerOnNoLandDataFromStorage()
         {
             ResetSimLandObjects();
+            CreateDefaultParcel();
         }
 
         #endregion
@@ -1591,5 +1636,67 @@ namespace OpenSim.Region.CoreModules.World.Land
 
             UpdateLandObject(localID, land.LandData);
         }
+        
+        protected void InstallInterfaces()
+        {
+            Command clearCommand
+                = new Command("clear", CommandIntentions.COMMAND_HAZARDOUS, ClearCommand, "Clears all the parcels from the region.");
+            Command showCommand 
+                = new Command("show", CommandIntentions.COMMAND_STATISTICAL, ShowParcelsCommand, "Shows all parcels on the region.");
+
+            m_commander.RegisterCommand("clear", clearCommand);
+            m_commander.RegisterCommand("show", showCommand);
+
+            // Add this to our scene so scripts can call these functions
+            m_scene.RegisterModuleCommander(m_commander);
+        }    
+        
+        protected void ClearCommand(Object[] args)
+        {
+            string response = MainConsole.Instance.CmdPrompt(
+                string.Format(
+                    "Are you sure that you want to clear all land parcels from {0} (y or n)", 
+                    m_scene.RegionInfo.RegionName), 
+                "n");
+            
+            if (response.ToLower() == "y")
+            {
+                Clear(true);
+                MainConsole.Instance.OutputFormat("Cleared all parcels from {0}", m_scene.RegionInfo.RegionName);
+            }
+            else
+            {
+                MainConsole.Instance.OutputFormat("Aborting clear of all parcels from {0}", m_scene.RegionInfo.RegionName);
+            }
+        }        
+        
+        protected void ShowParcelsCommand(Object[] args)
+        {
+            StringBuilder report = new StringBuilder();  
+            
+            report.AppendFormat("Land information for {0}\n", m_scene.RegionInfo.RegionName);            
+            report.AppendFormat(
+                "{0,-20} {1,-10} {2,-9} {3,-18} {4,-18} {5,-20}\n",
+                "Parcel Name",
+                "Local ID",
+                "Area",
+                "Starts",
+                "Ends",
+                "Owner");
+            
+            lock (m_landList)
+            {
+                foreach (ILandObject lo in m_landList.Values)
+                {
+                    LandData ld = lo.LandData;
+                    
+                    report.AppendFormat(
+                        "{0,-20} {1,-10} {2,-9} {3,-18} {4,-18} {5,-20}\n", 
+                        ld.Name, ld.LocalID, ld.Area, lo.StartPoint, lo.EndPoint, m_userManager.GetUserName(ld.OwnerID));
+                }
+            }
+            
+            MainConsole.Instance.Output(report.ToString());
+        }         
     }
 }

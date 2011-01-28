@@ -3862,7 +3862,15 @@ namespace OpenSim.Region.Framework.Scenes
         public void SyncInfoUpdate()
         {
             long timeStamp = DateTime.Now.Ticks;
-            string actorID = m_scene.ActorSyncModule.ActorID;
+            string actorID = m_scene.GetSyncActorID();
+            foreach (SceneObjectPart part in Parts)
+            {
+                part.SyncInfoUpdate(timeStamp, actorID);
+            }
+        }
+
+        public void SyncInfoUpdate(long timeStamp, string actorID)
+        {
             foreach (SceneObjectPart part in Parts)
             {
                 part.SyncInfoUpdate(timeStamp, actorID);

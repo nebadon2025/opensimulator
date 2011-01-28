@@ -1598,13 +1598,14 @@ namespace OpenSim.Region.Framework.Scenes
                 //so should return quickly. 
                 if (m_parentScene.RegionSyncModule != null)
                 {
-                    //Tell other actors to link the SceneObjectParts together as a new group. But not updating the properties yet.
-                    //The properties will be updated later when parentGroup.ScheduleGroupForFullUpdate() is called below.
+                    //Tell other actors to link the SceneObjectParts together as a new group. 
                     parentGroup.SyncInfoUpdate();
                     m_parentScene.RegionSyncModule.SendLinkObject(parentGroup, root, children);
                 }
 
-                //Schedule updates as in legacy OpenSim code, to send updates to viewers connected to this actor (at least needed for client managers)
+                //Schedule updates as in legacy OpenSim code, to send updates to viewers connected to this actor (at least needed for client managers).
+                //But timestamp won't be changed, so that when other actors get the update, they's simple ignore the updates since they already get them
+                //via the LinkObject message sent above.
                 parentGroup.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
 
                 //end of SYMMETRIC SYNC
@@ -1628,6 +1629,11 @@ namespace OpenSim.Region.Framework.Scenes
                 List<SceneObjectPart> childParts = new List<SceneObjectPart>();
                 List<SceneObjectPart> rootParts = new List<SceneObjectPart>();
                 List<SceneObjectGroup> affectedGroups = new List<SceneObjectGroup>();
+
+                //SYMMETRIC SYNC, record the new object groups after the delink operation
+                List<SceneObjectGroup> beforeDelinkGroups = new List<SceneObjectGroup>();
+                List<SceneObjectGroup> afterDelinkGroups = new List<SceneObjectGroup>();
+
                 // Look them all up in one go, since that is comparatively expensive
                 //
                 foreach (SceneObjectPart part in prims)
@@ -1643,7 +1649,11 @@ namespace OpenSim.Region.Framework.Scenes
 
                             SceneObjectGroup group = part.ParentGroup;
                             if (!affectedGroups.Contains(group))
+                            {
                                 affectedGroups.Add(group);
+                                //SYMMETRIC SYNC
+                                beforeDelinkGroups.Add(group);
+                            }
                         }
                     }
                 }
@@ -1657,7 +1667,10 @@ namespace OpenSim.Region.Framework.Scenes
                     // These are not in affected groups and will not be
                     // handled further. Do the honors here.
                     child.ParentGroup.HasGroupChanged = true;
-                    child.ParentGroup.ScheduleGroupForFullUpdate();
+
+                    //SYMMETRIC SYNC, delay ScheduleGroupForFullUpdate till the end of the delink operations. 
+                    //child.ParentGroup.ScheduleGroupForFullUpdate();
+                    afterDelinkGroups.Add(child.ParentGroup);
                 }
 
                 foreach (SceneObjectPart root in rootParts)
@@ -1726,8 +1739,34 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     g.TriggerScriptChangedEvent(Changed.LINK);
                     g.HasGroupChanged = true; // Persist
-                    g.ScheduleGroupForFullUpdate();
+
+                    //SYMMETRIC SYNC, delay ScheduleGroupForFullUpdate till the end of the delink operations. 
+                    //g.ScheduleGroupForFullUpdate();
+                    afterDelinkGroups.Add(g);
                 }
+
+                //SYMMETRIC SYNC
+                //set timestamp
+                long timeStamp = DateTime.Now.Ticks;
+                string actorID = m_parentScene.GetSyncActorID();
+                foreach (SceneObjectGroup sog in afterDelinkGroups)
+                {
+                    if (m_parentScene.RegionSyncModule != null)
+                    {
+                        sog.SyncInfoUpdate(timeStamp, actorID); ;
+                    }
+                }
+                //Send out DelinkObject message to other actors to sychronize their object list 
+                m_parentScene.RegionSyncModule.SendDeLinkObject(prims, beforeDelinkGroups, afterDelinkGroups);
+
+
+                //Schedule updates as in legacy OpenSim code, to send updates to viewers connected to this actor (at least needed for client managers).
+                //But timestamp won't be changed, so that when other actors get the update, they's simple ignore the updates since they already get them
+                foreach (SceneObjectGroup sog in afterDelinkGroups)
+                {
+                    sog.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
+                }
+                //end of SYMMETRIC SYNC
             }
             finally
             {

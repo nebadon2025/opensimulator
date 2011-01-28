@@ -70,7 +70,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 if (m_syncOtherSideRegionName == null)
                     return String.Format("SyncConnector #{0}", m_connectorNum);
-                return String.Format("SyncConnector #{0} ({1:10})", m_connectorNum, m_syncOtherSideRegionName);
+                return String.Format("SyncConnector #{0} (Actor {2}, Region {1:10})", m_connectorNum, m_syncOtherSideRegionName, m_syncOtherSideActorID);
             }
         }
 

@@ -4940,7 +4940,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (m_parentGroup != null)
             {
-                m_lastUpdateActorID = m_parentGroup.Scene.ActorSyncModule.ActorID;
+                m_lastUpdateActorID = m_parentGroup.Scene.GetSyncActorID();
             }
             else
             {
@@ -4967,7 +4967,7 @@ namespace OpenSim.Region.Framework.Scenes
             //       ScheduleFullUpdate() is called when m_parentGroup == null
             if (m_parentGroup != null && m_parentGroup.Scene != null && m_parentGroup.Scene.ActorSyncModule != null)
             {
-                SyncInfoUpdate(DateTime.Now.Ticks, m_parentGroup.Scene.ActorSyncModule.ActorID);
+                SyncInfoUpdate(DateTime.Now.Ticks, m_parentGroup.Scene.GetSyncActorID());
             }
         }
 

@@ -60,16 +60,16 @@ namespace OpenSim.Region.Framework.Interfaces
         void QueueSceneObjectPartForUpdate(SceneObjectPart part);
         void QueueScenePresenceForTerseUpdate(ScenePresence presence);
 
-        //SendSceneUpdates put each update into an outgoing queue of each SyncConnector
+        //The folloiwng calls deal with object updates, and will insert each update into an outgoing queue of each SyncConnector
         void SendSceneUpdates();
+        void SendDeleteObject(SceneObjectGroup sog, bool softDelete);
+        void SendLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children);
+        void SendDeLinkObject(List<SceneObjectPart> prims, List<SceneObjectGroup> beforeDelinkGroups, List<SceneObjectGroup> afterDelinkGroups);
 
         //In RegionSyncModule's implementation, 
         //The following calls send out a message immediately, w/o putting it in the SyncConnector's outgoing queue.
         //May need some optimization there on the priorities.
         void SendTerrainUpdates(string lastUpdateActorID);
-        void SendDeleteObject(SceneObjectGroup sog, bool softDelete);
-        void SendLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children);
-
         //For propogating scene events to other actors
         void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs);
 

@@ -379,6 +379,44 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SendObjectUpdateToRelevantSyncConnectors(linkedGroup, rsm);
         }
 
+        public void SendDeLinkObject(List<SceneObjectPart> prims, List<SceneObjectGroup> beforeDelinkGroups, List<SceneObjectGroup> afterDelinkGroups)
+        {
+            if (prims.Count==0 || beforeDelinkGroups.Count==0) return;
+
+            OSDMap data = new OSDMap();
+            data["partCount"] = OSD.FromInteger(prims.Count);
+            int partNum = 0;
+            foreach (SceneObjectPart part in prims)
+            {
+                string partTempID = "part" + partNum;
+                data[partTempID] = OSD.FromUUID(part.UUID);
+                partNum++;
+            }
+            //We also include the IDs of beforeDelinkGroups, for now it is more for sanity checking at the receiving end, so that the receiver 
+            //could make sure its delink starts with the same linking state of the groups/prims.
+            data["beforeGroupsCount"] = OSD.FromInteger(beforeDelinkGroups.Count);
+            int groupNum = 0;
+            foreach (SceneObjectGroup affectedGroup in beforeDelinkGroups)
+            {
+                string groupTempID = "beforeGroup" + groupNum;
+                data[groupTempID] = OSD.FromUUID(affectedGroup.UUID);
+                groupNum++;
+            }
+
+            //include the property values of each object after delinking, for synchronizing the values
+            data["afterGroupsCount"] = OSD.FromInteger(beforeDelinkGroups.Count);
+            groupNum = 0;
+            foreach (SceneObjectGroup afterGroup in afterDelinkGroups)
+            {
+                string groupTempID = "afterGroup" + groupNum;
+                string sogxml = SceneObjectSerializer.ToXml2Format(afterGroup);
+                data[groupTempID] = OSD.FromString(sogxml);
+                groupNum++;
+            }
+
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.DelinkObject, OSDParser.SerializeJsonString(data));
+            SendDelinkObjectToRelevantSyncConnectors(beforeDelinkGroups, rsm);
+        }
 
         public void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs)
         {
@@ -555,6 +593,25 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //string sogxml = SceneObjectSerializer.ToXml2Format(sog);
                 //SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
                 connector.EnqueueOutgoingUpdate(sog.UUID, syncMsg.ToBytes());
+            }
+        }
+
+        private void SendDelinkObjectToRelevantSyncConnectors(List<SceneObjectGroup> beforeDelinkGroups, SymmetricSyncMessage syncMsg)
+        {
+            HashSet<int> syncConnectorsSent = new HashSet<int>();
+
+            foreach (SceneObjectGroup sog in beforeDelinkGroups)
+            {
+                List<SyncConnector> syncConnectors = GetSyncConnectorsForObjectUpdates(sog);
+                foreach (SyncConnector connector in syncConnectors)
+                {
+                    if (!syncConnectorsSent.Contains(connector.ConnectorNum))
+                    {
+                        m_log.Debug(LogHeader + " send DeLinkObject to " + connector.Description);
+                        connector.EnqueueOutgoingUpdate(sog.UUID, syncMsg.ToBytes());
+                        syncConnectorsSent.Add(connector.ConnectorNum);
+                    }
+                }
             }
         }
 

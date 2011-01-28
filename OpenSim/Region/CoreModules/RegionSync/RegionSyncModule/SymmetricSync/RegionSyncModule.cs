@@ -63,7 +63,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             m_active = true;
 
-            LogHeader += "-" + m_actorID;
+            LogHeader += "-Actor " + m_actorID;
             m_log.Warn("[REGION SYNC MODULE] Initialised for actor "+ m_actorID);
 
             //The ActorType configuration will be read in and process by an ActorSyncModule, not here.
@@ -91,7 +91,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
             //m_scene.EventManager.OnObjectBeingRemovedFromScene += new EventManager.ObjectBeingRemovedFromScene(RegionSyncModule_OnObjectBeingRemovedFromScene);
 
-            LogHeader += "-" + scene.RegionInfo.RegionName;
+            LogHeader += "-LocalRegion " + scene.RegionInfo.RegionName;
         }
 
         //Called after AddRegion() has been called for all region modules of the scene

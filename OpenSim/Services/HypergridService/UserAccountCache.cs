@@ -73,6 +73,11 @@ namespace OpenSim.Services.HypergridService
 
             return account;
         }
+        
+        public UserAccount CreateUserAccount(UserAccount data, string password)
+        {
+            return null;
+        }        
 
         #region IUserAccountService
         public UserAccount GetUserAccount(UUID scopeID, UUID userID)

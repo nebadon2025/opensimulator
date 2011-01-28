@@ -190,6 +190,11 @@ namespace OpenSim.Services.Connectors.SimianGrid
 
             return accounts;
         }
+        
+        public UserAccount CreateUserAccount(UserAccount data, string password)
+        {
+            return null;
+        }
 
         public bool StoreUserAccount(UserAccount data)
         {

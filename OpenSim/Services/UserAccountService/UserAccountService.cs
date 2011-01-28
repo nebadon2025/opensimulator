@@ -30,8 +30,9 @@ using System.Collections.Generic;
 using System.Reflection;
 using Nini.Config;
 using OpenSim.Data;
-using OpenSim.Services.Interfaces;
+using OpenSim.Framework;
 using OpenSim.Framework.Console;
+using OpenSim.Services.Interfaces;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 
 using OpenMetaverse;
@@ -48,6 +49,8 @@ namespace OpenSim.Services.UserAccountService
         protected IAuthenticationService m_AuthenticationService;
         protected IGridUserService m_GridUserService;
         protected IInventoryService m_InventoryService;
+
+        protected static UUID s_libOwner = new UUID("11111111-1111-0000-0000-000100bba000");        
 
         public UserAccountService(IConfigSource config)
             : base(config)
@@ -87,9 +90,7 @@ namespace OpenSim.Services.UserAccountService
                             "reset user password [<first> [<last> [<password>]]]",
                             "Reset a user password", HandleResetUserPassword);
                 }
-
             }
-
         }
 
         #region IUserAccountService
@@ -352,6 +353,12 @@ namespace OpenSim.Services.UserAccountService
 
         #endregion
 
+        public UserAccount CreateUserAccount(UserAccount data, string password)
+        {
+            CreateUser(data.FirstName, data.LastName, password, data.Email);
+            return data;
+        }
+        
         /// <summary>
         /// Create a user
         /// </summary>
@@ -399,19 +406,34 @@ namespace OpenSim.Services.UserAccountService
                                firstName, lastName);
                     }
                     else
+                    {
                         m_log.WarnFormat("[USER ACCOUNT SERVICE]: Unable to retrieve home region for account {0} {1}.",
                            firstName, lastName);
-
-                    if (m_InventoryService != null)
-                    {
-                        success = m_InventoryService.CreateUserInventory(account.PrincipalID);
-                        if (!success)
-                            m_log.WarnFormat("[USER ACCOUNT SERVICE]: Unable to create inventory for account {0} {1}.",
-                                firstName, lastName);
                     }
 
+                    Console.WriteLine("here");
+                    if (m_InventoryService != null)
+                    {
+                        Console.WriteLine("here2");
+                        if (m_InventoryService.CreateUserInventory(account.PrincipalID))
+                        {
+                            Console.WriteLine("here3");
+                            CreateDefaultInventory(account.PrincipalID);
+                        }
+                        else
+                        {
+                            Console.WriteLine("here4");
+                            m_log.WarnFormat("[USER ACCOUNT SERVICE]: Unable to create inventory for account {0} {1}.",
+                                firstName, lastName);
+                        }
+                        Console.WriteLine("here5");
+                    }                        
+
+                    Console.WriteLine("here6");
                     m_log.InfoFormat("[USER ACCOUNT SERVICE]: Account {0} {1} created successfully", firstName, lastName);
-                } else {
+                } 
+                else 
+                {
                     m_log.ErrorFormat("[USER ACCOUNT SERVICE]: Account creation failed for account {0} {1}", firstName, lastName);
                 }
             }
@@ -420,5 +442,144 @@ namespace OpenSim.Services.UserAccountService
                 m_log.ErrorFormat("[USER ACCOUNT SERVICE]: A user with the name {0} {1} already exists!", firstName, lastName);
             }
         }
+        
+        protected void CreateDefaultInventory(UUID principalID)
+        {
+            m_log.InfoFormat("[USER ACCOUNT SERVICE]: Creating default inventory for {0}", principalID);
+            
+            InventoryFolderBase rootFolder = m_InventoryService.GetRootFolder(principalID);
+            
+//            XInventoryFolder[] sysFolders = GetSystemFolders(principalID);
+
+            CreateFolder(principalID, rootFolder.ID, (int)AssetType.Animation, "Animations");
+            InventoryFolderBase bodypartFolder = CreateFolder(principalID, rootFolder.ID, (int)AssetType.Bodypart, "Body Parts");
+            CreateFolder(principalID, rootFolder.ID, (int)AssetType.CallingCard, "Calling Cards");
+            InventoryFolderBase clothingFolder = CreateFolder(principalID, rootFolder.ID, (int)AssetType.Clothing, "Clothing");
+            CreateFolder(principalID, rootFolder.ID, (int)AssetType.Gesture, "Gestures");
+            CreateFolder(principalID, rootFolder.ID, (int)AssetType.Landmark, "Landmarks");
+            CreateFolder(principalID, rootFolder.ID, (int)AssetType.LostAndFoundFolder, "Lost And Found");
+            CreateFolder(principalID, rootFolder.ID, (int)AssetType.Notecard, "Notecards");
+            CreateFolder(principalID, rootFolder.ID, (int)AssetType.Object, "Objects");
+            CreateFolder(principalID, rootFolder.ID, (int)AssetType.SnapshotFolder, "Photo Album");
+            CreateFolder(principalID, rootFolder.ID, (int)AssetType.LSLText, "Scripts");
+            CreateFolder(principalID, rootFolder.ID, (int)AssetType.Sound, "Sounds");
+            CreateFolder(principalID, rootFolder.ID, (int)AssetType.Texture, "Textures");
+            CreateFolder(principalID, rootFolder.ID, (int)AssetType.TrashFolder, "Trash");
+            
+            // Default minimum body parts for viewer 2 appearance
+            InventoryItemBase defaultShape = new InventoryItemBase();
+            defaultShape.Name = "Default shape";
+            defaultShape.Description = "Default shape description";
+            defaultShape.AssetType = (int)AssetType.Bodypart;
+            defaultShape.InvType = (int)InventoryType.Wearable;
+            defaultShape.Flags = (uint)WearableType.Shape;
+            defaultShape.ID = AvatarWearable.DEFAULT_BODY_ITEM;
+            defaultShape.AssetID = AvatarWearable.DEFAULT_BODY_ASSET;
+            defaultShape.Folder = bodypartFolder.ID;
+            defaultShape.CreatorId = s_libOwner.ToString();
+            defaultShape.Owner = principalID;
+            defaultShape.BasePermissions = (uint)PermissionMask.All;
+            defaultShape.CurrentPermissions = (uint)PermissionMask.All;
+            defaultShape.EveryOnePermissions = (uint)PermissionMask.None;
+            defaultShape.NextPermissions = (uint)PermissionMask.All;
+            m_InventoryService.AddItem(defaultShape);                        
+            
+            InventoryItemBase defaultSkin = new InventoryItemBase();
+            defaultSkin.Name = "Default skin";
+            defaultSkin.Description = "Default skin description";
+            defaultSkin.AssetType = (int)AssetType.Bodypart;
+            defaultSkin.InvType = (int)InventoryType.Wearable;
+            defaultSkin.Flags = (uint)WearableType.Skin;
+            defaultSkin.ID = AvatarWearable.DEFAULT_SKIN_ITEM;
+            defaultSkin.AssetID = AvatarWearable.DEFAULT_SKIN_ASSET;
+            defaultSkin.Folder = bodypartFolder.ID;
+            defaultSkin.CreatorId = s_libOwner.ToString();
+            defaultSkin.Owner = principalID;
+            defaultSkin.BasePermissions = (uint)PermissionMask.All;
+            defaultSkin.CurrentPermissions = (uint)PermissionMask.All;
+            defaultSkin.EveryOnePermissions = (uint)PermissionMask.None;
+            defaultSkin.NextPermissions = (uint)PermissionMask.All;            
+            m_InventoryService.AddItem(defaultSkin);   
+            
+            InventoryItemBase defaultHair = new InventoryItemBase();
+            defaultHair.Name = "Default hair";
+            defaultHair.Description = "Default hair description";
+            defaultHair.AssetType = (int)AssetType.Bodypart;
+            defaultHair.InvType = (int)InventoryType.Wearable;
+            defaultHair.Flags = (uint)WearableType.Hair;
+            defaultHair.ID = AvatarWearable.DEFAULT_HAIR_ITEM;
+            defaultHair.AssetID = AvatarWearable.DEFAULT_HAIR_ASSET;
+            defaultHair.Folder = bodypartFolder.ID;
+            defaultHair.CreatorId = s_libOwner.ToString();
+            defaultHair.Owner = principalID;
+            defaultHair.BasePermissions = (uint)PermissionMask.All;
+            defaultHair.CurrentPermissions = (uint)PermissionMask.All;
+            defaultHair.EveryOnePermissions = (uint)PermissionMask.None;
+            defaultHair.NextPermissions = (uint)PermissionMask.All;            
+            m_InventoryService.AddItem(defaultHair); 
+            
+            InventoryItemBase defaultEyes = new InventoryItemBase();
+            defaultEyes.Name = "Default eyes";
+            defaultEyes.Description = "Default eyes description";
+            defaultEyes.AssetType = (int)AssetType.Bodypart;
+            defaultEyes.InvType = (int)InventoryType.Wearable;
+            defaultEyes.Flags = (uint)WearableType.Eyes;
+            defaultEyes.ID = AvatarWearable.DEFAULT_EYES_ITEM;
+            defaultEyes.AssetID = AvatarWearable.DEFAULT_EYES_ASSET;
+            defaultEyes.Folder = bodypartFolder.ID;
+            defaultEyes.CreatorId = s_libOwner.ToString();
+            defaultEyes.Owner = principalID;
+            defaultEyes.BasePermissions = (uint)PermissionMask.All;
+            defaultEyes.CurrentPermissions = (uint)PermissionMask.All;
+            defaultEyes.EveryOnePermissions = (uint)PermissionMask.None;
+            defaultEyes.NextPermissions = (uint)PermissionMask.All;            
+            m_InventoryService.AddItem(defaultEyes);   
+            
+            // Default minimum clothes for viewer 2 non-naked appearance
+            InventoryItemBase defaultShirt = new InventoryItemBase();
+            defaultShirt.Name = "Default shirt";
+            defaultShirt.Description = "Default shirt description";
+            defaultShirt.AssetType = (int)AssetType.Clothing;
+            defaultShirt.InvType = (int)InventoryType.Wearable;
+            defaultShirt.Flags = (uint)WearableType.Shirt;
+            defaultShirt.ID = AvatarWearable.DEFAULT_SHIRT_ITEM;
+            defaultShirt.AssetID = AvatarWearable.DEFAULT_SHIRT_ASSET;
+            defaultShirt.Folder = clothingFolder.ID;
+            defaultShirt.CreatorId = s_libOwner.ToString();
+            defaultShirt.Owner = principalID;
+            defaultShirt.BasePermissions = (uint)PermissionMask.All;
+            defaultShirt.CurrentPermissions = (uint)PermissionMask.All;
+            defaultShirt.EveryOnePermissions = (uint)PermissionMask.None;
+            defaultShirt.NextPermissions = (uint)PermissionMask.All;            
+            m_InventoryService.AddItem(defaultShirt);   
+            
+            InventoryItemBase defaultPants = new InventoryItemBase();
+            defaultPants.Name = "Default pants";
+            defaultPants.Description = "Default pants description";
+            defaultPants.AssetType = (int)AssetType.Clothing;
+            defaultPants.InvType = (int)InventoryType.Wearable;
+            defaultPants.Flags = (uint)WearableType.Pants;
+            defaultPants.ID = AvatarWearable.DEFAULT_PANTS_ITEM;
+            defaultPants.AssetID = AvatarWearable.DEFAULT_PANTS_ASSET;
+            defaultPants.Folder = clothingFolder.ID;
+            defaultPants.CreatorId = s_libOwner.ToString();
+            defaultPants.Owner = principalID;
+            defaultPants.BasePermissions = (uint)PermissionMask.All;
+            defaultPants.CurrentPermissions = (uint)PermissionMask.All;
+            defaultPants.EveryOnePermissions = (uint)PermissionMask.None;
+            defaultPants.NextPermissions = (uint)PermissionMask.All;            
+            m_InventoryService.AddItem(defaultPants);       
+        }
+                                         
+        protected InventoryFolderBase CreateFolder(UUID principalID, UUID parentID, int type, string name)
+        {
+            InventoryFolderBase folder 
+                = new InventoryFolderBase(UUID.Random(), name, principalID, (short)type, parentID, 1);
+            
+            if (m_InventoryService.AddFolder(folder))
+                return folder;
+            else
+                return null;
+        }          
     }
 }

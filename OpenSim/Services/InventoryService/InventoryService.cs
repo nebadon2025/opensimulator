@@ -122,17 +122,13 @@ namespace OpenSim.Services.InventoryService
                     "[INVENTORY SERVICE]: Did not create a new inventory for user {0} since they already have "
                     + "a root inventory folder with id {1}",
                     user, existingRootFolder.ID);
+                
+                return false;
             }
             else
             {
-                UsersInventory inven = new UsersInventory();
-                inven.CreateNewInventorySet(user);
-                AddNewInventorySet(inven);
-
                 return true;
             }
-
-            return false;
         }
 
         // See IInventoryServices
@@ -503,15 +499,6 @@ namespace OpenSim.Services.InventoryService
             return true;
         }
 
-        private void AddNewInventorySet(UsersInventory inventory)
-        {
-            foreach (InventoryFolderBase folder in inventory.Folders.Values)
-                AddFolder(folder);
-
-            foreach (InventoryItemBase item in inventory.Items.Values)
-                AddItem(item);
-        }
-
         public InventoryItemBase GetInventoryItem(UUID itemID)
         {
             InventoryItemBase item = m_Database.getInventoryItem(itemID);
@@ -542,168 +529,6 @@ namespace OpenSim.Services.InventoryService
                 perms = perms | FindAssetPerms(subfolder, assetID);
 
             return perms;
-        }
-
-        /// <summary>
-        /// Used to create a new user inventory.
-        /// </summary>
-        private class UsersInventory
-        {
-            public Dictionary<UUID, InventoryFolderBase> Folders = new Dictionary<UUID, InventoryFolderBase>();
-            public Dictionary<UUID, InventoryItemBase> Items = new Dictionary<UUID, InventoryItemBase>();
-
-            public virtual void CreateNewInventorySet(UUID user)
-            {
-                InventoryFolderBase folder = new InventoryFolderBase();
-
-                folder.ParentID = UUID.Zero;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "My Inventory";
-                folder.Type = (short)AssetType.Folder;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-
-                UUID rootFolder = folder.ID;
-
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Animations";
-                folder.Type = (short)AssetType.Animation;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Body Parts";
-                folder.Type = (short)AssetType.Bodypart;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Calling Cards";
-                folder.Type = (short)AssetType.CallingCard;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-
-                InventoryFolderBase clothingFolder = new InventoryFolderBase();
-                clothingFolder.ParentID = rootFolder;
-                clothingFolder.Owner = user;
-                clothingFolder.ID = UUID.Random();
-                clothingFolder.Name = "Clothing";
-                clothingFolder.Type = (short)AssetType.Clothing;
-                clothingFolder.Version = 1;
-                Folders.Add(clothingFolder.ID, clothingFolder);                                                                               
-
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Gestures";
-                folder.Type = (short)AssetType.Gesture;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Landmarks";
-                folder.Type = (short)AssetType.Landmark;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Lost And Found";
-                folder.Type = (short)AssetType.LostAndFoundFolder;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Notecards";
-                folder.Type = (short)AssetType.Notecard;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Objects";
-                folder.Type = (short)AssetType.Object;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Photo Album";
-                folder.Type = (short)AssetType.SnapshotFolder;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Scripts";
-                folder.Type = (short)AssetType.LSLText;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Sounds";
-                folder.Type = (short)AssetType.Sound;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Textures";
-                folder.Type = (short)AssetType.Texture;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-
-                folder = new InventoryFolderBase();
-                folder.ParentID = rootFolder;
-                folder.Owner = user;
-                folder.ID = UUID.Random();
-                folder.Name = "Trash";
-                folder.Type = (short)AssetType.TrashFolder;
-                folder.Version = 1;
-                Folders.Add(folder.ID, folder);
-                
-                // Not worth creating default items for this old inventory service since it's only currently used by
-                // tests (and then to test other things, rather than the service itself).
-//                // Default items
-//                InventoryItemBase defaultShape = new InventoryItemBase();
-//                defaultShape.Name = "Default shape";
-//                defaultShape.AssetType = (int)AssetType.Bodypart;
-//                defaultShape.InvType = (int)InventoryType.Wearable;
-//                defaultShape.ID = AvatarWearable.DEFAULT_BODY_ITEM;
-//                defaultShape.AssetID = AvatarWearable.DEFAULT_BODY_ASSET;
-//                defaultShape.Folder = clothingFolder.ID;
-//                Items.Add(defaultShape.ID, defaultShape);                
-            }
         }
     }
 }

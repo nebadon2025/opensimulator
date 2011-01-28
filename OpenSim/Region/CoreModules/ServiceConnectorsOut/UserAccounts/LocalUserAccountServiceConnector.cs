@@ -139,6 +139,14 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.UserAccounts
         #endregion
 
         #region IUserAccountService
+        
+        public UserAccount CreateUserAccount(UserAccount account, string password)
+        {
+            account = m_UserService.CreateUserAccount(account, password);
+            m_Cache.Cache(account.PrincipalID, account);
+
+            return account;            
+        }
 
         public UserAccount GetUserAccount(UUID scopeID, UUID userID)
         {

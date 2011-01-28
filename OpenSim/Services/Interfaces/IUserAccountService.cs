@@ -139,6 +139,14 @@ namespace OpenSim.Services.Interfaces
 
     public interface IUserAccountService
     {
+        /// <summary>
+        /// Temporarily punch a hole through to account creation so that the scene can create a user account for an
+        /// estate manager.
+        /// </summary>
+        /// <param name="account"></param>
+        /// <returns></returns>
+        UserAccount CreateUserAccount(UserAccount account, string password);
+        
         UserAccount GetUserAccount(UUID scopeID, UUID userID);
         UserAccount GetUserAccount(UUID scopeID, string FirstName, string LastName);
         UserAccount GetUserAccount(UUID scopeID, string Email);

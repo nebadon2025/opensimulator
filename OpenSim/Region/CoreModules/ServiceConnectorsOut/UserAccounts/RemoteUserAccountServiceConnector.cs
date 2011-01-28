@@ -116,6 +116,12 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.UserAccounts
         }
 
         #region Overwritten methods from IUserAccountService
+        
+        public override UserAccount CreateUserAccount(UserAccount account, string password)
+        {
+            // This remote connector refuses to serve this method
+            return null;
+        }
 
         public override UserAccount GetUserAccount(UUID scopeID, UUID userID)
         {

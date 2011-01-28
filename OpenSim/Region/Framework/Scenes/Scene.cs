@@ -1082,11 +1082,6 @@ namespace OpenSim.Region.Framework.Scenes
             m_capsModule = RequestModuleInterface<ICapabilitiesModule>();
             m_teleportModule = RequestModuleInterface<IEntityTransferModule>();
 
-            // Shoving this in here for now, because we have the needed
-            // interfaces at this point
-            //
-            // TODO: Find a better place for this
-            //
             while (m_regInfo.EstateSettings.EstateOwner == UUID.Zero && MainConsole.Instance != null)
             {
                 MainConsole.Instance.Output("The current estate has no owner set.");
@@ -1109,58 +1104,15 @@ namespace OpenSim.Region.Framework.Scenes
                         account.ServiceURLs["AssetServerURI"] = string.Empty;
                     }
 
-                    if (UserAccountService.StoreUserAccount(account))
-                    {
-                        string password = MainConsole.Instance.PasswdPrompt("Password");
-                        string email = MainConsole.Instance.CmdPrompt("Email", "");
-
-                        account.Email = email;
-                        UserAccountService.StoreUserAccount(account);
-
-                        bool success = false;
-                        success = AuthenticationService.SetPassword(account.PrincipalID, password);
-                        if (!success)
-                            m_log.WarnFormat("[USER ACCOUNT SERVICE]: Unable to set password for account {0} {1}.",
-                               first, last);
-
-                        GridRegion home = null;
-                        if (GridService != null)
-                        {
-                            List<GridRegion> defaultRegions = GridService.GetDefaultRegions(UUID.Zero);
-                            if (defaultRegions != null && defaultRegions.Count >= 1)
-                                home = defaultRegions[0];
-
-                            if (GridUserService != null && home != null)
-                                GridUserService.SetHome(account.PrincipalID.ToString(), home.RegionID, new Vector3(128, 128, 0), new Vector3(0, 1, 0));
-                            else
-                                m_log.WarnFormat("[USER ACCOUNT SERVICE]: Unable to set home for account {0} {1}.",
-                                   first, last);
-
-                        }
-                        else
-                            m_log.WarnFormat("[USER ACCOUNT SERVICE]: Unable to retrieve home region for account {0} {1}.",
-                               first, last);
-
-                        if (InventoryService != null)
-                            success = InventoryService.CreateUserInventory(account.PrincipalID);
-                        if (!success)
-                            m_log.WarnFormat("[USER ACCOUNT SERVICE]: Unable to create inventory for account {0} {1}.",
-                               first, last);
-
-
-                        m_log.InfoFormat("[USER ACCOUNT SERVICE]: Account {0} {1} created successfully", first, last);
-
-                        m_regInfo.EstateSettings.EstateOwner = account.PrincipalID;
-                        m_regInfo.EstateSettings.Save();
-                    }
-                    else
-                        m_log.ErrorFormat("[SCENE]: Unable to store account. If this simulator is connected to a grid, you must create the estate owner account first.");
+                    string password = MainConsole.Instance.PasswdPrompt("Password");
+                    string email = MainConsole.Instance.CmdPrompt("Email", "");
+                    account.Email = email;
+                                        
+                    UserAccountService.CreateUserAccount(account, password);
                 }
-                else
-                {
-                    m_regInfo.EstateSettings.EstateOwner = account.PrincipalID;
-                    m_regInfo.EstateSettings.Save();
-                }
+                
+                m_regInfo.EstateSettings.EstateOwner = account.PrincipalID;
+                m_regInfo.EstateSettings.Save();                
             }
         }
 

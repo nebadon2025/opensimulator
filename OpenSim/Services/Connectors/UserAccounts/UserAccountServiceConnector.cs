@@ -186,6 +186,11 @@ namespace OpenSim.Services.Connectors
 
             return accounts;
         }
+        
+        public virtual UserAccount CreateUserAccount(UserAccount data, string password)
+        {
+            return null;
+        }        
 
         public virtual bool StoreUserAccount(UserAccount data)
         {

@@ -133,6 +133,13 @@ namespace OpenSim.Region.Framework.Scenes
         private bool m_updateflag;
         private byte m_movementflag;
         private Vector3? m_forceToApply;
+        private TeleportFlags m_teleportFlags;
+        public TeleportFlags TeleportFlags
+        {
+            get { return m_teleportFlags; }
+            set { m_teleportFlags = value; }
+        }
+
         private uint m_requestedSitTargetID;
         private UUID m_requestedSitTargetUUID;
         public bool SitGround = false;
@@ -990,6 +997,10 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void MakeChildAgent()
         {
+            // Reset these so that teleporting in and walking out isn't seen
+            // as teleporting back
+            m_teleportFlags = TeleportFlags.Default;
+
             // It looks like m_animator is set to null somewhere, and MakeChild
             // is called after that. Probably in aborted teleports.
             if (m_animator == null)
@@ -2819,29 +2830,57 @@ namespace OpenSim.Region.Framework.Scenes
                 // Makes sure avatar does not end up outside region
                 if (neighbor <= 0)
                 {
-                    if (!needsTransit)
+                    if (needsTransit)
                     {
                         if (m_requestedSitTargetUUID == UUID.Zero)
                         {
+                            bool isFlying = m_physicsActor.Flying;
+                            RemoveFromPhysicalScene();
+
                             Vector3 pos = AbsolutePosition;
                             if (AbsolutePosition.X < 0)
-                                pos.X += Velocity.X;
+                                pos.X += Velocity.X * 2;
                             else if (AbsolutePosition.X > Constants.RegionSize)
-                                pos.X -= Velocity.X;
+                                pos.X -= Velocity.X * 2;
                             if (AbsolutePosition.Y < 0)
-                                pos.Y += Velocity.Y;
+                                pos.Y += Velocity.Y * 2;
                             else if (AbsolutePosition.Y > Constants.RegionSize)
-                                pos.Y -= Velocity.Y;
+                                pos.Y -= Velocity.Y * 2;
+                            Velocity = Vector3.Zero;
                             AbsolutePosition = pos;
+
+                            AddToPhysicalScene(isFlying);
                         }
                     }
                 }
                 else if (neighbor > 0)
-                    CrossToNewRegion();
+                {
+                    if (!CrossToNewRegion())
+                    {
+                        if (m_requestedSitTargetUUID == UUID.Zero)
+                        {
+                            bool isFlying = m_physicsActor.Flying;
+                            RemoveFromPhysicalScene();
+
+                            Vector3 pos = AbsolutePosition;
+                            if (AbsolutePosition.X < 0)
+                                pos.X += Velocity.X * 2;
+                            else if (AbsolutePosition.X > Constants.RegionSize)
+                                pos.X -= Velocity.X * 2;
+                            if (AbsolutePosition.Y < 0)
+                                pos.Y += Velocity.Y * 2;
+                            else if (AbsolutePosition.Y > Constants.RegionSize)
+                                pos.Y -= Velocity.Y * 2;
+                            Velocity = Vector3.Zero;
+                            AbsolutePosition = pos;
+
+                            AddToPhysicalScene(isFlying);
+                        }
+                    }
+                }
             }
             else
             {
-                RemoveFromPhysicalScene();
                 // This constant has been inferred from experimentation
                 // I'm not sure what this value should be, so I tried a few values.
                 timeStep = 0.04f;
@@ -2890,16 +2929,15 @@ namespace OpenSim.Region.Framework.Scenes
         /// If the neighbor accepts, remove the agent's viewable avatar from this scene
         /// set them to a child agent.
         /// </summary>
-        protected void CrossToNewRegion()
+        protected bool CrossToNewRegion()
         {
-            InTransit();
             try
             {
-                m_scene.CrossAgentToNewRegion(this, m_physicsActor.Flying);
+                return m_scene.CrossAgentToNewRegion(this, m_physicsActor.Flying);
             }
             catch
             {
-                m_scene.CrossAgentToNewRegion(this, false);
+                return m_scene.CrossAgentToNewRegion(this, false);
             }
         }
 

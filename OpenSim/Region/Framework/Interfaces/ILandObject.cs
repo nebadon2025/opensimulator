@@ -39,11 +39,26 @@ namespace OpenSim.Region.Framework.Interfaces
     {
         int GetParcelMaxPrimCount(ILandObject thisObject);
         int GetSimulatorMaxPrimCount(ILandObject thisObject);
+        int GetPrimsFree();
 
         LandData LandData { get; set; }
         bool[,] LandBitmap { get; set; }
         UUID RegionUUID { get; }
+        
+        /// <summary>
+        /// The start point for the land object.  This is the western-most point as one scans land working from 
+        /// north to south.
+        /// </summary>
+        Vector3 StartPoint { get; }
+        
+        /// <summary>
+        /// The end point for the land object.  This is the eastern-most point as one scans land working from 
+        /// south to north.
+        /// </summary>        
+        Vector3 EndPoint { get; }
+        
         bool ContainsPoint(int x, int y);
+        
         ILandObject Copy();
 
         void SendLandUpdateToAvatarsOverMe();

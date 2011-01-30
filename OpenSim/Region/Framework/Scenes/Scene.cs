@@ -3039,43 +3039,17 @@ namespace OpenSim.Region.Framework.Scenes
                 ScenePresence sp = m_sceneGraph.CreateAndAddChildScenePresence(client, aCircuit.Appearance);
                 m_eventManager.TriggerOnNewPresence(sp);
 
-                // REGION SYNC
-                // The owner is not being set properly when there is no circuit. Hmmm
-                // Commenting this out for the merge from master. Might still need it since we have no circuit on scene
-                // presence.Appearance.Owner = presence.UUID;
-
-                presence.initializeScenePresence(client, RegionInfo, this);
+                //presence.initializeScenePresence(client, RegionInfo, this);
                 sp.TeleportFlags = (TeleportFlags)aCircuit.teleportFlags;
 
                 // HERE!!! Do the initial attachments right here
                 // first agent upon login is a root agent by design.
                 // All other AddNewClient calls find aCircuit.child to be true
-                if (aCircuit.child == false)
+                // REGION SYNC (Circuit might be null)
+                if (aCircuit == null || (aCircuit != null && aCircuit.child == false))
                 {
-                    Monitor.PulseAll(m_restorePresences);
-                }
-            }
-            else
-            {
-                if (GetScenePresence(client.AgentId) == null) // ensure there is no SP here
-                {
-                    m_log.DebugFormat("[SCENE ({0})]: Adding new agent {1} ({2}) to scene.", m_regionName, client.Name, client.AgentId);
-
-                    m_clientManager.Add(client);
-                    SubscribeToClientEvents(client);
-
-                    ScenePresence sp = CreateAndAddScenePresence(client);
-                    if (aCircuit != null)
-                        sp.Appearance = aCircuit.Appearance;
-
-                    // HERE!!! Do the initial attachments right here
-                    // first agent upon login is a root agent by design.
-                    // All other AddNewClient calls find aCircuit.child to be true
-                    if (aCircuit == null || (aCircuit != null && aCircuit.child == false))
-                    {
-                        sp.IsChildAgent = false;
-                        Util.FireAndForget(delegate(object o) { sp.RezAttachments(); });
-                    }
+                    sp.IsChildAgent = false;
+                    Util.FireAndForget(delegate(object o) { sp.RezAttachments(); });
                 }
             }
 

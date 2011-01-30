@@ -36,6 +36,7 @@ using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Services.Interfaces;
 using OpenSim.Server.Base;
+using OpenMetaverse;
 
 
 namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Land
@@ -90,7 +91,6 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Land
             if (!m_Enabled)
                 return;
 
-            m_GridService = scene.GridService;
             m_LocalService.AddRegion(scene);
             scene.RegisterModuleInterface<ILandService>(this);
         }
@@ -103,18 +103,20 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Land
 
         public void RegionLoaded(Scene scene)
         {
+            if (m_Enabled)
+                m_GridService = scene.GridService;
         }
 
 
         #region ILandService
 
-        public override LandData GetLandData(ulong regionHandle, uint x, uint y)
+        public override LandData GetLandData(UUID scopeID, ulong regionHandle, uint x, uint y, out byte regionAccess)
         {
-            LandData land = m_LocalService.GetLandData(regionHandle, x, y);
+            LandData land = m_LocalService.GetLandData(scopeID, regionHandle, x, y, out regionAccess);
             if (land != null)
                 return land;
 
-            return base.GetLandData(regionHandle, x, y);
+            return base.GetLandData(scopeID, regionHandle, x, y, out regionAccess);
 
         }
         #endregion ILandService

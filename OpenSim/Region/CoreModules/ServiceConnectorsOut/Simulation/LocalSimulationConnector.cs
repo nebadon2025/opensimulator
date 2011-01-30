@@ -257,6 +257,20 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Simulation
             return false;
         }
 
+        public bool QueryAccess(GridRegion destination, UUID id, Vector3 position)
+        {
+            if (destination == null)
+                return false;
+
+            foreach (Scene s in m_sceneList)
+            {
+                if (s.RegionInfo.RegionID == destination.RegionID)
+                    return s.QueryAccess(id, position);
+            }
+            //m_log.Debug("[LOCAL COMMS]: region not found for QueryAccess");
+            return false;
+        }
+
         public bool ReleaseAgent(UUID origin, UUID id, string uri)
         {
             foreach (Scene s in m_sceneList)
@@ -283,7 +297,10 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Simulation
                 if (s.RegionInfo.RegionID == destination.RegionID)
                 {
                     //m_log.Debug("[LOCAL COMMS]: Found region to SendCloseAgent");
-                    return s.IncomingCloseAgent(id);
+                    // Let's spawn a threadlet right here, because this may take
+                    // a while
+                    Util.FireAndForget(delegate { s.IncomingCloseAgent(id); });
+                    return true;
                 }
             }
             //m_log.Debug("[LOCAL COMMS]: region not found in SendCloseAgent");

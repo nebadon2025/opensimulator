@@ -70,7 +70,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// A user will arrive shortly, set up appropriate credentials so it can connect
         /// </summary>
-        public event ExpectUserDelegate OnExpectUser;
+//        public event ExpectUserDelegate OnExpectUser;
 
         /// <summary>
         /// A Prim will arrive shortly
@@ -80,7 +80,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// A new prim has arrived
         /// </summary>
-        public event PrimCrossing OnPrimCrossingIntoRegion;
+//        public event PrimCrossing OnPrimCrossingIntoRegion;
 
         ///// <summary>
         ///// A New Region is up and available
@@ -90,7 +90,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// We have a child agent for this avatar and we're getting a status update about it
         /// </summary>
-        public event ChildAgentUpdate OnChildAgentUpdate;
+//        public event ChildAgentUpdate OnChildAgentUpdate;
         //public event RemoveKnownRegionsFromAvatarList OnRemoveKnownRegionFromAvatar;
 
         /// <summary>
@@ -193,7 +193,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public delegate void SendChildAgentDataUpdateDelegate(AgentPosition cAgentData, ulong regionHandle);
+        public delegate void SendChildAgentDataUpdateDelegate(AgentPosition cAgentData, UUID scopeID, ulong regionHandle);
 
         /// <summary>
         /// This informs all neighboring regions about the settings of it's child agent.
@@ -202,7 +202,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// This contains information, such as, Draw Distance, Camera location, Current Position, Current throttle settings, etc.
         ///
         /// </summary>
-        private void SendChildAgentDataUpdateAsync(AgentPosition cAgentData, ulong regionHandle)
+        private void SendChildAgentDataUpdateAsync(AgentPosition cAgentData, UUID scopeID, ulong regionHandle)
         {
             //m_log.Info("[INTERGRID]: Informing neighbors about my agent in " + m_regionInfo.RegionName);
             try
@@ -245,7 +245,7 @@ namespace OpenSim.Region.Framework.Scenes
                     if (regionHandle != m_regionInfo.RegionHandle)
                     {
                         SendChildAgentDataUpdateDelegate d = SendChildAgentDataUpdateAsync;
-                        d.BeginInvoke(cAgentData, regionHandle,
+                        d.BeginInvoke(cAgentData, m_regionInfo.ScopeID, regionHandle,
                                       SendChildAgentDataUpdateCompleted,
                                       d);
                     }
@@ -258,13 +258,17 @@ namespace OpenSim.Region.Framework.Scenes
 
         }
 
-        public delegate void SendCloseChildAgentDelegate(UUID agentID, ulong regionHandle);
+        //public delegate void SendCloseChildAgentDelegate(UUID agentID, ulong regionHandle);
+        //private void SendCloseChildAgentCompleted(IAsyncResult iar)
+        //{
+        //    SendCloseChildAgentDelegate icon = (SendCloseChildAgentDelegate)iar.AsyncState;
+        //    icon.EndInvoke(iar);
+        //}
 
         /// <summary>
-        /// This Closes child agents on neighboring regions
-        /// Calls an asynchronous method to do so..  so it doesn't lag the sim.
+        /// Closes a child agent on a given region
         /// </summary>
-        protected void SendCloseChildAgentAsync(UUID agentID, ulong regionHandle)
+        protected void SendCloseChildAgent(UUID agentID, ulong regionHandle)
         {
 
             m_log.Debug("[INTERGRID]: Sending close agent to " + regionHandle);
@@ -273,25 +277,25 @@ namespace OpenSim.Region.Framework.Scenes
             //m_commsProvider.InterRegion.TellRegionToCloseChildConnection(regionHandle, agentID);
             uint x = 0, y = 0;
             Utils.LongToUInts(regionHandle, out x, out y);
-            GridRegion destination = m_scene.GridService.GetRegionByPosition(UUID.Zero, (int)x, (int)y);
+            GridRegion destination = m_scene.GridService.GetRegionByPosition(m_regionInfo.ScopeID, (int)x, (int)y);
             m_scene.SimulationService.CloseAgent(destination, agentID);
         }
 
-        private void SendCloseChildAgentCompleted(IAsyncResult iar)
-        {
-            SendCloseChildAgentDelegate icon = (SendCloseChildAgentDelegate)iar.AsyncState;
-            icon.EndInvoke(iar);
-        }
-
+        /// <summary>
+        /// Closes a child agents in a collection of regions. Does so asynchronously 
+        /// so that the caller doesn't wait.
+        /// </summary>
+        /// <param name="agentID"></param>
+        /// <param name="regionslst"></param>
         public void SendCloseChildAgentConnections(UUID agentID, List<ulong> regionslst)
         {
-            foreach (ulong handle in regionslst)
+            Util.FireAndForget(delegate
             {
-                SendCloseChildAgentDelegate d = SendCloseChildAgentAsync;
-                d.BeginInvoke(agentID, handle,
-                              SendCloseChildAgentCompleted,
-                              d);
-            }
+                foreach (ulong handle in regionslst)
+                {
+                    SendCloseChildAgent(agentID, handle);
+                }
+            });
         }
        
         public List<GridRegion> RequestNamedRegions(string name, int maxNumber)

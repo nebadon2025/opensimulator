@@ -65,6 +65,8 @@ namespace OpenSim.Region.Framework.Scenes.Tests
         [TestFixtureSetUp]
         public void Init()
         {
+            TestHelper.InMethod();
+            
             scene = SceneSetupHelpers.SetupScene("Neighbour x", UUID.Random(), 1000, 1000);
             scene2 = SceneSetupHelpers.SetupScene("Neighbour x+1", UUID.Random(), 1001, 1000);
             scene3 = SceneSetupHelpers.SetupScene("Neighbour x-1", UUID.Random(), 999, 1000);
@@ -104,8 +106,8 @@ namespace OpenSim.Region.Framework.Scenes.Tests
             agent.AgentID = agent1;
             agent.firstname = firstName;
             agent.lastname = "testlastname";
-            agent.SessionID = UUID.Zero;
-            agent.SecureSessionID = UUID.Zero;
+            agent.SessionID = UUID.Random();
+            agent.SecureSessionID = UUID.Random();
             agent.circuitcode = 123;
             agent.BaseFolder = UUID.Zero;
             agent.InventoryFolder = UUID.Zero;
@@ -113,6 +115,11 @@ namespace OpenSim.Region.Framework.Scenes.Tests
             agent.CapsPath = GetRandomCapsObjectPath();
             agent.ChildrenCapSeeds = new Dictionary<ulong, string>();
             agent.child = true;
+
+            if (scene.PresenceService == null)
+                Console.WriteLine("Presence Service is null");
+
+            scene.PresenceService.LoginAgent(agent.AgentID.ToString(), agent.SessionID, agent.SecureSessionID);
 
             string reason;
             scene.NewUserConnection(agent, (uint)TeleportFlags.ViaLogin, out reason);
@@ -168,6 +175,7 @@ namespace OpenSim.Region.Framework.Scenes.Tests
 
             Assert.That(neighbours.Count, Is.EqualTo(2));
         }
+        
         public void fixNullPresence()
         {
             string firstName = "testfirstname";
@@ -384,8 +392,6 @@ namespace OpenSim.Region.Framework.Scenes.Tests
 
         public static string GetRandomCapsObjectPath()
         {
-            TestHelper.InMethod();
-
             UUID caps = UUID.Random();
             string capsPath = caps.ToString();
             capsPath = capsPath.Remove(capsPath.Length - 4, 4);

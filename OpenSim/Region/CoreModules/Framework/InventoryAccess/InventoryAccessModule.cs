@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -53,6 +53,17 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
 
         protected bool m_Enabled = false;
         protected Scene m_Scene;
+        protected IUserManagement m_UserManagement;
+        protected IUserManagement UserManagementModule
+        {
+            get
+            {
+                if (m_UserManagement == null)
+                    m_UserManagement = m_Scene.RequestModuleInterface<IUserManagement>();
+                return m_UserManagement;
+            }
+        }
+
 
         #region INonSharedRegionModule
 
@@ -196,13 +207,27 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
             // currently calls this with multiple items.
             UUID ret = UUID.Zero; 
 
+            Dictionary<UUID, List<SceneObjectGroup>> deletes =
+                    new Dictionary<UUID, List<SceneObjectGroup>>();
+
             foreach (SceneObjectGroup g in objectGroups)
-                ret = DeleteToInventory(action, folderID, g, remoteClient);
+            {
+                if (!deletes.ContainsKey(g.OwnerID))
+                    deletes[g.OwnerID] = new List<SceneObjectGroup>();
+
+                deletes[g.OwnerID].Add(g);
+            }
+
+            foreach (List<SceneObjectGroup> objlist in deletes.Values)
+            {
+                foreach (SceneObjectGroup g in objlist)
+                    ret = DeleteToInventory(action, folderID, g, remoteClient);
+            }
 
             return ret;
         }
 
-        public virtual UUID DeleteToInventory(DeRezAction action, UUID folderID,
+        private UUID DeleteToInventory(DeRezAction action, UUID folderID,
                 SceneObjectGroup objectGroup, IClientAPI remoteClient)
         {
             UUID assetID = UUID.Zero;
@@ -315,10 +340,20 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     }
                     else
                     {
-                        // Catch all. Use lost & found
-                        //
+                        if (remoteClient == null ||
+                            objectGroup.OwnerID != remoteClient.AgentId)
+                        {
+                            // Taking copy of another person's item. Take to
+                            // Objects folder.
+                            folder = m_Scene.InventoryService.GetFolderForType(userID, AssetType.Object);
+                        }
+                        else
+                        {
+                            // Catch all. Use lost & found
+                            //
 
-                        folder = m_Scene.InventoryService.GetFolderForType(userID, AssetType.LostAndFoundFolder);
+                            folder = m_Scene.InventoryService.GetFolderForType(userID, AssetType.LostAndFoundFolder);
+                        }
                     }
                 }
 
@@ -346,6 +381,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
 
                 item = new InventoryItemBase();
                 item.CreatorId = objectGroup.RootPart.CreatorID.ToString();
+                item.CreatorData = objectGroup.RootPart.CreatorData;
                 item.ID = UUID.Random();
                 item.InvType = (int)InventoryType.Object;
                 item.Folder = folder.ID;
@@ -398,10 +434,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     item.EveryOnePermissions = objectGroup.RootPart.EveryoneMask & objectGroup.RootPart.NextOwnerMask;
                     item.GroupPermissions = objectGroup.RootPart.GroupMask & objectGroup.RootPart.NextOwnerMask;
                     
-                    // Magic number badness. Maybe this deserves an enum.
-                    // bit 4 (16) is the "Slam" bit, it means treat as passed
-                    // and apply next owner perms on rez
-                    item.CurrentPermissions |= 16; // Slam!
+                    item.Flags |= (uint)InventoryItemFlags.ObjectSlamPerm;
                 }
                 else
                 {
@@ -425,7 +458,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                 item.Name = asset.Name;
                 item.AssetType = asset.Type;
 
-                m_Scene.InventoryService.AddItem(item);
+                m_Scene.AddInventoryItem(item);
 
                 if (remoteClient != null && item.Owner == remoteClient.AgentId)
                 {
@@ -517,6 +550,8 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     SceneObjectGroup group
                         = SceneObjectSerializer.FromOriginalXmlFormat(itemId, xmlData);
 
+                    Util.FireAndForget(delegate { AddUserData(group); });
+ 
                     group.RootPart.FromFolderID = item.Folder;
 
                     // If it's rezzed in world, select it. Much easier to 
@@ -526,7 +561,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                         group.RootPart.CreateSelected = true;
 
                     if (!m_Scene.Permissions.CanRezObject(
-                        group.Children.Count, remoteClient.AgentId, pos)
+                        group.PrimCount, remoteClient.AgentId, pos)
                         && !attachment)
                     {
                         // The client operates in no fail mode. It will
@@ -543,14 +578,22 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
 
                     if (attachment)
                     {
-                        group.RootPart.ObjectFlags |= (uint)PrimFlags.Phantom;
+                        group.RootPart.Flags |= PrimFlags.Phantom;
                         group.RootPart.IsAttachment = true;
-                    }
 
-                    // If we're rezzing an attachment then don't ask AddNewSceneObject() to update the client since
-                    // we'll be doing that later on.  Scheduling more than one full update during the attachment
-                    // process causes some clients to fail to display the attachment properly.
-                    m_Scene.AddNewSceneObject(group, true, false);
+                        // If we're rezzing an attachment then don't ask
+                        // AddNewSceneObject() to update the client since
+                        // we'll be doing that later on.  Scheduling more
+                        // than one full update during the attachment
+                        // process causes some clients to fail to display
+                        // the attachment properly.
+                        // Also, don't persist attachments.
+                        m_Scene.AddNewSceneObject(group, false, false);
+                    }
+                    else
+                    {
+                        m_Scene.AddNewSceneObject(group, true, false);
+                    }
 
                     //  m_log.InfoFormat("ray end point for inventory rezz is {0} {1} {2} ", RayEnd.X, RayEnd.Y, RayEnd.Z);
                     // if attachment we set it's asset id so object updates can reflect that
@@ -594,10 +637,16 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     rootPart.Name = item.Name;
                     rootPart.Description = item.Description;
 
-                    List<SceneObjectPart> partList = new List<SceneObjectPart>(group.Children.Values);
+                    if ((item.Flags & (uint)InventoryItemFlags.ObjectSlamSale) != 0)
+                    {
+                        rootPart.ObjectSaleType = item.SaleType;
+                        rootPart.SalePrice = item.SalePrice;
+                    }
 
                     group.SetGroup(remoteClient.ActiveGroupId, remoteClient);
-                    if ((rootPart.OwnerID != item.Owner) || (item.CurrentPermissions & 16) != 0)
+                    if ((rootPart.OwnerID != item.Owner) ||
+                            (item.CurrentPermissions & 16) != 0 || // Magic number
+                            (item.Flags & (uint)InventoryItemFlags.ObjectSlamPerm) != 0)
                     {
                         //Need to kill the for sale here
                         rootPart.ObjectSaleType = 0;
@@ -605,18 +654,21 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
 
                         if (m_Scene.Permissions.PropagatePermissions())
                         {
-                            foreach (SceneObjectPart part in partList)
+                            foreach (SceneObjectPart part in group.Parts)
                             {
-                                part.EveryoneMask = item.EveryOnePermissions;
-                                part.NextOwnerMask = item.NextPermissions;
-                                part.GroupMask = 0; // DO NOT propagate here
+                                if ((item.Flags & (uint)InventoryItemFlags.ObjectOverwriteEveryone) != 0)
+                                    part.EveryoneMask = item.EveryOnePermissions;
+                                if ((item.Flags & (uint)InventoryItemFlags.ObjectOverwriteNextOwner) != 0)
+                                    part.NextOwnerMask = item.NextPermissions;
+                                if ((item.Flags & (uint)InventoryItemFlags.ObjectOverwriteGroup) != 0)
+                                    part.GroupMask = item.GroupPermissions;
                             }
                             
                             group.ApplyNextOwnerPermissions();
                         }
                     }
 
-                    foreach (SceneObjectPart part in partList)
+                    foreach (SceneObjectPart part in group.Parts)
                     {
                         if ((part.OwnerID != item.Owner) || (item.CurrentPermissions & 16) != 0)
                         {
@@ -625,8 +677,12 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                             part.Inventory.ChangeInventoryOwner(item.Owner);
                             part.GroupMask = 0; // DO NOT propagate here
                         }
-                        part.EveryoneMask = item.EveryOnePermissions;
-                        part.NextOwnerMask = item.NextPermissions;
+                        if ((item.Flags & (uint)InventoryItemFlags.ObjectOverwriteEveryone) != 0)
+                            part.EveryoneMask = item.EveryOnePermissions;
+                        if ((item.Flags & (uint)InventoryItemFlags.ObjectOverwriteNextOwner) != 0)
+                            part.NextOwnerMask = item.NextPermissions;
+                        if ((item.Flags & (uint)InventoryItemFlags.ObjectOverwriteGroup) != 0)
+                            part.GroupMask = item.GroupPermissions;
                     }
 
                     rootPart.TrimPermissions();
@@ -639,7 +695,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                         }
                         
                         // Fire on_rez
-                        group.CreateScriptInstances(0, true, m_Scene.DefaultScriptEngine, 0);
+                        group.CreateScriptInstances(0, true, m_Scene.DefaultScriptEngine, 1);
                         rootPart.ParentGroup.ResumeScripts();
 
                         rootPart.ScheduleFullUpdate();
@@ -666,6 +722,13 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
             }
 
             return null;
+        }
+
+        protected void AddUserData(SceneObjectGroup sog)
+        {
+            UserManagementModule.AddUser(sog.RootPart.CreatorID, sog.RootPart.CreatorData);
+            foreach (SceneObjectPart sop in sog.Parts)
+                UserManagementModule.AddUser(sop.CreatorID, sop.CreatorData);
         }
 
         public virtual void TransferInventoryAssets(InventoryItemBase item, UUID sender, UUID receiver)
@@ -748,9 +811,13 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
         protected virtual InventoryItemBase GetItem(UUID agentID, UUID itemID)
         {
             IInventoryService invService = m_Scene.RequestModuleInterface<IInventoryService>();
-            InventoryItemBase assetRequestItem = new InventoryItemBase(itemID, agentID);
-            assetRequestItem = invService.GetItem(assetRequestItem);
-            return assetRequestItem;
+            InventoryItemBase item = new InventoryItemBase(itemID, agentID);
+            item = invService.GetItem(item);
+            
+            if (item.CreatorData != null && item.CreatorData != string.Empty)
+                UserManagementModule.AddUser(item.CreatorIdAsUuid, item.CreatorData);
+
+            return item;
         }
 
         #endregion

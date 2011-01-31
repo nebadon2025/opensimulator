@@ -3036,11 +3036,12 @@ namespace OpenSim.Region.Framework.Scenes
                 m_clientManager.Add(client);
                 SubscribeToClientEvents(client);
 
-                ScenePresence sp = m_sceneGraph.CreateAndAddChildScenePresence(client, aCircuit.Appearance);
+                ScenePresence sp = m_sceneGraph.CreateAndAddChildScenePresence(client, aCircuit == null ? null : aCircuit.Appearance);
                 m_eventManager.TriggerOnNewPresence(sp);
 
                 //presence.initializeScenePresence(client, RegionInfo, this);
-                sp.TeleportFlags = (TeleportFlags)aCircuit.teleportFlags;
+                if(aCircuit != null)
+                    sp.TeleportFlags = (TeleportFlags)aCircuit.teleportFlags;
 
                 // HERE!!! Do the initial attachments right here
                 // first agent upon login is a root agent by design.

@@ -55,6 +55,7 @@ namespace OpenSim.Region.Framework.Interfaces
         string ActorID { get; }
         DSGActorTypes DSGActorType { get; set; }
         bool IsSyncRelay { get; }
+        Dictionary<string, int> PrimPropertyBucketMap { get; }
 
         //Enqueue updates for scene-objects and scene-presences
         void QueueSceneObjectPartForUpdate(SceneObjectPart part);

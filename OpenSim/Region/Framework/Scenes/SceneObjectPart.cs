@@ -107,6 +107,44 @@ namespace OpenSim.Region.Framework.Scenes
 
     #endregion Enumerations
 
+    //SYMMETRIC SYNC
+
+    //Information for concurrency control of one bucket of prim proproperties.
+    public class BucketSyncInfo
+    {
+        private long m_lastUpdateTimeStamp;
+        private string m_lastUpdateActorID;
+        //lock for concurrent updates of the timestamp and actorID.
+        private Object m_updateLock = new Object();
+
+        public long LastUpdateTimeStamp
+        {
+            get { return m_lastUpdateTimeStamp; }
+        }
+
+        public string LastUpdateActorID
+        {
+            get { return m_lastUpdateActorID; }
+        }
+
+        public BucketSyncInfo(long timeStamp, string actorID)
+        {
+            m_lastUpdateTimeStamp = timeStamp;
+            m_lastUpdateActorID = actorID;
+        }
+
+        public void UpdateSyncInfo(long timeStamp, string actorID)
+        {
+            lock (m_updateLock)
+            {
+                m_lastUpdateTimeStamp = timeStamp;
+                m_lastUpdateActorID = actorID;
+            }
+        }
+
+    }
+    //end of SYMMETRIC SYNC
+
     public class SceneObjectPart : IScriptHost, ISceneEntity
     {
         /// <value>
@@ -127,7 +165,18 @@ namespace OpenSim.Region.Framework.Scenes
 
         #region Fields
 
-        public bool AllowedDrop;
+        //SYMMETRIC SYNC
+        //public bool AllowedDrop;
+        private bool m_allowedDrop;
+        public bool AllowedDrop
+        {
+            get { return m_allowedDrop; }
+            set
+            {
+                m_allowedDrop = value;
+                UpdateBucketSyncInfo("AllowedDrop");
+            }
+        }
 
         
         public bool DIE_AT_EDGE;
@@ -4971,6 +5020,83 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        //The list of each prim's properties. This is the list of properties that matter in synchronizing prim copies on different actors.
+        //This list is created based on properties included in the serialization/deserialization process (see SceneObjectSerializer()) and the 
+        //properties Physics Engine needs to synchronize to other actors.
+        public static List<string> PropertyList = new List<string>()
+        {
+            //Following properties copied from SceneObjectSerializer()
+            "AllowedDrop", 
+            "CreatorID", 
+            "CreatorData", 
+            "FolderID", 
+            "InventorySerial", 
+            "TaskInventory", 
+            "UUID", 
+            "LocalId", 
+            "Name", 
+            "Material", 
+            "PassTouches", 
+            "RegionHandle", 
+            "ScriptAccessPin", 
+            "GroupPosition", 
+            "OffsetPosition", 
+            "RotationOffset", 
+            "Velocity", 
+            "AngularVelocity", 
+            //"Acceleration", 
+            "SOP_Acceleration",  //SOP and PA read/write their own local copies of acceleration, so we distinguish the copies
+            "Description", 
+            "Color", 
+            "Text", 
+            "SitName", 
+            "TouchName", 
+            "LinkNum", 
+            "ClickAction", 
+            "Shape", 
+            "Scale", 
+            "UpdateFlag", 
+            "SitTargetOrientation", 
+            "SitTargetPosition", 
+            "SitTargetPositionLL", 
+            "SitTargetOrientationLL", 
+            "ParentID", 
+            "CreationDate", 
+            "Category", 
+            "SalePrice", 
+            "ObjectSaleType", 
+            "OwnershipCost", 
+            "GroupID", 
+            "OwnerID", 
+            "LastOwnerID", 
+            "BaseMask", 
+            "OwnerMask", 
+            "GroupMask", 
+            "EveryoneMask", 
+            "NextOwnerMask", 
+            "Flags", 
+            "CollisionSound", 
+            "CollisionSoundVolume", 
+            "MediaUrl", 
+            "TextureAnimation", 
+            "ParticleSystem", 
+            //Property names below copied from PhysicsActor, they are necessary in synchronization, but not covered the above properties
+            //Physics properties "Velocity" is covered above
+            "Position",
+            "Size", 
+            "Force",
+            "RotationalVelocity",
+            "PA_Acceleration",
+            "Torque",
+            "Orientation",
+            "IsPhysical",
+            "Flying",
+            "Buoyancy",
+        };
+        
+
+        
+
         private Object propertyUpdateLock = new Object();
 
         //!!!!!! -- TODO: 
@@ -5148,6 +5274,34 @@ namespace OpenSim.Region.Framework.Scenes
             //                "[SCENE OBJECT PART]: Scheduling full  update for {0}, {1} at {2}",
             //                UUID, Name, TimeStampFull);
 
+        }
+
+        //The following three variables should be initialized when this SceneObjectPart is added into the local Scene.
+        private List<BucketSyncInfo> m_bucketSyncInfo = null;
+        private Dictionary<string, int> m_primPropertyBucketMap = null;
+        private string m_localActorID = "";
+
+        public void InitializeBucketSyncInfo(Dictionary<string, int> propertyBucketMap, string actorID)
+        {
+            m_primPropertyBucketMap = propertyBucketMap;
+            m_localActorID = actorID;
+            int bucketNum = propertyBucketMap.Count;
+            long timeStamp = DateTime.Now.Ticks;
+            for (int i = 0; i < bucketNum; i++)
+            {
+                BucketSyncInfo syncInfo = new BucketSyncInfo(timeStamp, m_localActorID);
+                m_bucketSyncInfo.Add(syncInfo);
+            }
+        }
+
+        private void UpdateBucketSyncInfo(string propertyName)
+        {
+            if (m_bucketSyncInfo != null)
+            {
+                int bucketIndex = m_primPropertyBucketMap[propertyName];
+                long timeStamp = DateTime.Now.Ticks;
+                m_bucketSyncInfo[bucketIndex].UpdateSyncInfo(timeStamp, m_localActorID);
+            }
         }
 
         #endregion 

@@ -61,6 +61,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_isSyncRelay = m_sysConfig.GetBoolean("IsSyncRelay", false);
             m_isSyncListenerLocal = m_sysConfig.GetBoolean("IsSyncListenerLocal", false);
 
+            //Setup the PropertyBucketMap 
+            PupolatePropertyBucketMap(m_sysConfig);
+
             m_active = true;
 
             LogHeader += "-Actor " + m_actorID;
@@ -176,6 +179,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_isSyncRelay; }
         }
 
+        private Dictionary<string, int> m_primPropertyBucketMap = new Dictionary<string, int>();
+        public Dictionary<string, int> PrimPropertyBucketMap
+        {
+            get { return m_primPropertyBucketMap; }
+        }
+        public List<string> PropertyBucketDescription = new List<string>();
+
         private RegionSyncListener m_localSyncListener = null;
         private bool m_synced = false;
 
@@ -185,6 +195,55 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private object m_updateScenePresenceLock = new object();
         private Dictionary<UUID, ScenePresence> m_presenceUpdates = new Dictionary<UUID, ScenePresence>();
         private int m_sendingUpdates;
+
+        private int m_maxNumOfPropertyBuckets; 
+
+        //Read in configuration for which property-bucket each property belongs to, and the description of each bucket
+        private void PupolatePropertyBucketMap(IConfig config)
+        {
+            PupolatePropertyBuketMapByDefault();
+
+        }
+
+        //If nothing configured in the config file, this is the default settings for grouping properties into different bucket
+        private void PupolatePropertyBuketMapByDefault()
+        {
+            //by default, there are two property buckets: the "General" bucket and the "Physics" bucket.
+            PropertyBucketDescription.Add("General");
+            PropertyBucketDescription.Add("Physics");
+            m_maxNumOfPropertyBuckets = 2;
+
+            int generalBucketID = 0;
+            int physicsBucketID = 1;
+
+            foreach (string pName in SceneObjectPart.PropertyList)
+            {
+                switch (pName){
+                    case "GroupPosition":
+                    case "OffsetPosition":
+                    case "Scale":
+                    case "Velocity":
+                    case "AngularVelocity":
+                    case "RotationOffset":
+                    case "Position":
+                    case "Size":
+                    case "Force":
+                    case "RotationalVelocity":
+                    case "PA_Acceleration":
+                    case "Torque":
+                    case "Orientation":
+                    case "IsPhysical":
+                    case "Flying":
+                    case "Buoyancy":
+                        m_primPropertyBucketMap.Add(pName, physicsBucketID);
+                        break;
+                    default:
+                        //all other properties belong to the "General" bucket.
+                        m_primPropertyBucketMap.Add(pName, generalBucketID);
+                        break;
+                }
+            }
+        }
 
         public void QueueSceneObjectPartForUpdate(SceneObjectPart part)
         {

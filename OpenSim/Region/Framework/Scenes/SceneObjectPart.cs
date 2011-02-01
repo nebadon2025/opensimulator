@@ -116,6 +116,7 @@ namespace OpenSim.Region.Framework.Scenes
         private string m_lastUpdateActorID;
         //lock for concurrent updates of the timestamp and actorID.
         private Object m_updateLock = new Object();
+        private string m_bucketName;
 
         public long LastUpdateTimeStamp
         {
@@ -127,10 +128,21 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_lastUpdateActorID; }
         }
 
-        public BucketSyncInfo(long timeStamp, string actorID)
+        public string BucketName
+        {
+            get { return m_bucketName; }
+        }
+
+        public BucketSyncInfo(string bucketName)
+        {
+            m_bucketName = bucketName;
+        }
+
+        public BucketSyncInfo(long timeStamp, string actorID, string bucketName)
         {
             m_lastUpdateTimeStamp = timeStamp;
             m_lastUpdateActorID = actorID;
+            m_bucketName = bucketName;
         }
 
         public void UpdateSyncInfo(long timeStamp, string actorID)
@@ -5096,11 +5108,12 @@ namespace OpenSim.Region.Framework.Scenes
         
 
         
-
+        /*
         private Object propertyUpdateLock = new Object();
 
         //!!!!!! -- TODO: 
         //!!!!!! -- We should call UpdateXXX functions to update each property, cause some of such updates involves sanity checking.
+        
         public Scene.ObjectUpdateResult UpdateAllProperties(SceneObjectPart updatedPart)
         {
             ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -5223,6 +5236,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             return partUpdateResult;
         }
+        */
+
 
         private bool UpdateCollisionSound(UUID updatedCollisionSound)
         {
@@ -5276,33 +5291,169 @@ namespace OpenSim.Region.Framework.Scenes
 
         }
 
-        //The following three variables should be initialized when this SceneObjectPart is added into the local Scene.
-        private List<BucketSyncInfo> m_bucketSyncInfo = null;
-        private Dictionary<string, int> m_primPropertyBucketMap = null;
-        private string m_localActorID = "";
+        //The following variables should be initialized when this SceneObjectPart is added into the local Scene.
+        //private List<BucketSyncInfo> SynchronizeUpdatesToScene = null;
+        //public List<BucketSyncInfo> BucketSyncInfoList
+        private Dictionary<string, BucketSyncInfo> m_bucketSyncInfoList = null;
+        public Dictionary<string, BucketSyncInfo> BucketSyncInfoList
+        {
+            get { return m_bucketSyncInfoList; }
+            set { m_bucketSyncInfoList = value; }
+        }
+        //TODO: serialization and deserialization processors to be added in SceneObjectSerializer
 
-        public void InitializeBucketSyncInfo(Dictionary<string, int> propertyBucketMap, string actorID)
+        //The following variables are initialized when RegionSyncModule reads the config file for mapping of properties and buckets
+        private static Dictionary<string, string> m_primPropertyBucketMap = null;
+        private static List<string> m_propertyBucketNames = null;
+        //private static List<Object> m_bucketUpdateLocks = null;
+        private static Dictionary<string, Object> m_bucketUpdateLocks = new Dictionary<string, object>();
+
+        private static string m_localActorID = "";
+        private static int m_bucketCount = 0;
+        //private delegate void BucketUpdateProcessor(int bucketIndex);
+        private delegate void BucketUpdateProcessor(string bucketName);
+
+        private static Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
+
+        public static void InitializeBucketInfo(Dictionary<string, string> propertyBucketMap, List<string> bucketNames, string actorID)
         {
             m_primPropertyBucketMap = propertyBucketMap;
+            m_propertyBucketNames = bucketNames;
             m_localActorID = actorID;
-            int bucketNum = propertyBucketMap.Count;
-            long timeStamp = DateTime.Now.Ticks;
-            for (int i = 0; i < bucketNum; i++)
+            m_bucketCount = propertyBucketMap.Count;
+
+            RegisterBucketUpdateProcessor();
+        }
+
+        /// <summary>
+        /// Link each bucket with the function that applies updates to properties in the bucket. This is the "hard-coded" part
+        /// in the property-buckets implementation. When new buckets are implemented, the processing functions need to be modified accordingly.
+        /// </summary>
+        private static void RegisterBucketUpdateProcessor()
+        {
+            foreach (string bucketName in m_propertyBucketNames)
             {
-                BucketSyncInfo syncInfo = new BucketSyncInfo(timeStamp, m_localActorID);
-                m_bucketSyncInfo.Add(syncInfo);
+                switch (bucketName)
+                {
+                    case "General":
+                        m_bucketUpdateProcessors.Add(bucketName, GeneralBucketUpdateProcessor);
+                        break;
+                    case "Physics":
+                        m_bucketUpdateProcessors.Add(bucketName, PhysicsBucketUpdateProcessor);
+                        break;
+                    default:
+                        m_log.Warn("Bucket " + bucketName + "'s update processing function not defined yet");
+                        break;
+                }
+            }
+        }
+
+        private static void GeneralBucketUpdateProcessor(string bucketName)
+        {
+            lock (m_bucketUpdateLocks[bucketName])
+            {
+
+            }
+        }
+
+        private static void PhysicsBucketUpdateProcessor(string bucketName)
+        {
+            lock (m_bucketUpdateLocks[bucketName])
+            {
+
+            }
+        }
+
+        //Should be called when the SceneObjectGroup this part is in is added to scene, see SceneObjectGroup.AttachToScene
+        public void InitializeBucketSyncInfo()
+        {
+            if (m_primPropertyBucketMap == null)
+            {
+                m_log.Error("Bucket Information has not been initilized. Return.");
+                return;
+            }
+            long timeStamp = DateTime.Now.Ticks;
+            for (int i = 0; i < m_bucketCount; i++)
+            {
+                string bucketName = m_propertyBucketNames[i];
+                BucketSyncInfo syncInfo = new BucketSyncInfo(timeStamp, m_localActorID, bucketName);
+                m_bucketSyncInfoList.Add(bucketName, syncInfo);
+                m_bucketUpdateLocks.Add(bucketName, new Object());
             }
         }
 
         private void UpdateBucketSyncInfo(string propertyName)
         {
-            if (m_bucketSyncInfo != null)
+            if (m_bucketSyncInfoList != null)
             {
-                int bucketIndex = m_primPropertyBucketMap[propertyName];
+                //int bucketIndex = m_primPropertyBucketMap[propertyName];
+                string bucketName = m_primPropertyBucketMap[propertyName];
                 long timeStamp = DateTime.Now.Ticks;
-                m_bucketSyncInfo[bucketIndex].UpdateSyncInfo(timeStamp, m_localActorID);
+                m_bucketSyncInfoList[bucketName].UpdateSyncInfo(timeStamp, m_localActorID);
             }
         }
+
+        
+
+        
+
+        public Scene.ObjectUpdateResult UpdateAllProperties(SceneObjectPart updatedPart)
+        {
+
+            ////////////////////Assumptions: ////////////////////
+            //(1) prim's UUID and LocalID shall not change (UUID is the unique identifies, LocalID is used to refer to the prim by, say scripts)
+            //(2) RegionHandle won't be updated -- each copy of Scene is hosted on a region with different region handle
+            //(3) ParentID won't be updated -- if the rootpart of the SceneObjectGroup changed, that will be updated in SceneObjectGroup.UpdateObjectProperties
+
+            ////////////////////Furture enhancements:////////////////////
+            //For now, we only update the set of properties that are included in serialization, and some PhysicsActor properties 
+            //See RegionSyncModule.PupolatePropertyBuketMapByDefault for the properties that are handled.
+
+            if (updatedPart == null)
+                return Scene.ObjectUpdateResult.Error;
+
+            //Compate the timestamp of each bucket and update the properties if needed
+
+            Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Unchanged;
+
+            for (int i=0; i<m_bucketCount; i++){
+                string bucketName = m_propertyBucketNames[i];
+                //First, compare the bucket's timestamp and actorID
+                if (m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp > updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp)
+                {
+                    //Our timestamp is more update to date, keep our values of the properties. Do not update anything.
+                    continue;
+                }
+
+                if (m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp == updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp)
+                {
+                    if (!m_bucketSyncInfoList[bucketName].LastUpdateActorID.Equals(updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID))
+                    {
+                        m_log.Warn("Different actors modified SceneObjetPart " + UUID + " with the same TimeStamp (" + m_bucketSyncInfoList[bucketName].LastUpdateActorID
+                            + "," + updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID + ", CONFLICT RESOLUTION TO BE IMPLEMENTED!!!!");
+                    }
+                    continue;
+                }
+
+                //Second, if need to update local properties, call each bucket's update process
+                if (m_bucketUpdateProcessors.ContainsKey(bucketName))
+                {
+                    m_bucketUpdateProcessors[bucketName](bucketName);
+                    partUpdateResult = Scene.ObjectUpdateResult.Updated;
+                }
+                else
+                {
+                    m_log.Warn("No update processor for property bucket " + bucketName);
+                }
+
+                
+            }
+
+            return partUpdateResult;
+
+        }
+
+        //private void UpdateBucketProperties(string bucketDescription, 
 
         #endregion 
 

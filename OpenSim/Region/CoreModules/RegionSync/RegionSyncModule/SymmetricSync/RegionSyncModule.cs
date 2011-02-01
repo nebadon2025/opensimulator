@@ -179,12 +179,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_isSyncRelay; }
         }
 
-        private Dictionary<string, int> m_primPropertyBucketMap = new Dictionary<string, int>();
-        public Dictionary<string, int> PrimPropertyBucketMap
+        private Dictionary<string, string> m_primPropertyBucketMap = new Dictionary<string, string>();
+        public Dictionary<string, string> PrimPropertyBucketMap
         {
             get { return m_primPropertyBucketMap; }
         }
-        public List<string> PropertyBucketDescription = new List<string>();
+        private List<string> m_propertyBucketDescription = new List<string>();
+        public List<string> PropertyBucketDescription
+        {
+            get { return m_propertyBucketDescription; }
+        }
 
         private RegionSyncListener m_localSyncListener = null;
         private bool m_synced = false;
@@ -201,7 +205,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //Read in configuration for which property-bucket each property belongs to, and the description of each bucket
         private void PupolatePropertyBucketMap(IConfig config)
         {
+            //We start with a default bucket map. Will add the code to read in configuration from config files later.
             PupolatePropertyBuketMapByDefault();
+
+            //Pass the bucket information to SceneObjectPart.
+            SceneObjectPart.InitializeBucketInfo(m_primPropertyBucketMap, m_propertyBucketDescription, m_actorID);
 
         }
 
@@ -209,12 +217,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void PupolatePropertyBuketMapByDefault()
         {
             //by default, there are two property buckets: the "General" bucket and the "Physics" bucket.
-            PropertyBucketDescription.Add("General");
-            PropertyBucketDescription.Add("Physics");
+            string generalBucketName = "General";
+            string physicsBucketName = "Physics";
+            m_propertyBucketDescription.Add(generalBucketName);
+            m_propertyBucketDescription.Add(physicsBucketName);
             m_maxNumOfPropertyBuckets = 2;
-
-            int generalBucketID = 0;
-            int physicsBucketID = 1;
 
             foreach (string pName in SceneObjectPart.PropertyList)
             {
@@ -235,11 +242,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     case "IsPhysical":
                     case "Flying":
                     case "Buoyancy":
-                        m_primPropertyBucketMap.Add(pName, physicsBucketID);
+                        m_primPropertyBucketMap.Add(pName, generalBucketName);
                         break;
                     default:
                         //all other properties belong to the "General" bucket.
-                        m_primPropertyBucketMap.Add(pName, generalBucketID);
+                        m_primPropertyBucketMap.Add(pName, physicsBucketName);
                         break;
                 }
             }

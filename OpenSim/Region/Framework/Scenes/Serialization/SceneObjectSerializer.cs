@@ -330,8 +330,9 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             m_SOPXmlProcessors.Add("ParticleSystem", ProcessParticleSystem);
 
             //SYMMETRIC SYNC
-            m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
-            m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
+            //m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
+            //m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
+            m_SOPXmlProcessors.Add("BucketSyncInfoList", ProcessBucketSyncInfo);
             //end of SYMMETRIC SYNC
 
             #endregion
@@ -702,6 +703,55 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         {
             obj.LastUpdateActorID = reader.ReadElementContentAsString("LastUpdateActorID", string.Empty);
         }
+
+        private static void ProcessBucketSyncInfo(SceneObjectPart obj, XmlTextReader reader)
+        {
+            obj.BucketSyncInfoList = new Dictionary<string, BucketSyncInfo>();
+
+            if (reader.IsEmptyElement)
+            {
+                reader.Read();
+                return;   
+            }
+            string elementName = "BucketSyncInfoList";
+            reader.ReadStartElement(elementName, String.Empty);
+
+            while (reader.Name == "Bucket")
+            {
+                reader.ReadStartElement("Bucket", String.Empty); // Bucket
+                string bucketName="";
+                long timeStamp = 0;
+                string actorID = "";
+                while (reader.NodeType != XmlNodeType.EndElement)
+                {
+                    
+                    switch (reader.Name)
+                    {
+                        case "Name":
+                            bucketName = reader.ReadElementContentAsString("Name", String.Empty);
+                            break;
+                        case "TimeStamp":
+                            timeStamp = reader.ReadElementContentAsLong("TimeStamp", String.Empty);
+                            break;
+                        case "ActorID":
+                            actorID = reader.ReadElementContentAsString("ActorID", String.Empty);
+                            break;
+                        default:
+                            reader.ReadOuterXml();
+                            break;
+
+                    }
+                    
+                }
+                reader.ReadEndElement();
+                BucketSyncInfo bucketSyncInfo = new BucketSyncInfo(timeStamp, actorID, bucketName);
+                obj.BucketSyncInfoList.Add(bucketName, bucketSyncInfo);
+            }
+
+            if (reader.NodeType == XmlNodeType.EndElement)
+                reader.ReadEndElement(); // BucketSyncInfoList
+        }
+
         //end of SYMMETRIC SYNC
 
         #endregion
@@ -1186,12 +1236,35 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             WriteBytes(writer, "ParticleSystem", sop.ParticleSystem);
 
             //SYMMETRIC SYNC
-            writer.WriteElementString("LastUpdateTimeStamp", sop.LastUpdateTimeStamp.ToString());
-            writer.WriteElementString("LastUpdateActorID", sop.LastUpdateActorID);
+            //writer.WriteElementString("LastUpdateTimeStamp", sop.LastUpdateTimeStamp.ToString());
+            //writer.WriteElementString("LastUpdateActorID", sop.LastUpdateActorID);
+            WriteBucketSyncInfo(writer, sop.BucketSyncInfoList);
             //end of SYMMETRIC SYNC
 
             writer.WriteEndElement();
         }
+
+        //SYMMETRIC SYNC
+        static void WriteBucketSyncInfo(XmlTextWriter writer, Dictionary<string, BucketSyncInfo> bucketSyncInfoList)
+        {
+            if (bucketSyncInfoList.Count > 0) // otherwise skip this
+            {
+                writer.WriteStartElement("BucketSyncInfoList");
+                foreach (KeyValuePair<string, BucketSyncInfo> pair in bucketSyncInfoList)
+                {
+                    BucketSyncInfo bucketSyncInfo = pair.Value;
+                    writer.WriteStartElement("Bucket");
+                    writer.WriteElementString("Name", bucketSyncInfo.BucketName);
+                    writer.WriteElementString("TimeStamp", bucketSyncInfo.LastUpdateTimeStamp.ToString());
+                    writer.WriteElementString("ActorID", bucketSyncInfo.LastUpdateActorID);
+                    writer.WriteEndElement(); // Bucket
+                }
+
+                writer.WriteEndElement(); // BucketSyncInfo
+            }
+
+        }
+        //end of SYMMETRIC SYNC
 
         static void WriteUUID(XmlTextWriter writer, string name, UUID id, Dictionary<string, object> options)
         {

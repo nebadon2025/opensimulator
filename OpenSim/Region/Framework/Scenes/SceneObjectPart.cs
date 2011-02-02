@@ -186,8 +186,12 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 m_allowedDrop = value;
-                UpdateBucketSyncInfo("AllowedDrop");
+                //UpdateBucketSyncInfo("AllowedDrop");
             }
+        }
+        public void SetAllowedDrop(bool value)
+        {
+            m_allowedDrop = value;
         }
 
         
@@ -793,6 +797,10 @@ namespace OpenSim.Region.Framework.Scenes
             }
             set
             {
+                //SetGroupPosition(value);
+                //UpdateBucketSyncInfo("GroupPosition");
+                 
+                //Legacy Opensim code
                 m_groupPosition = value;
 
                 PhysicsActor actor = PhysActor;
@@ -833,8 +841,54 @@ namespace OpenSim.Region.Framework.Scenes
                         }
                     }
                 }
+                 
             }
         }
+        //SYMMETRIC SYNC
+        public void SetGroupPosition(Vector3 value)
+        {
+            m_groupPosition = value;
+
+            PhysicsActor actor = PhysActor;
+            if (actor != null)
+            {
+                try
+                {
+                    // Root prim actually goes at Position
+                    if (_parentID == 0)
+                    {
+                        actor.Position = value;
+                    }
+                    else
+                    {
+                        // To move the child prim in respect to the group position and rotation we have to calculate
+                        actor.Position = GetWorldPosition();
+                        actor.Orientation = GetWorldRotation();
+                    }
+
+                    // Tell the physics engines that this prim changed.
+                    m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
+                }
+                catch (Exception e)
+                {
+                    m_log.Error("[SCENEOBJECTPART]: GROUP POSITION. " + e.Message);
+                }
+            }
+
+            // TODO if we decide to do sitting in a more SL compatible way (multiple avatars per prim), this has to be fixed, too
+            if (m_sitTargetAvatar != UUID.Zero)
+            {
+                if (m_parentGroup != null) // TODO can there be a SOP without a SOG?
+                {
+                    ScenePresence avatar;
+                    if (m_parentGroup.Scene.TryGetScenePresence(m_sitTargetAvatar, out avatar))
+                    {
+                        avatar.ParentPosition = GetWorldPosition();
+                    }
+                }
+            }
+        }
+        
 
         public Vector3 OffsetPosition
         {
@@ -5108,7 +5162,7 @@ namespace OpenSim.Region.Framework.Scenes
         
 
         
-        /*
+        
         private Object propertyUpdateLock = new Object();
 
         //!!!!!! -- TODO: 
@@ -5236,7 +5290,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             return partUpdateResult;
         }
-        */
+        
 
 
         private bool UpdateCollisionSound(UUID updatedCollisionSound)
@@ -5294,7 +5348,7 @@ namespace OpenSim.Region.Framework.Scenes
         //The following variables should be initialized when this SceneObjectPart is added into the local Scene.
         //private List<BucketSyncInfo> SynchronizeUpdatesToScene = null;
         //public List<BucketSyncInfo> BucketSyncInfoList
-        private Dictionary<string, BucketSyncInfo> m_bucketSyncInfoList = null;
+        private Dictionary<string, BucketSyncInfo> m_bucketSyncInfoList = new Dictionary<string, BucketSyncInfo>();
         public Dictionary<string, BucketSyncInfo> BucketSyncInfoList
         {
             get { return m_bucketSyncInfoList; }
@@ -5309,7 +5363,7 @@ namespace OpenSim.Region.Framework.Scenes
         private static Dictionary<string, Object> m_bucketUpdateLocks = new Dictionary<string, object>();
 
         private static string m_localActorID = "";
-        private static int m_bucketCount = 0;
+        //private static int m_bucketCount = 0;
         //private delegate void BucketUpdateProcessor(int bucketIndex);
         private delegate void BucketUpdateProcessor(string bucketName);
 
@@ -5320,7 +5374,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_primPropertyBucketMap = propertyBucketMap;
             m_propertyBucketNames = bucketNames;
             m_localActorID = actorID;
-            m_bucketCount = propertyBucketMap.Count;
+            //m_bucketCount = bucketNames.Count;
 
             RegisterBucketUpdateProcessor();
         }
@@ -5373,29 +5427,51 @@ namespace OpenSim.Region.Framework.Scenes
                 return;
             }
             long timeStamp = DateTime.Now.Ticks;
-            for (int i = 0; i < m_bucketCount; i++)
+
+            m_log.Debug("InitializeBucketSyncInfo called at " + timeStamp);
+
+            for (int i = 0; i < m_propertyBucketNames.Count; i++)
             {
                 string bucketName = m_propertyBucketNames[i];
                 BucketSyncInfo syncInfo = new BucketSyncInfo(timeStamp, m_localActorID, bucketName);
-                m_bucketSyncInfoList.Add(bucketName, syncInfo);
-                m_bucketUpdateLocks.Add(bucketName, new Object());
+
+                //If the object is created by de-serialization, then it already has m_bucketSyncInfoList populated with the right number of buckets
+                if (m_bucketSyncInfoList.ContainsKey(bucketName))
+                {
+                    m_bucketSyncInfoList[bucketName] = syncInfo;
+                }
+                else
+                {
+                    m_bucketSyncInfoList.Add(bucketName, syncInfo);
+                }
+                if (!m_bucketSyncInfoList.ContainsKey(bucketName))
+                {
+                    m_bucketUpdateLocks.Add(bucketName, new Object());
+                }
             }
         }
 
         private void UpdateBucketSyncInfo(string propertyName)
         {
-            if (m_bucketSyncInfoList != null)
+            if (m_bucketSyncInfoList != null && m_bucketSyncInfoList.Count>0)
             {
                 //int bucketIndex = m_primPropertyBucketMap[propertyName];
                 string bucketName = m_primPropertyBucketMap[propertyName];
                 long timeStamp = DateTime.Now.Ticks;
-                m_bucketSyncInfoList[bucketName].UpdateSyncInfo(timeStamp, m_localActorID);
+                if (m_bucketSyncInfoList.ContainsKey(bucketName))
+                {
+                    m_bucketSyncInfoList[bucketName].UpdateSyncInfo(timeStamp, m_localActorID);
+                }
+                else
+                {
+                    m_log.Warn("No SyncInfo of bucket (name: " + bucketName + ") found");
+                }
             }
         }
 
         
 
-        
+        /*
 
         public Scene.ObjectUpdateResult UpdateAllProperties(SceneObjectPart updatedPart)
         {
@@ -5452,7 +5528,7 @@ namespace OpenSim.Region.Framework.Scenes
             return partUpdateResult;
 
         }
-
+        */ 
         //private void UpdateBucketProperties(string bucketDescription, 
 
         #endregion 

@@ -330,9 +330,9 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             m_SOPXmlProcessors.Add("ParticleSystem", ProcessParticleSystem);
 
             //SYMMETRIC SYNC
-            //m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
-            //m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
-            m_SOPXmlProcessors.Add("BucketSyncInfoList", ProcessBucketSyncInfo);
+            m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
+            m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
+           // m_SOPXmlProcessors.Add("BucketSyncInfoList", ProcessBucketSyncInfo);
             //end of SYMMETRIC SYNC
 
             #endregion
@@ -418,6 +418,8 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         }
 
         #region SOPXmlProcessors
+        //SYMMETRIC SYNC NOTE: TODO -- assignments in de-serialization should directly set the values w/o triggering SceneObjectPart.UpdateBucketSyncInfo;
+        //That is, calling SetXXX(value) instead of "XXX = value". It's an code optimization to be done later.
         private static void ProcessAllowedDrop(SceneObjectPart obj, XmlTextReader reader)
         {
             obj.AllowedDrop = Util.ReadBoolean(reader);
@@ -704,7 +706,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             obj.LastUpdateActorID = reader.ReadElementContentAsString("LastUpdateActorID", string.Empty);
         }
 
-        private static void ProcessBucketSyncInfo(SceneObjectPart obj, XmlTextReader reader)
+        public static void ProcessBucketSyncInfo(SceneObjectPart obj, XmlTextReader reader)
         {
             obj.BucketSyncInfoList = new Dictionary<string, BucketSyncInfo>();
 
@@ -1236,19 +1238,20 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             WriteBytes(writer, "ParticleSystem", sop.ParticleSystem);
 
             //SYMMETRIC SYNC
-            //writer.WriteElementString("LastUpdateTimeStamp", sop.LastUpdateTimeStamp.ToString());
-            //writer.WriteElementString("LastUpdateActorID", sop.LastUpdateActorID);
-            WriteBucketSyncInfo(writer, sop.BucketSyncInfoList);
+            writer.WriteElementString("LastUpdateTimeStamp", sop.LastUpdateTimeStamp.ToString());
+            writer.WriteElementString("LastUpdateActorID", sop.LastUpdateActorID);
+            //WriteBucketSyncInfo(writer, sop.BucketSyncInfoList);
             //end of SYMMETRIC SYNC
 
             writer.WriteEndElement();
         }
 
         //SYMMETRIC SYNC
-        static void WriteBucketSyncInfo(XmlTextWriter writer, Dictionary<string, BucketSyncInfo> bucketSyncInfoList)
+        public static void WriteBucketSyncInfo(XmlTextWriter writer, Dictionary<string, BucketSyncInfo> bucketSyncInfoList)
         {
-            if (bucketSyncInfoList.Count > 0) // otherwise skip this
+            if (bucketSyncInfoList!=null || bucketSyncInfoList.Count > 0) // otherwise skip this
             {
+                
                 writer.WriteStartElement("BucketSyncInfoList");
                 foreach (KeyValuePair<string, BucketSyncInfo> pair in bucketSyncInfoList)
                 {
@@ -1261,6 +1264,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 }
 
                 writer.WriteEndElement(); // BucketSyncInfo
+
             }
 
         }

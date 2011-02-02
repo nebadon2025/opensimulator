@@ -19,6 +19,8 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Text;
 
+using System.IO;
+using System.Xml;
 using Mono.Addins;
 using OpenMetaverse.StructuredData;
 
@@ -198,7 +200,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private Dictionary<UUID, SceneObjectGroup> m_primUpdates = new Dictionary<UUID, SceneObjectGroup>();
         private object m_updateScenePresenceLock = new object();
         private Dictionary<UUID, ScenePresence> m_presenceUpdates = new Dictionary<UUID, ScenePresence>();
-        private int m_sendingUpdates;
+        private int m_sendingUpdates=0;
 
         private int m_maxNumOfPropertyBuckets; 
 
@@ -242,14 +244,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     case "IsPhysical":
                     case "Flying":
                     case "Buoyancy":
-                        m_primPropertyBucketMap.Add(pName, generalBucketName);
+                        m_primPropertyBucketMap.Add(pName, physicsBucketName);
                         break;
                     default:
                         //all other properties belong to the "General" bucket.
-                        m_primPropertyBucketMap.Add(pName, physicsBucketName);
+                        m_primPropertyBucketMap.Add(pName, generalBucketName);
                         break;
                 }
             }
+        }
+
+        private bool IsSyncingWithOtherActors()
+        {
+            return (m_syncConnectors.Count > 0);
         }
 
         public void QueueSceneObjectPartForUpdate(SceneObjectPart part)
@@ -275,6 +282,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //SendSceneUpdates put each update into an outgoing queue of each SyncConnector
         public void SendSceneUpdates()
         {
+            if (!IsSyncingWithOtherActors())
+            {
+                //no SyncConnector connected. Do nothing.
+                return;
+            }
+
             // Existing value of 1 indicates that updates are currently being sent so skip updates this pass
             if (Interlocked.Exchange(ref m_sendingUpdates, 1) == 1)
             {
@@ -389,6 +402,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void SendTerrainUpdates(string lastUpdateActorID)
         {
+            if (!IsSyncingWithOtherActors())
+            {
+                //no SyncConnector connected. Do nothing.
+                return;
+            }
             if(m_isSyncRelay || m_actorID.Equals(lastUpdateActorID))
             {
                 //m_scene.Heightmap should have been updated already by the caller, send it out
@@ -406,7 +424,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //private void RegionSyncModule_OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
         public void SendDeleteObject(SceneObjectGroup sog, bool softDelete)
         {
-            m_log.DebugFormat("SendDeleteObject called for object {0}", sog.UUID);
+            if (!IsSyncingWithOtherActors())
+            {
+                //no SyncConnector connected. Do nothing.
+                return;
+            }
+
+            m_log.DebugFormat(LogHeader+"SendDeleteObject called for object {0}", sog.UUID);
 
             //Only send the message out if this is a relay node for sync messages, or this actor caused deleting the object
             //if (m_isSyncRelay || CheckObjectForSendingUpdate(sog))
@@ -428,6 +452,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if(children.Count==0) return;
 
+            if (!IsSyncingWithOtherActors())
+            {
+                //no SyncConnector connected. Do nothing.
+                return;
+            }
+
             OSDMap data = new OSDMap();
             string sogxml = SceneObjectSerializer.ToXml2Format(linkedGroup);
             data["linkedGroup"]=OSD.FromString(sogxml);
@@ -448,6 +478,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void SendDeLinkObject(List<SceneObjectPart> prims, List<SceneObjectGroup> beforeDelinkGroups, List<SceneObjectGroup> afterDelinkGroups)
         {
             if (prims.Count==0 || beforeDelinkGroups.Count==0) return;
+
+            if (!IsSyncingWithOtherActors())
+            {
+                //no SyncConnector connected. Do nothing.
+                return;
+            }
 
             OSDMap data = new OSDMap();
             data["partCount"] = OSD.FromInteger(prims.Count);
@@ -486,6 +522,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs)
         {
+            if (!IsSyncingWithOtherActors())
+            {
+                //no SyncConnector connected. Do nothing.
+                return;
+            }
+
             switch (ev)
             {
                 case EventManager.EventNames.NewScript:
@@ -566,9 +608,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             Command cmdSyncStatus = new Command("status", CommandIntentions.COMMAND_HAZARDOUS, SyncStatus, "Displays synchronization status.");
 
+            //for debugging purpose
+            Command cmdSyncDebug = new Command("debug", CommandIntentions.COMMAND_HAZARDOUS, SyncDebug, "Trigger some debugging functions");
+
             m_commander.RegisterCommand("start", cmdSyncStart);
             m_commander.RegisterCommand("stop", cmdSyncStop);
             m_commander.RegisterCommand("status", cmdSyncStatus);
+            m_commander.RegisterCommand("debug", cmdSyncDebug);
 
             lock (m_scene)
             {
@@ -794,7 +840,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             //Start symmetric synchronization initialization automatically
-            SyncStart(null);
+            //SyncStart(null);
         }
 
         private void StartLocalSyncListener()
@@ -928,6 +974,38 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             //TO BE IMPLEMENTED
             m_log.Warn("[REGION SYNC MODULE]: SyncStatus() TO BE IMPLEMENTED !!!");
+        }
+
+        private void SyncDebug(Object[] args)
+        {
+            if (m_scene != null)
+            {
+                EntityBase[] entities = m_scene.GetEntities();
+                foreach (EntityBase entity in entities)
+                {
+                    if (entity is SceneObjectGroup)
+                    {
+                        //first test serialization
+                        StringWriter sw = new StringWriter();
+                        XmlTextWriter writer = new XmlTextWriter(sw);
+                        Dictionary<string, BucketSyncInfo> bucketSyncInfoList = new Dictionary<string,BucketSyncInfo>();
+                        BucketSyncInfo generalBucket = new BucketSyncInfo(DateTime.Now.Ticks, m_actorID, "General");
+                        bucketSyncInfoList.Add("General", generalBucket);
+                        BucketSyncInfo physicsBucket = new BucketSyncInfo(DateTime.Now.Ticks, m_actorID, "Physics");
+                        bucketSyncInfoList.Add("Physics", physicsBucket);
+                        SceneObjectSerializer.WriteBucketSyncInfo(writer, bucketSyncInfoList);
+
+                        string xmlString = sw.ToString();
+                        m_log.Debug("Serialized xml string: " + xmlString);
+
+                        //second, test de-serialization
+                        XmlTextReader reader = new XmlTextReader(new StringReader(xmlString));
+                        SceneObjectPart part = new SceneObjectPart();
+                        SceneObjectSerializer.ProcessBucketSyncInfo(part, reader);
+                        break;
+                    }
+                }
+            }
         }
 
         //Start connections to each remote listener. 

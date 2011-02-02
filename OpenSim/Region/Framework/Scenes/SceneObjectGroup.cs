@@ -581,7 +581,7 @@ namespace OpenSim.Region.Framework.Scenes
             //ScheduleGroupForFullUpdate();
 
             //SYMMETRIC SYNC
-            if (m_scene.RegionSyncClientModule != null)
+            if (m_scene.RegionSyncModule != null)
             {
                 foreach (SceneObjectPart part in Parts)
                 {

@@ -579,6 +579,15 @@ namespace OpenSim.Region.Framework.Scenes
             // Don't trigger the update here - otherwise some client issues occur when multiple updates are scheduled
             // for the same object with very different properties.  The caller must schedule the update.
             //ScheduleGroupForFullUpdate();
+
+            //SYMMETRIC SYNC
+            if (m_scene.RegionSyncModule != null)
+            {
+                foreach (SceneObjectPart part in Parts)
+                {
+                    part.InitializeBucketSyncInfo();
+                }
+            }
         }
 
         public Vector3 GroupScale()

@@ -332,6 +332,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             //SYMMETRIC SYNC
             m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
             m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
+            m_SOPXmlProcessors.Add("BucketSyncInfoList", ProcessBucketSyncInfo);
             //end of SYMMETRIC SYNC
 
             #endregion
@@ -417,9 +418,12 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         }
 
         #region SOPXmlProcessors
+        //SYMMETRIC SYNC NOTE: -- assignments in de-serialization should directly set the values w/o triggering SceneObjectPart.UpdateBucketSyncInfo;
+        //That is, calling SetXXX(value) instead of using "XXX = value". 
         private static void ProcessAllowedDrop(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.AllowedDrop = Util.ReadBoolean(reader);
+            //obj.AllowedDrop = Util.ReadBoolean(reader);
+            obj.SetAllowedDrop(Util.ReadBoolean(reader));
         }
 
         private static void ProcessCreatorID(SceneObjectPart obj, XmlTextReader reader)
@@ -484,27 +488,32 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
         private static void ProcessGroupPosition(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.GroupPosition = Util.ReadVector(reader, "GroupPosition");
+            //obj.GroupPosition = Util.ReadVector(reader, "GroupPosition");
+            obj.SetGroupPosition(Util.ReadVector(reader, "GroupPosition"));
         }
 
         private static void ProcessOffsetPosition(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.OffsetPosition = Util.ReadVector(reader, "OffsetPosition"); ;
+            //obj.OffsetPosition = Util.ReadVector(reader, "OffsetPosition"); ;
+            obj.SetOffsetPosition(Util.ReadVector(reader, "OffsetPosition"));
         }
 
         private static void ProcessRotationOffset(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.RotationOffset = Util.ReadQuaternion(reader, "RotationOffset");
+            //obj.RotationOffset = Util.ReadQuaternion(reader, "RotationOffset");
+            obj.SetRotationOffset(Util.ReadQuaternion(reader, "RotationOffset"));
         }
 
         private static void ProcessVelocity(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.Velocity = Util.ReadVector(reader, "Velocity");
+            //obj.Velocity = Util.ReadVector(reader, "Velocity");
+            obj.SetVelocity(Util.ReadVector(reader, "Velocity"));
         }
 
         private static void ProcessAngularVelocity(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.AngularVelocity = Util.ReadVector(reader, "AngularVelocity");
+            //obj.AngularVelocity = Util.ReadVector(reader, "AngularVelocity");
+            obj.SetVelocity(Util.ReadVector(reader, "AngularVelocity"));
         }
 
         private static void ProcessAcceleration(SceneObjectPart obj, XmlTextReader reader)
@@ -563,7 +572,8 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
         private static void ProcessScale(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.Scale = Util.ReadVector(reader, "Scale");
+            //obj.Scale = Util.ReadVector(reader, "Scale");
+            obj.SetScale(Util.ReadVector(reader, "Scale"));
         }
 
         private static void ProcessUpdateFlag(SceneObjectPart obj, XmlTextReader reader)
@@ -702,6 +712,55 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         {
             obj.LastUpdateActorID = reader.ReadElementContentAsString("LastUpdateActorID", string.Empty);
         }
+
+        public static void ProcessBucketSyncInfo(SceneObjectPart obj, XmlTextReader reader)
+        {
+            obj.BucketSyncInfoList = new Dictionary<string, BucketSyncInfo>();
+
+            if (reader.IsEmptyElement)
+            {
+                reader.Read();
+                return;   
+            }
+            string elementName = "BucketSyncInfoList";
+            reader.ReadStartElement(elementName, String.Empty);
+
+            while (reader.Name == "Bucket")
+            {
+                reader.ReadStartElement("Bucket", String.Empty); // Bucket
+                string bucketName="";
+                long timeStamp = 0;
+                string actorID = "";
+                while (reader.NodeType != XmlNodeType.EndElement)
+                {
+                    
+                    switch (reader.Name)
+                    {
+                        case "Name":
+                            bucketName = reader.ReadElementContentAsString("Name", String.Empty);
+                            break;
+                        case "TimeStamp":
+                            timeStamp = reader.ReadElementContentAsLong("TimeStamp", String.Empty);
+                            break;
+                        case "ActorID":
+                            actorID = reader.ReadElementContentAsString("ActorID", String.Empty);
+                            break;
+                        default:
+                            reader.ReadOuterXml();
+                            break;
+
+                    }
+                    
+                }
+                reader.ReadEndElement();
+                BucketSyncInfo bucketSyncInfo = new BucketSyncInfo(timeStamp, actorID, bucketName);
+                obj.BucketSyncInfoList.Add(bucketName, bucketSyncInfo);
+            }
+
+            if (reader.NodeType == XmlNodeType.EndElement)
+                reader.ReadEndElement(); // BucketSyncInfoList
+        }
+
         //end of SYMMETRIC SYNC
 
         #endregion
@@ -1188,10 +1247,35 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             //SYMMETRIC SYNC
             writer.WriteElementString("LastUpdateTimeStamp", sop.LastUpdateTimeStamp.ToString());
             writer.WriteElementString("LastUpdateActorID", sop.LastUpdateActorID);
+            WriteBucketSyncInfo(writer, sop.BucketSyncInfoList);
             //end of SYMMETRIC SYNC
 
             writer.WriteEndElement();
         }
+
+        //SYMMETRIC SYNC
+        public static void WriteBucketSyncInfo(XmlTextWriter writer, Dictionary<string, BucketSyncInfo> bucketSyncInfoList)
+        {
+            if (bucketSyncInfoList!=null || bucketSyncInfoList.Count > 0) // otherwise skip this
+            {
+                
+                writer.WriteStartElement("BucketSyncInfoList");
+                foreach (KeyValuePair<string, BucketSyncInfo> pair in bucketSyncInfoList)
+                {
+                    BucketSyncInfo bucketSyncInfo = pair.Value;
+                    writer.WriteStartElement("Bucket");
+                    writer.WriteElementString("Name", bucketSyncInfo.BucketName);
+                    writer.WriteElementString("TimeStamp", bucketSyncInfo.LastUpdateTimeStamp.ToString());
+                    writer.WriteElementString("ActorID", bucketSyncInfo.LastUpdateActorID);
+                    writer.WriteEndElement(); // Bucket
+                }
+
+                writer.WriteEndElement(); // BucketSyncInfo
+
+            }
+
+        }
+        //end of SYMMETRIC SYNC
 
         static void WriteUUID(XmlTextWriter writer, string name, UUID id, Dictionary<string, object> options)
         {

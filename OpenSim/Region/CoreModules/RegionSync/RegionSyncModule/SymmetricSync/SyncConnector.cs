@@ -110,7 +110,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             catch (Exception e)
             {
-                m_log.WarnFormat("{0} [Start] Could not connect to RegionSyncServer at {1}:{2}", LogHeader, m_remoteListenerInfo.Addr, m_remoteListenerInfo.Port);
+                m_log.WarnFormat("{0} [Start] Could not connect to RegionSyncModule at {1}:{2}", LogHeader, m_remoteListenerInfo.Addr, m_remoteListenerInfo.Port);
                 m_log.Warn(e.Message);
                 return false;
             }

@@ -418,11 +418,12 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         }
 
         #region SOPXmlProcessors
-        //SYMMETRIC SYNC NOTE: TODO -- assignments in de-serialization should directly set the values w/o triggering SceneObjectPart.UpdateBucketSyncInfo;
-        //That is, calling SetXXX(value) instead of "XXX = value". It's an code optimization to be done later.
+        //SYMMETRIC SYNC NOTE: -- assignments in de-serialization should directly set the values w/o triggering SceneObjectPart.UpdateBucketSyncInfo;
+        //That is, calling SetXXX(value) instead of using "XXX = value". 
         private static void ProcessAllowedDrop(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.AllowedDrop = Util.ReadBoolean(reader);
+            //obj.AllowedDrop = Util.ReadBoolean(reader);
+            obj.SetAllowedDrop(Util.ReadBoolean(reader));
         }
 
         private static void ProcessCreatorID(SceneObjectPart obj, XmlTextReader reader)
@@ -487,27 +488,32 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
         private static void ProcessGroupPosition(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.GroupPosition = Util.ReadVector(reader, "GroupPosition");
+            //obj.GroupPosition = Util.ReadVector(reader, "GroupPosition");
+            obj.SetGroupPosition(Util.ReadVector(reader, "GroupPosition"));
         }
 
         private static void ProcessOffsetPosition(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.OffsetPosition = Util.ReadVector(reader, "OffsetPosition"); ;
+            //obj.OffsetPosition = Util.ReadVector(reader, "OffsetPosition"); ;
+            obj.SetOffsetPosition(Util.ReadVector(reader, "OffsetPosition"));
         }
 
         private static void ProcessRotationOffset(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.RotationOffset = Util.ReadQuaternion(reader, "RotationOffset");
+            //obj.RotationOffset = Util.ReadQuaternion(reader, "RotationOffset");
+            obj.SetRotationOffset(Util.ReadQuaternion(reader, "RotationOffset"));
         }
 
         private static void ProcessVelocity(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.Velocity = Util.ReadVector(reader, "Velocity");
+            //obj.Velocity = Util.ReadVector(reader, "Velocity");
+            obj.SetVelocity(Util.ReadVector(reader, "Velocity"));
         }
 
         private static void ProcessAngularVelocity(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.AngularVelocity = Util.ReadVector(reader, "AngularVelocity");
+            //obj.AngularVelocity = Util.ReadVector(reader, "AngularVelocity");
+            obj.SetVelocity(Util.ReadVector(reader, "AngularVelocity"));
         }
 
         private static void ProcessAcceleration(SceneObjectPart obj, XmlTextReader reader)
@@ -566,7 +572,8 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
         private static void ProcessScale(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.Scale = Util.ReadVector(reader, "Scale");
+            //obj.Scale = Util.ReadVector(reader, "Scale");
+            obj.SetScale(Util.ReadVector(reader, "Scale"));
         }
 
         private static void ProcessUpdateFlag(SceneObjectPart obj, XmlTextReader reader)

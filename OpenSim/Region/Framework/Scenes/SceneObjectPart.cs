@@ -185,8 +185,9 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_allowedDrop; }
             set
             {
-                m_allowedDrop = value;
-                //UpdateBucketSyncInfo("AllowedDrop");
+                //m_allowedDrop = value;
+                SetAllowedDrop(value);
+                UpdateBucketSyncInfo("AllowedDrop");
             }
         }
         public void SetAllowedDrop(bool value)
@@ -797,9 +798,10 @@ namespace OpenSim.Region.Framework.Scenes
             }
             set
             {
-                //SetGroupPosition(value);
-                //UpdateBucketSyncInfo("GroupPosition");
+                SetGroupPosition(value);
+                UpdateBucketSyncInfo("GroupPosition");
                  
+                /*
                 //Legacy Opensim code
                 m_groupPosition = value;
 
@@ -841,7 +843,7 @@ namespace OpenSim.Region.Framework.Scenes
                         }
                     }
                 }
-                 
+                 */ 
             }
         }
         //SYMMETRIC SYNC
@@ -895,6 +897,9 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_offsetPosition; }
             set
             {
+                SetOffsetPosition(value);
+                UpdateBucketSyncInfo("OffsetPosition");
+                /*
                 StoreUndoState();
                 m_offsetPosition = value;
 
@@ -909,6 +914,26 @@ namespace OpenSim.Region.Framework.Scenes
                         // Tell the physics engines that this prim changed.
                         m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
                     }
+                }
+                 * */ 
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetOffsetPosition(Vector3 value)
+        {
+            StoreUndoState();
+            m_offsetPosition = value;
+
+            if (ParentGroup != null && !ParentGroup.IsDeleted)
+            {
+                PhysicsActor actor = PhysActor;
+                if (_parentID != 0 && actor != null)
+                {
+                    actor.Position = GetWorldPosition();
+                    actor.Orientation = GetWorldRotation();
+
+                    // Tell the physics engines that this prim changed.
+                    m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
                 }
             }
         }
@@ -951,6 +976,9 @@ namespace OpenSim.Region.Framework.Scenes
             
             set
             {
+                SetRotationOffset(value);
+                UpdateBucketSyncInfo("RotationOffset");
+                /*
                 StoreUndoState();
                 m_rotationOffset = value;
 
@@ -980,7 +1008,41 @@ namespace OpenSim.Region.Framework.Scenes
                         m_log.Error("[SCENEOBJECTPART]: ROTATIONOFFSET" + ex.Message);
                     }
                 }
+                 * */ 
 
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetRotationOffset(Quaternion value)
+        {
+            StoreUndoState();
+            m_rotationOffset = value;
+
+            PhysicsActor actor = PhysActor;
+            if (actor != null)
+            {
+                try
+                {
+                    // Root prim gets value directly
+                    if (_parentID == 0)
+                    {
+                        actor.Orientation = value;
+                        //m_log.Info("[PART]: RO1:" + actor.Orientation.ToString());
+                    }
+                    else
+                    {
+                        // Child prim we have to calculate it's world rotationwel
+                        Quaternion resultingrotation = GetWorldRotation();
+                        actor.Orientation = resultingrotation;
+                        //m_log.Info("[PART]: RO2:" + actor.Orientation.ToString());
+                    }
+                    m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
+                    //}
+                }
+                catch (Exception ex)
+                {
+                    m_log.Error("[SCENEOBJECTPART]: ROTATIONOFFSET" + ex.Message);
+                }
             }
         }
 
@@ -1003,6 +1065,9 @@ namespace OpenSim.Region.Framework.Scenes
 
             set
             {
+                SetVelocity(value);
+                UpdateBucketSyncInfo("Velocity");
+                /*
                 m_velocity = value;
 
                 PhysicsActor actor = PhysActor;
@@ -1013,6 +1078,22 @@ namespace OpenSim.Region.Framework.Scenes
                         actor.Velocity = value;
                         m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
                     }
+                }
+                 * */
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetVelocity(Vector3 value)
+        {
+            m_velocity = value;
+
+            PhysicsActor actor = PhysActor;
+            if (actor != null)
+            {
+                if (actor.IsPhysical)
+                {
+                    actor.Velocity = value;
+                    m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
                 }
             }
         }
@@ -1029,7 +1110,17 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 return m_angularVelocity;
             }
-            set { m_angularVelocity = value; }
+            set
+            {
+                SetAngularVelocity(value);
+                UpdateBucketSyncInfo("AngularVelocity");
+                //m_angularVelocity = value; 
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetAngularVelocity(Vector3 value)
+        {
+            m_angularVelocity = value;
         }
 
         /// <summary></summary>
@@ -1126,6 +1217,9 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_shape.Scale; }
             set
             {
+                SetScale(value);
+                UpdateBucketSyncInfo("Scale");
+                /*
                 StoreUndoState();
                 if (m_shape != null)
                 {
@@ -1145,8 +1239,33 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                 }
                 TriggerScriptChangedEvent(Changed.SCALE);
+                 * */
             }
         }
+        //SYMMETRIC SYNC
+        public void SetScale(Vector3 value)
+        {
+            StoreUndoState();
+            if (m_shape != null)
+            {
+                m_shape.Scale = value;
+
+                PhysicsActor actor = PhysActor;
+                if (actor != null && m_parentGroup != null)
+                {
+                    if (m_parentGroup.Scene != null)
+                    {
+                        if (m_parentGroup.Scene.PhysicsScene != null)
+                        {
+                            actor.Size = m_shape.Scale;
+                            m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
+                        }
+                    }
+                }
+            }
+            TriggerScriptChangedEvent(Changed.SCALE);
+        }
+
         
         public byte UpdateFlag
         {
@@ -5418,7 +5537,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        //Should be called when the SceneObjectGroup this part is in is added to scene, see SceneObjectGroup.AttachToScene
+        //Initialize and set the values of timestamp and actorID for each synchronization bucket.
+        //Should be called when the SceneObjectGroup this part is in is added to scene, see SceneObjectGroup.AttachToScene.
         public void InitializeBucketSyncInfo()
         {
             if (m_primPropertyBucketMap == null)
@@ -5451,6 +5571,10 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        /// <summary>
+        /// Update the timestamp and actorID information of the bucket the given property belongs to. 
+        /// </summary>
+        /// <param name="propertyName">Name of the property. Make sure the spelling is consistent with what are defined in PropertyList</param>
         private void UpdateBucketSyncInfo(string propertyName)
         {
             if (m_bucketSyncInfoList != null && m_bucketSyncInfoList.Count>0)

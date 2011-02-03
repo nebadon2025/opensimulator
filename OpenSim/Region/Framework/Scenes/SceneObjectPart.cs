@@ -386,8 +386,7 @@ namespace OpenSim.Region.Framework.Scenes
             // this appears to have the same UUID (!) as the prim.  If this isn't the case, one can't drag items from
             // the prim into an agent inventory (Linden client reports that the "Object not found for drop" in its log
 
-            _flags = 0;
-            _flags |= PrimFlags.CreateSelected;
+            _flags = PrimFlags.CreateSelected;
 
             TrimPermissions();
             //m_undo = new UndoStack<UndoState>(ParentGroup.GetSceneMaxUndo());
@@ -1911,8 +1910,9 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void GetProperties(IClientAPI client)
         {
+            //Viewer wants date in microseconds so multiply it by 1,000,000.
             client.SendObjectPropertiesReply(
-                m_fromUserInventoryItemID, (ulong)_creationDate, _creatorID, UUID.Zero, UUID.Zero,
+                m_fromUserInventoryItemID, (ulong)_creationDate*(ulong)1e6, _creatorID, UUID.Zero, UUID.Zero,
                 _groupID, (short)InventorySerial, _lastOwnerID, UUID, _ownerID,
                 ParentGroup.RootPart.TouchName, new byte[0], ParentGroup.RootPart.SitName, Name, Description,
                 ParentGroup.RootPart._ownerMask, ParentGroup.RootPart._nextOwnerMask, ParentGroup.RootPart._groupMask, ParentGroup.RootPart._everyoneMask,

@@ -332,7 +332,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             //SYMMETRIC SYNC
             m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
             m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
-           // m_SOPXmlProcessors.Add("BucketSyncInfoList", ProcessBucketSyncInfo);
+            m_SOPXmlProcessors.Add("BucketSyncInfoList", ProcessBucketSyncInfo);
             //end of SYMMETRIC SYNC
 
             #endregion
@@ -1240,7 +1240,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             //SYMMETRIC SYNC
             writer.WriteElementString("LastUpdateTimeStamp", sop.LastUpdateTimeStamp.ToString());
             writer.WriteElementString("LastUpdateActorID", sop.LastUpdateActorID);
-            //WriteBucketSyncInfo(writer, sop.BucketSyncInfoList);
+            WriteBucketSyncInfo(writer, sop.BucketSyncInfoList);
             //end of SYMMETRIC SYNC
 
             writer.WriteEndElement();

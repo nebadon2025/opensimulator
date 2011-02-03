@@ -653,5 +653,25 @@ namespace OpenSim.Services.Connectors
 
         #endregion
 
+        #region SYNC SERVER
+        // Stubs for actor and quark management. Only implementation is in SimianGridService
+        public virtual bool RegisterActor(GridActorInfo gai, List<GridQuarkInfo> lgqi)
+        {
+            return false;
+        }
+        public virtual bool RegisterActor(GridActorInfo gai, GridQuarkInfo gqi)
+        {
+            return false;
+        }
+        public virtual List<GridActorInfo> LookupQuark(GridQuarkInfo gqi)
+        {
+            return null;
+        }
+        public virtual List<GridActorInfo> LookupQuark(GridQuarkInfo gqi, string actorType)
+        {
+            return null;
+        }
+        #endregion SYNC SERVER
+
     }
 }

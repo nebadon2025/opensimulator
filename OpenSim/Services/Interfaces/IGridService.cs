@@ -95,6 +95,24 @@ namespace OpenSim.Services.Interfaces
         List<GridRegion> GetHyperlinks(UUID scopeID);
 
         int GetRegionFlags(UUID scopeID, UUID regionID);
+
+        bool RegisterActor(GridActorInfo gai, List<GridQuarkInfo> lgqi);
+        bool RegisterActor(GridActorInfo gai, GridQuarkInfo gqi);
+        List<GridActorInfo> LookupQuark(GridQuarkInfo gqi);
+        List<GridActorInfo> LookupQuark(GridQuarkInfo gqi, string actorType);
+    }
+
+    public class GridQuarkInfo
+    {
+        public int locX;
+        public int locY;
+    }
+    public class GridActorInfo
+    {
+        public string address;
+        public int port;
+        public string type;
+        public string actorID;
     }
 
     public class GridRegion : Object

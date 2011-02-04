@@ -5579,6 +5579,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         //Initialize and set the values of timestamp and actorID for each synchronization bucket.
         //Should be called when the SceneObjectGroup this part is in is added to scene, see SceneObjectGroup.AttachToScene.
+        private bool m_BucketUpdateProcessorRegistered = false;
         public void InitializeBucketSyncInfo()
         {
             if (m_primPropertyBucketMap == null)
@@ -5593,16 +5594,12 @@ namespace OpenSim.Region.Framework.Scenes
             for (int i = 0; i < m_propertyBucketNames.Count; i++)
             {
                 string bucketName = m_propertyBucketNames[i];
-                BucketSyncInfo syncInfo = new BucketSyncInfo(timeStamp, m_localActorID, bucketName);
 
-                //If the object is created by de-serialization, then it already has m_bucketSyncInfoList populated with the right number of buckets
+                //If the object is created by de-serialization, then it already has m_bucketSyncInfoList populated with the right number of buckets.
+                //If the deserilaization is due to receiving a sync message, then m_bucketSyncInfoList should already be filled with sync info.
                 if (!m_bucketSyncInfoList.ContainsKey(bucketName))
-                //if (m_bucketSyncInfoList.ContainsKey(bucketName))
-                //{
-                //    m_bucketSyncInfoList[bucketName] = syncInfo;
-                //}
-                //else
                 {
+                    BucketSyncInfo syncInfo = new BucketSyncInfo(timeStamp, m_localActorID, bucketName);
                     m_bucketSyncInfoList.Add(bucketName, syncInfo);
                 }
                 if (!m_bucketUpdateLocks.ContainsKey(bucketName))
@@ -5611,7 +5608,11 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
 
-            RegisterBucketUpdateProcessor();
+            if (!m_BucketUpdateProcessorRegistered)
+            {
+                RegisterBucketUpdateProcessor();
+                m_BucketUpdateProcessorRegistered = true;
+            }
         }
 
         /// <summary>

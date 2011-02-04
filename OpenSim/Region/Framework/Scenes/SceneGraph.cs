@@ -1599,7 +1599,7 @@ namespace OpenSim.Region.Framework.Scenes
                 if (m_parentScene.RegionSyncModule != null)
                 {
                     //Tell other actors to link the SceneObjectParts together as a new group. 
-                    parentGroup.SyncInfoUpdate();
+                    //parentGroup.SyncInfoUpdate();
                     m_parentScene.RegionSyncModule.SendLinkObject(parentGroup, root, children);
                 }
 
@@ -1747,6 +1747,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                 //SYMMETRIC SYNC
                 //set timestamp
+                /*
                 long timeStamp = DateTime.Now.Ticks;
                 string actorID = m_parentScene.GetSyncActorID();
                 foreach (SceneObjectGroup sog in afterDelinkGroups)
@@ -1756,6 +1757,7 @@ namespace OpenSim.Region.Framework.Scenes
                         sog.SyncInfoUpdate(timeStamp, actorID); ;
                     }
                 }
+                 * */ 
                 //Send out DelinkObject message to other actors to sychronize their object list 
                 m_parentScene.RegionSyncModule.SendDeLinkObject(prims, beforeDelinkGroups, afterDelinkGroups);
 
@@ -2065,7 +2067,10 @@ namespace OpenSim.Region.Framework.Scenes
             }
             m_numPrim += children.Length;
 
+            //SYMMETRIC SYNC, 
             sceneObject.AttachToScene(m_parentScene);
+            //sceneObject.AttachToSceneBySync(m_parentScene);
+            //end of SYMMETRIC SYNC,
 
             //SYMMETRIC SYNC, 
             sceneObject.ScheduleGroupForFullUpdate_SyncInfoUnchanged();

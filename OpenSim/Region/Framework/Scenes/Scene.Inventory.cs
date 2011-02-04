@@ -1720,7 +1720,7 @@ namespace OpenSim.Region.Framework.Scenes
                          * */
                         if (RegionSyncModule != null)
                         {
-                            part.SyncInfoUpdate();
+                            //part.SyncInfoUpdate();
                             EventManager.TriggerNewScript(remoteClient.AgentId, part, copyID);
                         }
                         else
@@ -1798,7 +1798,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //part.ParentGroup.ResumeScripts();
                 if (RegionSyncModule != null)
                 {
-                    part.SyncInfoUpdate();
+                    //part.SyncInfoUpdate();
                     EventManager.TriggerNewScript(remoteClient.AgentId, part, taskItem.ItemID);
                 }
                 else

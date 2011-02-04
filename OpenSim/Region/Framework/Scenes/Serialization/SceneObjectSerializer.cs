@@ -330,8 +330,8 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             m_SOPXmlProcessors.Add("ParticleSystem", ProcessParticleSystem);
 
             //SYMMETRIC SYNC
-            m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
-            m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
+            //m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
+            //m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
             m_SOPXmlProcessors.Add("BucketSyncInfoList", ProcessBucketSyncInfo);
             //end of SYMMETRIC SYNC
 
@@ -703,6 +703,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         }
 
         //SYMMETRIC SYNC
+        /*
         private static void ProcessUpdateTimeStamp(SceneObjectPart obj, XmlTextReader reader)
         {
             obj.LastUpdateTimeStamp = reader.ReadElementContentAsLong("LastUpdateTimeStamp", string.Empty);
@@ -712,6 +713,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         {
             obj.LastUpdateActorID = reader.ReadElementContentAsString("LastUpdateActorID", string.Empty);
         }
+         * */ 
 
         public static void ProcessBucketSyncInfo(SceneObjectPart obj, XmlTextReader reader)
         {
@@ -1245,8 +1247,8 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             WriteBytes(writer, "ParticleSystem", sop.ParticleSystem);
 
             //SYMMETRIC SYNC
-            writer.WriteElementString("LastUpdateTimeStamp", sop.LastUpdateTimeStamp.ToString());
-            writer.WriteElementString("LastUpdateActorID", sop.LastUpdateActorID);
+            //writer.WriteElementString("LastUpdateTimeStamp", sop.LastUpdateTimeStamp.ToString());
+            //writer.WriteElementString("LastUpdateActorID", sop.LastUpdateActorID);
             WriteBucketSyncInfo(writer, sop.BucketSyncInfoList);
             //end of SYMMETRIC SYNC
 

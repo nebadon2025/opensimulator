@@ -2560,16 +2560,6 @@ namespace OpenSim.Region.Framework.Scenes
 
 //            m_log.DebugFormat("[SCENE]: Exit DeleteSceneObject() for {0} {1}", group.Name, group.UUID);            
 
-            //SYMMETRIC SYNC
-            //Set the ActorID and TimeStamp info for this latest update
-            /*
-            foreach (SceneObjectPart part in group.Parts)
-            {
-                part.SyncInfoUpdate();
-            }
-             *  
-             * */
-
             //Propagate the RemovedObject message
             if (RegionSyncModule != null)
             {

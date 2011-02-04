@@ -3868,6 +3868,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         }
 
+        /*
         public void SyncInfoUpdate()
         {
             long timeStamp = DateTime.Now.Ticks;
@@ -3885,6 +3886,46 @@ namespace OpenSim.Region.Framework.Scenes
                 part.SyncInfoUpdate(timeStamp, actorID);
             }
         }
+         * */
+
+        /// <summary>
+        /// Attach this object to a scene after a new object is created due to receiving a sync message. 
+        /// Code similar to AttachToScene, except that this does not invoke InitializeBucketSyncInfo of each part,
+        /// as that information is included in the incoming message.
+        /// </summary>
+        /// <param name="scene"></param>
+        public void AttachToSceneBySync(Scene scene)
+        {
+            m_scene = scene;
+            RegionHandle = m_scene.RegionInfo.RegionHandle;
+
+            if (m_rootPart.Shape.PCode != 9 || m_rootPart.Shape.State == 0)
+                m_rootPart.ParentID = 0;
+            if (m_rootPart.LocalId == 0)
+                m_rootPart.LocalId = m_scene.AllocateLocalId();
+
+            SceneObjectPart[] parts = m_parts.GetArray();
+            for (int i = 0; i < parts.Length; i++)
+            {
+                SceneObjectPart part = parts[i];
+                if (Object.ReferenceEquals(part, m_rootPart))
+                    continue;
+
+                if (part.LocalId == 0)
+                    part.LocalId = m_scene.AllocateLocalId();
+
+                part.ParentID = m_rootPart.LocalId;
+                //m_log.DebugFormat("[SCENE]: Given local id {0} to part {1}, linknum {2}, parent {3} {4}", part.LocalId, part.UUID, part.LinkNum, part.ParentID, part.ParentUUID);
+            }
+
+            ApplyPhysics(m_scene.m_physicalPrim);
+
+            // Don't trigger the update here - otherwise some client issues occur when multiple updates are scheduled
+            // for the same object with very different properties.  The caller must schedule the update.
+            //ScheduleGroupForFullUpdate();
+
+        }
+
 
         #endregion
     }

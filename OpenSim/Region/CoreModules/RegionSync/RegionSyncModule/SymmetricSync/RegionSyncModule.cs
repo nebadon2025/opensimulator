@@ -262,7 +262,22 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void QueueSceneObjectPartForUpdate(SceneObjectPart part)
         {
             //if the last update of the prim is caused by this actor itself, or if the actor is a relay node, then enqueue the update
-            if (part.LastUpdateActorID.Equals(m_actorID) || m_isSyncRelay)
+            //if (part.LastUpdateActorID.Equals(m_actorID) || m_isSyncRelay)
+            bool updated = m_isSyncRelay;
+
+            if (!updated)
+            {
+                foreach (KeyValuePair<string, BucketSyncInfo> pair in part.BucketSyncInfoList)
+                {
+                    if (pair.Value.LastUpdateActorID.Equals(m_actorID))
+                    {
+                        updated = true;
+                        break;
+                    }
+                }
+            }
+
+            if(updated)
             {
                 lock (m_updateSceneObjectPartLock)
                 {
@@ -273,10 +288,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void QueueScenePresenceForTerseUpdate(ScenePresence presence)
         {
+            /*
             lock (m_updateScenePresenceLock)
             {
                 m_presenceUpdates[presence.UUID] = presence;
             }
+             * */ 
         }
 
         //SendSceneUpdates put each update into an outgoing queue of each SyncConnector
@@ -740,7 +757,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         /// <summary>
-        /// Check if we need to send out an update message for the given object.
+        /// Check if we need to send out an update message for the given object. For now, we have a very inefficient solution:
+        /// If any synchronization bucket in any part shows a property in that bucket has changed, we'll serialize and ship the whole object.
         /// </summary>
         /// <param name="sog"></param>
         /// <returns></returns>
@@ -749,9 +767,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //If any part in the object has the last update caused by this actor itself, then send the update
             foreach (SceneObjectPart part in sog.Parts)
             {
+                /*
                 if (part.LastUpdateActorID.Equals(m_actorID))
                 {
                     return true;
+                }
+                 * */ 
+                 
+                foreach (KeyValuePair<string, BucketSyncInfo> pair in part.BucketSyncInfoList)
+                {
+                    if (pair.Value.LastUpdateActorID.Equals(m_actorID))
+                    {
+                        return true;
+                    }
                 }
             }
 
@@ -840,7 +868,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             //Start symmetric synchronization initialization automatically
-            //SyncStart(null);
+            SyncStart(null);
         }
 
         private void StartLocalSyncListener()

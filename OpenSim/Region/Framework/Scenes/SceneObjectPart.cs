@@ -121,11 +121,13 @@ namespace OpenSim.Region.Framework.Scenes
         public long LastUpdateTimeStamp
         {
             get { return m_lastUpdateTimeStamp; }
+            set { m_lastUpdateTimeStamp = value; }
         }
 
         public string LastUpdateActorID
         {
             get { return m_lastUpdateActorID; }
+            set { m_lastUpdateActorID = value; }
         }
 
         public string BucketName
@@ -3131,7 +3133,7 @@ namespace OpenSim.Region.Framework.Scenes
             //SYMMETRIC SYNC
 
             //update information (timestamp, actorID, etc) needed for synchronization across copies of Scene
-            SyncInfoUpdate();
+            //SyncInfoUpdate();
             
             //end of SYMMETRIC SYNC
         }
@@ -3159,7 +3161,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //SYMMETRIC SYNC
 
                 //update information (timestamp, actorID, etc) needed for synchronization across copies of Scene
-                SyncInfoUpdate();
+                //SyncInfoUpdate();
 
                 //end of SYMMETRIC SYNC
             }
@@ -5158,6 +5160,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         //The ID the identifies which actor has caused the most recent update to the prim.
         //We use type "string" for the ID only to make it human-readable. 
+        /*
         private string m_lastUpdateActorID="";
         public string LastUpdateActorID
         {
@@ -5169,6 +5172,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             m_lastUpdateTimeStamp = time;
         }
+         
 
         public void SetLastUpdateActorID()
         {
@@ -5182,17 +5186,19 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+
         private Object m_SyncInfoLock = new Object();
         public void SyncInfoUpdate(long timeStamp, string actorID)
         {
             //update timestamp and actorID atomically
+            
             lock (m_SyncInfoLock)
             {
                 UpdateTimestamp(timeStamp);
                 m_lastUpdateActorID = actorID;
             }
+             
         }
-       
 
         public void SyncInfoUpdate()
         {
@@ -5204,6 +5210,7 @@ namespace OpenSim.Region.Framework.Scenes
                 SyncInfoUpdate(DateTime.Now.Ticks, m_parentGroup.Scene.GetSyncActorID());
             }
         }
+         * */ 
 
         //The list of each prim's properties. This is the list of properties that matter in synchronizing prim copies on different actors.
         //This list is created based on properties included in the serialization/deserialization process (see SceneObjectSerializer()) and the 
@@ -5281,7 +5288,7 @@ namespace OpenSim.Region.Framework.Scenes
         
 
         
-        
+        /*
         private Object propertyUpdateLock = new Object();
 
         //!!!!!! -- TODO: 
@@ -5410,6 +5417,8 @@ namespace OpenSim.Region.Framework.Scenes
             return partUpdateResult;
         }
         
+         * */ 
+       
 
 
         private bool UpdateCollisionSound(UUID updatedCollisionSound)
@@ -5424,8 +5433,12 @@ namespace OpenSim.Region.Framework.Scenes
 
         public string DebugObjectPartProperties()
         {
-            string debugMsg = "UUID " + UUID + ", Name " + Name + ", localID " + LocalId + ", lastUpdateActorID " + LastUpdateActorID + ", lastUpdateTimeStamp " + LastUpdateTimeStamp;
+            string debugMsg = "UUID " + UUID + ", Name " + Name + ", localID " + LocalId;
             debugMsg += ", parentID " + ParentID + ", parentUUID " + ParentUUID;
+            foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
+            {
+                debugMsg += ", Bucket " + pair.Key + ": TimeStamp - " + pair.Value.LastUpdateTimeStamp + ", ActorID - " + pair.Value.LastUpdateActorID;
+            }
             return debugMsg;
         }
 
@@ -5484,9 +5497,10 @@ namespace OpenSim.Region.Framework.Scenes
         private static string m_localActorID = "";
         //private static int m_bucketCount = 0;
         //private delegate void BucketUpdateProcessor(int bucketIndex);
-        private delegate void BucketUpdateProcessor(string bucketName);
+        private delegate void BucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName);
 
-        private static Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
+        //private static Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
+        private Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
 
         public static void InitializeBucketInfo(Dictionary<string, string> propertyBucketMap, List<string> bucketNames, string actorID)
         {
@@ -5495,14 +5509,17 @@ namespace OpenSim.Region.Framework.Scenes
             m_localActorID = actorID;
             //m_bucketCount = bucketNames.Count;
 
-            RegisterBucketUpdateProcessor();
+            //RegisterBucketUpdateProcessor();
         }
 
         /// <summary>
-        /// Link each bucket with the function that applies updates to properties in the bucket. This is the "hard-coded" part
-        /// in the property-buckets implementation. When new buckets are implemented, the processing functions need to be modified accordingly.
+        /// Link each bucket with the function that applies updates to properties in the bucket upon receiving sync messages. 
+        /// This is the "hard-coded" part in the property-buckets implementation. When new buckets are implemented, 
+        /// the processing functions need to be modified accordingly.
         /// </summary>
-        private static void RegisterBucketUpdateProcessor()
+        //private static void RegisterBucketUpdateProcessor()
+        private void RegisterBucketUpdateProcessor()
+
         {
             foreach (string bucketName in m_propertyBucketNames)
             {
@@ -5521,19 +5538,42 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        private static void GeneralBucketUpdateProcessor(string bucketName)
+        private void GeneralBucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName)
         {
             lock (m_bucketUpdateLocks[bucketName])
             {
-
+                m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
+                m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
             }
         }
 
-        private static void PhysicsBucketUpdateProcessor(string bucketName)
+        private void PhysicsBucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName)
         {
             lock (m_bucketUpdateLocks[bucketName])
             {
+                SetGroupPosition(updatedPart.GroupPosition);
+                SetOffsetPosition(updatedPart.OffsetPosition);
+                SetScale(updatedPart.Scale);
+                SetVelocity(updatedPart.Velocity);
+                SetAngularVelocity(updatedPart.AngularVelocity);
+                SetRotationOffset(updatedPart.RotationOffset);
 
+                //implementation in PhysicsActor
+                /*
+                    "Position":
+                    "Size":
+                    "Force":
+                    "RotationalVelocity":
+                    "PA_Acceleration":
+                    "Torque":
+                    "Orientation":
+                    "IsPhysical":
+                    "Flying":
+                    "Buoyancy":
+                 * */
+
+                m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
+                m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
             }
         }
 
@@ -5556,19 +5596,22 @@ namespace OpenSim.Region.Framework.Scenes
                 BucketSyncInfo syncInfo = new BucketSyncInfo(timeStamp, m_localActorID, bucketName);
 
                 //If the object is created by de-serialization, then it already has m_bucketSyncInfoList populated with the right number of buckets
-                if (m_bucketSyncInfoList.ContainsKey(bucketName))
-                {
-                    m_bucketSyncInfoList[bucketName] = syncInfo;
-                }
-                else
+                if (!m_bucketSyncInfoList.ContainsKey(bucketName))
+                //if (m_bucketSyncInfoList.ContainsKey(bucketName))
+                //{
+                //    m_bucketSyncInfoList[bucketName] = syncInfo;
+                //}
+                //else
                 {
                     m_bucketSyncInfoList.Add(bucketName, syncInfo);
                 }
-                if (!m_bucketSyncInfoList.ContainsKey(bucketName))
+                if (!m_bucketUpdateLocks.ContainsKey(bucketName))
                 {
                     m_bucketUpdateLocks.Add(bucketName, new Object());
                 }
             }
+
+            RegisterBucketUpdateProcessor();
         }
 
         /// <summary>
@@ -5595,8 +5638,6 @@ namespace OpenSim.Region.Framework.Scenes
 
         
 
-        /*
-
         public Scene.ObjectUpdateResult UpdateAllProperties(SceneObjectPart updatedPart)
         {
 
@@ -5616,7 +5657,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Unchanged;
 
-            for (int i=0; i<m_bucketCount; i++){
+            for (int i = 0; i < m_propertyBucketNames.Count; i++)
+            {
                 string bucketName = m_propertyBucketNames[i];
                 //First, compare the bucket's timestamp and actorID
                 if (m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp > updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp)
@@ -5638,7 +5680,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //Second, if need to update local properties, call each bucket's update process
                 if (m_bucketUpdateProcessors.ContainsKey(bucketName))
                 {
-                    m_bucketUpdateProcessors[bucketName](bucketName);
+                    m_bucketUpdateProcessors[bucketName](updatedPart, bucketName);
                     partUpdateResult = Scene.ObjectUpdateResult.Updated;
                 }
                 else
@@ -5652,7 +5694,7 @@ namespace OpenSim.Region.Framework.Scenes
             return partUpdateResult;
 
         }
-        */ 
+        
         //private void UpdateBucketProperties(string bucketDescription, 
 
         #endregion 

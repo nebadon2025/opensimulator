@@ -511,8 +511,15 @@ namespace OpenSim.Region.Framework.Scenes
             }
             set
             {
-                _creatorID = value;
+                SetCreatorID(value);
+                UpdateBucketSyncInfo("CreatorID");
+                //_creatorID = value;
             }
+        }
+        //SYMMETRIC SYNC
+        public void SetCreatorID(UUID value)
+        {
+            _creatorID = value;
         }
 
         /// <summary>
@@ -521,7 +528,17 @@ namespace OpenSim.Region.Framework.Scenes
         public string CreatorData 
         {
             get { return m_creatorData; }
-            set { m_creatorData = value; }
+            set
+            {
+                SetCreatorData(value);
+                UpdateBucketSyncInfo("CreatorData");
+                //m_creatorData = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetCreatorData(string value)
+        {
+            m_creatorData = value;
         }
 
         /// <summary>
@@ -637,11 +654,22 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_name; }
             set 
             { 
+                /*
                 m_name = value;
                 if (PhysActor != null)
                 {
                     PhysActor.SOPName = value;
                 }
+                 * */ 
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetName(string value)
+        {
+            m_name = value;
+            if (PhysActor != null)
+            {
+                PhysActor.SOPName = value;
             }
         }
 
@@ -650,13 +678,27 @@ namespace OpenSim.Region.Framework.Scenes
             get { return (byte) m_material; }
             set
             {
+                SetMaterial(value);
+                UpdateBucketSyncInfo("Material");
+                /*
                 m_material = (Material)value;
                 if (PhysActor != null)
                 {
                     PhysActor.SetMaterial((int)value);
                 }
+                 * */
             }
         }
+        //SYMMETRIC SYNC
+        public void SetMaterial(byte value)
+        {
+            m_material = (Material)value;
+            if (PhysActor != null)
+            {
+                PhysActor.SetMaterial((int)value);
+            }
+        }
+
 
         public bool PassTouches
         {
@@ -3060,6 +3102,10 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             ScheduleFullUpdate();
+
+            //SYMMETRIC SYNC
+            //Make sure we record down the timestamp info for synchronization purpose
+            UpdateBucketSyncInfo("Scale");
         }
         
         public void RotLookAt(Quaternion target, float strength, float damping)
@@ -5558,7 +5604,7 @@ namespace OpenSim.Region.Framework.Scenes
                 SetAngularVelocity(updatedPart.AngularVelocity);
                 SetRotationOffset(updatedPart.RotationOffset);
 
-                //implementation in PhysicsActor
+                //properties in Physics bucket whose update processors are in PhysicsActor
                 /*
                     "Position":
                     "Size":
@@ -5595,7 +5641,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 string bucketName = m_propertyBucketNames[i];
 
-                //If the object is created by de-serialization, then it already has m_bucketSyncInfoList populated with the right number of buckets.
+                //If the object is created by de-serialization, then it may already have m_bucketSyncInfoList populated with the right number of buckets.
                 //If the deserilaization is due to receiving a sync message, then m_bucketSyncInfoList should already be filled with sync info.
                 if (!m_bucketSyncInfoList.ContainsKey(bucketName))
                 {
@@ -5619,7 +5665,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// Update the timestamp and actorID information of the bucket the given property belongs to. 
         /// </summary>
         /// <param name="propertyName">Name of the property. Make sure the spelling is consistent with what are defined in PropertyList</param>
-        private void UpdateBucketSyncInfo(string propertyName)
+        public void UpdateBucketSyncInfo(string propertyName)
         {
             if (m_bucketSyncInfoList != null && m_bucketSyncInfoList.Count>0)
             {

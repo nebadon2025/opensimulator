@@ -467,29 +467,9 @@ namespace OpenSim.Services.Connectors.SimianGrid
 
         public virtual bool RegisterActor(GridActorInfo gai, GridQuarkInfo gqi)
         {
-            OSDMap quarkMap = new OSDMap
-            {
-                { "locX", OSD.FromInteger(gqi.locX) },
-                { "locY", OSD.FromInteger(gqi.locY) }
-            };
-            OSDArray quarks = new OSDArray();
-            quarks.Add(quarkMap);
-            NameValueCollection requestArgs = new NameValueCollection
-            {
-                { "RequestMethod", "RegisterActor" },
-                { "actorID", gai.actorID },
-                { "actorType", gai.type },
-                { "address", gai.address },
-                { "port", gai.port.ToString() },
-                { "quarks", OSDParser.SerializeJsonString(quarks) }
-            };
-
-            OSDMap response = WebUtil.PostToService(m_ServerURI, requestArgs);
-            if (response["Success"].AsBoolean())
-            {
-                return true;
-            }
-            return false;
+            List<GridActorInfo> lgqi = new List<GridActorInfo>();
+            lgqi.Add(gqi);
+            return RegisterActor(gai, lgqi);
         }
 
         public virtual List<GridActorInfo> LookupQuark(GridQuarkInfo gqi)
@@ -500,26 +480,9 @@ namespace OpenSim.Services.Connectors.SimianGrid
                 { "locX", gqi.locX.ToString() },
                 { "locY", gqi.locY.ToString() }
             };
-
-            OSDMap response = WebUtil.PostToService(m_ServerURI, requestArgs);
-            if (response["Success"].AsBoolean())
-            {
-                List<GridActorInfo> lgai = new List<GridActorInfo>();
-                OSDArray gridActors = (OSDArray)response["actors"];
-                for (int ii = 0; ii < gridActors.Count; ii++)
-                {
-                    OSDMap thisGridActor = (OSDMap)gridActors[ii];
-                    GridActorInfo gai = new GridActorInfo();
-                    gai.actorID = thisGridActor["actorID"].AsString();
-                    gai.type = thisGridActor["actorType"].AsString();
-                    gai.address = thisGridActor["address"].AsString();
-                    gai.port = thisGridActor["port"].AsInteger();
-                    lgai.Add(gai);
-                }
-                return lgai;
-            }
-            return null;
+            return LookupQuark(requestArgs);
         }
+
         public virtual List<GridActorInfo> LookupQuark(GridQuarkInfo gqi, string actorType)
         {
             NameValueCollection requestArgs = new NameValueCollection
@@ -529,7 +492,11 @@ namespace OpenSim.Services.Connectors.SimianGrid
                 { "locY", gqi.locY.ToString() },
                 { "actorType", actorType }
             };
+            return LookupQuark(requestArgs);
+        }
 
+        private List<GridActorInfo> LookupQuark(NameValueCollection requestArgs)
+        {
             OSDMap response = WebUtil.PostToService(m_ServerURI, requestArgs);
             if (response["Success"].AsBoolean())
             {

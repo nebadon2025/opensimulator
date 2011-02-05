@@ -610,6 +610,11 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_inventory.Serial; }
             set { m_inventory.Serial = value; }
         }
+        //SYMMETRIC SYNC: implemented to be consistent with other properties. "m_inventory.Serial" set function will trigger UpdateBucketSyncInfo if appropriate
+        public void SetInventorySerial(uint value)
+        {
+            m_inventory.Serial = value;
+        }
 
         /// <value>
         /// Access should be via Inventory directly - this property temporarily remains for xml serialization purposes
@@ -618,6 +623,11 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return m_inventory.Items; }
             set { m_inventory.Items = value; }
+        }
+        //SYMMETRIC SYNC: implemented to be consistent with other properties. "m_inventory.Items" set function will trigger UpdateBucketSyncInfo if appropriate
+        public void SetTaskInventory(TaskInventoryDictionary value)
+        {
+            m_inventory.Items = value;
         }
 
         /// <summary>
@@ -705,10 +715,21 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_passTouches; }
             set
             {
+                SetPassTouches(value);
+                UpdateBucketSyncInfo("PassTouches");
+                /*
                 m_passTouches = value;
                 if (ParentGroup != null)
                     ParentGroup.HasGroupChanged = true;
+                 * */
             }
+        }
+        //SYMMETRIC SYNC
+        public void SetPassTouches(bool value)
+        {
+            m_passTouches = value;
+            if (ParentGroup != null)
+                ParentGroup.HasGroupChanged = true;
         }
 
         
@@ -752,8 +773,20 @@ namespace OpenSim.Region.Framework.Scenes
         public int ScriptAccessPin
         {
             get { return m_scriptAccessPin; }
-            set { m_scriptAccessPin = (int)value; }
+            set
+            {
+                SetScriptAccessPin(value);
+                UpdateBucketSyncInfo("ScriptAccessPin");
+                //m_scriptAccessPin = (int)value;
+            }
         }
+        //SYMMETRIC SYNC
+        public void SetScriptAccessPin(int value)
+        {
+            m_scriptAccessPin = (int)value; 
+        }
+
+
         private SceneObjectPart m_PlaySoundMasterPrim = null;
         public SceneObjectPart PlaySoundMasterPrim
         {
@@ -1171,7 +1204,17 @@ namespace OpenSim.Region.Framework.Scenes
         public Vector3 Acceleration
         {
             get { return m_acceleration; }
-            set { m_acceleration = value; }
+            set
+            {
+                SetAcceleration(value);
+                UpdateBucketSyncInfo("Acceleration");
+                //m_acceleration = value; 
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetAcceleration(Vector3 value)
+        {
+            m_acceleration = value; 
         }
 
         public string Description
@@ -1179,12 +1222,26 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_description; }
             set 
             {
+                SetDescription(value);
+                UpdateBucketSyncInfo("Description");
+                /*
                 m_description = value;
                 PhysicsActor actor = PhysActor;
                 if (actor != null)
                 {
                     actor.SOPDescription = value;
                 }
+                 * */ 
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetDescription(string value)
+        {
+            m_description = value;
+            PhysicsActor actor = PhysActor;
+            if (actor != null)
+            {
+                actor.SOPDescription = value;
             }
         }
 
@@ -1196,13 +1253,20 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_color; }
             set
             {
-                m_color = value;
+                SetColor(value);
+                UpdateBucketSyncInfo("Color");
+                //m_color = value;
 
                 /* ScheduleFullUpdate() need not be called b/c after
                  * setting the color, the text will be set, so then
                  * ScheduleFullUpdate() will be called. */
                 //ScheduleFullUpdate();
             }
+        }
+        //SYMMETRIC SYNC
+        public void SetColor(Color value)
+        {
+            m_color = value;
         }
 
         public string Text
@@ -1218,27 +1282,65 @@ namespace OpenSim.Region.Framework.Scenes
             }
             set
             {
-                m_text = value;
+                SetText(value, false);
+                UpdateBucketSyncInfo("Text");
+                //m_text = value;
             }
+        }
+        //SYMMETRIC SYNC
+        //SetText(string) has been defined, defined it as a different interface, the 2nd argument is not really useful
+        public void SetText(string value, bool bySync)
+        {
+            m_text = value;
         }
 
 
         public string SitName
         {
             get { return m_sitName; }
-            set { m_sitName = value; }
+            set
+            {
+                SetSitName(value);
+                UpdateBucketSyncInfo("SitName");
+                //m_sitName = value; 
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetSitName(string value)
+        {
+            m_sitName = value;
         }
 
         public string TouchName
         {
             get { return m_touchName; }
-            set { m_touchName = value; }
+            set
+            {
+                SetTouchName(value);
+                UpdateBucketSyncInfo("TouchName");
+                //m_touchName = value; 
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetTouchName(string value)
+        {
+            m_touchName = value;
         }
 
         public int LinkNum
         {
             get { return m_linkNum; }
-            set { m_linkNum = value; }
+            set
+            {
+                SetLinkNum(value);
+                UpdateBucketSyncInfo("LinkNum");
+                //m_linkNum = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetLinkNum(int value)
+        {
+            m_linkNum = value;
         }
 
         public byte ClickAction
@@ -1246,14 +1348,31 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_clickAction; }
             set
             {
-                m_clickAction = value;
+                SetClickAction(value);
+                UpdateBucketSyncInfo("ClickAction");
+                //m_clickAction = value;
             }
+        }
+        //SYMMETRIC SYNC
+        public void SetClickAction(byte value)
+        {
+            m_clickAction = value;
         }
 
         public PrimitiveBaseShape Shape
         {
             get { return m_shape; }
-            set { m_shape = value; }
+            set
+            {
+                SetShape(value);
+                UpdateBucketSyncInfo("Shape");
+                //m_shape = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetShape(PrimitiveBaseShape value)
+        {
+            m_shape = value; 
         }
         
         public Vector3 Scale
@@ -1375,14 +1494,33 @@ namespace OpenSim.Region.Framework.Scenes
         public Quaternion SitTargetOrientation
         {
             get { return m_sitTargetOrientation; }
-            set { m_sitTargetOrientation = value; }
+            set
+            {
+                SetSitTargetOrientation(value);
+                UpdateBucketSyncInfo("SitTargetOrientation");
+                //m_sitTargetOrientation = value; 
+            }
         }
-
+        //SYMMETRIC SYNC
+        public void SetSitTargetOrientation(Quaternion value)
+        {
+            m_sitTargetOrientation = value; 
+        }
 
         public Vector3 SitTargetPosition
         {
             get { return m_sitTargetPosition; }
-            set { m_sitTargetPosition = value; }
+            set
+            {
+                SetSitTargetPosition(value);
+                UpdateBucketSyncInfo("SitTargetPosition");
+                //m_sitTargetPosition = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetSitTargetPosition(Vector3 value)
+        {
+            m_sitTargetPosition = value;
         }
 
         // This sort of sucks, but I'm adding these in to make some of
@@ -1390,7 +1528,12 @@ namespace OpenSim.Region.Framework.Scenes
         public Vector3 SitTargetPositionLL
         {
             get { return new Vector3(m_sitTargetPosition.X, m_sitTargetPosition.Y,m_sitTargetPosition.Z); }
-            set { m_sitTargetPosition = value; }
+            set
+            {
+                SetSitTargetPosition(value);
+                UpdateBucketSyncInfo("SitTargetPositionLL");
+                //m_sitTargetPosition = value; 
+            }
         }
 
         public Quaternion SitTargetOrientationLL
@@ -1405,7 +1548,12 @@ namespace OpenSim.Region.Framework.Scenes
                                         );
             }
 
-            set { m_sitTargetOrientation = new Quaternion(value.X, value.Y, value.Z, value.W); }
+            set
+            {
+                SetSitTargetOrientation(new Quaternion(value.X, value.Y, value.Z, value.W));
+                UpdateBucketSyncInfo("SitTargetOrientationLL");
+                //m_sitTargetOrientation = new Quaternion(value.X, value.Y, value.Z, value.W);
+            }
         }
 
         public bool Stopped
@@ -1430,79 +1578,209 @@ namespace OpenSim.Region.Framework.Scenes
         public int CreationDate
         {
             get { return _creationDate; }
-            set { _creationDate = value; }
+            set
+            {
+                SetCreationDate(value);
+                UpdateBucketSyncInfo("CreationDate");
+                //_creationDate = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetCreationDate(int value)
+        {
+            _creationDate = value;
         }
 
         public uint Category
         {
             get { return _category; }
-            set { _category = value; }
+            set
+            {
+                SetCategory(value);
+                UpdateBucketSyncInfo("Category");
+                //_category = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetCategory(uint value)
+        {
+            _category = value;
         }
 
         public int SalePrice
         {
             get { return _salePrice; }
-            set { _salePrice = value; }
+            set
+            {
+                SetSalePrice(value);
+                UpdateBucketSyncInfo("SalePrice");
+                //_salePrice = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetSalePrice(int value)
+        {
+            _salePrice = value;
         }
 
         public byte ObjectSaleType
         {
             get { return _objectSaleType; }
-            set { _objectSaleType = value; }
+            set
+            {
+                SetObjectSaleType(value);
+                UpdateBucketSyncInfo("ObjectSaleType");
+                //_objectSaleType = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetObjectSaleType(byte value)
+        {
+            _objectSaleType = value;
         }
 
         public int OwnershipCost
         {
             get { return _ownershipCost; }
-            set { _ownershipCost = value; }
+            set
+            {
+                SetOwnershipCost(value);
+                UpdateBucketSyncInfo("OwnershipCost");
+               // _ownershipCost = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetOwnershipCost(int value)
+        {
+            _ownershipCost = value;
         }
 
         public UUID GroupID
         {
             get { return _groupID; }
-            set { _groupID = value; }
+            set
+            {
+                SetGroupID(value);
+                UpdateBucketSyncInfo("GroupID");
+                //_groupID = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetGroupID(UUID value)
+        {
+            _groupID = value;
         }
 
         public UUID OwnerID
         {
             get { return _ownerID; }
-            set { _ownerID = value; }
+            set
+            {
+                SetOwnerID(value);
+                UpdateBucketSyncInfo("OwnerID");
+               // _ownerID = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetOwnerID(UUID value)
+        {
+            _ownerID = value;
         }
 
         public UUID LastOwnerID
         {
             get { return _lastOwnerID; }
-            set { _lastOwnerID = value; }
+            set
+            {
+                SetLastOwnerID(value);
+                UpdateBucketSyncInfo("LastOwnerID");
+                //_lastOwnerID = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetLastOwnerID(UUID value)
+        {
+            _lastOwnerID = value;
         }
 
         public uint BaseMask
         {
             get { return _baseMask; }
-            set { _baseMask = value; }
+            set
+            {
+                SetBaseMask(value);
+                UpdateBucketSyncInfo("BaseMask");
+                //_baseMask = value; 
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetBaseMask(uint value)
+        {
+            _baseMask = value; 
         }
 
         public uint OwnerMask
         {
             get { return _ownerMask; }
-            set { _ownerMask = value; }
+            set
+            {
+                SetOwnerMask(value);
+                UpdateBucketSyncInfo("OwnerMask");
+                //_ownerMask = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetOwnerMask(uint value)
+        {
+            _ownerMask = value;
         }
 
         public uint GroupMask
         {
             get { return _groupMask; }
-            set { _groupMask = value; }
+            set
+            {
+                SetGroupMask(value);
+                UpdateBucketSyncInfo("GroupMask");
+                //_groupMask = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetGroupMask(uint value)
+        {
+            _groupMask = value;
         }
 
         public uint EveryoneMask
         {
             get { return _everyoneMask; }
-            set { _everyoneMask = value; }
+            set
+            {
+                SetEveryoneMask(value);
+                UpdateBucketSyncInfo("EveryoneMask");
+                //_everyoneMask = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetEveryoneMask(uint value)
+        {
+            _everyoneMask = value;
         }
 
         public uint NextOwnerMask
         {
             get { return _nextOwnerMask; }
-            set { _nextOwnerMask = value; }
+            set
+            {
+                SetNextOwnerMask(value);
+                UpdateBucketSyncInfo("NextOwnerMask");
+                //_nextOwnerMask = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetNextOwnerMask(uint value)
+        {
+            _nextOwnerMask = value;
         }
 
         /// <summary>
@@ -1513,10 +1791,17 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return _flags; }
             set 
-            { 
+            {
+                SetFlags(value);
+                UpdateBucketSyncInfo("Flags");
 //                m_log.DebugFormat("[SOP]: Setting flags for {0} {1} to {2}", UUID, Name, value);
-                _flags = value; 
+                //_flags = value; 
             }
+        }
+        //SYMMETRIC SYNC
+        public void SetFlags(PrimFlags value)
+        {
+            _flags = value; 
         }
 
         
@@ -3265,6 +3550,9 @@ namespace OpenSim.Region.Framework.Scenes
                         m_shape = m_newshape;
 
                         m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(PhysActor);
+
+                        //SYMMETRIC SYNC
+                        UpdateBucketSyncInfo("Shape");
                     }
                 }
             }
@@ -3831,7 +4119,10 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void SetGroup(UUID groupID, IClientAPI client)
         {
-            _groupID = groupID;
+            //SYMMETRIC SYNC
+            //_groupID = groupID;
+            GroupID = groupID;
+
             if (client != null)
                 GetProperties(client);
             m_updateFlag = 2;
@@ -3893,7 +4184,9 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="text"></param>
         public void SetText(string text)
         {
-            Text = text;
+            //Text = text;
+            //SYMMETRIC SYNC: make set property calls consistent
+            m_text = text;
 
             ParentGroup.HasGroupChanged = true;
             ScheduleFullUpdate();
@@ -4474,6 +4767,9 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             ScheduleFullUpdate();
+
+            //SYMMETRIC SYNC
+            UpdateBucketSyncInfo("Shape");
         }
 
         public void UpdateGroupPosition(Vector3 pos)
@@ -4539,20 +4835,28 @@ namespace OpenSim.Region.Framework.Scenes
                         {
                             _baseMask = ApplyMask(_baseMask, set, mask);
                             Inventory.ApplyGodPermissions(_baseMask);
+                            //SYMMETRIC SYNC
+                            UpdateBucketSyncInfo("BaseMask");
                         }
 
                         break;
                     case 2:
                         _ownerMask = ApplyMask(_ownerMask, set, mask) &
                                 baseMask;
+                        //SYMMETRIC SYNC
+                        UpdateBucketSyncInfo("OwnerMask");
                         break;
                     case 4:
                         _groupMask = ApplyMask(_groupMask, set, mask) &
                                 baseMask;
+                        //SYMMETRIC SYNC
+                        UpdateBucketSyncInfo("GroupMask");
                         break;
                     case 8:
                         _everyoneMask = ApplyMask(_everyoneMask, set, mask) &
                                 baseMask;
+                        //SYMMETRIC SYNC
+                        UpdateBucketSyncInfo("EveryoneMask");
                         break;
                     case 16:
                         _nextOwnerMask = ApplyMask(_nextOwnerMask, set, mask) &
@@ -4563,6 +4867,9 @@ namespace OpenSim.Region.Framework.Scenes
                             _nextOwnerMask |= (uint)PermissionMask.Transfer;
 
                         _nextOwnerMask |= (uint)PermissionMask.Move;
+
+                        //SYMMETRIC SYNC
+                        UpdateBucketSyncInfo("NextOwnerMask");
 
                         break;
                 }
@@ -4863,6 +5170,9 @@ namespace OpenSim.Region.Framework.Scenes
             ParentGroup.HasGroupChanged = true;
             TriggerScriptChangedEvent(Changed.SHAPE);
             ScheduleFullUpdate();
+
+            //SYMMETRIC SYNC
+            UpdateBucketSyncInfo("Shape");
         }
 
         /// <summary>
@@ -4910,6 +5220,9 @@ namespace OpenSim.Region.Framework.Scenes
             //ParentGroup.ScheduleGroupForFullUpdate();
             //This is sparta
             ScheduleFullUpdate();
+
+            //SYMMETRIC SYNC
+            UpdateBucketSyncInfo("Shape");
         }
 
         public void aggregateScriptEvents()
@@ -5588,6 +5901,22 @@ namespace OpenSim.Region.Framework.Scenes
         {
             lock (m_bucketUpdateLocks[bucketName])
             {
+                SetAllowedDrop(updatedPart.AllowedDrop);
+                SetCreatorID(updatedPart.CreatorID);
+                SetCreatorData(updatedPart.CreatorData);
+                //FolderID skipped
+                SetInventorySerial(updatedPart.InventorySerial);
+                SetTaskInventory(updatedPart.TaskInventory);
+                //UUID skipped
+                //LocalId skipped
+                SetName(updatedPart.Name);
+                SetMaterial(updatedPart.Material);
+                SetPassTouches(updatedPart.PassTouches);
+                //RegionHandle skipped
+
+
+                SetShape(updatedPart.Shape);
+
                 m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
                 m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
             }

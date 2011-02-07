@@ -776,7 +776,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetScriptAccessPin(value);
-                UpdateBucketSyncInfo("ScriptAccessPin");
+                //UpdateBucketSyncInfo("ScriptAccessPin");
                 //m_scriptAccessPin = (int)value;
             }
         }
@@ -1207,7 +1207,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetAcceleration(value);
-                UpdateBucketSyncInfo("Acceleration");
+                //UpdateBucketSyncInfo("Acceleration");
                 //m_acceleration = value; 
             }
         }
@@ -1223,7 +1223,7 @@ namespace OpenSim.Region.Framework.Scenes
             set 
             {
                 SetDescription(value);
-                UpdateBucketSyncInfo("Description");
+                //UpdateBucketSyncInfo("Description");
                 /*
                 m_description = value;
                 PhysicsActor actor = PhysActor;
@@ -1254,7 +1254,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetColor(value);
-                UpdateBucketSyncInfo("Color");
+                //UpdateBucketSyncInfo("Color");
                 //m_color = value;
 
                 /* ScheduleFullUpdate() need not be called b/c after
@@ -1283,7 +1283,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetText(value, false);
-                UpdateBucketSyncInfo("Text");
+                //UpdateBucketSyncInfo("Text");
                 //m_text = value;
             }
         }
@@ -1301,7 +1301,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetSitName(value);
-                UpdateBucketSyncInfo("SitName");
+                //UpdateBucketSyncInfo("SitName");
                 //m_sitName = value; 
             }
         }
@@ -1317,7 +1317,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetTouchName(value);
-                UpdateBucketSyncInfo("TouchName");
+                //UpdateBucketSyncInfo("TouchName");
                 //m_touchName = value; 
             }
         }
@@ -5861,6 +5861,10 @@ namespace OpenSim.Region.Framework.Scenes
         //private static Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
         private Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
 
+        //Define this as a guard to not to fill in any sync info when not desired, i.e. while de-serializing and building SOP and SOG, where 
+        //property set functions will be called and might trigger UpdateBucketSyncInfo() if not guarded carefully.
+        private bool m_syncEnabled = false;
+
         public static void InitializeBucketInfo(Dictionary<string, string> propertyBucketMap, List<string> bucketNames, string actorID)
         {
             m_primPropertyBucketMap = propertyBucketMap;
@@ -5988,6 +5992,8 @@ namespace OpenSim.Region.Framework.Scenes
                 RegisterBucketUpdateProcessor();
                 m_BucketUpdateProcessorRegistered = true;
             }
+
+            m_syncEnabled = true;
         }
 
         /// <summary>
@@ -5996,7 +6002,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="propertyName">Name of the property. Make sure the spelling is consistent with what are defined in PropertyList</param>
         public void UpdateBucketSyncInfo(string propertyName)
         {
-            if (m_bucketSyncInfoList != null && m_bucketSyncInfoList.Count>0)
+            if (m_syncEnabled && m_bucketSyncInfoList != null && m_bucketSyncInfoList.Count>0)
             {
                 //int bucketIndex = m_primPropertyBucketMap[propertyName];
                 string bucketName = m_primPropertyBucketMap[propertyName];

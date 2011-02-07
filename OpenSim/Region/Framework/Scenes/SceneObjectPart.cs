@@ -819,14 +819,34 @@ namespace OpenSim.Region.Framework.Scenes
         public Byte[] TextureAnimation
         {
             get { return m_TextureAnimation; }
-            set { m_TextureAnimation = value; }
+            set
+            {
+                SetTextureAnimation(value);
+                UpdateBucketSyncInfo("TextureAnimation");
+                //m_TextureAnimation = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetTextureAnimation(Byte[] value)
+        {
+            m_TextureAnimation = value;
         }
 
         
         public Byte[] ParticleSystem
         {
             get { return m_particleSystem; }
-            set { m_particleSystem = value; }
+            set
+            {
+                SetParticleSystem(value);
+                UpdateBucketSyncInfo("ParticleSystem");
+                //m_particleSystem = value; 
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetParticleSystem(Byte[] value)
+        {
+            m_particleSystem = value;
         }
 
         
@@ -1449,11 +1469,23 @@ namespace OpenSim.Region.Framework.Scenes
             
             set
             {
+                SetMediaUrl(value);
+                UpdateBucketSyncInfo("MediaUrl");
+                /*
                 m_mediaUrl = value;
                 
                 if (ParentGroup != null)
                     ParentGroup.HasGroupChanged = true;
+                 * */
             }
+        }
+        //SYMMETRIC SYNC
+        public void SetMediaUrl(string value)
+        {
+            m_mediaUrl = value;
+
+            if (ParentGroup != null)
+                ParentGroup.HasGroupChanged = true;
         }
 
         
@@ -1851,15 +1883,35 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_collisionSound; }
             set
             {
-                m_collisionSound = value;
+                SetCollisionSound(value);
+                UpdateBucketSyncInfo("CollisionSound");
+                //m_collisionSound = value;
                 aggregateScriptEvents();
             }
         }
+        //SYMMETRIC SYNC
+        //CollisionSound is a special case. We won't call aggregateScriptEvents inside SetCollisionSound,
+        //so that when RegionSynModule triggers SOP.UpdateAllProperties, it calls SetCollisionSound
+        public void SetCollisionSound(UUID value)
+        {
+            m_collisionSound = value;
+        }
+
 
         public float CollisionSoundVolume
         {
             get { return m_collisionSoundVolume; }
-            set { m_collisionSoundVolume = value; }
+            set
+            {
+                SetCollisionSoundVolume(value);
+                UpdateBucketSyncInfo("CollisionSoundVolume");
+                //m_collisionSoundVolume = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetCollisionSoundVolume(float value)
+        {
+            m_collisionSoundVolume = value;
         }
 
         #endregion Public Properties with only Get

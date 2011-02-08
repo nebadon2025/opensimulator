@@ -831,14 +831,34 @@ namespace OpenSim.Region.Framework.Scenes
         public Byte[] TextureAnimation
         {
             get { return m_TextureAnimation; }
-            set { m_TextureAnimation = value; }
+            set
+            {
+                SetTextureAnimation(value);
+                UpdateBucketSyncInfo("TextureAnimation");
+                //m_TextureAnimation = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetTextureAnimation(Byte[] value)
+        {
+            m_TextureAnimation = value;
         }
 
         
         public Byte[] ParticleSystem
         {
             get { return m_particleSystem; }
-            set { m_particleSystem = value; }
+            set
+            {
+                SetParticleSystem(value);
+                UpdateBucketSyncInfo("ParticleSystem");
+                //m_particleSystem = value; 
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetParticleSystem(Byte[] value)
+        {
+            m_particleSystem = value;
         }
 
         
@@ -1461,11 +1481,23 @@ namespace OpenSim.Region.Framework.Scenes
             
             set
             {
+                SetMediaUrl(value);
+                UpdateBucketSyncInfo("MediaUrl");
+                /*
                 m_mediaUrl = value;
                 
                 if (ParentGroup != null)
                     ParentGroup.HasGroupChanged = true;
+                 * */
             }
+        }
+        //SYMMETRIC SYNC
+        public void SetMediaUrl(string value)
+        {
+            m_mediaUrl = value;
+
+            if (ParentGroup != null)
+                ParentGroup.HasGroupChanged = true;
         }
 
         
@@ -1868,15 +1900,35 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_collisionSound; }
             set
             {
-                m_collisionSound = value;
+                SetCollisionSound(value);
+                UpdateBucketSyncInfo("CollisionSound");
+                //m_collisionSound = value;
                 aggregateScriptEvents();
             }
         }
+        //SYMMETRIC SYNC
+        //CollisionSound is a special case. We won't call aggregateScriptEvents inside SetCollisionSound,
+        //so that when RegionSynModule triggers SOP.UpdateAllProperties, it calls SetCollisionSound
+        public void SetCollisionSound(UUID value)
+        {
+            m_collisionSound = value;
+        }
+
 
         public float CollisionSoundVolume
         {
             get { return m_collisionSoundVolume; }
-            set { m_collisionSoundVolume = value; }
+            set
+            {
+                SetCollisionSoundVolume(value);
+                UpdateBucketSyncInfo("CollisionSoundVolume");
+                //m_collisionSoundVolume = value;
+            }
+        }
+        //SYMMETRIC SYNC
+        public void SetCollisionSoundVolume(float value)
+        {
+            m_collisionSoundVolume = value;
         }
 
         #endregion Public Properties with only Get
@@ -1986,12 +2038,16 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void AddNewParticleSystem(Primitive.ParticleSystem pSystem)
         {
-            m_particleSystem = pSystem.GetBytes();
+            //SYMMETRIC SYNC
+            //m_particleSystem = pSystem.GetBytes();
+            ParticleSystem = pSystem.GetBytes();
         }
 
         public void RemoveParticleSystem()
         {
-            m_particleSystem = new byte[0];
+            //SYMMETRIC SYNC
+            //m_particleSystem = new byte[0];
+            ParticleSystem = new byte[0];
         }
 
         /// Terse updates
@@ -2028,7 +2084,9 @@ namespace OpenSim.Region.Framework.Scenes
             Utils.FloatToBytes(pTexAnim.Length).CopyTo(data, pos + 4);
             Utils.FloatToBytes(pTexAnim.Rate).CopyTo(data, pos + 8);
 
-            m_TextureAnimation = data;
+            //m_TextureAnimation = data;
+            //SYMMETRIC SYNC
+            TextureAnimation = data;
         }
 
         public void AdjustSoundGain(double volume)
@@ -3564,12 +3622,12 @@ namespace OpenSim.Region.Framework.Scenes
                         // Tricks physics engine into thinking we've changed the part shape.
                         PrimitiveBaseShape m_newshape = m_shape.Copy();
                         PhysActor.Shape = m_newshape;
-                        m_shape = m_newshape;
-
-                        m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(PhysActor);
 
                         //SYMMETRIC SYNC
-                        UpdateBucketSyncInfo("Shape");
+                        //m_shape = m_newshape;
+                        Shape = m_newshape;
+
+                        m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(PhysActor);
                     }
                 }
             }
@@ -4850,32 +4908,36 @@ namespace OpenSim.Region.Framework.Scenes
                     case 1:
                         if (god)
                         {
-                            _baseMask = ApplyMask(_baseMask, set, mask);
-                            Inventory.ApplyGodPermissions(_baseMask);
                             //SYMMETRIC SYNC
-                            UpdateBucketSyncInfo("BaseMask");
+                            //_baseMask = ApplyMask(_baseMask, set, mask);
+                            BaseMask = ApplyMask(_baseMask, set, mask);
+                            Inventory.ApplyGodPermissions(_baseMask);
+                            
                         }
 
                         break;
                     case 2:
-                        _ownerMask = ApplyMask(_ownerMask, set, mask) &
-                                baseMask;
                         //SYMMETRIC SYNC
-                        UpdateBucketSyncInfo("OwnerMask");
+                        //_ownerMask = ApplyMask(_ownerMask, set, mask) &
+                        //        baseMask;
+                        OwnerMask = ApplyMask(_ownerMask, set, mask) & baseMask;
                         break;
                     case 4:
-                        _groupMask = ApplyMask(_groupMask, set, mask) &
-                                baseMask;
                         //SYMMETRIC SYNC
-                        UpdateBucketSyncInfo("GroupMask");
+                        //_groupMask = ApplyMask(_groupMask, set, mask) &
+                        //        baseMask;
+                        GroupMask = ApplyMask(_groupMask, set, mask) &
+                                baseMask;
                         break;
                     case 8:
-                        _everyoneMask = ApplyMask(_everyoneMask, set, mask) &
-                                baseMask;
                         //SYMMETRIC SYNC
-                        UpdateBucketSyncInfo("EveryoneMask");
+                        //_everyoneMask = ApplyMask(_everyoneMask, set, mask) &
+                        //        baseMask;
+                        EveryoneMask = ApplyMask(_everyoneMask, set, mask) &
+                                baseMask;
                         break;
                     case 16:
+                        //SYMMETRIC SYNC
                         _nextOwnerMask = ApplyMask(_nextOwnerMask, set, mask) &
                                 baseMask;
                         // Prevent the client from creating no mod, no copy
@@ -4883,10 +4945,9 @@ namespace OpenSim.Region.Framework.Scenes
                         if ((_nextOwnerMask & (uint)PermissionMask.Copy) == 0)
                             _nextOwnerMask |= (uint)PermissionMask.Transfer;
 
-                        _nextOwnerMask |= (uint)PermissionMask.Move;
-
-                        //SYMMETRIC SYNC
-                        UpdateBucketSyncInfo("NextOwnerMask");
+                        //_nextOwnerMask |= (uint)PermissionMask.Move;
+                        NextOwnerMask = _nextOwnerMask | (uint)PermissionMask.Move;
+                        
 
                         break;
                 }
@@ -5801,7 +5862,8 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (this.CollisionSound != updatedCollisionSound)
             {
-                m_collisionSound = updatedCollisionSound;
+                //m_collisionSound = updatedCollisionSound;
+                SetCollisionSound(updatedCollisionSound);
                 return true;
             }
             return false;

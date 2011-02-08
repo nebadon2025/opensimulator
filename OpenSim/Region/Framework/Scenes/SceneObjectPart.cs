@@ -335,7 +335,24 @@ namespace OpenSim.Region.Framework.Scenes
         
         public bool IgnoreUndoUpdate = false;
 
-        public PrimFlags LocalFlags;
+        //SYMMETRIC SYNC
+        //public PrimFlags LocalFlags;
+        private PrimFlags m_localFlags;
+        public PrimFlags LocalFlags
+        {
+            get { return m_localFlags; }
+            set
+            {
+                SetLocalFlags(value);
+                UpdateBucketSyncInfo("LocalFlags");
+            }
+        }
+        public void SetLocalFlags(PrimFlags value)
+        {
+            m_localFlags = value;
+        }
+
+
         private float m_damage = -1.0f;
         private byte[] m_TextureAnimation;
         private byte m_clickAction;
@@ -675,7 +692,9 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return m_name; }
             set 
-            { 
+            {
+                SetName(value);
+                UpdateBucketSyncInfo("Name");
                 /*
                 m_name = value;
                 if (PhysActor != null)
@@ -1239,7 +1258,8 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetAcceleration(value);
-                //UpdateBucketSyncInfo("Acceleration");
+                
+                UpdateBucketSyncInfo("Acceleration");
                 //m_acceleration = value; 
             }
         }
@@ -1255,7 +1275,7 @@ namespace OpenSim.Region.Framework.Scenes
             set 
             {
                 SetDescription(value);
-                //UpdateBucketSyncInfo("Description");
+                UpdateBucketSyncInfo("Description");
                 /*
                 m_description = value;
                 PhysicsActor actor = PhysActor;
@@ -1286,7 +1306,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetColor(value);
-                //UpdateBucketSyncInfo("Color");
+                UpdateBucketSyncInfo("Color");
                 //m_color = value;
 
                 /* ScheduleFullUpdate() need not be called b/c after
@@ -1315,7 +1335,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetText(value, false);
-                //UpdateBucketSyncInfo("Text");
+                UpdateBucketSyncInfo("Text");
                 //m_text = value;
             }
         }
@@ -1333,7 +1353,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetSitName(value);
-                //UpdateBucketSyncInfo("SitName");
+                UpdateBucketSyncInfo("SitName");
                 //m_sitName = value; 
             }
         }
@@ -1381,7 +1401,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetClickAction(value);
-                //UpdateBucketSyncInfo("ClickAction");
+                UpdateBucketSyncInfo("ClickAction");
                 //m_clickAction = value;
             }
         }
@@ -1579,6 +1599,11 @@ namespace OpenSim.Region.Framework.Scenes
                 //m_sitTargetPosition = value; 
             }
         }
+        //SYMMETRIC SYNC
+        public void SetSitTargetPositionLL(Vector3 value)
+        {
+            m_sitTargetPosition = value;
+        }
 
         public Quaternion SitTargetOrientationLL
         {
@@ -1598,6 +1623,11 @@ namespace OpenSim.Region.Framework.Scenes
                 UpdateBucketSyncInfo("SitTargetOrientationLL");
                 //m_sitTargetOrientation = new Quaternion(value.X, value.Y, value.Z, value.W);
             }
+        }
+        //SYMMETRIC SYNC
+        public void SetSitTargetOrientationLL(Quaternion value)
+        {
+            m_sitTargetOrientation = value;
         }
 
         public bool Stopped
@@ -5673,8 +5703,8 @@ namespace OpenSim.Region.Framework.Scenes
             "RotationOffset", 
             "Velocity", 
             "AngularVelocity", 
-            //"Acceleration", 
-            "SOP_Acceleration",  //SOP and PA read/write their own local copies of acceleration, so we distinguish the copies
+            "Acceleration", //This is the property maintained in SOP. SOP and PA read/write their own local copies of acceleration, so we distinguish the copies
+            //"SOP_Acceleration",  //SOP and PA read/write their own local copies of acceleration, so we distinguish the copies
             "Description", 
             "Color", 
             "Text", 
@@ -5997,21 +6027,53 @@ namespace OpenSim.Region.Framework.Scenes
                 SetPassTouches(updatedPart.PassTouches);
                 //RegionHandle skipped
                 SetScriptAccessPin(updatedPart.ScriptAccessPin);
-                
-                //SetAcceleration(updatedPart.Acceleration);
-                //SetDescription(updatedPart.Description);
-                //SetColor(updatedPart.Color);
-                //SetText(updatedPart.Text);
-                //SetSitName(updatedPart.SitName);
-               
+                SetAcceleration(updatedPart.Acceleration);
+                SetDescription(updatedPart.Description);
+                SetColor(updatedPart.Color);
+                SetText(updatedPart.Text);
+                SetSitName(updatedPart.SitName);
                 SetTouchName(updatedPart.TouchName);
                 SetLinkNum(updatedPart.LinkNum);
-                //SetClickAction(updatedPart.ClickAction);
-                
+                SetClickAction(updatedPart.ClickAction);
                 SetShape(updatedPart.Shape);
+                //UpdateFlag skipped: It's a flag meanful locally, especially in scheduling updates to viewers. 
+                //Only in one place will it cause updating some "last" variables (see SendScheduledUpdates).
+                SetSitTargetOrientation(updatedPart.SitTargetOrientation);
+                SetSitTargetPosition(updatedPart.SitTargetPosition);
+                SetSitTargetPositionLL(updatedPart.SitTargetPositionLL);
+                SetSitTargetOrientationLL(updatedPart.SitTargetOrientationLL);
+                //ParentID skipped, the value is assigned locally and only meaningful locally (LinkObjects and LinkObjectsBySync will set it appropriately)\
+                SetCreationDate(updatedPart.CreationDate);
+                SetCategory(updatedPart.Category);
+                SetSalePrice(updatedPart.SalePrice);
+                SetObjectSaleType(updatedPart.ObjectSaleType);
+                SetOwnershipCost(updatedPart.OwnershipCost);
+                SetGroupID(updatedPart.GroupID);
+                SetOwnerID(updatedPart.OwnerID);
+                SetLastOwnerID(updatedPart.LastOwnerID);
+                SetBaseMask(updatedPart.BaseMask);
+                SetOwnerMask(updatedPart.OwnerMask);
+                SetGroupMask(updatedPart.GroupMask);
+                SetEveryoneMask(updatedPart.EveryoneMask);
+                SetNextOwnerMask(updatedPart.NextOwnerMask);
+                SetFlags(updatedPart.Flags);
+                //Treat CollisionSound in a different way, so that if any property needs to be changed due to aggregateScriptEvents(), timestamp can be updated after
+                //the current copying-property-values-from-remote-sync-message is done.
+                bool collisionSoundUpdated = UpdateCollisionSound(updatedPart.CollisionSound);
+                SetCollisionSoundVolume(updatedPart.CollisionSoundVolume);
+                SetMediaUrl(updatedPart.MediaUrl);
+                SetTextureAnimation(updatedPart.TextureAnimation);
+                SetParticleSystem(updatedPart.ParticleSystem);
+                
 
                 m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
                 m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
+
+                if (collisionSoundUpdated)
+                {
+                    //If the local actor is Script Engine, it will catch this evnet and trigger aggregateScriptEvents()
+                    m_parentGroup.Scene.EventManager.TriggerAggregateScriptEvents(this);
+                }
             }
         }
 

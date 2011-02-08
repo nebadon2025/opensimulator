@@ -5734,6 +5734,7 @@ namespace OpenSim.Region.Framework.Scenes
             "EveryoneMask", 
             "NextOwnerMask", 
             "Flags", 
+            "LocalFlags",
             "CollisionSound", 
             "CollisionSoundVolume", 
             "MediaUrl", 

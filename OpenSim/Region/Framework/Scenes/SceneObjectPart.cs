@@ -608,12 +608,18 @@ namespace OpenSim.Region.Framework.Scenes
         public uint InventorySerial
         {
             get { return m_inventory.Serial; }
-            set { m_inventory.Serial = value; }
+            set
+            {
+                SetInventorySerial(value);
+                UpdateBucketSyncInfo("InventorySerial");
+                //m_inventory.Serial = value;
+            }
         }
-        //SYMMETRIC SYNC: implemented to be consistent with other properties. "m_inventory.Serial" set function will trigger UpdateBucketSyncInfo if appropriate
+        //SYMMETRIC SYNC: implemented to be consistent with other properties. "m_inventory.Serial" set function will trigger UpdateBucketSyncInfo,
+        //hence in SetInventorySerial we will call m_inventory.SetSerial to avoid triggering UpdateBucketSyncInfo().
         public void SetInventorySerial(uint value)
         {
-            m_inventory.Serial = value;
+            m_inventory.SetSerial(value);
         }
 
         /// <value>
@@ -622,12 +628,18 @@ namespace OpenSim.Region.Framework.Scenes
         public TaskInventoryDictionary TaskInventory
         {
             get { return m_inventory.Items; }
-            set { m_inventory.Items = value; }
+            set
+            {
+                //SetTaskInventory(value);
+                //UpdateBucketSyncInfo("TaskInventory");
+                //SYMMETRIC SYNC: "m_inventory.Items" set function will trigger UpdateBucketSyncInfo if appropriate
+                m_inventory.Items = value;
+            }
         }
-        //SYMMETRIC SYNC: implemented to be consistent with other properties. "m_inventory.Items" set function will trigger UpdateBucketSyncInfo if appropriate
+        //SYMMETRIC SYNC: implemented to be consistent with updating values of other properties (w/o triggering UpdateBucketSyncInfo);
         public void SetTaskInventory(TaskInventoryDictionary value)
         {
-            m_inventory.Items = value;
+            m_inventory.SetItems(value);
         }
 
         /// <summary>
@@ -776,7 +788,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetScriptAccessPin(value);
-                //UpdateBucketSyncInfo("ScriptAccessPin");
+                UpdateBucketSyncInfo("ScriptAccessPin");
                 //m_scriptAccessPin = (int)value;
             }
         }
@@ -1317,7 +1329,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetTouchName(value);
-                //UpdateBucketSyncInfo("TouchName");
+                UpdateBucketSyncInfo("TouchName");
                 //m_touchName = value; 
             }
         }
@@ -1349,7 +1361,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetClickAction(value);
-                UpdateBucketSyncInfo("ClickAction");
+                //UpdateBucketSyncInfo("ClickAction");
                 //m_clickAction = value;
             }
         }
@@ -1573,6 +1585,11 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return _parentID; }
             set { _parentID = value; }
+        }
+        //SYMMETRIC SYNC: defined for consistency, for calling SetXXX in sync operations
+        public void SetParentID(uint value)
+        {
+            _parentID = value;
         }
 
         public int CreationDate
@@ -5917,8 +5934,18 @@ namespace OpenSim.Region.Framework.Scenes
                 SetMaterial(updatedPart.Material);
                 SetPassTouches(updatedPart.PassTouches);
                 //RegionHandle skipped
-
-
+                SetScriptAccessPin(updatedPart.ScriptAccessPin);
+                
+                //SetAcceleration(updatedPart.Acceleration);
+                //SetDescription(updatedPart.Description);
+                //SetColor(updatedPart.Color);
+                //SetText(updatedPart.Text);
+                //SetSitName(updatedPart.SitName);
+               
+                SetTouchName(updatedPart.TouchName);
+                SetLinkNum(updatedPart.LinkNum);
+                //SetClickAction(updatedPart.ClickAction);
+                
                 SetShape(updatedPart.Shape);
 
                 m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;

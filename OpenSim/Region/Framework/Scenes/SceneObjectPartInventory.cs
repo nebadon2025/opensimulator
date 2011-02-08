@@ -85,7 +85,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         //SYMMETRIC SYNC
-        protected void SetSerial(uint value)
+        public void SetSerial(uint value)
         {
             m_inventorySerial = value;
             
@@ -100,6 +100,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetItems(value);
+                m_inventorySerial++;
                 m_part.UpdateBucketSyncInfo("TaskInventory");
                 m_part.UpdateBucketSyncInfo("InventorySerial");
                 //m_items = value;
@@ -107,10 +108,11 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
         //SYMMETRIC SYNC
-        protected void SetItems(TaskInventoryDictionary value)
+        //This is inparticular for updating properties
+        public void SetItems(TaskInventoryDictionary value)
         {
             m_items = value;
-            m_inventorySerial++;
+            //m_inventorySerial++;
         }
         
         /// <summary>

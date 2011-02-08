@@ -978,6 +978,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //save script state and stop script instances
                     m_scene.EventManager.TriggerOnSymmetricSyncStop();
                 }
+                m_synced = true;
             }
             else
             {
@@ -1059,10 +1060,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     syncConnector.StartCommThreads();
                     AddSyncConnector(syncConnector);
+                    m_synced = true;
                 }
             }
-
-            m_synced = true;
 
             return true;
         }

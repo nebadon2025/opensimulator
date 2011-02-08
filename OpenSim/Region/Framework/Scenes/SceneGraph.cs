@@ -2145,8 +2145,11 @@ namespace OpenSim.Region.Framework.Scenes
                             // Make sure no child prim is set for sale
                             // So that, on delink, no prims are unwittingly
                             // left for sale and sold off
-                            child.RootPart.ObjectSaleType = 0;
-                            child.RootPart.SalePrice = 10;
+                            //SYMMETRIC SYNC: need to copy value w/o trigger UpdateBucketSyncInfo
+                            //child.RootPart.ObjectSaleType = 0;
+                            //child.RootPart.SalePrice = 10;
+                            child.RootPart.SetObjectSaleType(0);
+                            child.RootPart.SetSalePrice(10);
                             childGroups.Add(child);
                         }
                     }

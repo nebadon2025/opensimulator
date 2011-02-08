@@ -3694,6 +3694,9 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         //Similar actions with DelinkFromGroup, except that m_scene.AddNewSceneObjectBySync is called
+        //!!!!!!!!!!!!!!!!!!NOTE!!!!!!!!!!!!!!!
+        //All SOP properties below is set through calling SetXXX(value) instead of by "XXX=value", as such a value is being changed due to sync (
+        //i.e. triggered by remote operation instead of by local operation
         public  SceneObjectGroup DelinkFromGroupBySync(SceneObjectPart linkPart, bool sendEvents)
         {
 //                m_log.DebugFormat(
@@ -3714,7 +3717,8 @@ namespace OpenSim.Region.Framework.Scenes
                 if (parts.Length == 1 && RootPart != null)
                 {
                     // Single prim left
-                    RootPart.LinkNum = 0;
+                    //RootPart.LinkNum = 0;
+                    RootPart.SetLinkNum(0);
                 }
                 else
                 {
@@ -3722,13 +3726,18 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         SceneObjectPart part = parts[i];
                         if (part.LinkNum > linkPart.LinkNum)
-                            part.LinkNum--;
+                        {
+                            //part.LinkNum--;
+                            part.SetLinkNum(part.LinkNum--);
+                        }
                     }
                 }
             }
 
-            linkPart.ParentID = 0;
-            linkPart.LinkNum = 0;
+            //linkPart.ParentID = 0;
+            //linkPart.LinkNum = 0;
+            linkPart.SetParentID(0);
+            linkPart.SetLinkNum(0);
 
             if (linkPart.PhysActor != null)
             {
@@ -3742,11 +3751,15 @@ namespace OpenSim.Region.Framework.Scenes
             Vector3 axPos = linkPart.OffsetPosition;
 
             axPos *= parentRot;
-            linkPart.OffsetPosition = new Vector3(axPos.X, axPos.Y, axPos.Z);
-            linkPart.GroupPosition = AbsolutePosition + linkPart.OffsetPosition;
-            linkPart.OffsetPosition = new Vector3(0, 0, 0);
+            //linkPart.OffsetPosition = new Vector3(axPos.X, axPos.Y, axPos.Z);
+            //linkPart.GroupPosition = AbsolutePosition + linkPart.OffsetPosition;
+            //linkPart.OffsetPosition = new Vector3(0, 0, 0);
+            //linkPart.RotationOffset = worldRot;
 
-            linkPart.RotationOffset = worldRot;
+            linkPart.SetOffsetPosition(new Vector3(axPos.X, axPos.Y, axPos.Z));
+            linkPart.SetGroupPosition(AbsolutePosition + linkPart.OffsetPosition);
+            linkPart.SetOffsetPosition(new Vector3(0, 0, 0));
+            linkPart.SetRotationOffset(worldRot);
 
             SceneObjectGroup objectGroup = new SceneObjectGroup(linkPart);
 

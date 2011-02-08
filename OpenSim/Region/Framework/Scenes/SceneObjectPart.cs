@@ -608,12 +608,18 @@ namespace OpenSim.Region.Framework.Scenes
         public uint InventorySerial
         {
             get { return m_inventory.Serial; }
-            set { m_inventory.Serial = value; }
+            set
+            {
+                SetInventorySerial(value);
+                UpdateBucketSyncInfo("InventorySerial");
+                //m_inventory.Serial = value;
+            }
         }
-        //SYMMETRIC SYNC: implemented to be consistent with other properties. "m_inventory.Serial" set function will trigger UpdateBucketSyncInfo if appropriate
+        //SYMMETRIC SYNC: implemented to be consistent with other properties. "m_inventory.Serial" set function will trigger UpdateBucketSyncInfo,
+        //hence in SetInventorySerial we will call m_inventory.SetSerial to avoid triggering UpdateBucketSyncInfo().
         public void SetInventorySerial(uint value)
         {
-            m_inventory.Serial = value;
+            m_inventory.SetSerial(value);
         }
 
         /// <value>
@@ -622,12 +628,18 @@ namespace OpenSim.Region.Framework.Scenes
         public TaskInventoryDictionary TaskInventory
         {
             get { return m_inventory.Items; }
-            set { m_inventory.Items = value; }
+            set
+            {
+                //SetTaskInventory(value);
+                //UpdateBucketSyncInfo("TaskInventory");
+                //SYMMETRIC SYNC: "m_inventory.Items" set function will trigger UpdateBucketSyncInfo if appropriate
+                m_inventory.Items = value;
+            }
         }
-        //SYMMETRIC SYNC: implemented to be consistent with other properties. "m_inventory.Items" set function will trigger UpdateBucketSyncInfo if appropriate
+        //SYMMETRIC SYNC: implemented to be consistent with updating values of other properties (w/o triggering UpdateBucketSyncInfo);
         public void SetTaskInventory(TaskInventoryDictionary value)
         {
-            m_inventory.Items = value;
+            m_inventory.SetItems(value);
         }
 
         /// <summary>
@@ -1227,7 +1239,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetAcceleration(value);
-                UpdateBucketSyncInfo("Acceleration");
+                //UpdateBucketSyncInfo("Acceleration");
                 //m_acceleration = value; 
             }
         }
@@ -1243,7 +1255,7 @@ namespace OpenSim.Region.Framework.Scenes
             set 
             {
                 SetDescription(value);
-                UpdateBucketSyncInfo("Description");
+                //UpdateBucketSyncInfo("Description");
                 /*
                 m_description = value;
                 PhysicsActor actor = PhysActor;
@@ -1274,7 +1286,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetColor(value);
-                UpdateBucketSyncInfo("Color");
+                //UpdateBucketSyncInfo("Color");
                 //m_color = value;
 
                 /* ScheduleFullUpdate() need not be called b/c after
@@ -1303,7 +1315,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetText(value, false);
-                UpdateBucketSyncInfo("Text");
+                //UpdateBucketSyncInfo("Text");
                 //m_text = value;
             }
         }
@@ -1321,7 +1333,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetSitName(value);
-                UpdateBucketSyncInfo("SitName");
+                //UpdateBucketSyncInfo("SitName");
                 //m_sitName = value; 
             }
         }
@@ -1369,7 +1381,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 SetClickAction(value);
-                UpdateBucketSyncInfo("ClickAction");
+                //UpdateBucketSyncInfo("ClickAction");
                 //m_clickAction = value;
             }
         }
@@ -1605,6 +1617,11 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return _parentID; }
             set { _parentID = value; }
+        }
+        //SYMMETRIC SYNC: defined for consistency, for calling SetXXX in sync operations
+        public void SetParentID(uint value)
+        {
+            _parentID = value;
         }
 
         public int CreationDate
@@ -5913,6 +5930,10 @@ namespace OpenSim.Region.Framework.Scenes
         //private static Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
         private Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
 
+        //Define this as a guard to not to fill in any sync info when not desired, i.e. while de-serializing and building SOP and SOG, where 
+        //property set functions will be called and might trigger UpdateBucketSyncInfo() if not guarded carefully.
+        private bool m_syncEnabled = false;
+
         public static void InitializeBucketInfo(Dictionary<string, string> propertyBucketMap, List<string> bucketNames, string actorID)
         {
             m_primPropertyBucketMap = propertyBucketMap;
@@ -5965,8 +5986,18 @@ namespace OpenSim.Region.Framework.Scenes
                 SetMaterial(updatedPart.Material);
                 SetPassTouches(updatedPart.PassTouches);
                 //RegionHandle skipped
-
-
+                SetScriptAccessPin(updatedPart.ScriptAccessPin);
+                
+                //SetAcceleration(updatedPart.Acceleration);
+                //SetDescription(updatedPart.Description);
+                //SetColor(updatedPart.Color);
+                //SetText(updatedPart.Text);
+                //SetSitName(updatedPart.SitName);
+               
+                SetTouchName(updatedPart.TouchName);
+                SetLinkNum(updatedPart.LinkNum);
+                //SetClickAction(updatedPart.ClickAction);
+                
                 SetShape(updatedPart.Shape);
 
                 m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
@@ -6040,6 +6071,8 @@ namespace OpenSim.Region.Framework.Scenes
                 RegisterBucketUpdateProcessor();
                 m_BucketUpdateProcessorRegistered = true;
             }
+
+            m_syncEnabled = true;
         }
 
         /// <summary>
@@ -6048,7 +6081,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="propertyName">Name of the property. Make sure the spelling is consistent with what are defined in PropertyList</param>
         public void UpdateBucketSyncInfo(string propertyName)
         {
-            if (m_bucketSyncInfoList != null && m_bucketSyncInfoList.Count>0)
+            if (m_syncEnabled && m_bucketSyncInfoList != null && m_bucketSyncInfoList.Count>0)
             {
                 //int bucketIndex = m_primPropertyBucketMap[propertyName];
                 string bucketName = m_primPropertyBucketMap[propertyName];

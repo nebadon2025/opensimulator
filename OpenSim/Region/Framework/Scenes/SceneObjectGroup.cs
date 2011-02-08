@@ -294,6 +294,11 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_rootPart.GroupPosition; }
             set
             {
+                SetAbsolutePosition(value);
+                SceneObjectPart[] parts = m_parts.GetArray();
+                for (int i = 0; i < parts.Length; i++)
+                    parts[i].UpdateBucketSyncInfo("GroupPosition");
+                /*
                 Vector3 val = value;
 
                 //REGION SYNC touched
@@ -328,6 +333,39 @@ namespace OpenSim.Region.Framework.Scenes
                 //m_rootPart.GroupPosition.Z);
                 //m_scene.PhysicsScene.AddPhysicsActorTaint(m_rootPart.PhysActor);
                 //}
+                 * */ 
+            }
+        }
+        public void SetAbsolutePosition(Vector3 value)
+        {
+            Vector3 val = value;
+
+            //REGION SYNC touched
+
+            //if ((m_scene.TestBorderCross(val - Vector3.UnitX, Cardinals.E) || m_scene.TestBorderCross(val + Vector3.UnitX, Cardinals.W)
+            //    || m_scene.TestBorderCross(val - Vector3.UnitY, Cardinals.N) || m_scene.TestBorderCross(val + Vector3.UnitY, Cardinals.S)) 
+            //    && !IsAttachmentCheckFull())
+            if (m_scene.IsBorderCrossing(LocX, LocY, val) && !IsAttachmentCheckFull() && (!m_scene.LoadingPrims))
+            {
+                m_scene.CrossPrimGroupIntoNewRegion(val, this, true);
+            }
+            //end REGION SYNC touched
+            if (RootPart.GetStatusSandbox())
+            {
+                if (Util.GetDistanceTo(RootPart.StatusSandboxPos, value) > 10)
+                {
+                    RootPart.ScriptSetPhysicsStatus(false);
+                    Scene.SimChat(Utils.StringToBytes("Hit Sandbox Limit"),
+                          ChatTypeEnum.DebugChannel, 0x7FFFFFFF, RootPart.AbsolutePosition, Name, UUID, false);
+                    return;
+                }
+            }
+
+            SceneObjectPart[] parts = m_parts.GetArray();
+            for (int i = 0; i < parts.Length; i++)
+            {
+                //parts[i].GroupPosition = val;
+                parts[i].SetGroupPosition(val);
             }
         }
 
@@ -464,6 +502,20 @@ namespace OpenSim.Region.Framework.Scenes
         #endregion
 
         #region Constructors
+
+        //SYMMETRIC SYNC
+        public SceneObjectGroup(SceneObjectPart part, bool newGroupBySync)
+        {
+            if (!newGroupBySync)
+            {
+                SetRootPart(part);
+            }
+            else
+            {
+                SetRootPartBySync(part);
+            }
+
+        }
 
         /// <summary>
         /// Constructor
@@ -3728,7 +3780,8 @@ namespace OpenSim.Region.Framework.Scenes
                         if (part.LinkNum > linkPart.LinkNum)
                         {
                             //part.LinkNum--;
-                            part.SetLinkNum(part.LinkNum--);
+                            int linkNum = part.LinkNum - 1;
+                            part.SetLinkNum(linkNum);
                         }
                     }
                 }
@@ -3761,7 +3814,9 @@ namespace OpenSim.Region.Framework.Scenes
             linkPart.SetOffsetPosition(new Vector3(0, 0, 0));
             linkPart.SetRotationOffset(worldRot);
 
-            SceneObjectGroup objectGroup = new SceneObjectGroup(linkPart);
+            //SceneObjectGroup objectGroup = new SceneObjectGroup(linkPart);
+            bool newGroupBySync = true;
+            SceneObjectGroup objectGroup = new SceneObjectGroup(linkPart, newGroupBySync);
 
             m_scene.AddNewSceneObjectBySync(objectGroup, true);
 
@@ -3777,7 +3832,23 @@ namespace OpenSim.Region.Framework.Scenes
             return objectGroup;
         }
 
+        /// <summary>
+        /// Set a part to act as the root part for this scene object, in which SetLinkNum() is called instead of "LinkNum=".
+        /// </summary>
+        /// <param name="part"></param>
+        public void SetRootPartBySync(SceneObjectPart part)
+        {
+            if (part == null)
+                throw new ArgumentNullException("Cannot give SceneObjectGroup a null root SceneObjectPart");
 
+            part.SetParent(this);
+            m_rootPart = part;
+            if (!IsAttachment)
+                part.ParentID = 0;
+            part.SetLinkNum(0);
+
+            m_parts.Add(m_rootPart.UUID, m_rootPart);
+        }
 
         public void ScheduleGroupForFullUpdate_SyncInfoUnchanged()
         {
@@ -3806,21 +3877,27 @@ namespace OpenSim.Region.Framework.Scenes
             Vector3 oldGroupPosition = linkPart.GroupPosition;
             Quaternion oldRootRotation = linkPart.RotationOffset;
 
-            linkPart.OffsetPosition = linkPart.GroupPosition - AbsolutePosition;
-            linkPart.GroupPosition = AbsolutePosition;
+            //linkPart.OffsetPosition = linkPart.GroupPosition - AbsolutePosition;
+            //linkPart.GroupPosition = AbsolutePosition;
+            linkPart.SetOffsetPosition(linkPart.GroupPosition - AbsolutePosition);
+            linkPart.SetGroupPosition(AbsolutePosition);
             Vector3 axPos = linkPart.OffsetPosition;
 
             Quaternion parentRot = m_rootPart.RotationOffset;
             axPos *= Quaternion.Inverse(parentRot);
 
-            linkPart.OffsetPosition = axPos;
+            //linkPart.OffsetPosition = axPos;
+            linkPart.SetOffsetPosition(axPos);
             Quaternion oldRot = linkPart.RotationOffset;
             Quaternion newRot = Quaternion.Inverse(parentRot) * oldRot;
-            linkPart.RotationOffset = newRot;
+            //linkPart.RotationOffset = newRot;
+            linkPart.SetRotationOffset(newRot);
 
+            //ParentID is only valid locally, so remote value is ignored and no syncinfo will be modified
             linkPart.ParentID = m_rootPart.LocalId;
             if (m_rootPart.LinkNum == 0)
-                m_rootPart.LinkNum = 1;
+                //m_rootPart.LinkNum = 1;
+                m_rootPart.SetLinkNum(1);
 
             lock (m_parts.SyncRoot)
             {
@@ -3836,11 +3913,13 @@ namespace OpenSim.Region.Framework.Scenes
                     if (part.LinkNum != 1)
                     {
                         // Don't update root prim link number
-                        part.LinkNum += objectGroup.PrimCount;
+                        //part.LinkNum += objectGroup.PrimCount;
+                        part.SetLinkNum(objectGroup.PrimCount);
                     }
                 }
 
-                linkPart.LinkNum = 2;
+                //linkPart.LinkNum = 2;
+                linkPart.SetLinkNum(2);
 
                 linkPart.SetParent(this);
                 linkPart.CreateSelected = true;
@@ -3859,7 +3938,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     SceneObjectPart part = ogParts[i];
                     if (part.UUID != objectGroup.m_rootPart.UUID)
-                        LinkNonRootPart(part, oldGroupPosition, oldRootRotation, linkNum++);
+                        LinkNonRootPartBySync(part, oldGroupPosition, oldRootRotation, linkNum++);
                     part.ClearUndoState();
                 }
             }
@@ -3877,9 +3956,58 @@ namespace OpenSim.Region.Framework.Scenes
             // Here's the deal, this is ABSOLUTELY CRITICAL so the physics scene gets the update about the 
             // position of linkset prims.  IF YOU CHANGE THIS, YOU MUST TEST colliding with just linked and 
             // unmoved prims!
-            ResetChildPrimPhysicsPositions();
+            //ResetChildPrimPhysicsPositions();
+            //EntityBase sogBase = (EntityBase)this;
+            //sogBase.AbsolutePosition = AbsolutePosition;
+            SetAbsolutePosition(AbsolutePosition);
 
         }
+
+        private void LinkNonRootPartBySync(SceneObjectPart part, Vector3 oldGroupPosition, Quaternion oldGroupRotation, int linkNum)
+        {
+            Quaternion parentRot = oldGroupRotation;
+            Quaternion oldRot = part.RotationOffset;
+            Quaternion worldRot = parentRot * oldRot;
+
+            parentRot = oldGroupRotation;
+
+            Vector3 axPos = part.OffsetPosition;
+
+            axPos *= parentRot;
+            //part.OffsetPosition = axPos;
+            //part.GroupPosition = oldGroupPosition + part.OffsetPosition;
+            //part.OffsetPosition = Vector3.Zero;
+            //part.RotationOffset = worldRot;
+            part.SetOffsetPosition(axPos);
+            part.SetGroupPosition(oldGroupPosition + part.OffsetPosition);
+            part.SetOffsetPosition(Vector3.Zero);
+            part.SetRotationOffset(worldRot);
+
+            part.SetParent(this);
+            part.ParentID = m_rootPart.LocalId;
+
+            m_parts.Add(part.UUID, part);
+
+            //part.LinkNum = linkNum;
+            part.SetLinkNum(linkNum);
+
+            //part.OffsetPosition = part.GroupPosition - AbsolutePosition;
+            part.SetOffsetPosition(part.GroupPosition - AbsolutePosition);
+
+            Quaternion rootRotation = m_rootPart.RotationOffset;
+
+            Vector3 pos = part.OffsetPosition;
+            pos *= Quaternion.Inverse(rootRotation);
+            //part.OffsetPosition = pos;
+            part.SetOffsetPosition(pos);
+
+            parentRot = m_rootPart.RotationOffset;
+            oldRot = part.RotationOffset;
+            Quaternion newRot = Quaternion.Inverse(parentRot) * oldRot;
+            //part.RotationOffset = newRot;
+            part.SetRotationOffset(newRot);
+        }
+
 
         /*
         public void SyncInfoUpdate()

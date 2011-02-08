@@ -2299,7 +2299,7 @@ namespace OpenSim.Region.Framework.Scenes
                             }
                             else
                             {
-                                localAfterGroup.UpdateObjectProperties(incomingAfterDelinkGroupsDictionary[localAfterGroup.UUID]);
+                                localAfterGroup.UpdateObjectGroupBySync(incomingAfterDelinkGroupsDictionary[localAfterGroup.UUID]);
                             }
                         }
                     }

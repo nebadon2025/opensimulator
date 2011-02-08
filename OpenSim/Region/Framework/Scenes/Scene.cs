@@ -795,7 +795,7 @@ namespace OpenSim.Region.Framework.Scenes
             //Set the property values as in the incoming copy of the object group
 
             SceneObjectGroup localGroup = root.ParentGroup;
-            localGroup.UpdateObjectProperties(linkedGroup);
+            localGroup.UpdateObjectGroupBySync(linkedGroup);
 
             //debug
             /*

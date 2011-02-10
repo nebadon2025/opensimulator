@@ -262,9 +262,13 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Grid
         {
             return m_GridService.RegisterActor(gai, lgqi);
         }
-        public virtual bool RegisterActor(GridActorInfo gai, GridQuarkInfo gqi)
+        public virtual bool RegisterActor(GridActorInfo gai)
         {
-            return m_GridService.RegisterActor(gai, gqi);
+            return m_GridService.RegisterActor(gai);
+        }
+        public virtual bool RegisterQuark(string actorID, GridQuarkInfo gqi)
+        {
+            return m_GridService.RegisterQuark(actorID, gqi);
         }
         public virtual List<GridActorInfo> LookupQuark(GridQuarkInfo gqi)
         {

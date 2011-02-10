@@ -902,7 +902,7 @@ namespace OpenSim.Framework
 
             string quarkLocation = config.GetString("SyncQuarkLocation", "1000,1000");
 
-            string[] quarkLocElements = location.Split(new char[] { ',' });
+            string[] quarkLocElements = quarkLocation.Split(new char[] { ',' });
 
             m_quarkLocX = Convert.ToUInt32(quarkLocElements[0]);
             m_quarkLocY = Convert.ToUInt32(quarkLocElements[1]);

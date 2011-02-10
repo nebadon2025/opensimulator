@@ -96,24 +96,29 @@ namespace OpenSim.Services.Interfaces
 
         int GetRegionFlags(UUID scopeID, UUID regionID);
 
+        // SYNC SERVER
         bool RegisterActor(GridActorInfo gai, List<GridQuarkInfo> lgqi);
-        bool RegisterActor(GridActorInfo gai, GridQuarkInfo gqi);
+        bool RegisterActor(GridActorInfo gai);
+        bool RegisterQuark(string actorID, GridQuarkInfo gqi);
         List<GridActorInfo> LookupQuark(GridQuarkInfo gqi);
         List<GridActorInfo> LookupQuark(GridQuarkInfo gqi, string actorType);
+        // END SYNC SERVER
     }
 
+    // SYNC SERVER
     public class GridQuarkInfo
     {
-        public int locX;
-        public int locY;
+        public uint locX;
+        public uint locY;
     }
     public class GridActorInfo
     {
         public string address;
         public int port;
-        public string type;
+        public string actorType;
         public string actorID;
     }
+    // END SYNC SERVER
 
     public class GridRegion : Object
     {

@@ -659,7 +659,11 @@ namespace OpenSim.Services.Connectors
         {
             return false;
         }
-        public virtual bool RegisterActor(GridActorInfo gai, GridQuarkInfo gqi)
+        public virtual bool RegisterActor(GridActorInfo gai)
+        {
+            return false;
+        }
+        public virtual bool RegisterQuark(string actorID, GridQuarkInfo gqi)
         {
             return false;
         }

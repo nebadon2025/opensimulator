@@ -434,51 +434,82 @@ namespace OpenSim.Services.Connectors.SimianGrid
         }
 
         #region SYNC SERVER
-        // Stubs for actor and quark management. Only implementation is in SimianGridService
+        /// <summary>
+        /// Register an actor and it's associated quarks
+        /// </summary>
+        /// <param name="gai"></param>
+        /// <param name="lgqi"></param>
+        /// <returns></returns>
         public virtual bool RegisterActor(GridActorInfo gai, List<GridQuarkInfo> lgqi)
         {
-            OSDArray quarks = new OSDArray();
-            foreach (GridQuarkInfo gqi in lgqi)
+            if (RegisterActor(gai))
             {
-                OSDMap quarkMap = new OSDMap
+                bool success = true;
+                foreach (GridQuarkInfo gqi in lgqi)
                 {
-                    { "locX", OSD.FromInteger(gqi.locX) },
-                    { "locY", OSD.FromInteger(gqi.locY) }
-                };
-                quarks.Add(quarkMap);
+                    if (!RegisterQuark(gai.actorID, gqi))
+                    {
+                        success = false;
+                        break;
+                    }
+                }
+                return success;
             }
+            return false;
+        }
+
+        public virtual bool RegisterActor(GridActorInfo gai)
+        {
             NameValueCollection requestArgs = new NameValueCollection
             {
-                { "RequestMethod", "RegisterActor" },
-                { "actorID", gai.actorID },
-                { "type", gai.type },
-                { "address", gai.address },
-                { "port", gai.port.ToString() },
-                { "quarks", OSDParser.SerializeJsonString(quarks) }
+                { "RequestMethod", "AddActor" },
+                { "ActorID", gai.actorID },
+                { "ActorType", gai.actorType },
+                { "Address", gai.address },
+                { "Port", gai.port.ToString() },
             };
 
             OSDMap response = WebUtil.PostToService(m_ServerURI, requestArgs);
             if (response["Success"].AsBoolean())
             {
+                m_log.WarnFormat("{0}: Registration of actor {1} at addr={2}:{3} successful",
+                        "[SIMIAN GRID CONNECTOR]", gai.actorID, gai.address, gai.port.ToString());
                 return true;
             }
+            m_log.ErrorFormat("{0}: Registration of actor {1} at addr={2}:{3} failed: {4}",
+                "[SIMIAN GRID CONNECTOR]", gai.actorID, gai.address, gai.port.ToString(), response["Message"]);
             return false;
         }
 
-        public virtual bool RegisterActor(GridActorInfo gai, GridQuarkInfo gqi)
+        public virtual bool RegisterQuark(string actorID, GridQuarkInfo gqi)
         {
-            List<GridActorInfo> lgqi = new List<GridActorInfo>();
-            lgqi.Add(gqi);
-            return RegisterActor(gai, lgqi);
+            NameValueCollection requestArgs = new NameValueCollection
+            {
+                { "RequestMethod", "AddQuark" },
+                { "ActorID", actorID },
+                { "LocX", gqi.locX.ToString() },
+                { "LocY", gqi.locY.ToString() },
+            };
+
+            OSDMap response = WebUtil.PostToService(m_ServerURI, requestArgs);
+            if (response["Success"].AsBoolean())
+            {
+                m_log.WarnFormat("{0}: Registration of quark at {1}/{2} successful",
+                        "[SIMIAN GRID CONNECTOR]", gqi.locX.ToString(), gqi.locY.ToString());
+                return true;
+            }
+            m_log.ErrorFormat("{0}: Registration of quark at {1}/{2} failed: {3}",
+                        "[SIMIAN GRID CONNECTOR]", gqi.locX.ToString(), gqi.locY.ToString(), response["Message"]);
+            return false;
         }
 
         public virtual List<GridActorInfo> LookupQuark(GridQuarkInfo gqi)
         {
             NameValueCollection requestArgs = new NameValueCollection
             {
-                { "RequestMethod", "LookupQuark" },
-                { "locX", gqi.locX.ToString() },
-                { "locY", gqi.locY.ToString() }
+                { "RequestMethod", "GetQuark" },
+                { "LocX", gqi.locX.ToString() },
+                { "LocY", gqi.locY.ToString() }
             };
             return LookupQuark(requestArgs);
         }
@@ -487,10 +518,10 @@ namespace OpenSim.Services.Connectors.SimianGrid
         {
             NameValueCollection requestArgs = new NameValueCollection
             {
-                { "RequestMethod", "LookupQuark" },
-                { "locX", gqi.locX.ToString() },
-                { "locY", gqi.locY.ToString() },
-                { "actorType", actorType }
+                { "RequestMethod", "GetQuark" },
+                { "LocX", gqi.locX.ToString() },
+                { "LocY", gqi.locY.ToString() },
+                { "ActorType", actorType }
             };
             return LookupQuark(requestArgs);
         }
@@ -501,19 +532,23 @@ namespace OpenSim.Services.Connectors.SimianGrid
             if (response["Success"].AsBoolean())
             {
                 List<GridActorInfo> lgai = new List<GridActorInfo>();
-                OSDArray gridActors = (OSDArray)response["actors"];
+                OSDArray gridActors = (OSDArray)response["Actors"];
+                m_log.WarnFormat("{0}: Lookup of quark successful. {1} addresses",
+                        "[SIMIAN GRID CONNECTOR]", gridActors.Count);
                 for (int ii = 0; ii < gridActors.Count; ii++)
                 {
                     OSDMap thisGridActor = (OSDMap)gridActors[ii];
                     GridActorInfo gai = new GridActorInfo();
-                    gai.actorID = thisGridActor["actorID"].AsString();
-                    gai.type = thisGridActor["actorType"].AsString();
-                    gai.address = thisGridActor["address"].AsString();
-                    gai.port = thisGridActor["port"].AsInteger();
+                    gai.actorID = thisGridActor["ActorID"].AsString();
+                    gai.actorType = thisGridActor["ActorType"].AsString();
+                    gai.address = thisGridActor["Address"].AsString();
+                    gai.port = thisGridActor["Port"].AsInteger();
                     lgai.Add(gai);
                 }
                 return lgai;
             }
+            m_log.ErrorFormat("{0}: Lookup of quark failed: {1}",
+                        "[SIMIAN GRID CONNECTOR]", response["Message"]);
             return null;
         }
         #endregion SYNC SERVER

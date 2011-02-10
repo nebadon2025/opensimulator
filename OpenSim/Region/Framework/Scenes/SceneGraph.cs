@@ -2148,8 +2148,15 @@ namespace OpenSim.Region.Framework.Scenes
                             //SYMMETRIC SYNC: need to copy value w/o trigger UpdateBucketSyncInfo
                             //child.RootPart.ObjectSaleType = 0;
                             //child.RootPart.SalePrice = 10;
-                            child.RootPart.SetObjectSaleType(0);
-                            child.RootPart.SetSalePrice(10);
+                            //child.RootPart.SetObjectSaleType(0);
+                            //child.RootPart.SetSalePrice(10);
+                            //child.RootPart.SetProperty("ObjectSaleType", 0);
+                            //child.RootPart.SetProperty("SalePrice", 10);
+
+                            //casting SOP to SOPBase to make sure we call SOPBase.Property set function, not the SOP.Property set function
+                            SceneObjectPartBase rootPart = (SceneObjectPartBase)child.RootPart;
+                            rootPart.ObjectSaleType = 0;
+                            rootPart.SalePrice = 10;
                             childGroups.Add(child);
                         }
                     }

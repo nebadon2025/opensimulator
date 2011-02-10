@@ -107,66 +107,15 @@ namespace OpenSim.Region.Framework.Scenes
 
     #endregion Enumerations
 
-    //SYMMETRIC SYNC
-
-    //Information for concurrency control of one bucket of prim proproperties.
-    public class BucketSyncInfo
-    {
-        private long m_lastUpdateTimeStamp;
-        private string m_lastUpdateActorID;
-        //lock for concurrent updates of the timestamp and actorID.
-        private Object m_updateLock = new Object();
-        private string m_bucketName;
-
-        public long LastUpdateTimeStamp
-        {
-            get { return m_lastUpdateTimeStamp; }
-            set { m_lastUpdateTimeStamp = value; }
-        }
-
-        public string LastUpdateActorID
-        {
-            get { return m_lastUpdateActorID; }
-            set { m_lastUpdateActorID = value; }
-        }
-
-        public string BucketName
-        {
-            get { return m_bucketName; }
-        }
-
-        public BucketSyncInfo(string bucketName)
-        {
-            m_bucketName = bucketName;
-        }
-
-        public BucketSyncInfo(long timeStamp, string actorID, string bucketName)
-        {
-            m_lastUpdateTimeStamp = timeStamp;
-            m_lastUpdateActorID = actorID;
-            m_bucketName = bucketName;
-        }
-
-        public void UpdateSyncInfo(long timeStamp, string actorID)
-        {
-            lock (m_updateLock)
-            {
-                m_lastUpdateTimeStamp = timeStamp;
-                m_lastUpdateActorID = actorID;
-            }
-        }
-
-    }
-    //end of SYMMETRIC SYNC
-
-    public class SceneObjectPart : IScriptHost, ISceneEntity
+    //public class SceneObjectPart : IScriptHost, ISceneEntity
+    public abstract class SceneObjectPartBase : IScriptHost, ISceneEntity
     {
         /// <value>
         /// Denote all sides of the prim
         /// </value>
         public const int ALL_SIDES = -1;
         
-        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        protected static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         /// <value>
         /// Is this sop a root part?
@@ -187,14 +136,8 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_allowedDrop; }
             set
             {
-                //m_allowedDrop = value;
-                SetAllowedDrop(value);
-                UpdateBucketSyncInfo("AllowedDrop");
+                m_allowedDrop = value;
             }
-        }
-        public void SetAllowedDrop(bool value)
-        {
-            m_allowedDrop = value;
         }
 
         
@@ -327,7 +270,8 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return m_inventory; }
         }
-        protected SceneObjectPartInventory m_inventory;
+        //protected SceneObjectPartInventory m_inventory;
+        protected SceneObjectPartInventoryBase m_inventory;
 
         
         public bool Undoing;
@@ -335,24 +279,7 @@ namespace OpenSim.Region.Framework.Scenes
         
         public bool IgnoreUndoUpdate = false;
 
-        //SYMMETRIC SYNC
-        //public PrimFlags LocalFlags;
-        private PrimFlags m_localFlags;
-        public PrimFlags LocalFlags
-        {
-            get { return m_localFlags; }
-            set
-            {
-                SetLocalFlags(value);
-                UpdateBucketSyncInfo("LocalFlags");
-            }
-        }
-        public void SetLocalFlags(PrimFlags value)
-        {
-            m_localFlags = value;
-        }
-
-
+        public PrimFlags LocalFlags;
         private float m_damage = -1.0f;
         private byte[] m_TextureAnimation;
         private byte m_clickAction;
@@ -435,14 +362,16 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// No arg constructor called by region restore db code
         /// </summary>
-        public SceneObjectPart()
+        //public SceneObjectPart()
+        public SceneObjectPartBase()
         {
             // It's not necessary to persist this
             m_TextureAnimation = Utils.EmptyBytes;
             m_particleSystem = Utils.EmptyBytes;
             Rezzed = DateTime.UtcNow;
             
-            m_inventory = new SceneObjectPartInventory(this);
+            //m_inventory = new SceneObjectPartInventory(this);
+            m_inventory = new SceneObjectPartInventoryBase(this);
         }
 
         /// <summary>
@@ -453,7 +382,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="position"></param>
         /// <param name="rotationOffset"></param>
         /// <param name="offsetPosition"></param>
-        public SceneObjectPart(
+        //public SceneObjectPart(
+        public SceneObjectPartBase(
             UUID ownerID, PrimitiveBaseShape shape, Vector3 groupPosition, 
             Quaternion rotationOffset, Vector3 offsetPosition)
         {
@@ -492,7 +422,8 @@ namespace OpenSim.Region.Framework.Scenes
             TrimPermissions();
             //m_undo = new UndoStack<UndoState>(ParentGroup.GetSceneMaxUndo());
             
-            m_inventory = new SceneObjectPartInventory(this);
+            //m_inventory = new SceneObjectPartInventory(this);
+            m_inventory = new SceneObjectPartInventoryBase(this);
         }
 
         #endregion Constructors
@@ -528,15 +459,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
             set
             {
-                SetCreatorID(value);
-                UpdateBucketSyncInfo("CreatorID");
-                //_creatorID = value;
+                _creatorID = value;
             }
-        }
-        //SYMMETRIC SYNC
-        public void SetCreatorID(UUID value)
-        {
-            _creatorID = value;
         }
 
         /// <summary>
@@ -545,17 +469,7 @@ namespace OpenSim.Region.Framework.Scenes
         public string CreatorData 
         {
             get { return m_creatorData; }
-            set
-            {
-                SetCreatorData(value);
-                UpdateBucketSyncInfo("CreatorData");
-                //m_creatorData = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetCreatorData(string value)
-        {
-            m_creatorData = value;
+            set { m_creatorData = value; }
         }
 
         /// <summary>
@@ -625,18 +539,7 @@ namespace OpenSim.Region.Framework.Scenes
         public uint InventorySerial
         {
             get { return m_inventory.Serial; }
-            set
-            {
-                SetInventorySerial(value);
-                UpdateBucketSyncInfo("InventorySerial");
-                //m_inventory.Serial = value;
-            }
-        }
-        //SYMMETRIC SYNC: implemented to be consistent with other properties. "m_inventory.Serial" set function will trigger UpdateBucketSyncInfo,
-        //hence in SetInventorySerial we will call m_inventory.SetSerial to avoid triggering UpdateBucketSyncInfo().
-        public void SetInventorySerial(uint value)
-        {
-            m_inventory.SetSerial(value);
+            set { m_inventory.Serial = value; }
         }
 
         /// <value>
@@ -645,18 +548,7 @@ namespace OpenSim.Region.Framework.Scenes
         public TaskInventoryDictionary TaskInventory
         {
             get { return m_inventory.Items; }
-            set
-            {
-                //SetTaskInventory(value);
-                //UpdateBucketSyncInfo("TaskInventory");
-                //SYMMETRIC SYNC: "m_inventory.Items" set function will trigger UpdateBucketSyncInfo if appropriate
-                m_inventory.Items = value;
-            }
-        }
-        //SYMMETRIC SYNC: implemented to be consistent with updating values of other properties (w/o triggering UpdateBucketSyncInfo);
-        public void SetTaskInventory(TaskInventoryDictionary value)
-        {
-            m_inventory.SetItems(value);
+            set { m_inventory.Items = value; }
         }
 
         /// <summary>
@@ -692,25 +584,12 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return m_name; }
             set 
-            {
-                SetName(value);
-                UpdateBucketSyncInfo("Name");
-                /*
+            { 
                 m_name = value;
                 if (PhysActor != null)
                 {
                     PhysActor.SOPName = value;
                 }
-                 * */ 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetName(string value)
-        {
-            m_name = value;
-            if (PhysActor != null)
-            {
-                PhysActor.SOPName = value;
             }
         }
 
@@ -719,48 +598,23 @@ namespace OpenSim.Region.Framework.Scenes
             get { return (byte) m_material; }
             set
             {
-                SetMaterial(value);
-                UpdateBucketSyncInfo("Material");
-                /*
                 m_material = (Material)value;
                 if (PhysActor != null)
                 {
                     PhysActor.SetMaterial((int)value);
                 }
-                 * */
             }
         }
-        //SYMMETRIC SYNC
-        public void SetMaterial(byte value)
-        {
-            m_material = (Material)value;
-            if (PhysActor != null)
-            {
-                PhysActor.SetMaterial((int)value);
-            }
-        }
-
 
         public bool PassTouches
         {
             get { return m_passTouches; }
             set
             {
-                SetPassTouches(value);
-                UpdateBucketSyncInfo("PassTouches");
-                /*
                 m_passTouches = value;
                 if (ParentGroup != null)
                     ParentGroup.HasGroupChanged = true;
-                 * */
             }
-        }
-        //SYMMETRIC SYNC
-        public void SetPassTouches(bool value)
-        {
-            m_passTouches = value;
-            if (ParentGroup != null)
-                ParentGroup.HasGroupChanged = true;
         }
 
         
@@ -804,20 +658,8 @@ namespace OpenSim.Region.Framework.Scenes
         public int ScriptAccessPin
         {
             get { return m_scriptAccessPin; }
-            set
-            {
-                SetScriptAccessPin(value);
-                UpdateBucketSyncInfo("ScriptAccessPin");
-                //m_scriptAccessPin = (int)value;
-            }
+            set { m_scriptAccessPin = (int)value; }
         }
-        //SYMMETRIC SYNC
-        public void SetScriptAccessPin(int value)
-        {
-            m_scriptAccessPin = (int)value; 
-        }
-
-
         private SceneObjectPart m_PlaySoundMasterPrim = null;
         public SceneObjectPart PlaySoundMasterPrim
         {
@@ -850,34 +692,14 @@ namespace OpenSim.Region.Framework.Scenes
         public Byte[] TextureAnimation
         {
             get { return m_TextureAnimation; }
-            set
-            {
-                SetTextureAnimation(value);
-                UpdateBucketSyncInfo("TextureAnimation");
-                //m_TextureAnimation = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetTextureAnimation(Byte[] value)
-        {
-            m_TextureAnimation = value;
+            set { m_TextureAnimation = value; }
         }
 
         
         public Byte[] ParticleSystem
         {
             get { return m_particleSystem; }
-            set
-            {
-                SetParticleSystem(value);
-                UpdateBucketSyncInfo("ParticleSystem");
-                //m_particleSystem = value; 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetParticleSystem(Byte[] value)
-        {
-            m_particleSystem = value;
+            set { m_particleSystem = value; }
         }
 
         
@@ -926,11 +748,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
             set
             {
-                SetGroupPosition(value);
-                UpdateBucketSyncInfo("GroupPosition");
-                 
-                /*
-                //Legacy Opensim code
                 m_groupPosition = value;
 
                 PhysicsActor actor = PhysActor;
@@ -971,63 +788,14 @@ namespace OpenSim.Region.Framework.Scenes
                         }
                     }
                 }
-                 */ 
             }
         }
-        //SYMMETRIC SYNC
-        public void SetGroupPosition(Vector3 value)
-        {
-            m_groupPosition = value;
-
-            PhysicsActor actor = PhysActor;
-            if (actor != null)
-            {
-                try
-                {
-                    // Root prim actually goes at Position
-                    if (_parentID == 0)
-                    {
-                        actor.Position = value;
-                    }
-                    else
-                    {
-                        // To move the child prim in respect to the group position and rotation we have to calculate
-                        actor.Position = GetWorldPosition();
-                        actor.Orientation = GetWorldRotation();
-                    }
-
-                    // Tell the physics engines that this prim changed.
-                    m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
-                }
-                catch (Exception e)
-                {
-                    m_log.Error("[SCENEOBJECTPART]: GROUP POSITION. " + e.Message);
-                }
-            }
-
-            // TODO if we decide to do sitting in a more SL compatible way (multiple avatars per prim), this has to be fixed, too
-            if (m_sitTargetAvatar != UUID.Zero)
-            {
-                if (m_parentGroup != null) // TODO can there be a SOP without a SOG?
-                {
-                    ScenePresence avatar;
-                    if (m_parentGroup.Scene.TryGetScenePresence(m_sitTargetAvatar, out avatar))
-                    {
-                        avatar.ParentPosition = GetWorldPosition();
-                    }
-                }
-            }
-        }
-        
 
         public Vector3 OffsetPosition
         {
             get { return m_offsetPosition; }
             set
             {
-                SetOffsetPosition(value);
-                UpdateBucketSyncInfo("OffsetPosition");
-                /*
                 StoreUndoState();
                 m_offsetPosition = value;
 
@@ -1042,26 +810,6 @@ namespace OpenSim.Region.Framework.Scenes
                         // Tell the physics engines that this prim changed.
                         m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
                     }
-                }
-                 * */ 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetOffsetPosition(Vector3 value)
-        {
-            StoreUndoState();
-            m_offsetPosition = value;
-
-            if (ParentGroup != null && !ParentGroup.IsDeleted)
-            {
-                PhysicsActor actor = PhysActor;
-                if (_parentID != 0 && actor != null)
-                {
-                    actor.Position = GetWorldPosition();
-                    actor.Orientation = GetWorldRotation();
-
-                    // Tell the physics engines that this prim changed.
-                    m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
                 }
             }
         }
@@ -1104,9 +852,6 @@ namespace OpenSim.Region.Framework.Scenes
             
             set
             {
-                SetRotationOffset(value);
-                UpdateBucketSyncInfo("RotationOffset");
-                /*
                 StoreUndoState();
                 m_rotationOffset = value;
 
@@ -1136,41 +881,7 @@ namespace OpenSim.Region.Framework.Scenes
                         m_log.Error("[SCENEOBJECTPART]: ROTATIONOFFSET" + ex.Message);
                     }
                 }
-                 * */ 
 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetRotationOffset(Quaternion value)
-        {
-            StoreUndoState();
-            m_rotationOffset = value;
-
-            PhysicsActor actor = PhysActor;
-            if (actor != null)
-            {
-                try
-                {
-                    // Root prim gets value directly
-                    if (_parentID == 0)
-                    {
-                        actor.Orientation = value;
-                        //m_log.Info("[PART]: RO1:" + actor.Orientation.ToString());
-                    }
-                    else
-                    {
-                        // Child prim we have to calculate it's world rotationwel
-                        Quaternion resultingrotation = GetWorldRotation();
-                        actor.Orientation = resultingrotation;
-                        //m_log.Info("[PART]: RO2:" + actor.Orientation.ToString());
-                    }
-                    m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
-                    //}
-                }
-                catch (Exception ex)
-                {
-                    m_log.Error("[SCENEOBJECTPART]: ROTATIONOFFSET" + ex.Message);
-                }
             }
         }
 
@@ -1193,9 +904,6 @@ namespace OpenSim.Region.Framework.Scenes
 
             set
             {
-                SetVelocity(value);
-                UpdateBucketSyncInfo("Velocity");
-                /*
                 m_velocity = value;
 
                 PhysicsActor actor = PhysActor;
@@ -1206,22 +914,6 @@ namespace OpenSim.Region.Framework.Scenes
                         actor.Velocity = value;
                         m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
                     }
-                }
-                 * */
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetVelocity(Vector3 value)
-        {
-            m_velocity = value;
-
-            PhysicsActor actor = PhysActor;
-            if (actor != null)
-            {
-                if (actor.IsPhysical)
-                {
-                    actor.Velocity = value;
-                    m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
                 }
             }
         }
@@ -1238,35 +930,14 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 return m_angularVelocity;
             }
-            set
-            {
-                SetAngularVelocity(value);
-                UpdateBucketSyncInfo("AngularVelocity");
-                //m_angularVelocity = value; 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetAngularVelocity(Vector3 value)
-        {
-            m_angularVelocity = value;
+            set { m_angularVelocity = value; }
         }
 
         /// <summary></summary>
         public Vector3 Acceleration
         {
             get { return m_acceleration; }
-            set
-            {
-                SetAcceleration(value);
-                
-                UpdateBucketSyncInfo("Acceleration");
-                //m_acceleration = value; 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetAcceleration(Vector3 value)
-        {
-            m_acceleration = value; 
+            set { m_acceleration = value; }
         }
 
         public string Description
@@ -1274,26 +945,12 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_description; }
             set 
             {
-                SetDescription(value);
-                UpdateBucketSyncInfo("Description");
-                /*
                 m_description = value;
                 PhysicsActor actor = PhysActor;
                 if (actor != null)
                 {
                     actor.SOPDescription = value;
                 }
-                 * */ 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetDescription(string value)
-        {
-            m_description = value;
-            PhysicsActor actor = PhysActor;
-            if (actor != null)
-            {
-                actor.SOPDescription = value;
             }
         }
 
@@ -1305,20 +962,13 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_color; }
             set
             {
-                SetColor(value);
-                UpdateBucketSyncInfo("Color");
-                //m_color = value;
+                m_color = value;
 
                 /* ScheduleFullUpdate() need not be called b/c after
                  * setting the color, the text will be set, so then
                  * ScheduleFullUpdate() will be called. */
                 //ScheduleFullUpdate();
             }
-        }
-        //SYMMETRIC SYNC
-        public void SetColor(Color value)
-        {
-            m_color = value;
         }
 
         public string Text
@@ -1334,65 +984,27 @@ namespace OpenSim.Region.Framework.Scenes
             }
             set
             {
-                SetText(value, false);
-                UpdateBucketSyncInfo("Text");
-                //m_text = value;
+                m_text = value;
             }
-        }
-        //SYMMETRIC SYNC
-        //SetText(string) has been defined, defined it as a different interface, the 2nd argument is not really useful
-        public void SetText(string value, bool bySync)
-        {
-            m_text = value;
         }
 
 
         public string SitName
         {
             get { return m_sitName; }
-            set
-            {
-                SetSitName(value);
-                UpdateBucketSyncInfo("SitName");
-                //m_sitName = value; 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetSitName(string value)
-        {
-            m_sitName = value;
+            set { m_sitName = value; }
         }
 
         public string TouchName
         {
             get { return m_touchName; }
-            set
-            {
-                SetTouchName(value);
-                UpdateBucketSyncInfo("TouchName");
-                //m_touchName = value; 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetTouchName(string value)
-        {
-            m_touchName = value;
+            set { m_touchName = value; }
         }
 
         public int LinkNum
         {
             get { return m_linkNum; }
-            set
-            {
-                SetLinkNum(value);
-                UpdateBucketSyncInfo("LinkNum");
-                //m_linkNum = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetLinkNum(int value)
-        {
-            m_linkNum = value;
+            set { m_linkNum = value; }
         }
 
         public byte ClickAction
@@ -1400,31 +1012,14 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_clickAction; }
             set
             {
-                SetClickAction(value);
-                UpdateBucketSyncInfo("ClickAction");
-                //m_clickAction = value;
+                m_clickAction = value;
             }
-        }
-        //SYMMETRIC SYNC
-        public void SetClickAction(byte value)
-        {
-            m_clickAction = value;
         }
 
         public PrimitiveBaseShape Shape
         {
             get { return m_shape; }
-            set
-            {
-                SetShape(value);
-                UpdateBucketSyncInfo("Shape");
-                //m_shape = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetShape(PrimitiveBaseShape value)
-        {
-            m_shape = value; 
+            set { m_shape = value; }
         }
         
         public Vector3 Scale
@@ -1432,9 +1027,6 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_shape.Scale; }
             set
             {
-                SetScale(value);
-                UpdateBucketSyncInfo("Scale");
-                /*
                 StoreUndoState();
                 if (m_shape != null)
                 {
@@ -1454,33 +1046,8 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                 }
                 TriggerScriptChangedEvent(Changed.SCALE);
-                 * */
             }
         }
-        //SYMMETRIC SYNC
-        public void SetScale(Vector3 value)
-        {
-            StoreUndoState();
-            if (m_shape != null)
-            {
-                m_shape.Scale = value;
-
-                PhysicsActor actor = PhysActor;
-                if (actor != null && m_parentGroup != null)
-                {
-                    if (m_parentGroup.Scene != null)
-                    {
-                        if (m_parentGroup.Scene.PhysicsScene != null)
-                        {
-                            actor.Size = m_shape.Scale;
-                            m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
-                        }
-                    }
-                }
-            }
-            TriggerScriptChangedEvent(Changed.SCALE);
-        }
-
         
         public byte UpdateFlag
         {
@@ -1501,23 +1068,11 @@ namespace OpenSim.Region.Framework.Scenes
             
             set
             {
-                SetMediaUrl(value);
-                UpdateBucketSyncInfo("MediaUrl");
-                /*
                 m_mediaUrl = value;
                 
                 if (ParentGroup != null)
                     ParentGroup.HasGroupChanged = true;
-                 * */
             }
-        }
-        //SYMMETRIC SYNC
-        public void SetMediaUrl(string value)
-        {
-            m_mediaUrl = value;
-
-            if (ParentGroup != null)
-                ParentGroup.HasGroupChanged = true;
         }
 
         
@@ -1558,33 +1113,14 @@ namespace OpenSim.Region.Framework.Scenes
         public Quaternion SitTargetOrientation
         {
             get { return m_sitTargetOrientation; }
-            set
-            {
-                SetSitTargetOrientation(value);
-                UpdateBucketSyncInfo("SitTargetOrientation");
-                //m_sitTargetOrientation = value; 
-            }
+            set { m_sitTargetOrientation = value; }
         }
-        //SYMMETRIC SYNC
-        public void SetSitTargetOrientation(Quaternion value)
-        {
-            m_sitTargetOrientation = value; 
-        }
+
 
         public Vector3 SitTargetPosition
         {
             get { return m_sitTargetPosition; }
-            set
-            {
-                SetSitTargetPosition(value);
-                UpdateBucketSyncInfo("SitTargetPosition");
-                //m_sitTargetPosition = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetSitTargetPosition(Vector3 value)
-        {
-            m_sitTargetPosition = value;
+            set { m_sitTargetPosition = value; }
         }
 
         // This sort of sucks, but I'm adding these in to make some of
@@ -1592,17 +1128,7 @@ namespace OpenSim.Region.Framework.Scenes
         public Vector3 SitTargetPositionLL
         {
             get { return new Vector3(m_sitTargetPosition.X, m_sitTargetPosition.Y,m_sitTargetPosition.Z); }
-            set
-            {
-                SetSitTargetPosition(value);
-                UpdateBucketSyncInfo("SitTargetPositionLL");
-                //m_sitTargetPosition = value; 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetSitTargetPositionLL(Vector3 value)
-        {
-            m_sitTargetPosition = value;
+            set { m_sitTargetPosition = value; }
         }
 
         public Quaternion SitTargetOrientationLL
@@ -1617,17 +1143,7 @@ namespace OpenSim.Region.Framework.Scenes
                                         );
             }
 
-            set
-            {
-                SetSitTargetOrientation(new Quaternion(value.X, value.Y, value.Z, value.W));
-                UpdateBucketSyncInfo("SitTargetOrientationLL");
-                //m_sitTargetOrientation = new Quaternion(value.X, value.Y, value.Z, value.W);
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetSitTargetOrientationLL(Quaternion value)
-        {
-            m_sitTargetOrientation = value;
+            set { m_sitTargetOrientation = new Quaternion(value.X, value.Y, value.Z, value.W); }
         }
 
         public bool Stopped
@@ -1648,218 +1164,83 @@ namespace OpenSim.Region.Framework.Scenes
             get { return _parentID; }
             set { _parentID = value; }
         }
-        //SYMMETRIC SYNC: defined for consistency, for calling SetXXX in sync operations
-        public void SetParentID(uint value)
-        {
-            _parentID = value;
-        }
 
         public int CreationDate
         {
             get { return _creationDate; }
-            set
-            {
-                SetCreationDate(value);
-                UpdateBucketSyncInfo("CreationDate");
-                //_creationDate = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetCreationDate(int value)
-        {
-            _creationDate = value;
+            set { _creationDate = value; }
         }
 
         public uint Category
         {
             get { return _category; }
-            set
-            {
-                SetCategory(value);
-                UpdateBucketSyncInfo("Category");
-                //_category = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetCategory(uint value)
-        {
-            _category = value;
+            set { _category = value; }
         }
 
         public int SalePrice
         {
             get { return _salePrice; }
-            set
-            {
-                SetSalePrice(value);
-                UpdateBucketSyncInfo("SalePrice");
-                //_salePrice = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetSalePrice(int value)
-        {
-            _salePrice = value;
+            set { _salePrice = value; }
         }
 
         public byte ObjectSaleType
         {
             get { return _objectSaleType; }
-            set
-            {
-                SetObjectSaleType(value);
-                UpdateBucketSyncInfo("ObjectSaleType");
-                //_objectSaleType = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetObjectSaleType(byte value)
-        {
-            _objectSaleType = value;
+            set { _objectSaleType = value; }
         }
 
         public int OwnershipCost
         {
             get { return _ownershipCost; }
-            set
-            {
-                SetOwnershipCost(value);
-                UpdateBucketSyncInfo("OwnershipCost");
-               // _ownershipCost = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetOwnershipCost(int value)
-        {
-            _ownershipCost = value;
+            set { _ownershipCost = value; }
         }
 
         public UUID GroupID
         {
             get { return _groupID; }
-            set
-            {
-                SetGroupID(value);
-                UpdateBucketSyncInfo("GroupID");
-                //_groupID = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetGroupID(UUID value)
-        {
-            _groupID = value;
+            set { _groupID = value; }
         }
 
         public UUID OwnerID
         {
             get { return _ownerID; }
-            set
-            {
-                SetOwnerID(value);
-                UpdateBucketSyncInfo("OwnerID");
-               // _ownerID = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetOwnerID(UUID value)
-        {
-            _ownerID = value;
+            set { _ownerID = value; }
         }
 
         public UUID LastOwnerID
         {
             get { return _lastOwnerID; }
-            set
-            {
-                SetLastOwnerID(value);
-                UpdateBucketSyncInfo("LastOwnerID");
-                //_lastOwnerID = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetLastOwnerID(UUID value)
-        {
-            _lastOwnerID = value;
+            set { _lastOwnerID = value; }
         }
 
         public uint BaseMask
         {
             get { return _baseMask; }
-            set
-            {
-                SetBaseMask(value);
-                UpdateBucketSyncInfo("BaseMask");
-                //_baseMask = value; 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetBaseMask(uint value)
-        {
-            _baseMask = value; 
+            set { _baseMask = value; }
         }
 
         public uint OwnerMask
         {
             get { return _ownerMask; }
-            set
-            {
-                SetOwnerMask(value);
-                UpdateBucketSyncInfo("OwnerMask");
-                //_ownerMask = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetOwnerMask(uint value)
-        {
-            _ownerMask = value;
+            set { _ownerMask = value; }
         }
 
         public uint GroupMask
         {
             get { return _groupMask; }
-            set
-            {
-                SetGroupMask(value);
-                UpdateBucketSyncInfo("GroupMask");
-                //_groupMask = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetGroupMask(uint value)
-        {
-            _groupMask = value;
+            set { _groupMask = value; }
         }
 
         public uint EveryoneMask
         {
             get { return _everyoneMask; }
-            set
-            {
-                SetEveryoneMask(value);
-                UpdateBucketSyncInfo("EveryoneMask");
-                //_everyoneMask = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetEveryoneMask(uint value)
-        {
-            _everyoneMask = value;
+            set { _everyoneMask = value; }
         }
 
         public uint NextOwnerMask
         {
             get { return _nextOwnerMask; }
-            set
-            {
-                SetNextOwnerMask(value);
-                UpdateBucketSyncInfo("NextOwnerMask");
-                //_nextOwnerMask = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetNextOwnerMask(uint value)
-        {
-            _nextOwnerMask = value;
+            set { _nextOwnerMask = value; }
         }
 
         /// <summary>
@@ -1870,17 +1251,10 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return _flags; }
             set 
-            {
-                SetFlags(value);
-                UpdateBucketSyncInfo("Flags");
+            { 
 //                m_log.DebugFormat("[SOP]: Setting flags for {0} {1} to {2}", UUID, Name, value);
-                //_flags = value; 
+                _flags = value; 
             }
-        }
-        //SYMMETRIC SYNC
-        public void SetFlags(PrimFlags value)
-        {
-            _flags = value; 
         }
 
         
@@ -1930,35 +1304,15 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_collisionSound; }
             set
             {
-                SetCollisionSound(value);
-                UpdateBucketSyncInfo("CollisionSound");
-                //m_collisionSound = value;
+                m_collisionSound = value;
                 aggregateScriptEvents();
             }
         }
-        //SYMMETRIC SYNC
-        //CollisionSound is a special case. We won't call aggregateScriptEvents inside SetCollisionSound,
-        //so that when RegionSynModule triggers SOP.UpdateAllProperties, it calls SetCollisionSound
-        public void SetCollisionSound(UUID value)
-        {
-            m_collisionSound = value;
-        }
-
 
         public float CollisionSoundVolume
         {
             get { return m_collisionSoundVolume; }
-            set
-            {
-                SetCollisionSoundVolume(value);
-                UpdateBucketSyncInfo("CollisionSoundVolume");
-                //m_collisionSoundVolume = value;
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetCollisionSoundVolume(float value)
-        {
-            m_collisionSoundVolume = value;
+            set { m_collisionSoundVolume = value; }
         }
 
         #endregion Public Properties with only Get
@@ -2055,7 +1409,7 @@ namespace OpenSim.Region.Framework.Scenes
             });
             // REGION SYNC
             if (m_parentGroup.Scene.IsSyncedServer())
-                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate(this);
+                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate((SceneObjectPart)this);
         }
 
         /// <summary>
@@ -2063,21 +1417,17 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void AddFullUpdateToAvatar(ScenePresence presence)
         {
-            presence.SceneViewer.QueuePartForUpdate(this);
+            presence.SceneViewer.QueuePartForUpdate((SceneObjectPart)this);
         }
 
         public void AddNewParticleSystem(Primitive.ParticleSystem pSystem)
         {
-            //SYMMETRIC SYNC
-            //m_particleSystem = pSystem.GetBytes();
-            ParticleSystem = pSystem.GetBytes();
+            m_particleSystem = pSystem.GetBytes();
         }
 
         public void RemoveParticleSystem()
         {
-            //SYMMETRIC SYNC
-            //m_particleSystem = new byte[0];
-            ParticleSystem = new byte[0];
+            m_particleSystem = new byte[0];
         }
 
         /// Terse updates
@@ -2089,12 +1439,12 @@ namespace OpenSim.Region.Framework.Scenes
             });
             // REGION SYNC
             if (m_parentGroup.Scene.IsSyncedServer())
-                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate(this);
+                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate((SceneObjectPart)this);
         }
 
         public void AddTerseUpdateToAvatar(ScenePresence presence)
         {
-            presence.SceneViewer.QueuePartForUpdate(this);
+            presence.SceneViewer.QueuePartForUpdate((SceneObjectPart)this);
         }
 
         public void AddTextureAnimation(Primitive.TextureAnimation pTexAnim)
@@ -2114,9 +1464,7 @@ namespace OpenSim.Region.Framework.Scenes
             Utils.FloatToBytes(pTexAnim.Length).CopyTo(data, pos + 4);
             Utils.FloatToBytes(pTexAnim.Rate).CopyTo(data, pos + 8);
 
-            //m_TextureAnimation = data;
-            //SYMMETRIC SYNC
-            TextureAnimation = data;
+            m_TextureAnimation = data;
         }
 
         public void AdjustSoundGain(double volume)
@@ -2370,7 +1718,7 @@ namespace OpenSim.Region.Framework.Scenes
                 dupe.DoPhysicsPropertyUpdate(UsePhysics, true);
             }
             
-            ParentGroup.Scene.EventManager.TriggerOnSceneObjectPartCopy(dupe, this, userExposed);
+            ParentGroup.Scene.EventManager.TriggerOnSceneObjectPartCopy(dupe, (SceneObjectPart) this, userExposed);
 
 //            m_log.DebugFormat("[SCENE OBJECT PART]: Clone of {0} {1} finished", Name, UUID);
                           
@@ -3492,10 +2840,6 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             ScheduleFullUpdate();
-
-            //SYMMETRIC SYNC
-            //Make sure we record down the timestamp info for synchronization purpose
-            UpdateBucketSyncInfo("Scale");
         }
         
         public void RotLookAt(Quaternion target, float strength, float damping)
@@ -3652,10 +2996,7 @@ namespace OpenSim.Region.Framework.Scenes
                         // Tricks physics engine into thinking we've changed the part shape.
                         PrimitiveBaseShape m_newshape = m_shape.Copy();
                         PhysActor.Shape = m_newshape;
-
-                        //SYMMETRIC SYNC
-                        //m_shape = m_newshape;
-                        Shape = m_newshape;
+                        m_shape = m_newshape;
 
                         m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(PhysActor);
                     }
@@ -3824,7 +3165,7 @@ namespace OpenSim.Region.Framework.Scenes
             //SYMMETRIC SYNC
             if (m_parentGroup.Scene.RegionSyncModule == null)
                 return;
-            m_parentGroup.Scene.RegionSyncModule.QueueSceneObjectPartForUpdate(this);
+            m_parentGroup.Scene.RegionSyncModule.QueueSceneObjectPartForUpdate((SceneObjectPart)this);
             
             //end of SYMMETRIC SYNC
         }
@@ -3881,7 +3222,7 @@ namespace OpenSim.Region.Framework.Scenes
                             soundModule.TriggerSound(soundID, ownerID, objectID, parentID, volume, position, regionHandle, radius);
                         else
                             soundModule.PlayAttachedSound(soundID, ownerID, objectID, volume, position, flags, radius);
-                        ParentGroup.PlaySoundMasterPrim = this;
+                        ParentGroup.PlaySoundMasterPrim = (SceneObjectPart)this;
                         ownerID = _ownerID;
                         objectID = ParentGroup.RootPart.UUID;
                         parentID = GetRootPartUUID();
@@ -3908,7 +3249,7 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                     else
                     {
-                        ParentGroup.PlaySoundSlavePrims.Add(this);
+                        ParentGroup.PlaySoundSlavePrims.Add((SceneObjectPart)this);
                     }
                 }
                 else
@@ -4224,10 +3565,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void SetGroup(UUID groupID, IClientAPI client)
         {
-            //SYMMETRIC SYNC
-            //_groupID = groupID;
-            GroupID = groupID;
-
+            _groupID = groupID;
             if (client != null)
                 GetProperties(client);
             m_updateFlag = 2;
@@ -4289,9 +3627,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="text"></param>
         public void SetText(string text)
         {
-            //Text = text;
-            //SYMMETRIC SYNC: make set property calls consistent
-            m_text = text;
+            Text = text;
 
             ParentGroup.HasGroupChanged = true;
             ScheduleFullUpdate();
@@ -4342,14 +3678,14 @@ namespace OpenSim.Region.Framework.Scenes
                                 UndoState last = m_undo.Peek();
                                 if (last != null)
                                 {
-                                    if (last.Compare(this))
+                                    if (last.Compare((SceneObjectPart)this))
                                         return;
                                 }
                             }
 
                             if (m_parentGroup.GetSceneMaxUndo() > 0)
                             {
-                                UndoState nUndo = new UndoState(this);
+                                UndoState nUndo = new UndoState((SceneObjectPart)this);
 
                                 m_undo.Push(nUndo);
                             }
@@ -4802,7 +4138,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="xmlWriter"></param>
         public void ToXml(XmlTextWriter xmlWriter)
         {
-            SceneObjectSerializer.SOPToXml2(xmlWriter, this, new Dictionary<string, object>());
+            SceneObjectSerializer.SOPToXml2(xmlWriter, (SceneObjectPart)this, new Dictionary<string, object>());
         }
 
         public void TriggerScriptChangedEvent(Changed val)
@@ -4829,12 +4165,12 @@ namespace OpenSim.Region.Framework.Scenes
                     UndoState nUndo = null;
                     if (m_parentGroup.GetSceneMaxUndo() > 0)
                     {
-                        nUndo = new UndoState(this);
+                        nUndo = new UndoState((SceneObjectPart)this);
                     }
                     UndoState goback = m_undo.Pop();
                     if (goback != null)
                     {
-                        goback.PlaybackState(this);
+                        goback.PlaybackState((SceneObjectPart)this);
                         if (nUndo != null)
                             m_redo.Push(nUndo);
                     }
@@ -4848,13 +4184,13 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (m_parentGroup.GetSceneMaxUndo() > 0)
                 {
-                    UndoState nUndo = new UndoState(this);
+                    UndoState nUndo = new UndoState((SceneObjectPart)this);
 
                     m_undo.Push(nUndo);
                 }
                 UndoState gofwd = m_redo.Pop();
                 if (gofwd != null)
-                    gofwd.PlayfwdState(this);
+                    gofwd.PlayfwdState((SceneObjectPart)this);
             }
         }
 
@@ -4872,9 +4208,6 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             ScheduleFullUpdate();
-
-            //SYMMETRIC SYNC
-            UpdateBucketSyncInfo("Shape");
         }
 
         public void UpdateGroupPosition(Vector3 pos)
@@ -4938,36 +4271,24 @@ namespace OpenSim.Region.Framework.Scenes
                     case 1:
                         if (god)
                         {
-                            //SYMMETRIC SYNC
-                            //_baseMask = ApplyMask(_baseMask, set, mask);
-                            BaseMask = ApplyMask(_baseMask, set, mask);
+                            _baseMask = ApplyMask(_baseMask, set, mask);
                             Inventory.ApplyGodPermissions(_baseMask);
-                            
                         }
 
                         break;
                     case 2:
-                        //SYMMETRIC SYNC
-                        //_ownerMask = ApplyMask(_ownerMask, set, mask) &
-                        //        baseMask;
-                        OwnerMask = ApplyMask(_ownerMask, set, mask) & baseMask;
+                        _ownerMask = ApplyMask(_ownerMask, set, mask) &
+                                baseMask;
                         break;
                     case 4:
-                        //SYMMETRIC SYNC
-                        //_groupMask = ApplyMask(_groupMask, set, mask) &
-                        //        baseMask;
-                        GroupMask = ApplyMask(_groupMask, set, mask) &
+                        _groupMask = ApplyMask(_groupMask, set, mask) &
                                 baseMask;
                         break;
                     case 8:
-                        //SYMMETRIC SYNC
-                        //_everyoneMask = ApplyMask(_everyoneMask, set, mask) &
-                        //        baseMask;
-                        EveryoneMask = ApplyMask(_everyoneMask, set, mask) &
+                        _everyoneMask = ApplyMask(_everyoneMask, set, mask) &
                                 baseMask;
                         break;
                     case 16:
-                        //SYMMETRIC SYNC
                         _nextOwnerMask = ApplyMask(_nextOwnerMask, set, mask) &
                                 baseMask;
                         // Prevent the client from creating no mod, no copy
@@ -4975,9 +4296,7 @@ namespace OpenSim.Region.Framework.Scenes
                         if ((_nextOwnerMask & (uint)PermissionMask.Copy) == 0)
                             _nextOwnerMask |= (uint)PermissionMask.Transfer;
 
-                        //_nextOwnerMask |= (uint)PermissionMask.Move;
-                        NextOwnerMask = _nextOwnerMask | (uint)PermissionMask.Move;
-                        
+                        _nextOwnerMask |= (uint)PermissionMask.Move;
 
                         break;
                 }
@@ -5278,9 +4597,6 @@ namespace OpenSim.Region.Framework.Scenes
             ParentGroup.HasGroupChanged = true;
             TriggerScriptChangedEvent(Changed.SHAPE);
             ScheduleFullUpdate();
-
-            //SYMMETRIC SYNC
-            UpdateBucketSyncInfo("Shape");
         }
 
         /// <summary>
@@ -5328,9 +4644,6 @@ namespace OpenSim.Region.Framework.Scenes
             //ParentGroup.ScheduleGroupForFullUpdate();
             //This is sparta
             ScheduleFullUpdate();
-
-            //SYMMETRIC SYNC
-            UpdateBucketSyncInfo("Shape");
         }
 
         public void aggregateScriptEvents()
@@ -5639,7 +4952,6 @@ namespace OpenSim.Region.Framework.Scenes
         {
             m_lastUpdateTimeStamp = time;
         }
-         
 
         public void SetLastUpdateActorID()
         {
@@ -5653,19 +4965,17 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-
         private Object m_SyncInfoLock = new Object();
         public void SyncInfoUpdate(long timeStamp, string actorID)
         {
             //update timestamp and actorID atomically
-            
             lock (m_SyncInfoLock)
             {
                 UpdateTimestamp(timeStamp);
                 m_lastUpdateActorID = actorID;
             }
-             
         }
+       
 
         public void SyncInfoUpdate()
         {
@@ -5677,7 +4987,7 @@ namespace OpenSim.Region.Framework.Scenes
                 SyncInfoUpdate(DateTime.Now.Ticks, m_parentGroup.Scene.GetSyncActorID());
             }
         }
-         * */ 
+        */
 
         //The list of each prim's properties. This is the list of properties that matter in synchronizing prim copies on different actors.
         //This list is created based on properties included in the serialization/deserialization process (see SceneObjectSerializer()) and the 
@@ -5703,8 +5013,8 @@ namespace OpenSim.Region.Framework.Scenes
             "RotationOffset", 
             "Velocity", 
             "AngularVelocity", 
-            "Acceleration", //This is the property maintained in SOP. SOP and PA read/write their own local copies of acceleration, so we distinguish the copies
-            //"SOP_Acceleration",  //SOP and PA read/write their own local copies of acceleration, so we distinguish the copies
+            //"Acceleration", 
+            "SOP_Acceleration",  //SOP and PA read/write their own local copies of acceleration, so we distinguish the copies
             "Description", 
             "Color", 
             "Text", 
@@ -5734,7 +5044,6 @@ namespace OpenSim.Region.Framework.Scenes
             "EveryoneMask", 
             "NextOwnerMask", 
             "Flags", 
-            "LocalFlags",
             "CollisionSound", 
             "CollisionSoundVolume", 
             "MediaUrl", 
@@ -5756,12 +5065,12 @@ namespace OpenSim.Region.Framework.Scenes
         
 
         
-        /*
+
         private Object propertyUpdateLock = new Object();
 
+        /*
         //!!!!!! -- TODO: 
         //!!!!!! -- We should call UpdateXXX functions to update each property, cause some of such updates involves sanity checking.
-        
         public Scene.ObjectUpdateResult UpdateAllProperties(SceneObjectPart updatedPart)
         {
             ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -5884,32 +5193,18 @@ namespace OpenSim.Region.Framework.Scenes
 
             return partUpdateResult;
         }
-        
-         * */ 
-       
-
+         * */
 
         private bool UpdateCollisionSound(UUID updatedCollisionSound)
         {
             if (this.CollisionSound != updatedCollisionSound)
             {
-                //m_collisionSound = updatedCollisionSound;
-                SetCollisionSound(updatedCollisionSound);
+                m_collisionSound = updatedCollisionSound;
                 return true;
             }
             return false;
         }
 
-        public string DebugObjectPartProperties()
-        {
-            string debugMsg = "UUID " + UUID + ", Name " + Name + ", localID " + LocalId;
-            debugMsg += ", parentID " + ParentID + ", parentUUID " + ParentUUID;
-            foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
-            {
-                debugMsg += ", Bucket " + pair.Key + ": TimeStamp - " + pair.Value.LastUpdateTimeStamp + ", ActorID - " + pair.Value.LastUpdateActorID;
-            }
-            return debugMsg;
-        }
 
         /// <summary>
         /// Schedules this prim for a full update, without changing the timestamp or actorID (info on when and who modified any property).
@@ -5946,6 +5241,78 @@ namespace OpenSim.Region.Framework.Scenes
 
         }
 
+
+
+        #endregion 
+
+    }
+
+    //SYMMETRIC SYNC
+
+    //Information for concurrency control of one bucket of prim proproperties.
+    public class BucketSyncInfo
+    {
+        private long m_lastUpdateTimeStamp;
+        private string m_lastUpdateActorID;
+        //lock for concurrent updates of the timestamp and actorID.
+        private Object m_updateLock = new Object();
+        private string m_bucketName;
+
+        public long LastUpdateTimeStamp
+        {
+            get { return m_lastUpdateTimeStamp; }
+            set { m_lastUpdateTimeStamp = value; }
+        }
+
+        public string LastUpdateActorID
+        {
+            get { return m_lastUpdateActorID; }
+            set { m_lastUpdateActorID = value; }
+        }
+
+        public string BucketName
+        {
+            get { return m_bucketName; }
+        }
+
+        public BucketSyncInfo(string bucketName)
+        {
+            m_bucketName = bucketName;
+        }
+
+        public BucketSyncInfo(long timeStamp, string actorID, string bucketName)
+        {
+            m_lastUpdateTimeStamp = timeStamp;
+            m_lastUpdateActorID = actorID;
+            m_bucketName = bucketName;
+        }
+
+        public void UpdateSyncInfo(long timeStamp, string actorID)
+        {
+            lock (m_updateLock)
+            {
+                m_lastUpdateTimeStamp = timeStamp;
+                m_lastUpdateActorID = actorID;
+            }
+        }
+
+    }
+
+
+    public class SceneObjectPart : SceneObjectPartBase
+    {
+        public SceneObjectPart()
+            : base()
+        {
+        }
+
+        public SceneObjectPart(
+    UUID ownerID, PrimitiveBaseShape shape, Vector3 groupPosition,
+    Quaternion rotationOffset, Vector3 offsetPosition)
+            : base(ownerID, shape, groupPosition, rotationOffset, offsetPosition)
+        {
+        }
+
         //The following variables should be initialized when this SceneObjectPart is added into the local Scene.
         //private List<BucketSyncInfo> SynchronizeUpdatesToScene = null;
         //public List<BucketSyncInfo> BucketSyncInfoList
@@ -5975,7 +5342,7 @@ namespace OpenSim.Region.Framework.Scenes
         //property set functions will be called and might trigger UpdateBucketSyncInfo() if not guarded carefully.
         private bool m_syncEnabled = false;
 
-        public static void InitializeBucketInfo(Dictionary<string, string> propertyBucketMap, List<string> bucketNames, string actorID)
+        public static void InitializePropertyBucketInfo(Dictionary<string, string> propertyBucketMap, List<string> bucketNames, string actorID)
         {
             m_primPropertyBucketMap = propertyBucketMap;
             m_propertyBucketNames = bucketNames;
@@ -5985,6 +5352,17 @@ namespace OpenSim.Region.Framework.Scenes
             //RegisterBucketUpdateProcessor();
         }
 
+        public string DebugObjectPartProperties()
+        {
+            string debugMsg = "UUID " + UUID + ", Name " + Name + ", localID " + LocalId;
+            debugMsg += ", parentID " + ParentID + ", parentUUID " + ParentUUID;
+            foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
+            {
+                debugMsg += ", Bucket " + pair.Key + ": TimeStamp - " + pair.Value.LastUpdateTimeStamp + ", ActorID - " + pair.Value.LastUpdateActorID;
+            }
+            return debugMsg;
+        }
+
         /// <summary>
         /// Link each bucket with the function that applies updates to properties in the bucket upon receiving sync messages. 
         /// This is the "hard-coded" part in the property-buckets implementation. When new buckets are implemented, 
@@ -5992,7 +5370,6 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         //private static void RegisterBucketUpdateProcessor()
         private void RegisterBucketUpdateProcessor()
-
         {
             foreach (string bucketName in m_propertyBucketNames)
             {
@@ -6015,66 +5392,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             lock (m_bucketUpdateLocks[bucketName])
             {
-                SetAllowedDrop(updatedPart.AllowedDrop);
-                SetCreatorID(updatedPart.CreatorID);
-                SetCreatorData(updatedPart.CreatorData);
-                //FolderID skipped
-                SetInventorySerial(updatedPart.InventorySerial);
-                SetTaskInventory(updatedPart.TaskInventory);
-                //UUID skipped
-                //LocalId skipped
-                SetName(updatedPart.Name);
-                SetMaterial(updatedPart.Material);
-                SetPassTouches(updatedPart.PassTouches);
-                //RegionHandle skipped
-                SetScriptAccessPin(updatedPart.ScriptAccessPin);
-                SetAcceleration(updatedPart.Acceleration);
-                SetDescription(updatedPart.Description);
-                SetColor(updatedPart.Color);
-                SetText(updatedPart.Text);
-                SetSitName(updatedPart.SitName);
-                SetTouchName(updatedPart.TouchName);
-                SetLinkNum(updatedPart.LinkNum);
-                SetClickAction(updatedPart.ClickAction);
-                SetShape(updatedPart.Shape);
-                //UpdateFlag skipped: It's a flag meanful locally, especially in scheduling updates to viewers. 
-                //Only in one place will it cause updating some "last" variables (see SendScheduledUpdates).
-                SetSitTargetOrientation(updatedPart.SitTargetOrientation);
-                SetSitTargetPosition(updatedPart.SitTargetPosition);
-                SetSitTargetPositionLL(updatedPart.SitTargetPositionLL);
-                SetSitTargetOrientationLL(updatedPart.SitTargetOrientationLL);
-                //ParentID skipped, the value is assigned locally and only meaningful locally (LinkObjects and LinkObjectsBySync will set it appropriately)\
-                SetCreationDate(updatedPart.CreationDate);
-                SetCategory(updatedPart.Category);
-                SetSalePrice(updatedPart.SalePrice);
-                SetObjectSaleType(updatedPart.ObjectSaleType);
-                SetOwnershipCost(updatedPart.OwnershipCost);
-                SetGroupID(updatedPart.GroupID);
-                SetOwnerID(updatedPart.OwnerID);
-                SetLastOwnerID(updatedPart.LastOwnerID);
-                SetBaseMask(updatedPart.BaseMask);
-                SetOwnerMask(updatedPart.OwnerMask);
-                SetGroupMask(updatedPart.GroupMask);
-                SetEveryoneMask(updatedPart.EveryoneMask);
-                SetNextOwnerMask(updatedPart.NextOwnerMask);
-                SetFlags(updatedPart.Flags);
-                //Treat CollisionSound in a different way, so that if any property needs to be changed due to aggregateScriptEvents(), timestamp can be updated after
-                //the current copying-property-values-from-remote-sync-message is done.
-                bool collisionSoundUpdated = UpdateCollisionSound(updatedPart.CollisionSound);
-                SetCollisionSoundVolume(updatedPart.CollisionSoundVolume);
-                SetMediaUrl(updatedPart.MediaUrl);
-                SetTextureAnimation(updatedPart.TextureAnimation);
-                SetParticleSystem(updatedPart.ParticleSystem);
-                
 
-                m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
-                m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
-
-                if (collisionSoundUpdated)
-                {
-                    //If the local actor is Script Engine, it will catch this evnet and trigger aggregateScriptEvents()
-                    m_parentGroup.Scene.EventManager.TriggerAggregateScriptEvents(this);
-                }
             }
         }
 
@@ -6082,29 +5400,6 @@ namespace OpenSim.Region.Framework.Scenes
         {
             lock (m_bucketUpdateLocks[bucketName])
             {
-                SetGroupPosition(updatedPart.GroupPosition);
-                SetOffsetPosition(updatedPart.OffsetPosition);
-                SetScale(updatedPart.Scale);
-                SetVelocity(updatedPart.Velocity);
-                SetAngularVelocity(updatedPart.AngularVelocity);
-                SetRotationOffset(updatedPart.RotationOffset);
-
-                //properties in Physics bucket whose update processors are in PhysicsActor
-                /*
-                    "Position":
-                    "Size":
-                    "Force":
-                    "RotationalVelocity":
-                    "PA_Acceleration":
-                    "Torque":
-                    "Orientation":
-                    "IsPhysical":
-                    "Flying":
-                    "Buoyancy":
-                 * */
-
-                m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
-                m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
             }
         }
 
@@ -6154,7 +5449,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="propertyName">Name of the property. Make sure the spelling is consistent with what are defined in PropertyList</param>
         public void UpdateBucketSyncInfo(string propertyName)
         {
-            if (m_syncEnabled && m_bucketSyncInfoList != null && m_bucketSyncInfoList.Count>0)
+            if (m_syncEnabled && m_bucketSyncInfoList != null && m_bucketSyncInfoList.Count > 0)
             {
                 //int bucketIndex = m_primPropertyBucketMap[propertyName];
                 string bucketName = m_primPropertyBucketMap[propertyName];
@@ -6170,7 +5465,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        
+
 
         public Scene.ObjectUpdateResult UpdateAllProperties(SceneObjectPart updatedPart)
         {
@@ -6222,16 +5517,26 @@ namespace OpenSim.Region.Framework.Scenes
                     m_log.Warn("No update processor for property bucket " + bucketName);
                 }
 
-                
+
             }
 
             return partUpdateResult;
 
         }
-        
-        //private void UpdateBucketProperties(string bucketDescription, 
 
-        #endregion 
+        public void SetProperty(string pName, object value)
+        {
+            switch (pName)
+            {
+                case "LinkNum":
+                    base.LinkNum = (int)value;
+                    break;
+                default:
+                    break;
+            }
+        }
 
     }
+
+    //end of SYMMETRIC SYNC
 }

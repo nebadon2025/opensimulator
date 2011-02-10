@@ -294,11 +294,12 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_rootPart.GroupPosition; }
             set
             {
+                /*
                 SetAbsolutePosition(value);
                 SceneObjectPart[] parts = m_parts.GetArray();
                 for (int i = 0; i < parts.Length; i++)
                     parts[i].UpdateBucketSyncInfo("GroupPosition");
-                /*
+                */ 
                 Vector3 val = value;
 
                 //REGION SYNC touched
@@ -333,7 +334,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //m_rootPart.GroupPosition.Z);
                 //m_scene.PhysicsScene.AddPhysicsActorTaint(m_rootPart.PhysActor);
                 //}
-                 * */ 
+                 
             }
         }
         public void SetAbsolutePosition(Vector3 value)
@@ -364,8 +365,8 @@ namespace OpenSim.Region.Framework.Scenes
             SceneObjectPart[] parts = m_parts.GetArray();
             for (int i = 0; i < parts.Length; i++)
             {
-                //parts[i].GroupPosition = val;
-                parts[i].SetGroupPosition(val);
+                parts[i].GroupPosition = val;
+                //parts[i].SetGroupPosition(val);
             }
         }
 
@@ -3749,12 +3750,13 @@ namespace OpenSim.Region.Framework.Scenes
         //!!!!!!!!!!!!!!!!!!NOTE!!!!!!!!!!!!!!!
         //All SOP properties below is set through calling SetXXX(value) instead of by "XXX=value", as such a value is being changed due to sync (
         //i.e. triggered by remote operation instead of by local operation
-        public  SceneObjectGroup DelinkFromGroupBySync(SceneObjectPart linkPart, bool sendEvents)
+        public SceneObjectGroup DelinkFromGroupBySync(SceneObjectPart delinkPart, bool sendEvents)
         {
-//                m_log.DebugFormat(
-//                    "[SCENE OBJECT GROUP]: Delinking part {0}, {1} from group with root part {2}, {3}",
-//                    linkPart.Name, linkPart.UUID, RootPart.Name, RootPart.UUID);
-            
+            //                m_log.DebugFormat(
+            //                    "[SCENE OBJECT GROUP]: Delinking part {0}, {1} from group with root part {2}, {3}",
+            //                    linkPart.Name, linkPart.UUID, RootPart.Name, RootPart.UUID);
+
+            SceneObjectPartBase linkPart = (SceneObjectPartBase)delinkPart;
             linkPart.ClearUndoState();
 
             Quaternion worldRot = linkPart.GetWorldRotation();
@@ -3770,27 +3772,27 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     // Single prim left
                     //RootPart.LinkNum = 0;
-                    RootPart.SetLinkNum(0);
+                    //RootPart.SetProperty("LinkNum", 0);
+                    ((SceneObjectPartBase)RootPart).LinkNum = 0;
                 }
                 else
                 {
                     for (int i = 0; i < parts.Length; i++)
                     {
-                        SceneObjectPart part = parts[i];
+                        SceneObjectPartBase part = (SceneObjectPartBase)parts[i];
                         if (part.LinkNum > linkPart.LinkNum)
                         {
-                            //part.LinkNum--;
-                            int linkNum = part.LinkNum - 1;
-                            part.SetLinkNum(linkNum);
+                            part.LinkNum--;
+                            //int linkNum = part.LinkNum - 1;
+                            //part.SetProperty("LinkNum", linkNum);
                         }
                     }
                 }
             }
 
-            //linkPart.ParentID = 0;
-            //linkPart.LinkNum = 0;
-            linkPart.SetParentID(0);
-            linkPart.SetLinkNum(0);
+            linkPart.ParentID = 0; //ParentID is a value set only locally and ignored in synchronization, so no need to call SetProperty to set its value
+            linkPart.LinkNum = 0;
+            //linkPart.SetParentID(0);
 
             if (linkPart.PhysActor != null)
             {
@@ -3804,19 +3806,23 @@ namespace OpenSim.Region.Framework.Scenes
             Vector3 axPos = linkPart.OffsetPosition;
 
             axPos *= parentRot;
-            //linkPart.OffsetPosition = new Vector3(axPos.X, axPos.Y, axPos.Z);
-            //linkPart.GroupPosition = AbsolutePosition + linkPart.OffsetPosition;
-            //linkPart.OffsetPosition = new Vector3(0, 0, 0);
-            //linkPart.RotationOffset = worldRot;
+            linkPart.OffsetPosition = new Vector3(axPos.X, axPos.Y, axPos.Z);
+            linkPart.GroupPosition = AbsolutePosition + linkPart.OffsetPosition;
+            linkPart.OffsetPosition = new Vector3(0, 0, 0);
+            linkPart.RotationOffset = worldRot;
 
-            linkPart.SetOffsetPosition(new Vector3(axPos.X, axPos.Y, axPos.Z));
-            linkPart.SetGroupPosition(AbsolutePosition + linkPart.OffsetPosition);
-            linkPart.SetOffsetPosition(new Vector3(0, 0, 0));
-            linkPart.SetRotationOffset(worldRot);
+            //linkPart.SetOffsetPosition(new Vector3(axPos.X, axPos.Y, axPos.Z));
+            //linkPart.SetGroupPosition(AbsolutePosition + linkPart.OffsetPosition);
+            //linkPart.SetOffsetPosition(new Vector3(0, 0, 0));
+            //linkPart.SetRotationOffset(worldRot);
+            //linkPart.SetProperty("OffsetPosition", new Vector3(axPos.X, axPos.Y, axPos.Z));
+            //linkPart.SetProperty("GroupPosition", AbsolutePosition + linkPart.OffsetPosition);
+            //linkPart.SetProperty("OffsetPosition", new Vector3(0, 0, 0));
+            //linkPart.SetProperty("RotationOffset", worldRot);
 
             //SceneObjectGroup objectGroup = new SceneObjectGroup(linkPart);
             bool newGroupBySync = true;
-            SceneObjectGroup objectGroup = new SceneObjectGroup(linkPart, newGroupBySync);
+            SceneObjectGroup objectGroup = new SceneObjectGroup(delinkPart, newGroupBySync);
 
             m_scene.AddNewSceneObjectBySync(objectGroup, true);
 
@@ -3833,7 +3839,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Set a part to act as the root part for this scene object, in which SetLinkNum() is called instead of "LinkNum=".
+        /// Set a part to act as the root part for this scene object, in which SetProperty("LinkNum",) is called instead of "LinkNum=".
         /// </summary>
         /// <param name="part"></param>
         public void SetRootPartBySync(SceneObjectPart part)
@@ -3845,7 +3851,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_rootPart = part;
             if (!IsAttachment)
                 part.ParentID = 0;
-            part.SetLinkNum(0);
+            part.SetProperty("LinkNum", 0);
 
             m_parts.Add(m_rootPart.UUID, m_rootPart);
         }
@@ -3872,36 +3878,40 @@ namespace OpenSim.Region.Framework.Scenes
         public void LinkToGroupBySync(SceneObjectGroup objectGroup)
         {
 
-            SceneObjectPart linkPart = objectGroup.m_rootPart;
-
+            SceneObjectPartBase linkPart = (SceneObjectPartBase)objectGroup.m_rootPart;
+            
             Vector3 oldGroupPosition = linkPart.GroupPosition;
             Quaternion oldRootRotation = linkPart.RotationOffset;
 
-            //linkPart.OffsetPosition = linkPart.GroupPosition - AbsolutePosition;
-            //linkPart.GroupPosition = AbsolutePosition;
-            linkPart.SetOffsetPosition(linkPart.GroupPosition - AbsolutePosition);
-            linkPart.SetGroupPosition(AbsolutePosition);
+            linkPart.OffsetPosition = linkPart.GroupPosition - AbsolutePosition;
+            linkPart.GroupPosition = AbsolutePosition;
+            //linkPart.SetOffsetPosition(linkPart.GroupPosition - AbsolutePosition);
+            //linkPart.SetGroupPosition(AbsolutePosition);
+            //linkPart.SetProperty("OffsetPosition", linkPart.GroupPosition - AbsolutePosition);
+            //linkPart.SetProperty("GroupPosition", AbsolutePosition);
             Vector3 axPos = linkPart.OffsetPosition;
 
             Quaternion parentRot = m_rootPart.RotationOffset;
             axPos *= Quaternion.Inverse(parentRot);
 
-            //linkPart.OffsetPosition = axPos;
-            linkPart.SetOffsetPosition(axPos);
+            linkPart.OffsetPosition = axPos;
+            //linkPart.SetOffsetPosition(axPos);
+            //linkPart.SetProperty("OffsetPosition", axPos);
             Quaternion oldRot = linkPart.RotationOffset;
             Quaternion newRot = Quaternion.Inverse(parentRot) * oldRot;
-            //linkPart.RotationOffset = newRot;
-            linkPart.SetRotationOffset(newRot);
+            linkPart.RotationOffset = newRot;
+            //linkPart.SetRotationOffset(newRot);
+            //linkPart.SetProperty("RotationOffset", newRot);
 
             //ParentID is only valid locally, so remote value is ignored and no syncinfo will be modified
             linkPart.ParentID = m_rootPart.LocalId;
             if (m_rootPart.LinkNum == 0)
-                //m_rootPart.LinkNum = 1;
-                m_rootPart.SetLinkNum(1);
+                ((SceneObjectPartBase)m_rootPart).LinkNum = 1;
+                //m_rootPart.SetProperty("LinkNum",1);
 
             lock (m_parts.SyncRoot)
             {
-                m_parts.Add(linkPart.UUID, linkPart);
+                m_parts.Add(linkPart.UUID, (SceneObjectPart) linkPart);
 
                 // Insert in terms of link numbers, the new links
                 // before the current ones (with the exception of 
@@ -3909,17 +3919,17 @@ namespace OpenSim.Region.Framework.Scenes
                 SceneObjectPart[] parts = m_parts.GetArray();
                 for (int i = 0; i < parts.Length; i++)
                 {
-                    SceneObjectPart part = parts[i];
+                    SceneObjectPartBase part = (SceneObjectPartBase)parts[i];
                     if (part.LinkNum != 1)
                     {
                         // Don't update root prim link number
-                        //part.LinkNum += objectGroup.PrimCount;
-                        part.SetLinkNum(objectGroup.PrimCount);
+                        part.LinkNum += objectGroup.PrimCount;
+                        //part.SetProperty("LinkNum",objectGroup.PrimCount);
                     }
                 }
 
-                //linkPart.LinkNum = 2;
-                linkPart.SetLinkNum(2);
+                linkPart.LinkNum = 2;
+                //linkPart.SetProperty("LinkNum",2);
 
                 linkPart.SetParent(this);
                 linkPart.CreateSelected = true;
@@ -3963,49 +3973,57 @@ namespace OpenSim.Region.Framework.Scenes
 
         }
 
-        private void LinkNonRootPartBySync(SceneObjectPart part, Vector3 oldGroupPosition, Quaternion oldGroupRotation, int linkNum)
+        private void LinkNonRootPartBySync(SceneObjectPart linkPart, Vector3 oldGroupPosition, Quaternion oldGroupRotation, int linkNum)
         {
             Quaternion parentRot = oldGroupRotation;
-            Quaternion oldRot = part.RotationOffset;
+            Quaternion oldRot = linkPart.RotationOffset;
             Quaternion worldRot = parentRot * oldRot;
 
             parentRot = oldGroupRotation;
 
-            Vector3 axPos = part.OffsetPosition;
+            Vector3 axPos = linkPart.OffsetPosition;
 
+            SceneObjectPartBase part = (SceneObjectPartBase)linkPart;
             axPos *= parentRot;
-            //part.OffsetPosition = axPos;
-            //part.GroupPosition = oldGroupPosition + part.OffsetPosition;
-            //part.OffsetPosition = Vector3.Zero;
-            //part.RotationOffset = worldRot;
-            part.SetOffsetPosition(axPos);
-            part.SetGroupPosition(oldGroupPosition + part.OffsetPosition);
-            part.SetOffsetPosition(Vector3.Zero);
-            part.SetRotationOffset(worldRot);
+            part.OffsetPosition = axPos;
+            part.GroupPosition = oldGroupPosition + part.OffsetPosition;
+            part.OffsetPosition = Vector3.Zero;
+            part.RotationOffset = worldRot;
+            //part.SetOffsetPosition(axPos);
+            //part.SetGroupPosition(oldGroupPosition + part.OffsetPosition);
+            //part.SetOffsetPosition(Vector3.Zero);
+            //part.SetRotationOffset(worldRot);
+            //part.SetProperty("OffsetPosition", axPos);
+            //part.SetProperty("GroupPosition", oldGroupPosition + part.OffsetPosition);
+            //part.SetProperty("OffsetPosition", Vector3.Zero);
+            //part.SetProperty("RotationOffset", worldRot);
 
             part.SetParent(this);
             part.ParentID = m_rootPart.LocalId;
 
-            m_parts.Add(part.UUID, part);
+            m_parts.Add(part.UUID, linkPart);
 
-            //part.LinkNum = linkNum;
-            part.SetLinkNum(linkNum);
+            part.LinkNum = linkNum;
+            //part.SetProperty("LinkNum",linkNum);
 
-            //part.OffsetPosition = part.GroupPosition - AbsolutePosition;
-            part.SetOffsetPosition(part.GroupPosition - AbsolutePosition);
+            part.OffsetPosition = part.GroupPosition - AbsolutePosition;
+            //part.SetOffsetPosition(part.GroupPosition - AbsolutePosition);
+            //part.SetProperty("OffsetPosition", part.GroupPosition - AbsolutePosition);
 
             Quaternion rootRotation = m_rootPart.RotationOffset;
 
             Vector3 pos = part.OffsetPosition;
             pos *= Quaternion.Inverse(rootRotation);
-            //part.OffsetPosition = pos;
-            part.SetOffsetPosition(pos);
+            part.OffsetPosition = pos;
+            //part.SetOffsetPosition(pos);
+            //part.SetProperty("OffsetPosition", pos);
 
             parentRot = m_rootPart.RotationOffset;
             oldRot = part.RotationOffset;
             Quaternion newRot = Quaternion.Inverse(parentRot) * oldRot;
-            //part.RotationOffset = newRot;
-            part.SetRotationOffset(newRot);
+            part.RotationOffset = newRot;
+            //part.SetRotationOffset(newRot);
+            //part.SetProperty("RotationOffset", newRot);
         }
 
 

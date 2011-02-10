@@ -41,7 +41,8 @@ using OpenSim.Region.Framework.Scenes.Serialization;
 
 namespace OpenSim.Region.Framework.Scenes
 {
-    public class SceneObjectPartInventory : IEntityInventory
+    //public class SceneObjectPartInventory : IEntityInventory
+    public class SceneObjectPartInventoryBase : IEntityInventory
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -52,7 +53,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <value>
         /// The part to which the inventory belongs.
         /// </value>
-        private SceneObjectPart m_part;
+        //private SceneObjectPart m_part;
+        private SceneObjectPartBase m_part;
 
         /// <summary>
         /// Serial count for inventory file , used to tell if inventory has changed
@@ -76,19 +78,7 @@ namespace OpenSim.Region.Framework.Scenes
         protected internal uint Serial
         {
             get { return m_inventorySerial; }
-            set
-            {
-                SetSerial(value);
-                m_part.UpdateBucketSyncInfo("InventorySerial");
-                //m_inventorySerial = value;
-            }
-        }
-
-        //SYMMETRIC SYNC
-        public void SetSerial(uint value)
-        {
-            m_inventorySerial = value;
-            
+            set { m_inventorySerial = value; }
         }
 
         /// <value>
@@ -99,20 +89,9 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_items; }
             set
             {
-                SetItems(value);
+                m_items = value;
                 m_inventorySerial++;
-                m_part.UpdateBucketSyncInfo("TaskInventory");
-                m_part.UpdateBucketSyncInfo("InventorySerial");
-                //m_items = value;
-                //m_inventorySerial++;
             }
-        }
-        //SYMMETRIC SYNC
-        //This is inparticular for updating properties
-        public void SetItems(TaskInventoryDictionary value)
-        {
-            m_items = value;
-            //m_inventorySerial++;
         }
         
         /// <summary>
@@ -121,7 +100,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="part">
         /// A <see cref="SceneObjectPart"/>
         /// </param>
-        public SceneObjectPartInventory(SceneObjectPart part)
+        //public SceneObjectPartInventory(SceneObjectPart part)
+        public SceneObjectPartInventoryBase(SceneObjectPartBase part)
         {
             m_part = part;
         }
@@ -159,10 +139,6 @@ namespace OpenSim.Region.Framework.Scenes
                     item.ResetIDs(m_part.UUID);
                     m_items.Add(item.ItemID, item);
                 }
-
-                //SYMMETRIC SYNC
-                //No need to trigger UpdateBucketSyncInfo, as callers eventually will call SOG.AttachToScene and init BucketSyncInfo
-
             }
         }
 
@@ -179,9 +155,6 @@ namespace OpenSim.Region.Framework.Scenes
                     item.ParentID = m_part.UUID;
                     Items.Add(item.ItemID, item);
                 }
-
-                //SYMMETRIC SYNC
-                //No need to trigger UpdateBucketSyncInfo, this is called only when SOP.UUID is written, which is assumed not to change after being created.
             }
         }
 
@@ -212,9 +185,6 @@ namespace OpenSim.Region.Framework.Scenes
                     item.PermsGranter = UUID.Zero;
                 }
             }
-
-            //SYMMETRIC SYNC
-            m_part.UpdateBucketSyncInfo("TaskInventory");
         }
 
         /// <summary>
@@ -246,12 +216,6 @@ namespace OpenSim.Region.Framework.Scenes
                 if (groupID != item.GroupID)
                     item.GroupID = groupID;
             }
-
-            //SYMMETRIC SYNC: need to test if we need to take different actions when this is attachment or not
-            //if (!m_part.ParentGroup.RootPart.IsAttachment)
-            //{
-            m_part.UpdateBucketSyncInfo("TaskInventory");
-
         }
 
         /// <summary>
@@ -582,11 +546,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_part.ParentGroup.HasGroupChanged = true;
 
             //SYMMETRIC SYNC: add ScheduleFullUpdate to enable synchronization across actors
-            //m_part.ScheduleFullUpdate();
-
-            //SYMMETRIC SYNC
-            m_part.UpdateBucketSyncInfo("TaskInventory");
-            m_part.UpdateBucketSyncInfo("InventorySerial"); //m_inventorySerial is also changed,
+            m_part.ScheduleFullUpdate();
         }
 
         /// <summary>
@@ -607,9 +567,6 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 m_inventorySerial++;
             }
-
-            //SYMMETRIC SYNC: no UpdateBucketSyncInfo called here, since this function is called by loading objects from DB, and UpdateBucketSyncInfo
-            //will be called after all objects are loaded.
         }
 
         /// <summary>
@@ -768,10 +725,6 @@ namespace OpenSim.Region.Framework.Scenes
                     HasInventoryChanged = true;
                     m_part.ParentGroup.HasGroupChanged = true;
                 }
-
-                //SYMMETRIC SYNC
-                m_part.UpdateBucketSyncInfo("TaskInventory");
-                m_part.UpdateBucketSyncInfo("InventorySerial");
                 return true;
             }
             else
@@ -814,10 +767,6 @@ namespace OpenSim.Region.Framework.Scenes
                     m_part.RemFlag(PrimFlags.Scripted);
 
                 m_part.ScheduleFullUpdate();
-
-                //SYMMETRIC SYNC
-                m_part.UpdateBucketSyncInfo("TaskInventory");
-                m_part.UpdateBucketSyncInfo("InventorySerial"); 
 
                 return type;
                 
@@ -1073,9 +1022,6 @@ namespace OpenSim.Region.Framework.Scenes
                     item.OwnerChanged = true;
                     item.PermsMask = 0;
                     item.PermsGranter = UUID.Zero;
-
-                    //SYMMETRIC SYNC
-                    m_part.UpdateBucketSyncInfo("TaskInventory");
                 }
             }
         }
@@ -1092,10 +1038,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
             m_inventorySerial++;
             HasInventoryChanged = true;
-
-            //SYMMETRIC SYNC
-            m_part.UpdateBucketSyncInfo("TaskInventory");
-            m_part.UpdateBucketSyncInfo("InventorySerial"); 
         }
 
         public bool ContainsScripts()
@@ -1233,4 +1175,25 @@ namespace OpenSim.Region.Framework.Scenes
         }
         #endregion REGION SYNC
     }
+
+    #region SYMMETRIC SYNC
+    public class SceneObjectPartInventory : SceneObjectPartInventoryBase
+    {
+        private SceneObjectPart m_part;
+        public SceneObjectPartInventory(SceneObjectPart part):base((SceneObjectPartBase) part)
+        {
+            m_part = part;
+        }
+
+        new protected internal uint Serial
+        {
+            get { return base.Serial; }
+            set
+            {
+                base.Serial = value;
+                //m_part.UpdateBucketSyncInfo("InventorySerial");
+            }
+        }
+    }
+    #endregion 
 }

@@ -211,7 +211,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             PupolatePropertyBuketMapByDefault();
 
             //Pass the bucket information to SceneObjectPart.
-            SceneObjectPart.InitializeBucketInfo(m_primPropertyBucketMap, m_propertyBucketDescription, m_actorID);
+            SceneObjectPart.InitializePropertyBucketInfo(m_primPropertyBucketMap, m_propertyBucketDescription, m_actorID);
 
         }
 

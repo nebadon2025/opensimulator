@@ -3851,7 +3851,8 @@ namespace OpenSim.Region.Framework.Scenes
             m_rootPart = part;
             if (!IsAttachment)
                 part.ParentID = 0;
-            part.SetProperty("LinkNum", 0);
+//            part.SetProperty("LinkNum", 0);
+            ((SceneObjectPartBase)part).LinkNum = 0;
 
             m_parts.Add(m_rootPart.UUID, m_rootPart);
         }

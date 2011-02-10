@@ -352,7 +352,7 @@ namespace OpenSim.Region.Framework.Scenes
         private bool m_forceMouselook;
 
         // TODO: Collision sound should have default.
-        private UUID m_collisionSound;
+        protected UUID m_collisionSound;
         private float m_collisionSoundVolume;
 
         #endregion Fields
@@ -4938,273 +4938,6 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_lastUpdateTimeStamp = value; }
         }
 
-        //The ID the identifies which actor has caused the most recent update to the prim.
-        //We use type "string" for the ID only to make it human-readable. 
-        /*
-        private string m_lastUpdateActorID="";
-        public string LastUpdateActorID
-        {
-            get { return m_lastUpdateActorID; }
-            set { m_lastUpdateActorID = value; }
-        }
-
-        public void UpdateTimestamp(long time)
-        {
-            m_lastUpdateTimeStamp = time;
-        }
-
-        public void SetLastUpdateActorID()
-        {
-            if (m_parentGroup != null)
-            {
-                m_lastUpdateActorID = m_parentGroup.Scene.GetSyncActorID();
-            }
-            else
-            {
-                m_log.Error("Prim " + UUID + " is not in a SceneObjectGroup yet");
-            }
-        }
-
-        private Object m_SyncInfoLock = new Object();
-        public void SyncInfoUpdate(long timeStamp, string actorID)
-        {
-            //update timestamp and actorID atomically
-            lock (m_SyncInfoLock)
-            {
-                UpdateTimestamp(timeStamp);
-                m_lastUpdateActorID = actorID;
-            }
-        }
-       
-
-        public void SyncInfoUpdate()
-        {
-            //Trick: calling UpdateTimestamp here makes sure that when an object was received and de-serialized, before
-            //       its parts are linked together, neither TimeStamp or ActorID will be modified. This is because during de-serialization, 
-            //       ScheduleFullUpdate() is called when m_parentGroup == null
-            if (m_parentGroup != null && m_parentGroup.Scene != null && m_parentGroup.Scene.ActorSyncModule != null)
-            {
-                SyncInfoUpdate(DateTime.Now.Ticks, m_parentGroup.Scene.GetSyncActorID());
-            }
-        }
-        */
-
-        //The list of each prim's properties. This is the list of properties that matter in synchronizing prim copies on different actors.
-        //This list is created based on properties included in the serialization/deserialization process (see SceneObjectSerializer()) and the 
-        //properties Physics Engine needs to synchronize to other actors.
-        public static List<string> PropertyList = new List<string>()
-        {
-            //Following properties copied from SceneObjectSerializer()
-            "AllowedDrop", 
-            "CreatorID", 
-            "CreatorData", 
-            "FolderID", 
-            "InventorySerial", 
-            "TaskInventory", 
-            "UUID", 
-            "LocalId", 
-            "Name", 
-            "Material", 
-            "PassTouches", 
-            "RegionHandle", 
-            "ScriptAccessPin", 
-            "GroupPosition", 
-            "OffsetPosition", 
-            "RotationOffset", 
-            "Velocity", 
-            "AngularVelocity", 
-            //"Acceleration", 
-            "SOP_Acceleration",  //SOP and PA read/write their own local copies of acceleration, so we distinguish the copies
-            "Description", 
-            "Color", 
-            "Text", 
-            "SitName", 
-            "TouchName", 
-            "LinkNum", 
-            "ClickAction", 
-            "Shape", 
-            "Scale", 
-            "UpdateFlag", 
-            "SitTargetOrientation", 
-            "SitTargetPosition", 
-            "SitTargetPositionLL", 
-            "SitTargetOrientationLL", 
-            "ParentID", 
-            "CreationDate", 
-            "Category", 
-            "SalePrice", 
-            "ObjectSaleType", 
-            "OwnershipCost", 
-            "GroupID", 
-            "OwnerID", 
-            "LastOwnerID", 
-            "BaseMask", 
-            "OwnerMask", 
-            "GroupMask", 
-            "EveryoneMask", 
-            "NextOwnerMask", 
-            "Flags", 
-            "CollisionSound", 
-            "CollisionSoundVolume", 
-            "MediaUrl", 
-            "TextureAnimation", 
-            "ParticleSystem", 
-            //Property names below copied from PhysicsActor, they are necessary in synchronization, but not covered the above properties
-            //Physics properties "Velocity" is covered above
-            "Position",
-            "Size", 
-            "Force",
-            "RotationalVelocity",
-            "PA_Acceleration",
-            "Torque",
-            "Orientation",
-            "IsPhysical",
-            "Flying",
-            "Buoyancy",
-        };
-        
-
-        
-
-        private Object propertyUpdateLock = new Object();
-
-        /*
-        //!!!!!! -- TODO: 
-        //!!!!!! -- We should call UpdateXXX functions to update each property, cause some of such updates involves sanity checking.
-        public Scene.ObjectUpdateResult UpdateAllProperties(SceneObjectPart updatedPart)
-        {
-            ////////////////////////////////////////////////////////////////////////////////////////////////////
-            //NOTE!!!: So far this function is written with Script Engine updating local Scene cache in mind.
-            ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-            ////////////////////Assumptions: ////////////////////
-            //(1) prim's UUID and LocalID shall not change (UUID is the unique identifies, LocalID is used to refer to the prim by, say scripts)
-            //(2) RegionHandle won't be updated -- each copy of Scene is hosted on a region with different region handle
-            //(3) ParentID won't be updated -- if the rootpart of the SceneObjectGroup changed, that will be updated in SceneObjectGroup.UpdateObjectProperties
-
-            ////////////////////Furture enhancements:////////////////////
-            //For now, we only update the set of properties that are included in serialization. 
-            //See SceneObjectSerializer for the properties that are included in a serialized SceneObjectPart.
-            //Later on, we may implement update functions that allow updating certain properties or certain buckets of properties.
-
-            if (updatedPart == null)
-                return Scene.ObjectUpdateResult.Error;
-
-            if (m_lastUpdateTimeStamp > updatedPart.LastUpdateTimeStamp)
-            {
-                //Our timestamp is more update to date, keep our values of the properties. Do not update anything.
-                return Scene.ObjectUpdateResult.Unchanged;
-            }
-
-            if (m_lastUpdateTimeStamp == updatedPart.LastUpdateTimeStamp)
-            {
-                //if (m_parentGroup.Scene.GetActorID() != updatedPart.LastUpdatedByActorID)
-                if (m_lastUpdateActorID != updatedPart.LastUpdateActorID)
-                {
-                    m_log.Warn("Different actors modified SceneObjetPart " + UUID + " with the same TimeStamp, CONFLICT RESOLUTION TO BE IMPLEMENTED!!!!");
-                    return Scene.ObjectUpdateResult.Unchanged;
-                }
-
-                //My own update was relayed back. Don't relay it.
-                return Scene.ObjectUpdateResult.Unchanged;
-            }
-
-            //Otherwise, our timestamp is less up to date, update the prim with the received copy
-
-            Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Updated;
-            bool collisionSoundUpdated = false;
-            lock (propertyUpdateLock)
-            {
-
-                //See SceneObjectSerializer for the properties that are included in a serialized SceneObjectPart.
-                this.AllowedDrop = updatedPart.AllowedDrop;
-                this.CreatorID = updatedPart.CreatorID;
-                this.CreatorData = updatedPart.CreatorData;
-                this.FolderID = updatedPart.FolderID;
-                this.InventorySerial = updatedPart.InventorySerial;
-                this.TaskInventory = updatedPart.TaskInventory;
-                //Following two properties, UUID and LocalId, shall not be updated.
-                //this.UUID 
-                //this.LocalId
-                this.Name = updatedPart.Name;
-                this.Material = updatedPart.Material;
-                this.PassTouches = updatedPart.PassTouches;
-                //RegionHandle shall not be copied, since updatedSog is sent by a different actor, which has a different local region
-                //this.RegionHandle 
-                this.ScriptAccessPin = updatedPart.ScriptAccessPin;
-                this.GroupPosition = updatedPart.GroupPosition;
-                this.OffsetPosition = updatedPart.OffsetPosition;
-                this.RotationOffset = updatedPart.RotationOffset;
-                this.Velocity = updatedPart.Velocity;
-                this.AngularVelocity = updatedPart.AngularVelocity;
-                this.Acceleration = updatedPart.Acceleration;
-                this.Description = updatedPart.Description;
-                this.Color = updatedPart.Color;
-                this.Text = updatedPart.Text;
-                this.SitName = updatedPart.SitName;
-                this.TouchName = updatedPart.TouchName;
-                this.LinkNum = updatedPart.LinkNum;
-                this.ClickAction = updatedPart.ClickAction;
-                this.Shape = updatedPart.Shape;
-                this.Scale = updatedPart.Scale;
-                this.UpdateFlag = updatedPart.UpdateFlag;
-                this.SitTargetOrientation = updatedPart.SitTargetOrientation;
-                this.SitTargetPosition = updatedPart.SitTargetPosition;
-                this.SitTargetPositionLL = updatedPart.SitTargetPositionLL;
-                this.SitTargetOrientationLL = updatedPart.SitTargetOrientationLL;
-                //ParentID should still point to the rootpart in the local sog, do not update. If the root part changed, we will update it in SceneObjectGroup.UpdateObjectProperties()
-                //this.ParentID;
-                this.CreationDate = updatedPart.CreationDate;
-                this.Category = updatedPart.Category;
-                this.SalePrice = updatedPart.SalePrice;
-                this.ObjectSaleType = updatedPart.ObjectSaleType;
-                this.OwnershipCost = updatedPart.OwnershipCost;
-                this.GroupID = updatedPart.GroupID;
-                this.OwnerID = updatedPart.OwnerID;
-                this.LastOwnerID = updatedPart.LastOwnerID;
-                this.BaseMask = updatedPart.BaseMask;
-                this.OwnerMask = updatedPart.OwnerMask;
-                this.GroupMask = updatedPart.GroupMask;
-                this.EveryoneMask = updatedPart.EveryoneMask;
-                this.NextOwnerMask = updatedPart.NextOwnerMask;
-                this.Flags = updatedPart.Flags;
-
-                //We will update CollisionSound with special care so that it does not lead to ScheduleFullUpdate of this part, to make the actor think it just made an update and 
-                //need to propogate that update to other actors.
-                //this.CollisionSound = updatedPart.CollisionSound;
-                collisionSoundUpdated = UpdateCollisionSound(updatedPart.CollisionSound);
-
-                this.CollisionSoundVolume = updatedPart.CollisionSoundVolume;
-                this.MediaUrl = updatedPart.MediaUrl;
-                this.TextureAnimation = updatedPart.TextureAnimation;
-                this.ParticleSystem = updatedPart.ParticleSystem;
-
-                //Update the timestamp and LastUpdatedByActorID first.
-                this.m_lastUpdateActorID = updatedPart.LastUpdateActorID;
-                this.m_lastUpdateTimeStamp = updatedPart.LastUpdateTimeStamp;
-            }
-
-            if (collisionSoundUpdated)
-            {
-                m_parentGroup.Scene.EventManager.TriggerAggregateScriptEvents(this);
-            }
-
-            //m_log.Debug("SceneObjectPart Name-" +Name+", UUID-"+UUID+" localID-" + m_localId + " updated");
-
-            return partUpdateResult;
-        }
-         * */
-
-        private bool UpdateCollisionSound(UUID updatedCollisionSound)
-        {
-            if (this.CollisionSound != updatedCollisionSound)
-            {
-                m_collisionSound = updatedCollisionSound;
-                return true;
-            }
-            return false;
-        }
-
 
         /// <summary>
         /// Schedules this prim for a full update, without changing the timestamp or actorID (info on when and who modified any property).
@@ -5341,6 +5074,81 @@ namespace OpenSim.Region.Framework.Scenes
         //Define this as a guard to not to fill in any sync info when not desired, i.e. while de-serializing and building SOP and SOG, where 
         //property set functions will be called and might trigger UpdateBucketSyncInfo() if not guarded carefully.
         private bool m_syncEnabled = false;
+
+        //The list of each prim's properties. This is the list of properties that matter in synchronizing prim copies on different actors.
+        //This list is created based on properties included in the serialization/deserialization process (see SceneObjectSerializer()) and the 
+        //properties Physics Engine needs to synchronize to other actors.
+        public static List<string> PropertyList = new List<string>()
+        {
+            //Following properties copied from SceneObjectSerializer()
+            "AllowedDrop", 
+            "CreatorID", 
+            "CreatorData", 
+            "FolderID", 
+            "InventorySerial", 
+            "TaskInventory", 
+            "UUID", 
+            "LocalId", 
+            "Name", 
+            "Material", 
+            "PassTouches", 
+            "RegionHandle", 
+            "ScriptAccessPin", 
+            "GroupPosition", 
+            "OffsetPosition", 
+            "RotationOffset", 
+            "Velocity", 
+            "AngularVelocity", 
+            //"Acceleration", 
+            "SOP_Acceleration",  //SOP and PA read/write their own local copies of acceleration, so we distinguish the copies
+            "Description", 
+            "Color", 
+            "Text", 
+            "SitName", 
+            "TouchName", 
+            "LinkNum", 
+            "ClickAction", 
+            "Shape", 
+            "Scale", 
+            "UpdateFlag", 
+            "SitTargetOrientation", 
+            "SitTargetPosition", 
+            "SitTargetPositionLL", 
+            "SitTargetOrientationLL", 
+            "ParentID", 
+            "CreationDate", 
+            "Category", 
+            "SalePrice", 
+            "ObjectSaleType", 
+            "OwnershipCost", 
+            "GroupID", 
+            "OwnerID", 
+            "LastOwnerID", 
+            "BaseMask", 
+            "OwnerMask", 
+            "GroupMask", 
+            "EveryoneMask", 
+            "NextOwnerMask", 
+            "Flags", 
+            "CollisionSound", 
+            "CollisionSoundVolume", 
+            "MediaUrl", 
+            "TextureAnimation", 
+            "ParticleSystem", 
+            //Property names below copied from PhysicsActor, they are necessary in synchronization, but not covered the above properties
+            //Physics properties "Velocity" is covered above
+            "Position",
+            "Size", 
+            "Force",
+            "RotationalVelocity",
+            "PA_Acceleration",
+            "Torque",
+            "Orientation",
+            "IsPhysical",
+            "Flying",
+            "Buoyancy",
+        };
+        
 
         public static void InitializePropertyBucketInfo(Dictionary<string, string> propertyBucketMap, List<string> bucketNames, string actorID)
         {
@@ -5524,16 +5332,32 @@ namespace OpenSim.Region.Framework.Scenes
 
         }
 
-        public void SetProperty(string pName, object value)
+        #region new property access functions 
+        //(only properties relevant for synchronization purpose are implemented here)
+
+        public bool AllowedDrop
         {
-            switch (pName)
+            get { return base.AllowedDrop; }
+            set
             {
-                case "LinkNum":
-                    base.LinkNum = (int)value;
-                    break;
-                default:
-                    break;
+                base.AllowedDrop = value;
+                UpdateBucketSyncInfo("AllowedDrop");
             }
+        }
+
+
+
+        #endregion //new property access functions
+
+
+        private bool UpdateCollisionSound(UUID updatedCollisionSound)
+        {
+            if (this.CollisionSound != updatedCollisionSound)
+            {
+                m_collisionSound = updatedCollisionSound;
+                return true;
+            }
+            return false;
         }
 
     }

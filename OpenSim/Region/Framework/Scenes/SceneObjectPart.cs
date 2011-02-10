@@ -2981,7 +2981,8 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
 
-        public void SculptTextureCallback(UUID textureID, AssetBase texture)
+        //public void SculptTextureCallback(UUID textureID, AssetBase texture)
+        public virtual void SculptTextureCallback(UUID textureID, AssetBase texture)
         {
             if (m_shape.SculptEntry)
             {
@@ -3273,7 +3274,8 @@ namespace OpenSim.Region.Framework.Scenes
             });
         }
 
-        public void SetAttachmentPoint(uint AttachmentPoint)
+        //public void SetAttachmentPoint(uint AttachmentPoint)
+        public virtual void SetAttachmentPoint(uint AttachmentPoint)
         {
             this.AttachmentPoint = AttachmentPoint;
 
@@ -3289,7 +3291,8 @@ namespace OpenSim.Region.Framework.Scenes
             // save the attachment point.
             //if (AttachmentPoint != 0)
             //{
-                m_shape.State = (byte)AttachmentPoint;
+            m_shape.State = (byte)AttachmentPoint;
+
             //}
         }
 
@@ -4208,6 +4211,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             ScheduleFullUpdate();
+
         }
 
         public void UpdateGroupPosition(Vector3 pos)
@@ -4559,7 +4563,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// Update the shape of this part.
         /// </summary>
         /// <param name="shapeBlock"></param>
-        public void UpdateShape(ObjectShapePacket.ObjectDataBlock shapeBlock)
+        //public void UpdateShape(ObjectShapePacket.ObjectDataBlock shapeBlock)
+        public virtual void UpdateShape(ObjectShapePacket.ObjectDataBlock shapeBlock)
         {
             m_shape.PathBegin = shapeBlock.PathBegin;
             m_shape.PathEnd = shapeBlock.PathEnd;
@@ -4634,7 +4639,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// Update the texture entry for this part.
         /// </summary>
         /// <param name="textureEntry"></param>
-        public void UpdateTextureEntry(byte[] textureEntry)
+        //public void UpdateTextureEntry(byte[] textureEntry)
+        public virtual void UpdateTextureEntry(byte[] textureEntry)
         {
             m_shape.TextureEntry = textureEntry;
             TriggerScriptChangedEvent(Changed.TEXTURE);
@@ -5196,18 +5202,51 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        /// <summary>
+        /// Update the properties of this SOP with the values in updatedPart. 
+        /// </summary>
+        /// <param name="updatedPart"></param>
+        /// <param name="bucketName"></param>
+
         private void GeneralBucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName)
         {
+            //NOTE!!!!!!!! Need to cast the local copy to SceneObjectPartBase in order not to trigger UpdateBucketSyncInfo(),
+            //since the property updates inside this function are not due to local operations.
+            SceneObjectPartBase localPart = (SceneObjectPartBase)this;
+
             lock (m_bucketUpdateLocks[bucketName])
             {
+                localPart.AllowedDrop = updatedPart.AllowedDrop;
 
+                localPart.Shape = updatedPart.Shape;
+
+                bool collisionSoundUpdated = UpdateCollisionSound(updatedPart.CollisionSound);
+
+
+                m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
+                m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
+
+                if (collisionSoundUpdated)
+                {
+                    //If the local actor is Script Engine, it will catch this evnet and trigger aggregateScriptEvents()
+                    m_parentGroup.Scene.EventManager.TriggerAggregateScriptEvents(this);
+                }
             }
         }
 
         private void PhysicsBucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName)
         {
+            //NOTE!!!!!!!! Need to cast the local copy to SceneObjectPartBase in order not to trigger UpdateBucketSyncInfo(),
+            //since the property updates inside this function are not due to local operations.
+            SceneObjectPartBase localPart = (SceneObjectPartBase)this;
+
             lock (m_bucketUpdateLocks[bucketName])
             {
+                localPart.GroupPosition = updatedPart.GroupPosition;
+
+                m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
+                m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
+
             }
         }
 
@@ -5335,7 +5374,7 @@ namespace OpenSim.Region.Framework.Scenes
         #region new property access functions 
         //(only properties relevant for synchronization purpose are implemented here)
 
-        public bool AllowedDrop
+        new public bool AllowedDrop
         {
             get { return base.AllowedDrop; }
             set
@@ -5345,7 +5384,60 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        /// <summary>
+        /// The position of the entire group that this prim belongs to.
+        /// </summary>
+        new public Vector3 GroupPosition
+        {
+            get { return base.GroupPosition; }
+            set
+            {
+                base.GroupPosition = value;
+                UpdateBucketSyncInfo("GroupPosition");
+            }
+        }
 
+        new public PrimitiveBaseShape Shape
+        {
+            get { return base.Shape; }
+            set
+            {
+                base.Shape = value;
+                UpdateBucketSyncInfo("Shape");
+            }
+        }
+
+        //For functions that update SOP properties, override them so that when they are called from SOPBase (but the object itself is an instance of SOP)
+        //the following implementations will be called instead of the same name functions in SOPBase.
+        public override void SculptTextureCallback(UUID textureID, AssetBase texture)
+        {
+            base.SculptTextureCallback(textureID, texture);
+            UpdateBucketSyncInfo("Shape");
+        }
+
+        public override void SetAttachmentPoint(uint AttachmentPoint)
+        {
+            base.SetAttachmentPoint(AttachmentPoint);
+            UpdateBucketSyncInfo("Shape");
+        }
+
+        public void UpdateExtraParam(ushort type, bool inUse, byte[] data)
+        {
+            base.UpdateExtraParam(type, inUse, data);
+            UpdateBucketSyncInfo("Shape");
+        }
+
+        public override void UpdateShape(ObjectShapePacket.ObjectDataBlock shapeBlock)
+        {
+            base.UpdateShape(shapeBlock);
+            UpdateBucketSyncInfo("Shape");
+        }
+
+        public override void UpdateTextureEntry(byte[] textureEntry)
+        {
+            base.UpdateTextureEntry(textureEntry);
+            UpdateBucketSyncInfo("Shape");
+        }
 
         #endregion //new property access functions
 

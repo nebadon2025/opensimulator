@@ -59,7 +59,7 @@ namespace OpenSim.Region.Framework.Interfaces
         /// <summary>
         /// The mapping of a property (identified by its name) to the index of a bucket.
         /// </summary>
-        Dictionary<string, string> PrimPropertyBucketMap { get; }
+        Dictionary<SceneObjectPartProperties, string> PrimPropertyBucketMap { get; }
         /// <summary>
         /// The text description of the properties in each bucket, e.g. "General", "Physics"
         /// </summary>

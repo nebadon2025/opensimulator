@@ -236,7 +236,8 @@ namespace OpenSim.Region.CoreModules.Media.Moap
                 part.Shape.Media[face] = me;
             
             UpdateMediaUrl(part, UUID.Zero);
-            part.ScheduleFullUpdate();
+            //part.ScheduleFullUpdate();
+            part.ScheduleFullUpdate(SceneObjectPartProperties.MediaUrl);
             part.TriggerScriptChangedEvent(Changed.MEDIA);
         }
         
@@ -421,7 +422,9 @@ namespace OpenSim.Region.CoreModules.Media.Moap
             UpdateMediaUrl(part, agentId);
             
             // Arguably, we could avoid sending a full update to the avatar that just changed the texture.
-            part.ScheduleFullUpdate();
+            //part.ScheduleFullUpdate();
+            part.ScheduleFullUpdate(SceneObjectPartProperties.Shape);
+            part.ScheduleFullUpdate(SceneObjectPartProperties.MediaUrl); //not an efficient way to taint two properties, but should not have bad side effects
             
             part.TriggerScriptChangedEvent(Changed.MEDIA);
             
@@ -499,7 +502,8 @@ namespace OpenSim.Region.CoreModules.Media.Moap
             
             UpdateMediaUrl(part, agentId);
             
-            part.ScheduleFullUpdate();
+            //part.ScheduleFullUpdate();
+            part.ScheduleFullUpdate(SceneObjectPartProperties.MediaUrl);
             
             part.TriggerScriptChangedEvent(Changed.MEDIA);
             

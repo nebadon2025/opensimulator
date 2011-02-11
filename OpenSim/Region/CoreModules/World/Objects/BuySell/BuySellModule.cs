@@ -148,7 +148,8 @@ namespace OpenSim.Region.CoreModules.World.Objects.BuySell
                 part.GetProperties(remoteClient);
                 part.TriggerScriptChangedEvent(Changed.OWNER);
                 group.ResumeScripts();
-                part.ScheduleFullUpdate();
+                //part.ScheduleFullUpdate();
+                part.ScheduleFullUpdate(SceneObjectPartProperties.FullUpdate); //quite some properties changed, let's just force all to be synchronized
 
                 break;
 

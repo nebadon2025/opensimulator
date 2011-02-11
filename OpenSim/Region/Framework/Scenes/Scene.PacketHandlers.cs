@@ -208,11 +208,12 @@ namespace OpenSim.Region.Framework.Scenes
             // TODO: Make selection flagging per prim!
             //
             part.ParentGroup.IsSelected = false;
-            
+
             if (part.ParentGroup.IsAttachment)
                 isAttachment = true;
             else
-                part.ParentGroup.ScheduleGroupForFullUpdate();
+                //part.ParentGroup.ScheduleGroupForFullUpdate();
+                part.ParentGroup.ScheduleGroupForFullUpdate(SceneObjectPartProperties.IsSelected);
 
             // If it's not an attachment, and we are allowed to move it,
             // then we might have done so. If we moved across a parcel

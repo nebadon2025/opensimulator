@@ -1411,7 +1411,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.AddScriptLPS(1);
             m_host.ClickAction = (byte)action;
             if (m_host.ParentGroup != null) m_host.ParentGroup.HasGroupChanged = true;
-            m_host.ScheduleFullUpdate();
+            //m_host.ScheduleFullUpdate();
+            m_host.ScheduleFullUpdate(SceneObjectPartProperties.ClickAction);
             return;
         }
 
@@ -1679,7 +1680,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
 
             part.ParentGroup.HasGroupChanged = true;
-            part.ScheduleFullUpdate();
+            //part.ScheduleFullUpdate();
+            part.ScheduleFullUpdate(SceneObjectPartProperties.Shape);
         }
 
         /// <summary>
@@ -1714,7 +1716,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
 
             part.ParentGroup.HasGroupChanged = true;
-            part.ScheduleFullUpdate();
+            //part.ScheduleFullUpdate();
+            part.ScheduleFullUpdate(SceneObjectPartProperties.Shape);
         }
 
         public LSL_Vector llGetColor(int face)
@@ -1982,40 +1985,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     targetPos.z = ground;
                 SceneObjectGroup parent = part.ParentGroup;
                 LSL_Vector real_vec = SetPosAdjust(currentPos, targetPos);
-                //KittyL: edited below
-                if ((World.ScriptEngineToSceneConnectorModule == null))
-                {
-                    parent.UpdateGroupPosition(new Vector3((float)real_vec.x, (float)real_vec.y, (float)real_vec.z));
-                }
-                else
-                {
-                    object[] valParams = new object[1];
-                    Vector3 pos = new Vector3((float)real_vec.x, (float)real_vec.y, (float)real_vec.z);
-                    valParams[0] = (Vector3)pos;
-                    World.ScriptEngineToSceneConnectorModule.SendSetPrimProperties(m_host.ParentGroup.LocX, m_host.ParentGroup.LocY, m_host.UUID, "pos", (object)valParams);
-                }
+                parent.UpdateGroupPosition(new Vector3((float)real_vec.x, (float)real_vec.y, (float)real_vec.z));
             }
             else
             {
                 LSL_Vector rel_vec = SetPosAdjust(currentPos, targetPos);
-
-                //KittyL: edited below
-                if ((World.ScriptEngineToSceneConnectorModule == null))
-                {
-                    part.OffsetPosition = new Vector3((float)rel_vec.x, (float)rel_vec.y, (float)rel_vec.z);
-                    SceneObjectGroup parent = part.ParentGroup;
-                    parent.HasGroupChanged = true;
-                    parent.ScheduleGroupForTerseUpdate();
-                }
-                else
-                {
-                    object[] valParams = new object[3];
-                    valParams[0] = (object)rel_vec.x;
-                    valParams[1] = (object)rel_vec.y;
-                    valParams[2] = (object)rel_vec.z;
-                    World.ScriptEngineToSceneConnectorModule.SendSetPrimProperties(m_host.ParentGroup.LocX, m_host.ParentGroup.LocY, m_host.UUID, "pos", (object)valParams);
-                }
-
+                part.OffsetPosition = new Vector3((float)rel_vec.x, (float)rel_vec.y, (float)rel_vec.z);
+                SceneObjectGroup parent = part.ParentGroup;
+                parent.HasGroupChanged = true;
+                //parent.ScheduleGroupForTerseUpdate();
+                parent.ScheduleGroupForTerseUpdate(SceneObjectPartProperties.OffsetPosition);
             }
         }
 
@@ -2361,7 +2340,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.SoundFlags = 1;      // looping
             m_host.SoundRadius = 20;    // Magic number, 20 seems reasonable. Make configurable?
 
-            m_host.ScheduleFullUpdate();
+            //m_host.ScheduleFullUpdate();
+            m_host.ScheduleFullUpdate(SceneObjectPartProperties.Sound);
             m_host.SendFullUpdateToAllClients();
         }
 
@@ -2381,7 +2361,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     prim.SoundFlags = 1;      // looping
                     prim.SoundRadius = 20;    // Magic number, 20 seems reasonable. Make configurable?
 
-                    prim.ScheduleFullUpdate();
+                    //prim.ScheduleFullUpdate();
+                    m_host.ScheduleFullUpdate(SceneObjectPartProperties.Sound);
                     prim.SendFullUpdateToAllClients();
                 }
             }
@@ -2393,7 +2374,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.SoundFlags = 1;      // looping
             m_host.SoundRadius = 20;    // Magic number, 20 seems reasonable. Make configurable?
 
-            m_host.ScheduleFullUpdate();
+            //m_host.ScheduleFullUpdate();
+            m_host.ScheduleFullUpdate(SceneObjectPartProperties.Sound);
             m_host.SendFullUpdateToAllClients();
         }
 
@@ -2435,7 +2417,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         part.SoundGain = 0;
                         part.SoundFlags = 0;
                         part.SoundRadius = 0;
-                        part.ScheduleFullUpdate();
+                        //part.ScheduleFullUpdate();
+                        m_host.ScheduleFullUpdate(SceneObjectPartProperties.Sound);
                         part.SendFullUpdateToAllClients();
                     }
                     m_host.ParentGroup.LoopSoundMasterPrim = null;
@@ -2447,7 +2430,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     m_host.SoundGain = 0;
                     m_host.SoundFlags = 0;
                     m_host.SoundRadius = 0;
-                    m_host.ScheduleFullUpdate();
+                    //m_host.ScheduleFullUpdate();
+                    m_host.ScheduleFullUpdate(SceneObjectPartProperties.Sound);
                     m_host.SendFullUpdateToAllClients();
                 }
             }
@@ -2457,7 +2441,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 m_host.SoundGain = 0;
                 m_host.SoundFlags = 0;
                 m_host.SoundRadius = 0;
-                m_host.ScheduleFullUpdate();
+                //m_host.ScheduleFullUpdate();
+                m_host.ScheduleFullUpdate(SceneObjectPartProperties.Sound);
                 m_host.SendFullUpdateToAllClients();
             }
         }
@@ -3384,7 +3369,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
             m_host.AngularVelocity = new Vector3((float)(axis.x * spinrate), (float)(axis.y * spinrate), (float)(axis.z * spinrate));
-            m_host.ScheduleTerseUpdate();
+            //m_host.ScheduleTerseUpdate();
+            m_host.ScheduleFullUpdate(SceneObjectPartProperties.AngularVelocity);
             m_host.SendTerseUpdateToAllClients();
             m_host.ParentGroup.HasGroupChanged = true;
         }
@@ -3664,7 +3650,18 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             parentPrim.TriggerScriptChangedEvent(Changed.LINK);
             parentPrim.RootPart.CreateSelected = true;
             parentPrim.HasGroupChanged = true;
-            parentPrim.ScheduleGroupForFullUpdate();
+            //parentPrim.ScheduleGroupForFullUpdate();
+            //SYMMETRIC SYNC
+            //Schedule a LinkObject message for synchronization purpose. This will lead to enqueue a LinkObject message in SyncConnector's outgoingQueue,
+            //so should return quickly. 
+            if (World.RegionSyncModule != null)
+            {
+                //Tell other actors to link the SceneObjectParts together as a new group. 
+                //parentGroup.SyncInfoUpdate();
+                World.RegionSyncModule.SendLinkObject(parentPrim, parentPrim.RootPart, new List<SceneObjectPart>(childPrim.Parts));
+            }
+            m_host.ScheduleFullUpdate(SceneObjectPartProperties.None); //SendLinkObject above will synchronize the link operation, no need to taint updates here
+            //end of SYMMETRIC SYNC
 
             if (client != null)
                 parentPrim.GetProperties(client);
@@ -3722,15 +3719,31 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             if (linknum == ScriptBaseClass.LINK_ROOT)
             {
+                //SYMMETRIC SYNC
+                List<SceneObjectGroup> beforeDelinkGroups = new List<SceneObjectGroup>();
+                beforeDelinkGroups.Add(parentPrim);
+                List<SceneObjectGroup> afterDelinkGroups = new List<SceneObjectGroup>();
+                //end of SYMMETRIC SYNC
+
                 // Restructuring Multiple Prims.
                 List<SceneObjectPart> parts = new List<SceneObjectPart>(parentPrim.Parts);
                 parts.Remove(parentPrim.RootPart);
                 foreach (SceneObjectPart part in parts)
                 {
                     parentPrim.DelinkFromGroup(part.LocalId, true);
+                    //SYMMETRIC SYNC
+                    afterDelinkGroups.Add(part.ParentGroup);
                 }
                 parentPrim.HasGroupChanged = true;
-                parentPrim.ScheduleGroupForFullUpdate();
+                //parentPrim.ScheduleGroupForFullUpdate();
+                //SYMMETRIC SYNC
+                //Send out DelinkObject message to other actors to sychronize their object list 
+                if (World.RegionSyncModule != null)
+                {
+                    World.RegionSyncModule.SendDeLinkObject(parts, beforeDelinkGroups, afterDelinkGroups);
+                }
+                parentPrim.ScheduleGroupForFullUpdate(SceneObjectPartProperties.None);
+                //end of SYMMETRIC SYNC
                 parentPrim.TriggerScriptChangedEvent(Changed.LINK);
 
                 if (parts.Count > 0)
@@ -3743,7 +3756,15 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         newRoot.ParentGroup.LinkToGroup(part.ParentGroup);
                     }
                     newRoot.ParentGroup.HasGroupChanged = true;
-                    newRoot.ParentGroup.ScheduleGroupForFullUpdate();
+                    //newRoot.ParentGroup.ScheduleGroupForFullUpdate();
+                    //SYMMETRIC SYNC
+                    if (World.RegionSyncModule != null)
+                    {
+                        World.RegionSyncModule.SendLinkObject(newRoot.ParentGroup, newRoot, new List<SceneObjectPart>(newRoot.ParentGroup.Parts));
+                    }
+                    newRoot.ParentGroup.ScheduleGroupForFullUpdate(SceneObjectPartProperties.None);
+                    //end of SYMMETRIC SYNC
+
                 }
             }
             else
@@ -3753,7 +3774,19 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                 parentPrim.DelinkFromGroup(childPrim.LocalId, true);
                 parentPrim.HasGroupChanged = true;
-                parentPrim.ScheduleGroupForFullUpdate();
+                //parentPrim.ScheduleGroupForFullUpdate();
+                //SYMMETRIC SYNC
+                //Send out DelinkObject message to other actors to sychronize their object list 
+                if (World.RegionSyncModule != null)
+                {
+                    List<SceneObjectGroup> beforeDelinkGroups = new List<SceneObjectGroup>();
+                    beforeDelinkGroups.Add(parentPrim);
+                    List<SceneObjectGroup> afterDelinkGroups = new List<SceneObjectGroup>();
+                    afterDelinkGroups.Add(childPrim.ParentGroup);
+                    World.RegionSyncModule.SendDeLinkObject(new List<SceneObjectPart>(parentPrim.Parts), beforeDelinkGroups, afterDelinkGroups);
+                }
+                //end of SYMMETRIC SYNC
+
                 parentPrim.TriggerScriptChangedEvent(Changed.LINK);
             }
         }
@@ -3765,6 +3798,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (parentPrim.RootPart.AttachmentPoint != 0)
                 return; // Fail silently if attached
 
+            //SYMMETRIC SYNC
+            List<SceneObjectGroup> beforeDelinkGroups = new List<SceneObjectGroup>();
+            beforeDelinkGroups.Add(parentPrim);
+            List<SceneObjectGroup> afterDelinkGroups = new List<SceneObjectGroup>();
+            SceneObjectPart rootPart = parentPrim.RootPart;
+            //end of SYMMETRIC SYNC
+
             List<SceneObjectPart> parts = new List<SceneObjectPart>(parentPrim.Parts);
             parts.Remove(parentPrim.RootPart);
 
@@ -3772,9 +3812,20 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 parentPrim.DelinkFromGroup(part.LocalId, true);
                 parentPrim.TriggerScriptChangedEvent(Changed.LINK);
+                //SYMMETRIC SYNC
+                afterDelinkGroups.Add(part.ParentGroup);
             }
             parentPrim.HasGroupChanged = true;
-            parentPrim.ScheduleGroupForFullUpdate();
+            //parentPrim.ScheduleGroupForFullUpdate();
+            //SYMMETRIC SYNC
+            if (World.RegionSyncModule != null)
+            {
+                parts.Add(rootPart);
+                afterDelinkGroups.Add(rootPart.ParentGroup);
+                World.RegionSyncModule.SendDeLinkObject(parts, beforeDelinkGroups, afterDelinkGroups); 
+            }
+            parentPrim.ScheduleGroupForFullUpdate(SceneObjectPartProperties.None);
+            //end of SYMMETRIC SYNC
         }
 
         public LSL_String llGetLinkKey(int linknum)
@@ -4012,7 +4063,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                                       Util.Clip((float)color.z, 0.0f, 1.0f));
             m_host.SetText(text, av3, Util.Clip((float)alpha, 0.0f, 1.0f));
             m_host.ParentGroup.HasGroupChanged = true;
-            m_host.ParentGroup.ScheduleGroupForFullUpdate();
+            //m_host.ParentGroup.ScheduleGroupForFullUpdate();
+            m_host.ParentGroup.ScheduleGroupForFullUpdate(SceneObjectPartProperties.Text);
         }
 
         public LSL_Float llWater(LSL_Vector offset)

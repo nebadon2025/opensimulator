@@ -550,7 +550,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //the prim is not the root-part, set the offset position
                 primToUpdate.OffsetPosition = pos;
                 parent.HasGroupChanged = true;
-                parent.ScheduleGroupForTerseUpdate();
+                //parent.ScheduleGroupForTerseUpdate();
+                parent.ScheduleGroupForTerseUpdate(SceneObjectPartProperties.OffsetPosition);
             }
         }
 

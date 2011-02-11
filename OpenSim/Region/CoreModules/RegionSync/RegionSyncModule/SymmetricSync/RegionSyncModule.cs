@@ -181,8 +181,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_isSyncRelay; }
         }
 
-        private Dictionary<string, string> m_primPropertyBucketMap = new Dictionary<string, string>();
-        public Dictionary<string, string> PrimPropertyBucketMap
+        private Dictionary<SceneObjectPartProperties, string> m_primPropertyBucketMap = new Dictionary<SceneObjectPartProperties, string>();
+        public Dictionary<SceneObjectPartProperties, string> PrimPropertyBucketMap
         {
             get { return m_primPropertyBucketMap; }
         }
@@ -225,6 +225,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_propertyBucketDescription.Add(physicsBucketName);
             m_maxNumOfPropertyBuckets = 2;
 
+            /*
             foreach (string pName in SceneObjectPart.PropertyList)
             {
                 switch (pName){
@@ -249,6 +250,36 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     default:
                         //all other properties belong to the "General" bucket.
                         m_primPropertyBucketMap.Add(pName, generalBucketName);
+                        break;
+                }
+            }
+             * */
+
+            foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
+            {
+                switch (property)
+                {
+                    case SceneObjectPartProperties.GroupPosition:
+                    case SceneObjectPartProperties.OffsetPosition:
+                    case SceneObjectPartProperties.Scale:
+                    case SceneObjectPartProperties.Velocity:
+                    case SceneObjectPartProperties.AngularVelocity:
+                    case SceneObjectPartProperties.RotationOffset:
+                    case SceneObjectPartProperties.Position:
+                    case SceneObjectPartProperties.Size:
+                    case SceneObjectPartProperties.Force:
+                    case SceneObjectPartProperties.RotationalVelocity:
+                    case SceneObjectPartProperties.PA_Acceleration:
+                    case SceneObjectPartProperties.Torque:
+                    case SceneObjectPartProperties.Orientation:
+                    case SceneObjectPartProperties.IsPhysical:
+                    case SceneObjectPartProperties.Flying:
+                    case SceneObjectPartProperties.Buoyancy:
+                        m_primPropertyBucketMap.Add(property, physicsBucketName);
+                        break;
+                    default:
+                        //all other properties belong to the "General" bucket.
+                        m_primPropertyBucketMap.Add(property, generalBucketName);
                         break;
                 }
             }

@@ -383,7 +383,8 @@ namespace OpenSim.Region.Framework.Scenes
             sceneObject.AttachToScene(m_parentScene);
 
             if (sendClientUpdates)
-                sceneObject.ScheduleGroupForFullUpdate();
+                //sceneObject.ScheduleGroupForFullUpdate();
+                sceneObject.ScheduleGroupForFullUpdate(SceneObjectPartProperties.None); 
             
             Entities.Add(sceneObject);
 
@@ -1747,22 +1748,11 @@ namespace OpenSim.Region.Framework.Scenes
                 }
 
                 //SYMMETRIC SYNC
-                //set timestamp
-                /*
-                long timeStamp = DateTime.Now.Ticks;
-                string actorID = m_parentScene.GetSyncActorID();
-                foreach (SceneObjectGroup sog in afterDelinkGroups)
-                {
-                    if (m_parentScene.RegionSyncModule != null)
-                    {
-                        sog.SyncInfoUpdate(timeStamp, actorID); ;
-                    }
-                }
-                 * */ 
                 //Send out DelinkObject message to other actors to sychronize their object list 
-                m_parentScene.RegionSyncModule.SendDeLinkObject(prims, beforeDelinkGroups, afterDelinkGroups);
-
-
+                if (m_parentScene.RegionSyncModule != null)
+                {
+                    m_parentScene.RegionSyncModule.SendDeLinkObject(prims, beforeDelinkGroups, afterDelinkGroups);
+                }
                 //Schedule updates as in legacy OpenSim code, to send updates to viewers connected to this actor (at least needed for client managers).
                 //But timestamp won't be changed, so that when other actors get the update, they's simple ignore the updates since they already get them
                 foreach (SceneObjectGroup sog in afterDelinkGroups)
@@ -1905,7 +1895,8 @@ namespace OpenSim.Region.Framework.Scenes
 
                     copy.CreateScriptInstances(0, false, m_parentScene.DefaultScriptEngine, 1);
                     copy.HasGroupChanged = true;
-                    copy.ScheduleGroupForFullUpdate();
+                    //copy.ScheduleGroupForFullUpdate();
+                    copy.ScheduleGroupForFullUpdate(SceneObjectPartProperties.FullUpdate); //new object, all property values are new
                     copy.ResumeScripts();
 
                     // required for physics to update it's position
@@ -1974,7 +1965,7 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         //if we need to debug the script engine with a viewer attaching to it,
                         //we need to schedule updates to be sent to the viewer
-                        oldSog.ScheduleGroupForFullUpdate();
+                        oldSog.ScheduleGroupForFullUpdate(SceneObjectPartProperties.None);
                     }
                 }
                 else

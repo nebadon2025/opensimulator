@@ -321,7 +321,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             //RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Object \"{0}\" ({1}) ({1}) updated.", sog.Name, sog.UUID.ToString(), sog.LocalId.ToString()));
                         //else
                         //RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Object \"{0}\" ({1}) ({1}) added.", sog.Name, sog.UUID.ToString(), sog.LocalId.ToString()));
-                        sog.ScheduleGroupForFullUpdate();
+                        //sog.ScheduleGroupForFullUpdate();
                         }
                         return;
                     }

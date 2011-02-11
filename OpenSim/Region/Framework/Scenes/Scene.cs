@@ -2391,7 +2391,8 @@ namespace OpenSim.Region.Framework.Scenes
                 sceneObject.SetGroup(groupID, null);
             }
 
-            sceneObject.ScheduleGroupForFullUpdate();
+            //sceneObject.ScheduleGroupForFullUpdate();
+            sceneObject.ScheduleGroupForFullUpdate(SceneObjectPartProperties.FullUpdate); //new object, all properties have new value
 
             return sceneObject;
         }
@@ -4490,7 +4491,8 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (ent is SceneObjectGroup)
                 {
-                    ((SceneObjectGroup)ent).ScheduleGroupForFullUpdate();
+                    //((SceneObjectGroup)ent).ScheduleGroupForFullUpdate();
+                    ((SceneObjectGroup)ent).ScheduleGroupForFullUpdate(SceneObjectPartProperties.None); //This is not due to property being updated, hence passing "None" property.
                 }
             }
         }

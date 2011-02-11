@@ -5397,6 +5397,18 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        new public Vector3 OffsetPosition
+        {
+            get { return base.OffsetPosition; }
+            set
+            {
+                base.OffsetPosition = value;
+                UpdateBucketSyncInfo("OffsetPosition");
+            }
+        }
+
+
+
         new public PrimitiveBaseShape Shape
         {
             get { return base.Shape; }
@@ -5437,6 +5449,12 @@ namespace OpenSim.Region.Framework.Scenes
         {
             base.UpdateTextureEntry(textureEntry);
             UpdateBucketSyncInfo("Shape");
+        }
+
+        public override void Resize(Vector3 scale)
+        {
+            base.Resize(scale);
+            UpdateBucketSyncInfo("Scale");
         }
 
         #endregion //new property access functions

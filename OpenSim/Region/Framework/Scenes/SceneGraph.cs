@@ -374,7 +374,8 @@ namespace OpenSim.Region.Framework.Scenes
                     if (scale.Z > m_parentScene.m_maxNonphys)
                         scale.Z = m_parentScene.m_maxNonphys;
 
-                    part.Shape.Scale = scale;
+                    //part.Shape.Scale = scale;
+                    part.Scale = scale;
                 }
             }
             m_numPrim += children.Length;
@@ -2053,7 +2054,8 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 foreach (SceneObjectPart part in children)
                 {
-                    Vector3 scale = part.Shape.Scale;
+                    SceneObjectPartBase partBase = (SceneObjectPartBase)part;
+                    Vector3 scale = partBase.Scale;
 
                     if (scale.X > m_parentScene.m_maxNonphys)
                         scale.X = m_parentScene.m_maxNonphys;
@@ -2062,7 +2064,7 @@ namespace OpenSim.Region.Framework.Scenes
                     if (scale.Z > m_parentScene.m_maxNonphys)
                         scale.Z = m_parentScene.m_maxNonphys;
 
-                    part.Shape.Scale = scale;
+                    part.Scale = scale;
                 }
             }
             m_numPrim += children.Length;

@@ -766,27 +766,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);
 
-                // Register this actor as a endpoint for this quark
-                // Note that this is wrong in that this module is not an actor
-                // Resolve by figuring out registation of endpoints vs actors
-                List<GridQuarkInfo> lgqi = new List<GridQuarkInfo>();
-                GridQuarkInfo gqi = new GridQuarkInfo();
-                gqi.locX = m_scene.RegionInfo.SyncQuarkLocationX;
-                gqi.locY = m_scene.RegionInfo.SyncQuarkLocationY;
-                lgqi.Add(gqi);
-                GridActorInfo gai = new GridActorInfo();
-                // gai.actorID = m_actorID;
-                // gai.actorID = m_scene.RegionInfo.RegionName;
-                gai.actorID = m_scene.RegionInfo.RegionID.ToString();
-                gai.address = addr;
-                gai.port = port;
-                // the actor really doesn't belong here -- the sync server is actor agnostic
-                // the registration should be of just the endpoint with a separate registration for the actor
-                gai.actorType = "scene_persistence";
-                if (!m_scene.GridService.RegisterActor(gai, lgqi))
+                // remove any cruft from previous runs
+                m_scene.GridService.CleanUpEndpoint(m_scene.RegionInfo.RegionID.ToString());
+                // Register the endpoint and quark and persistence actor for this simulator instance
+                GridEndpointInfo gei = new GridEndpointInfo();
+                gei.syncServerID = m_scene.RegionInfo.RegionID.ToString();
+                gei.address = m_scene.RegionInfo.SyncServerAddress;
+                gei.port = (uint)m_scene.RegionInfo.SyncServerPort;
+                if (!m_scene.GridService.RegisterEndpoint(gei))
                 {
-                    m_log.ErrorFormat("{0}: Failure registering actor endpoint", LogHeader);
+                    m_log.ErrorFormat("{0}: Failure registering endpoint", LogHeader);
                 }
+                if (!m_scene.GridService.RegisterActor(m_scene.RegionInfo.RegionID.ToString(),
+                                "scene_persistence", m_scene.RegionInfo.RegionID.ToString()))
+                {
+                    m_log.ErrorFormat("{0}: Failure registering actor", LogHeader);
+                }
+                if (!m_scene.GridService.RegisterQuark(m_scene.RegionInfo.RegionID.ToString(),
+                            m_scene.RegionInfo.SyncQuarkLocationX, m_scene.RegionInfo.SyncQuarkLocationY))
+                {
+                    m_log.ErrorFormat("{0}: Failure registering quark", LogHeader);
+                }
+
                 return info;
             }
 
@@ -811,11 +812,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // if the address is not specified in the region configuration file, get it from the grid service
             if (addr.Equals(IPAddrUnknown))
             {
-                GridQuarkInfo gqi = new GridQuarkInfo();
-                gqi.locX = m_scene.RegionInfo.SyncQuarkLocationX;
-                gqi.locY = m_scene.RegionInfo.SyncQuarkLocationY;
-                List<GridActorInfo> lgai = m_scene.GridService.LookupQuark(gqi, "scene_persistence");
-                if (lgai == null || lgai.Count != 1)
+                List<GridEndpointInfo> lgei = m_scene.GridService.LookupQuark(
+                        m_scene.RegionInfo.SyncQuarkLocationX, m_scene.RegionInfo.SyncQuarkLocationY, "scene_persistence");
+                if (lgei == null || lgei.Count != 1)
                 {
                     m_log.ErrorFormat("{0}: Failed to find quark persistence actor", LogHeader);
                     addr = IPAddrUnknown;
@@ -823,11 +822,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
                 else
                 {
-                    GridActorInfo gai = lgai[0];
-                    addr = gai.address;
-                    port = gai.port;
+                    GridEndpointInfo gei = lgei[0];
+                    addr = gei.address;
+                    port = (int)gei.port;
                     m_log.WarnFormat("{0}: Found quark ({1}/{2}) persistence actor at {3}:{4}", LogHeader,
-                        gqi.locX.ToString(), gqi.locY.ToString(), addr, port.ToString());
+                            m_scene.RegionInfo.SyncQuarkLocationX, m_scene.RegionInfo.SyncQuarkLocationY,
+                            addr, port.ToString());
                 }
             }
 

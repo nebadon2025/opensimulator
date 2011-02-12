@@ -298,6 +298,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             if (!updated)
             {
+                /*
                 foreach (KeyValuePair<string, BucketSyncInfo> pair in part.BucketSyncInfoList)
                 {
                     if (pair.Value.LastUpdateActorID.Equals(m_actorID))
@@ -305,6 +306,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         updated = true;
                         break;
                     }
+                }
+                 * */
+                if (part.HasPropertyUpdatedLocally())
+                {
+                    updated = true;
                 }
             }
 
@@ -368,6 +374,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             if (primUpdates != null || presenceUpdates != null)
             {
+                long timeStamp = DateTime.Now.Ticks;
+
                 // This could be another thread for sending outgoing messages or just have the Queue functions
                 // create and queue the messages directly into the outgoing server thread.
                 System.Threading.ThreadPool.QueueUserWorkItem(delegate
@@ -380,6 +388,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         foreach (SceneObjectGroup sog in primUpdates)
                         {
                             //If this is a relay node, or at least one part of the object has the last update caused by this actor, then send the update
+                            sog.UpdateTaintedBucketSyncInfo(timeStamp);
                             if (m_isSyncRelay || (!sog.IsDeleted && CheckObjectForSendingUpdate(sog)))
                             {
                                 //send 

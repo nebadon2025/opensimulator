@@ -5391,6 +5391,18 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        public bool HasPropertyUpdatedLocally()
+        {
+            bool updatedLocally = false;
+            foreach (KeyValuePair<string, bool> pair in m_bucketSyncTainted)
+            {
+                updatedLocally = pair.Value;
+                if (updatedLocally)
+                    break;
+            }
+            return updatedLocally;
+        }
+
         /*
         public void ClearBucketTaint()
         {
@@ -5412,6 +5424,25 @@ namespace OpenSim.Region.Framework.Scenes
             if (m_syncEnabled)
             {
                 long timeStamp = DateTime.Now.Ticks;
+                foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
+                {
+                    string bucketName = pair.Key;
+                    if (m_bucketSyncTainted[bucketName])
+                    {
+                        m_bucketSyncInfoList[bucketName].UpdateSyncInfo(timeStamp, m_localActorID);
+                        m_bucketSyncTainted[bucketName] = false;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Update the timestamp information of each property bucket, and clear out the taint on each bucket.
+        /// </summary>
+        public void UpdateTaintedBucketSyncInfo(long timeStamp)
+        {
+            if (m_syncEnabled)
+            {
                 foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
                 {
                     string bucketName = pair.Key;

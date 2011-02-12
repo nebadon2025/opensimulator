@@ -5324,16 +5324,115 @@ namespace OpenSim.Region.Framework.Scenes
 
         private void GeneralBucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName)
         {
+            //If needed, we could define new set functions for these properties, and cast this SOP to SOPBase to 
+            //invoke the set functions in SOPBase 
+            //SceneObjectPartBase localPart = (SceneObjectPartBase)this; 
+            SceneObjectPart localPart = this; 
+            bool collisionSoundUpdated = false; 
+
             lock (m_bucketUpdateLocks[bucketName])
             {
+                //See SceneObjectSerializer for the properties that are included in a serialized SceneObjectPart.
+                localPart.AllowedDrop = updatedPart.AllowedDrop;
+                localPart.CreatorID = updatedPart.CreatorID;
+                localPart.CreatorData = updatedPart.CreatorData;
+                localPart.FolderID = updatedPart.FolderID;
+                localPart.InventorySerial = updatedPart.InventorySerial;
+                localPart.TaskInventory = updatedPart.TaskInventory;
+                //Following two properties, UUID and LocalId, shall not be updated.
+                //localPart.UUID 
+                //localPart.LocalId
+                localPart.Name = updatedPart.Name;
+                localPart.Material = updatedPart.Material;
+                localPart.PassTouches = updatedPart.PassTouches;
+                //RegionHandle shall not be copied, since updatedSog is sent by a different actor, which has a different local region
+                //localPart.RegionHandle 
+                localPart.ScriptAccessPin = updatedPart.ScriptAccessPin;
+                
+                localPart.Description = updatedPart.Description;
+                localPart.Color = updatedPart.Color;
+                localPart.Text = updatedPart.Text;
+                localPart.SitName = updatedPart.SitName;
+                localPart.TouchName = updatedPart.TouchName;
+                localPart.LinkNum = updatedPart.LinkNum;
+                localPart.ClickAction = updatedPart.ClickAction;
+                localPart.Shape = updatedPart.Shape;
+                localPart.Scale = updatedPart.Scale;
+                localPart.UpdateFlag = updatedPart.UpdateFlag;
+                localPart.SitTargetOrientation = updatedPart.SitTargetOrientation;
+                localPart.SitTargetPosition = updatedPart.SitTargetPosition;
+                localPart.SitTargetPositionLL = updatedPart.SitTargetPositionLL;
+                localPart.SitTargetOrientationLL = updatedPart.SitTargetOrientationLL;
+                //ParentID should still point to the rootpart in the local sog, do not update. If the root part changed, we will update it in SceneObjectGroup.UpdateObjectProperties()
+                //localPart.ParentID;
+                localPart.CreationDate = updatedPart.CreationDate;
+                localPart.Category = updatedPart.Category;
+                localPart.SalePrice = updatedPart.SalePrice;
+                localPart.ObjectSaleType = updatedPart.ObjectSaleType;
+                localPart.OwnershipCost = updatedPart.OwnershipCost;
+                localPart.GroupID = updatedPart.GroupID;
+                localPart.OwnerID = updatedPart.OwnerID;
+                localPart.LastOwnerID = updatedPart.LastOwnerID;
+                localPart.BaseMask = updatedPart.BaseMask;
+                localPart.OwnerMask = updatedPart.OwnerMask;
+                localPart.GroupMask = updatedPart.GroupMask;
+                localPart.EveryoneMask = updatedPart.EveryoneMask;
+                localPart.NextOwnerMask = updatedPart.NextOwnerMask;
+                localPart.Flags = updatedPart.Flags;
 
+                //We will update CollisionSound with special care so that it does not lead to ScheduleFullUpdate of this part, to make the actor think it just made an update and 
+                //need to propogate that update to other actors.
+                //localPart.CollisionSound = updatedPart.CollisionSound;
+                collisionSoundUpdated = UpdateCollisionSound(updatedPart.CollisionSound);
+
+                localPart.CollisionSoundVolume = updatedPart.CollisionSoundVolume;
+                localPart.MediaUrl = updatedPart.MediaUrl;
+                localPart.TextureAnimation = updatedPart.TextureAnimation;
+                localPart.ParticleSystem = updatedPart.ParticleSystem;
+
+                m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
+                m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
+
+                if (collisionSoundUpdated)
+                {
+                    //If the local actor is Script Engine, it will catch this evnet and trigger aggregateScriptEvents()
+                    m_parentGroup.Scene.EventManager.TriggerAggregateScriptEvents(this);
+                }
             }
         }
 
         private void PhysicsBucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName)
         {
+            //If needed, we could define new set functions for these properties, and cast this SOP to SOPBase to 
+            //invoke the set functions in SOPBase 
+            //SceneObjectPartBase localPart = (SceneObjectPartBase)this; 
+            SceneObjectPart localPart = this; 
+
             lock (m_bucketUpdateLocks[bucketName])
             {
+                localPart.GroupPosition = updatedPart.GroupPosition;
+                localPart.OffsetPosition = updatedPart.OffsetPosition;
+                localPart.Scale = updatedPart.Scale;
+                localPart.Velocity = updatedPart.Velocity;
+                localPart.AngularVelocity = updatedPart.AngularVelocity;
+                localPart.RotationOffset = updatedPart.RotationOffset;
+                //properties in Physics bucket whose update processors are in PhysicsActor
+                /*
+                    "Position":
+                    "Size":
+                    "Force":
+                    "RotationalVelocity":
+                    "PA_Acceleration":
+                    "Torque":
+                    "Orientation":
+                    "IsPhysical":
+                    "Flying":
+                    "Buoyancy":
+                 * */
+
+                m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
+                m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
+
             }
         }
 

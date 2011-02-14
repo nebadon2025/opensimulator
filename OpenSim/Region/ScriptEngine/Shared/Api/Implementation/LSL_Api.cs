@@ -3817,7 +3817,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
             parentPrim.HasGroupChanged = true;
             //parentPrim.ScheduleGroupForFullUpdate();
-            //SYMMETRIC SYNC
+            //SYMMETRIC SYNCF
             if (World.RegionSyncModule != null)
             {
                 parts.Add(rootPart);

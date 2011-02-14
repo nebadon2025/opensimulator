@@ -515,6 +515,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
             }
 
+            //First, make sure the linked group has updated timestamp info for synchronization
+            linkedGroup.BucketSyncInfoUpdate();
+
             OSDMap data = new OSDMap();
             string sogxml = SceneObjectSerializer.ToXml2Format(linkedGroup);
             data["linkedGroup"]=OSD.FromString(sogxml);
@@ -571,6 +574,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 string sogxml = SceneObjectSerializer.ToXml2Format(afterGroup);
                 data[groupTempID] = OSD.FromString(sogxml);
                 groupNum++;
+            }
+
+            //make sure the newly delinked objects have the updated timestamp information
+            foreach (SceneObjectGroup sog in afterDelinkGroups)
+            {
+                sog.BucketSyncInfoUpdate();
             }
 
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.DelinkObject, OSDParser.SerializeJsonString(data));

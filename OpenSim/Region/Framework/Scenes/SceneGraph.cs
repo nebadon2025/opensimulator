@@ -1601,7 +1601,6 @@ namespace OpenSim.Region.Framework.Scenes
                 if (m_parentScene.RegionSyncModule != null)
                 {
                     //Tell other actors to link the SceneObjectParts together as a new group. 
-                    //parentGroup.SyncInfoUpdate();
                     m_parentScene.RegionSyncModule.SendLinkObject(parentGroup, root, children);
                 }
 

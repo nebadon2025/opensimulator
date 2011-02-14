@@ -5576,7 +5576,20 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        
+        public void UpdateAllBucketSyncInfo(long timeStamp)
+        {
+            if (m_syncEnabled)
+            {
+                foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
+                {
+                    string bucketName = pair.Key;
+                    BucketSyncInfo syncInfo= pair.Value;
+                    syncInfo.UpdateSyncInfo(timeStamp, m_localActorID);
+                    m_bucketSyncTainted[bucketName] = false;
+                }
+            }
+        }
+
 
         public Scene.ObjectUpdateResult UpdateAllProperties(SceneObjectPart updatedPart)
         {

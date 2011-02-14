@@ -4046,17 +4046,19 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
 
-        /*
-        public void SyncInfoUpdate()
+        
+        public void BucketSyncInfoUpdate()
         {
             long timeStamp = DateTime.Now.Ticks;
             string actorID = m_scene.GetSyncActorID();
             foreach (SceneObjectPart part in Parts)
             {
-                part.SyncInfoUpdate(timeStamp, actorID);
+                //part.SyncInfoUpdate(timeStamp, actorID);
+                part.UpdateAllBucketSyncInfo(timeStamp);
             }
         }
 
+        /*
         public void SyncInfoUpdate(long timeStamp, string actorID)
         {
             foreach (SceneObjectPart part in Parts)

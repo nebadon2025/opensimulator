@@ -37,5 +37,6 @@ namespace OpenSim.Region.Framework.Interfaces
         //void QueuePartForUpdate(SceneObjectPart part);
         void QueuePartForUpdate(SceneObjectPartBase part);
         void SendPrimUpdates();
+        int GetPendingObjectsCount();
     }
 }

@@ -330,8 +330,9 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             m_SOPXmlProcessors.Add("ParticleSystem", ProcessParticleSystem);
 
             //SYMMETRIC SYNC
-            m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
-            m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
+            m_SOPXmlProcessors.Add("LocalFlags", ProcessLocalFlags);
+            //m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
+            //m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
             m_SOPXmlProcessors.Add("BucketSyncInfoList", ProcessBucketSyncInfo);
             //end of SYMMETRIC SYNC
 
@@ -422,8 +423,8 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         //That is, calling SetXXX(value) instead of using "XXX = value". 
         private static void ProcessAllowedDrop(SceneObjectPart obj, XmlTextReader reader)
         {
-            //obj.AllowedDrop = Util.ReadBoolean(reader);
-            obj.SetAllowedDrop(Util.ReadBoolean(reader));
+            obj.AllowedDrop = Util.ReadBoolean(reader);
+            //obj.SetAllowedDrop(Util.ReadBoolean(reader));
         }
 
         private static void ProcessCreatorID(SceneObjectPart obj, XmlTextReader reader)
@@ -488,32 +489,32 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
         private static void ProcessGroupPosition(SceneObjectPart obj, XmlTextReader reader)
         {
-            //obj.GroupPosition = Util.ReadVector(reader, "GroupPosition");
-            obj.SetGroupPosition(Util.ReadVector(reader, "GroupPosition"));
+            obj.GroupPosition = Util.ReadVector(reader, "GroupPosition");
+            //obj.SetGroupPosition(Util.ReadVector(reader, "GroupPosition"));
         }
 
         private static void ProcessOffsetPosition(SceneObjectPart obj, XmlTextReader reader)
         {
-            //obj.OffsetPosition = Util.ReadVector(reader, "OffsetPosition"); ;
-            obj.SetOffsetPosition(Util.ReadVector(reader, "OffsetPosition"));
+            obj.OffsetPosition = Util.ReadVector(reader, "OffsetPosition"); ;
+            //obj.SetOffsetPosition(Util.ReadVector(reader, "OffsetPosition"));
         }
 
         private static void ProcessRotationOffset(SceneObjectPart obj, XmlTextReader reader)
         {
-            //obj.RotationOffset = Util.ReadQuaternion(reader, "RotationOffset");
-            obj.SetRotationOffset(Util.ReadQuaternion(reader, "RotationOffset"));
+            obj.RotationOffset = Util.ReadQuaternion(reader, "RotationOffset");
+            //obj.SetRotationOffset(Util.ReadQuaternion(reader, "RotationOffset"));
         }
 
         private static void ProcessVelocity(SceneObjectPart obj, XmlTextReader reader)
         {
-            //obj.Velocity = Util.ReadVector(reader, "Velocity");
-            obj.SetVelocity(Util.ReadVector(reader, "Velocity"));
+            obj.Velocity = Util.ReadVector(reader, "Velocity");
+            //obj.SetVelocity(Util.ReadVector(reader, "Velocity"));
         }
 
         private static void ProcessAngularVelocity(SceneObjectPart obj, XmlTextReader reader)
         {
-            //obj.AngularVelocity = Util.ReadVector(reader, "AngularVelocity");
-            obj.SetVelocity(Util.ReadVector(reader, "AngularVelocity"));
+            obj.AngularVelocity = Util.ReadVector(reader, "AngularVelocity");
+            //obj.SetVelocity(Util.ReadVector(reader, "AngularVelocity"));
         }
 
         private static void ProcessAcceleration(SceneObjectPart obj, XmlTextReader reader)
@@ -572,8 +573,8 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
         private static void ProcessScale(SceneObjectPart obj, XmlTextReader reader)
         {
-            //obj.Scale = Util.ReadVector(reader, "Scale");
-            obj.SetScale(Util.ReadVector(reader, "Scale"));
+            obj.Scale = Util.ReadVector(reader, "Scale");
+            //obj.SetScale(Util.ReadVector(reader, "Scale"));
         }
 
         private static void ProcessUpdateFlag(SceneObjectPart obj, XmlTextReader reader)
@@ -703,6 +704,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         }
 
         //SYMMETRIC SYNC
+        /*
         private static void ProcessUpdateTimeStamp(SceneObjectPart obj, XmlTextReader reader)
         {
             obj.LastUpdateTimeStamp = reader.ReadElementContentAsLong("LastUpdateTimeStamp", string.Empty);
@@ -711,6 +713,12 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         private static void ProcessLastUpdateActorID(SceneObjectPart obj, XmlTextReader reader)
         {
             obj.LastUpdateActorID = reader.ReadElementContentAsString("LastUpdateActorID", string.Empty);
+        }
+         * */
+
+        private static void ProcessLocalFlags(SceneObjectPart obj, XmlTextReader reader)
+        {
+            obj.LocalFlags = Util.ReadEnum<PrimFlags>(reader, "LocalFlags");
         }
 
         public static void ProcessBucketSyncInfo(SceneObjectPart obj, XmlTextReader reader)
@@ -1234,8 +1242,10 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             writer.WriteElementString("EveryoneMask", sop.EveryoneMask.ToString());
             writer.WriteElementString("NextOwnerMask", sop.NextOwnerMask.ToString());
             //SYMMETRIC SYNC: also serialize SceneObjectPart:LocalFlags, so that it can be propogated across actors
-            //WriteFlags(writer, "Flags", sop.Flags.ToString(), options);
-            WriteFlags(writer, "Flags", sop.GetEffectiveObjectFlags().ToString(), options);
+            WriteFlags(writer, "Flags", sop.Flags.ToString(), options);
+            WriteFlags(writer, "LocalFlags", sop.LocalFlags.ToString(), options);
+            //writer.WriteElementString("Flags", sop.Flags.ToString());
+            //writer.WriteElementString("LocalFlags", sop.Flags.ToString());
             //end SYMMETRIC SYNC
             WriteUUID(writer, "CollisionSound", sop.CollisionSound, options);
             writer.WriteElementString("CollisionSoundVolume", sop.CollisionSoundVolume.ToString());
@@ -1245,8 +1255,8 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             WriteBytes(writer, "ParticleSystem", sop.ParticleSystem);
 
             //SYMMETRIC SYNC
-            writer.WriteElementString("LastUpdateTimeStamp", sop.LastUpdateTimeStamp.ToString());
-            writer.WriteElementString("LastUpdateActorID", sop.LastUpdateActorID);
+            //writer.WriteElementString("LastUpdateTimeStamp", sop.LastUpdateTimeStamp.ToString());
+            //writer.WriteElementString("LastUpdateActorID", sop.LastUpdateActorID);
             WriteBucketSyncInfo(writer, sop.BucketSyncInfoList);
             //end of SYMMETRIC SYNC
 

@@ -1720,7 +1720,7 @@ namespace OpenSim.Region.Framework.Scenes
                          * */
                         if (RegionSyncModule != null)
                         {
-                            part.SyncInfoUpdate();
+                            //part.SyncInfoUpdate();
                             EventManager.TriggerNewScript(remoteClient.AgentId, part, copyID);
                         }
                         else
@@ -1798,7 +1798,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //part.ParentGroup.ResumeScripts();
                 if (RegionSyncModule != null)
                 {
-                    part.SyncInfoUpdate();
+                    //part.SyncInfoUpdate();
                     EventManager.TriggerNewScript(remoteClient.AgentId, part, taskItem.ItemID);
                 }
                 else
@@ -2197,7 +2197,8 @@ namespace OpenSim.Region.Framework.Scenes
             // to find out if scripts should be activated at all.
             group.CreateScriptInstances(param, true, DefaultScriptEngine, 3);
             
-            group.ScheduleGroupForFullUpdate();
+            //group.ScheduleGroupForFullUpdate();
+            group.ScheduleGroupForFullUpdate(SceneObjectPartProperties.FullUpdate); //new object, all properties have new value
         
             return group;
         }
@@ -2262,7 +2263,8 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     sog.SetOwnerId(ownerID);
                     sog.SetGroup(groupID, remoteClient);
-                    sog.ScheduleGroupForFullUpdate();
+                    //sog.ScheduleGroupForFullUpdate();
+                    sog.ScheduleGroupForFullUpdate(SceneObjectPartProperties.OwnerID);
 
                     SceneObjectPart[] partList = sog.Parts;
                     

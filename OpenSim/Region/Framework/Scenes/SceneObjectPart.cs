@@ -107,64 +107,15 @@ namespace OpenSim.Region.Framework.Scenes
 
     #endregion Enumerations
 
-    //SYMMETRIC SYNC
-
-    //Information for concurrency control of one bucket of prim proproperties.
-    public class BucketSyncInfo
-    {
-        private long m_lastUpdateTimeStamp;
-        private string m_lastUpdateActorID;
-        //lock for concurrent updates of the timestamp and actorID.
-        private Object m_updateLock = new Object();
-        private string m_bucketName;
-
-        public long LastUpdateTimeStamp
-        {
-            get { return m_lastUpdateTimeStamp; }
-        }
-
-        public string LastUpdateActorID
-        {
-            get { return m_lastUpdateActorID; }
-        }
-
-        public string BucketName
-        {
-            get { return m_bucketName; }
-        }
-
-        public BucketSyncInfo(string bucketName)
-        {
-            m_bucketName = bucketName;
-        }
-
-        public BucketSyncInfo(long timeStamp, string actorID, string bucketName)
-        {
-            m_lastUpdateTimeStamp = timeStamp;
-            m_lastUpdateActorID = actorID;
-            m_bucketName = bucketName;
-        }
-
-        public void UpdateSyncInfo(long timeStamp, string actorID)
-        {
-            lock (m_updateLock)
-            {
-                m_lastUpdateTimeStamp = timeStamp;
-                m_lastUpdateActorID = actorID;
-            }
-        }
-
-    }
-    //end of SYMMETRIC SYNC
-
-    public class SceneObjectPart : IScriptHost, ISceneEntity
+    //public class SceneObjectPart : IScriptHost, ISceneEntity
+    public abstract class SceneObjectPartBase : IScriptHost, ISceneEntity
     {
         /// <value>
         /// Denote all sides of the prim
         /// </value>
         public const int ALL_SIDES = -1;
         
-        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        protected static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         /// <value>
         /// Is this sop a root part?
@@ -185,14 +136,8 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_allowedDrop; }
             set
             {
-                //m_allowedDrop = value;
-                SetAllowedDrop(value);
-                UpdateBucketSyncInfo("AllowedDrop");
+                m_allowedDrop = value;
             }
-        }
-        public void SetAllowedDrop(bool value)
-        {
-            m_allowedDrop = value;
         }
 
         
@@ -325,7 +270,8 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return m_inventory; }
         }
-        protected SceneObjectPartInventory m_inventory;
+        //protected SceneObjectPartInventory m_inventory;
+        protected SceneObjectPartInventoryBase m_inventory;
 
         
         public bool Undoing;
@@ -365,7 +311,8 @@ namespace OpenSim.Region.Framework.Scenes
         ///
         /// TODO - This should be an enumeration
         /// </summary>
-        private byte m_updateFlag;
+        //private byte m_updateFlag;
+        protected byte m_updateFlag;
 
         private PhysicsActor m_physActor;
         protected Vector3 m_acceleration;
@@ -406,7 +353,8 @@ namespace OpenSim.Region.Framework.Scenes
         private bool m_forceMouselook;
 
         // TODO: Collision sound should have default.
-        private UUID m_collisionSound;
+        //private UUID m_collisionSound;
+        protected UUID m_collisionSound;
         private float m_collisionSoundVolume;
 
         #endregion Fields
@@ -416,14 +364,16 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// No arg constructor called by region restore db code
         /// </summary>
-        public SceneObjectPart()
+        //public SceneObjectPart()
+        public SceneObjectPartBase()
         {
             // It's not necessary to persist this
             m_TextureAnimation = Utils.EmptyBytes;
             m_particleSystem = Utils.EmptyBytes;
             Rezzed = DateTime.UtcNow;
             
-            m_inventory = new SceneObjectPartInventory(this);
+            //m_inventory = new SceneObjectPartInventory(this);
+            m_inventory = new SceneObjectPartInventoryBase(this);
         }
 
         /// <summary>
@@ -434,7 +384,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="position"></param>
         /// <param name="rotationOffset"></param>
         /// <param name="offsetPosition"></param>
-        public SceneObjectPart(
+        //public SceneObjectPart(
+        public SceneObjectPartBase(
             UUID ownerID, PrimitiveBaseShape shape, Vector3 groupPosition, 
             Quaternion rotationOffset, Vector3 offsetPosition)
         {
@@ -473,7 +424,8 @@ namespace OpenSim.Region.Framework.Scenes
             TrimPermissions();
             //m_undo = new UndoStack<UndoState>(ParentGroup.GetSceneMaxUndo());
             
-            m_inventory = new SceneObjectPartInventory(this);
+            //m_inventory = new SceneObjectPartInventory(this);
+            m_inventory = new SceneObjectPartInventoryBase(this);
         }
 
         #endregion Constructors
@@ -798,11 +750,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
             set
             {
-                SetGroupPosition(value);
-                UpdateBucketSyncInfo("GroupPosition");
-                 
-                /*
-                //Legacy Opensim code
                 m_groupPosition = value;
 
                 PhysicsActor actor = PhysActor;
@@ -843,63 +790,14 @@ namespace OpenSim.Region.Framework.Scenes
                         }
                     }
                 }
-                 */ 
             }
         }
-        //SYMMETRIC SYNC
-        public void SetGroupPosition(Vector3 value)
-        {
-            m_groupPosition = value;
-
-            PhysicsActor actor = PhysActor;
-            if (actor != null)
-            {
-                try
-                {
-                    // Root prim actually goes at Position
-                    if (_parentID == 0)
-                    {
-                        actor.Position = value;
-                    }
-                    else
-                    {
-                        // To move the child prim in respect to the group position and rotation we have to calculate
-                        actor.Position = GetWorldPosition();
-                        actor.Orientation = GetWorldRotation();
-                    }
-
-                    // Tell the physics engines that this prim changed.
-                    m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
-                }
-                catch (Exception e)
-                {
-                    m_log.Error("[SCENEOBJECTPART]: GROUP POSITION. " + e.Message);
-                }
-            }
-
-            // TODO if we decide to do sitting in a more SL compatible way (multiple avatars per prim), this has to be fixed, too
-            if (m_sitTargetAvatar != UUID.Zero)
-            {
-                if (m_parentGroup != null) // TODO can there be a SOP without a SOG?
-                {
-                    ScenePresence avatar;
-                    if (m_parentGroup.Scene.TryGetScenePresence(m_sitTargetAvatar, out avatar))
-                    {
-                        avatar.ParentPosition = GetWorldPosition();
-                    }
-                }
-            }
-        }
-        
 
         public Vector3 OffsetPosition
         {
             get { return m_offsetPosition; }
             set
             {
-                SetOffsetPosition(value);
-                UpdateBucketSyncInfo("OffsetPosition");
-                /*
                 StoreUndoState();
                 m_offsetPosition = value;
 
@@ -914,26 +812,6 @@ namespace OpenSim.Region.Framework.Scenes
                         // Tell the physics engines that this prim changed.
                         m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
                     }
-                }
-                 * */ 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetOffsetPosition(Vector3 value)
-        {
-            StoreUndoState();
-            m_offsetPosition = value;
-
-            if (ParentGroup != null && !ParentGroup.IsDeleted)
-            {
-                PhysicsActor actor = PhysActor;
-                if (_parentID != 0 && actor != null)
-                {
-                    actor.Position = GetWorldPosition();
-                    actor.Orientation = GetWorldRotation();
-
-                    // Tell the physics engines that this prim changed.
-                    m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
                 }
             }
         }
@@ -976,9 +854,6 @@ namespace OpenSim.Region.Framework.Scenes
             
             set
             {
-                SetRotationOffset(value);
-                UpdateBucketSyncInfo("RotationOffset");
-                /*
                 StoreUndoState();
                 m_rotationOffset = value;
 
@@ -1008,41 +883,7 @@ namespace OpenSim.Region.Framework.Scenes
                         m_log.Error("[SCENEOBJECTPART]: ROTATIONOFFSET" + ex.Message);
                     }
                 }
-                 * */ 
 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetRotationOffset(Quaternion value)
-        {
-            StoreUndoState();
-            m_rotationOffset = value;
-
-            PhysicsActor actor = PhysActor;
-            if (actor != null)
-            {
-                try
-                {
-                    // Root prim gets value directly
-                    if (_parentID == 0)
-                    {
-                        actor.Orientation = value;
-                        //m_log.Info("[PART]: RO1:" + actor.Orientation.ToString());
-                    }
-                    else
-                    {
-                        // Child prim we have to calculate it's world rotationwel
-                        Quaternion resultingrotation = GetWorldRotation();
-                        actor.Orientation = resultingrotation;
-                        //m_log.Info("[PART]: RO2:" + actor.Orientation.ToString());
-                    }
-                    m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
-                    //}
-                }
-                catch (Exception ex)
-                {
-                    m_log.Error("[SCENEOBJECTPART]: ROTATIONOFFSET" + ex.Message);
-                }
             }
         }
 
@@ -1065,9 +906,6 @@ namespace OpenSim.Region.Framework.Scenes
 
             set
             {
-                SetVelocity(value);
-                UpdateBucketSyncInfo("Velocity");
-                /*
                 m_velocity = value;
 
                 PhysicsActor actor = PhysActor;
@@ -1078,22 +916,6 @@ namespace OpenSim.Region.Framework.Scenes
                         actor.Velocity = value;
                         m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
                     }
-                }
-                 * */
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetVelocity(Vector3 value)
-        {
-            m_velocity = value;
-
-            PhysicsActor actor = PhysActor;
-            if (actor != null)
-            {
-                if (actor.IsPhysical)
-                {
-                    actor.Velocity = value;
-                    m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
                 }
             }
         }
@@ -1110,17 +932,7 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 return m_angularVelocity;
             }
-            set
-            {
-                SetAngularVelocity(value);
-                UpdateBucketSyncInfo("AngularVelocity");
-                //m_angularVelocity = value; 
-            }
-        }
-        //SYMMETRIC SYNC
-        public void SetAngularVelocity(Vector3 value)
-        {
-            m_angularVelocity = value;
+            set { m_angularVelocity = value; }
         }
 
         /// <summary></summary>
@@ -1217,9 +1029,6 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_shape.Scale; }
             set
             {
-                SetScale(value);
-                UpdateBucketSyncInfo("Scale");
-                /*
                 StoreUndoState();
                 if (m_shape != null)
                 {
@@ -1239,33 +1048,8 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                 }
                 TriggerScriptChangedEvent(Changed.SCALE);
-                 * */
             }
         }
-        //SYMMETRIC SYNC
-        public void SetScale(Vector3 value)
-        {
-            StoreUndoState();
-            if (m_shape != null)
-            {
-                m_shape.Scale = value;
-
-                PhysicsActor actor = PhysActor;
-                if (actor != null && m_parentGroup != null)
-                {
-                    if (m_parentGroup.Scene != null)
-                    {
-                        if (m_parentGroup.Scene.PhysicsScene != null)
-                        {
-                            actor.Size = m_shape.Scale;
-                            m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
-                        }
-                    }
-                }
-            }
-            TriggerScriptChangedEvent(Changed.SCALE);
-        }
-
         
         public byte UpdateFlag
         {
@@ -1627,7 +1411,7 @@ namespace OpenSim.Region.Framework.Scenes
             });
             // REGION SYNC
             if (m_parentGroup.Scene.IsSyncedServer())
-                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate(this);
+                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate((SceneObjectPart)this);
         }
 
         /// <summary>
@@ -1635,7 +1419,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void AddFullUpdateToAvatar(ScenePresence presence)
         {
-            presence.SceneViewer.QueuePartForUpdate(this);
+            presence.SceneViewer.QueuePartForUpdate((SceneObjectPart)this);
         }
 
         public void AddNewParticleSystem(Primitive.ParticleSystem pSystem)
@@ -1657,12 +1441,12 @@ namespace OpenSim.Region.Framework.Scenes
             });
             // REGION SYNC
             if (m_parentGroup.Scene.IsSyncedServer())
-                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate(this);
+                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate((SceneObjectPart)this);
         }
 
         public void AddTerseUpdateToAvatar(ScenePresence presence)
         {
-            presence.SceneViewer.QueuePartForUpdate(this);
+            presence.SceneViewer.QueuePartForUpdate((SceneObjectPart)this);
         }
 
         public void AddTextureAnimation(Primitive.TextureAnimation pTexAnim)
@@ -1936,7 +1720,7 @@ namespace OpenSim.Region.Framework.Scenes
                 dupe.DoPhysicsPropertyUpdate(UsePhysics, true);
             }
             
-            ParentGroup.Scene.EventManager.TriggerOnSceneObjectPartCopy(dupe, this, userExposed);
+            ParentGroup.Scene.EventManager.TriggerOnSceneObjectPartCopy(dupe, (SceneObjectPart) this, userExposed);
 
 //            m_log.DebugFormat("[SCENE OBJECT PART]: Clone of {0} {1} finished", Name, UUID);
                           
@@ -2967,7 +2751,8 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 //m_parentGroup.RootPart.m_groupPosition = newpos;
             }
-            ScheduleTerseUpdate();
+            //ScheduleTerseUpdate();
+            ScheduleTerseUpdate(SceneObjectPartProperties.Position);
 
             //SendTerseUpdateToAllClients();
         }
@@ -3057,7 +2842,8 @@ namespace OpenSim.Region.Framework.Scenes
             m_shape.Scale = scale;
 
             ParentGroup.HasGroupChanged = true;
-            ScheduleFullUpdate();
+            //ScheduleFullUpdate();
+            ScheduleFullUpdate(SceneObjectPartProperties.Scale);
         }
         
         public void RotLookAt(Quaternion target, float strength, float damping)
@@ -3099,7 +2885,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Schedules this prim for a full update
         /// </summary>
-        public void ScheduleFullUpdate()
+        //public void ScheduleFullUpdate() :: SYMMETRIC SYNC: changed the interface so that we can identify which property triggers calling this function
+        public virtual void ScheduleFullUpdate(SceneObjectPartProperties sopProperty)
         {
 //            m_log.DebugFormat("[SCENE OBJECT PART]: Scheduling full update for {0} {1}", Name, LocalId);
             
@@ -3127,20 +2914,14 @@ namespace OpenSim.Region.Framework.Scenes
             //            m_log.DebugFormat(
             //                "[SCENE OBJECT PART]: Scheduling full  update for {0}, {1} at {2}",
             //                UUID, Name, TimeStampFull);
-
-            //SYMMETRIC SYNC
-
-            //update information (timestamp, actorID, etc) needed for synchronization across copies of Scene
-            SyncInfoUpdate();
-            
-            //end of SYMMETRIC SYNC
         }
 
         /// <summary>
         /// Schedule a terse update for this prim.  Terse updates only send position,
         /// rotation, velocity, rotational velocity and shape information.
         /// </summary>
-        public void ScheduleTerseUpdate()
+        //public void ScheduleTerseUpdate()
+        public virtual void ScheduleTerseUpdate(SceneObjectPartProperties sopProperty)
         {
             if (m_updateFlag < 1)
             {
@@ -3155,13 +2936,6 @@ namespace OpenSim.Region.Framework.Scenes
             //                m_log.DebugFormat(
             //                    "[SCENE OBJECT PART]: Scheduling terse update for {0}, {1} at {2}",
             //                    UUID, Name, TimeStampTerse);
-
-                //SYMMETRIC SYNC
-
-                //update information (timestamp, actorID, etc) needed for synchronization across copies of Scene
-                SyncInfoUpdate();
-
-                //end of SYMMETRIC SYNC
             }
         }
 
@@ -3381,10 +3155,10 @@ namespace OpenSim.Region.Framework.Scenes
             ClearUpdateSchedule();
 
             //SYMMETRIC SYNC
-            if (m_parentGroup.Scene.RegionSyncModule == null)
-                return;
-            m_parentGroup.Scene.RegionSyncModule.QueueSceneObjectPartForUpdate(this);
-            
+            if (m_parentGroup.Scene.RegionSyncModule != null)
+            {
+                m_parentGroup.Scene.RegionSyncModule.QueueSceneObjectPartForUpdate((SceneObjectPart)this);
+            }
             //end of SYMMETRIC SYNC
         }
 
@@ -3440,7 +3214,7 @@ namespace OpenSim.Region.Framework.Scenes
                             soundModule.TriggerSound(soundID, ownerID, objectID, parentID, volume, position, regionHandle, radius);
                         else
                             soundModule.PlayAttachedSound(soundID, ownerID, objectID, volume, position, flags, radius);
-                        ParentGroup.PlaySoundMasterPrim = this;
+                        ParentGroup.PlaySoundMasterPrim = (SceneObjectPart)this;
                         ownerID = _ownerID;
                         objectID = ParentGroup.RootPart.UUID;
                         parentID = GetRootPartUUID();
@@ -3467,7 +3241,7 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                     else
                     {
-                        ParentGroup.PlaySoundSlavePrims.Add(this);
+                        ParentGroup.PlaySoundSlavePrims.Add((SceneObjectPart)this);
                     }
                 }
                 else
@@ -3848,14 +3622,16 @@ namespace OpenSim.Region.Framework.Scenes
             Text = text;
 
             ParentGroup.HasGroupChanged = true;
-            ScheduleFullUpdate();
+            //ScheduleFullUpdate();
+            ScheduleFullUpdate(SceneObjectPartProperties.Text);
         }
         
         public void StopLookAt()
         {
             m_parentGroup.stopLookAt();
 
-            m_parentGroup.ScheduleGroupForTerseUpdate();
+            //m_parentGroup.ScheduleGroupForTerseUpdate();
+            m_parentGroup.ScheduleGroupForTerseUpdate(SceneObjectPartProperties.None);//in stopLookAt(), PhysicsActor shall already take care of tainting which properties have been updated 
         }
         
         /// <summary>
@@ -3877,7 +3653,8 @@ namespace OpenSim.Region.Framework.Scenes
         {
             m_parentGroup.stopMoveToTarget();
 
-            m_parentGroup.ScheduleGroupForTerseUpdate();
+            //m_parentGroup.ScheduleGroupForTerseUpdate();
+            m_parentGroup.ScheduleGroupForTerseUpdate(SceneObjectPartProperties.None); //in stopMoveToTarget(), PhysicsActor shall already take care of tainting which properties have been updated 
             //m_parentGroup.ScheduleGroupForFullUpdate();
         }
 
@@ -3896,14 +3673,14 @@ namespace OpenSim.Region.Framework.Scenes
                                 UndoState last = m_undo.Peek();
                                 if (last != null)
                                 {
-                                    if (last.Compare(this))
+                                    if (last.Compare((SceneObjectPart)this))
                                         return;
                                 }
                             }
 
                             if (m_parentGroup.GetSceneMaxUndo() > 0)
                             {
-                                UndoState nUndo = new UndoState(this);
+                                UndoState nUndo = new UndoState((SceneObjectPart)this);
 
                                 m_undo.Push(nUndo);
                             }
@@ -4356,7 +4133,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="xmlWriter"></param>
         public void ToXml(XmlTextWriter xmlWriter)
         {
-            SceneObjectSerializer.SOPToXml2(xmlWriter, this, new Dictionary<string, object>());
+            SceneObjectSerializer.SOPToXml2(xmlWriter, (SceneObjectPart)this, new Dictionary<string, object>());
         }
 
         public void TriggerScriptChangedEvent(Changed val)
@@ -4383,12 +4160,12 @@ namespace OpenSim.Region.Framework.Scenes
                     UndoState nUndo = null;
                     if (m_parentGroup.GetSceneMaxUndo() > 0)
                     {
-                        nUndo = new UndoState(this);
+                        nUndo = new UndoState((SceneObjectPart)this);
                     }
                     UndoState goback = m_undo.Pop();
                     if (goback != null)
                     {
-                        goback.PlaybackState(this);
+                        goback.PlaybackState((SceneObjectPart)this);
                         if (nUndo != null)
                             m_redo.Push(nUndo);
                     }
@@ -4402,13 +4179,13 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (m_parentGroup.GetSceneMaxUndo() > 0)
                 {
-                    UndoState nUndo = new UndoState(this);
+                    UndoState nUndo = new UndoState((SceneObjectPart)this);
 
                     m_undo.Push(nUndo);
                 }
                 UndoState gofwd = m_redo.Pop();
                 if (gofwd != null)
-                    gofwd.PlayfwdState(this);
+                    gofwd.PlayfwdState((SceneObjectPart)this);
             }
         }
 
@@ -4425,7 +4202,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             ParentGroup.HasGroupChanged = true;
-            ScheduleFullUpdate();
+            //ScheduleFullUpdate();
+            ScheduleFullUpdate(SceneObjectPartProperties.Shape);
         }
 
         public void UpdateGroupPosition(Vector3 pos)
@@ -4436,7 +4214,8 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 Vector3 newPos = new Vector3(pos.X, pos.Y, pos.Z);
                 GroupPosition = newPos;
-                ScheduleTerseUpdate();
+                //ScheduleTerseUpdate();
+                ScheduleFullUpdate(SceneObjectPartProperties.GroupPosition);
             }
         }
 
@@ -4468,7 +4247,8 @@ namespace OpenSim.Region.Framework.Scenes
                 }
 
                 OffsetPosition = newPos;
-                ScheduleTerseUpdate();
+                //ScheduleTerseUpdate();
+                ScheduleFullUpdate(SceneObjectPartProperties.OffsetPosition);
             }
         }
 
@@ -4757,7 +4537,8 @@ namespace OpenSim.Region.Framework.Scenes
             //            m_log.Debug("Update:  PHY:" + UsePhysics.ToString() + ", T:" + IsTemporary.ToString() + ", PHA:" + IsPhantom.ToString() + " S:" + CastsShadows.ToString());
 
             ParentGroup.HasGroupChanged = true;
-            ScheduleFullUpdate();
+            //ScheduleFullUpdate();
+            ScheduleFullUpdate(SceneObjectPartProperties.Flags);
         }
 
         public void UpdateRotation(Quaternion rot)
@@ -4769,7 +4550,8 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 RotationOffset = rot;
                 ParentGroup.HasGroupChanged = true;
-                ScheduleTerseUpdate();
+                //ScheduleTerseUpdate();
+                ScheduleFullUpdate(SceneObjectPartProperties.RotationOffset);
             }
         }
 
@@ -4814,7 +4596,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             TriggerScriptChangedEvent(Changed.SHAPE);
-            ScheduleFullUpdate();
+            //ScheduleFullUpdate();
+            ScheduleFullUpdate(SceneObjectPartProperties.Shape);
         }
 
         /// <summary>
@@ -4861,7 +4644,8 @@ namespace OpenSim.Region.Framework.Scenes
             //This is madness..
             //ParentGroup.ScheduleGroupForFullUpdate();
             //This is sparta
-            ScheduleFullUpdate();
+            //ScheduleFullUpdate();
+            ScheduleFullUpdate(SceneObjectPartProperties.Shape);
         }
 
         public void aggregateScriptEvents()
@@ -4929,7 +4713,8 @@ namespace OpenSim.Region.Framework.Scenes
             {
 //                m_log.DebugFormat(
 //                    "[SCENE OBJECT PART]: Scheduling part {0} {1} for full update in aggregateScriptEvents() since m_parentGroup == null", Name, LocalId);
-                ScheduleFullUpdate();
+                //ScheduleFullUpdate();
+                ScheduleFullUpdate(SceneObjectPartProperties.Flags);
                 return;
             }
 
@@ -4952,7 +4737,8 @@ namespace OpenSim.Region.Framework.Scenes
             {
 //                m_log.DebugFormat(
 //                    "[SCENE OBJECT PART]: Scheduling part {0} {1} for full update in aggregateScriptEvents()", Name, LocalId);
-                ScheduleFullUpdate();
+                //ScheduleFullUpdate();
+                ScheduleFullUpdate(SceneObjectPartProperties.Flags);
             }
         }
 
@@ -5156,58 +4942,267 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_lastUpdateTimeStamp = value; }
         }
 
-        //The ID the identifies which actor has caused the most recent update to the prim.
-        //We use type "string" for the ID only to make it human-readable. 
-        private string m_lastUpdateActorID="";
+        #endregion 
+
+    }
+
+    //SYMMETRIC SYNC
+
+    //Information for concurrency control of one bucket of prim proproperties.
+    public class BucketSyncInfo
+    {
+        private long m_lastUpdateTimeStamp;
+        private string m_lastUpdateActorID;
+        //lock for concurrent updates of the timestamp and actorID.
+        private Object m_updateLock = new Object();
+        private string m_bucketName;
+
+        public long LastUpdateTimeStamp
+        {
+            get { return m_lastUpdateTimeStamp; }
+            set { m_lastUpdateTimeStamp = value; }
+        }
+
         public string LastUpdateActorID
         {
             get { return m_lastUpdateActorID; }
             set { m_lastUpdateActorID = value; }
         }
 
-        public void UpdateTimestamp(long time)
+        public string BucketName
         {
-            m_lastUpdateTimeStamp = time;
+            get { return m_bucketName; }
         }
 
-        public void SetLastUpdateActorID()
+        public BucketSyncInfo(string bucketName)
         {
-            if (m_parentGroup != null)
-            {
-                m_lastUpdateActorID = m_parentGroup.Scene.GetSyncActorID();
-            }
-            else
-            {
-                m_log.Error("Prim " + UUID + " is not in a SceneObjectGroup yet");
-            }
+            m_bucketName = bucketName;
         }
 
-        private Object m_SyncInfoLock = new Object();
-        public void SyncInfoUpdate(long timeStamp, string actorID)
+        public BucketSyncInfo(long timeStamp, string actorID, string bucketName)
         {
-            //update timestamp and actorID atomically
-            lock (m_SyncInfoLock)
+            m_lastUpdateTimeStamp = timeStamp;
+            m_lastUpdateActorID = actorID;
+            m_bucketName = bucketName;
+        }
+
+        public void UpdateSyncInfo(long timeStamp, string actorID)
+        {
+            lock (m_updateLock)
             {
-                UpdateTimestamp(timeStamp);
+                m_lastUpdateTimeStamp = timeStamp;
                 m_lastUpdateActorID = actorID;
             }
         }
-       
 
-        public void SyncInfoUpdate()
+    }
+
+    /*
+    public enum SceneObjectPartProperties:ulong 
         {
-            //Trick: calling UpdateTimestamp here makes sure that when an object was received and de-serialized, before
-            //       its parts are linked together, neither TimeStamp or ActorID will be modified. This is because during de-serialization, 
-            //       ScheduleFullUpdate() is called when m_parentGroup == null
-            if (m_parentGroup != null && m_parentGroup.Scene != null && m_parentGroup.Scene.ActorSyncModule != null)
-            {
-                SyncInfoUpdate(DateTime.Now.Ticks, m_parentGroup.Scene.GetSyncActorID());
-            }
+        //Following properties copied from SceneObjectSerializer(), 
+            AllowedDrop = (ulong) 1<<0,
+            CreatorID = (ulong) 1<<1,
+            CreatorData = (ulong) 1 <<2,
+            FolderID = (ulong) 1 << 3,
+            InventorySerial = (ulong) 1 << 4,
+            TaskInventory = (ulong) 1 << 5,
+            //UUID", 
+            //LocalId", 
+            Name = (ulong) 1 << 6,
+            Material = (ulong) 1 <<7,
+            PassTouches = (ulong) 1 << 8,
+            RegionHandle = (ulong) 1 << 9,
+            ScriptAccessPin = (ulong) 1 << 10,
+            GroupPosition = (ulong) 1 << 11,
+            OffsetPosition = (ulong) 1 << 12,
+            RotationOffset = (ulong) 1 << 13,
+            Velocity = (ulong) 1 << 14,
+            AngularVelocity = (ulong) 1 << 15,
+            //"Acceleration", 
+            SOP_Acceleration = (ulong) 1 << 16,  //SOP and PA read/write their own local copies of acceleration, so we distinguish the copies
+            Description = (ulong) 1 << 17,
+            Color = (ulong) 1 << 18,
+            Text = (ulong) 1 << 19,
+            SitName = (ulong) 1 << 20,
+            TouchName = (ulong) 1 << 21,
+            LinkNum = (ulong) 1 << 22,
+            ClickAction = (ulong) 1 << 23,
+            Shape = (ulong) 1 << 24,
+            Scale = (ulong) 1 << 25,
+            UpdateFlag = (ulong) 1 << 26,
+            SitTargetOrientation = (ulong) 1 << 27,
+            SitTargetPosition = (ulong) 1 << 28,
+            SitTargetPositionLL = (ulong) 1 << 29,
+            SitTargetOrientationLL = (ulong) 1 << 30,
+            ParentID = (ulong)1 << 31,
+            CreationDate = (ulong) 1 << 32,
+            Category = (ulong) 1 << 33,
+            SalePrice = (ulong) 1 << 34,
+            ObjectSaleType = (ulong) 1 << 35,
+            OwnershipCost = (ulong) 1 << 36,
+            GroupID = (ulong) 1 << 37,
+            OwnerID = (ulong) 1 << 38,
+            LastOwnerID = (ulong) 1 << 39,
+            BaseMask = (ulong) 1 << 40,
+            OwnerMask = (ulong) 1 << 41,
+            GroupMask = (ulong) 1 << 42,
+            EveryoneMask = (ulong) 1 << 43,
+            NextOwnerMask = (ulong) 1 << 44,
+            Flags = (ulong) 1 << 45,
+            CollisionSound = (ulong) 1 << 46,
+            CollisionSoundVolume = (ulong) 1 << 47,
+            MediaUrl = (ulong) 1 << 48,
+            TextureAnimation = (ulong) 1 << 49,
+            ParticleSystem = (ulong) 1 << 50,
+            //Property names below copied from PhysicsActor, they are necessary in synchronization, but not covered the above properties
+            //Physics properties "Velocity" is covered above
+            Position = (ulong) 1 << 51,
+            Size = (ulong) 1 << 52,
+            Force = (ulong) 1 << 53,
+            RotationalVelocity = (ulong) 1 << 54,
+            PA_Acceleration = (ulong) 1 << 55,
+            Torque = (ulong) 1 << 56,
+            Orientation = (ulong) 1 << 57,
+            IsPhysical = (ulong) 1 << 58,
+            Flying = (ulong) 1 << 59,
+            Buoyancy = (ulong) 1 << 60,
+            //To be handled
+            AttachmentPoint = (ulong)1 << 61,
+            FullUpdate = UInt64.MaxValue
+    }
+    */
+
+    public enum SceneObjectPartProperties 
+    {
+        None,
+        //Following properties copied from SceneObjectSerializer(), 
+        AllowedDrop ,
+        CreatorID ,
+        CreatorData ,
+        FolderID ,
+        InventorySerial,
+        TaskInventory,
+        //UUID", 
+        //LocalId", 
+        Name,
+        Material,
+        PassTouches,
+        RegionHandle,
+        ScriptAccessPin,
+        GroupPosition,
+        OffsetPosition,
+        RotationOffset,
+        Velocity,
+        AngularVelocity,
+        //"Acceleration", 
+        SOP_Acceleration,  //SOP and PA read/write their own local copies of acceleration, so we distinguish the copies
+        Description,
+        Color,
+        Text,
+        SitName,
+        TouchName,
+        LinkNum,
+        ClickAction,
+        Shape,
+        Scale,
+        UpdateFlag,
+        SitTargetOrientation,
+        SitTargetPosition,
+        SitTargetPositionLL,
+        SitTargetOrientationLL,
+        ParentID,
+        CreationDate,
+        Category,
+        SalePrice,
+        ObjectSaleType,
+        OwnershipCost,
+        GroupID,
+        OwnerID,
+        LastOwnerID,
+        BaseMask,
+        OwnerMask,
+        GroupMask,
+        EveryoneMask,
+        NextOwnerMask,
+        Flags,
+        CollisionSound,
+        CollisionSoundVolume,
+        MediaUrl,
+        TextureAnimation,
+        ParticleSystem,
+        //Property names below copied from PhysicsActor, they are necessary in synchronization, but not covered the above properties
+        //Physics properties "Velocity" is covered above
+        Position,
+        Size,
+        Force,
+        RotationalVelocity,
+        PA_Acceleration,
+        Torque,
+        Orientation,
+        IsPhysical,
+        Flying,
+        Buoyancy,
+        //To be handled in serialization/deserizaltion for synchronization
+        IsSelected,
+        AttachmentPoint,
+        AttachedPos,
+        Sound, //This indicates any Sound related property has changed: Sound, SoundGain, SoundFlags,SoundRadius,
+        //Addition properties to be added here
+
+        //Client Manager may want to add some property here that viewers care about and should be synchronized across actors
+
+        FullUpdate,
+    }
+
+
+    public class SceneObjectPart : SceneObjectPartBase
+    {
+        public SceneObjectPart()
+            : base()
+        {
         }
+
+        public SceneObjectPart(
+    UUID ownerID, PrimitiveBaseShape shape, Vector3 groupPosition,
+    Quaternion rotationOffset, Vector3 offsetPosition)
+            : base(ownerID, shape, groupPosition, rotationOffset, offsetPosition)
+        {
+        }
+
+        //The following variables should be initialized when this SceneObjectPart is added into the local Scene.
+        //private List<BucketSyncInfo> SynchronizeUpdatesToScene = null;
+        //public List<BucketSyncInfo> BucketSyncInfoList
+        private Dictionary<string, BucketSyncInfo> m_bucketSyncInfoList = new Dictionary<string, BucketSyncInfo>();
+        public Dictionary<string, BucketSyncInfo> BucketSyncInfoList
+        {
+            get { return m_bucketSyncInfoList; }
+            set { m_bucketSyncInfoList = value; }
+        }
+        //TODO: serialization and deserialization processors to be added in SceneObjectSerializer
+
+        //The following variables are initialized when RegionSyncModule reads the config file for mapping of properties and buckets
+        private static Dictionary<SceneObjectPartProperties, string> m_primPropertyBucketMap = null;
+        private static List<string> m_propertyBucketNames = null;
+
+        private static string m_localActorID = "";
+        //private static int m_bucketCount = 0;
+        //private delegate void BucketUpdateProcessor(int bucketIndex);
+        private delegate void BucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName);
+
+        //private static Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
+        private Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
+        private Dictionary<string, Object> m_bucketUpdateLocks = new Dictionary<string, object>();
+        private Dictionary<string, bool> m_bucketSyncTainted = new Dictionary<string, bool>();
+
+        //Define this as a guard to not to fill in any sync info when not desired, i.e. while de-serializing and building SOP and SOG, where 
+        //property set functions will be called and might trigger UpdateBucketSyncInfo() if not guarded carefully.
+        private bool m_syncEnabled = false;
 
         //The list of each prim's properties. This is the list of properties that matter in synchronizing prim copies on different actors.
         //This list is created based on properties included in the serialization/deserialization process (see SceneObjectSerializer()) and the 
         //properties Physics Engine needs to synchronize to other actors.
+        /*
         public static List<string> PropertyList = new List<string>()
         {
             //Following properties copied from SceneObjectSerializer()
@@ -5278,20 +5273,326 @@ namespace OpenSim.Region.Framework.Scenes
             "Flying",
             "Buoyancy",
         };
-        
+         * */
 
-        
-        
-        private Object propertyUpdateLock = new Object();
 
-        //!!!!!! -- TODO: 
-        //!!!!!! -- We should call UpdateXXX functions to update each property, cause some of such updates involves sanity checking.
-        
+        public static void InitializePropertyBucketInfo(Dictionary<SceneObjectPartProperties, string> propertyBucketMap, List<string> bucketNames, string actorID)
+        {
+            m_primPropertyBucketMap = propertyBucketMap;
+            m_propertyBucketNames = bucketNames;
+            m_localActorID = actorID;
+            //m_bucketCount = bucketNames.Count;
+
+            //RegisterBucketUpdateProcessor();
+        }
+
+        public string DebugObjectPartProperties()
+        {
+            string debugMsg = "UUID " + UUID + ", Name " + Name + ", localID " + LocalId;
+            debugMsg += ", parentID " + ParentID + ", parentUUID " + ParentUUID;
+            foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
+            {
+                debugMsg += ", Bucket " + pair.Key + ": TimeStamp - " + pair.Value.LastUpdateTimeStamp + ", ActorID - " + pair.Value.LastUpdateActorID;
+            }
+            return debugMsg;
+        }
+
+        /// <summary>
+        /// Link each bucket with the function that applies updates to properties in the bucket upon receiving sync messages. 
+        /// This is the "hard-coded" part in the property-buckets implementation. When new buckets are implemented, 
+        /// the processing functions need to be modified accordingly.
+        /// </summary>
+        //private static void RegisterBucketUpdateProcessor()
+        private void RegisterBucketUpdateProcessor()
+        {
+            foreach (string bucketName in m_propertyBucketNames)
+            {
+                switch (bucketName)
+                {
+                    case "General":
+                        m_bucketUpdateProcessors.Add(bucketName, GeneralBucketUpdateProcessor);
+                        break;
+                    case "Physics":
+                        m_bucketUpdateProcessors.Add(bucketName, PhysicsBucketUpdateProcessor);
+                        break;
+                    default:
+                        m_log.Warn("Bucket " + bucketName + "'s update processing function not defined yet");
+                        break;
+                }
+            }
+        }
+
+        private void GeneralBucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName)
+        {
+            //If needed, we could define new set functions for these properties, and cast this SOP to SOPBase to 
+            //invoke the set functions in SOPBase 
+            //SceneObjectPartBase localPart = (SceneObjectPartBase)this; 
+            SceneObjectPart localPart = this; 
+            bool collisionSoundUpdated = false; 
+
+            lock (m_bucketUpdateLocks[bucketName])
+            {
+                //See SceneObjectSerializer for the properties that are included in a serialized SceneObjectPart.
+                localPart.AllowedDrop = updatedPart.AllowedDrop;
+                localPart.CreatorID = updatedPart.CreatorID;
+                localPart.CreatorData = updatedPart.CreatorData;
+                localPart.FolderID = updatedPart.FolderID;
+                localPart.InventorySerial = updatedPart.InventorySerial;
+                localPart.TaskInventory = updatedPart.TaskInventory;
+                //Following two properties, UUID and LocalId, shall not be updated.
+                //localPart.UUID 
+                //localPart.LocalId
+                localPart.Name = updatedPart.Name;
+                localPart.Material = updatedPart.Material;
+                localPart.PassTouches = updatedPart.PassTouches;
+                //RegionHandle shall not be copied, since updatedSog is sent by a different actor, which has a different local region
+                //localPart.RegionHandle 
+                localPart.ScriptAccessPin = updatedPart.ScriptAccessPin;
+                
+                localPart.Description = updatedPart.Description;
+                localPart.Color = updatedPart.Color;
+                localPart.Text = updatedPart.Text;
+                localPart.SitName = updatedPart.SitName;
+                localPart.TouchName = updatedPart.TouchName;
+                localPart.LinkNum = updatedPart.LinkNum;
+                localPart.ClickAction = updatedPart.ClickAction;
+                localPart.Shape = updatedPart.Shape;
+                localPart.Scale = updatedPart.Scale;
+                localPart.UpdateFlag = updatedPart.UpdateFlag;
+                localPart.SitTargetOrientation = updatedPart.SitTargetOrientation;
+                localPart.SitTargetPosition = updatedPart.SitTargetPosition;
+                localPart.SitTargetPositionLL = updatedPart.SitTargetPositionLL;
+                localPart.SitTargetOrientationLL = updatedPart.SitTargetOrientationLL;
+                //ParentID should still point to the rootpart in the local sog, do not update. If the root part changed, we will update it in SceneObjectGroup.UpdateObjectProperties()
+                //localPart.ParentID;
+                localPart.CreationDate = updatedPart.CreationDate;
+                localPart.Category = updatedPart.Category;
+                localPart.SalePrice = updatedPart.SalePrice;
+                localPart.ObjectSaleType = updatedPart.ObjectSaleType;
+                localPart.OwnershipCost = updatedPart.OwnershipCost;
+                localPart.GroupID = updatedPart.GroupID;
+                localPart.OwnerID = updatedPart.OwnerID;
+                localPart.LastOwnerID = updatedPart.LastOwnerID;
+                localPart.BaseMask = updatedPart.BaseMask;
+                localPart.OwnerMask = updatedPart.OwnerMask;
+                localPart.GroupMask = updatedPart.GroupMask;
+                localPart.EveryoneMask = updatedPart.EveryoneMask;
+                localPart.NextOwnerMask = updatedPart.NextOwnerMask;
+                localPart.Flags = updatedPart.Flags;
+
+                //We will update CollisionSound with special care so that it does not lead to ScheduleFullUpdate of this part, to make the actor think it just made an update and 
+                //need to propogate that update to other actors.
+                //localPart.CollisionSound = updatedPart.CollisionSound;
+                collisionSoundUpdated = UpdateCollisionSound(updatedPart.CollisionSound);
+
+                localPart.CollisionSoundVolume = updatedPart.CollisionSoundVolume;
+                localPart.MediaUrl = updatedPart.MediaUrl;
+                localPart.TextureAnimation = updatedPart.TextureAnimation;
+                localPart.ParticleSystem = updatedPart.ParticleSystem;
+
+                m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
+                m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
+
+                if (collisionSoundUpdated)
+                {
+                    //If the local actor is Script Engine, it will catch this evnet and trigger aggregateScriptEvents()
+                    m_parentGroup.Scene.EventManager.TriggerAggregateScriptEvents(this);
+                }
+            }
+        }
+
+        private void PhysicsBucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName)
+        {
+            //If needed, we could define new set functions for these properties, and cast this SOP to SOPBase to 
+            //invoke the set functions in SOPBase 
+            //SceneObjectPartBase localPart = (SceneObjectPartBase)this; 
+            SceneObjectPart localPart = this; 
+
+            lock (m_bucketUpdateLocks[bucketName])
+            {
+                localPart.GroupPosition = updatedPart.GroupPosition;
+                localPart.OffsetPosition = updatedPart.OffsetPosition;
+                localPart.Scale = updatedPart.Scale;
+                localPart.Velocity = updatedPart.Velocity;
+                localPart.AngularVelocity = updatedPart.AngularVelocity;
+                localPart.RotationOffset = updatedPart.RotationOffset;
+                //properties in Physics bucket whose update processors are in PhysicsActor
+                /*
+                    "Position":
+                    "Size":
+                    "Force":
+                    "RotationalVelocity":
+                    "PA_Acceleration":
+                    "Torque":
+                    "Orientation":
+                    "IsPhysical":
+                    "Flying":
+                    "Buoyancy":
+                 * */
+
+                m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
+                m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
+
+            }
+        }
+
+        //Initialize and set the values of timestamp and actorID for each synchronization bucket.
+        //Should be called when the SceneObjectGroup this part is in is added to scene, see SceneObjectGroup.AttachToScene.
+        private bool m_BucketUpdateProcessorRegistered = false;
+        public void InitializeBucketSyncInfo()
+        {
+            if (m_primPropertyBucketMap == null)
+            {
+                m_log.Error("Bucket Information has not been initilized. Return.");
+                return;
+            }
+            long timeStamp = DateTime.Now.Ticks;
+
+            m_log.Debug("InitializeBucketSyncInfo called at " + timeStamp);
+
+            for (int i = 0; i < m_propertyBucketNames.Count; i++)
+            {
+                string bucketName = m_propertyBucketNames[i];
+
+                //If the object is created by de-serialization, then it may already have m_bucketSyncInfoList populated with the right number of buckets.
+                //If the deserilaization is due to receiving a sync message, then m_bucketSyncInfoList should already be filled with sync info.
+                if (!m_bucketSyncInfoList.ContainsKey(bucketName))
+                {
+                    BucketSyncInfo syncInfo = new BucketSyncInfo(timeStamp, m_localActorID, bucketName);
+                    m_bucketSyncInfoList.Add(bucketName, syncInfo);
+                }
+                if (!m_bucketUpdateLocks.ContainsKey(bucketName))
+                {
+                    m_bucketUpdateLocks.Add(bucketName, new Object());
+                }
+                if (!m_bucketSyncTainted.ContainsKey(bucketName))
+                {
+                    m_bucketSyncTainted.Add(bucketName, false);
+                }
+            }
+
+            if (!m_BucketUpdateProcessorRegistered)
+            {
+                RegisterBucketUpdateProcessor();
+                m_BucketUpdateProcessorRegistered = true;
+            }
+
+            m_syncEnabled = true;
+        }
+
+        //For tainitng and clearing taints, do i need to lock on m_bucketSyncTaint?
+        public void TaintBucketSyncInfo(SceneObjectPartProperties property)
+        {
+            if (m_syncEnabled && m_bucketSyncTainted.Count > 0)
+            {
+                string bucketName = m_primPropertyBucketMap[property];
+                m_bucketSyncTainted[bucketName] = true;
+            }
+        }
+
+        public bool HasPropertyUpdatedLocally()
+        {
+            bool updatedLocally = false;
+            foreach (KeyValuePair<string, bool> pair in m_bucketSyncTainted)
+            {
+                updatedLocally = pair.Value;
+                if (updatedLocally)
+                    break;
+            }
+            return updatedLocally;
+        }
+
+        /*
+        public void ClearBucketTaint()
+        {
+            if (m_syncEnabled && m_bucketSyncTainted.Count > 0)
+            {
+                foreach (KeyValuePair<string, bool> pair in m_bucketSyncTainted)
+                {
+                    pair.Value = false;
+                }
+            }
+        }
+         * */ 
+
+        /// <summary>
+        /// Update the timestamp information of each property bucket, and clear out the taint on each bucket.
+        /// </summary>
+        public void UpdateTaintedBucketSyncInfo()
+        {
+            if (m_syncEnabled)
+            {
+                long timeStamp = DateTime.Now.Ticks;
+                foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
+                {
+                    string bucketName = pair.Key;
+                    if (m_bucketSyncTainted[bucketName])
+                    {
+                        m_bucketSyncInfoList[bucketName].UpdateSyncInfo(timeStamp, m_localActorID);
+                        m_bucketSyncTainted[bucketName] = false;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Update the timestamp information of each property bucket, and clear out the taint on each bucket.
+        /// </summary>
+        public void UpdateTaintedBucketSyncInfo(long timeStamp)
+        {
+            if (m_syncEnabled)
+            {
+                foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
+                {
+                    string bucketName = pair.Key;
+                    if (m_bucketSyncTainted[bucketName])
+                    {
+                        m_bucketSyncInfoList[bucketName].UpdateSyncInfo(timeStamp, m_localActorID);
+                        m_bucketSyncTainted[bucketName] = false;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Update the timestamp and actorID information of the bucket the given property belongs to. 
+        /// </summary>
+        /// <param name="propertyName">Name of the property. Make sure the spelling is consistent with what are defined in PropertyList</param>
+        public void UpdateBucketSyncInfo(SceneObjectPartProperties property)
+        {
+            if (m_syncEnabled && m_bucketSyncInfoList != null && m_bucketSyncInfoList.Count > 0)
+            {
+                //int bucketIndex = m_primPropertyBucketMap[propertyName];
+                string bucketName = m_primPropertyBucketMap[property];
+                long timeStamp = DateTime.Now.Ticks;
+                if (m_bucketSyncInfoList.ContainsKey(bucketName))
+                {
+                    m_bucketSyncInfoList[bucketName].UpdateSyncInfo(timeStamp, m_localActorID);
+                }
+                else
+                {
+                    m_log.Warn("No SyncInfo of bucket (name: " + bucketName + ") found");
+                }
+            }
+        }
+
+        public void UpdateAllBucketSyncInfo(long timeStamp)
+        {
+            if (m_syncEnabled)
+            {
+                foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
+                {
+                    string bucketName = pair.Key;
+                    BucketSyncInfo syncInfo= pair.Value;
+                    syncInfo.UpdateSyncInfo(timeStamp, m_localActorID);
+                    m_bucketSyncTainted[bucketName] = false;
+                }
+            }
+        }
+
+
         public Scene.ObjectUpdateResult UpdateAllProperties(SceneObjectPart updatedPart)
         {
-            ////////////////////////////////////////////////////////////////////////////////////////////////////
-            //NOTE!!!: So far this function is written with Script Engine updating local Scene cache in mind.
-            ////////////////////////////////////////////////////////////////////////////////////////////////////
 
             ////////////////////Assumptions: ////////////////////
             //(1) prim's UUID and LocalID shall not change (UUID is the unique identifies, LocalID is used to refer to the prim by, say scripts)
@@ -5299,134 +5600,64 @@ namespace OpenSim.Region.Framework.Scenes
             //(3) ParentID won't be updated -- if the rootpart of the SceneObjectGroup changed, that will be updated in SceneObjectGroup.UpdateObjectProperties
 
             ////////////////////Furture enhancements:////////////////////
-            //For now, we only update the set of properties that are included in serialization. 
-            //See SceneObjectSerializer for the properties that are included in a serialized SceneObjectPart.
-            //Later on, we may implement update functions that allow updating certain properties or certain buckets of properties.
+            //For now, we only update the set of properties that are included in serialization, and some PhysicsActor properties 
+            //See RegionSyncModule.PupolatePropertyBuketMapByDefault for the properties that are handled.
 
             if (updatedPart == null)
                 return Scene.ObjectUpdateResult.Error;
 
-            if (m_lastUpdateTimeStamp > updatedPart.LastUpdateTimeStamp)
-            {
-                //Our timestamp is more update to date, keep our values of the properties. Do not update anything.
-                return Scene.ObjectUpdateResult.Unchanged;
-            }
+            //Compate the timestamp of each bucket and update the properties if needed
 
-            if (m_lastUpdateTimeStamp == updatedPart.LastUpdateTimeStamp)
+            Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Unchanged;
+
+            for (int i = 0; i < m_propertyBucketNames.Count; i++)
             {
-                //if (m_parentGroup.Scene.GetActorID() != updatedPart.LastUpdatedByActorID)
-                if (m_lastUpdateActorID != updatedPart.LastUpdateActorID)
+                string bucketName = m_propertyBucketNames[i];
+                //First, compare the bucket's timestamp and actorID
+                if (m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp > updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp)
                 {
-                    m_log.Warn("Different actors modified SceneObjetPart " + UUID + " with the same TimeStamp, CONFLICT RESOLUTION TO BE IMPLEMENTED!!!!");
-                    return Scene.ObjectUpdateResult.Unchanged;
+                    //Our timestamp is more update to date, keep our values of the properties. Do not update anything.
+                    continue;
                 }
 
-                //My own update was relayed back. Don't relay it.
-                return Scene.ObjectUpdateResult.Unchanged;
+                if (m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp == updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp)
+                {
+                    if (!m_bucketSyncInfoList[bucketName].LastUpdateActorID.Equals(updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID))
+                    {
+                        m_log.Warn("Different actors modified SceneObjetPart " + UUID + " with the same TimeStamp (" + m_bucketSyncInfoList[bucketName].LastUpdateActorID
+                            + "," + updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID + ", CONFLICT RESOLUTION TO BE IMPLEMENTED!!!!");
+                    }
+                    continue;
+                }
+
+                //Second, if need to update local properties, call each bucket's update process
+                if (m_bucketUpdateProcessors.ContainsKey(bucketName))
+                {
+                    m_bucketUpdateProcessors[bucketName](updatedPart, bucketName);
+                    partUpdateResult = Scene.ObjectUpdateResult.Updated;
+                }
+                else
+                {
+                    m_log.Warn("No update processor for property bucket " + bucketName);
+                }
+
+
             }
-
-            //Otherwise, our timestamp is less up to date, update the prim with the received copy
-
-            Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Updated;
-            bool collisionSoundUpdated = false;
-            lock (propertyUpdateLock)
-            {
-
-                //See SceneObjectSerializer for the properties that are included in a serialized SceneObjectPart.
-                this.AllowedDrop = updatedPart.AllowedDrop;
-                this.CreatorID = updatedPart.CreatorID;
-                this.CreatorData = updatedPart.CreatorData;
-                this.FolderID = updatedPart.FolderID;
-                this.InventorySerial = updatedPart.InventorySerial;
-                this.TaskInventory = updatedPart.TaskInventory;
-                //Following two properties, UUID and LocalId, shall not be updated.
-                //this.UUID 
-                //this.LocalId
-                this.Name = updatedPart.Name;
-                this.Material = updatedPart.Material;
-                this.PassTouches = updatedPart.PassTouches;
-                //RegionHandle shall not be copied, since updatedSog is sent by a different actor, which has a different local region
-                //this.RegionHandle 
-                this.ScriptAccessPin = updatedPart.ScriptAccessPin;
-                this.GroupPosition = updatedPart.GroupPosition;
-                this.OffsetPosition = updatedPart.OffsetPosition;
-                this.RotationOffset = updatedPart.RotationOffset;
-                this.Velocity = updatedPart.Velocity;
-                this.AngularVelocity = updatedPart.AngularVelocity;
-                this.Acceleration = updatedPart.Acceleration;
-                this.Description = updatedPart.Description;
-                this.Color = updatedPart.Color;
-                this.Text = updatedPart.Text;
-                this.SitName = updatedPart.SitName;
-                this.TouchName = updatedPart.TouchName;
-                this.LinkNum = updatedPart.LinkNum;
-                this.ClickAction = updatedPart.ClickAction;
-                this.Shape = updatedPart.Shape;
-                this.Scale = updatedPart.Scale;
-                this.UpdateFlag = updatedPart.UpdateFlag;
-                this.SitTargetOrientation = updatedPart.SitTargetOrientation;
-                this.SitTargetPosition = updatedPart.SitTargetPosition;
-                this.SitTargetPositionLL = updatedPart.SitTargetPositionLL;
-                this.SitTargetOrientationLL = updatedPart.SitTargetOrientationLL;
-                //ParentID should still point to the rootpart in the local sog, do not update. If the root part changed, we will update it in SceneObjectGroup.UpdateObjectProperties()
-                //this.ParentID;
-                this.CreationDate = updatedPart.CreationDate;
-                this.Category = updatedPart.Category;
-                this.SalePrice = updatedPart.SalePrice;
-                this.ObjectSaleType = updatedPart.ObjectSaleType;
-                this.OwnershipCost = updatedPart.OwnershipCost;
-                this.GroupID = updatedPart.GroupID;
-                this.OwnerID = updatedPart.OwnerID;
-                this.LastOwnerID = updatedPart.LastOwnerID;
-                this.BaseMask = updatedPart.BaseMask;
-                this.OwnerMask = updatedPart.OwnerMask;
-                this.GroupMask = updatedPart.GroupMask;
-                this.EveryoneMask = updatedPart.EveryoneMask;
-                this.NextOwnerMask = updatedPart.NextOwnerMask;
-                this.Flags = updatedPart.Flags;
-
-                //We will update CollisionSound with special care so that it does not lead to ScheduleFullUpdate of this part, to make the actor think it just made an update and 
-                //need to propogate that update to other actors.
-                //this.CollisionSound = updatedPart.CollisionSound;
-                collisionSoundUpdated = UpdateCollisionSound(updatedPart.CollisionSound);
-
-                this.CollisionSoundVolume = updatedPart.CollisionSoundVolume;
-                this.MediaUrl = updatedPart.MediaUrl;
-                this.TextureAnimation = updatedPart.TextureAnimation;
-                this.ParticleSystem = updatedPart.ParticleSystem;
-
-                //Update the timestamp and LastUpdatedByActorID first.
-                this.m_lastUpdateActorID = updatedPart.LastUpdateActorID;
-                this.m_lastUpdateTimeStamp = updatedPart.LastUpdateTimeStamp;
-            }
-
-            if (collisionSoundUpdated)
-            {
-                m_parentGroup.Scene.EventManager.TriggerAggregateScriptEvents(this);
-            }
-
-            //m_log.Debug("SceneObjectPart Name-" +Name+", UUID-"+UUID+" localID-" + m_localId + " updated");
 
             return partUpdateResult;
-        }
-        
 
-
-        private bool UpdateCollisionSound(UUID updatedCollisionSound)
-        {
-            if (this.CollisionSound != updatedCollisionSound)
-            {
-                m_collisionSound = updatedCollisionSound;
-                return true;
-            }
-            return false;
         }
 
-        public string DebugObjectPartProperties()
+        public override void ScheduleFullUpdate(SceneObjectPartProperties property)
         {
-            string debugMsg = "UUID " + UUID + ", Name " + Name + ", localID " + LocalId + ", lastUpdateActorID " + LastUpdateActorID + ", lastUpdateTimeStamp " + LastUpdateTimeStamp;
-            debugMsg += ", parentID " + ParentID + ", parentUUID " + ParentUUID;
-            return debugMsg;
+            base.ScheduleFullUpdate(property);
+            TaintBucketSyncInfo(property);
+        }
+
+        public override void ScheduleTerseUpdate(SceneObjectPartProperties property)
+        {
+            base.ScheduleTerseUpdate(property);
+            TaintBucketSyncInfo(property);
         }
 
         /// <summary>
@@ -5464,198 +5695,16 @@ namespace OpenSim.Region.Framework.Scenes
 
         }
 
-        //The following variables should be initialized when this SceneObjectPart is added into the local Scene.
-        //private List<BucketSyncInfo> SynchronizeUpdatesToScene = null;
-        //public List<BucketSyncInfo> BucketSyncInfoList
-        private Dictionary<string, BucketSyncInfo> m_bucketSyncInfoList = new Dictionary<string, BucketSyncInfo>();
-        public Dictionary<string, BucketSyncInfo> BucketSyncInfoList
+        private bool UpdateCollisionSound(UUID updatedCollisionSound)
         {
-            get { return m_bucketSyncInfoList; }
-            set { m_bucketSyncInfoList = value; }
-        }
-        //TODO: serialization and deserialization processors to be added in SceneObjectSerializer
-
-        //The following variables are initialized when RegionSyncModule reads the config file for mapping of properties and buckets
-        private static Dictionary<string, string> m_primPropertyBucketMap = null;
-        private static List<string> m_propertyBucketNames = null;
-        //private static List<Object> m_bucketUpdateLocks = null;
-        private static Dictionary<string, Object> m_bucketUpdateLocks = new Dictionary<string, object>();
-
-        private static string m_localActorID = "";
-        //private static int m_bucketCount = 0;
-        //private delegate void BucketUpdateProcessor(int bucketIndex);
-        private delegate void BucketUpdateProcessor(string bucketName);
-
-        private static Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
-
-        public static void InitializeBucketInfo(Dictionary<string, string> propertyBucketMap, List<string> bucketNames, string actorID)
-        {
-            m_primPropertyBucketMap = propertyBucketMap;
-            m_propertyBucketNames = bucketNames;
-            m_localActorID = actorID;
-            //m_bucketCount = bucketNames.Count;
-
-            RegisterBucketUpdateProcessor();
-        }
-
-        /// <summary>
-        /// Link each bucket with the function that applies updates to properties in the bucket. This is the "hard-coded" part
-        /// in the property-buckets implementation. When new buckets are implemented, the processing functions need to be modified accordingly.
-        /// </summary>
-        private static void RegisterBucketUpdateProcessor()
-        {
-            foreach (string bucketName in m_propertyBucketNames)
+            if (this.CollisionSound != updatedCollisionSound)
             {
-                switch (bucketName)
-                {
-                    case "General":
-                        m_bucketUpdateProcessors.Add(bucketName, GeneralBucketUpdateProcessor);
-                        break;
-                    case "Physics":
-                        m_bucketUpdateProcessors.Add(bucketName, PhysicsBucketUpdateProcessor);
-                        break;
-                    default:
-                        m_log.Warn("Bucket " + bucketName + "'s update processing function not defined yet");
-                        break;
-                }
+                m_collisionSound = updatedCollisionSound;
+                return true;
             }
+            return false;
         }
-
-        private static void GeneralBucketUpdateProcessor(string bucketName)
-        {
-            lock (m_bucketUpdateLocks[bucketName])
-            {
-
-            }
-        }
-
-        private static void PhysicsBucketUpdateProcessor(string bucketName)
-        {
-            lock (m_bucketUpdateLocks[bucketName])
-            {
-
-            }
-        }
-
-        //Initialize and set the values of timestamp and actorID for each synchronization bucket.
-        //Should be called when the SceneObjectGroup this part is in is added to scene, see SceneObjectGroup.AttachToScene.
-        public void InitializeBucketSyncInfo()
-        {
-            if (m_primPropertyBucketMap == null)
-            {
-                m_log.Error("Bucket Information has not been initilized. Return.");
-                return;
-            }
-            long timeStamp = DateTime.Now.Ticks;
-
-            m_log.Debug("InitializeBucketSyncInfo called at " + timeStamp);
-
-            for (int i = 0; i < m_propertyBucketNames.Count; i++)
-            {
-                string bucketName = m_propertyBucketNames[i];
-                BucketSyncInfo syncInfo = new BucketSyncInfo(timeStamp, m_localActorID, bucketName);
-
-                //If the object is created by de-serialization, then it already has m_bucketSyncInfoList populated with the right number of buckets
-                if (m_bucketSyncInfoList.ContainsKey(bucketName))
-                {
-                    m_bucketSyncInfoList[bucketName] = syncInfo;
-                }
-                else
-                {
-                    m_bucketSyncInfoList.Add(bucketName, syncInfo);
-                }
-                if (!m_bucketSyncInfoList.ContainsKey(bucketName))
-                {
-                    m_bucketUpdateLocks.Add(bucketName, new Object());
-                }
-            }
-        }
-
-        /// <summary>
-        /// Update the timestamp and actorID information of the bucket the given property belongs to. 
-        /// </summary>
-        /// <param name="propertyName">Name of the property. Make sure the spelling is consistent with what are defined in PropertyList</param>
-        private void UpdateBucketSyncInfo(string propertyName)
-        {
-            if (m_bucketSyncInfoList != null && m_bucketSyncInfoList.Count>0)
-            {
-                //int bucketIndex = m_primPropertyBucketMap[propertyName];
-                string bucketName = m_primPropertyBucketMap[propertyName];
-                long timeStamp = DateTime.Now.Ticks;
-                if (m_bucketSyncInfoList.ContainsKey(bucketName))
-                {
-                    m_bucketSyncInfoList[bucketName].UpdateSyncInfo(timeStamp, m_localActorID);
-                }
-                else
-                {
-                    m_log.Warn("No SyncInfo of bucket (name: " + bucketName + ") found");
-                }
-            }
-        }
-
-        
-
-        /*
-
-        public Scene.ObjectUpdateResult UpdateAllProperties(SceneObjectPart updatedPart)
-        {
-
-            ////////////////////Assumptions: ////////////////////
-            //(1) prim's UUID and LocalID shall not change (UUID is the unique identifies, LocalID is used to refer to the prim by, say scripts)
-            //(2) RegionHandle won't be updated -- each copy of Scene is hosted on a region with different region handle
-            //(3) ParentID won't be updated -- if the rootpart of the SceneObjectGroup changed, that will be updated in SceneObjectGroup.UpdateObjectProperties
-
-            ////////////////////Furture enhancements:////////////////////
-            //For now, we only update the set of properties that are included in serialization, and some PhysicsActor properties 
-            //See RegionSyncModule.PupolatePropertyBuketMapByDefault for the properties that are handled.
-
-            if (updatedPart == null)
-                return Scene.ObjectUpdateResult.Error;
-
-            //Compate the timestamp of each bucket and update the properties if needed
-
-            Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Unchanged;
-
-            for (int i=0; i<m_bucketCount; i++){
-                string bucketName = m_propertyBucketNames[i];
-                //First, compare the bucket's timestamp and actorID
-                if (m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp > updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp)
-                {
-                    //Our timestamp is more update to date, keep our values of the properties. Do not update anything.
-                    continue;
-                }
-
-                if (m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp == updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp)
-                {
-                    if (!m_bucketSyncInfoList[bucketName].LastUpdateActorID.Equals(updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID))
-                    {
-                        m_log.Warn("Different actors modified SceneObjetPart " + UUID + " with the same TimeStamp (" + m_bucketSyncInfoList[bucketName].LastUpdateActorID
-                            + "," + updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID + ", CONFLICT RESOLUTION TO BE IMPLEMENTED!!!!");
-                    }
-                    continue;
-                }
-
-                //Second, if need to update local properties, call each bucket's update process
-                if (m_bucketUpdateProcessors.ContainsKey(bucketName))
-                {
-                    m_bucketUpdateProcessors[bucketName](bucketName);
-                    partUpdateResult = Scene.ObjectUpdateResult.Updated;
-                }
-                else
-                {
-                    m_log.Warn("No update processor for property bucket " + bucketName);
-                }
-
-                
-            }
-
-            return partUpdateResult;
-
-        }
-        */ 
-        //private void UpdateBucketProperties(string bucketDescription, 
-
-        #endregion 
-
     }
+
+    //end of SYMMETRIC SYNC
 }

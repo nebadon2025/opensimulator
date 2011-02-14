@@ -374,7 +374,8 @@ namespace OpenSim.Region.Framework.Scenes
                     if (scale.Z > m_parentScene.m_maxNonphys)
                         scale.Z = m_parentScene.m_maxNonphys;
 
-                    part.Shape.Scale = scale;
+                    //part.Shape.Scale = scale;
+                    part.Scale = scale;
                 }
             }
             m_numPrim += children.Length;
@@ -382,7 +383,8 @@ namespace OpenSim.Region.Framework.Scenes
             sceneObject.AttachToScene(m_parentScene);
 
             if (sendClientUpdates)
-                sceneObject.ScheduleGroupForFullUpdate();
+                //sceneObject.ScheduleGroupForFullUpdate();
+                sceneObject.ScheduleGroupForFullUpdate(SceneObjectPartProperties.None); 
             
             Entities.Add(sceneObject);
 
@@ -1599,7 +1601,6 @@ namespace OpenSim.Region.Framework.Scenes
                 if (m_parentScene.RegionSyncModule != null)
                 {
                     //Tell other actors to link the SceneObjectParts together as a new group. 
-                    parentGroup.SyncInfoUpdate();
                     m_parentScene.RegionSyncModule.SendLinkObject(parentGroup, root, children);
                 }
 
@@ -1746,20 +1747,11 @@ namespace OpenSim.Region.Framework.Scenes
                 }
 
                 //SYMMETRIC SYNC
-                //set timestamp
-                long timeStamp = DateTime.Now.Ticks;
-                string actorID = m_parentScene.GetSyncActorID();
-                foreach (SceneObjectGroup sog in afterDelinkGroups)
-                {
-                    if (m_parentScene.RegionSyncModule != null)
-                    {
-                        sog.SyncInfoUpdate(timeStamp, actorID); ;
-                    }
-                }
                 //Send out DelinkObject message to other actors to sychronize their object list 
-                m_parentScene.RegionSyncModule.SendDeLinkObject(prims, beforeDelinkGroups, afterDelinkGroups);
-
-
+                if (m_parentScene.RegionSyncModule != null)
+                {
+                    m_parentScene.RegionSyncModule.SendDeLinkObject(prims, beforeDelinkGroups, afterDelinkGroups);
+                }
                 //Schedule updates as in legacy OpenSim code, to send updates to viewers connected to this actor (at least needed for client managers).
                 //But timestamp won't be changed, so that when other actors get the update, they's simple ignore the updates since they already get them
                 foreach (SceneObjectGroup sog in afterDelinkGroups)
@@ -1902,7 +1894,8 @@ namespace OpenSim.Region.Framework.Scenes
 
                     copy.CreateScriptInstances(0, false, m_parentScene.DefaultScriptEngine, 1);
                     copy.HasGroupChanged = true;
-                    copy.ScheduleGroupForFullUpdate();
+                    //copy.ScheduleGroupForFullUpdate();
+                    copy.ScheduleGroupForFullUpdate(SceneObjectPartProperties.FullUpdate); //new object, all property values are new
                     copy.ResumeScripts();
 
                     // required for physics to update it's position
@@ -1971,7 +1964,7 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         //if we need to debug the script engine with a viewer attaching to it,
                         //we need to schedule updates to be sent to the viewer
-                        oldSog.ScheduleGroupForFullUpdate();
+                        oldSog.ScheduleGroupForFullUpdate(SceneObjectPartProperties.None);
                     }
                 }
                 else
@@ -2051,7 +2044,8 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 foreach (SceneObjectPart part in children)
                 {
-                    Vector3 scale = part.Shape.Scale;
+                    SceneObjectPartBase partBase = (SceneObjectPartBase)part;
+                    Vector3 scale = partBase.Scale;
 
                     if (scale.X > m_parentScene.m_maxNonphys)
                         scale.X = m_parentScene.m_maxNonphys;
@@ -2060,12 +2054,15 @@ namespace OpenSim.Region.Framework.Scenes
                     if (scale.Z > m_parentScene.m_maxNonphys)
                         scale.Z = m_parentScene.m_maxNonphys;
 
-                    part.Shape.Scale = scale;
+                    part.Scale = scale;
                 }
             }
             m_numPrim += children.Length;
 
+            //SYMMETRIC SYNC, 
             sceneObject.AttachToScene(m_parentScene);
+            //sceneObject.AttachToSceneBySync(m_parentScene);
+            //end of SYMMETRIC SYNC,
 
             //SYMMETRIC SYNC, 
             sceneObject.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
@@ -2140,8 +2137,18 @@ namespace OpenSim.Region.Framework.Scenes
                             // Make sure no child prim is set for sale
                             // So that, on delink, no prims are unwittingly
                             // left for sale and sold off
-                            child.RootPart.ObjectSaleType = 0;
-                            child.RootPart.SalePrice = 10;
+                            //SYMMETRIC SYNC: need to copy value w/o trigger UpdateBucketSyncInfo
+                            //child.RootPart.ObjectSaleType = 0;
+                            //child.RootPart.SalePrice = 10;
+                            //child.RootPart.SetObjectSaleType(0);
+                            //child.RootPart.SetSalePrice(10);
+                            //child.RootPart.SetProperty("ObjectSaleType", 0);
+                            //child.RootPart.SetProperty("SalePrice", 10);
+
+                            //casting SOP to SOPBase to make sure we call SOPBase.Property set function, not the SOP.Property set function
+                            SceneObjectPartBase rootPart = (SceneObjectPartBase)child.RootPart;
+                            rootPart.ObjectSaleType = 0;
+                            rootPart.SalePrice = 10;
                             childGroups.Add(child);
                         }
                     }
@@ -2291,7 +2298,7 @@ namespace OpenSim.Region.Framework.Scenes
                             }
                             else
                             {
-                                localAfterGroup.UpdateObjectProperties(incomingAfterDelinkGroupsDictionary[localAfterGroup.UUID]);
+                                localAfterGroup.UpdateObjectGroupBySync(incomingAfterDelinkGroupsDictionary[localAfterGroup.UUID]);
                             }
                         }
                     }

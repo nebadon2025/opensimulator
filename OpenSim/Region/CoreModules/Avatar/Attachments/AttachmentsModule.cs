@@ -591,7 +591,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
             }
 
             so.AbsolutePosition = AttachOffset;
-            so.RootPart.AttachedPos = AttachOffset;
+            so.RootPart.AttachedPos = AttachOffset; 
             so.RootPart.IsAttachment = true;
 
             so.RootPart.SetParentLocalId(avatar.LocalId);
@@ -611,7 +611,8 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                 }
 
                 so.IsSelected = false; // fudge....
-                so.ScheduleGroupForFullUpdate();
+                //so.ScheduleGroupForFullUpdate();
+                so.ScheduleGroupForFullUpdate(SceneObjectPartProperties.FullUpdate); //just force it to sychronize all properties
             }
                             
             // In case it is later dropped again, don't let

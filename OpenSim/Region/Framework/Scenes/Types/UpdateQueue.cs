@@ -62,7 +62,7 @@ namespace OpenSim.Region.Framework.Scenes.Types
             }
         }
 
-        public void Enqueue(SceneObjectPart part)
+        public void Enqueue(SceneObjectPart part)        
         {
             lock (m_syncObject)
             {

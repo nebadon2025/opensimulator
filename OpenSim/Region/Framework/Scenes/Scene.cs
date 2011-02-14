@@ -795,7 +795,7 @@ namespace OpenSim.Region.Framework.Scenes
             //Set the property values as in the incoming copy of the object group
 
             SceneObjectGroup localGroup = root.ParentGroup;
-            localGroup.UpdateObjectProperties(linkedGroup);
+            localGroup.UpdateObjectGroupBySync(linkedGroup);
 
             //debug
             /*
@@ -2391,7 +2391,8 @@ namespace OpenSim.Region.Framework.Scenes
                 sceneObject.SetGroup(groupID, null);
             }
 
-            sceneObject.ScheduleGroupForFullUpdate();
+            //sceneObject.ScheduleGroupForFullUpdate();
+            sceneObject.ScheduleGroupForFullUpdate(SceneObjectPartProperties.FullUpdate); //new object, all properties have new value
 
             return sceneObject;
         }
@@ -2559,16 +2560,6 @@ namespace OpenSim.Region.Framework.Scenes
             group.DeleteGroupFromScene(silent);
 
 //            m_log.DebugFormat("[SCENE]: Exit DeleteSceneObject() for {0} {1}", group.Name, group.UUID);            
-
-            //SYMMETRIC SYNC
-            //Set the ActorID and TimeStamp info for this latest update
-            /*
-            foreach (SceneObjectPart part in group.Parts)
-            {
-                part.SyncInfoUpdate();
-            }
-             *  
-             * */
 
             //Propagate the RemovedObject message
             if (RegionSyncModule != null)
@@ -4500,7 +4491,8 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (ent is SceneObjectGroup)
                 {
-                    ((SceneObjectGroup)ent).ScheduleGroupForFullUpdate();
+                    //((SceneObjectGroup)ent).ScheduleGroupForFullUpdate();
+                    ((SceneObjectGroup)ent).ScheduleGroupForFullUpdate(SceneObjectPartProperties.None); //This is not due to property being updated, hence passing "None" property.
                 }
             }
         }

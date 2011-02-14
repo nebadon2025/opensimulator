@@ -57,11 +57,12 @@ namespace OpenSim.Region.Framework.Scenes
         /// Add the part to the queue of parts for which we need to send an update to the client
         /// </summary>
         /// <param name="part"></param>
-        public void QueuePartForUpdate(SceneObjectPart part)
+        //public void QueuePartForUpdate(SceneObjectPart part)
+        public void QueuePartForUpdate(SceneObjectPartBase part)
         {
             lock (m_partsUpdateQueue)
             {
-                m_partsUpdateQueue.Enqueue(part);
+                m_partsUpdateQueue.Enqueue((SceneObjectPart)part);
             }
         }
 

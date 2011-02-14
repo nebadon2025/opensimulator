@@ -91,7 +91,8 @@ namespace OpenSim.Region.Framework.Scenes
                     part.RotationOffset = Rotation;
                     if (Scale != Vector3.Zero)
                         part.Resize(Scale);
-                    part.ParentGroup.ScheduleGroupForTerseUpdate();
+                    //part.ParentGroup.ScheduleGroupForTerseUpdate();
+                    part.ParentGroup.ScheduleGroupForTerseUpdate(SceneObjectPartProperties.Scale);
                 }
                 else
                 {
@@ -99,7 +100,8 @@ namespace OpenSim.Region.Framework.Scenes
                         part.OffsetPosition = Position;
                     part.UpdateRotation(Rotation);
                     if (Scale != Vector3.Zero)
-                        part.Resize(Scale); part.ScheduleTerseUpdate();
+                        part.Resize(Scale); //part.ScheduleTerseUpdate();
+                    part.ScheduleTerseUpdate(SceneObjectPartProperties.Scale);
                 }
                 part.Undoing = false;
 
@@ -119,7 +121,8 @@ namespace OpenSim.Region.Framework.Scenes
                         part.UpdateRotation(Rotation);
                     if (Scale != Vector3.Zero)
                         part.Resize(Scale);
-                    part.ParentGroup.ScheduleGroupForTerseUpdate();
+                    //part.ParentGroup.ScheduleGroupForTerseUpdate();
+                    part.ParentGroup.ScheduleGroupForTerseUpdate(SceneObjectPartProperties.Scale);
                 }
                 else
                 {
@@ -129,7 +132,9 @@ namespace OpenSim.Region.Framework.Scenes
                         part.UpdateRotation(Rotation);
                     if (Scale != Vector3.Zero)
                         part.Resize(Scale);
-                    part.ScheduleTerseUpdate();
+                    //part.ScheduleTerseUpdate();
+                    part.ScheduleTerseUpdate(SceneObjectPartProperties.Scale);
+
                 }
                 part.Undoing = false;
 

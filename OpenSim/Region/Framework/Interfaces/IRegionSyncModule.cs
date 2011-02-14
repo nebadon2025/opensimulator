@@ -56,6 +56,15 @@ namespace OpenSim.Region.Framework.Interfaces
         DSGActorTypes DSGActorType { get; set; }
         bool IsSyncRelay { get; }
 
+        /// <summary>
+        /// The mapping of a property (identified by its name) to the index of a bucket.
+        /// </summary>
+        Dictionary<SceneObjectPartProperties, string> PrimPropertyBucketMap { get; }
+        /// <summary>
+        /// The text description of the properties in each bucket, e.g. "General", "Physics"
+        /// </summary>
+        List<string> PropertyBucketDescription { get; }
+
         //Enqueue updates for scene-objects and scene-presences
         void QueueSceneObjectPartForUpdate(SceneObjectPart part);
         void QueueScenePresenceForTerseUpdate(ScenePresence presence);

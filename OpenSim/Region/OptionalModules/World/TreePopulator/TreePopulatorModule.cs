@@ -640,7 +640,8 @@ namespace OpenSim.Region.OptionalModules.World.TreePopulator
                             {
                                 s_tree.Scale += copse.m_rate;
                                 s_tree.ParentGroup.HasGroupChanged = true;
-                                s_tree.ScheduleFullUpdate();
+                                //s_tree.ScheduleFullUpdate();
+                                s_tree.ScheduleFullUpdate(SceneObjectPartProperties.Scale);
                             }
                         }
                         else

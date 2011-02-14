@@ -182,8 +182,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_isSyncRelay; }
         }
 
-        private Dictionary<string, string> m_primPropertyBucketMap = new Dictionary<string, string>();
-        public Dictionary<string, string> PrimPropertyBucketMap
+        private Dictionary<SceneObjectPartProperties, string> m_primPropertyBucketMap = new Dictionary<SceneObjectPartProperties, string>();
+        public Dictionary<SceneObjectPartProperties, string> PrimPropertyBucketMap
         {
             get { return m_primPropertyBucketMap; }
         }
@@ -212,7 +212,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             PupolatePropertyBuketMapByDefault();
 
             //Pass the bucket information to SceneObjectPart.
-            SceneObjectPart.InitializeBucketInfo(m_primPropertyBucketMap, m_propertyBucketDescription, m_actorID);
+            SceneObjectPart.InitializePropertyBucketInfo(m_primPropertyBucketMap, m_propertyBucketDescription, m_actorID);
 
         }
 
@@ -226,6 +226,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_propertyBucketDescription.Add(physicsBucketName);
             m_maxNumOfPropertyBuckets = 2;
 
+            /*
             foreach (string pName in SceneObjectPart.PropertyList)
             {
                 switch (pName){
@@ -253,6 +254,36 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         break;
                 }
             }
+             * */
+
+            foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
+            {
+                switch (property)
+                {
+                    case SceneObjectPartProperties.GroupPosition:
+                    case SceneObjectPartProperties.OffsetPosition:
+                    case SceneObjectPartProperties.Scale:
+                    case SceneObjectPartProperties.Velocity:
+                    case SceneObjectPartProperties.AngularVelocity:
+                    case SceneObjectPartProperties.RotationOffset:
+                    case SceneObjectPartProperties.Position:
+                    case SceneObjectPartProperties.Size:
+                    case SceneObjectPartProperties.Force:
+                    case SceneObjectPartProperties.RotationalVelocity:
+                    case SceneObjectPartProperties.PA_Acceleration:
+                    case SceneObjectPartProperties.Torque:
+                    case SceneObjectPartProperties.Orientation:
+                    case SceneObjectPartProperties.IsPhysical:
+                    case SceneObjectPartProperties.Flying:
+                    case SceneObjectPartProperties.Buoyancy:
+                        m_primPropertyBucketMap.Add(property, physicsBucketName);
+                        break;
+                    default:
+                        //all other properties belong to the "General" bucket.
+                        m_primPropertyBucketMap.Add(property, generalBucketName);
+                        break;
+                }
+            }
         }
 
         private bool IsSyncingWithOtherActors()
@@ -263,7 +294,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void QueueSceneObjectPartForUpdate(SceneObjectPart part)
         {
             //if the last update of the prim is caused by this actor itself, or if the actor is a relay node, then enqueue the update
-            if (part.LastUpdateActorID.Equals(m_actorID) || m_isSyncRelay)
+            //if (part.LastUpdateActorID.Equals(m_actorID) || m_isSyncRelay)
+            bool updated = m_isSyncRelay;
+
+            if (!updated)
+            {
+                /*
+                foreach (KeyValuePair<string, BucketSyncInfo> pair in part.BucketSyncInfoList)
+                {
+                    if (pair.Value.LastUpdateActorID.Equals(m_actorID))
+                    {
+                        updated = true;
+                        break;
+                    }
+                }
+                 * */
+                if (part.HasPropertyUpdatedLocally())
+                {
+                    updated = true;
+                }
+            }
+
+            if(updated)
             {
                 lock (m_updateSceneObjectPartLock)
                 {
@@ -274,10 +326,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void QueueScenePresenceForTerseUpdate(ScenePresence presence)
         {
+            /*
             lock (m_updateScenePresenceLock)
             {
                 m_presenceUpdates[presence.UUID] = presence;
             }
+             * */ 
         }
 
         //SendSceneUpdates put each update into an outgoing queue of each SyncConnector
@@ -321,6 +375,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             if (primUpdates != null || presenceUpdates != null)
             {
+                long timeStamp = DateTime.Now.Ticks;
+
                 // This could be another thread for sending outgoing messages or just have the Queue functions
                 // create and queue the messages directly into the outgoing server thread.
                 System.Threading.ThreadPool.QueueUserWorkItem(delegate
@@ -333,6 +389,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         foreach (SceneObjectGroup sog in primUpdates)
                         {
                             //If this is a relay node, or at least one part of the object has the last update caused by this actor, then send the update
+                            sog.UpdateTaintedBucketSyncInfo(timeStamp);
                             if (m_isSyncRelay || (!sog.IsDeleted && CheckObjectForSendingUpdate(sog)))
                             {
                                 //send 
@@ -459,6 +516,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
             }
 
+            //First, make sure the linked group has updated timestamp info for synchronization
+            linkedGroup.BucketSyncInfoUpdate();
+
             OSDMap data = new OSDMap();
             string sogxml = SceneObjectSerializer.ToXml2Format(linkedGroup);
             data["linkedGroup"]=OSD.FromString(sogxml);
@@ -515,6 +575,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 string sogxml = SceneObjectSerializer.ToXml2Format(afterGroup);
                 data[groupTempID] = OSD.FromString(sogxml);
                 groupNum++;
+            }
+
+            //make sure the newly delinked objects have the updated timestamp information
+            foreach (SceneObjectGroup sog in afterDelinkGroups)
+            {
+                sog.BucketSyncInfoUpdate();
             }
 
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.DelinkObject, OSDParser.SerializeJsonString(data));
@@ -741,7 +807,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         /// <summary>
-        /// Check if we need to send out an update message for the given object.
+        /// Check if we need to send out an update message for the given object. For now, we have a very inefficient solution:
+        /// If any synchronization bucket in any part shows a property in that bucket has changed, we'll serialize and ship the whole object.
         /// </summary>
         /// <param name="sog"></param>
         /// <returns></returns>
@@ -750,9 +817,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //If any part in the object has the last update caused by this actor itself, then send the update
             foreach (SceneObjectPart part in sog.Parts)
             {
+                /*
                 if (part.LastUpdateActorID.Equals(m_actorID))
                 {
                     return true;
+                }
+                 * */ 
+                 
+                foreach (KeyValuePair<string, BucketSyncInfo> pair in part.BucketSyncInfoList)
+                {
+                    if (pair.Value.LastUpdateActorID.Equals(m_actorID))
+                    {
+                        return true;
+                    }
                 }
             }
 
@@ -991,6 +1068,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //save script state and stop script instances
                     m_scene.EventManager.TriggerOnSymmetricSyncStop();
                 }
+                m_synced = true;
             }
             else
             {
@@ -1072,10 +1150,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     syncConnector.StartCommThreads();
                     AddSyncConnector(syncConnector);
+                    m_synced = true;
                 }
             }
-
-            m_synced = true;
 
             return true;
         }

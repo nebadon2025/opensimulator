@@ -41,7 +41,8 @@ using OpenSim.Region.Framework.Scenes.Serialization;
 
 namespace OpenSim.Region.Framework.Scenes
 {
-    public class SceneObjectPartInventory : IEntityInventory
+    //public class SceneObjectPartInventory : IEntityInventory
+    public class SceneObjectPartInventoryBase : IEntityInventory
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -52,7 +53,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <value>
         /// The part to which the inventory belongs.
         /// </value>
-        private SceneObjectPart m_part;
+        //private SceneObjectPart m_part;
+        private SceneObjectPartBase m_part;
 
         /// <summary>
         /// Serial count for inventory file , used to tell if inventory has changed
@@ -98,7 +100,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="part">
         /// A <see cref="SceneObjectPart"/>
         /// </param>
-        public SceneObjectPartInventory(SceneObjectPart part)
+        //public SceneObjectPartInventory(SceneObjectPart part)
+        public SceneObjectPartInventoryBase(SceneObjectPartBase part)
         {
             m_part = part;
         }
@@ -291,7 +294,7 @@ namespace OpenSim.Region.Framework.Scenes
                     m_part.ParentGroup.Scene.EventManager.TriggerRezScript(
                         m_part.LocalId, item.ItemID, String.Empty, startParam, postOnRez, engine, stateSource);
                     m_part.ParentGroup.AddActiveScriptCount(1);
-                    m_part.ScheduleFullUpdate();
+                    m_part.ScheduleFullUpdate(SceneObjectPartProperties.Flags | SceneObjectPartProperties.TaskInventory);
                     return;
                 }
 
@@ -319,7 +322,7 @@ namespace OpenSim.Region.Framework.Scenes
                     m_part.ParentGroup.Scene.EventManager.TriggerRezScript(
                         m_part.LocalId, item.ItemID, script, startParam, postOnRez, engine, stateSource);
                     m_part.ParentGroup.AddActiveScriptCount(1);
-                    m_part.ScheduleFullUpdate();
+                    m_part.ScheduleFullUpdate(SceneObjectPartProperties.Flags | SceneObjectPartProperties.TaskInventory);
                 }
             }
         }
@@ -543,7 +546,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_part.ParentGroup.HasGroupChanged = true;
 
             //SYMMETRIC SYNC: add ScheduleFullUpdate to enable synchronization across actors
-            m_part.ScheduleFullUpdate();
+            m_part.ScheduleFullUpdate(SceneObjectPartProperties.TaskInventory | SceneObjectPartProperties.InventorySerial);
         }
 
         /// <summary>
@@ -763,7 +766,7 @@ namespace OpenSim.Region.Framework.Scenes
                 if (!ContainsScripts())
                     m_part.RemFlag(PrimFlags.Scripted);
 
-                m_part.ScheduleFullUpdate();
+                m_part.ScheduleFullUpdate(SceneObjectPartProperties.TaskInventory);
 
                 return type;
                 
@@ -1172,4 +1175,25 @@ namespace OpenSim.Region.Framework.Scenes
         }
         #endregion REGION SYNC
     }
+
+    #region SYMMETRIC SYNC
+    public class SceneObjectPartInventory : SceneObjectPartInventoryBase
+    {
+        private SceneObjectPart m_part;
+        public SceneObjectPartInventory(SceneObjectPart part):base((SceneObjectPartBase) part)
+        {
+            m_part = part;
+        }
+
+        new protected internal uint Serial
+        {
+            get { return base.Serial; }
+            set
+            {
+                base.Serial = value;
+                //m_part.UpdateBucketSyncInfo("InventorySerial");
+            }
+        }
+    }
+    #endregion 
 }

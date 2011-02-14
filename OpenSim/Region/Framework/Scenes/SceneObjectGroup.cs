@@ -1023,7 +1023,7 @@ namespace OpenSim.Region.Framework.Scenes
             AttachToBackup();
             m_scene.EventManager.TriggerParcelPrimCountTainted();
             //m_rootPart.ScheduleFullUpdate();
-            m_rootPart.ScheduleFullUpdate(SceneObjectPartProperties.AttachmentPoint); //Physics properties, such as Position, OffsetPosition, etc, should be tainted in ApplyPhysics()
+            m_rootPart.ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.GroupPosition, SceneObjectPartProperties.AttachmentPoint}); //Physics properties, such as Position, OffsetPosition, etc, should be tainted in ApplyPhysics()
             m_rootPart.ClearUndoState();
         }
 
@@ -1297,7 +1297,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             //ScheduleGroupForFullUpdate();
-            ScheduleGroupForFullUpdate(SceneObjectPartProperties.Flags);
+            ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){ SceneObjectPartProperties.Flags}); //do we also need to synchronize SOG properties such as m_scriptListens_atRotTarget? (does any acotr other than script engine care about it?)
         }
 
         public void SetText(string text, Vector3 color, double alpha)
@@ -1310,7 +1310,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             HasGroupChanged = true;
             //m_rootPart.ScheduleFullUpdate();
-            m_rootPart.ScheduleFullUpdate(SceneObjectPartProperties.Text);
+            m_rootPart.ScheduleFullUpdate(new List<SceneObjectPartProperties>() {SceneObjectPartProperties.Text, SceneObjectPartProperties.Color});
         }
 
         /// <summary>
@@ -1545,7 +1545,7 @@ namespace OpenSim.Region.Framework.Scenes
                 dupe.AttachToBackup();
 
                 //ScheduleGroupForFullUpdate();
-                ScheduleGroupForFullUpdate(SceneObjectPartProperties.None); //This full-update is triggered by copying, no property changed
+                ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.FullUpdate}); 
             }
 
             return dupe;
@@ -1799,7 +1799,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             //part.ScheduleFullUpdate();
-            part.ScheduleFullUpdate(SceneObjectPartProperties.OwnerID);
+            part.ScheduleFullUpdate(new List<SceneObjectPartProperties>() {SceneObjectPartProperties.OwnerID, SceneObjectPartProperties.GroupID, SceneObjectPartProperties.LastOwnerID});
         }
 
         /// <summary>
@@ -1925,14 +1925,14 @@ namespace OpenSim.Region.Framework.Scenes
         /// Schedule a full update for this scene object
         /// </summary>
         //public void ScheduleGroupForFullUpdate()
-        public void ScheduleGroupForFullUpdate(SceneObjectPartProperties property)
+        public void ScheduleGroupForFullUpdate(List<SceneObjectPartProperties> updatedProperties)
         {
 //            if (IsAttachment)
 //                m_log.DebugFormat("[SOG]: Scheduling full update for {0} {1}", Name, LocalId);
             
             checkAtTargets();
             //RootPart.ScheduleFullUpdate();
-            RootPart.ScheduleFullUpdate(property);
+            RootPart.ScheduleFullUpdate(updatedProperties);
 
             SceneObjectPart[] parts = m_parts.GetArray();
             for (int i = 0; i < parts.Length; i++)
@@ -1940,7 +1940,7 @@ namespace OpenSim.Region.Framework.Scenes
                 SceneObjectPart part = parts[i];
                 if (part != RootPart)
                     //part.ScheduleFullUpdate();
-                    part.ScheduleFullUpdate(property);
+                    part.ScheduleFullUpdate(updatedProperties);
             }
         }
 
@@ -1948,14 +1948,14 @@ namespace OpenSim.Region.Framework.Scenes
         /// Schedule a terse update for this scene object
         /// </summary>
         //public void ScheduleGroupForTerseUpdate()
-        public void ScheduleGroupForTerseUpdate(SceneObjectPartProperties property)
+        public void ScheduleGroupForTerseUpdate(List<SceneObjectPartProperties> updatedProperties)
         {
 //            m_log.DebugFormat("[SOG]: Scheduling terse update for {0} {1}", Name, UUID);
 
             SceneObjectPart[] parts = m_parts.GetArray();
             for (int i = 0; i < parts.Length; i++)
                 //parts[i].ScheduleTerseUpdate();
-                parts[i].ScheduleTerseUpdate(property);
+                parts[i].ScheduleTerseUpdate(updatedProperties);
         }
 
         /// <summary>
@@ -2714,7 +2714,7 @@ namespace OpenSim.Region.Framework.Scenes
                 HasGroupChanged = true;
                 part.TriggerScriptChangedEvent(Changed.SCALE);
                 //ScheduleGroupForFullUpdate();
-                ScheduleGroupForFullUpdate(SceneObjectPartProperties.None); //above actions only update Scale for the given part, and part.Resize() will taint Scale as updated
+                ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None}); //above actions only update Scale for the given part, and part.Resize() will taint Scale as updated
 
                 //if (part.UUID == m_rootPart.UUID)
                 //{
@@ -2867,7 +2867,7 @@ namespace OpenSim.Region.Framework.Scenes
                 HasGroupChanged = true;
                 m_rootPart.TriggerScriptChangedEvent(Changed.SCALE);
                 //ScheduleGroupForTerseUpdate();
-                ScheduleGroupForTerseUpdate(SceneObjectPartProperties.Scale);
+                ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Scale});
             }
         }
 
@@ -2909,7 +2909,7 @@ namespace OpenSim.Region.Framework.Scenes
             //we need to do a terse update even if the move wasn't allowed
             // so that the position is reset in the client (the object snaps back)
             //ScheduleGroupForTerseUpdate();
-            ScheduleGroupForTerseUpdate(SceneObjectPartProperties.GroupPosition);
+            ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.GroupPosition});
         }
 
         /// <summary>
@@ -2973,7 +2973,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             HasGroupChanged = true;
             //ScheduleGroupForTerseUpdate();
-            ScheduleGroupForTerseUpdate(SceneObjectPartProperties.Position);
+            ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Position, SceneObjectPartProperties.OffsetPosition});
         }
 
         public void OffsetForNewRegion(Vector3 offset)
@@ -3006,7 +3006,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             HasGroupChanged = true;
             //ScheduleGroupForTerseUpdate();
-            ScheduleGroupForTerseUpdate(SceneObjectPartProperties.None); //Above actions only update m_rootPart's RotationOffset, and m_rootPart.UpdateRotation will taint RotationOffset as updated
+            ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Orientation}); //Above actions only update m_rootPart's RotationOffset, and m_rootPart.UpdateRotation will taint RotationOffset as updated
         }
 
         /// <summary>
@@ -3033,7 +3033,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             HasGroupChanged = true;
             //ScheduleGroupForTerseUpdate();
-            ScheduleGroupForTerseUpdate(SceneObjectPartProperties.Position); //RotationOffset is only updated for m_rootPart, and m_rootPart.UpdateRotation should already taint RotationOffset as updated
+            ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Position, SceneObjectPartProperties.Orientation}); //RotationOffset is only updated for m_rootPart, and m_rootPart.UpdateRotation should already taint RotationOffset as updated
         }
 
         /// <summary>
@@ -3121,7 +3121,7 @@ namespace OpenSim.Region.Framework.Scenes
                     newRot *= Quaternion.Inverse(axRot);
                     prim.RotationOffset = newRot;
                     //prim.ScheduleTerseUpdate();
-                    prim.ScheduleTerseUpdate(SceneObjectPartProperties.RotationOffset | SceneObjectPartProperties.OffsetPosition);
+                    prim.ScheduleTerseUpdate(new List<SceneObjectPartProperties>(){ SceneObjectPartProperties.RotationOffset, SceneObjectPartProperties.OffsetPosition});
                 }
             }
 
@@ -3136,7 +3136,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             //m_rootPart.ScheduleTerseUpdate();
-            m_rootPart.ScheduleTerseUpdate(SceneObjectPartProperties.RotationOffset);
+            m_rootPart.ScheduleTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.RotationOffset});
         }
 
         #endregion

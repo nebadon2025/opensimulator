@@ -49,6 +49,8 @@ using OSDMap = OpenMetaverse.StructuredData.OSDMap;
 using OpenSim.Framework.Capabilities;
 using ExtraParamType = OpenMetaverse.ExtraParamType;
 
+using System.Collections.Generic;
+
 namespace OpenSim.Region.CoreModules.Avatar.ObjectCaps
 {
     [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule")]
@@ -353,7 +355,7 @@ namespace OpenSim.Region.CoreModules.Avatar.ObjectCaps
             }
 
             //rootGroup.ScheduleGroupForFullUpdate();
-            rootGroup.ScheduleGroupForFullUpdate(SceneObjectPartProperties.FullUpdate); //seems like new object
+            rootGroup.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.FullUpdate}); //seems like new object
             pos = m_scene.GetNewRezLocation(Vector3.Zero, rootpos, UUID.Zero, rot, (byte)1, 1, true, allparts[0].GroupScale(), false);
            
             responsedata["int_response_code"] = 200; //501; //410; //404;

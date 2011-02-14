@@ -612,7 +612,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
 
                 so.IsSelected = false; // fudge....
                 //so.ScheduleGroupForFullUpdate();
-                so.ScheduleGroupForFullUpdate(SceneObjectPartProperties.FullUpdate); //just force it to sychronize all properties
+                so.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.FullUpdate}); //just force it to sychronize all properties
             }
                             
             // In case it is later dropped again, don't let

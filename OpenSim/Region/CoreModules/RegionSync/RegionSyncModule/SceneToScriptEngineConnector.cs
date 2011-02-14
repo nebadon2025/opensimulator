@@ -551,7 +551,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 primToUpdate.OffsetPosition = pos;
                 parent.HasGroupChanged = true;
                 //parent.ScheduleGroupForTerseUpdate();
-                parent.ScheduleGroupForTerseUpdate(SceneObjectPartProperties.OffsetPosition);
+                parent.ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.OffsetPosition});
             }
         }
 

@@ -294,7 +294,7 @@ namespace OpenSim.Region.Framework.Scenes
                     m_part.ParentGroup.Scene.EventManager.TriggerRezScript(
                         m_part.LocalId, item.ItemID, String.Empty, startParam, postOnRez, engine, stateSource);
                     m_part.ParentGroup.AddActiveScriptCount(1);
-                    m_part.ScheduleFullUpdate(SceneObjectPartProperties.Flags | SceneObjectPartProperties.TaskInventory);
+                    m_part.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Flags, SceneObjectPartProperties.TaskInventory});
                     return;
                 }
 
@@ -322,7 +322,7 @@ namespace OpenSim.Region.Framework.Scenes
                     m_part.ParentGroup.Scene.EventManager.TriggerRezScript(
                         m_part.LocalId, item.ItemID, script, startParam, postOnRez, engine, stateSource);
                     m_part.ParentGroup.AddActiveScriptCount(1);
-                    m_part.ScheduleFullUpdate(SceneObjectPartProperties.Flags | SceneObjectPartProperties.TaskInventory);
+                    m_part.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Flags, SceneObjectPartProperties.TaskInventory});
                 }
             }
         }
@@ -546,7 +546,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_part.ParentGroup.HasGroupChanged = true;
 
             //SYMMETRIC SYNC: add ScheduleFullUpdate to enable synchronization across actors
-            m_part.ScheduleFullUpdate(SceneObjectPartProperties.TaskInventory | SceneObjectPartProperties.InventorySerial);
+            m_part.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.TaskInventory, SceneObjectPartProperties.InventorySerial});
         }
 
         /// <summary>
@@ -766,7 +766,7 @@ namespace OpenSim.Region.Framework.Scenes
                 if (!ContainsScripts())
                     m_part.RemFlag(PrimFlags.Scripted);
 
-                m_part.ScheduleFullUpdate(SceneObjectPartProperties.TaskInventory);
+                m_part.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.TaskInventory});
 
                 return type;
                 

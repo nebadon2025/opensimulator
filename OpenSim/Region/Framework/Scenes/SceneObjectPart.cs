@@ -2752,7 +2752,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //m_parentGroup.RootPart.m_groupPosition = newpos;
             }
             //ScheduleTerseUpdate();
-            ScheduleTerseUpdate(SceneObjectPartProperties.Position);
+            ScheduleTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Position});
 
             //SendTerseUpdateToAllClients();
         }
@@ -2843,7 +2843,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             //ScheduleFullUpdate();
-            ScheduleFullUpdate(SceneObjectPartProperties.Scale);
+            ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Scale});
         }
         
         public void RotLookAt(Quaternion target, float strength, float damping)
@@ -2886,7 +2886,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// Schedules this prim for a full update
         /// </summary>
         //public void ScheduleFullUpdate() :: SYMMETRIC SYNC: changed the interface so that we can identify which property triggers calling this function
-        public virtual void ScheduleFullUpdate(SceneObjectPartProperties sopProperty)
+        public virtual void ScheduleFullUpdate(List<SceneObjectPartProperties> updatedProperties)
         {
 //            m_log.DebugFormat("[SCENE OBJECT PART]: Scheduling full update for {0} {1}", Name, LocalId);
             
@@ -2921,7 +2921,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// rotation, velocity, rotational velocity and shape information.
         /// </summary>
         //public void ScheduleTerseUpdate()
-        public virtual void ScheduleTerseUpdate(SceneObjectPartProperties sopProperty)
+        public virtual void ScheduleTerseUpdate(List<SceneObjectPartProperties> updatedProperties)
         {
             if (m_updateFlag < 1)
             {
@@ -3623,7 +3623,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             //ScheduleFullUpdate();
-            ScheduleFullUpdate(SceneObjectPartProperties.Text);
+            ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Text});
         }
         
         public void StopLookAt()
@@ -3631,7 +3631,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_parentGroup.stopLookAt();
 
             //m_parentGroup.ScheduleGroupForTerseUpdate();
-            m_parentGroup.ScheduleGroupForTerseUpdate(SceneObjectPartProperties.None);//in stopLookAt(), PhysicsActor shall already take care of tainting which properties have been updated 
+            m_parentGroup.ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None});//in stopLookAt(), PhysicsActor shall already take care of tainting which properties have been updated 
         }
         
         /// <summary>
@@ -3654,7 +3654,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_parentGroup.stopMoveToTarget();
 
             //m_parentGroup.ScheduleGroupForTerseUpdate();
-            m_parentGroup.ScheduleGroupForTerseUpdate(SceneObjectPartProperties.None); //in stopMoveToTarget(), PhysicsActor shall already take care of tainting which properties have been updated 
+            m_parentGroup.ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None}); //in stopMoveToTarget(), PhysicsActor shall already take care of tainting which properties have been updated 
             //m_parentGroup.ScheduleGroupForFullUpdate();
         }
 
@@ -4203,7 +4203,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             //ScheduleFullUpdate();
-            ScheduleFullUpdate(SceneObjectPartProperties.Shape);
+            ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Shape});
         }
 
         public void UpdateGroupPosition(Vector3 pos)
@@ -4215,7 +4215,7 @@ namespace OpenSim.Region.Framework.Scenes
                 Vector3 newPos = new Vector3(pos.X, pos.Y, pos.Z);
                 GroupPosition = newPos;
                 //ScheduleTerseUpdate();
-                ScheduleFullUpdate(SceneObjectPartProperties.GroupPosition);
+                ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.GroupPosition});
             }
         }
 
@@ -4248,7 +4248,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                 OffsetPosition = newPos;
                 //ScheduleTerseUpdate();
-                ScheduleFullUpdate(SceneObjectPartProperties.OffsetPosition);
+                ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.OffsetPosition});
             }
         }
 
@@ -4538,7 +4538,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             //ScheduleFullUpdate();
-            ScheduleFullUpdate(SceneObjectPartProperties.Flags);
+            ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.Flags});
         }
 
         public void UpdateRotation(Quaternion rot)
@@ -4551,7 +4551,7 @@ namespace OpenSim.Region.Framework.Scenes
                 RotationOffset = rot;
                 ParentGroup.HasGroupChanged = true;
                 //ScheduleTerseUpdate();
-                ScheduleFullUpdate(SceneObjectPartProperties.RotationOffset);
+                ScheduleFullUpdate(new List<SceneObjectPartProperties>() {SceneObjectPartProperties.RotationOffset});
             }
         }
 
@@ -4597,7 +4597,7 @@ namespace OpenSim.Region.Framework.Scenes
             ParentGroup.HasGroupChanged = true;
             TriggerScriptChangedEvent(Changed.SHAPE);
             //ScheduleFullUpdate();
-            ScheduleFullUpdate(SceneObjectPartProperties.Shape);
+            ScheduleFullUpdate(new List<SceneObjectPartProperties>() {SceneObjectPartProperties.Shape});
         }
 
         /// <summary>
@@ -4645,7 +4645,7 @@ namespace OpenSim.Region.Framework.Scenes
             //ParentGroup.ScheduleGroupForFullUpdate();
             //This is sparta
             //ScheduleFullUpdate();
-            ScheduleFullUpdate(SceneObjectPartProperties.Shape);
+            ScheduleFullUpdate(new List<SceneObjectPartProperties>() {SceneObjectPartProperties.Shape});
         }
 
         public void aggregateScriptEvents()
@@ -4714,7 +4714,7 @@ namespace OpenSim.Region.Framework.Scenes
 //                m_log.DebugFormat(
 //                    "[SCENE OBJECT PART]: Scheduling part {0} {1} for full update in aggregateScriptEvents() since m_parentGroup == null", Name, LocalId);
                 //ScheduleFullUpdate();
-                ScheduleFullUpdate(SceneObjectPartProperties.Flags);
+                ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.Flags, SceneObjectPartProperties.AggregateScriptEvents});
                 return;
             }
 
@@ -4738,7 +4738,7 @@ namespace OpenSim.Region.Framework.Scenes
 //                m_log.DebugFormat(
 //                    "[SCENE OBJECT PART]: Scheduling part {0} {1} for full update in aggregateScriptEvents()", Name, LocalId);
                 //ScheduleFullUpdate();
-                ScheduleFullUpdate(SceneObjectPartProperties.Flags);
+                ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.Flags, SceneObjectPartProperties.AggregateScriptEvents});
             }
         }
 
@@ -5143,7 +5143,8 @@ namespace OpenSim.Region.Framework.Scenes
         IsPhysical,
         Flying,
         Buoyancy,
-        //To be handled in serialization/deserizaltion for synchronization
+        //TODO!!!! To be handled in serialization/deserizaltion for synchronization
+        AggregateScriptEvents,
         IsSelected,
         AttachmentPoint,
         AttachedPos,
@@ -5648,16 +5649,24 @@ namespace OpenSim.Region.Framework.Scenes
 
         }
 
-        public override void ScheduleFullUpdate(SceneObjectPartProperties property)
+        public override void ScheduleFullUpdate(List<SceneObjectPartProperties> updatedProperties)
         {
-            base.ScheduleFullUpdate(property);
-            TaintBucketSyncInfo(property);
+            foreach (SceneObjectPartProperties property in updatedProperties)
+            {
+                TaintBucketSyncInfo(property);
+            }
+            base.ScheduleFullUpdate(updatedProperties);
+            //TaintBucketSyncInfo(property);
         }
 
-        public override void ScheduleTerseUpdate(SceneObjectPartProperties property)
+        public override void ScheduleTerseUpdate(List<SceneObjectPartProperties> updatedProperties)
         {
-            base.ScheduleTerseUpdate(property);
-            TaintBucketSyncInfo(property);
+            foreach (SceneObjectPartProperties property in updatedProperties)
+            {
+                TaintBucketSyncInfo(property);
+            }
+            base.ScheduleTerseUpdate(updatedProperties);
+            //TaintBucketSyncInfo(property);
         }
 
         /// <summary>

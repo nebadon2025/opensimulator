@@ -384,7 +384,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (sendClientUpdates)
                 //sceneObject.ScheduleGroupForFullUpdate();
-                sceneObject.ScheduleGroupForFullUpdate(SceneObjectPartProperties.None); 
+                sceneObject.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None}); 
             
             Entities.Add(sceneObject);
 
@@ -1895,7 +1895,7 @@ namespace OpenSim.Region.Framework.Scenes
                     copy.CreateScriptInstances(0, false, m_parentScene.DefaultScriptEngine, 1);
                     copy.HasGroupChanged = true;
                     //copy.ScheduleGroupForFullUpdate();
-                    copy.ScheduleGroupForFullUpdate(SceneObjectPartProperties.FullUpdate); //new object, all property values are new
+                    copy.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.FullUpdate}); //new object, all property values are new
                     copy.ResumeScripts();
 
                     // required for physics to update it's position
@@ -1964,7 +1964,7 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         //if we need to debug the script engine with a viewer attaching to it,
                         //we need to schedule updates to be sent to the viewer
-                        oldSog.ScheduleGroupForFullUpdate(SceneObjectPartProperties.None);
+                        oldSog.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None});
                     }
                 }
                 else

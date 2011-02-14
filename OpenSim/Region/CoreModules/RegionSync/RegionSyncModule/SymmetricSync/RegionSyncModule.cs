@@ -777,11 +777,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     m_log.ErrorFormat("{0}: Failure registering endpoint", LogHeader);
                 }
-                if (!m_scene.GridService.RegisterActor(m_scene.RegionInfo.RegionID.ToString(),
-                                "scene_persistence", m_scene.RegionInfo.RegionID.ToString()))
-                {
-                    m_log.ErrorFormat("{0}: Failure registering actor", LogHeader);
-                }
                 if (!m_scene.GridService.RegisterQuark(m_scene.RegionInfo.RegionID.ToString(),
                             m_scene.RegionInfo.SyncQuarkLocationX, m_scene.RegionInfo.SyncQuarkLocationY))
                 {

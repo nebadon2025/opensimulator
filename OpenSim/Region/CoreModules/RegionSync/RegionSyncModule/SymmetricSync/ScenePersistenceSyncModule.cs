@@ -74,6 +74,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //register the module with SceneGraph. If needed, SceneGraph checks the module's ActorType to know what type of module it is.
             m_scene.RegisterModuleInterface<IDSGActorSyncModule>(this);
 
+            // register actor
+            if (!scene.GridService.RegisterActor(scene.RegionInfo.RegionID.ToString(),
+                            "scene_persistence", scene.RegionInfo.RegionID.ToString()))
+            {
+                m_log.ErrorFormat("{0}: Failure registering actor", LogHeader);
+            }
+
             // Setup the command line interface
             //m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
             //InstallInterfaces();

@@ -13,6 +13,7 @@ using OpenSim.Region.CoreModules.Framework.InterfaceCommander;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Framework.Scenes.Serialization;
+using OpenSim.Services.Interfaces;
 using log4net;
 using System.Net;
 using System.Net.Sockets;
@@ -876,6 +877,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (!addr.Equals(IPAddrUnknown) && port != PortUnknown)
             {
                 RegionSyncListenerInfo info = new RegionSyncListenerInfo(addr, port);
+
+                // remove any cruft from previous runs
+                m_scene.GridService.CleanUpEndpoint(m_scene.RegionInfo.RegionID.ToString());
+                // Register the endpoint and quark and persistence actor for this simulator instance
+                GridEndpointInfo gei = new GridEndpointInfo();
+                gei.syncServerID = m_scene.RegionInfo.RegionID.ToString();
+                gei.address = m_scene.RegionInfo.SyncServerAddress;
+                gei.port = (uint)m_scene.RegionInfo.SyncServerPort;
+                if (!m_scene.GridService.RegisterEndpoint(gei))
+                {
+                    m_log.ErrorFormat("{0}: Failure registering endpoint", LogHeader);
+                }
+                if (!m_scene.GridService.RegisterQuark(m_scene.RegionInfo.RegionID.ToString(),
+                            m_scene.RegionInfo.SyncQuarkLocationX, m_scene.RegionInfo.SyncQuarkLocationY))
+                {
+                    m_log.ErrorFormat("{0}: Failure registering quark", LogHeader);
+                }
+
                 return info;
             }
 
@@ -896,6 +915,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             string addr = m_scene.RegionInfo.SyncServerAddress;
             int port = m_scene.RegionInfo.SyncServerPort;
+
+            // if the address is not specified in the region configuration file, get it from the grid service
+            if (addr.Equals(IPAddrUnknown))
+            {
+                List<GridEndpointInfo> lgei = m_scene.GridService.LookupQuark(
+                        m_scene.RegionInfo.SyncQuarkLocationX, m_scene.RegionInfo.SyncQuarkLocationY, "scene_persistence");
+                if (lgei == null || lgei.Count != 1)
+                {
+                    m_log.ErrorFormat("{0}: Failed to find quark persistence actor", LogHeader);
+                    addr = IPAddrUnknown;
+                    port = PortUnknown;
+                }
+                else
+                {
+                    GridEndpointInfo gei = lgei[0];
+                    addr = gei.address;
+                    port = (int)gei.port;
+                    m_log.WarnFormat("{0}: Found quark ({1}/{2}) persistence actor at {3}:{4}", LogHeader,
+                            m_scene.RegionInfo.SyncQuarkLocationX, m_scene.RegionInfo.SyncQuarkLocationY,
+                            addr, port.ToString());
+                }
+            }
 
             if (!addr.Equals(IPAddrUnknown) && port != PortUnknown)
             {

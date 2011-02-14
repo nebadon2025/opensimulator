@@ -432,5 +432,157 @@ namespace OpenSim.Services.Connectors.SimianGrid
 
             return region;
         }
+
+        #region SYNC SERVER
+        public virtual bool RegisterEndpoint(GridEndpointInfo gei)
+        {
+            NameValueCollection requestArgs = new NameValueCollection
+            {
+                { "RequestMethod", "AddEndpoint" },
+                { "SyncServerID", gei.syncServerID },
+                { "Address", gei.address },
+                { "Port", gei.port.ToString() },
+            };
+
+            OSDMap response = WebUtil.PostToService(m_ServerURI, requestArgs);
+            if (response["Success"].AsBoolean())
+            {
+                m_log.WarnFormat("{0}: Registration of endpoint {1} at addr={2}:{3} successful",
+                        "[SIMIAN GRID CONNECTOR]", gei.syncServerID, gei.address, gei.port.ToString());
+                return true;
+            }
+            m_log.ErrorFormat("{0}: Registration of endpoint {1} at addr={2}:{3} failed: {4}",
+                "[SIMIAN GRID CONNECTOR]", gei.syncServerID, gei.address, gei.port.ToString(), response["Message"]);
+            return false;
+        }
+
+        public virtual bool RegisterActor(string actorID, string actorType, string syncServerID)
+        {
+            NameValueCollection requestArgs = new NameValueCollection
+            {
+                { "RequestMethod", "AddActor" },
+                { "ActorID", actorID },
+                { "ActorType", actorType },
+                { "SyncServerID", syncServerID },
+            };
+
+            OSDMap response = WebUtil.PostToService(m_ServerURI, requestArgs);
+            if (response["Success"].AsBoolean())
+            {
+                m_log.WarnFormat("{0}: Registration of actor {1} of type {2} successful",
+                        "[SIMIAN GRID CONNECTOR]", actorID, actorType);
+                return true;
+            }
+            m_log.ErrorFormat("{0}: Registration of actor {1} of type {2} failed: {3}",
+                "[SIMIAN GRID CONNECTOR]", actorID, actorType, response["Message"]);
+            return false;
+            return false;
+        }
+
+        public virtual bool RegisterQuark(string syncServerID, uint locX, uint locY)
+        {
+            NameValueCollection requestArgs = new NameValueCollection
+            {
+                { "RequestMethod", "AddQuark" },
+                { "SyncServerID", syncServerID },
+                { "LocX", locX.ToString() },
+                { "LocY", locY.ToString() },
+            };
+
+            OSDMap response = WebUtil.PostToService(m_ServerURI, requestArgs);
+            if (response["Success"].AsBoolean())
+            {
+                m_log.WarnFormat("{0}: Registration of quark at {1}/{2} successful",
+                        "[SIMIAN GRID CONNECTOR]", locX.ToString(), locY.ToString());
+                return true;
+            }
+            m_log.ErrorFormat("{0}: Registration of quark at {1}/{2} failed: {3}",
+                        "[SIMIAN GRID CONNECTOR]", locX.ToString(), locY.ToString(), response["Message"]);
+            return false;
+        }
+
+        public virtual List<GridEndpointInfo> LookupQuark(uint locX, uint locY)
+        {
+            NameValueCollection requestArgs = new NameValueCollection
+            {
+                { "RequestMethod", "GetQuark" },
+                { "LocX", locX.ToString() },
+                { "LocY", locY.ToString() }
+            };
+            return LookupQuark(requestArgs);
+        }
+
+        public virtual List<GridEndpointInfo> LookupQuark(uint locX, uint locY, string actorType)
+        {
+            NameValueCollection requestArgs = new NameValueCollection
+            {
+                { "RequestMethod", "GetQuark" },
+                { "LocX", locX.ToString() },
+                { "LocY", locY.ToString() },
+                { "ActorType", actorType }
+            };
+            return LookupQuark(requestArgs);
+        }
+
+        private List<GridEndpointInfo> LookupQuark(NameValueCollection requestArgs)
+        {
+            OSDMap response = WebUtil.PostToService(m_ServerURI, requestArgs);
+            if (response["Success"].AsBoolean())
+            {
+                List<GridEndpointInfo> lgai = new List<GridEndpointInfo>();
+                OSDArray gridEndpoints = (OSDArray)response["Endpoints"];
+                m_log.WarnFormat("{0}: Lookup of quark successful. {1} addresses",
+                        "[SIMIAN GRID CONNECTOR]", gridEndpoints.Count);
+                for (int ii = 0; ii < gridEndpoints.Count; ii++)
+                {
+                    OSDMap thisEndpoint = (OSDMap)gridEndpoints[ii];
+                    GridEndpointInfo gai = new GridEndpointInfo();
+                    gai.syncServerID = thisEndpoint["SyncServerID"].AsString();
+                    gai.actorType = thisEndpoint["ActorType"].AsString();
+                    gai.address = thisEndpoint["Address"].AsString();
+                    gai.port = (uint)thisEndpoint["Port"].AsInteger();
+                    lgai.Add(gai);
+                }
+                return lgai;
+            }
+            m_log.ErrorFormat("{0}: Lookup of quark failed: {1}",
+                        "[SIMIAN GRID CONNECTOR]", response["Message"]);
+            return null;
+        }
+
+        // Clean up the information for this endpoint. Removes both the endpoint
+        // information from the Endpoint table but also removes ALL the quarks associated
+        // with the endpoint.
+        public virtual bool CleanUpEndpoint(string syncServerID)
+        {
+            NameValueCollection requestArgs = new NameValueCollection
+            {
+                { "RequestMethod", "RemoveEndpoint" },
+                { "SyncServerID", syncServerID },
+            };
+
+            OSDMap response = WebUtil.PostToService(m_ServerURI, requestArgs);
+            if (response["Success"].AsBoolean())
+            {
+                requestArgs = new NameValueCollection
+                {
+                    { "RequestMethod", "RemoveQuark" },
+                    { "SyncServerID", syncServerID },
+                };
+
+                response = WebUtil.PostToService(m_ServerURI, requestArgs);
+                if (response["Success"].AsBoolean())
+                {
+                    return true;
+                }
+                m_log.ErrorFormat("{0}: removal of quarks for Endpoint failed: {1}",
+                            "[SIMIAN GRID CONNECTOR]", response["Message"]);
+                return false;
+            }
+            m_log.ErrorFormat("{0}: removal of Endpoint failed: {1}",
+                        "[SIMIAN GRID CONNECTOR]", response["Message"]);
+            return false;
+        }
+        #endregion SYNC SERVER
     }
 }

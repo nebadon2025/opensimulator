@@ -653,5 +653,33 @@ namespace OpenSim.Services.Connectors
 
         #endregion
 
+        #region SYNC SERVER
+        // Stubs for actor and quark management. Only implementation is in SimianGridService
+        public bool RegisterEndpoint(GridEndpointInfo gei)
+        {
+            return false;
+        }
+        public bool RegisterActor(string actorID, string actorType, string syncServerID)
+        {
+            return false;
+        }
+        public bool RegisterQuark(string syncServerID, uint locX, uint locY)
+        {
+            return false;
+        }
+        public List<GridEndpointInfo> LookupQuark(uint locX, uint locY)
+        {
+            return null;
+        }
+        public List<GridEndpointInfo> LookupQuark(uint locX, uint locY, string actorType)
+        {
+            return null;
+        }
+        public bool CleanUpEndpoint(string syncServerID)
+        {
+            return false;
+        }
+        #endregion SYNC SERVER
+
     }
 }

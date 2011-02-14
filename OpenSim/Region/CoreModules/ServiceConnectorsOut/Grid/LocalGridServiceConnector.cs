@@ -256,5 +256,33 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Grid
             }
         }
 
+        #region SYNC SERVER
+        // Stubs for actor and quark management. Only implementation is in SimianGridService
+        public bool RegisterEndpoint(GridEndpointInfo gei)
+        {
+            return m_GridService.RegisterEndpoint(gei);
+        }
+        public bool RegisterActor(string actorID, string actorType, string syncServerID)
+        {
+            return m_GridService.RegisterActor(actorID, actorType, syncServerID);
+        }
+        public bool RegisterQuark(string syncServerID, uint locX, uint locY)
+        {
+            return m_GridService.RegisterQuark(syncServerID, locX, locY);
+        }
+        public List<GridEndpointInfo> LookupQuark(uint locX, uint locY)
+        {
+            return m_GridService.LookupQuark(locX, locY);
+        }
+        public List<GridEndpointInfo> LookupQuark(uint locX, uint locY, string actorType)
+        {
+            return m_GridService.LookupQuark(locX, locY, actorType);
+        }
+        public bool CleanUpEndpoint(string syncServerID)
+        {
+            return m_GridService.CleanUpEndpoint(syncServerID);
+        }
+        #endregion SYNC SERVER
+
     }
 }

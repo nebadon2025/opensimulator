@@ -95,7 +95,28 @@ namespace OpenSim.Services.Interfaces
         List<GridRegion> GetHyperlinks(UUID scopeID);
 
         int GetRegionFlags(UUID scopeID, UUID regionID);
+
+        // SYNC SERVER
+        bool RegisterEndpoint(GridEndpointInfo gei);
+        bool RegisterActor(string actorID, string actorType, string syncServerID);
+        bool RegisterQuark(string syncServerID, uint locX, uint locY);
+        List<GridEndpointInfo> LookupQuark(uint locX, uint locY);
+        List<GridEndpointInfo> LookupQuark(uint locX, uint locY, string actorType);
+        bool CleanUpEndpoint(string syncServerID);
+        // END SYNC SERVER
     }
+
+    // SYNC SERVER
+    public class GridEndpointInfo
+    {
+        public string syncServerID;
+        public string address;
+        public uint port;
+        public string internalAddress;
+        public uint internalPort;
+        public string actorType;
+    }
+    // END SYNC SERVER
 
     public class GridRegion : Object
     {

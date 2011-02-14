@@ -36,6 +36,7 @@ using OpenSim.Region.CoreModules.Framework.InterfaceCommander;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Physics.Manager;
+using OpenSim.Services.Interfaces;
 using log4net;
 using System.Net;
 using System.Net.Sockets;
@@ -104,11 +105,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_activeActors++;
 
             m_log.Debug(LogHeader + " Init PEToSceneConnectorModule, for local scene " + scene.RegionInfo.RegionName);
-
-            // string configString = scene.RegionInfo.RegionName + "_SceneToPESyncServerIP";
-            // m_serveraddr = syncConfig.GetString(configString, "127.0.0.1");
-            // configString = scene.RegionInfo.RegionName + "_SceneToPESyncServerPort";
-            // m_serverport = syncConfig.GetInt(configString, 13000);
 
             m_scene = scene;
             m_scene.RegisterModuleInterface<IPhysEngineToSceneConnectorModule>(this);

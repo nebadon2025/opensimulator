@@ -4114,6 +4114,15 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        public void UpdateTaintedBucketSyncInfo(string bucketName, long timeStamp)
+        {
+            foreach (SceneObjectPart part in Parts)
+            {
+                part.UpdateTaintedBucketSyncInfo(bucketName, timeStamp);
+            }
+            
+        }
+
         #endregion
     }
 }

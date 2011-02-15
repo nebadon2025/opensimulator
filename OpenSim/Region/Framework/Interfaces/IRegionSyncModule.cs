@@ -68,6 +68,7 @@ namespace OpenSim.Region.Framework.Interfaces
         //Enqueue updates for scene-objects and scene-presences
         void QueueSceneObjectPartForUpdate(SceneObjectPart part);
         void QueueScenePresenceForTerseUpdate(ScenePresence presence);
+        //void QueueSceneObjectGroupForUpdate(SceneObjectGroup sog);
 
         //The folloiwng calls deal with object updates, and will insert each update into an outgoing queue of each SyncConnector
         void SendSceneUpdates();

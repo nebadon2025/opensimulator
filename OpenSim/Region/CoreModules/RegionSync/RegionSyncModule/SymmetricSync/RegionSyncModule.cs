@@ -65,7 +65,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_isSyncListenerLocal = m_sysConfig.GetBoolean("IsSyncListenerLocal", false);
 
             //Setup the PropertyBucketMap 
-            PupolatePropertyBucketMap(m_sysConfig);
+            PopulatePropertyBucketMap(m_sysConfig);
 
             m_active = true;
 
@@ -187,18 +187,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             get { return m_primPropertyBucketMap; }
         }
-        private List<string> m_propertyBucketDescription = new List<string>();
+        private List<string> m_propertyBucketNames = new List<string>();
         public List<string> PropertyBucketDescription
         {
-            get { return m_propertyBucketDescription; }
+            get { return m_propertyBucketNames; }
         }
 
         private RegionSyncListener m_localSyncListener = null;
         private bool m_synced = false;
 
         // Lock is used to synchronize access to the update status and update queues
-        private object m_updateSceneObjectPartLock = new object();
-        private Dictionary<UUID, SceneObjectGroup> m_primUpdates = new Dictionary<UUID, SceneObjectGroup>();
+        //private object m_updateSceneObjectPartLock = new object();
+        //private Dictionary<UUID, SceneObjectGroup> m_primUpdates = new Dictionary<UUID, SceneObjectGroup>();
+        private Dictionary<string, Object> m_primUpdateLocks = new Dictionary<string, object>();
+        private Dictionary<string, Dictionary<UUID, SceneObjectGroup>> m_primUpdates = new Dictionary<string, Dictionary<UUID, SceneObjectGroup>>();
+
+        private delegate void PrimUpdatePerBucketSender(SceneObjectGroup sog, string bucketName);
+        private Dictionary<string,PrimUpdatePerBucketSender> m_primUpdatesPerBucketSender = new Dictionary<string,PrimUpdatePerBucketSender>();
+
         private object m_updateScenePresenceLock = new object();
         private Dictionary<UUID, ScenePresence> m_presenceUpdates = new Dictionary<UUID, ScenePresence>();
         private int m_sendingUpdates=0;
@@ -206,56 +212,45 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private int m_maxNumOfPropertyBuckets; 
 
         //Read in configuration for which property-bucket each property belongs to, and the description of each bucket
-        private void PupolatePropertyBucketMap(IConfig config)
+        private void PopulatePropertyBucketMap(IConfig config)
         {
             //We start with a default bucket map. Will add the code to read in configuration from config files later.
-            PupolatePropertyBuketMapByDefault();
+            PopulatePropertyBuketMapByDefault();
 
             //Pass the bucket information to SceneObjectPart.
-            SceneObjectPart.InitializePropertyBucketInfo(m_primPropertyBucketMap, m_propertyBucketDescription, m_actorID);
+            SceneObjectPart.InitializePropertyBucketInfo(m_primPropertyBucketMap, m_propertyBucketNames, m_actorID);
+
+        }
+
+        private void PrimUpdatesGeneralBucketSender(SceneObjectGroup sog, string bucketName)
+        {
+            sog.UpdateTaintedBucketSyncInfo(bucketName, DateTime.Now.Ticks); //this update the timestamp and clear the taint info of the bucket
+            string sogxml = SceneObjectSerializer.ToXml2Format(sog);
+            SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
+            SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
+        }
+
+        private void PrimUpdatesPhysicsBucketSender(SceneObjectGroup sog, string bucketName)
+        {
+
 
         }
 
         //If nothing configured in the config file, this is the default settings for grouping properties into different bucket
-        private void PupolatePropertyBuketMapByDefault()
+        private void PopulatePropertyBuketMapByDefault()
         {
             //by default, there are two property buckets: the "General" bucket and the "Physics" bucket.
             string generalBucketName = "General";
             string physicsBucketName = "Physics";
-            m_propertyBucketDescription.Add(generalBucketName);
-            m_propertyBucketDescription.Add(physicsBucketName);
-            m_maxNumOfPropertyBuckets = 2;
+            m_propertyBucketNames.Add(generalBucketName);
+            m_propertyBucketNames.Add(physicsBucketName);
+            m_maxNumOfPropertyBuckets = m_propertyBucketNames.Count;
 
-            /*
-            foreach (string pName in SceneObjectPart.PropertyList)
-            {
-                switch (pName){
-                    case "GroupPosition":
-                    case "OffsetPosition":
-                    case "Scale":
-                    case "Velocity":
-                    case "AngularVelocity":
-                    case "RotationOffset":
-                    case "Position":
-                    case "Size":
-                    case "Force":
-                    case "RotationalVelocity":
-                    case "PA_Acceleration":
-                    case "Torque":
-                    case "Orientation":
-                    case "IsPhysical":
-                    case "Flying":
-                    case "Buoyancy":
-                        m_primPropertyBucketMap.Add(pName, physicsBucketName);
-                        break;
-                    default:
-                        //all other properties belong to the "General" bucket.
-                        m_primPropertyBucketMap.Add(pName, generalBucketName);
-                        break;
-                }
-            }
-             * */
+            //Linking each bucket with the sender function that serializes the properties in the bucket and send out sync message
+            m_primUpdatesPerBucketSender.Add("General", PrimUpdatesGeneralBucketSender);
+            m_primUpdatesPerBucketSender.Add("Physics", PrimUpdatesPhysicsBucketSender);
 
+            //Mapping properties to buckets.
             foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
             {
                 switch (property)
@@ -284,6 +279,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         break;
                 }
             }
+
+            //create different lists to keep track which SOP has what properties updated (which bucket of properties)
+            foreach (string bucketName in m_propertyBucketNames)
+            {
+                m_primUpdates.Add(bucketName, new Dictionary<UUID, SceneObjectGroup>());
+                m_primUpdateLocks.Add(bucketName, new Object());
+            }
         }
 
         private bool IsSyncingWithOtherActors()
@@ -293,36 +295,20 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void QueueSceneObjectPartForUpdate(SceneObjectPart part)
         {
-            //if the last update of the prim is caused by this actor itself, or if the actor is a relay node, then enqueue the update
-            //if (part.LastUpdateActorID.Equals(m_actorID) || m_isSyncRelay)
-            bool updated = m_isSyncRelay;
-
-            if (!updated)
+            
+            foreach (string bucketName in m_propertyBucketNames)
             {
-                /*
-                foreach (KeyValuePair<string, BucketSyncInfo> pair in part.BucketSyncInfoList)
-                {
-                    if (pair.Value.LastUpdateActorID.Equals(m_actorID))
+                if (part.HasPropertyUpdatedLocallyInGivenBucket(bucketName))
+                {        
+                    lock (m_primUpdateLocks[bucketName])
                     {
-                        updated = true;
-                        break;
+                        m_primUpdates[bucketName][part.UUID] = part.ParentGroup;
                     }
                 }
-                 * */
-                if (part.HasPropertyUpdatedLocally())
-                {
-                    updated = true;
-                }
             }
-
-            if(updated)
-            {
-                lock (m_updateSceneObjectPartLock)
-                {
-                    m_primUpdates[part.UUID] = part.ParentGroup;
-                }
-            }
+            
         }
+
 
         public void QueueScenePresenceForTerseUpdate(ScenePresence presence)
         {
@@ -333,6 +319,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
              * */ 
         }
+
+
 
         //SendSceneUpdates put each update into an outgoing queue of each SyncConnector
         public void SendSceneUpdates()
@@ -350,20 +338,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
             }
 
-            List<SceneObjectGroup> primUpdates=null;
-            List<ScenePresence> presenceUpdates=null;
+            //List<SceneObjectGroup> primUpdates=null;
+            Dictionary<string, List<SceneObjectGroup>> primUpdates = new Dictionary<string,List<SceneObjectGroup>>();
 
-            if (m_primUpdates.Count > 0)
+            bool updated = false;
+            //copy the updated SOG list and clear m_primUpdates for immediately future usage
+            foreach (string bucketName in m_propertyBucketNames)
             {
-                lock (m_updateSceneObjectPartLock)
+                if (m_primUpdates[bucketName].Count > 0)
                 {
-                    primUpdates = new List<SceneObjectGroup>(m_primUpdates.Values);
-                    //presenceUpdates = new List<ScenePresence>(m_presenceUpdates.Values);
-                    m_primUpdates.Clear();
-                    //m_presenceUpdates.Clear();
+                    lock (m_primUpdateLocks[bucketName])
+                    {
+                        updated = true;
+                        primUpdates.Add(bucketName, new List<SceneObjectGroup>(m_primUpdates[bucketName].Values));
+                        
+                        m_primUpdates[bucketName].Clear();
+                        
+                    }
                 }
             }
 
+            /*
+            List<ScenePresence> presenceUpdates = null;
             if (m_presenceUpdates.Count > 0)
             {
                 lock (m_updateScenePresenceLock)
@@ -372,8 +368,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_presenceUpdates.Clear();
                 }
             }
+             * */ 
 
-            if (primUpdates != null || presenceUpdates != null)
+            if (updated)
             {
                 long timeStamp = DateTime.Now.Ticks;
 
@@ -384,18 +381,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     // Dan's note: Sending the message when it's first queued would yield lower latency but much higher load on the simulator
                     // as parts may be updated many many times very quickly. Need to implement a higher resolution send in heartbeat
 
-                    if (primUpdates != null)
+                    foreach (string bucketName in m_propertyBucketNames)
                     {
-                        foreach (SceneObjectGroup sog in primUpdates)
+                        if (primUpdates[bucketName].Count>0)
                         {
-                            //If this is a relay node, or at least one part of the object has the last update caused by this actor, then send the update
-                            sog.UpdateTaintedBucketSyncInfo(timeStamp);
-                            if (m_isSyncRelay || (!sog.IsDeleted && CheckObjectForSendingUpdate(sog)))
+                            foreach (SceneObjectGroup sog in primUpdates[bucketName])
                             {
-                                //send 
-                                string sogxml = SceneObjectSerializer.ToXml2Format(sog);
-                                SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
-                                SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
+                                /*
+                                //If this is a relay node, or at least one part of the object has the last update caused by this actor, then send the update
+                                sog.UpdateTaintedBucketSyncInfo(timeStamp);
+                                if (m_isSyncRelay || (!sog.IsDeleted && CheckObjectForSendingUpdate(sog)))
+                                {
+                                    //send 
+                                    string sogxml = SceneObjectSerializer.ToXml2Format(sog);
+                                    SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
+                                    SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
+                                }
+                                 * */
+                                m_primUpdatesPerBucketSender[bucketName](sog, bucketName);
                             }
                         }
                     }

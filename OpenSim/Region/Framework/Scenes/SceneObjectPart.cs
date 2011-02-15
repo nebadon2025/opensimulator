@@ -4957,6 +4957,7 @@ namespace OpenSim.Region.Framework.Scenes
         //lock for concurrent updates of the timestamp and actorID.
         private Object m_updateLock = new Object();
         private string m_bucketName;
+        private bool m_bucketTainted = false;
 
         public long LastUpdateTimeStamp
         {
@@ -4975,6 +4976,11 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_bucketName; }
         }
 
+        public bool Tainted
+        {
+            get { return m_bucketTainted; }
+        }
+
         public BucketSyncInfo(string bucketName)
         {
             m_bucketName = bucketName;
@@ -4987,15 +4993,23 @@ namespace OpenSim.Region.Framework.Scenes
             m_bucketName = bucketName;
         }
 
-        public void UpdateSyncInfo(long timeStamp, string actorID)
+        public void UpdateSyncInfoAndClearTaint(long timeStamp, string actorID)
         {
             lock (m_updateLock)
             {
                 m_lastUpdateTimeStamp = timeStamp;
                 m_lastUpdateActorID = actorID;
+                m_bucketTainted = false; //clear taint
             }
         }
 
+        public void TaintBucket()
+        {
+            lock (m_updateLock)
+            {
+                m_bucketTainted = true;
+            }
+        }
     }
 
     /*
@@ -5467,10 +5481,12 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     m_bucketUpdateLocks.Add(bucketName, new Object());
                 }
+                /*
                 if (!m_bucketSyncTainted.ContainsKey(bucketName))
                 {
                     m_bucketSyncTainted.Add(bucketName, false);
                 }
+                 * */ 
             }
 
             if (!m_BucketUpdateProcessorRegistered)
@@ -5488,21 +5504,17 @@ namespace OpenSim.Region.Framework.Scenes
             if (m_syncEnabled && m_bucketSyncTainted.Count > 0)
             {
                 string bucketName = m_primPropertyBucketMap[property];
-                m_bucketSyncTainted[bucketName] = true;
+                //m_bucketSyncTainted[bucketName] = true;
+                m_bucketSyncInfoList[bucketName].TaintBucket();
             }
         }
 
-        public bool HasPropertyUpdatedLocally()
+
+        public bool HasPropertyUpdatedLocallyInGivenBucket(string bucketName)
         {
-            bool updatedLocally = false;
-            foreach (KeyValuePair<string, bool> pair in m_bucketSyncTainted)
-            {
-                updatedLocally = pair.Value;
-                if (updatedLocally)
-                    break;
-            }
-            return updatedLocally;
+            return m_bucketSyncInfoList[bucketName].Tainted;
         }
+
 
         /*
         public void ClearBucketTaint()
@@ -5530,16 +5542,19 @@ namespace OpenSim.Region.Framework.Scenes
                     string bucketName = pair.Key;
                     if (m_bucketSyncTainted[bucketName])
                     {
-                        m_bucketSyncInfoList[bucketName].UpdateSyncInfo(timeStamp, m_localActorID);
-                        m_bucketSyncTainted[bucketName] = false;
+                        m_bucketSyncInfoList[bucketName].UpdateSyncInfoAndClearTaint(timeStamp, m_localActorID);
+                        //m_bucketSyncTainted[bucketName] = false;
                     }
                 }
             }
         }
 
+
         /// <summary>
-        /// Update the timestamp information of each property bucket, and clear out the taint on each bucket.
+        /// Update the timestamp information of each property bucket, and clear out the taint on each bucket. This function won't
+        /// clear the taints. Caller should clear the taints if needed.
         /// </summary>
+        /// <param name="timeStamp">the timestamp value to be set for any updated bucket</param>
         public void UpdateTaintedBucketSyncInfo(long timeStamp)
         {
             if (m_syncEnabled)
@@ -5549,9 +5564,20 @@ namespace OpenSim.Region.Framework.Scenes
                     string bucketName = pair.Key;
                     if (m_bucketSyncTainted[bucketName])
                     {
-                        m_bucketSyncInfoList[bucketName].UpdateSyncInfo(timeStamp, m_localActorID);
-                        m_bucketSyncTainted[bucketName] = false;
+                        m_bucketSyncInfoList[bucketName].UpdateSyncInfoAndClearTaint(timeStamp, m_localActorID);
                     }
+                }
+            }
+        }
+
+        public void UpdateTaintedBucketSyncInfo(string bucketName, long timeStamp)
+        {
+            if (m_syncEnabled)
+            {
+                if (m_bucketSyncTainted[bucketName])
+                {
+                    m_bucketSyncInfoList[bucketName].UpdateSyncInfoAndClearTaint(timeStamp, m_localActorID);
+                    //m_bucketSyncTainted[bucketName] = false;
                 }
             }
         }
@@ -5569,7 +5595,7 @@ namespace OpenSim.Region.Framework.Scenes
                 long timeStamp = DateTime.Now.Ticks;
                 if (m_bucketSyncInfoList.ContainsKey(bucketName))
                 {
-                    m_bucketSyncInfoList[bucketName].UpdateSyncInfo(timeStamp, m_localActorID);
+                    m_bucketSyncInfoList[bucketName].UpdateSyncInfoAndClearTaint(timeStamp, m_localActorID);
                 }
                 else
                 {
@@ -5586,7 +5612,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     string bucketName = pair.Key;
                     BucketSyncInfo syncInfo= pair.Value;
-                    syncInfo.UpdateSyncInfo(timeStamp, m_localActorID);
+                    syncInfo.UpdateSyncInfoAndClearTaint(timeStamp, m_localActorID);
                     m_bucketSyncTainted[bucketName] = false;
                 }
             }

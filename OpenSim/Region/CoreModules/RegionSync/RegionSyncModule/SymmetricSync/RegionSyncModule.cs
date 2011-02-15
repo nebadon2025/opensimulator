@@ -340,7 +340,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             
             foreach (string bucketName in m_propertyBucketNames)
             {
-                if (part.HasPropertyUpdatedLocallyInGivenBucket(bucketName))
+                if (m_isSyncRelay || part.HasPropertyUpdatedLocallyInGivenBucket(bucketName))
                 {        
                     lock (m_primUpdateLocks[bucketName])
                     {

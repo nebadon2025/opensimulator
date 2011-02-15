@@ -5415,8 +5415,20 @@ namespace OpenSim.Region.Framework.Scenes
                     m_parentGroup.Scene.EventManager.TriggerAggregateScriptEvents(this);
                 }
             }
+
+            //Schedule updates to be sent out, if the local copy has just been updated
+            //(1) if we are debugging the actor with a viewer attaching to it,
+            //we need to schedule updates to be sent to the viewer.
+            //(2) or if we are a relaying node to relay updates, we need to forward the updates.
+            //NOTE: Passing null argument to make sure that LastUpdateTimeStamp and LastUpdateActorID of each bucket 
+            //      are kept the same as in the received copy of the object.
+            ScheduleFullUpdate(null);
+            
         }
 
+
+        //NOTE: only touch the properties and BucketSyncInfo that is related to the given bucketName. Other properties and
+        //buckets may not be filled at all in "updatedPart".
         private void PhysicsBucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName)
         {
             //If needed, we could define new set functions for these properties, and cast this SOP to SOPBase to 
@@ -5450,6 +5462,16 @@ namespace OpenSim.Region.Framework.Scenes
                 m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
 
             }
+
+            //Schedule updates to be sent out, if the local copy has just been updated
+            //(1) if we are debugging the actor with a viewer attaching to it,
+            //we need to schedule updates to be sent to the viewer.
+            //(2) or if we are a relaying node to relay updates, we need to forward the updates.
+            //NOTE: Passing SceneObjectPartProperties.None to make sure that LastUpdateTimeStamp and LastUpdateActorID of each bucket 
+            //      are kept the same as in the received copy of the object.
+
+            ScheduleFullUpdate(null);
+            
         }
 
         //Initialize and set the values of timestamp and actorID for each synchronization bucket.
@@ -5678,7 +5700,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Unchanged;
 
-            if (updatedPart.BucketSyncInfoList.ContainsKey(bucketName))
+            if (!updatedPart.BucketSyncInfoList.ContainsKey(bucketName))
             {
                 m_log.Warn("No bucket named " + bucketName + " found in the copy of updatedPart in UpdateBucketProperties");
                 return partUpdateResult;
@@ -5718,9 +5740,12 @@ namespace OpenSim.Region.Framework.Scenes
 
         public override void ScheduleFullUpdate(List<SceneObjectPartProperties> updatedProperties)
         {
-            foreach (SceneObjectPartProperties property in updatedProperties)
+            if (updatedProperties != null && updatedProperties.Count > 0)
             {
-                TaintBucketSyncInfo(property);
+                foreach (SceneObjectPartProperties property in updatedProperties)
+                {
+                    TaintBucketSyncInfo(property);
+                }
             }
             base.ScheduleFullUpdate(updatedProperties);
             //TaintBucketSyncInfo(property);
@@ -5728,9 +5753,12 @@ namespace OpenSim.Region.Framework.Scenes
 
         public override void ScheduleTerseUpdate(List<SceneObjectPartProperties> updatedProperties)
         {
-            foreach (SceneObjectPartProperties property in updatedProperties)
+            if (updatedProperties != null && updatedProperties.Count > 0)
             {
-                TaintBucketSyncInfo(property);
+                foreach (SceneObjectPartProperties property in updatedProperties)
+                {
+                    TaintBucketSyncInfo(property);
+                }
             }
             base.ScheduleTerseUpdate(updatedProperties);
             //TaintBucketSyncInfo(property);

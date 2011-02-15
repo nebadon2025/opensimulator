@@ -5209,7 +5209,7 @@ namespace OpenSim.Region.Framework.Scenes
         //private static Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
         private Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
         private Dictionary<string, Object> m_bucketUpdateLocks = new Dictionary<string, object>();
-        private Dictionary<string, bool> m_bucketSyncTainted = new Dictionary<string, bool>();
+        //private Dictionary<string, bool> m_bucketSyncTainted = new Dictionary<string, bool>();
 
         //Define this as a guard to not to fill in any sync info when not desired, i.e. while de-serializing and building SOP and SOG, where 
         //property set functions will be called and might trigger UpdateBucketSyncInfo() if not guarded carefully.
@@ -5481,12 +5481,6 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     m_bucketUpdateLocks.Add(bucketName, new Object());
                 }
-                /*
-                if (!m_bucketSyncTainted.ContainsKey(bucketName))
-                {
-                    m_bucketSyncTainted.Add(bucketName, false);
-                }
-                 * */ 
             }
 
             if (!m_BucketUpdateProcessorRegistered)
@@ -5501,11 +5495,24 @@ namespace OpenSim.Region.Framework.Scenes
         //For tainitng and clearing taints, do i need to lock on m_bucketSyncTaint?
         public void TaintBucketSyncInfo(SceneObjectPartProperties property)
         {
-            if (m_syncEnabled && m_bucketSyncTainted.Count > 0)
+            if (m_syncEnabled)
             {
-                string bucketName = m_primPropertyBucketMap[property];
-                //m_bucketSyncTainted[bucketName] = true;
-                m_bucketSyncInfoList[bucketName].TaintBucket();
+                if (property == SceneObjectPartProperties.None)
+                    return;
+
+                if (property == SceneObjectPartProperties.FullUpdate)
+                {
+                    foreach (BucketSyncInfo bucketSynInfo in m_bucketSyncInfoList.Values)
+                    {
+                        bucketSynInfo.TaintBucket();
+                    }
+                }
+                else
+                {
+                    string bucketName = m_primPropertyBucketMap[property];
+                    //m_bucketSyncTainted[bucketName] = true;
+                    m_bucketSyncInfoList[bucketName].TaintBucket();
+                }
             }
         }
 
@@ -5515,19 +5522,6 @@ namespace OpenSim.Region.Framework.Scenes
             return m_bucketSyncInfoList[bucketName].Tainted;
         }
 
-
-        /*
-        public void ClearBucketTaint()
-        {
-            if (m_syncEnabled && m_bucketSyncTainted.Count > 0)
-            {
-                foreach (KeyValuePair<string, bool> pair in m_bucketSyncTainted)
-                {
-                    pair.Value = false;
-                }
-            }
-        }
-         * */ 
 
         /// <summary>
         /// Update the timestamp information of each property bucket, and clear out the taint on each bucket.
@@ -5540,10 +5534,9 @@ namespace OpenSim.Region.Framework.Scenes
                 foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
                 {
                     string bucketName = pair.Key;
-                    if (m_bucketSyncTainted[bucketName])
+                    if (m_bucketSyncInfoList[bucketName].Tainted)
                     {
                         m_bucketSyncInfoList[bucketName].UpdateSyncInfoAndClearTaint(timeStamp, m_localActorID);
-                        //m_bucketSyncTainted[bucketName] = false;
                     }
                 }
             }
@@ -5562,7 +5555,7 @@ namespace OpenSim.Region.Framework.Scenes
                 foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
                 {
                     string bucketName = pair.Key;
-                    if (m_bucketSyncTainted[bucketName])
+                    if (m_bucketSyncInfoList[bucketName].Tainted)
                     {
                         m_bucketSyncInfoList[bucketName].UpdateSyncInfoAndClearTaint(timeStamp, m_localActorID);
                     }
@@ -5574,10 +5567,9 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (m_syncEnabled)
             {
-                if (m_bucketSyncTainted[bucketName])
+                if (m_bucketSyncInfoList[bucketName].Tainted)
                 {
                     m_bucketSyncInfoList[bucketName].UpdateSyncInfoAndClearTaint(timeStamp, m_localActorID);
-                    //m_bucketSyncTainted[bucketName] = false;
                 }
             }
         }
@@ -5613,11 +5605,9 @@ namespace OpenSim.Region.Framework.Scenes
                     string bucketName = pair.Key;
                     BucketSyncInfo syncInfo= pair.Value;
                     syncInfo.UpdateSyncInfoAndClearTaint(timeStamp, m_localActorID);
-                    m_bucketSyncTainted[bucketName] = false;
                 }
             }
         }
-
 
         public Scene.ObjectUpdateResult UpdateAllProperties(SceneObjectPart updatedPart)
         {
@@ -5653,8 +5643,9 @@ namespace OpenSim.Region.Framework.Scenes
                     if (!m_bucketSyncInfoList[bucketName].LastUpdateActorID.Equals(updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID))
                     {
                         m_log.Warn("Different actors modified SceneObjetPart " + UUID + " with the same TimeStamp (" + m_bucketSyncInfoList[bucketName].LastUpdateActorID
-                            + "," + updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID + ", CONFLICT RESOLUTION TO BE IMPLEMENTED!!!!");
+                            + "," + updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID + ", CONFLICT RESOLUTION TO BE IMPLEMENTED, PICK A WINNER!!!!");
                     }
+                    //TODO: conflict resolution to be implemented -- pick a winner
                     continue;
                 }
 
@@ -5674,6 +5665,55 @@ namespace OpenSim.Region.Framework.Scenes
 
             return partUpdateResult;
 
+        }
+
+        /// <summary>
+        /// Update values of property in the given bucket. 
+        /// </summary>
+        /// <param name="bucketName">The bucket that the properties belong to.</param>
+        /// <param name="updatedPart">A container of the updated properties. Only the values of the updated properties are set.</param>
+        /// <param name="rBucketSyncInfo">A copy of the sync info of the bucket on the sender's (who sends out the syn message) side.</param>
+        /// <returns></returns>
+        public Scene.ObjectUpdateResult UpdateBucketProperties(string bucketName, SceneObjectPart updatedPart)
+        {
+            Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Unchanged;
+
+            if (updatedPart.BucketSyncInfoList.ContainsKey(bucketName))
+            {
+                m_log.Warn("No bucket named " + bucketName + " found in the copy of updatedPart in UpdateBucketProperties");
+                return partUpdateResult;
+            }
+
+            BucketSyncInfo rBucketSyncInfo = updatedPart.BucketSyncInfoList[bucketName];
+
+            if (!m_bucketSyncInfoList.ContainsKey(bucketName))
+            {
+                m_log.Error("SceneObjectPart.UpdateBucketProperties: no bucket name " + bucketName + " defined");
+                return partUpdateResult;
+            }
+
+            if (m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp > rBucketSyncInfo.LastUpdateTimeStamp)
+            {
+                //Our timestamp is more update to date, keep our values of the properties. Do not update anything.
+                return partUpdateResult;
+            }
+
+            if (m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp == rBucketSyncInfo.LastUpdateTimeStamp)
+            {
+                if (!m_bucketSyncInfoList[bucketName].LastUpdateActorID.Equals(rBucketSyncInfo.LastUpdateActorID))
+                {
+                    m_log.Warn("Different actors modified SceneObjetPart " + UUID + " with the same TimeStamp (" + m_bucketSyncInfoList[bucketName].LastUpdateActorID
+                        + "," + rBucketSyncInfo.LastUpdateActorID + ", CONFLICT RESOLUTION TO BE IMPLEMENTED, PICK A WINNER!!!!");
+                }
+                //TODO: conflict resolution to be implemented -- pick a winner
+                return partUpdateResult;
+            }
+            
+
+            m_bucketUpdateProcessors[bucketName](updatedPart, bucketName);
+            partUpdateResult = Scene.ObjectUpdateResult.Updated;
+
+            return partUpdateResult;
         }
 
         public override void ScheduleFullUpdate(List<SceneObjectPartProperties> updatedProperties)

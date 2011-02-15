@@ -815,6 +815,12 @@ namespace OpenSim.Region.Framework.Scenes
             m_sceneGraph.DelinkObjectsBySync(delinkPrimIDs, beforeDelinkGroupIDs, incomingAfterDelinkGroups);
         }
 
+        //public ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, Dictionary<string, Object> updatedProperties, BucketSyncInfo rBucketSyncInfo)
+        public ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, SceneObjectPart updatePart)
+        {
+            return m_sceneGraph.UpdateObjectPartBucketProperties(bucketName, partUUID, updatePart);
+        }
+
         #endregion //SYMMETRIC SYNC
 
         public ICapabilitiesModule CapsModule

@@ -2429,125 +2429,17 @@ namespace OpenSim.Region.Framework.Scenes
             return afterDelinkGroups;
         }
 
-
-        /*
-         * //Initial effort to delink objects by copying from the linksets from remote copy. Too much book-keeping updating work to make sure all details are right.
-         * //So we switched to letting local actor to apply the same "delink" operation as the remote actor did, and check if the "before-state" and "after-state"
-         * //agrees. 
-        public void DelinkObjectsBySync(List<UUID> delinkPrimIDs, List<UUID> beforeDelinkGroupIDs, List<SceneObjectGroup> incomingAfterDelinkGroups)
+        //public Scene.ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, Dictionary<string, Object> updatedProperties, BucketSyncInfo rBucketSyncInfo)
+        public Scene.ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, SceneObjectPart updatedPart)
         {
-            Monitor.Enter(m_updateLock);
-            try
+            SceneObjectPart localPart = GetSceneObjectPart(partUUID);
+            if (localPart == null)
             {
-                Dictionary<UUID, SceneObjectGroup> localBeforeDelinkGroups = new Dictionary<UUID, SceneObjectGroup>();
-                Dictionary<UUID, SceneObjectPart> delinkPrims = new Dictionary<UUID, SceneObjectPart>();
-
-                //get the before-delink-groups, and all the prims to delink
-                foreach (UUID primID in delinkPrimIDs)
-                {
-                    SceneObjectPart localPart = GetSceneObjectPart(primID);
-                    if (!delinkPrims.ContainsKey(primID))
-                    {
-                        delinkPrims.Add(primID, localPart);
-                    }
-                    SceneObjectGroup localGroup = localPart.ParentGroup;
-                    if (!localBeforeDelinkGroups.ContainsKey(localGroup.UUID))
-                    {
-                        localBeforeDelinkGroups.Add(localGroup.UUID, localGroup);
-                    }
-                }
-
-                //Next, do some sanity check to see if the local copy agrees with remote copy on the before-link state. 
-                //TODO:: Actions to be taken after detecting conflicts. For now, we just assume the chance that conflict will happen is almost 0.
-
-                //First, check if the groups match
-                if (beforeDelinkGroupIDs.Count != localBeforeDelinkGroups.Count)
-                {
-                    //detected conflict on editing object groups
-                    m_log.Warn("DelinkObjectsBySync: the # of groups in before-delink-groups is different from the incoming delink message. NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
-                    //TODO: further actions
-                }
-                else 
-                {
-                    foreach (UUID beforeGroupID in beforeDelinkGroupIDs)
-                    {
-                        if (!localBeforeDelinkGroups.ContainsKey(beforeGroupID))
-                        {
-                            m_log.Warn("DelinkObjectsBySync: the local state of before-delink-groups is different from the incoming delink message. NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
-                        }
-                    }
-                    //TODO: further actions
-                }
-                //Second, check if the prims match
-                List<SceneObjectPart> allPrimsInLocalGroups = new List<SceneObjectPart>();
-                foreach (KeyValuePair<UUID, SceneObjectGroup> pair in localBeforeDelinkGroups)
-                {
-                    foreach (SceneObjectPart part in pair.Value.Parts)
-                    {
-                        allPrimsInLocalGroups.Add(part);
-                    }
-                }
-                if (allPrimsInLocalGroups.Count != delinkPrims.Count)
-                {
-                    m_log.Warn("DelinkObjectsBySync: the # of prims of before-delink-groups is different from the incoming delink message. NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
-                    //TODO: further action
-                }
-                foreach (SceneObjectPart part in allPrimsInLocalGroups)
-                {
-                    if (!delinkPrims.ContainsKey(part.UUID))
-                    {
-                        m_log.Warn("DelinkObjectsBySync: some local prims in before-delink-groups not exist in the incoming delink message. NEED BETTER CONCURRENCY CONTROL IMPLEMENTATION!!!");
-                        //TODO: further action
-                    }
-                }
-                //end of sanity checking
-
-                //now work with localBeforeDelinkGroups, delinkPrims, and incomingAfterDelinkGroups
-                List<SceneObjectGroup> localAfterDelinkGroups = new List<SceneObjectGroup>();
-                List<SceneObjectGroup> remoteOldGroups = new List<SceneObjectGroup>();
-                List<SceneObjectGroup> remoteNewGroups = new List<SceneObjectGroup>();
-
-                foreach (SceneObjectGroup remoteGroup in incomingAfterDelinkGroups)
-                {
-                    if (localBeforeDelinkGroups.ContainsKey(remoteGroup.UUID))
-                    {
-                        remoteOldGroups.Add(remoteGroup);
-                    }
-                    else
-                    {
-                        remoteNewGroups.Add(remoteGroup);
-                    }
-                }
-
-                //update parts in old groups
-                foreach (SceneObjectGroup remoteGroupCopy in remoteOldGroups)
-                {
-                    SceneObjectGroup localGroupCopy = localBeforeDelinkGroups[remoteGroupCopy.UUID];
-                    //update the parts in local copy with those in the remote copy
-
-
-                }
-
-                //add new groups
-
-
+                m_log.Warn("No SOP found: UUID -- " + partUUID);
+                return Scene.ObjectUpdateResult.Unchanged;
             }
-            finally
-            {
-                Monitor.Exit(m_updateLock);
-            }
+            return localPart.UpdateBucketProperties(bucketName, updatedPart);
         }
-
-        //update the parts in local copy with those in the updated copy
-        private void UpdatePartsInGroup(SceneObjectGroup localGroup, SceneObjectGroup updatedGroup)
-        {
-            //caller of this function should already lock on m_updateLock, hence no locking here
-            foreach (SceneObjectPart part in localGroup.Parts){
-
-            }
-        }
-         * */ 
-
 
         #endregion //SYMMETRIC SYNC
     }

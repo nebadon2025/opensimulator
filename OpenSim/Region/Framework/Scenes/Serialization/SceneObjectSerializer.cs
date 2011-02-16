@@ -1285,10 +1285,10 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             //SYMMETRIC SYNC
             //These properties are only meaningful for synchronization purpose. For saving oar files, they are not necessary.
             //We may remove these if later we use a different method to encode object properties for synchronization.
-            writer.WriteElementString("IsAttachment", sop.IsAttachment.ToString().ToLower());
             WriteUUID(writer, "AttachedAvatar", sop.AttachedAvatar, options);
             WriteVector(writer, "AttachedPos", sop.AttachedPos);
             writer.WriteElementString("AttachmentPoint", sop.AttachmentPoint.ToString());
+            writer.WriteElementString("IsAttachment", sop.IsAttachment.ToString().ToLower()); //IsAttachment is written last, so that on deserialization, it will be deserialized later than other Attachment properties
             WriteFlags(writer, "AggregateScriptEvents", sop.AggregateScriptEvents.ToString(), options);
             WriteBucketSyncInfo(writer, sop.BucketSyncInfoList);
             //end of SYMMETRIC SYNC

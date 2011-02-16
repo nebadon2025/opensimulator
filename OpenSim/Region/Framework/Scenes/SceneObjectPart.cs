@@ -771,9 +771,12 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if (IsAttachment)
                 {
-                    ScenePresence sp = m_parentGroup.Scene.GetScenePresence(AttachedAvatar);
-                    if (sp != null)
-                        return sp.AbsolutePosition;
+                    if (m_parentGroup != null) //need to check this, it would be null while deserialization -- IsAttachment is now serialized
+                    {
+                        ScenePresence sp = m_parentGroup.Scene.GetScenePresence(AttachedAvatar);
+                        if (sp != null)
+                            return sp.AbsolutePosition;
+                    }
                 }
 
                 return m_groupPosition;
@@ -5445,12 +5448,13 @@ namespace OpenSim.Region.Framework.Scenes
                     localPart.ParentGroup.RootPart.SetParentLocalId(avatar.LocalId);
                 }
                 localPart.AttachedPos = updatedPart.AttachedPos;
-                localPart.AttachmentPoint = updatedPart.AttachmentPoint;
+                localPart.SetAttachmentPoint(updatedPart.AttachmentPoint); 
+                //localPart.AttachmentPoint = updatedPart.AttachmentPoint;
                 //NOTE!!!! IsAttachment can only be set after AttachedAvatar is set, see GroupPosition get function.
-                if (!localPart.AttachedAvatar.Equals(UUID.Zero) && updatedPart.IsAttachment)
-                {
-                    localPart.IsAttachment = updatedPart.IsAttachment;
-                }
+                //if (!localPart.AttachedAvatar.Equals(UUID.Zero) && updatedPart.IsAttachment)
+                //{
+                //    localPart.IsAttachment = updatedPart.IsAttachment;
+                //}
 
                 localPart.AggregateScriptEvents = updatedPart.AggregateScriptEvents;
 

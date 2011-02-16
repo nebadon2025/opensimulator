@@ -48,7 +48,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //Read in configuration, if the local actor is configured to be a client manager, load this module.
             if (!actorType.Equals("client_manager"))
             {
-                m_log.Warn(LogHeader + ": not configured as Scene Persistence Actor. Shut down.");
+                m_log.Warn(LogHeader + ": not configured as Client Manager Actor. Shut down.");
                 return;
             }
 

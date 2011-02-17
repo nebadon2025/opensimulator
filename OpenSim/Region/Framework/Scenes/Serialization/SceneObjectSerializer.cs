@@ -1288,7 +1288,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             WriteUUID(writer, "AttachedAvatar", sop.AttachedAvatar, options);
             WriteVector(writer, "AttachedPos", sop.AttachedPos);
             writer.WriteElementString("AttachmentPoint", sop.AttachmentPoint.ToString());
-            writer.WriteElementString("IsAttachment", sop.IsAttachment.ToString().ToLower()); //IsAttachment is written last, so that on deserialization, it will be deserialized later than other Attachment properties
+            //writer.WriteElementString("IsAttachment", sop.IsAttachment.ToString().ToLower()); //IsAttachment is written last, so that on deserialization, it will be deserialized later than other Attachment properties
             WriteFlags(writer, "AggregateScriptEvents", sop.AggregateScriptEvents.ToString(), options);
             WriteBucketSyncInfo(writer, sop.BucketSyncInfoList);
             //end of SYMMETRIC SYNC

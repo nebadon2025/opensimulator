@@ -2909,7 +2909,12 @@ namespace OpenSim.Region.Framework.Scenes
             //we need to do a terse update even if the move wasn't allowed
             // so that the position is reset in the client (the object snaps back)
             //ScheduleGroupForTerseUpdate();
-            ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.GroupPosition});
+            List<SceneObjectPartProperties> updatedProperties = new List<SceneObjectPartProperties>() { SceneObjectPartProperties.GroupPosition };
+            if (IsAttachment)
+            {
+                updatedProperties.Add(SceneObjectPartProperties.AttachedPos);
+            }
+            ScheduleGroupForTerseUpdate(updatedProperties);
         }
 
         /// <summary>

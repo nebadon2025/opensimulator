@@ -100,37 +100,30 @@ public class PEScene : PhysicsScene
 
     public override float Simulate(float timeStep)
     {
-        // if we are a physics engine server, send update information
-        if (SceneToPhysEngineSyncServer.IsPhysEngineScene2S())
+        // m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
+        lock (m_prims)
         {
-            if (SceneToPhysEngineSyncServer.IsActivePhysEngineScene2S())
+            foreach (PEPrim prim in m_prims)
             {
-                // m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
-                lock (m_prims)
+                // if the values have changed and it was I who changed them, send an update
+                if (prim.SyncUpdated)
                 {
-                    foreach (PEPrim prim in m_prims)
-                    {
-                        // if the values have changed and it was I who changed them, send an update
-                        if (prim.ChangingActorID == RegionSyncServerModule.ActorID && prim.lastValues.Changed(prim))
-                        {
-                            SceneToPhysEngineSyncServer.RouteUpdate(prim);
-                        }
-                    }
-                }
-                lock (m_avatars)
-                {
-                    foreach (PECharacter actor in m_avatars)
-                    {
-                        // m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
-                        // if the values have changed and it was I who changed them, send an update
-                        if (actor.ChangingActorID == RegionSyncServerModule.ActorID && actor.lastValues.Changed(actor))
-                        {
-                            SceneToPhysEngineSyncServer.RouteUpdate(actor);
-                        }
-                    }
+                    prim.SyncUpdated = false;
+                    prim.RequestPhysicsterseUpdate();
                 }
             }
-            return 60f;
+        }
+        lock (m_avatars)
+        {
+            foreach (PECharacter actor in m_avatars)
+            {
+                // m_log.DebugFormat("[RPE]: Simulate. p={0}, a={1}", m_prims.Count, m_avatars.Count);
+                // if the values have changed and it was I who changed them, send an update
+                if (actor.SyncUpdated)
+                {
+                    actor.RequestPhysicsterseUpdate();
+                }
+            }
         }
         /*
         // code borrowed from BasicPhysics to do just avatar movement

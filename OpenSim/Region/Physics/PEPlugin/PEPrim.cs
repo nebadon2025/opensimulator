@@ -91,19 +91,19 @@ public sealed class PEPrim : PhysicsActor
         get { return _size; } 
         set { _size = value;
             // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Size");
-            ChangingActorID = RegionSyncServerModule.ActorID;
+            // SyncUpdated = true;
         } 
     }
     public override PrimitiveBaseShape Shape { 
         set { _pbs = value; 
             m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Shape");
-            ChangingActorID = RegionSyncServerModule.ActorID;
+            // SyncUpdated = true;
         } 
     }
     public override uint LocalID { 
         set { _localID = value; 
             // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set LocalID");
-            ChangingActorID = RegionSyncServerModule.ActorID;
+            // SyncUpdated = true;
         }
         get { return _localID; }
     }
@@ -125,7 +125,7 @@ public sealed class PEPrim : PhysicsActor
     public override Vector3 Position { 
         get { return _position; } 
         set { _position = value; 
-            ChangingActorID = RegionSyncServerModule.ActorID;
+            // SyncUpdated = true;
             // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Position");
         } 
     }
@@ -135,7 +135,7 @@ public sealed class PEPrim : PhysicsActor
     public override Vector3 Force { 
         get { return _force; } 
         set { _force = value; 
-            ChangingActorID = RegionSyncServerModule.ActorID;
+            // SyncUpdated = true;
             // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Force");
         } 
     }
@@ -157,19 +157,19 @@ public sealed class PEPrim : PhysicsActor
     public override Vector3 Velocity { 
         get { return _velocity; } 
         set { _velocity = value; 
-            ChangingActorID = RegionSyncServerModule.ActorID;
+            // SyncUpdated = true;
         } 
     }
     public override Vector3 Torque { 
         get { return _torque; } 
         set { _torque = value; 
-            ChangingActorID = RegionSyncServerModule.ActorID;
+            // SyncUpdated = true;
         } 
     }
     public override float CollisionScore { 
         get { return _collisionScore; } 
         set { _collisionScore = value; 
-            ChangingActorID = RegionSyncServerModule.ActorID;
+            // SyncUpdated = true;
         } 
     }
     public override Vector3 Acceleration { 
@@ -178,25 +178,25 @@ public sealed class PEPrim : PhysicsActor
     public override Quaternion Orientation { 
         get { return _orientation; } 
         set { _orientation = value; 
-            ChangingActorID = RegionSyncServerModule.ActorID;
+            // SyncUpdated = true;
         } 
     }
     public override int PhysicsActorType { 
         get { return _physicsActorType; } 
         set { _physicsActorType = value; 
-            ChangingActorID = RegionSyncServerModule.ActorID;
+            // SyncUpdated = true;
         } 
     }
     public override bool IsPhysical { 
         get { return _isPhysical; } 
         set { _isPhysical = value; 
-            ChangingActorID = RegionSyncServerModule.ActorID;
+            // SyncUpdated = true;
         } 
     }
     public override bool Flying { 
         get { return _flying; } 
         set { _flying = value; 
-            ChangingActorID = RegionSyncServerModule.ActorID;
+            // SyncUpdated = true;
         } 
     }
     public override bool 

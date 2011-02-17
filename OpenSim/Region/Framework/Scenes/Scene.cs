@@ -816,9 +816,10 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         //public ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, Dictionary<string, Object> updatedProperties, BucketSyncInfo rBucketSyncInfo)
-        public ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, SceneObjectPart updatePart)
+        public ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, 
+                                Object updatePart, BucketSyncInfo bucketSyncInfo)
         {
-            return m_sceneGraph.UpdateObjectPartBucketProperties(bucketName, partUUID, updatePart);
+            return m_sceneGraph.UpdateObjectPartBucketProperties(bucketName, partUUID, updatePart, bucketSyncInfo);
         }
 
         #endregion //SYMMETRIC SYNC

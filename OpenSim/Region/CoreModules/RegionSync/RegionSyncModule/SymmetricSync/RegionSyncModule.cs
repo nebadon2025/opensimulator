@@ -236,6 +236,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 sog.UpdateTaintedBucketSyncInfo(bucketName, DateTime.Now.Ticks); //this update the timestamp and clear the taint info of the bucket
                 string sogxml = SceneObjectSerializer.ToXml2Format(sog);
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
+                m_log.DebugFormat("{0}: GeneralBucketSender for {1}", LogHeader, sog.UUID);
                 SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
             }
         }
@@ -246,6 +247,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 updatedPart.UpdateTaintedBucketSyncInfo(bucketName, DateTime.Now.Ticks);
 
+                Physics.Manager.PhysicsActor pa = updatedPart.PhysActor;
+                if (pa == null)
+                    return;
+
                 OSDMap data = new OSDMap();
 
                 data["UUID"] = OSD.FromUUID(updatedPart.UUID);
@@ -253,27 +258,29 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 
                 data["GroupPosition"] = OSD.FromVector3(updatedPart.GroupPosition);
                 data["OffsetPosition"] = OSD.FromVector3(updatedPart.OffsetPosition);
-                data["RotationOffset"] = OSD.FromQuaternion(updatedPart.RotationOffset);
-                data["Velocity"] = OSD.FromVector3(updatedPart.Velocity);
                 data["Scale"] = OSD.FromVector3(updatedPart.Scale);
-                //Other properties to be included
-                /*
-                "Position":
-                "Size":
-                "Force":
-                "RotationalVelocity":
-                "PA_Acceleration":
-                "Torque":
-                "Orientation":
-                "IsPhysical":
-                "Flying":
-                "Buoyancy":
-                 * */
+                data["AngularVelocity"] = OSD.FromVector3(updatedPart.AngularVelocity);
+                data["RotationOffset"] = OSD.FromQuaternion(updatedPart.RotationOffset);
+                data["Size"] = OSD.FromVector3(pa.Size);
+                data["Position"] = OSD.FromVector3(pa.Position);
+                data["Force"] = OSD.FromVector3(pa.Force);
+                data["Velocity"] = OSD.FromVector3(pa.Velocity);
+                data["RotationalVelocity"] = OSD.FromVector3(pa.RotationalVelocity);
+                data["PA_Acceleration"] = OSD.FromVector3(pa.Acceleration);
+                data["Torque"] = OSD.FromVector3(pa.Torque);
+                data["Orientation"] = OSD.FromQuaternion(pa.Orientation);
+                data["IsPhysical"] = OSD.FromBoolean(pa.IsPhysical);
+                data["Flying"] = OSD.FromBoolean(pa.Flying);
+                data["Kinematic"] = OSD.FromBoolean(pa.Kinematic);
+                data["Buoyancy"] = OSD.FromReal(pa.Buoyancy);
+                data["CollidingGround"] = OSD.FromBoolean(pa.CollidingGround);
+                data["IsColliding"] = OSD.FromBoolean(pa.IsColliding);
 
                 data["LastUpdateTimeStamp"] = OSD.FromLong(updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp);
                 data["LastUpdateActorID"] = OSD.FromString(updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID);
 
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedBucketProperties, OSDParser.SerializeJsonString(data));
+                m_log.DebugFormat("{0}: PhysBucketSender for {1}", LogHeader, updatedPart.UUID.ToString());
                 SendObjectUpdateToRelevantSyncConnectors(updatedPart, syncMsg);
             }
         }
@@ -300,19 +307,22 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     case SceneObjectPartProperties.GroupPosition:
                     case SceneObjectPartProperties.OffsetPosition:
                     case SceneObjectPartProperties.Scale:
-                    case SceneObjectPartProperties.Velocity:
                     case SceneObjectPartProperties.AngularVelocity:
                     case SceneObjectPartProperties.RotationOffset:
-                    case SceneObjectPartProperties.Position:
                     case SceneObjectPartProperties.Size:
+                    case SceneObjectPartProperties.Position:
                     case SceneObjectPartProperties.Force:
+                    case SceneObjectPartProperties.Velocity:
                     case SceneObjectPartProperties.RotationalVelocity:
                     case SceneObjectPartProperties.PA_Acceleration:
                     case SceneObjectPartProperties.Torque:
                     case SceneObjectPartProperties.Orientation:
                     case SceneObjectPartProperties.IsPhysical:
                     case SceneObjectPartProperties.Flying:
+                    case SceneObjectPartProperties.Kinematic:
                     case SceneObjectPartProperties.Buoyancy:
+                    case SceneObjectPartProperties.IsCollidingGround:
+                    case SceneObjectPartProperties.IsColliding:
                         m_primPropertyBucketMap.Add(property, physicsBucketName);
                         break;
                     default:
@@ -1508,7 +1518,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             UUID partUUID = data["UUID"].AsUUID();
             string bucketName = data["Bucket"].AsString();
 
-            
+            /* Commented out since OSDMap is now passed all the way through to the unpacker.
+             * Previous implementation is to create a SOP and copy the values into same and copy them out later.
             SceneObjectPart updatedPart = new SceneObjectPart();
             updatedPart.GroupPosition = data["GroupPosition"].AsVector3();
             updatedPart.OffsetPosition = data["OffsetPosition"].AsVector3();
@@ -1518,9 +1529,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //Scale is a bit complex, we need to have Shape first -- not a good solution, but leave it as is so that we can move on,
             updatedPart.Shape = new PrimitiveBaseShape();
             updatedPart.Scale = data["Scale"].AsVector3();
-             
 
-            /*
             Dictionary<string, Object> updatedProperties = new Dictionary<string, Object>();
             updatedProperties.Add("GroupPosition", (Object)data["GroupPosition"].AsVector3());
             updatedProperties.Add("OffsetPosition", (Object)data["OffsetPosition"].AsVector3());
@@ -1528,9 +1537,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             updatedProperties.Add("Velocity", (Object)data["Velocity"].AsVector3());
             updatedProperties.Add("AngularVelocity", (Object)data["AngularVelocity"].AsVector3());
             updatedProperties.Add("Scale", (Object)data["Scale"].AsVector3());
-             * */
-
-
+             */
             //Other properties to be included
             /*
             "Position":
@@ -1544,12 +1551,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             "Flying":
             "Buoyancy":
              * */
+            
             BucketSyncInfo rBucketSyncInfo = new BucketSyncInfo(bucketName);
             rBucketSyncInfo.LastUpdateTimeStamp = data["LastUpdateTimeStamp"].AsLong();
             rBucketSyncInfo.LastUpdateActorID = data["LastUpdateActorID"].AsString();
-            updatedPart.BucketSyncInfoList.Add(bucketName, rBucketSyncInfo);
+            // updatedPart.BucketSyncInfoList.Add(bucketName, rBucketSyncInfo);
 
-            m_scene.UpdateObjectPartBucketProperties(bucketName, partUUID, updatedPart);
+            m_scene.UpdateObjectPartBucketProperties(bucketName, partUUID, data, rBucketSyncInfo);
         }
 
         private void SendTerrainUpdateMessage()

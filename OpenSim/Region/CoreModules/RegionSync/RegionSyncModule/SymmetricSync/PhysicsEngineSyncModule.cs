@@ -144,7 +144,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         #endregion //IDSGActorSyncModule
 
-        #region PhysicsEngineSyncModule memebers and functions
+        #region PhysicsEngineSyncModule members and functions
         private ILog m_log;
         private bool m_active = false;
         public bool Active
@@ -172,6 +172,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.DeleteAllSceneObjects();
         }
 
-        #endregion //ScriptEngineSyncModule
+        #endregion PhysicsEngineSyncModule members and functions
     }
 }

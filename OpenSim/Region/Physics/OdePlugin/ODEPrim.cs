@@ -257,21 +257,6 @@ namespace OpenSim.Region.Physics.OdePlugin
             //     primName, mesh == null ? "NULL" : "DEFINED", pbs == null ? "NULL" : "DEFINED", pisPhysical);
         }
 
-        public override void RequestPhysicsterseUpdate()
-        {
-            if (PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
-            {
-                // if the values have changed and it was I who changed them, send an update
-                // if (this.lastValues.Changed(this) && ChangingActorID == RegionSyncServerModule.ActorID)
-                if (this.lastValues.Changed(this))
-                    PhysEngineToSceneConnectorModule.RouteUpdate(this);
-            }
-            else
-            {
-                base.RequestPhysicsterseUpdate();
-            }
-        }
-
         public override int PhysicsActorType
         {
             get { return (int) ActorTypes.Prim; }
@@ -2300,7 +2285,6 @@ Console.WriteLine(" JointCreateFixed");
             get { return _position; }
 
             set { _position = value;
-                base.ChangingActorID = RegionSyncServerModule.ActorID;
                 //m_log.Info("[PHYSICS]: " + _position.ToString());
             }
         }
@@ -2313,7 +2297,6 @@ Console.WriteLine(" JointCreateFixed");
                 if (value.IsFinite())
                 {
                     _size = value;
-                    base.ChangingActorID = RegionSyncServerModule.ActorID;
                 }
                 else
                 {
@@ -2336,7 +2319,6 @@ Console.WriteLine(" JointCreateFixed");
                 if (value.IsFinite())
                 {
                     m_force = value;
-                    base.ChangingActorID = RegionSyncServerModule.ActorID;
                 }
                 else
                 {
@@ -2395,7 +2377,6 @@ Console.WriteLine(" JointCreateFixed");
             {
                 _pbs = value;
                 m_taintshape = true;
-                base.ChangingActorID = RegionSyncServerModule.ActorID;
             }
         }
 
@@ -2418,7 +2399,6 @@ Console.WriteLine(" JointCreateFixed");
             {
                 if (value.IsFinite())
                 {
-                    base.ChangingActorID = RegionSyncServerModule.ActorID;
                     _velocity = value;
 
                     m_taintVelocity = value;
@@ -2448,7 +2428,6 @@ Console.WriteLine(" JointCreateFixed");
                 {
                     m_taintTorque = value;
                     _parent_scene.AddPhysicsActorTaint(this);
-                    base.ChangingActorID = RegionSyncServerModule.ActorID;
                 }
                 else
                 {
@@ -2477,7 +2456,6 @@ Console.WriteLine(" JointCreateFixed");
                 if (QuaternionIsFinite(value))
                 {
                     _orientation = value;
-                    base.ChangingActorID = RegionSyncServerModule.ActorID;
                 }
                 else
                     m_log.WarnFormat("[PHYSICS]: Got NaN quaternion Orientation from Scene in Object {0}", Name);

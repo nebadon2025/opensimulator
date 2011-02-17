@@ -2430,7 +2430,8 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         //public Scene.ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, Dictionary<string, Object> updatedProperties, BucketSyncInfo rBucketSyncInfo)
-        public Scene.ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, SceneObjectPart updatedPart)
+        public Scene.ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, 
+                            Object updatedPart, BucketSyncInfo bucketSyncInfo)
         {
             SceneObjectPart localPart = GetSceneObjectPart(partUUID);
             if (localPart == null)
@@ -2438,7 +2439,7 @@ namespace OpenSim.Region.Framework.Scenes
                 m_log.Warn("No SOP found: UUID -- " + partUUID);
                 return Scene.ObjectUpdateResult.Unchanged;
             }
-            return localPart.UpdateBucketProperties(bucketName, updatedPart);
+            return localPart.UpdateBucketProperties(bucketName, updatedPart, bucketSyncInfo);
         }
 
         #endregion //SYMMETRIC SYNC

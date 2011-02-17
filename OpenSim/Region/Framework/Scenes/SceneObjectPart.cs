@@ -36,6 +36,7 @@ using System.Xml.Serialization;
 using log4net;
 using OpenMetaverse;
 using OpenMetaverse.Packets;
+using OpenMetaverse.StructuredData;
 using OpenSim.Framework;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes.Scripting;
@@ -5158,6 +5159,9 @@ namespace OpenSim.Region.Framework.Scenes
         IsPhysical,
         Flying,
         Buoyancy,
+        Kinematic,
+        IsCollidingGround,
+        IsColliding,
         //TODO!!!! To be handled in serialization/deserizaltion for synchronization
         AggregateScriptEvents,
         IsSelected,
@@ -5204,7 +5208,7 @@ namespace OpenSim.Region.Framework.Scenes
         private static string m_localActorID = "";
         //private static int m_bucketCount = 0;
         //private delegate void BucketUpdateProcessor(int bucketIndex);
-        private delegate void BucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName);
+        private delegate void BucketUpdateProcessor(Object updatedPart, string bucketName);
 
         //private static Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
         private Dictionary<string, BucketUpdateProcessor> m_bucketUpdateProcessors = new Dictionary<string, BucketUpdateProcessor>();
@@ -5338,8 +5342,11 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        private void GeneralBucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName)
+        private void GeneralBucketUpdateProcessor(Object updatedPartO, string bucketName)
         {
+            if (!(updatedPartO is SceneObjectPart)) return;
+            SceneObjectPart updatedPart = (SceneObjectPart)updatedPartO;
+
             //If needed, we could define new set functions for these properties, and cast this SOP to SOPBase to 
             //invoke the set functions in SOPBase 
             //SceneObjectPartBase localPart = (SceneObjectPartBase)this; 
@@ -5429,37 +5436,46 @@ namespace OpenSim.Region.Framework.Scenes
 
         //NOTE: only touch the properties and BucketSyncInfo that is related to the given bucketName. Other properties and
         //buckets may not be filled at all in "updatedPart".
-        private void PhysicsBucketUpdateProcessor(SceneObjectPart updatedPart, string bucketName)
+        private void PhysicsBucketUpdateProcessor(Object updatedPartO, string bucketName)
         {
+            if (!(updatedPartO is OSDMap)) return;
+            OSDMap data = (OSDMap)updatedPartO;
+
             //If needed, we could define new set functions for these properties, and cast this SOP to SOPBase to 
             //invoke the set functions in SOPBase 
             //SceneObjectPartBase localPart = (SceneObjectPartBase)this; 
-            SceneObjectPart localPart = this; 
+            SceneObjectPart localPart = this;
+            PhysicsActor pa = localPart.PhysActor;
 
             lock (m_bucketUpdateLocks[bucketName])
             {
-                localPart.GroupPosition = updatedPart.GroupPosition;
-                localPart.OffsetPosition = updatedPart.OffsetPosition;
-                localPart.Scale = updatedPart.Scale;
-                localPart.Velocity = updatedPart.Velocity;
-                localPart.AngularVelocity = updatedPart.AngularVelocity;
-                localPart.RotationOffset = updatedPart.RotationOffset;
-                //properties in Physics bucket whose update processors are in PhysicsActor
-                /*
-                    "Position":
-                    "Size":
-                    "Force":
-                    "RotationalVelocity":
-                    "PA_Acceleration":
-                    "Torque":
-                    "Orientation":
-                    "IsPhysical":
-                    "Flying":
-                    "Buoyancy":
-                 * */
+                localPart.GroupPosition = data["GroupPosition"].AsVector3();
+                localPart.OffsetPosition = data["OffsetPosition"].AsVector3();
+                localPart.Scale = data["Scale"].AsVector3();
+                localPart.Velocity = data["Velocity"].AsVector3();
+                localPart.AngularVelocity = data["AngularVelocity"].AsVector3();
+                localPart.RotationOffset = data["RotationOffset"].AsQuaternion();
 
-                m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
-                m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
+                if (pa != null)
+                {
+                    pa.Size = data["Size"].AsVector3();
+                    pa.Position = data["Position"].AsVector3();
+                    pa.Force = data["Force"].AsVector3();
+                    // pa.Velocity = data["Velocity"].AsVector3();
+                    pa.RotationalVelocity = data["RotationalVelocity"].AsVector3();
+                    pa.Acceleration = data["PA_Acceleration"].AsVector3();
+                    pa.Torque = data["Torque"].AsVector3();
+                    pa.Orientation = data["Orientation"].AsQuaternion();
+                    pa.IsPhysical = data["IsPhysical"].AsBoolean();
+                    pa.Flying = data["Flying"].AsBoolean();
+                    pa.Kinematic = data["Kinematic"].AsBoolean();
+                    pa.Buoyancy = (float)data["Buoyancy"].AsReal();
+                    pa.CollidingGround = data["CollidingGround"].AsBoolean();
+                    pa.IsColliding = data["IsColliding"].AsBoolean();
+                }
+
+                m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = data["LastUpdateTimeStamp"].AsLong();
+                m_bucketSyncInfoList[bucketName].LastUpdateActorID = data["LastUpdateActorID"].AsString();
 
             }
 
@@ -5696,17 +5712,9 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="updatedPart">A container of the updated properties. Only the values of the updated properties are set.</param>
         /// <param name="rBucketSyncInfo">A copy of the sync info of the bucket on the sender's (who sends out the syn message) side.</param>
         /// <returns></returns>
-        public Scene.ObjectUpdateResult UpdateBucketProperties(string bucketName, SceneObjectPart updatedPart)
+        public Scene.ObjectUpdateResult UpdateBucketProperties(string bucketName, Object updatedPart, BucketSyncInfo rBucketSyncInfo)
         {
             Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Unchanged;
-
-            if (!updatedPart.BucketSyncInfoList.ContainsKey(bucketName))
-            {
-                m_log.Warn("No bucket named " + bucketName + " found in the copy of updatedPart in UpdateBucketProperties");
-                return partUpdateResult;
-            }
-
-            BucketSyncInfo rBucketSyncInfo = updatedPart.BucketSyncInfoList[bucketName];
 
             if (!m_bucketSyncInfoList.ContainsKey(bucketName))
             {

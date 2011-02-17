@@ -199,8 +199,8 @@ namespace OpenSim.Region.Physics.Manager
             get { return m_UUID; }
         }
         public PhysActorLastValues lastValues;
-        // ID of actor which last updated the values. Send if I did the change.
-        public string ChangingActorID = "YY";
+        // set to true of prim is updated
+        public bool SyncUpdated;
 
         public abstract bool Grabbed { set; }
 
@@ -217,7 +217,7 @@ namespace OpenSim.Region.Physics.Manager
 
         public abstract void LockAngularMotion(Vector3 axis);
 
-        public virtual void RequestPhysicsterseUpdate()
+        public void RequestPhysicsterseUpdate()
         {
             // Make a temporary copy of the event to avoid possibility of
             // a race condition if the last subscriber unsubscribes

@@ -364,12 +364,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void QueueScenePresenceForTerseUpdate(ScenePresence presence)
         {
-            /*
             lock (m_updateScenePresenceLock)
             {
                 m_presenceUpdates[presence.UUID] = presence;
             }
-             * */ 
         }
 
 
@@ -410,17 +408,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
             }
 
-            /*
-            List<ScenePresence> presenceUpdates = null;
+            List<ScenePresence> presenceUpdates = new List<ScenePresence>();
             if (m_presenceUpdates.Count > 0)
             {
                 lock (m_updateScenePresenceLock)
                 {
+                    updated = true;
                     presenceUpdates = new List<ScenePresence>(m_presenceUpdates.Values);
                     m_presenceUpdates.Clear();
                 }
             }
-             * */ 
 
             if (updated)
             {
@@ -455,15 +452,26 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             m_primUpdatesPerBucketSender[bucketName](bucketName, primUpdates[bucketName]);
                         }
                     }
-                    /*
-                    if(presenceUpdates!=null){
                     foreach (ScenePresence presence in presenceUpdates)
                     {
                         try
                         {
                             if (!presence.IsDeleted)
                             {
-                            
+                                // Robert admits to doing this terrible kludge
+                                // Someday, ScenePresences will be properly handled but, for the moment,
+                                //  we convert a ScenePresence update to a physics bucket transmission.
+                                SceneObjectPart sop = new SceneObjectPart(presence.UUID, new PrimitiveBaseShape(),
+                                    Vector3.Zero, Quaternion.Identity, Vector3.Zero);
+                                sop.PhysActor = presence.PhysicsActor;
+                                sop.UUID = presence.UUID;
+                                sop.BucketSyncInfoList = new Dictionary<string, BucketSyncInfo>();
+                                sop.BucketSyncInfoList.Add("Physics", new BucketSyncInfo(DateTime.Now.Ticks, ActorID, "Physics"));
+                                List<SceneObjectPart> lsop = new List<SceneObjectPart>();
+                                lsop.Add(sop);
+                                PrimUpdatesPhysicsBucketSender("Physics", lsop);
+
+                                /*
                                 OSDMap data = new OSDMap(10);
                                 data["id"] = OSD.FromUUID(presence.UUID);
                                 // Do not include offset for appearance height. That will be handled by RegionSyncClient before sending to viewers
@@ -490,16 +498,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                                 RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.UpdatedAvatar, OSDParser.SerializeJsonString(data));
                                 m_server.EnqueuePresenceUpdate(presence.UUID, rsm.ToBytes());
-                           
+                                */                           
 
                             }
                         }
                         catch (Exception e)
                         {
-                            m_log.ErrorFormat("[REGION SYNC MODULE] Caught exception sending presence updates for {0}: {1}", presence.Name, e.Message);
+                            m_log.ErrorFormat("[REGION SYNC MODULE] Caught exception sending presence updates for {0}: {1}", presence.Name, e);
                         }
-                    }}
-                     * */
+                    }
 
                     // Indicate that the current batch of updates has been completed
                     Interlocked.Exchange(ref m_sendingUpdates, 0);

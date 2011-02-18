@@ -96,7 +96,10 @@ public class PEScene : PhysicsScene
         return prim;
     }
 
-    public override void AddPhysicsActorTaint(PhysicsActor prim) { }
+    public override void AddPhysicsActorTaint(PhysicsActor prim) 
+    {
+        prim.SyncUpdated = true;
+    }
 
     public override float Simulate(float timeStep)
     {

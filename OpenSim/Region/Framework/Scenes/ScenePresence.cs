@@ -548,6 +548,8 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         lock (m_scene.SyncRoot)
                             actor.Velocity = value;
+                        m_scene.PhysicsScene.AddPhysicsActorTaint(actor);
+
                     }
                     catch (Exception e)
                     {
@@ -2444,6 +2446,8 @@ namespace OpenSim.Region.Framework.Scenes
             // REGION SYNC
             if (m_scene.IsSyncedServer())
             {
+                // the old and new systems live in parallel
+                m_scene.RegionSyncModule.QueueScenePresenceForTerseUpdate(this);
                 m_scene.RegionSyncServerModule.QueuePresenceForTerseUpdate(this);
                 return;
             }
@@ -3368,7 +3372,7 @@ namespace OpenSim.Region.Framework.Scenes
                                                  new Vector3(0f, 0f, m_appearance.AvatarHeight), isFlying);
 
             scene.AddPhysicsActorTaint(m_physicsActor);
-            //m_physicsActor.OnRequestTerseUpdate += SendTerseUpdateToAllClients;
+            m_physicsActor.OnRequestTerseUpdate += SendTerseUpdateToAllClients;
             m_physicsActor.OnCollisionUpdate += PhysicsCollisionUpdate;
             m_physicsActor.OnOutOfBounds += OutOfBoundsCall; // Called for PhysicsActors when there's something wrong
             m_physicsActor.SubscribeEvents(500);

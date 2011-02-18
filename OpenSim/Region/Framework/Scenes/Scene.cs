@@ -496,40 +496,11 @@ namespace OpenSim.Region.Framework.Scenes
         ///////////////////////////////////////////////////////////////////////////////////////////////
         //RA: Physics Engine
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        protected IPhysEngineToSceneConnectorModule m_physEngineToSceneConnectorModule = null;
-        public IPhysEngineToSceneConnectorModule PhysEngineToSceneConnectorModule
-        {
-            get { return m_physEngineToSceneConnectorModule; }
-            set { m_physEngineToSceneConnectorModule = value; }
-        }
-
-        protected ISceneToPhysEngineServer m_sceneToPhysEngineSyncServer = null;
-        public ISceneToPhysEngineServer SceneToPhysEngineSyncServer
-        {
-            get 
-            {
-                if (m_sceneToPhysEngineSyncServer == null)
-                {
-                    // kludge since this module is loaded in postInitialize
-                    m_sceneToPhysEngineSyncServer = RequestModuleInterface<ISceneToPhysEngineServer>();
-                }
-                return m_sceneToPhysEngineSyncServer; 
-            }
-            set { m_sceneToPhysEngineSyncServer = value; }
-        }
-
-        // depending on what mode we're in, the different modules are available
         protected bool IsPhysEngineActor()
         {
-            if (PhysEngineToSceneConnectorModule != null)
-            {
-                return this.PhysEngineToSceneConnectorModule.IsPhysEngineActor();
-            }
-            if (SceneToPhysEngineSyncServer != null)
-            {
-                return this.SceneToPhysEngineSyncServer.IsPhysEngineActor();
-            }
-            return false;
+            // turns out every actor needs the physics engine.
+            return true;
+            // return ActorSyncModule != null && ActorSyncModule.ActorType == DSGActorTypes.PhysicsEngine;
         }
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -1513,8 +1484,6 @@ namespace OpenSim.Region.Framework.Scenes
             RegionSyncServerModule = RequestModuleInterface<IRegionSyncServerModule>();
             RegionSyncClientModule = RequestModuleInterface<IRegionSyncClientModule>();
             ScriptEngineToSceneConnectorModule = RequestModuleInterface<IScriptEngineToSceneConnectorModule>();
-            PhysEngineToSceneConnectorModule = RequestModuleInterface<IPhysEngineToSceneConnectorModule>();
-            SceneToPhysEngineSyncServer = RequestModuleInterface<ISceneToPhysEngineServer>();
 
             //////////////////////////////////////////////////////////////////////
             //SYMMETRIC SYNC (KittyL: started 12/23/2010)
@@ -1723,7 +1692,7 @@ namespace OpenSim.Region.Framework.Scenes
                     int tmpPhysicsMS2 = Util.EnvironmentTickCount();
                     // Do not simulate physics locally if this is a synced client
                     //if (!IsSyncedClient())
-                    if (IsSyncedServer() || this.IsPhysEngineActor())
+                    if (IsSyncedServer() || IsPhysEngineActor())
                     {
                         if ((m_frame % m_update_physics == 0) && m_physics_enabled)
                             m_sceneGraph.UpdatePreparePhysics();
@@ -1732,7 +1701,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                     // Do not simulate physics locally if this is a synced client
                     //if (!IsSyncedClient())
-                    if (IsSyncedServer() || this.IsPhysEngineActor())
+                    if (IsSyncedServer() || IsPhysEngineActor())
                     {
                         if (m_frame % m_update_entitymovement == 0)
                             m_sceneGraph.UpdateScenePresenceMovement();
@@ -1743,7 +1712,7 @@ namespace OpenSim.Region.Framework.Scenes
                     int tmpPhysicsMS = Util.EnvironmentTickCount();
                     // Do not simulate physics locally if this is a synced client
                     //if (!IsSyncedClient())
-                    if (IsSyncedServer() || this.IsPhysEngineActor())
+                    if (IsSyncedServer() || IsPhysEngineActor())
                     {
                         if (m_frame % m_update_physics == 0)
                         {

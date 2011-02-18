@@ -5763,6 +5763,8 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (updatedProperties != null && updatedProperties.Count > 0)
             {
+                m_log.DebugFormat("{0}: Tainting bucket for properties {1}", 
+                            "[SCENE OBJECT PART]", updatedProperties.ToString());
                 foreach (SceneObjectPartProperties property in updatedProperties)
                 {
                     TaintBucketSyncInfo(property);

@@ -692,6 +692,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case EventManager.EventNames.ObjectDeGrab:
                     OnLocalDeGrabObject((uint)evArgs[0], (uint)evArgs[1], (IClientAPI)evArgs[2], (SurfaceTouchEventArgs)evArgs[3]);
                     return;
+                case EventManager.EventNames.Attach:
+                    OnLocalAttach((uint)evArgs[0], (UUID)evArgs[1], (UUID)evArgs[2]);
+                    return;
                 default:
                     return;
             }
@@ -1431,6 +1434,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.ObjectGrab:
                 case SymmetricSyncMessage.MsgType.ObjectGrabbing:
                 case SymmetricSyncMessage.MsgType.ObjectDeGrab:
+                case SymmetricSyncMessage.MsgType.Attach:
                     {
                         HandleRemoteEvent(msg, senderActorID);
                         return;
@@ -1766,6 +1770,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.ObjectDeGrab:
                     HandleRemoteEvent_OnObjectDeGrab(init_actorID, evSeqNum, data);
                     break;
+                case SymmetricSyncMessage.MsgType.Attach:
+                    HandleRemoteEvent_OnAttach(init_actorID, evSeqNum, data);
+                    break;
             }
 
             //if this is a relay node, forwards the event
@@ -2018,6 +2025,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.TriggerObjectDeGrabLocally(part.LocalId, originalID, remoteClinet, surfaceArgs);
         }
 
+        private void HandleRemoteEvent_OnAttach(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            
+            UUID primID = data["primID"].AsUUID();
+            UUID itemID = data["itemID"].AsUUID();
+            UUID avatarID = data["avatarID"].AsUUID();
+
+            SceneObjectPart part = m_scene.GetSceneObjectPart(primID);
+            if (part == null)
+            {
+                m_log.Warn(LogHeader + ", HandleRemoteEvent_OnAttach: no part with UUID " + primID + " found");
+                return;
+            }
+
+            uint localID = part.LocalId;
+            m_scene.EventManager.TriggerOnAttachLocally(localID, itemID, avatarID);
+            
+        }
 
         /// <summary>
         /// The handler for (locally initiated) event OnNewScript: triggered by client's RezSript packet, publish it to other actors.
@@ -2127,7 +2152,23 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["type"] = OSD.FromInteger((int)chat.Type);
             SendSceneEvent(SymmetricSyncMessage.MsgType.ChatFromWorld, data);
         }
-        
+
+        private void OnLocalAttach(uint localID, UUID itemID, UUID avatarID)
+        {
+
+            OSDMap data = new OSDMap();
+            SceneObjectPart part = m_scene.GetSceneObjectPart(localID);
+            if (part == null)
+            {
+                m_log.Warn(LogHeader + ", OnLocalAttach: no part with localID: " + localID);
+                return;
+            }
+            data["primID"] = OSD.FromUUID(part.UUID);
+            data["itemID"] = OSD.FromUUID(itemID);
+            data["avatarID"] = OSD.FromUUID(avatarID);
+            SendSceneEvent(SymmetricSyncMessage.MsgType.Attach, data);
+        }
+
         private void OnLocalGrabObject(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         {
             /*
@@ -2238,6 +2279,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
 
         }
+
+
 
         private void SendSceneEvent(SymmetricSyncMessage.MsgType msgType, OSDMap data)
         {

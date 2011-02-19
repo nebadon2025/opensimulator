@@ -112,6 +112,14 @@ namespace OpenSim.Region.Framework.Scenes
         }
         protected List<SceneObjectGroup> m_attachments = new List<SceneObjectGroup>();
 
+        // SYMMETRIC SYNC: used to make a ScenePresence look like a SceneObjectPart for synchronization
+        private SceneObjectGroup m_sog;
+        private SceneObjectPart m_sop;
+        public SceneObjectPart RegionSyncSOP
+        {
+            get { return m_sop; }
+        }
+
         private Dictionary<UUID, ScriptControllers> scriptedcontrols = new Dictionary<UUID, ScriptControllers>();
         private ScriptControlled IgnoredControls = ScriptControlled.CONTROL_ZERO;
         private ScriptControlled LastCommands = ScriptControlled.CONTROL_ZERO;
@@ -2443,14 +2451,19 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void SendTerseUpdateToAllClients()
         {
+            m_log.DebugFormat("[SCENE PRESENCE]: TerseUpdate: pos={0}", m_physicsActor.Position.ToString());
             // REGION SYNC
             if (m_scene.IsSyncedServer())
             {
-                // the old and new systems live in parallel
-                m_scene.RegionSyncModule.QueueScenePresenceForTerseUpdate(this);
                 m_scene.RegionSyncServerModule.QueuePresenceForTerseUpdate(this);
-                return;
             }
+            if (m_scene.RegionSyncModule.Active)
+            {
+                m_sop.PhysicsRequestingTerseUpdate();
+                m_scene.RegionSyncModule.QueueSceneObjectPartForUpdate(m_sop);
+            }
+            if (m_scene.IsSyncedServer() || m_scene.RegionSyncModule.Active)
+                return;
 
             m_perfMonMS = Util.EnvironmentTickCount();
             
@@ -3378,6 +3391,12 @@ namespace OpenSim.Region.Framework.Scenes
             m_physicsActor.SubscribeEvents(500);
             m_physicsActor.LocalID = LocalId;
             m_physicsActor.UUID = this.UUID;
+
+            m_sop = new SceneObjectPart(this.UUID, new PrimitiveBaseShape(), Vector3.Zero, Quaternion.Identity, Vector3.Zero);
+            m_sop.PhysActor = m_physicsActor;
+            m_sop.InitializeBucketSyncInfo();
+            m_sog = new SceneObjectGroup(m_sop, true);
+            m_sog.Scene = m_scene;
         }
         
         private void OutOfBoundsCall(Vector3 pos)

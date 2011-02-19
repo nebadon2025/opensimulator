@@ -1355,7 +1355,6 @@ namespace OpenSim.Region.Physics.OdePlugin
                     _position.Z = m_taintPosition.Z;
                 }
             }
-            Console.WriteLine("ODECharacter: ProcessTaints: doing update");
             this.RequestPhysicsterseUpdate();
         }
 

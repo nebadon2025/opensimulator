@@ -2745,12 +2745,23 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 
                 Vector3 newpos = new Vector3(PhysActor.Position.GetBytes(), 0);
-                
+
+                if (m_parentGroup == null)
+                {
+                    m_log.Error("[SCENE OBJECT PART]: PhysicsRequestingTerseUpdate: m_parentGroup is null!");
+                    return;
+                }
+                if (m_parentGroup.Scene == null)
+                {
+                    m_log.Error("[SCENE OBJECT PART]: PhysicsRequestingTerseUpdate: m_parentGroup.Scene is null!");
+                    return;
+                }
                 if (m_parentGroup.Scene.TestBorderCross(newpos, Cardinals.N) | m_parentGroup.Scene.TestBorderCross(newpos, Cardinals.S) | m_parentGroup.Scene.TestBorderCross(newpos, Cardinals.E) | m_parentGroup.Scene.TestBorderCross(newpos, Cardinals.W))
                 {
                     m_parentGroup.AbsolutePosition = newpos;
                     return;
                 }
+                m_log.DebugFormat("[PHYSICS]: TerseUpdate: newpos={0}", newpos.ToString());
                 //m_parentGroup.RootPart.m_groupPosition = newpos;
             }
             //ScheduleTerseUpdate();
@@ -5447,6 +5458,8 @@ namespace OpenSim.Region.Framework.Scenes
             SceneObjectPart localPart = this;
             PhysicsActor pa = localPart.PhysActor;
 
+            m_log.DebugFormat("{0}: PhysicsBucketUpdateProcessor. pos={1}", "[SCENE OBJECT PART]", data["Position"].AsVector3().ToString());
+
             lock (m_bucketUpdateLocks[bucketName])
             {
                 localPart.GroupPosition = data["GroupPosition"].AsVector3();
@@ -5502,7 +5515,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
             long timeStamp = DateTime.Now.Ticks;
 
-            m_log.Debug("InitializeBucketSyncInfo called at " + timeStamp);
+            // m_log.Debug("InitializeBucketSyncInfo called at " + timeStamp);
 
             for (int i = 0; i < m_propertyBucketNames.Count; i++)
             {

@@ -155,7 +155,7 @@ public class PECharacter : PhysicsActor
     public override Vector3 Velocity { 
         get { return _velocity; } 
         set { _velocity = value; 
-            // SyncUpdated = true;
+            SyncUpdated = true;
         } 
     }
     public override Vector3 Torque { 

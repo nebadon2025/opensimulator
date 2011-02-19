@@ -253,7 +253,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                 OSDMap data = new OSDMap();
 
-                data["UUID"] = OSD.FromUUID(updatedPart.UUID);
+                // data["UUID"] = OSD.FromUUID(updatedPart.UUID);
+                data["UUID"] = OSD.FromUUID(pa.UUID);
                 data["Bucket"] = OSD.FromString(bucketName);
                 
                 data["GroupPosition"] = OSD.FromVector3(updatedPart.GroupPosition);
@@ -280,7 +281,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 data["LastUpdateActorID"] = OSD.FromString(updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID);
 
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedBucketProperties, OSDParser.SerializeJsonString(data));
-                m_log.DebugFormat("{0}: PhysBucketSender for {1}", LogHeader, updatedPart.UUID.ToString());
+                m_log.DebugFormat("{0}: PhysBucketSender for {1}, pos={2}", LogHeader, updatedPart.UUID.ToString(), pa.Position.ToString());
                 SendObjectUpdateToRelevantSyncConnectors(updatedPart, syncMsg);
             }
         }
@@ -409,6 +410,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             List<ScenePresence> presenceUpdates = new List<ScenePresence>();
+            /*
             if (m_presenceUpdates.Count > 0)
             {
                 lock (m_updateScenePresenceLock)
@@ -418,6 +420,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_presenceUpdates.Clear();
                 }
             }
+             */
 
             if (updated)
             {
@@ -458,19 +461,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         {
                             if (!presence.IsDeleted)
                             {
-                                // Robert admits to doing this terrible kludge
-                                // Someday, ScenePresences will be properly handled but, for the moment,
-                                //  we convert a ScenePresence update to a physics bucket transmission.
-                                SceneObjectPart sop = new SceneObjectPart(presence.UUID, new PrimitiveBaseShape(),
-                                    Vector3.Zero, Quaternion.Identity, Vector3.Zero);
-                                sop.PhysActor = presence.PhysicsActor;
-                                sop.UUID = presence.UUID;
-                                sop.BucketSyncInfoList = new Dictionary<string, BucketSyncInfo>();
-                                sop.BucketSyncInfoList.Add("Physics", new BucketSyncInfo(DateTime.Now.Ticks, ActorID, "Physics"));
-                                List<SceneObjectPart> lsop = new List<SceneObjectPart>();
-                                lsop.Add(sop);
-                                PrimUpdatesPhysicsBucketSender("Physics", lsop);
-
                                 /*
                                 OSDMap data = new OSDMap(10);
                                 data["id"] = OSD.FromUUID(presence.UUID);
@@ -1524,6 +1514,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             UUID partUUID = data["UUID"].AsUUID();
             string bucketName = data["Bucket"].AsString();
+
+            m_log.DebugFormat("{0}: HandleUpdatedBucketProperties {1}: for {2}/{3}", LogHeader, senderActorID, partUUID.ToString(), bucketName);
 
             /* Commented out since OSDMap is now passed all the way through to the unpacker.
              * Previous implementation is to create a SOP and copy the values into same and copy them out later.

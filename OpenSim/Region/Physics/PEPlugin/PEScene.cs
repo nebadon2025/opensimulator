@@ -124,6 +124,7 @@ public class PEScene : PhysicsScene
                 // if the values have changed and it was I who changed them, send an update
                 if (actor.SyncUpdated)
                 {
+                    actor.SyncUpdated = false;
                     actor.RequestPhysicsterseUpdate();
                 }
             }

@@ -395,7 +395,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                         RegionSyncAvatar av = new RegionSyncAvatar(m_scene, agentID, first, last, startPos);
                         m_remoteAvatars.Add(agentID, av);
-                        m_scene.AddNewClient(av);
+                        //m_scene.AddNewClient(av);
+                        m_scene.AddNewClient2(av, true, false);
                         m_scene.TryGetScenePresence(agentID, out sp);
                         if (sp == null)
                         {

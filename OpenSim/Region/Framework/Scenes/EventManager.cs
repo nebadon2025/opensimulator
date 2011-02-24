@@ -58,6 +58,7 @@ namespace OpenSim.Region.Framework.Scenes
             ObjectGrab,
             ObjectGrabbing,
             ObjectDeGrab,
+            Attach, //attaching object to avatar
 
         }
 
@@ -236,6 +237,25 @@ namespace OpenSim.Region.Framework.Scenes
         public void TriggerObjectDeGrabLocally(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         {
             base.TriggerObjectDeGrab(localID, originalID, remoteClient, surfaceArgs);
+        }
+
+
+        public override void TriggerOnAttach(uint localID, UUID itemID, UUID avatarID)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[4];
+                eventArgs[0] = (Object)localID;
+                eventArgs[1] = (Object)itemID;
+                eventArgs[2] = (Object)avatarID;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.Attach, eventArgs);
+            }
+            TriggerOnAttachLocally(localID, itemID, avatarID);
+        }
+
+        public void TriggerOnAttachLocally(uint localID, UUID itemID, UUID avatarID)
+        {
+            base.TriggerOnAttach(localID, itemID, avatarID);
         }
 
         #endregion //GrabObject
@@ -645,7 +665,8 @@ namespace OpenSim.Region.Framework.Scenes
         public event LandBuy OnLandBuy;
         public event LandBuy OnValidateLandBuy;
 
-        public void TriggerOnAttach(uint localID, UUID itemID, UUID avatarID)
+        //public void TriggerOnAttach(uint localID, UUID itemID, UUID avatarID)
+        public virtual void TriggerOnAttach(uint localID, UUID itemID, UUID avatarID)
         {
             Attach handlerOnAttach = OnAttach;
             if (handlerOnAttach != null)

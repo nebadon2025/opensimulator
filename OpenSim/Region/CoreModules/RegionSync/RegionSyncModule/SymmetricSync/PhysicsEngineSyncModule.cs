@@ -48,7 +48,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //Read in configuration, if the local actor is configured to be a client manager, load this module.
             if (!actorType.Equals("physics_engine"))
             {
-                m_log.Warn(LogHeader + ": not configured as Scene Persistence Actor. Shut down.");
+                m_log.Warn(LogHeader + ": not configured as Physics Engine Actor. Shut down.");
                 return;
             }
 

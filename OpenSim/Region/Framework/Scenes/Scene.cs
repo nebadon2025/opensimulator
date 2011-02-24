@@ -2978,9 +2978,11 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="client"></param>
         public override void AddNewClient(IClientAPI client)
         {
-            AddNewClient2(client, true);
+            //AddNewClient2(client, true);
+            AddNewClient2(client, true, true);
         }
-        public void AddNewClient2(IClientAPI client, bool managed)
+        //public void AddNewClient2(IClientAPI client, bool managed)
+        public void AddNewClient2(IClientAPI client, bool managed, bool rezAttachment)
         {
 
             AgentCircuitData aCircuit = m_authenticateHandler.GetAgentCircuitData(client.CircuitCode);
@@ -3019,7 +3021,8 @@ namespace OpenSim.Region.Framework.Scenes
                 if (aCircuit == null || (aCircuit != null && aCircuit.child == false))
                 {
                     sp.IsChildAgent = false;
-                    Util.FireAndForget(delegate(object o) { sp.RezAttachments(); });
+                    if(rezAttachment)
+                        Util.FireAndForget(delegate(object o) { sp.RezAttachments(); });
                 }
             }
 

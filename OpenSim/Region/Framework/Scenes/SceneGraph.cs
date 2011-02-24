@@ -2061,10 +2061,15 @@ namespace OpenSim.Region.Framework.Scenes
             }
             m_numPrim += children.Length;
 
-            //SYMMETRIC SYNC, 
             sceneObject.AttachToScene(m_parentScene);
-            //sceneObject.AttachToSceneBySync(m_parentScene);
-            //end of SYMMETRIC SYNC,
+
+            //Take some special care of the case of this object being an attachment
+            sceneObject.RootPart.SetAttachmentPoint(sceneObject.RootPart.AttachmentPoint); 
+            if (sceneObject.IsAttachment)
+            {
+                ScenePresence avatar = m_parentScene.GetScenePresence(sceneObject.RootPart.AttachedAvatar);
+                sceneObject.RootPart.SetParentLocalId(avatar.LocalId);
+            }
 
             //SYMMETRIC SYNC, 
             sceneObject.ScheduleGroupForFullUpdate_SyncInfoUnchanged();

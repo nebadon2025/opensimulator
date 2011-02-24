@@ -2451,7 +2451,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void SendTerseUpdateToAllClients()
         {
-            m_log.DebugFormat("[SCENE PRESENCE]: TerseUpdate: pos={0}", m_physicsActor.Position.ToString());
+            m_log.DebugFormat("[SCENE PRESENCE]: TerseUpdate: UUID={0}, pos={1}", m_physicsActor.UUID.ToString(), m_physicsActor.Position.ToString());
             // REGION SYNC
             if (m_scene.IsSyncedServer())
             {
@@ -3392,11 +3392,19 @@ namespace OpenSim.Region.Framework.Scenes
             m_physicsActor.LocalID = LocalId;
             m_physicsActor.UUID = this.UUID;
 
-            m_sop = new SceneObjectPart(this.UUID, new PrimitiveBaseShape(), Vector3.Zero, Quaternion.Identity, Vector3.Zero);
+            m_sop = new SceneObjectPart(this.UUID, new PrimitiveBaseShape(),
+                new Vector3(1f,1f,1f), Quaternion.Identity, new Vector3(2f, 2f, 2f));
+                // Vector3.Zero, Quaternion.Identity, Vector3.Zero);
             m_sop.PhysActor = m_physicsActor;
             m_sop.InitializeBucketSyncInfo();
+            // pull the values from the PhysActor into the SOP
+            Vector3 temp = m_sop.GroupPosition;
+            temp = m_sop.OffsetPosition;
+            Quaternion tempq = m_sop.RotationOffset;
+
             m_sog = new SceneObjectGroup(m_sop, true);
-            m_sog.Scene = m_scene;
+            // m_sog.Scene = m_scene;
+            m_sog.AttachToSceneBySync(m_scene);
         }
         
         private void OutOfBoundsCall(Vector3 pos)

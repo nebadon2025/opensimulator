@@ -1969,7 +1969,8 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 else
                 {
-                    m_log.Warn("Entity with " + sogID + " is not of type SceneObjectGroup");
+                    m_log.WarnFormat("{0}: Entity with {1} is not of type SceneObjectGroup: {2}",
+                                    "[SCENE GRAPH]", sogID, entity.GetType().ToString());
                     //return false;
                 }
                 return false;
@@ -2008,7 +2009,8 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 else
                 {
-                    m_log.Warn("Entity with " + sogID + " is not of type SceneObjectGroup");
+                    m_log.WarnFormat("{0}: Entity with {1} iss not of type SceneObjectGroup: {2}",
+                                    "[SCENE GRAPH]", sogID, entity.GetType().ToString());
                     //return false;
                     updateResult = Scene.ObjectUpdateResult.Error;
                 }

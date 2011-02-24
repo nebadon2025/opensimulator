@@ -166,7 +166,7 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_physActor; }
             set
             {
-//                m_log.DebugFormat("[SOP]: PhysActor set to {0} for {1} {2}", value, Name, UUID);
+                m_log.DebugFormat("[SCENE OBJECT PART]: PhysActor set to {0} for {1} {2}", value, Name, UUID);
                 m_physActor = value;
             }
         }
@@ -2744,7 +2744,8 @@ namespace OpenSim.Region.Framework.Scenes
             if (PhysActor != null)
             {
                 
-                Vector3 newpos = new Vector3(PhysActor.Position.GetBytes(), 0);
+                // Vector3 newpos = new Vector3(PhysActor.Position.GetBytes(), 0);
+                Vector3 newpos = new Vector3(PhysActor.Position);
 
                 if (m_parentGroup == null)
                 {
@@ -2761,7 +2762,7 @@ namespace OpenSim.Region.Framework.Scenes
                     m_parentGroup.AbsolutePosition = newpos;
                     return;
                 }
-                m_log.DebugFormat("[PHYSICS]: TerseUpdate: newpos={0}", newpos.ToString());
+                m_log.DebugFormat("[PHYSICS]: TerseUpdate: UUID={0}, newpos={1}", PhysActor.UUID.ToString(), newpos.ToString());
                 //m_parentGroup.RootPart.m_groupPosition = newpos;
             }
             //ScheduleTerseUpdate();

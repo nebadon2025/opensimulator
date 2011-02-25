@@ -203,7 +203,11 @@ namespace OpenSim.Services.Connectors.SimianGrid
         public PresenceInfo GetAgent(UUID sessionID)
         {
 //            m_log.DebugFormat("[SIMIAN PRESENCE CONNECTOR]: Requesting session data for agent with sessionID " + sessionID);
-
+            if(sessionID == UUID.Zero)
+            {
+                m_log.Debug("[SIMIAN PRESENCE CONNECTOR]: GetAgent called with UUID.Zero!");
+                return null;
+            }
             NameValueCollection requestArgs = new NameValueCollection
             {
                 { "RequestMethod", "GetSession" },

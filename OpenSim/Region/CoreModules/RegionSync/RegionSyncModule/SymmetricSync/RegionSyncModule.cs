@@ -193,147 +193,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_propertyBucketNames; }
         }
 
-        private RegionSyncListener m_localSyncListener = null;
-        private bool m_synced = false;
-
-        // Lock is used to synchronize access to the update status and update queues
-        //private object m_updateSceneObjectPartLock = new object();
-        //private Dictionary<UUID, SceneObjectGroup> m_primUpdates = new Dictionary<UUID, SceneObjectGroup>();
-        private Dictionary<string, Object> m_primUpdateLocks = new Dictionary<string, object>();
-        private Dictionary<string, Dictionary<UUID, SceneObjectPart>> m_primUpdates = new Dictionary<string, Dictionary<UUID, SceneObjectPart>>();
-
-        private delegate void PrimUpdatePerBucketSender(string bucketName, List<SceneObjectPart> primUpdates);
-        private Dictionary<string,PrimUpdatePerBucketSender> m_primUpdatesPerBucketSender = new Dictionary<string,PrimUpdatePerBucketSender>();
-
-        private object m_updateScenePresenceLock = new object();
-        private Dictionary<UUID, ScenePresence> m_presenceUpdates = new Dictionary<UUID, ScenePresence>();
-        private int m_sendingUpdates=0;
-
-        private int m_maxNumOfPropertyBuckets; 
-
-        //Read in configuration for which property-bucket each property belongs to, and the description of each bucket
-        private void PopulatePropertyBucketMap(IConfig config)
-        {
-            //We start with a default bucket map. Will add the code to read in configuration from config files later.
-            PopulatePropertyBuketMapByDefault();
-
-            //Pass the bucket information to SceneObjectPart.
-            SceneObjectPart.InitializePropertyBucketInfo(m_primPropertyBucketMap, m_propertyBucketNames, m_actorID);
-
-        }
-
-        //As of current version, we still use the xml serialization as most of SOP's properties are in the General bucket.
-        //Going forward, we may serialize the properties differently, e.g. using OSDMap 
-        private void PrimUpdatesGeneralBucketSender(string bucketName, List<SceneObjectPart> primUpdates)
-        {
-            Dictionary<UUID, SceneObjectGroup> updatedObjects = new Dictionary<UUID, SceneObjectGroup>();
-            foreach (SceneObjectPart part in primUpdates)
-            {
-                updatedObjects[part.ParentGroup.UUID] = part.ParentGroup;
-            }
-            foreach (SceneObjectGroup sog in updatedObjects.Values)
-            {
-                sog.UpdateTaintedBucketSyncInfo(bucketName, DateTime.Now.Ticks); //this update the timestamp and clear the taint info of the bucket
-                string sogxml = SceneObjectSerializer.ToXml2Format(sog);
-                SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
-                SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
-            }
-        }
-
-        private void PrimUpdatesPhysicsBucketSender(string bucketName, List<SceneObjectPart> primUpdates)
-        {
-            foreach (SceneObjectPart updatedPart in primUpdates)
-            {
-                updatedPart.UpdateTaintedBucketSyncInfo(bucketName, DateTime.Now.Ticks);
-
-                OSDMap data = new OSDMap();
-
-                data["UUID"] = OSD.FromUUID(updatedPart.UUID);
-                data["Bucket"] = OSD.FromString(bucketName);
-                
-                data["GroupPosition"] = OSD.FromVector3(updatedPart.GroupPosition);
-                data["OffsetPosition"] = OSD.FromVector3(updatedPart.OffsetPosition);
-                data["RotationOffset"] = OSD.FromQuaternion(updatedPart.RotationOffset);
-                data["Velocity"] = OSD.FromVector3(updatedPart.Velocity);
-                data["Scale"] = OSD.FromVector3(updatedPart.Scale);
-                //Other properties to be included
-                /*
-                "Position":
-                "Size":
-                "Force":
-                "RotationalVelocity":
-                "PA_Acceleration":
-                "Torque":
-                "Orientation":
-                "IsPhysical":
-                "Flying":
-                "Buoyancy":
-                 * */
-
-                data["LastUpdateTimeStamp"] = OSD.FromLong(updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp);
-                data["LastUpdateActorID"] = OSD.FromString(updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID);
-
-                SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedBucketProperties, OSDParser.SerializeJsonString(data));
-                SendObjectUpdateToRelevantSyncConnectors(updatedPart, syncMsg);
-            }
-        }
-
-        //If nothing configured in the config file, this is the default settings for grouping properties into different bucket
-        private void PopulatePropertyBuketMapByDefault()
-        {
-            //by default, there are two property buckets: the "General" bucket and the "Physics" bucket.
-            string generalBucketName = "General";
-            string physicsBucketName = "Physics";
-            m_propertyBucketNames.Add(generalBucketName);
-            m_propertyBucketNames.Add(physicsBucketName);
-            m_maxNumOfPropertyBuckets = m_propertyBucketNames.Count;
-
-            //Linking each bucket with the sender function that serializes the properties in the bucket and send out sync message
-            m_primUpdatesPerBucketSender.Add("General", PrimUpdatesGeneralBucketSender);
-            m_primUpdatesPerBucketSender.Add("Physics", PrimUpdatesPhysicsBucketSender);
-
-            //Mapping properties to buckets.
-            foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
-            {
-                switch (property)
-                {
-                    case SceneObjectPartProperties.GroupPosition:
-                    case SceneObjectPartProperties.OffsetPosition:
-                    case SceneObjectPartProperties.Scale:
-                    case SceneObjectPartProperties.Velocity:
-                    case SceneObjectPartProperties.AngularVelocity:
-                    case SceneObjectPartProperties.RotationOffset:
-                    case SceneObjectPartProperties.Position:
-                    case SceneObjectPartProperties.Size:
-                    case SceneObjectPartProperties.Force:
-                    case SceneObjectPartProperties.RotationalVelocity:
-                    case SceneObjectPartProperties.PA_Acceleration:
-                    case SceneObjectPartProperties.Torque:
-                    case SceneObjectPartProperties.Orientation:
-                    case SceneObjectPartProperties.IsPhysical:
-                    case SceneObjectPartProperties.Flying:
-                    case SceneObjectPartProperties.Buoyancy:
-                        m_primPropertyBucketMap.Add(property, physicsBucketName);
-                        break;
-                    default:
-                        //all other properties belong to the "General" bucket.
-                        m_primPropertyBucketMap.Add(property, generalBucketName);
-                        break;
-                }
-            }
-
-            //create different lists to keep track which SOP has what properties updated (which bucket of properties)
-            foreach (string bucketName in m_propertyBucketNames)
-            {
-                m_primUpdates.Add(bucketName, new Dictionary<UUID, SceneObjectPart>());
-                m_primUpdateLocks.Add(bucketName, new Object());
-            }
-        }
-
-        private bool IsSyncingWithOtherActors()
-        {
-            return (m_syncConnectors.Count > 0);
-        }
 
         public void QueueSceneObjectPartForUpdate(SceneObjectPart part)
         {
@@ -805,10 +664,152 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         //Timers for periodically status report has not been implemented yet.
         private System.Timers.Timer m_statsTimer = new System.Timers.Timer(1000);
+
+        private RegionSyncListener m_localSyncListener = null;
+        private bool m_synced = false;
+
+        // Lock is used to synchronize access to the update status and update queues
+        //private object m_updateSceneObjectPartLock = new object();
+        //private Dictionary<UUID, SceneObjectGroup> m_primUpdates = new Dictionary<UUID, SceneObjectGroup>();
+        private Dictionary<string, Object> m_primUpdateLocks = new Dictionary<string, object>();
+        private Dictionary<string, Dictionary<UUID, SceneObjectPart>> m_primUpdates = new Dictionary<string, Dictionary<UUID, SceneObjectPart>>();
+
+        private delegate void PrimUpdatePerBucketSender(string bucketName, List<SceneObjectPart> primUpdates);
+        private Dictionary<string, PrimUpdatePerBucketSender> m_primUpdatesPerBucketSender = new Dictionary<string, PrimUpdatePerBucketSender>();
+
+        private object m_updateScenePresenceLock = new object();
+        private Dictionary<UUID, ScenePresence> m_presenceUpdates = new Dictionary<UUID, ScenePresence>();
+        private int m_sendingUpdates = 0;
+
+        private int m_maxNumOfPropertyBuckets;
+
         private void StatsTimerElapsed(object source, System.Timers.ElapsedEventArgs e)
         {
             //TO BE IMPLEMENTED
             m_log.Warn("[REGION SYNC MODULE]: StatsTimerElapsed -- NOT yet implemented.");
+        }
+
+        //Read in configuration for which property-bucket each property belongs to, and the description of each bucket
+        private void PopulatePropertyBucketMap(IConfig config)
+        {
+            //We start with a default bucket map. Will add the code to read in configuration from config files later.
+            PopulatePropertyBuketMapByDefault();
+
+            //Pass the bucket information to SceneObjectPart.
+            SceneObjectPart.InitializePropertyBucketInfo(m_primPropertyBucketMap, m_propertyBucketNames, m_actorID);
+        }
+
+        //As of current version, we still use the xml serialization as most of SOP's properties are in the General bucket.
+        //Going forward, we may serialize the properties differently, e.g. using OSDMap 
+        private void PrimUpdatesGeneralBucketSender(string bucketName, List<SceneObjectPart> primUpdates)
+        {
+            Dictionary<UUID, SceneObjectGroup> updatedObjects = new Dictionary<UUID, SceneObjectGroup>();
+            foreach (SceneObjectPart part in primUpdates)
+            {
+                updatedObjects[part.ParentGroup.UUID] = part.ParentGroup;
+            }
+            foreach (SceneObjectGroup sog in updatedObjects.Values)
+            {
+                sog.UpdateTaintedBucketSyncInfo(bucketName, DateTime.Now.Ticks); //this update the timestamp and clear the taint info of the bucket
+                string sogxml = SceneObjectSerializer.ToXml2Format(sog);
+                SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
+                SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
+            }
+        }
+
+        private void PrimUpdatesPhysicsBucketSender(string bucketName, List<SceneObjectPart> primUpdates)
+        {
+            foreach (SceneObjectPart updatedPart in primUpdates)
+            {
+                updatedPart.UpdateTaintedBucketSyncInfo(bucketName, DateTime.Now.Ticks);
+
+                OSDMap data = new OSDMap();
+
+                data["UUID"] = OSD.FromUUID(updatedPart.UUID);
+                data["Bucket"] = OSD.FromString(bucketName);
+
+                data["GroupPosition"] = OSD.FromVector3(updatedPart.GroupPosition);
+                data["OffsetPosition"] = OSD.FromVector3(updatedPart.OffsetPosition);
+                data["RotationOffset"] = OSD.FromQuaternion(updatedPart.RotationOffset);
+                data["Velocity"] = OSD.FromVector3(updatedPart.Velocity);
+                data["Scale"] = OSD.FromVector3(updatedPart.Scale);
+                //Other properties to be included
+                /*
+                "Position":
+                "Size":
+                "Force":
+                "RotationalVelocity":
+                "PA_Acceleration":
+                "Torque":
+                "Orientation":
+                "IsPhysical":
+                "Flying":
+                "Buoyancy":
+                 * */
+
+                data["LastUpdateTimeStamp"] = OSD.FromLong(updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp);
+                data["LastUpdateActorID"] = OSD.FromString(updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID);
+
+                SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedBucketProperties, OSDParser.SerializeJsonString(data));
+                SendObjectUpdateToRelevantSyncConnectors(updatedPart, syncMsg);
+            }
+        }
+
+        //If nothing configured in the config file, this is the default settings for grouping properties into different bucket
+        private void PopulatePropertyBuketMapByDefault()
+        {
+            //by default, there are two property buckets: the "General" bucket and the "Physics" bucket.
+            string generalBucketName = "General";
+            string physicsBucketName = "Physics";
+            m_propertyBucketNames.Add(generalBucketName);
+            m_propertyBucketNames.Add(physicsBucketName);
+            m_maxNumOfPropertyBuckets = m_propertyBucketNames.Count;
+
+            //Linking each bucket with the sender function that serializes the properties in the bucket and send out sync message
+            m_primUpdatesPerBucketSender.Add("General", PrimUpdatesGeneralBucketSender);
+            m_primUpdatesPerBucketSender.Add("Physics", PrimUpdatesPhysicsBucketSender);
+
+            //Mapping properties to buckets.
+            foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
+            {
+                switch (property)
+                {
+                    case SceneObjectPartProperties.GroupPosition:
+                    case SceneObjectPartProperties.OffsetPosition:
+                    case SceneObjectPartProperties.Scale:
+                    case SceneObjectPartProperties.Velocity:
+                    case SceneObjectPartProperties.AngularVelocity:
+                    case SceneObjectPartProperties.RotationOffset:
+                    case SceneObjectPartProperties.Position:
+                    case SceneObjectPartProperties.Size:
+                    case SceneObjectPartProperties.Force:
+                    case SceneObjectPartProperties.RotationalVelocity:
+                    case SceneObjectPartProperties.PA_Acceleration:
+                    case SceneObjectPartProperties.Torque:
+                    case SceneObjectPartProperties.Orientation:
+                    case SceneObjectPartProperties.IsPhysical:
+                    case SceneObjectPartProperties.Flying:
+                    case SceneObjectPartProperties.Buoyancy:
+                        m_primPropertyBucketMap.Add(property, physicsBucketName);
+                        break;
+                    default:
+                        //all other properties belong to the "General" bucket.
+                        m_primPropertyBucketMap.Add(property, generalBucketName);
+                        break;
+                }
+            }
+
+            //create different lists to keep track which SOP has what properties updated (which bucket of properties)
+            foreach (string bucketName in m_propertyBucketNames)
+            {
+                m_primUpdates.Add(bucketName, new Dictionary<UUID, SceneObjectPart>());
+                m_primUpdateLocks.Add(bucketName, new Object());
+            }
+        }
+
+        private bool IsSyncingWithOtherActors()
+        {
+            return (m_syncConnectors.Count > 0);
         }
 
         //Object updates are sent by enqueuing into each connector's outQueue.

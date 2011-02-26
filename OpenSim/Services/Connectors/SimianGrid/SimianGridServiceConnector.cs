@@ -434,6 +434,12 @@ namespace OpenSim.Services.Connectors.SimianGrid
         }
 
         #region SYNC SERVER
+        /// <summary>
+        /// Register the SyncServerID, address and port for a particular endpoint.
+        /// The internal address and port are not registered.
+        /// </summary>
+        /// <param name="gei"></param>
+        /// <returns>'true' if the registration was successful and 'false' otherwise</returns>
         public virtual bool RegisterEndpoint(GridEndpointInfo gei)
         {
             NameValueCollection requestArgs = new NameValueCollection
@@ -456,6 +462,42 @@ namespace OpenSim.Services.Connectors.SimianGrid
             return false;
         }
 
+        /// <summary>
+        /// Lookup a particular endpoint given the SyncServerID of the endpoint.
+        /// </summary>
+        /// <param name="syncServerID"></param>
+        /// <returns>endpoint information or 'null' if not found</returns>
+        public virtual GridEndpointInfo LookupEndpoint(string syncServerID)
+        {
+            NameValueCollection requestArgs = new NameValueCollection
+            {
+                { "RequestMethod", "GetEndpoint" },
+                { "SyncServerID", syncServerID },
+            };
+
+            OSDMap response = WebUtil.PostToService(m_ServerURI, requestArgs);
+            if (response["Success"].AsBoolean())
+            {
+                GridEndpointInfo gai = new GridEndpointInfo();
+                gai.syncServerID = response["SyncServerID"].AsString();
+                gai.address = response["Address"].AsString();
+                gai.port = (uint)response["Port"].AsInteger();
+                gai.internalAddress = response["InternalAddress"].AsString();
+                gai.internalPort = (uint)response["InternalPort"].AsInteger();
+                return gai;
+            }
+            m_log.ErrorFormat("{0}: Lookup of endpoint failed: {1}",
+                        "[SIMIAN GRID CONNECTOR]", response["Message"]);
+            return null;
+        }
+
+        /// <summary>
+        /// Register an actor association with a SyncServer.
+        /// </summary>
+        /// <param name="actorID">unique identification of the actor (actor's "name")</param>
+        /// <param name="actorType">actor type identification string</param>
+        /// <param name="syncServerID">sync server identification</param>
+        /// <returns>'true' if registration successful. 'false' otherwise</returns>
         public virtual bool RegisterActor(string actorID, string actorType, string syncServerID)
         {
             NameValueCollection requestArgs = new NameValueCollection
@@ -479,6 +521,13 @@ namespace OpenSim.Services.Connectors.SimianGrid
             return false;
         }
 
+        /// <summary>
+        /// Register a quark on a SyncServer.
+        /// </summary>
+        /// <param name="syncServerID"></param>
+        /// <param name="locX"></param>
+        /// <param name="locY"></param>
+        /// <returns>'true' if registration successful. 'false' otherwise</returns>
         public virtual bool RegisterQuark(string syncServerID, uint locX, uint locY)
         {
             NameValueCollection requestArgs = new NameValueCollection
@@ -501,6 +550,12 @@ namespace OpenSim.Services.Connectors.SimianGrid
             return false;
         }
 
+        /// <summary>
+        /// Given a quark location, return all the endpoints associated with that quark;
+        /// </summary>
+        /// <param name="locX">quark home X location</param>
+        /// <param name="locY">quark home Y location</param>
+        /// <returns>list of endpoints and actor types associated with the quark</returns>
         public virtual List<GridEndpointInfo> LookupQuark(uint locX, uint locY)
         {
             NameValueCollection requestArgs = new NameValueCollection
@@ -512,6 +567,15 @@ namespace OpenSim.Services.Connectors.SimianGrid
             return LookupQuark(requestArgs);
         }
 
+        /// <summary>
+        /// Given a quark location and an actor type, return all endpoints associated with
+        /// the quark that have that actor. This is equivilent to the previous request but
+        /// filtered by the actor type.
+        /// </summary>
+        /// <param name="locX">quark home X location</param>
+        /// <param name="locY">quark home Y location</param>
+        /// <param name="actorType">actor definition string</param>
+        /// <returns>list of endpoints having that actor and the quark</returns>
         public virtual List<GridEndpointInfo> LookupQuark(uint locX, uint locY, string actorType)
         {
             NameValueCollection requestArgs = new NameValueCollection

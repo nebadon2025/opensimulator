@@ -199,6 +199,8 @@ namespace OpenSim.Region.Physics.Manager
             get { return m_UUID; }
         }
         public PhysActorLastValues lastValues;
+        // ID of actor which last updated  the values. Send if I did the change.
+        public string ChangingActorID = "YY";
         // set to true of prim is updated
         public bool SyncUpdated;
 

@@ -235,7 +235,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // Existing value of 1 indicates that updates are currently being sent so skip updates this pass
             if (Interlocked.Exchange(ref m_sendingUpdates, 1) == 1)
             {
-                m_log.WarnFormat("[REGION SYNC MODULE] SendUpdates(): An update thread is already running.");
+                m_log.DebugFormat("[REGION SYNC MODULE] SendUpdates(): An update thread is already running.");
                 return;
             }
 

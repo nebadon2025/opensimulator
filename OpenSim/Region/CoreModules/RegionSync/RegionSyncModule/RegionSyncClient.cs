@@ -771,11 +771,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 sp.ControllingClient.SendAnimations(animIDs, seqs, sourceAgentID, objectIDs);
                             }
                         }
+                        /*
                         else
                         {
                             m_log.WarnFormat("{0} Could not send animation for {1} because scene presence not found",
                                 LogHeader(), agentID.ToString());
                         }
+                        */
                         return;
                     }
                 case RegionSyncMessage.MsgType.BalanceClientLoad:

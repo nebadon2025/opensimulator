@@ -2443,14 +2443,8 @@ namespace OpenSim.Region.Framework.Scenes
             SceneObjectPart localPart = GetSceneObjectPart(partUUID);
             if (localPart == null)
             {
-                // it's not a prim. Maybe it's a ScenePresence
-                ScenePresence sp;
-                if (!m_parentScene.TryGetScenePresence(partUUID, out sp))
-                {
-                    m_log.Warn("No SOP found: UUID -- " + partUUID);
-                    return Scene.ObjectUpdateResult.Unchanged;
-                }
-                localPart = sp.RegionSyncSOP;
+                m_log.Warn("No SOP found: UUID -- " + partUUID);
+                return Scene.ObjectUpdateResult.Unchanged;
             }
             return localPart.UpdateBucketProperties(bucketName, updatedPart, bucketSyncInfo);
         }

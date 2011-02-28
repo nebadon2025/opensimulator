@@ -121,7 +121,6 @@ public class PECharacter : PhysicsActor
     public override Vector3 Position { 
         get { return _position; } 
         set { _position = value; 
-            SyncUpdated = true;
         } 
     }
     public override float Mass { 
@@ -134,7 +133,6 @@ public class PECharacter : PhysicsActor
     public override Vector3 Force { 
         get { return _force; } 
         set { _force = value; 
-            SyncUpdated = true;
         } 
     }
 
@@ -155,19 +153,16 @@ public class PECharacter : PhysicsActor
     public override Vector3 Velocity { 
         get { return _velocity; } 
         set { _velocity = value; 
-            SyncUpdated = true;
         } 
     }
     public override Vector3 Torque { 
         get { return _torque; } 
         set { _torque = value; 
-            // SyncUpdated = true;
         } 
     }
     public override float CollisionScore { 
         get { return _collisionScore; } 
         set { _collisionScore = value; 
-            // SyncUpdated = true;
         } 
     }
     public override Vector3 Acceleration { 

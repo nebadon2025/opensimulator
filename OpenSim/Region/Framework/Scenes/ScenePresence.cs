@@ -112,14 +112,6 @@ namespace OpenSim.Region.Framework.Scenes
         }
         protected List<SceneObjectGroup> m_attachments = new List<SceneObjectGroup>();
 
-        // SYMMETRIC SYNC: used to make a ScenePresence look like a SceneObjectPart for synchronization
-        private SceneObjectGroup m_sog;
-        private SceneObjectPart m_sop;
-        public SceneObjectPart RegionSyncSOP
-        {
-            get { return m_sop; }
-        }
-
         private Dictionary<UUID, ScriptControllers> scriptedcontrols = new Dictionary<UUID, ScriptControllers>();
         private ScriptControlled IgnoredControls = ScriptControlled.CONTROL_ZERO;
         private ScriptControlled LastCommands = ScriptControlled.CONTROL_ZERO;
@@ -2456,14 +2448,10 @@ namespace OpenSim.Region.Framework.Scenes
             if (m_scene.IsSyncedServer())
             {
                 m_scene.RegionSyncServerModule.QueuePresenceForTerseUpdate(this);
-            }
-            if (m_scene.RegionSyncModule.Active)
-            {
-                m_sop.PhysicsRequestingTerseUpdate();
-                m_scene.RegionSyncModule.QueueSceneObjectPartForUpdate(m_sop);
-            }
-            if (m_scene.IsSyncedServer() || m_scene.RegionSyncModule.Active)
+                // this.PhysicsRequestingTerseUpdate();
+                // m_scene.RegionSyncModule.QueueSceneObjectPartForUpdate(this);
                 return;
+            }
 
             m_perfMonMS = Util.EnvironmentTickCount();
             
@@ -3391,20 +3379,6 @@ namespace OpenSim.Region.Framework.Scenes
             m_physicsActor.SubscribeEvents(500);
             m_physicsActor.LocalID = LocalId;
             m_physicsActor.UUID = this.UUID;
-
-            m_sop = new SceneObjectPart(this.UUID, new PrimitiveBaseShape(),
-                new Vector3(1f,1f,1f), Quaternion.Identity, new Vector3(2f, 2f, 2f));
-                // Vector3.Zero, Quaternion.Identity, Vector3.Zero);
-            m_sop.PhysActor = m_physicsActor;
-            m_sop.InitializeBucketSyncInfo();
-            // pull the values from the PhysActor into the SOP
-            Vector3 temp = m_sop.GroupPosition;
-            temp = m_sop.OffsetPosition;
-            Quaternion tempq = m_sop.RotationOffset;
-
-            m_sog = new SceneObjectGroup(m_sop, true);
-            // m_sog.Scene = m_scene;
-            m_sog.AttachToSceneBySync(m_scene);
         }
         
         private void OutOfBoundsCall(Vector3 pos)

@@ -118,11 +118,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             DefaultPort++;
 
             //Get sync server info for Physics Engine actors 
-            // string peServerAddr = scene.RegionInfo.RegionName + "_SceneToPESyncServerIP";
-            // m_peSyncServeraddr = syncConfig.GetString(peServerAddr, "127.0.0.1");
-            // string peServerPort = scene.RegionInfo.RegionName + "_SceneToPESyncServerPort";
-            // m_peSyncServerport = syncConfig.GetInt(peServerPort, DefaultPort);
-            // DefaultPort++;
+            string peServerAddr = scene.RegionInfo.RegionName + "_SceneToPESyncServerIP";
+            m_peSyncServeraddr = syncConfig.GetString(peServerAddr, "127.0.0.1");
+            string peServerPort = scene.RegionInfo.RegionName + "_SceneToPESyncServerPort";
+            m_peSyncServerport = syncConfig.GetInt(peServerPort, DefaultPort);
+            DefaultPort++;
             
             // m_symsync = syncConfig.GetBoolean("SymSync", false);
 
@@ -190,7 +190,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_sceneToSESyncServer.Start();
             }
 
-            /*
             m_peSyncServeraddr = m_scene.RegionInfo.PhysicsSyncServerAddress;
             m_peSyncServerport = m_scene.RegionInfo.PhysicsSyncServerPort;
             if (!m_peSyncServeraddr.Equals(IPAddrUnknown) && m_peSyncServerport != PortUnknown)
@@ -200,7 +199,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_sceneToPESyncServer = new SceneToPhysEngineSyncServer(m_scene, m_peSyncServeraddr, m_peSyncServerport);
                 m_sceneToPESyncServer.Start();
             }
-             */
             //m_log.Warn("[REGION SYNC SERVER MODULE] Post-Initialised");
         }
 
@@ -273,7 +271,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 m_presenceUpdates[presence.UUID] = presence;
             }
-            m_log.WarnFormat("[REGION SYNC SERVER MODULE] QueuePresenceForUpdate: {0}", presence.UUID.ToString());
+            m_log.DebugFormat("[REGION SYNC SERVER MODULE] QueuePresenceForUpdate: {0}", presence.UUID.ToString());
         }
 
         public void SendUpdates()
@@ -521,6 +519,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private string m_seSyncServeraddr;
         private int m_seSyncServerport;
         private SceneToScriptEngineSyncServer m_sceneToSESyncServer = null;
+
+        //Sync-server for physics engines
+        private string m_peSyncServeraddr;
+        private int m_peSyncServerport;
+        private SceneToPhysEngineSyncServer m_sceneToPESyncServer = null;
 
         //a boolean variable to indicate in symmetric sync is configured
         //private bool m_symsync = false;

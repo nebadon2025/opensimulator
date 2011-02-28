@@ -219,7 +219,7 @@ namespace OpenSim.Region.Physics.Manager
 
         public abstract void LockAngularMotion(Vector3 axis);
 
-        public void RequestPhysicsterseUpdate()
+        public virtual void RequestPhysicsterseUpdate()
         {
             // Make a temporary copy of the event to avoid possibility of
             // a race condition if the last subscriber unsubscribes

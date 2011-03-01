@@ -1643,7 +1643,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     //                    m_log.DebugFormat("{0} {1}", update_movementflag, (update_rotation && DCFlagKeyPressed));
                     //                    m_log.DebugFormat(
-                    //                        "In {0} adding velocity to {1} of {2}", m_scene.RegionInfo.RegionName, Name, agent_control_v3);
+                    //                        "[SCENE PRESENCE] In {0} adding velocity to {1} of {2}", m_scene.RegionInfo.RegionName, Name, agent_control_v3);
 
                     AddNewMovement(agent_control_v3, q);
 
@@ -2443,7 +2443,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void SendTerseUpdateToAllClients()
         {
-            m_log.DebugFormat("[SCENE PRESENCE]: TerseUpdate: UUID={0}, pos={1}", m_physicsActor.UUID.ToString(), m_physicsActor.Position.ToString());
+            // m_log.DebugFormat("[SCENE PRESENCE]: TerseUpdate: UUID={0}, pos={1}", m_physicsActor.UUID.ToString(), m_physicsActor.Position.ToString());
             // REGION SYNC
             if (m_scene.IsSyncedServer())
             {

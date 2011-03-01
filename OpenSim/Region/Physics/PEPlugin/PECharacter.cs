@@ -30,6 +30,7 @@ using log4net;
 using OpenMetaverse;
 using OpenSim.Framework;
 using OpenSim.Region.Physics.Manager;
+using OpenSim.Region.CoreModules.RegionSync.RegionSyncModule;
 
 namespace OpenSim.Region.Physics.PEPlugin
 {
@@ -86,6 +87,24 @@ public class PECharacter : PhysicsActor
         return;
     }
 
+        public override void RequestPhysicsterseUpdate()
+        {
+            if (PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
+            {
+                // if the values have changed and it was I who changed them, send an update
+                if (this.lastValues.Changed(this) && ChangingActorID == RegionSyncServerModule.ActorID)
+                {
+                    // m_log.DebugFormat("[ODE CHARACTER]: Sending terse update for {0}", LocalID);
+                    PhysEngineToSceneConnectorModule.RouteUpdate(this);
+                }
+            }
+            else
+            {
+                base.RequestPhysicsterseUpdate();
+            }
+        }
+
+
     public override bool Stopped { 
         get { return _stopped; } 
     }
@@ -105,12 +124,12 @@ public class PECharacter : PhysicsActor
     }
     public override bool Grabbed { 
         set { _grabbed = value; 
-            m_log.Debug("[RPE] PEChar set Grabbed");
+            // m_log.Debug("[RPE] PEChar set Grabbed");
         } 
     }
     public override bool Selected { 
         set { _selected = value; 
-            m_log.Debug("[RPE] PEChar set Selected");
+            // m_log.Debug("[RPE] PEChar set Selected");
         } 
     }
     public override void CrossingFailure() { return; }
@@ -121,6 +140,7 @@ public class PECharacter : PhysicsActor
     public override Vector3 Position { 
         get { return _position; } 
         set { _position = value; 
+            base.ChangingActorID = RegionSyncServerModule.ActorID;
         } 
     }
     public override float Mass { 
@@ -133,6 +153,7 @@ public class PECharacter : PhysicsActor
     public override Vector3 Force { 
         get { return _force; } 
         set { _force = value; 
+            base.ChangingActorID = RegionSyncServerModule.ActorID;
         } 
     }
 
@@ -153,6 +174,7 @@ public class PECharacter : PhysicsActor
     public override Vector3 Velocity { 
         get { return _velocity; } 
         set { _velocity = value; 
+            base.ChangingActorID = RegionSyncServerModule.ActorID;
         } 
     }
     public override Vector3 Torque { 
@@ -171,6 +193,7 @@ public class PECharacter : PhysicsActor
     public override Quaternion Orientation { 
         get { return _orientation; } 
         set { _orientation = value; 
+            base.ChangingActorID = RegionSyncServerModule.ActorID;
         } 
     }
     public override int PhysicsActorType { 

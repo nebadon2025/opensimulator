@@ -379,10 +379,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 UUID uuid = data["uuid"].AsUUID();
                 string actorID = data["actorID"].AsString();
-                // m_log.DebugFormat("{0}: HandlPhysUpdateAttributes for {1}", LogHeader, uuid);
+                m_log.DebugFormat("{0}: HandlPhysUpdateAttributes for {1}", LogHeader, uuid);
                 PhysicsActor pa = FindPhysicsActor(uuid);
                 if (pa != null)
                 {
+                    if (pa.PhysicsActorType == (int)ActorTypes.Prim)
+                    {
+                        m_log.WarnFormat("{0}: HandlePhysUpdateAttributes for an prim: {1}", LogHeader, pa.UUID);
+                    }
                     // pa.Size = data["size"].AsVector3();
                     pa.Position = data["position"].AsVector3();
                     pa.Force = data["force"].AsVector3();
@@ -436,6 +440,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void SendPhysUpdateAttributes(PhysicsActor pa)
         {
             // m_log.DebugFormat("{0}: SendPhysUpdateAttributes for {1}", LogHeader, pa.UUID);
+            if (pa.PhysicsActorType == (int)ActorTypes.Prim)
+            {
+                m_log.WarnFormat("{0}: SendPhysUpdateAttributes for an prim: {1}", LogHeader, pa.UUID);
+            }
             OSDMap data = new OSDMap(17);
             data["time"] = OSD.FromString(DateTime.Now.ToString("yyyyMMddHHmmssfff"));
             data["localID"] = OSD.FromUInteger(pa.LocalID);

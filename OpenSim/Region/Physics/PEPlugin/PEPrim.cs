@@ -96,7 +96,7 @@ public sealed class PEPrim : PhysicsActor
     }
     public override PrimitiveBaseShape Shape { 
         set { _pbs = value; 
-            m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Shape");
+            // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Shape");
             // SyncUpdated = true;
         } 
     }
@@ -109,12 +109,12 @@ public sealed class PEPrim : PhysicsActor
     }
     public override bool Grabbed { 
         set { _grabbed = value; 
-            m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Grabbed");
+            // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Grabbed");
         } 
     }
     public override bool Selected { 
         set { _selected = value; 
-            m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Selected");
+            // m_log.Debug("[REMOTE PRIM ENGINE] PEPrim set Selected");
         } 
     }
     public override void CrossingFailure() { return; }

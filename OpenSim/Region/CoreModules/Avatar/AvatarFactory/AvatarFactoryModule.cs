@@ -254,8 +254,6 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
         /// </summary>
         public void QueueAppearanceSend(UUID agentid)
         {
-            // m_log.WarnFormat("[AVFACTORY]: Queue appearance send for {0}", agentid);
-
             // 10000 ticks per millisecond, 1000 milliseconds per second
             long timestamp = DateTime.Now.Ticks + Convert.ToInt64(m_sendtime * 1000 * 10000);
             lock (m_sendqueue)
@@ -263,7 +261,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                 m_sendqueue[agentid] = timestamp;
                 m_updateTimer.Start();
             }
-            m_log.WarnFormat("[AVFACTORY]: Queue appearance send for {0} at {1} (now is {2})", agentid, timestamp,DateTime.Now.Ticks);
+            //m_log.DebugFormat("[AVFACTORY]: Queue appearance send for {0} at {1} (now is {2})", agentid, timestamp,DateTime.Now.Ticks);
         }
 
         public void QueueAppearanceSave(UUID agentid)
@@ -382,7 +380,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                 {
                     if (kvp.Value < now)
                     {
-                        m_log.WarnFormat("[AVFACTORY]: send appearance for {0} at time {1}", kvp.Key, now);
+                        m_log.DebugFormat("[AVFACTORY]: send appearance for {0} at time {1}", kvp.Key, now);
                         Util.FireAndForget(delegate(object o) { HandleAppearanceSend(kvp.Key); });
                         m_sendqueue.Remove(kvp.Key);
                     }

@@ -271,7 +271,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 m_presenceUpdates[presence.UUID] = presence;
             }
-            m_log.DebugFormat("[REGION SYNC SERVER MODULE] QueuePresenceForUpdate: {0}", presence.UUID.ToString());
+            //m_log.DebugFormat("[REGION SYNC SERVER MODULE] QueuePresenceForUpdate: {0}", presence.UUID.ToString());
         }
 
         public void SendUpdates()

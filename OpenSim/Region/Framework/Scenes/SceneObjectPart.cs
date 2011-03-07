@@ -166,7 +166,7 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_physActor; }
             set
             {
-                m_log.DebugFormat("[SCENE OBJECT PART]: PhysActor set to {0} for {1} {2}", value, Name, UUID);
+                //m_log.DebugFormat("[SCENE OBJECT PART]: PhysActor set to {0} for {1} {2}", value, Name, UUID);
                 m_physActor = value;
             }
         }
@@ -5450,6 +5450,7 @@ namespace OpenSim.Region.Framework.Scenes
                 localPart.EveryoneMask = updatedPart.EveryoneMask;
                 localPart.NextOwnerMask = updatedPart.NextOwnerMask;
                 localPart.Flags = updatedPart.Flags;
+                localPart.LocalFlags = updatedPart.LocalFlags;
 
                 //We will update CollisionSound with special care so that it does not lead to ScheduleFullUpdate of this part, to make the actor think it just made an update and 
                 //need to propogate that update to other actors.
@@ -5830,8 +5831,8 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (updatedProperties != null && updatedProperties.Count > 0)
             {
-                m_log.DebugFormat("{0}: Tainting bucket for properties {1}", 
-                            "[SCENE OBJECT PART]", updatedProperties.ToString());
+                //m_log.DebugFormat("{0}: Tainting bucket for properties {1}", 
+                //            "[SCENE OBJECT PART]", updatedProperties.ToString());
                 foreach (SceneObjectPartProperties property in updatedProperties)
                 {
                     TaintBucketSyncInfo(property);

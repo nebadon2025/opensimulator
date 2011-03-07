@@ -752,7 +752,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 data["LastUpdateActorID"] = OSD.FromString(updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID);
 
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedBucketProperties, OSDParser.SerializeJsonString(data));
-                m_log.DebugFormat("{0}: PhysBucketSender for {1}, pos={2}", LogHeader, updatedPart.UUID.ToString(), pa.Position.ToString());
+                //m_log.DebugFormat("{0}: PhysBucketSender for {1}, pos={2}", LogHeader, updatedPart.UUID.ToString(), pa.Position.ToString());
                 SendObjectUpdateToRelevantSyncConnectors(updatedPart, syncMsg);
             }
         }
@@ -1268,8 +1268,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 HashSet<SyncConnector> newlist = new HashSet<SyncConnector>(currentlist);
                 newlist.Remove(syncConnector);
 
+                if (newlist.Count == 0)
+                {
+                    m_synced = false;
+                }
+
                 m_syncConnectors = newlist;
             }
+
         }
 
         public void StopAllSyncConnectors()
@@ -1517,7 +1523,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             UUID partUUID = data["UUID"].AsUUID();
             string bucketName = data["Bucket"].AsString();
 
-            m_log.DebugFormat("{0}: HandleUpdatedBucketProperties {1}: for {2}/{3}", LogHeader, senderActorID, partUUID.ToString(), bucketName);
+            //m_log.DebugFormat("{0}: HandleUpdatedBucketProperties {1}: for {2}/{3}", LogHeader, senderActorID, partUUID.ToString(), bucketName);
 
             /* Commented out since OSDMap is now passed all the way through to the unpacker.
              * Previous implementation is to create a SOP and copy the values into same and copy them out later.

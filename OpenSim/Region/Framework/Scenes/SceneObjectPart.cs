@@ -5513,7 +5513,7 @@ namespace OpenSim.Region.Framework.Scenes
             SceneObjectPart localPart = this;
             PhysicsActor pa = localPart.PhysActor;
 
-            m_log.DebugFormat("{0}: PhysicsBucketUpdateProcessor. pos={1}", "[SCENE OBJECT PART]", data["Position"].AsVector3().ToString());
+            //m_log.DebugFormat("{0}: PhysicsBucketUpdateProcessor. pos={1}", "[SCENE OBJECT PART]", data["Position"].AsVector3().ToString());
 
             lock (m_bucketUpdateLocks[bucketName])
             {

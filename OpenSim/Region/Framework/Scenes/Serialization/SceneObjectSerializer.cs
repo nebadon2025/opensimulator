@@ -330,7 +330,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             m_SOPXmlProcessors.Add("ParticleSystem", ProcessParticleSystem);
 
             //SYMMETRIC SYNC
-            //m_SOPXmlProcessors.Add("LocalFlags", ProcessLocalFlags);
+            m_SOPXmlProcessors.Add("LocalFlags", ProcessLocalFlags);
             //m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
             //m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
             m_SOPXmlProcessors.Add("IsAttachment", ProcessIsAttachment);
@@ -718,13 +718,14 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         {
             obj.LastUpdateActorID = reader.ReadElementContentAsString("LastUpdateActorID", string.Empty);
         }
+         * */ 
          
 
         private static void ProcessLocalFlags(SceneObjectPart obj, XmlTextReader reader)
         {
             obj.LocalFlags = Util.ReadEnum<PrimFlags>(reader, "LocalFlags");
         }
-         * */
+         
 
         private static void ProcessIsAttachment(SceneObjectPart obj, XmlTextReader reader)
         {
@@ -1273,7 +1274,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             writer.WriteElementString("NextOwnerMask", sop.NextOwnerMask.ToString());
             //SYMMETRIC SYNC: also serialize SceneObjectPart:LocalFlags, so that it can be propogated across actors
             WriteFlags(writer, "Flags", sop.Flags.ToString(), options);
-            //WriteFlags(writer, "LocalFlags", sop.LocalFlags.ToString(), options);
+            WriteFlags(writer, "LocalFlags", sop.LocalFlags.ToString(), options);
             //end SYMMETRIC SYNC
             WriteUUID(writer, "CollisionSound", sop.CollisionSound, options);
             writer.WriteElementString("CollisionSoundVolume", sop.CollisionSoundVolume.ToString());

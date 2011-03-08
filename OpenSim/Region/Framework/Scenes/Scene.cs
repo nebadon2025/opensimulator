@@ -83,6 +83,13 @@ namespace OpenSim.Region.Framework.Scenes
         public bool m_useFlySlow;
         public bool m_usePreJump;
         public bool m_seeIntoRegionFromNeighbor;
+
+        protected float m_defaultDrawDistance = 255.0f;
+        public float DefaultDrawDistance 
+        {
+            get { return m_defaultDrawDistance; }
+        }
+        
         // TODO: need to figure out how allow client agents but deny
         // root agents when ACL denies access to root agent
         public bool m_strictAccessControl = true;
@@ -129,7 +136,16 @@ namespace OpenSim.Region.Framework.Scenes
         protected ICapabilitiesModule m_capsModule;
         // Central Update Loop
         protected int m_fps = 10;
-        protected uint m_frame;
+
+        /// <summary>
+        /// Current scene frame number
+        /// </summary>
+        public uint Frame
+        {
+            get;
+            protected set;
+        }
+
         protected float m_timespan = 0.089f;
         protected DateTime m_lastupdate = DateTime.UtcNow;
 
@@ -1027,15 +1043,13 @@ namespace OpenSim.Region.Framework.Scenes
                 //
                 IConfig startupConfig = m_config.Configs["Startup"];
 
+                m_defaultDrawDistance = startupConfig.GetFloat("DefaultDrawDistance",m_defaultDrawDistance);
+                
                 //Animation states
                 m_useFlySlow = startupConfig.GetBoolean("enableflyslow", false);
                 // TODO: Change default to true once the feature is supported
                 m_usePreJump = startupConfig.GetBoolean("enableprejump", false);
 
-                m_maxNonphys = 256f;
-                m_maxPhys = 256f;
-
-                /*
                 m_maxNonphys = startupConfig.GetFloat("NonPhysicalPrimMax", m_maxNonphys);
                 if (RegionInfo.NonphysPrimMax > 0)
                 {
@@ -1048,7 +1062,6 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     m_maxPhys = RegionInfo.PhysPrimMax;
                 }
-                */
 
                 // Here, if clamping is requested in either global or
                 // local config, it will be used
@@ -1422,7 +1435,7 @@ namespace OpenSim.Region.Framework.Scenes
         // This is the method that shuts down the scene.
         public override void Close()
         {
-            m_log.InfoFormat("[SCENE]: Closing down the single simulator: {0}", m_regionName);
+            m_log.InfoFormat("[SCENE]: Closing down the single simulator: {0}", RegionInfo.RegionName);
 
             m_restartTimer.Stop();
             m_restartTimer.Close();
@@ -1449,7 +1462,7 @@ namespace OpenSim.Region.Framework.Scenes
             //m_heartbeatTimer.Close();
             shuttingdown = true;
 
-            m_log.DebugFormat("[SCENE ({0})]: Persisting changed objects", m_regionName);
+            m_log.Debug("[SCENE]: Persisting changed objects for region " + m_regionName);
             EntityBase[] entities = GetEntities();
             foreach (EntityBase entity in entities)
             {
@@ -1617,7 +1630,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             try
             {
-                Update();
+                while (!shuttingdown)
+                    Update();
 
                 m_lastUpdate = Util.EnvironmentTickCount();
                 m_firstHeartbeat = false;
@@ -1634,229 +1648,205 @@ namespace OpenSim.Region.Framework.Scenes
             Watchdog.RemoveThread();
         }
 
-        /// <summary>
-        /// Performs per-frame updates on the scene, this should be the central scene loop
-        /// </summary>
         public override void Update()
-        {
-            float physicsFPS;
-            int maintc;
+        {        
+            TimeSpan SinceLastFrame = DateTime.UtcNow - m_lastupdate;
+            float physicsFPS = 0f;
 
-            while (!shuttingdown)
+            int maintc = Util.EnvironmentTickCount();
+            int tmpFrameMS = maintc;
+            tempOnRezMS = eventMS = backupMS = terrainMS = landMS = 0;
+
+            // Increment the frame counter
+            ++Frame;
+
+            try
             {
-                TimeSpan SinceLastFrame = DateTime.UtcNow - m_lastupdate;
-                physicsFPS = 0f;
+                // Check if any objects have reached their targets
+                CheckAtTargets();
 
-                maintc = Util.EnvironmentTickCount();
-                int tmpFrameMS = maintc;
-                tempOnRezMS = eventMS = backupMS = terrainMS = landMS = 0;
+                // Update SceneObjectGroups that have scheduled themselves for updates
+                // Objects queue their updates onto all scene presences
+                if (Frame % m_update_objects == 0)
+                    m_sceneGraph.UpdateObjectGroups();
 
-                // Increment the frame counter
-                ++m_frame;
-
-                try
+                // Run through all ScenePresences looking for updates
+                // Presence updates and queued object updates for each presence are sent to clients
+                if (IsSyncedClient())
                 {
-                    // Check if any objects have reached their targets
-                    CheckAtTargets();
-
-                    // Update SceneObjectGroups that have scheduled themselves for updates
-                    // Objects queue their updates onto all scene presences
-                    if (m_frame % m_update_objects == 0)
-                        m_sceneGraph.UpdateObjectGroups();
-
-                    // Run through all ScenePresences looking for updates
-                    // Presence updates and queued object updates for each presence are sent to clients
-                    // If it's a client manager, just send prim updates
-                    // This will get fixed later to only send to locally logged in presences rather than all presences
-                    // but requires pulling apart the concept of a client from the concept of a presence/avatar
-                    if (IsSyncedClient())
-
-                    {
-                        ForEachScenePresence(delegate(ScenePresence sp) { sp.SendPrimUpdates(); });
-                        if(m_frame % 20 == 0)
-                            RegionSyncClientModule.SendCoarseLocations();
-                        // make border crossing work in the CMs
-                        m_sceneGraph.ForEachScenePresence(delegate(ScenePresence sp)
-                        {
+                // If it's a client manager, just send prim updates
+                // This will get fixed later to only send to locally logged in presences rather than all presences
+                // but requires pulling apart the concept of a client from the concept of a presence/avatar
+                    ForEachScenePresence(delegate(ScenePresence sp) { sp.SendPrimUpdates(); });
+                    if(Frame % 20 == 0)
+                        RegionSyncClientModule.SendCoarseLocations();
+                    // make border crossing work in the CMs
+                    m_sceneGraph.ForEachScenePresence(delegate(ScenePresence sp)
+                            {
                             if (!sp.IsChildAgent)
                             {
-                                // Check that we have a physics actor or we're sitting on something
-                                if (sp.ParentID == 0 && sp.PhysicsActor != null || sp.ParentID != 0)
-                                {
-                                    sp.CheckForBorderCrossing();
-                                }
+                            // Check that we have a physics actor or we're sitting on something
+                            if (sp.ParentID == 0 && sp.PhysicsActor != null || sp.ParentID != 0)
+                            {
+                            sp.CheckForBorderCrossing();
                             }
-                        });
-                    }
-                    else
-                    {
-                        if (m_frame % m_update_presences == 0)
-                            m_sceneGraph.UpdatePresences();
-                    }
-
-                    // REGION SYNC
-                    // If this is a synced server, send updates to client managers at this time
-                    // This batches updates, but the client manager will forward on to clients without
-                    // additional delay
-                    if (IsSyncedServer())
-                    {
-                        m_regionSyncServerModule.SendUpdates();
-                    }
-
-                    //SYMMETRIC SYNC
-
-                    //NOTE: If it is configured as symmetric sync in opensim.ini, the above IsSyncedServer() or IsSyncedClient() should all return false
-                    if (RegionSyncModule != null)
-                    {
-                        RegionSyncModule.SendSceneUpdates();
-                    }
-                    //end of SYMMETRIC SYNC
-
-                    int tmpPhysicsMS2 = Util.EnvironmentTickCount();
-                    // Do not simulate physics locally if this is a synced client
-                    //if (!IsSyncedClient())
-                    if (IsSyncedServer() || IsPhysEngineActor())
-                    {
-                        if ((m_frame % m_update_physics == 0) && m_physics_enabled)
-                            m_sceneGraph.UpdatePreparePhysics();
-                    }
-                    physicsMS2 = Util.EnvironmentTickCountSubtract(tmpPhysicsMS2);
-
-                    // Do not simulate physics locally if this is a synced client
-                    //if (!IsSyncedClient())
-                    if (IsSyncedServer() || IsPhysEngineActor())
-                    {
-                        if (m_frame % m_update_entitymovement == 0)
-                            m_sceneGraph.UpdateScenePresenceMovement();
-                    }
-
-                    // Perform the main physics update.  This will do the actual work of moving objects and avatars according to their
-                    // velocity
-                    int tmpPhysicsMS = Util.EnvironmentTickCount();
-                    // Do not simulate physics locally if this is a synced client
-                    //if (!IsSyncedClient())
-                    if (IsSyncedServer() || IsPhysEngineActor())
-                    {
-                        if (m_frame % m_update_physics == 0)
-                        {
-                            if (m_physics_enabled)
-                                physicsFPS = m_sceneGraph.UpdatePhysics(Math.Max(SinceLastFrame.TotalSeconds, m_timespan));
-                            if (SynchronizeScene != null)
-                                SynchronizeScene(this);
-                        }
-                    }
-                    physicsMS = Util.EnvironmentTickCountSubtract(tmpPhysicsMS);
-
-                    // Delete temp-on-rez stuff
-                    if (m_frame % 1000 == 0 && !m_cleaningTemps)
-                    {
-                        int tmpTempOnRezMS = Util.EnvironmentTickCount();
-                        m_cleaningTemps = true;
-                        Util.FireAndForget(delegate { CleanTempObjects(); m_cleaningTemps = false;  });
-                        tempOnRezMS = Util.EnvironmentTickCountSubtract(tmpTempOnRezMS);
-                    }
-
-                    if (RegionStatus != RegionStatus.SlaveScene)
-                    {
-                        if (m_frame % m_update_events == 0)
-                        {
-                            int evMS = Util.EnvironmentTickCount();
-                            UpdateEvents();
-                            eventMS = Util.EnvironmentTickCountSubtract(evMS); ;
-                        }
-
-                        if (m_frame % m_update_backup == 0)
-                        {
-                            int backMS = Util.EnvironmentTickCount();
-                            UpdateStorageBackup();
-                            backupMS = Util.EnvironmentTickCountSubtract(backMS);
-                        }
-
-                        if (m_frame % m_update_terrain == 0)
-                        {
-                            int terMS = Util.EnvironmentTickCount();
-                            UpdateTerrain();
-                            terrainMS = Util.EnvironmentTickCountSubtract(terMS);
-                        }
-
-                        //if (m_frame % m_update_land == 0)
-                        //{
-                        //    int ldMS = Util.EnvironmentTickCount();
-                        //    UpdateLand();
-                        //    landMS = Util.EnvironmentTickCountSubtract(ldMS);
-                        //}
-
-                        frameMS = Util.EnvironmentTickCountSubtract(tmpFrameMS);
-                        otherMS = tempOnRezMS + eventMS + backupMS + terrainMS + landMS;
-                        lastCompletedFrame = Util.EnvironmentTickCount();
-
-                        // if (m_frame%m_update_avatars == 0)
-                        //   UpdateInWorldTime();
-                        StatsReporter.AddPhysicsFPS(physicsFPS);
-                        StatsReporter.AddTimeDilation(TimeDilation);
-                        StatsReporter.AddFPS(1);
-                        StatsReporter.SetRootAgents(m_sceneGraph.GetRootAgentCount());
-                        StatsReporter.SetChildAgents(m_sceneGraph.GetChildAgentCount());
-                        StatsReporter.SetObjects(m_sceneGraph.GetTotalObjectsCount());
-                        StatsReporter.SetActiveObjects(m_sceneGraph.GetActiveObjectsCount());
-                        StatsReporter.addFrameMS(frameMS);
-                        StatsReporter.addPhysicsMS(physicsMS + physicsMS2);
-                        StatsReporter.addOtherMS(otherMS);
-                        StatsReporter.SetActiveScripts(m_sceneGraph.GetActiveScriptsCount());
-                        StatsReporter.addScriptLines(m_sceneGraph.GetScriptLPS());
-                    }
-
-                    if (LoginsDisabled && m_frame == 20)
-                    {
-                        // In 99.9% of cases it is a bad idea to manually force garbage collection. However,
-                        // this is a rare case where we know we have just went through a long cycle of heap
-                        // allocations, and there is no more work to be done until someone logs in
-                        GC.Collect();
-
-                        IConfig startupConfig = m_config.Configs["Startup"];
-                        if (startupConfig == null || !startupConfig.GetBoolean("StartDisabled", false))
-                        {
-                            m_log.DebugFormat("[REGION]: Enabling logins for {0}", RegionInfo.RegionName);
-                            LoginsDisabled = false;
-                            m_sceneGridService.InformNeighborsThatRegionisUp(RequestModuleInterface<INeighbourService>(), RegionInfo);
-                        }
-                    }
+                            }
+                            });
                 }
-                catch (NotImplementedException)
+                else
                 {
-                    throw;
-                }
-                catch (AccessViolationException e)
-                {
-                    m_log.Error("[REGION]: Failed with exception " + e.ToString() + " On Region: " + RegionInfo.RegionName);
-                }
-                //catch (NullReferenceException e)
-                //{
-                //   m_log.Error("[REGION]: Failed with exception " + e.ToString() + " On Region: " + RegionInfo.RegionName);
-                //}
-                catch (InvalidOperationException e)
-                {
-                    m_log.Error("[REGION]: Failed with exception " + e.ToString() + " On Region: " + RegionInfo.RegionName);
-                }
-                catch (Exception e)
-                {
-                    m_log.Error("[REGION]: Failed with exception " + e.ToString() + " On Region: " + RegionInfo.RegionName);
-                }
-                finally
-                {
-                    m_lastupdate = DateTime.UtcNow;
+                    if (Frame % m_update_presences == 0)
+                        m_sceneGraph.UpdatePresences();
                 }
 
-                maintc = Util.EnvironmentTickCountSubtract(maintc);
-                maintc = (int)(m_timespan * 1000) - maintc;
+                // REGION SYNC
+                // If this is a synced server, send updates to client managers at this time
+                // This batches updates, but the client manager will forward on to clients without
+                // additional delay
+                if (IsSyncedServer())
+                {
+                    m_regionSyncServerModule.SendUpdates();
+                }
 
-                if (maintc > 0)
-                    Thread.Sleep(maintc);
+                //SYMMETRIC SYNC
 
-                // Tell the watchdog that this thread is still alive
-                Watchdog.UpdateThread();
+                //NOTE: If it is configured as symmetric sync in opensim.ini, the above IsSyncedServer() or IsSyncedClient() should all return false
+                if (RegionSyncModule != null)
+                {
+                    RegionSyncModule.SendSceneUpdates();
+                }
+                //end of SYMMETRIC SYNC
+
+                int tmpPhysicsMS2 = Util.EnvironmentTickCount();
+                if ((Frame % m_update_physics == 0) && m_physics_enabled && (IsSyncedServer() || IsPhysEngineActor()))
+                    m_sceneGraph.UpdatePreparePhysics();
+                physicsMS2 = Util.EnvironmentTickCountSubtract(tmpPhysicsMS2);
+
+                // Apply any pending avatar force input to the avatar's velocity
+                if (Frame % m_update_entitymovement == 0 && (IsSyncedServer() || IsPhysEngineActor()))
+                    m_sceneGraph.UpdateScenePresenceMovement();
+
+                // Perform the main physics update.  This will do the actual work of moving objects and avatars according to their
+                // velocity
+                int tmpPhysicsMS = Util.EnvironmentTickCount();
+                if (Frame % m_update_physics == 0 && (IsSyncedServer() || IsPhysEngineActor()))
+                {
+                    if (m_physics_enabled)
+                        physicsFPS = m_sceneGraph.UpdatePhysics(Math.Max(SinceLastFrame.TotalSeconds, m_timespan));
+                    if (SynchronizeScene != null)
+                        SynchronizeScene(this);
+                }
+                physicsMS = Util.EnvironmentTickCountSubtract(tmpPhysicsMS);
+
+                // Delete temp-on-rez stuff
+                if (Frame % 1000 == 0 && !m_cleaningTemps)
+                {
+                    int tmpTempOnRezMS = Util.EnvironmentTickCount();
+                    m_cleaningTemps = true;
+                    Util.FireAndForget(delegate { CleanTempObjects(); m_cleaningTemps = false;  });
+                    tempOnRezMS = Util.EnvironmentTickCountSubtract(tmpTempOnRezMS);
+                }
+
+                if (RegionStatus != RegionStatus.SlaveScene)
+                {
+                    if (Frame % m_update_events == 0)
+                    {
+                        int evMS = Util.EnvironmentTickCount();
+                        UpdateEvents();
+                        eventMS = Util.EnvironmentTickCountSubtract(evMS); ;
+                    }
+
+                    if (Frame % m_update_backup == 0)
+                    {
+                        int backMS = Util.EnvironmentTickCount();
+                        UpdateStorageBackup();
+                        backupMS = Util.EnvironmentTickCountSubtract(backMS);
+                    }
+
+                    if (Frame % m_update_terrain == 0)
+                    {
+                        int terMS = Util.EnvironmentTickCount();
+                        UpdateTerrain();
+                        terrainMS = Util.EnvironmentTickCountSubtract(terMS);
+                    }
+
+                    //if (Frame % m_update_land == 0)
+                    //{
+                    //    int ldMS = Util.EnvironmentTickCount();
+                    //    UpdateLand();
+                    //    landMS = Util.EnvironmentTickCountSubtract(ldMS);
+                    //}
+
+                    frameMS = Util.EnvironmentTickCountSubtract(tmpFrameMS);
+                    otherMS = tempOnRezMS + eventMS + backupMS + terrainMS + landMS;
+                    lastCompletedFrame = Util.EnvironmentTickCount();
+
+                    // if (Frame%m_update_avatars == 0)
+                    //   UpdateInWorldTime();
+                    StatsReporter.AddPhysicsFPS(physicsFPS);
+                    StatsReporter.AddTimeDilation(TimeDilation);
+                    StatsReporter.AddFPS(1);
+                    StatsReporter.SetRootAgents(m_sceneGraph.GetRootAgentCount());
+                    StatsReporter.SetChildAgents(m_sceneGraph.GetChildAgentCount());
+                    StatsReporter.SetObjects(m_sceneGraph.GetTotalObjectsCount());
+                    StatsReporter.SetActiveObjects(m_sceneGraph.GetActiveObjectsCount());
+                    StatsReporter.addFrameMS(frameMS);
+                    StatsReporter.addPhysicsMS(physicsMS + physicsMS2);
+                    StatsReporter.addOtherMS(otherMS);
+                    StatsReporter.SetActiveScripts(m_sceneGraph.GetActiveScriptsCount());
+                    StatsReporter.addScriptLines(m_sceneGraph.GetScriptLPS());
+                }
+
+                if (LoginsDisabled && Frame == 20)
+                {
+                    // In 99.9% of cases it is a bad idea to manually force garbage collection. However,
+                    // this is a rare case where we know we have just went through a long cycle of heap
+                    // allocations, and there is no more work to be done until someone logs in
+                    GC.Collect();
+
+                    IConfig startupConfig = m_config.Configs["Startup"];
+                    if (startupConfig == null || !startupConfig.GetBoolean("StartDisabled", false))
+                    {
+                        m_log.DebugFormat("[REGION]: Enabling logins for {0}", RegionInfo.RegionName);
+                        LoginsDisabled = false;
+                        m_sceneGridService.InformNeighborsThatRegionisUp(RequestModuleInterface<INeighbourService>(), RegionInfo);
+                    }
+                }
             }
-        }
+            catch (NotImplementedException)
+            {
+                throw;
+            }
+            catch (AccessViolationException e)
+            {
+                m_log.Error("[REGION]: Failed with exception " + e.ToString() + " On Region: " + RegionInfo.RegionName);
+            }
+            //catch (NullReferenceException e)
+            //{
+            //   m_log.Error("[REGION]: Failed with exception " + e.ToString() + " On Region: " + RegionInfo.RegionName);
+            //}
+            catch (InvalidOperationException e)
+            {
+                m_log.Error("[REGION]: Failed with exception " + e.ToString() + " On Region: " + RegionInfo.RegionName);
+            }
+            catch (Exception e)
+            {
+                m_log.Error("[REGION]: Failed with exception " + e.ToString() + " On Region: " + RegionInfo.RegionName);
+            }
+            finally
+            {
+                m_lastupdate = DateTime.UtcNow;
+            }
+
+            maintc = Util.EnvironmentTickCountSubtract(maintc);
+            maintc = (int)(m_timespan * 1000) - maintc;
+
+            if (maintc > 0)
+                Thread.Sleep(maintc);
+
+            // Tell the watchdog that this thread is still alive
+            Watchdog.UpdateThread();
+        }        
 
         public void GetCoarseLocations(out List<UUID> ids, out List<Vector3> locations)
         {
@@ -3565,7 +3555,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                     // If there is a CAPS handler, remove it now. 
                     // A Synced server region will not have a CAPS handler for its presences
-                    if(CapsModule.GetCapsHandlerForUser(agentID) != null)
+                    if(CapsModule != null && CapsModule.GetCapsHandlerForUser(agentID) != null)
                         CapsModule.RemoveCapsHandler(agentID);
 
                     // REFACTORING PROBLEM -- well not really a problem, but just to point out that whatever
@@ -3777,7 +3767,7 @@ namespace OpenSim.Region.Framework.Scenes
             // TeleportFlags.ViaLandmark | TeleportFlags.ViaLocation | TeleportFlags.ViaLandmark | TeleportFlags.Default - Regular Teleport
 
             // Don't disable this log message - it's too helpful
-            m_log.InfoFormat(
+            m_log.DebugFormat(
                 "[CONNECTION BEGIN]: Region {0} told of incoming {1} agent {2} {3} {4} (circuit code {5}, teleportflags {6})",
                 RegionInfo.RegionName, (agent.child ? "child" : "root"), agent.firstname, agent.lastname,
                 agent.AgentID, agent.circuitcode, teleportFlags);
@@ -3843,8 +3833,11 @@ namespace OpenSim.Region.Framework.Scenes
                     RegionInfo.RegionName, (agent.child ? "child" : "root"), agent.firstname, agent.lastname,
                     agent.AgentID, agent.circuitcode);
 
-                CapsModule.NewUserConnection(agent);
-                CapsModule.AddCapsHandler(agent.AgentID);
+                if (CapsModule != null)
+                {
+                    CapsModule.NewUserConnection(agent);
+                    CapsModule.AddCapsHandler(agent.AgentID);
+                }
             }
             else
             {
@@ -3859,7 +3852,9 @@ namespace OpenSim.Region.Framework.Scenes
                         agent.AgentID, RegionInfo.RegionName);
 
                     sp.AdjustKnownSeeds();
-                    CapsModule.NewUserConnection(agent);
+                    
+                    if (CapsModule != null)
+                        CapsModule.NewUserConnection(agent);
                 }
             }
 
@@ -4347,15 +4342,15 @@ namespace OpenSim.Region.Framework.Scenes
         public void RequestTeleportLocation(IClientAPI remoteClient, string regionName, Vector3 position,
                                             Vector3 lookat, uint teleportFlags)
         {
-            GridRegion regionInfo = GridService.GetRegionByName(UUID.Zero, regionName);
-            if (regionInfo == null)
+            List<GridRegion> regions = GridService.GetRegionsByName(RegionInfo.ScopeID, regionName, 1);
+            if (regions == null || regions.Count == 0)
             {
                 // can't find the region: Tell viewer and abort
                 remoteClient.SendTeleportFailed("The region '" + regionName + "' could not be found.");
                 return;
             }
 
-            RequestTeleportLocation(remoteClient, regionInfo.RegionHandle, position, lookat, teleportFlags);
+            RequestTeleportLocation(remoteClient, regions[0].RegionHandle, position, lookat, teleportFlags);
         }
 
         /// <summary>
@@ -5508,8 +5503,9 @@ namespace OpenSim.Region.Framework.Scenes
         // from logging into the region, teleporting into the region
         // or corssing the broder walking, but will NOT prevent
         // child agent creation, thereby emulating the SL behavior.
-        public bool QueryAccess(UUID agentID, Vector3 position)
+        public bool QueryAccess(UUID agentID, Vector3 position, out string reason)
         {
+            reason = String.Empty;
             return true;
         }
     }

@@ -55,6 +55,7 @@ namespace OpenSim.Region.Framework.Scenes
             ScriptReset,
             ChatFromClient, //chats from avatars
             ChatFromWorld,  //chats from objects
+            ChatBroadcast, //broadcast 
             ObjectGrab,
             ObjectGrabbing,
             ObjectDeGrab,
@@ -154,10 +155,26 @@ namespace OpenSim.Region.Framework.Scenes
         }
         #endregion //ChatFromClient
 
+#region ChatBroadcast
+
+        public override void TriggerOnChatBroadcast(Object sender, OSChatMessage chat)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[2];
+                eventArgs[0] = sender;
+                eventArgs[1] = (Object)chat;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ChatBroadcast, eventArgs);
+            }
+            TriggerOnChatBroadcastLocally(sender, chat);
+        }
+
         public void TriggerOnChatBroadcastLocally(Object sender, OSChatMessage chat) 
         {
             base.TriggerOnChatBroadcast(sender, chat);
         }
+#endregion 
+
 
         #region ChatFromWorld
 
@@ -1874,7 +1891,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerOnChatBroadcast(Object sender, OSChatMessage chat)
+        //public void TriggerOnChatBroadcast(Object sender, OSChatMessage chat)
+        public virtual void TriggerOnChatBroadcast(Object sender, OSChatMessage chat)
         {
             ChatBroadcastEvent handlerChatBroadcast = OnChatBroadcast;
             if (handlerChatBroadcast != null)

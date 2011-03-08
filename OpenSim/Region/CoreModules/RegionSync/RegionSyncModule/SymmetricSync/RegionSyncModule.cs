@@ -522,20 +522,29 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     OnLocalScriptReset((uint)evArgs[0], (UUID)evArgs[1]);
                     return;
                 case EventManager.EventNames.ChatFromClient:
-                    if (evArgs.Length < 2)
+                    /*if (evArgs.Length < 2)
                     {
                         m_log.Error(LogHeader + " not enough event args for ChatFromClient");
                         return;
                     }
                     OnLocalChatFromClient(evArgs[0], (OSChatMessage)evArgs[1]);
-                    return;
+                    return;*/ 
                 case EventManager.EventNames.ChatFromWorld:
-                    if (evArgs.Length < 2)
+                    /*if (evArgs.Length < 2)
                     {
                         m_log.Error(LogHeader + " not enough event args for ChatFromWorld");
                         return;
                     }
                     OnLocalChatFromWorld(evArgs[0], (OSChatMessage)evArgs[1]);
+                    return;*/ 
+                case EventManager.EventNames.ChatBroadcast:
+                    if (evArgs.Length < 2)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for ChatFromWorld");
+                        return;
+                    }
+                    //OnLocalChatBroadcast(evArgs[0], (OSChatMessage)evArgs[1]);
+                    OnLocalChatEvents(ev, evArgs[0], (OSChatMessage)evArgs[1]); 
                     return;
                 case EventManager.EventNames.ObjectGrab:
                     OnLocalGrabObject((uint)evArgs[0], (uint)evArgs[1], (Vector3)evArgs[2], (IClientAPI)evArgs[3], (SurfaceTouchEventArgs)evArgs[4]);
@@ -1442,6 +1451,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.ScriptReset:
                 case SymmetricSyncMessage.MsgType.ChatFromClient:
                 case SymmetricSyncMessage.MsgType.ChatFromWorld:
+                case SymmetricSyncMessage.MsgType.ChatBroadcast:
                 case SymmetricSyncMessage.MsgType.ObjectGrab:
                 case SymmetricSyncMessage.MsgType.ObjectGrabbing:
                 case SymmetricSyncMessage.MsgType.ObjectDeGrab:
@@ -1767,10 +1777,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     HandleRemoteEvent_OnScriptReset(init_actorID, evSeqNum, data);
                     break;
                 case SymmetricSyncMessage.MsgType.ChatFromClient:
-                    HandleRemoteEvent_OnChatFromClient(init_actorID, evSeqNum, data);
-                    break;
+                    //HandleRemoteEvent_OnChatFromClient(init_actorID, evSeqNum, data);
+                    //break;
                 case SymmetricSyncMessage.MsgType.ChatFromWorld:
-                    HandleRemoteEvent_OnChatFromWorld(init_actorID, evSeqNum, data);
+                    //HandleRemoteEvent_OnChatFromWorld(init_actorID, evSeqNum, data);
+                    //break;
+                case SymmetricSyncMessage.MsgType.ChatBroadcast:
+                    //HandleRemoteEvent_OnChatBroadcast(init_actorID, evSeqNum, data);
+                    HandleRemoveEvent_OnChatEvents(msg.Type, init_actorID, evSeqNum, data);
                     break;
                 case SymmetricSyncMessage.MsgType.ObjectGrab:
                     HandleRemoteEvent_OnObjectGrab(init_actorID, evSeqNum, data);
@@ -1878,6 +1892,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.TriggerScriptResetLocally(part.LocalId, itemID);
         }
 
+        /*
         /// <summary>
         /// Special actions for remote event ChatFromClient
         /// </summary>
@@ -1918,7 +1933,50 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //ScenePresence sp;
             //m_scene.TryGetScenePresence(id, out sp);
 
+            m_log.Debug(LogHeader + " TriggerOnChatFromWorldLocally ");
+
             m_scene.EventManager.TriggerOnChatFromWorldLocally(m_scene, args);
+        }
+
+        private void HandleRemoteEvent_OnChatBroadcast(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            
+        }
+         * */ 
+
+        /// <summary>
+        /// Handlers for remote chat events: ChatFromClient, ChatFromWorld, ChatBroadcast
+        /// </summary>
+        /// <param name="msgType"></param>
+        /// <param name="actorID"></param>
+        /// <param name="evSeqNum"></param>
+        /// <param name="data">The args of the event</param>
+        private void HandleRemoveEvent_OnChatEvents(SymmetricSyncMessage.MsgType msgType, string actorID, ulong evSeqNum, OSDMap data)
+        {
+            OSChatMessage args = new OSChatMessage();
+            args.Channel = data["channel"].AsInteger();
+            args.Message = data["msg"].AsString();
+            args.Position = data["pos"].AsVector3();
+            args.From = data["name"].AsString();
+            UUID id = data["id"].AsUUID();
+            args.Scene = m_scene;
+            args.Type = (ChatTypeEnum)data["type"].AsInteger();
+
+            switch (msgType)
+            {
+                case SymmetricSyncMessage.MsgType.ChatFromClient:
+                    ScenePresence sp;
+                    m_scene.TryGetScenePresence(id, out sp);
+                    m_scene.EventManager.TriggerOnChatFromClientLocally(sp, args); //Let WorldCommModule and other modules to catch the event
+                    m_scene.EventManager.TriggerOnChatFromWorldLocally(sp, args); //This is to let ChatModule to get the event and deliver it to avatars
+                    break;
+                case SymmetricSyncMessage.MsgType.ChatFromWorld:
+                    m_scene.EventManager.TriggerOnChatFromWorldLocally(m_scene, args);
+                    break;
+                case SymmetricSyncMessage.MsgType.ChatBroadcast:
+                    m_scene.EventManager.TriggerOnChatBroadcastLocally(m_scene, args);
+                    break;
+            }
         }
 
         /// <summary>
@@ -2129,7 +2187,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptReset, data);
         }
 
-
+        /*
         private void OnLocalChatFromClient(Object sender, OSChatMessage chat)
         {
             ScenePresence avatar = m_scene.GetScenePresence(chat.SenderUUID);
@@ -2162,6 +2220,37 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["id"] = OSD.FromUUID(chat.SenderUUID);
             data["type"] = OSD.FromInteger((int)chat.Type);
             SendSceneEvent(SymmetricSyncMessage.MsgType.ChatFromWorld, data);
+        }
+         * */ 
+
+        private void OnLocalChatBroadcast(Object sender, OSChatMessage chat)
+        {
+
+        }
+
+        private void OnLocalChatEvents(EventManager.EventNames evType, Object sender, OSChatMessage chat)
+        {
+            OSDMap data = new OSDMap();
+            data["channel"] = OSD.FromInteger(chat.Channel);
+            data["msg"] = OSD.FromString(chat.Message);
+            data["pos"] = OSD.FromVector3(chat.Position);
+            data["name"] = OSD.FromString(chat.From); //note this is different from OnLocalChatFromClient
+            data["id"] = OSD.FromUUID(chat.SenderUUID);
+            data["type"] = OSD.FromInteger((int)chat.Type);
+
+            switch (evType)
+            {
+                case EventManager.EventNames.ChatFromClient:
+                    SendSceneEvent(SymmetricSyncMessage.MsgType.ChatFromClient, data);
+                    break;
+                case EventManager.EventNames.ChatFromWorld:
+                    SendSceneEvent(SymmetricSyncMessage.MsgType.ChatFromWorld, data);
+                    break;
+                case EventManager.EventNames.ChatBroadcast:
+                    SendSceneEvent(SymmetricSyncMessage.MsgType.ChatBroadcast, data);
+                    break; 
+            }
+
         }
 
         private void OnLocalAttach(uint localID, UUID itemID, UUID avatarID)

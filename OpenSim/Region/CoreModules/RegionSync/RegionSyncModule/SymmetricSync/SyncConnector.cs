@@ -33,7 +33,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private long msgsOut=0;
         private long bytesIn=0;
         private long bytesOut=0;
-        private int msgCount = 0;
+        private DateTime lastStatTime;
         // A queue for outgoing traffic. 
         private BlockingUpdateQueue m_outQ = new BlockingUpdateQueue();
 
@@ -69,8 +69,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get
             {
                 if (m_syncOtherSideRegionName == null)
-                    return String.Format("SyncConnector #{0}", m_connectorNum);
-                return String.Format("SyncConnector #{0} (Actor {2}, Region {1:10})", m_connectorNum, m_syncOtherSideRegionName, m_syncOtherSideActorID);
+                    return String.Format("SyncConnector#{0}", m_connectorNum);
+                return String.Format("SyncConnector#{0}(A={2},R={1:10})",
+                            m_connectorNum, m_syncOtherSideRegionName, m_syncOtherSideActorID);
             }
         }
 
@@ -84,6 +85,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_tcpConnection = tcpclient;
             m_connectorNum = connectorNum;
             m_regionSyncModule = syncModule;
+            lastStatTime = DateTime.Now;
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         }
 
@@ -97,6 +99,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_remoteListenerInfo = listenerInfo;
             m_connectorNum = connectorNum;
             m_regionSyncModule = syncModule;
+            lastStatTime = DateTime.Now;
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         }
 
@@ -261,7 +264,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void HandleMessage(SymmetricSyncMessage msg)
         {
 
-            msgCount++;
+            msgsIn++;
+            bytesIn += msg.Data.Length;
             switch (msg.Type)
             {
                 case SymmetricSyncMessage.MsgType.RegionName:
@@ -293,6 +297,27 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //For any other messages, we simply deliver the message to RegionSyncModule for now.
             //Later on, we may deliver messages to different modules, say sync message to RegionSyncModule and event message to ActorSyncModule.
             m_regionSyncModule.HandleIncomingMessage(msg, m_syncOtherSideActorID);
+        }
+
+        public string StatusLine()
+        {
+            string statLine = "";
+            lock (stats)
+            {
+                double secondsSinceLastStats = DateTime.Now.Subtract(lastStatTime).TotalSeconds;
+                lastStatTime = DateTime.Now;
+                statLine = String.Format("{0},{1},{2},{3},{4},{5},{6}",
+                        msgsIn, msgsOut, bytesIn, bytesOut, m_outQ.Count,
+                        8 * (bytesIn / secondsSinceLastStats / 1000000),
+                        8 * (bytesOut / secondsSinceLastStats / 1000000) );
+                msgsIn = msgsOut = bytesIn = bytesOut = 0;
+            }
+            return statLine;
+        }
+
+        public static string StatusTitle()
+        {
+            return "msgsIn,msgsOut,queueSize,Mbps In,Mbps Out";
         }
     }
 }

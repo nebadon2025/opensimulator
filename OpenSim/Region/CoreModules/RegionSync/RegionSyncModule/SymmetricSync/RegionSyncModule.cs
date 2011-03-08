@@ -1163,8 +1163,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void SyncStatus(Object[] args)
         {
-            //TO BE IMPLEMENTED
-            m_log.Warn("[REGION SYNC MODULE]: SyncStatus() TO BE IMPLEMENTED !!!");
+            m_log.WarnFormat("[REGION SYNC MODULE]: Description: {0}", SyncConnector.StatusTitle());
+            ForEachSyncConnector(delegate(SyncConnector connector)
+            {
+                m_log.WarnFormat("{0}: {1}: {2}", "[REGION SYNC MODULE}", connector.Description, connector.StatusLine());
+            });
         }
 
         private void SyncDebug(Object[] args)

@@ -508,6 +508,7 @@ namespace OpenSim.Region.Framework.Scenes
             //Only Auth. Scene should trigger scritp rez by remote script engine.
             return IsSyncedServer();
         }
+        
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         //RA: Physics Engine

@@ -333,11 +333,13 @@ namespace OpenSim.Region.Framework.Scenes
             ArrayList errors = new ArrayList();
 
             //In the old async model, this function is supposed to be executed only on a remote script engine, not an authorative Scene
+            /*
             if (RegionSyncModule==null && !IsSyncedScriptEngine())
             {
                 m_log.Warn("This is not the script engine. Should not have received OnUpdateScript event.");
                 return errors;
             }
+             * */ 
             SceneObjectPart part = GetSceneObjectPart(primID);
             SceneObjectGroup group = part.ParentGroup;
             if (isScriptRunning)

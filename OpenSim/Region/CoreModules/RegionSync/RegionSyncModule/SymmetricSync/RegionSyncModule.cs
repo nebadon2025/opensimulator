@@ -1200,7 +1200,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 primCount += sog.Parts.Length;
             }
 
-            m_log.WarnFormat("SyncStatus -- Object count: {0}, Prim Count {1} ", sogList.Count, primCount);
+            m_log.WarnFormat("SyncStateReport -- Object count: {0}, Prim Count {1} ", sogList.Count, primCount);
         }
 
         private void SyncDebug(Object[] args)

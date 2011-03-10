@@ -2194,7 +2194,10 @@ namespace OpenSim.Region.Framework.Scenes
             }
                         
             AddNewSceneObject(group, true, pos, rot, vel);
-            
+
+            //SYNC DEBUG
+            m_log.DebugFormat("[SCENE] RezObject {0} with InvItem name {1} at pos {2}", group.UUID.ToString(), item.Name, group.RootPart.GroupPosition.ToString());
+
             // We can only call this after adding the scene object, since the scene object references the scene
             // to find out if scripts should be activated at all.
             group.CreateScriptInstances(param, true, DefaultScriptEngine, 3);

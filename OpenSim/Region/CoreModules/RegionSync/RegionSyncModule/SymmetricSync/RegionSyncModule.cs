@@ -590,10 +590,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //for debugging purpose
             Command cmdSyncDebug = new Command("debug", CommandIntentions.COMMAND_HAZARDOUS, SyncDebug, "Trigger some debugging functions");
 
+            //for sync state comparison, 
+            Command cmdSyncStateReport = new Command("state", CommandIntentions.COMMAND_HAZARDOUS, SyncStateReport, "Trigger synchronization state comparision functions");
+
             m_commander.RegisterCommand("start", cmdSyncStart);
             m_commander.RegisterCommand("stop", cmdSyncStop);
             m_commander.RegisterCommand("status", cmdSyncStatus);
             m_commander.RegisterCommand("debug", cmdSyncDebug);
+            m_commander.RegisterCommand("state", cmdSyncStateReport);
 
             lock (m_scene)
             {
@@ -1174,6 +1178,29 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             //TO BE IMPLEMENTED
             m_log.Warn("[REGION SYNC MODULE]: SyncStatus() TO BE IMPLEMENTED !!!");
+
+        }
+
+        private void SyncStateReport(Object[] args)
+        {
+            //Preliminary implementation
+            EntityBase[] entities = m_scene.GetEntities();
+            List<SceneObjectGroup> sogList = new List<SceneObjectGroup>();
+            foreach (EntityBase entity in entities)
+            {
+                if (entity is SceneObjectGroup)
+                {
+                    sogList.Add((SceneObjectGroup)entity);
+                }
+            }
+
+            int primCount = 0;
+            foreach (SceneObjectGroup sog in sogList)
+            {
+                primCount += sog.Parts.Length;
+            }
+
+            m_log.WarnFormat("SyncStatus -- Object count: {0}, Prim Count {1} ", sogList.Count, primCount);
         }
 
         private void SyncDebug(Object[] args)
@@ -1613,6 +1640,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return data;
         }
 
+        /*
         private void HandleAddNewObject(SceneObjectGroup sog)
         {
             //RegionSyncModule only add object to SceneGraph. Any actor specific actions will be implemented 
@@ -1624,6 +1652,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.Debug(LogHeader + ": added obj " + sog.UUID);
             }
         }
+         * */ 
 
         private void HandleRemovedObject(SymmetricSyncMessage msg, string senderActorID)
         {

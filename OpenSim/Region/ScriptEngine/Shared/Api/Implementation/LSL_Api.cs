@@ -3412,8 +3412,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 item = m_host.TaskInventory[invItemID];
             }
 
-            if (agentID == UUID.Zero || perm == 0) // Releasing permissions
-            {
+            //if (agentID == UUID.Zero || perm == 0) // Releasing permissions
+            //{
                 llReleaseControls();
 
                 item.PermsGranter = UUID.Zero;
@@ -3425,7 +3425,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         new DetectParams[0]));
 
                 return;
-            }
+            //}
 
             if (item.PermsGranter != agentID || (perm & ScriptBaseClass.PERMISSION_TAKE_CONTROLS) == 0)
                 llReleaseControls();

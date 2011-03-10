@@ -174,7 +174,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.Warn(LogHeader + " Synchronized");
                 foreach (SceneToPhysEngineConnector pec in m_physEngineConnectors)
                 {
-                    m_log.Warn(pec.GetStats());
+                    m_log.Warn(pec.StatisticLine(true));
                 }
             }
         }

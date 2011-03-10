@@ -73,6 +73,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_log.Warn("[REGION SYNC MODULE] Initialised for actor "+ m_actorID);
 
             //The ActorType configuration will be read in and process by an ActorSyncModule, not here.
+
+            // parameters for statistic logging
+            SyncStatisticCollector.LogEnabled = m_sysConfig.GetBoolean("SyncLogEnabled", false);
+            SyncStatisticCollector.LogDirectory = m_sysConfig.GetString("SyncLogDirectory", ".");
+            SyncStatisticCollector.LogInterval = m_sysConfig.GetInt("SyncLogInterval", 5000);
+            SyncStatisticCollector.LogMaxFileTimeMin = m_sysConfig.GetInt("SyncLogMaxFileTimeMin", 5);
+            SyncStatisticCollector.LogFileHeader = m_sysConfig.GetString("SyncLogFileHeader", "stats-");
         }
 
         //Called after Initialise()
@@ -1163,10 +1170,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void SyncStatus(Object[] args)
         {
-            m_log.WarnFormat("[REGION SYNC MODULE]: Description: {0}", SyncConnector.StatusTitle());
+            int connectorCount = 0;
             ForEachSyncConnector(delegate(SyncConnector connector)
             {
-                m_log.WarnFormat("{0}: {1}: {2}", "[REGION SYNC MODULE}", connector.Description, connector.StatusLine());
+                if (connectorCount++ == 0)
+                    m_log.WarnFormat("[REGION SYNC MODULE]: Description: {0}", connector.StatisticTitle());
+                m_log.WarnFormat("{0}: {1}: {2}", "[REGION SYNC MODULE}", connector.Description, connector.StatisticLine(true));
             });
         }
 

@@ -14,7 +14,7 @@ using OpenMetaverse;
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
     // For implementations, a lot was copied from RegionSyncClientView, especially the SendLoop/ReceiveLoop.
-    public class SyncConnector
+    public class SyncConnector : ISyncStatistics
     {
         private TcpClient m_tcpConnection = null;
         private RegionSyncListenerInfo m_remoteListenerInfo = null;
@@ -39,7 +39,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private RegionSyncModule m_regionSyncModule = null;
 
-        private int m_connectorNum;
+        // unique connector number across all regions
+        private static int m_connectorNum = 0;
         public int ConnectorNum
         {
             get { return m_connectorNum; }
@@ -69,8 +70,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get
             {
                 if (m_syncOtherSideRegionName == null)
-                    return String.Format("SyncConnector#{0}", m_connectorNum);
-                return String.Format("SyncConnector#{0}(A={2},R={1:10})",
+                    return String.Format("SyncConnector{0}", m_connectorNum);
+                return String.Format("SyncConnector{0}({2}/{1:10})",
                             m_connectorNum, m_syncOtherSideRegionName, m_syncOtherSideActorID);
             }
         }
@@ -86,6 +87,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_connectorNum = connectorNum;
             m_regionSyncModule = syncModule;
             lastStatTime = DateTime.Now;
+            SyncStatisticCollector.Register(this);
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         }
 
@@ -100,6 +102,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_connectorNum = connectorNum;
             m_regionSyncModule = syncModule;
             lastStatTime = DateTime.Now;
+            SyncStatisticCollector.Register(this);
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         }
 
@@ -299,7 +302,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_regionSyncModule.HandleIncomingMessage(msg, m_syncOtherSideActorID);
         }
 
-        public string StatusLine()
+        public string StatisticIdentifier()
+        {
+            return this.Description;
+        }
+
+        public string StatisticLine(bool clearFlag)
         {
             string statLine = "";
             lock (stats)
@@ -310,14 +318,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         msgsIn, msgsOut, bytesIn, bytesOut, m_outQ.Count,
                         8 * (bytesIn / secondsSinceLastStats / 1000000),
                         8 * (bytesOut / secondsSinceLastStats / 1000000) );
-                msgsIn = msgsOut = bytesIn = bytesOut = 0;
+                if (clearFlag)
+                    msgsIn = msgsOut = bytesIn = bytesOut = 0;
             }
             return statLine;
         }
 
-        public static string StatusTitle()
+        public string StatisticTitle()
         {
-            return "msgsIn,msgsOut,queueSize,Mbps In,Mbps Out";
+            return "msgsIn,msgsOut,bytesIn,bytesOut,queueSize,Mbps In,Mbps Out";
         }
     }
 }

@@ -64,10 +64,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // The client connection to the RegionSyncServer
         private TcpClient m_client = new TcpClient();
 
-
-        //KittyL: Comment out m_statsTimer for now, will figure out whether we need it for PhysEngine later
-        //private System.Timers.Timer m_statsTimer = new System.Timers.Timer(30000);
-
         // The queue of incoming messages which need handling
         //private Queue<string> m_inQ = new Queue<string>();
 
@@ -105,11 +101,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_addrString = addr;
             m_port = port;
             m_debugWithViewer = debugWithViewer;
-            //m_statsTimer.Elapsed += new System.Timers.ElapsedEventHandler(StatsTimerElapsed);
             m_sysConfig = sysConfig;
 
-            SceneToPhysEngineSyncServer.logEnabled = m_sysConfig.GetBoolean("LogEnabled", false);
-            SceneToPhysEngineSyncServer.logDir = m_sysConfig.GetString("LogDir", ".");
+            SceneToPhysEngineSyncServer.logEnabled = m_sysConfig.GetBoolean("PhysLogEnabled", false);
+            SceneToPhysEngineSyncServer.logDir = m_sysConfig.GetString("PhysLogDir", ".");
 
             //assume we are connecting to the whole scene as one big quark
             m_subscribedQuarks = new QuarkSubsriptionInfo(0, 0, (int)Constants.RegionSize, (int)Constants.RegionSize);
@@ -534,5 +529,29 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         #endregion Handlers for events/updates from Scene
 
+        public string StatisticIdentifier()
+        {
+            return "PhysEngineToSceneConnector";
+        }
+
+        public string StatisticLine(bool clearFlag)
+        {
+            string ret = "";
+            /*
+            lock (stats)
+            {
+                ret = String.Format("{0},{1},{2},{3},{4},{5}",
+                    msgsIn, msgsOut, bytesIn, bytesOut
+                    );
+                if (clearFlag)
+                    msgsIn = msgsOut = bytesIn = bytesOut = 0;
+            }
+            */
+            return ret;
+        }
+        public string StatisticTitle()
+        {
+            return "msgsIn,msgsOut,bytesIn,bytesOut";
+        }
     }
 }

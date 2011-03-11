@@ -2018,7 +2018,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
             else
             {
-                m_log.Debug("AddSceneObjectByStateSynch to be called");
+                m_log.Debug(updatedSog.Name+" "+updatedSog.UUID+" not found in Entities list. Need to add");
                 AddSceneObjectByStateSynch(updatedSog);
                 updateResult = Scene.ObjectUpdateResult.New;
             }
@@ -2061,6 +2061,8 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
             m_numPrim += children.Length;
+
+            m_log.Debug("Attached obj " + sceneObject.Name + "," + sceneObject.UUID + " to Scene");
 
             sceneObject.AttachToScene(m_parentScene);
 

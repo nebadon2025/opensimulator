@@ -5504,14 +5504,32 @@ namespace OpenSim.Region.Framework.Scenes
         //buckets may not be filled at all in "updatedPart".
         private void PhysicsBucketUpdateProcessor(Object updatedPartO, string bucketName)
         {
+            SceneObjectPart localPart = this;
+
+            if (updatedPartO is SceneObjectPart)
+            {
+                SceneObjectPart updatedPart = (SceneObjectPart)updatedPartO;
+
+                localPart.GroupPosition = updatedPart.GroupPosition;
+                localPart.OffsetPosition = updatedPart.OffsetPosition;
+                localPart.Scale = updatedPart.Scale;
+                localPart.Velocity = updatedPart.Velocity;
+                localPart.AngularVelocity = updatedPart.AngularVelocity;
+                localPart.RotationOffset = updatedPart.RotationOffset;
+                return;
+            }
+
             if (!(updatedPartO is OSDMap)) return;
             OSDMap data = (OSDMap)updatedPartO;
 
             //If needed, we could define new set functions for these properties, and cast this SOP to SOPBase to 
             //invoke the set functions in SOPBase 
             //SceneObjectPartBase localPart = (SceneObjectPartBase)this; 
-            SceneObjectPart localPart = this;
+            //SceneObjectPart localPart = this;
             PhysicsActor pa = localPart.PhysActor;
+
+            m_log.Debug("Received Physics Bucket updates for " + localPart.Name + ". GroupPosition: " + data["GroupPosition"].AsVector3().ToString()
+                + ", Position = " + data["Position"].AsVector3().ToString());
 
             //m_log.DebugFormat("{0}: PhysicsBucketUpdateProcessor. pos={1}", "[SCENE OBJECT PART]", data["Position"].AsVector3().ToString());
 
@@ -5618,6 +5636,9 @@ namespace OpenSim.Region.Framework.Scenes
                     string bucketName = m_primPropertyBucketMap[property];
                     //m_bucketSyncTainted[bucketName] = true;
                     m_bucketSyncInfoList[bucketName].TaintBucket();
+
+                    m_log.Debug(this.Name + ": " + property.ToString() + " just changed. Tainted " + bucketName);
+                    
                 }
             }
         }
@@ -5758,6 +5779,8 @@ namespace OpenSim.Region.Framework.Scenes
                 //Second, if need to update local properties, call each bucket's update process
                 if (m_bucketUpdateProcessors.ContainsKey(bucketName))
                 {
+                    m_log.Debug("Update properties in " + bucketName + " buckets");
+
                     m_bucketUpdateProcessors[bucketName](updatedPart, bucketName);
                     partUpdateResult = Scene.ObjectUpdateResult.Updated;
                 }

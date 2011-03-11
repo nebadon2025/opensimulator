@@ -791,10 +791,13 @@ namespace OpenSim.Region.Framework.Scenes
                     continue;
                 }
 
-                m_log.Debug("to link part " + part.DebugObjectPartProperties());
+                //m_log.Debug("to link part " + part.DebugObjectPartProperties());
+                m_log.Debug("to link part " + part.Name + "," + part.UUID + "; its SOG has " + part.ParentGroup.Parts + " parts");
 
                 children.Add(part);
             }
+
+            //m_log.Debug("to link " + children.Count + " parts with " + root.Name);
 
             //Leverage the LinkObject implementation to get the book keeping of Group and Parts relations right
             m_sceneGraph.LinkObjectsBySync(root, children);

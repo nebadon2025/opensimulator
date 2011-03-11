@@ -3567,12 +3567,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 item = m_host.TaskInventory[invItemID];
             }
 
+            /*
             if ((item.PermsMask & ScriptBaseClass.PERMISSION_CHANGE_LINKS) == 0
                 && !m_automaticLinkPermission)
             {
                 ShoutError("Script trying to link but PERMISSION_CHANGE_LINKS permission not set!");
                 return;
             }
+            */
 
             IClientAPI client = null;
             ScenePresence sp = World.GetScenePresence(item.PermsGranter);
@@ -3585,6 +3587,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 return; // Fail silently if attached
             SceneObjectGroup parentPrim = null, childPrim = null;
 
+            //SYEMMETRIC SYNC
+            List<SceneObjectPart> children = new List<SceneObjectPart>();
+
             if (targetPart != null)
             {
                 if (parent != 0) {
@@ -3596,6 +3601,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     parentPrim = targetPart.ParentGroup;
                     childPrim = m_host.ParentGroup;
                 }
+                children.Add(childPrim.RootPart);
+
 //                byte uf = childPrim.RootPart.UpdateFlag;
                 childPrim.RootPart.UpdateFlag = 0;
                 parentPrim.LinkToGroup(childPrim);
@@ -3614,7 +3621,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 //Tell other actors to link the SceneObjectParts together as a new group. 
                 //parentGroup.SyncInfoUpdate();
-                World.RegionSyncModule.SendLinkObject(parentPrim, parentPrim.RootPart, new List<SceneObjectPart>(childPrim.Parts));
+                World.RegionSyncModule.SendLinkObject(parentPrim, parentPrim.RootPart, children);
             }
             m_host.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None}); //SendLinkObject above will synchronize the link operation, no need to taint updates here
             //end of SYMMETRIC SYNC

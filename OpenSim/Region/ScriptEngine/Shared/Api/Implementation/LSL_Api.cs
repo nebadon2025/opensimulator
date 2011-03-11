@@ -3567,14 +3567,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 item = m_host.TaskInventory[invItemID];
             }
 
-            /*
             if ((item.PermsMask & ScriptBaseClass.PERMISSION_CHANGE_LINKS) == 0
                 && !m_automaticLinkPermission)
             {
                 ShoutError("Script trying to link but PERMISSION_CHANGE_LINKS permission not set!");
                 return;
             }
-            */
 
             IClientAPI client = null;
             ScenePresence sp = World.GetScenePresence(item.PermsGranter);

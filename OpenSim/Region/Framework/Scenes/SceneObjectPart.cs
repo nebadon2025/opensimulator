@@ -5528,8 +5528,8 @@ namespace OpenSim.Region.Framework.Scenes
             //SceneObjectPart localPart = this;
             PhysicsActor pa = localPart.PhysActor;
 
-            m_log.Debug("Received Physics Bucket updates for " + localPart.Name + ". GroupPosition: " + data["GroupPosition"].AsVector3().ToString()
-                + ", Position = " + data["Position"].AsVector3().ToString());
+            //m_log.Debug("Received Physics Bucket updates for " + localPart.Name + ". GroupPosition: " + data["GroupPosition"].AsVector3().ToString()
+            //    + ", Position = " + data["Position"].AsVector3().ToString());
 
             //m_log.DebugFormat("{0}: PhysicsBucketUpdateProcessor. pos={1}", "[SCENE OBJECT PART]", data["Position"].AsVector3().ToString());
 
@@ -5779,7 +5779,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //Second, if need to update local properties, call each bucket's update process
                 if (m_bucketUpdateProcessors.ContainsKey(bucketName))
                 {
-                    m_log.Debug("Update properties in " + bucketName + " buckets");
+                    //m_log.Debug("Update properties in " + bucketName + " buckets");
 
                     m_bucketUpdateProcessors[bucketName](updatedPart, bucketName);
                     partUpdateResult = Scene.ObjectUpdateResult.Updated;

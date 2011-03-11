@@ -382,10 +382,6 @@ namespace OpenSim.Region.Framework.Scenes
             m_numPrim += children.Length;
 
             sceneObject.AttachToScene(m_parentScene);
-
-            if (sendClientUpdates)
-                //sceneObject.ScheduleGroupForFullUpdate();
-                sceneObject.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None}); 
             
             Entities.Add(sceneObject);
 
@@ -408,6 +404,16 @@ namespace OpenSim.Region.Framework.Scenes
                 foreach (SceneObjectPart part in children)
                     SceneObjectGroupsByLocalID[part.LocalId] = sceneObject;
             }
+
+            //SYMMETRIC SYNC: sending NewObject event, and sending it before calling ScheduleGroupForFullUpdate
+            if (m_parentScene.RegionSyncModule != null)
+            {
+                m_parentScene.RegionSyncModule.SendNewObject(sceneObject);
+            }
+
+            if (sendClientUpdates)
+                //sceneObject.ScheduleGroupForFullUpdate();
+                sceneObject.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.None }); 
 
             return true;
         }
@@ -1948,6 +1954,7 @@ namespace OpenSim.Region.Framework.Scenes
         
         //Return false if the entity with the UUID is not a SceneObjectGroup, 
         //otherwise, return true.
+        /*
         protected internal bool AddOrUpdateObjectInScene(SceneObjectGroup updatedSog, bool debugWithViewer)
         {
             UUID sogID = updatedSog.UUID;
@@ -1989,6 +1996,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
         }
+         * */ 
 
         #endregion // REGION SYNC
 

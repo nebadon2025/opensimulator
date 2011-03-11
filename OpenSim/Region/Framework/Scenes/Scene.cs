@@ -544,12 +544,15 @@ namespace OpenSim.Region.Framework.Scenes
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
 
+        //!!! Obsolete function. Shouldn't be used anymore.
+
         //This function should only be called by an actor who's local Scene is just a cache of the authorative Scene.
         //If the object already exists, use the new copy to replace it.
         //Return true if added, false if just updated
         public bool AddOrUpdateObjectInLocalScene(SceneObjectGroup sog, bool debugWithViewer)
         {
-            return m_sceneGraph.AddOrUpdateObjectInScene(sog, debugWithViewer);
+            return false;
+            //return m_sceneGraph.AddOrUpdateObjectInScene(sog, debugWithViewer);
             
         }
 

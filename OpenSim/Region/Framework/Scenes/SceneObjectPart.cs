@@ -2795,7 +2795,7 @@ namespace OpenSim.Region.Framework.Scenes
                     m_parentGroup.AbsolutePosition = newpos;
                     return;
                 }
-                m_log.DebugFormat("[PHYSICS]: TerseUpdate: UUID={0}, newpos={1}", PhysActor.UUID.ToString(), newpos.ToString());
+                // m_log.DebugFormat("[PHYSICS]: TerseUpdate: UUID={0}, newpos={1}", PhysActor.UUID.ToString(), newpos.ToString());
                 //m_parentGroup.RootPart.m_groupPosition = newpos;
             }
             //ScheduleTerseUpdate();
@@ -5513,7 +5513,7 @@ namespace OpenSim.Region.Framework.Scenes
             SceneObjectPart localPart = this;
             PhysicsActor pa = localPart.PhysActor;
 
-            //m_log.DebugFormat("{0}: PhysicsBucketUpdateProcessor. pos={1}", "[SCENE OBJECT PART]", data["Position"].AsVector3().ToString());
+            // m_log.DebugFormat("{0}: PhysicsBucketUpdateProcessor. pos={1}", "[SCENE OBJECT PART]", data["Position"].AsVector3().ToString());
 
             lock (m_bucketUpdateLocks[bucketName])
             {
@@ -5612,12 +5612,15 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         bucketSynInfo.TaintBucket();
                     }
+                    // m_log.DebugFormat("{0}: TaintBucketSyncInfo: FullUpdate", "[SCENE OBJECT PART]");
                 }
                 else
                 {
                     string bucketName = m_primPropertyBucketMap[property];
                     //m_bucketSyncTainted[bucketName] = true;
                     m_bucketSyncInfoList[bucketName].TaintBucket();
+                    // m_log.DebugFormat("{0}: TaintBucketSyncInfo: tainting bucket {1} for {2}", 
+                    //             "[SCENE OBJECT PART]", bucketName, property.ToString());
                 }
             }
         }

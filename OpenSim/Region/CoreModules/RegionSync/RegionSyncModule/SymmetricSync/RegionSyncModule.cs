@@ -31,7 +31,7 @@ using OpenMetaverse.StructuredData;
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
     [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AttachmentsModule")]
-    public class RegionSyncModule : INonSharedRegionModule, IRegionSyncModule, ICommandableModule
+    public class RegionSyncModule : INonSharedRegionModule, IRegionSyncModule, ICommandableModule, ISyncStatistics
     //public class RegionSyncModule : IRegionModule, IRegionSyncModule, ICommandableModule
     {
         #region INonSharedRegionModule
@@ -79,7 +79,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SyncStatisticCollector.LogDirectory = m_sysConfig.GetString("SyncLogDirectory", ".");
             SyncStatisticCollector.LogInterval = m_sysConfig.GetInt("SyncLogInterval", 5000);
             SyncStatisticCollector.LogMaxFileTimeMin = m_sysConfig.GetInt("SyncLogMaxFileTimeMin", 5);
-            SyncStatisticCollector.LogFileHeader = m_sysConfig.GetString("SyncLogFileHeader", "stats-");
+            SyncStatisticCollector.LogFileHeader = m_sysConfig.GetString("SyncLogFileHeader", "sync-");
         }
 
         //Called after Initialise()
@@ -129,6 +129,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Start symmetric synchronization initialization automatically
             //SyncStart(null);
+
+            // connect to statistics system
+            SyncStatisticCollector.Register(this);
             
         }
 
@@ -724,6 +727,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 sog.UpdateTaintedBucketSyncInfo(bucketName, DateTime.Now.Ticks); //this update the timestamp and clear the taint info of the bucket
                 string sogxml = SceneObjectSerializer.ToXml2Format(sog);
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
+                lock (m_stats) m_statSOGBucketOut++;
                 SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
             }
         }
@@ -769,6 +773,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedBucketProperties, OSDParser.SerializeJsonString(data));
                 //m_log.DebugFormat("{0}: PhysBucketSender for {1}, pos={2}", LogHeader, updatedPart.UUID.ToString(), pa.Position.ToString());
+                lock (m_stats) m_statPhysBucketOut++;
                 SendObjectUpdateToRelevantSyncConnectors(updatedPart, syncMsg);
             }
         }
@@ -1172,14 +1177,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_scene.EventManager.TriggerOnSymmetricSyncStop();
                 }
             }
-
-
-            
         }
 
         private void SyncStatus(Object[] args)
         {
             int connectorCount = 0;
+            m_log.Warn(LogHeader + ": " + this.StatisticTitle());
+            m_log.Warn(LogHeader + ": " + this.StatisticLine(true));
             ForEachSyncConnector(delegate(SyncConnector connector)
             {
                 if (connectorCount++ == 0)
@@ -1395,6 +1399,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="senderActorID">ActorID of the sender</param>
         public void HandleIncomingMessage(SymmetricSyncMessage msg, string senderActorID)
         {
+            lock (m_stats) m_statMsgsIn++;
             //Added senderActorID, so that we don't have to include actorID in sync messages -- TODO
             switch (msg.Type)
             {
@@ -1502,6 +1507,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             string sogxml = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
             SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
+            lock (m_stats) m_statSOGBucketIn++;
 
             if (sog.IsDeleted)
             {
@@ -1541,6 +1547,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 SymmetricSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
                 return;
             }
+
+            lock (m_stats) m_statPhysBucketIn++;
 
             UUID partUUID = data["UUID"].AsUUID();
             string bucketName = data["Bucket"].AsString();
@@ -1774,6 +1782,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
             }
 
+            lock (m_stats) m_statEventIn++;
             string init_actorID = data["actorID"].AsString();
             ulong evSeqNum = data["seqNum"].AsULong();
 
@@ -2401,6 +2410,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(msgType, OSDParser.SerializeJsonString(data));
 
             //send to actors who are interested in the event
+            lock (m_stats) m_statEventOut++;
             SendSceneEventToRelevantSyncConnectors(m_actorID, rsm);
         }
 
@@ -2421,6 +2431,50 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         #endregion //RegionSyncModule members and functions
+
+        #region ISyncStatistics
+        private object m_stats = new object();
+        private int m_statMsgsIn = 0;
+        private int m_statMsgsOut = 0;
+        private int m_statSOGBucketIn = 0;
+        private int m_statSOGBucketOut = 0;
+        private int m_statPhysBucketIn = 0;
+        private int m_statPhysBucketOut = 0;
+        private int m_statEventIn = 0;
+        private int m_statEventOut = 0;
+        public string StatisticIdentifier()
+        {
+            // RegionSyncModule(actor/region)
+            return "RegionSyncModule" + "(" + ActorID + "/" + m_scene.RegionInfo.RegionName + ")";
+        }
+
+        public string StatisticLine(bool clearFlag)
+        {
+            string statLine = "";
+            lock (m_stats)
+            {
+                statLine = String.Format("{0},{1},{2},{3},{4},{5},{6},{7}",
+                    m_statMsgsIn, m_statMsgsOut,
+                    m_statSOGBucketIn, m_statSOGBucketOut,
+                    m_statPhysBucketIn, m_statPhysBucketOut,
+                    m_statEventIn, m_statEventOut
+                );
+                if (clearFlag)
+                {
+                    m_statMsgsIn = m_statMsgsOut = 0;
+                    m_statSOGBucketIn = m_statSOGBucketOut = 0;
+                    m_statPhysBucketIn = m_statPhysBucketOut = 0;
+                    m_statEventIn = m_statEventOut = 0;
+                }
+            }
+            return statLine;
+        }
+
+        public string StatisticTitle()
+        {
+            return "MsgsIn,MsgsOut,SOGIn,SOGOut,PhysIn,PhysOut,EventIn,EventOut";
+        }
+        #endregion ISyncStatistics
 
     }
 

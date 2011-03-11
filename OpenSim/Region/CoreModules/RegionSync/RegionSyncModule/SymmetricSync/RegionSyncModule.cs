@@ -202,6 +202,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {        
                     lock (m_primUpdateLocks[bucketName])
                     {
+                        m_log.Debug("Queueing to bucket " + bucketName + " with part " + part.Name + ", " + part.UUID);
                         m_primUpdates[bucketName][part.UUID] = part;
                     }
                 }
@@ -245,6 +246,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 if (m_primUpdates[bucketName].Count > 0)
                 {
+                    m_log.Debug(m_primUpdates[bucketName].Count + " updated parts in bucket " + bucketName);
                     lock (m_primUpdateLocks[bucketName])
                     {
                         updated = true;
@@ -299,6 +301,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 }
                             }
                              * */
+                            m_log.Debug(LogHeader + " calling update sender for bucket " + bucketName);
                             m_primUpdatesPerBucketSender[bucketName](bucketName, primUpdates[bucketName]);
                         }
                     }
@@ -734,14 +737,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 updatedPart.UpdateTaintedBucketSyncInfo(bucketName, DateTime.Now.Ticks);
 
-                Physics.Manager.PhysicsActor pa = updatedPart.PhysActor;
-                if (pa == null)
-                    return;
-
                 OSDMap data = new OSDMap();
 
-                // data["UUID"] = OSD.FromUUID(updatedPart.UUID);
-                data["UUID"] = OSD.FromUUID(pa.UUID);
+                data["UUID"] = OSD.FromUUID(updatedPart.UUID);
+                //data["UUID"] = OSD.FromUUID(pa.UUID);
                 data["Bucket"] = OSD.FromString(bucketName);
 
                 data["GroupPosition"] = OSD.FromVector3(updatedPart.GroupPosition);
@@ -749,25 +748,31 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 data["Scale"] = OSD.FromVector3(updatedPart.Scale);
                 data["AngularVelocity"] = OSD.FromVector3(updatedPart.AngularVelocity);
                 data["RotationOffset"] = OSD.FromQuaternion(updatedPart.RotationOffset);
-                data["Size"] = OSD.FromVector3(pa.Size);
-                data["Position"] = OSD.FromVector3(pa.Position);
-                data["Force"] = OSD.FromVector3(pa.Force);
-                data["Velocity"] = OSD.FromVector3(pa.Velocity);
-                data["RotationalVelocity"] = OSD.FromVector3(pa.RotationalVelocity);
-                data["PA_Acceleration"] = OSD.FromVector3(pa.Acceleration);
-                data["Torque"] = OSD.FromVector3(pa.Torque);
-                data["Orientation"] = OSD.FromQuaternion(pa.Orientation);
-                data["IsPhysical"] = OSD.FromBoolean(pa.IsPhysical);
-                data["Flying"] = OSD.FromBoolean(pa.Flying);
-                data["Kinematic"] = OSD.FromBoolean(pa.Kinematic);
-                data["Buoyancy"] = OSD.FromReal(pa.Buoyancy);
-                data["CollidingGround"] = OSD.FromBoolean(pa.CollidingGround);
-                data["IsColliding"] = OSD.FromBoolean(pa.IsColliding);
+
+                Physics.Manager.PhysicsActor pa = updatedPart.PhysActor;
+                if (pa != null)
+                {
+
+                    data["Size"] = OSD.FromVector3(pa.Size);
+                    data["Position"] = OSD.FromVector3(pa.Position);
+                    data["Force"] = OSD.FromVector3(pa.Force);
+                    data["Velocity"] = OSD.FromVector3(pa.Velocity);
+                    data["RotationalVelocity"] = OSD.FromVector3(pa.RotationalVelocity);
+                    data["PA_Acceleration"] = OSD.FromVector3(pa.Acceleration);
+                    data["Torque"] = OSD.FromVector3(pa.Torque);
+                    data["Orientation"] = OSD.FromQuaternion(pa.Orientation);
+                    data["IsPhysical"] = OSD.FromBoolean(pa.IsPhysical);
+                    data["Flying"] = OSD.FromBoolean(pa.Flying);
+                    data["Kinematic"] = OSD.FromBoolean(pa.Kinematic);
+                    data["Buoyancy"] = OSD.FromReal(pa.Buoyancy);
+                    data["CollidingGround"] = OSD.FromBoolean(pa.CollidingGround);
+                    data["IsColliding"] = OSD.FromBoolean(pa.IsColliding);
+                }
 
                 data["LastUpdateTimeStamp"] = OSD.FromLong(updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp);
                 data["LastUpdateActorID"] = OSD.FromString(updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID);
 
-                m_log.Debug(LogHeader + " Send out Physics Bucket updates for " + updatedPart.Name + ". GroupPosition: " + updatedPart.GroupPosition.ToString() + ", Position = " + pa.Position);
+                m_log.Debug(LogHeader + " Send out Physics Bucket updates for " + updatedPart.Name + ". GroupPosition: " + updatedPart.GroupPosition.ToString());
 
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedBucketProperties, OSDParser.SerializeJsonString(data));
                 //m_log.DebugFormat("{0}: PhysBucketSender for {1}, pos={2}", LogHeader, updatedPart.UUID.ToString(), pa.Position.ToString());

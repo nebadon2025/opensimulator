@@ -1950,7 +1950,7 @@ namespace OpenSim.Region.Framework.Scenes
         //public void ScheduleGroupForTerseUpdate()
         public void ScheduleGroupForTerseUpdate(List<SceneObjectPartProperties> updatedProperties)
         {
-//            m_log.DebugFormat("[SOG]: Scheduling terse update for {0} {1}", Name, UUID);
+            m_log.DebugFormat("[SOG]: Scheduling terse update for {0} {1}", Name, UUID);
 
             SceneObjectPart[] parts = m_parts.GetArray();
             for (int i = 0; i < parts.Length; i++)

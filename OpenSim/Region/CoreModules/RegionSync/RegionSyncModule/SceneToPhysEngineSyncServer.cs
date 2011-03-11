@@ -681,7 +681,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         #region Message Logging
         public static bool logInput = false;
         public static bool logOutput = true;
-        public static bool logEnabled = true;
+        public static bool logEnabled = false;
         private class PhysMsgLogger
         {
             public DateTime startTime;

@@ -2980,9 +2980,9 @@ namespace OpenSim.Region.Framework.Scenes
                 TimeStampTerse = (uint) Util.UnixTimeSinceEpoch();
                 m_updateFlag = 1;
 
-                            m_log.DebugFormat(
-                                "[SCENE OBJECT PART]: Scheduling terse update for {0}, {1} at {2}",
-                                UUID, Name, TimeStampTerse);
+                            //m_log.DebugFormat(
+                            //    "[SCENE OBJECT PART]: Scheduling terse update for {0}, {1} at {2}",
+                            //    UUID, Name, TimeStampTerse);
             }
         }
 
@@ -3203,8 +3203,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             //SYMMETRIC SYNC
             if (m_parentGroup.Scene.RegionSyncModule != null)
-            {
-                m_log.Debug("SOP.SendScheduledUpdates: Calling RegionSyncModule.QueueSceneObjectPartForUpdate");
+            {                
                 m_parentGroup.Scene.RegionSyncModule.QueueSceneObjectPartForUpdate((SceneObjectPart)this);
             }
             //end of SYMMETRIC SYNC
@@ -5855,8 +5854,8 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (updatedProperties != null && updatedProperties.Count > 0)
             {
-                m_log.DebugFormat("{0}: Tainting bucket for properties {1}", 
-                            "[SCENE OBJECT PART]", updatedProperties.ToString());
+                //m_log.DebugFormat("{0}: Tainting bucket for properties {1}", 
+                //            "[SCENE OBJECT PART]", updatedProperties.ToString());
                 foreach (SceneObjectPartProperties property in updatedProperties)
                 {
                     TaintBucketSyncInfo(property);

@@ -202,7 +202,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {        
                     lock (m_primUpdateLocks[bucketName])
                     {
-                        m_log.Debug("Queueing to bucket " + bucketName + " with part " + part.Name + ", " + part.UUID);
+                        //m_log.Debug("Queueing to bucket " + bucketName + " with part " + part.Name + ", " + part.UUID);
                         m_primUpdates[bucketName][part.UUID] = part;
                     }
                 }
@@ -301,7 +301,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 }
                             }
                              * */
-                            m_log.Debug(LogHeader + " calling update sender for bucket " + bucketName);
+                            //m_log.Debug(LogHeader + " calling update sender for bucket " + bucketName);
                             m_primUpdatesPerBucketSender[bucketName](bucketName, primUpdates[bucketName]);
                         }
                     }

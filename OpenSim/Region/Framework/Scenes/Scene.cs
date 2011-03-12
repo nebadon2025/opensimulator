@@ -508,6 +508,7 @@ namespace OpenSim.Region.Framework.Scenes
             //Only Auth. Scene should trigger scritp rez by remote script engine.
             return IsSyncedServer();
         }
+        
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
         //RA: Physics Engine
@@ -543,12 +544,15 @@ namespace OpenSim.Region.Framework.Scenes
 
         ///////////////////////////////////////////////////////////////////////////////////////////////
 
+        //!!! Obsolete function. Shouldn't be used anymore.
+
         //This function should only be called by an actor who's local Scene is just a cache of the authorative Scene.
         //If the object already exists, use the new copy to replace it.
         //Return true if added, false if just updated
         public bool AddOrUpdateObjectInLocalScene(SceneObjectGroup sog, bool debugWithViewer)
         {
-            return m_sceneGraph.AddOrUpdateObjectInScene(sog, debugWithViewer);
+            return false;
+            //return m_sceneGraph.AddOrUpdateObjectInScene(sog, debugWithViewer);
             
         }
 
@@ -790,10 +794,13 @@ namespace OpenSim.Region.Framework.Scenes
                     continue;
                 }
 
-                m_log.Debug("to link part " + part.DebugObjectPartProperties());
+                //m_log.Debug("to link part " + part.DebugObjectPartProperties());
+                m_log.Debug("to link part " + part.Name + "," + part.UUID + "; its SOG has " + part.ParentGroup.Parts + " parts");
 
                 children.Add(part);
             }
+
+            //m_log.Debug("to link " + children.Count + " parts with " + root.Name);
 
             //Leverage the LinkObject implementation to get the book keeping of Group and Parts relations right
             m_sceneGraph.LinkObjectsBySync(root, children);

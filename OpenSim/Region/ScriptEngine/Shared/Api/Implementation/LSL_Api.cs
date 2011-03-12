@@ -1353,7 +1353,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             SetScale(m_host, scale);
         }
 
-        //REGION SYNC TOUCHED -- set via sync'ing with remote Scene
         protected void SetScale(SceneObjectPart part, LSL_Vector scale)
         {
             // TODO: this needs to trigger a persistance save as well
@@ -1383,21 +1382,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (scale.z > World.m_maxNonphys)
                 scale.z = World.m_maxNonphys;
 
-            if (World.ScriptEngineToSceneConnectorModule==null)
-            {
-                //If Script engine is local to Scene (REGION SYNC mode=server, and XEngine enabled=true, and no remote Script Engine connected)
-                Vector3 tmp = part.Scale;
-                tmp.X = (float)scale.x;
-                tmp.Y = (float)scale.y;
-                tmp.Z = (float)scale.z;
-                part.Scale = tmp;
-                part.SendFullUpdateToAllClients();
-            }
-            else
-            {
-                //set via sync'ing with remote Scene
-                World.ScriptEngineToSceneConnectorModule.SendSetPrimProperties(part.ParentGroup.LocX, part.ParentGroup.LocY, part.UUID, "scale", scale);
-            }
+            Vector3 tmp = part.Scale;
+            tmp.X = (float)scale.x;
+            tmp.Y = (float)scale.y;
+            tmp.Z = (float)scale.z;
+            part.Scale = tmp;
+            part.SendFullUpdateToAllClients();
         }
 
         public LSL_Vector llGetScale()
@@ -1416,7 +1406,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             return;
         }
 
-        //REGION SYNC TOUCHED -- set via sync'ing with remote Scene
         public void llSetColor(LSL_Vector color, int face)
         {
             m_host.AddScriptLPS(1);
@@ -1424,22 +1413,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (face == ScriptBaseClass.ALL_SIDES)
                 face = SceneObjectPart.ALL_SIDES;
 
-            // REGION SYNC
-            if (World.ScriptEngineToSceneConnectorModule == null)
-            {
-                m_host.SetFaceColor(new Vector3((float)color.x, (float)color.y, (float)color.z), face);
-            }
-            else
-            {
-                object[] valParams = new object[2];
-                //valParams[0] = (object)color.x;
-                //valParams[1] = (object)color.y;
-                //valParams[2] = (object)color.z;
-                Vector3 vcolor = new Vector3((float)color.x, (float)color.y, (float)color.z);
-                valParams[0] = (object)vcolor;
-                valParams[1] = (object)face;
-                World.ScriptEngineToSceneConnectorModule.SendSetPrimProperties(m_host.ParentGroup.LocX, m_host.ParentGroup.LocY, m_host.UUID, "color", (object)valParams);
-            }
+            m_host.SetFaceColor(new Vector3((float)color.x, (float)color.y, (float)color.z), face);
         }
 
         public void SetTexGen(SceneObjectPart part, int face,int style)
@@ -2766,7 +2740,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             ScriptSleep(100);
         }
 
-        //REGION SYNC TOUCHED -- set via sync'ing with remote Scene
         public void llRezAtRoot(string inventory, LSL_Vector pos, LSL_Vector vel, LSL_Rotation rot, int param)
         {
             m_host.AddScriptLPS(1);
@@ -2778,39 +2751,35 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (dist > m_ScriptDistanceFactor * 10.0f)
                 return;
 
-            if (World.ScriptEngineToSceneConnectorModule == null)
+            TaskInventoryDictionary partInventory = (TaskInventoryDictionary)m_host.TaskInventory.Clone();
+
+            foreach (KeyValuePair<UUID, TaskInventoryItem> inv in partInventory)
             {
-                //if Scene co-locates with Script Engine
-
-                TaskInventoryDictionary partInventory = (TaskInventoryDictionary)m_host.TaskInventory.Clone();
-
-                foreach (KeyValuePair<UUID, TaskInventoryItem> inv in partInventory)
+                if (inv.Value.Name == inventory)
                 {
-                    if (inv.Value.Name == inventory)
+                    // make sure we're an object.
+                    if (inv.Value.InvType != (int)InventoryType.Object)
                     {
-                        // make sure we're an object.
-                        if (inv.Value.InvType != (int)InventoryType.Object)
-                        {
-                            llSay(0, "Unable to create requested object. Object is missing from database.");
-                            return;
-                        }
+                        llSay(0, "Unable to create requested object. Object is missing from database.");
+                        return;
+                    }
 
-                        Vector3 llpos = new Vector3((float)pos.x, (float)pos.y, (float)pos.z);
-                        Vector3 llvel = new Vector3((float)vel.x, (float)vel.y, (float)vel.z);
+                    Vector3 llpos = new Vector3((float)pos.x, (float)pos.y, (float)pos.z);
+                    Vector3 llvel = new Vector3((float)vel.x, (float)vel.y, (float)vel.z);
 
-                        // need the magnitude later
-                        float velmag = (float)Util.GetMagnitude(llvel);
+                    // need the magnitude later
+                    float velmag = (float)Util.GetMagnitude(llvel);
 
-                        SceneObjectGroup new_group = World.RezObject(m_host, inv.Value, llpos, Rot2Quaternion(rot), llvel, param);
+                    SceneObjectGroup new_group = World.RezObject(m_host, inv.Value, llpos, Rot2Quaternion(rot), llvel, param);
 
-                        // If either of these are null, then there was an unknown error.
-                        if (new_group == null)
-                            continue;
-                        if (new_group.RootPart == null)
-                            continue;
+                    // If either of these are null, then there was an unknown error.
+                    if (new_group == null)
+                        continue;
+                    if (new_group.RootPart == null)
+                        continue;
 
-                        // objects rezzed with this method are die_at_edge by default.
-                        new_group.RootPart.SetDieAtEdge(true);
+                    // objects rezzed with this method are die_at_edge by default.
+                    new_group.RootPart.SetDieAtEdge(true);
 
                     new_group.ResumeScripts();
 
@@ -2818,44 +2787,25 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             "object_rez", new Object[] {
                             new LSL_String(
                             new_group.RootPart.UUID.ToString()) },
-                                new DetectParams[0]));
+                            new DetectParams[0]));
 
-                        float groupmass = new_group.GetMass();
+                    float groupmass = new_group.GetMass();
 
-                        if (new_group.RootPart.PhysActor != null && new_group.RootPart.PhysActor.IsPhysical && llvel != Vector3.Zero)
-                        {
-                            //Recoil.
-                            llApplyImpulse(new LSL_Vector(llvel.X * groupmass, llvel.Y * groupmass, llvel.Z * groupmass), 0);
-                        }
-                        // Variable script delay? (see (http://wiki.secondlife.com/wiki/LSL_Delay)
-                        ScriptSleep((int)((groupmass * velmag) / 10));
-                        ScriptSleep(100);
-                        return;
+                    if (new_group.RootPart.PhysActor != null && new_group.RootPart.PhysActor.IsPhysical && llvel != Vector3.Zero)
+                    {
+                        //Recoil.
+                        llApplyImpulse(new LSL_Vector(llvel.X * groupmass, llvel.Y * groupmass, llvel.Z * groupmass), 0);
                     }
+                    // Variable script delay? (see (http://wiki.secondlife.com/wiki/LSL_Delay)
+                    ScriptSleep((int)((groupmass * velmag) / 10));
+                    ScriptSleep(100);
+                    return;
                 }
-
-                llSay(0, "Could not find object " + inventory);
             }
-            else
-            {
-                //Scene does not co-locate with Script Engine
-                Vector3 llpos = new Vector3((float)pos.x, (float)pos.y, (float)pos.z);
-                Vector3 llvel = new Vector3((float)vel.x, (float)vel.y, (float)vel.z);
-                Quaternion llrot = Rot2Quaternion(rot);
-                object[] valParams = new object[5];
-                valParams[0] = (object)inventory;
-                valParams[1] = (object)llpos;
-                valParams[2] = (object)llpos;
-                valParams[3] = (object)llrot;
-                valParams[4] = (object)param;
-                //we borrow the implementation SendSetPrimProperties to send the message to Scene
-                World.ScriptEngineToSceneConnectorModule.SendSetPrimProperties(m_host.ParentGroup.LocX, m_host.ParentGroup.LocY, m_host.UUID, "object_rez", (object)valParams);
 
-                // Variable script delay? (see (http://wiki.secondlife.com/wiki/LSL_Delay)
-                //ScriptSleep((int)((groupmass * velmag) / 10));
-                ScriptSleep(100);
-            }
+            llSay(0, "Could not find object " + inventory);
         }
+
 
         public void llRezObject(string inventory, LSL_Vector pos, LSL_Vector vel, LSL_Rotation rot, int param)
         {
@@ -3412,8 +3362,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 item = m_host.TaskInventory[invItemID];
             }
 
-            if (agentID == UUID.Zero || perm == 0) // Releasing permissions
-            {
+            //if (agentID == UUID.Zero || perm == 0) // Releasing permissions
+            //{
                 llReleaseControls();
 
                 item.PermsGranter = UUID.Zero;
@@ -3425,7 +3375,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         new DetectParams[0]));
 
                 return;
-            }
+            //}
 
             if (item.PermsGranter != agentID || (perm & ScriptBaseClass.PERMISSION_TAKE_CONTROLS) == 0)
                 llReleaseControls();
@@ -3635,6 +3585,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 return; // Fail silently if attached
             SceneObjectGroup parentPrim = null, childPrim = null;
 
+            //SYEMMETRIC SYNC
+            List<SceneObjectPart> children = new List<SceneObjectPart>();
+
             if (targetPart != null)
             {
                 if (parent != 0) {
@@ -3646,6 +3599,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     parentPrim = targetPart.ParentGroup;
                     childPrim = m_host.ParentGroup;
                 }
+                children.Add(childPrim.RootPart);
+
 //                byte uf = childPrim.RootPart.UpdateFlag;
                 childPrim.RootPart.UpdateFlag = 0;
                 parentPrim.LinkToGroup(childPrim);
@@ -3664,7 +3619,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 //Tell other actors to link the SceneObjectParts together as a new group. 
                 //parentGroup.SyncInfoUpdate();
-                World.RegionSyncModule.SendLinkObject(parentPrim, parentPrim.RootPart, new List<SceneObjectPart>(childPrim.Parts));
+                World.RegionSyncModule.SendLinkObject(parentPrim, parentPrim.RootPart, children);
             }
             m_host.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None}); //SendLinkObject above will synchronize the link operation, no need to taint updates here
             //end of SYMMETRIC SYNC

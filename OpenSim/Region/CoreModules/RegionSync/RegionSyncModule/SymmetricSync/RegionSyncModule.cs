@@ -208,16 +208,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             
             foreach (string bucketName in m_propertyBucketNames)
             {
-                if (m_isSyncRelay || part.HasPropertyUpdatedLocallyInGivenBucket(bucketName))
+                //if (m_isSyncRelay || part.HasPropertyUpdatedLocallyInGivenBucket(bucketName))
+                if(ToSendoutUpdate(part, bucketName))
                 {        
                     lock (m_primUpdateLocks[bucketName])
                     {
-                        //m_log.Debug("Queueing to bucket " + bucketName + " with part " + part.Name + ", " + part.UUID);
+                        m_log.Debug("Queueing to bucket " + bucketName + " with part " + part.Name + ", " + part.UUID);
                         m_primUpdates[bucketName][part.UUID] = part;
                     }
                 }
-            }
-            
+            }   
         }
 
 
@@ -718,6 +718,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private delegate void PrimUpdatePerBucketSender(string bucketName, List<SceneObjectPart> primUpdates);
         private Dictionary<string, PrimUpdatePerBucketSender> m_primUpdatesPerBucketSender = new Dictionary<string, PrimUpdatePerBucketSender>();
+        //Timestamps that record the last time each any updates have been sent out for a given bucket
+        private Dictionary<string, long> m_lastUpdateSentTime = new Dictionary<string, long>();
 
         private object m_updateScenePresenceLock = new object();
         private Dictionary<UUID, ScenePresence> m_presenceUpdates = new Dictionary<UUID, ScenePresence>();
@@ -745,6 +747,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //Going forward, we may serialize the properties differently, e.g. using OSDMap 
         private void PrimUpdatesGeneralBucketSender(string bucketName, List<SceneObjectPart> primUpdates)
         {
+            UpdateBucektLastSentTime(bucketName);
+
             Dictionary<UUID, SceneObjectGroup> updatedObjects = new Dictionary<UUID, SceneObjectGroup>();
             foreach (SceneObjectPart part in primUpdates)
             {
@@ -758,10 +762,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 lock (m_stats) m_statSOGBucketOut++;
                 SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
             }
+
         }
 
         private void PrimUpdatesPhysicsBucketSender(string bucketName, List<SceneObjectPart> primUpdates)
         {
+            UpdateBucektLastSentTime(bucketName);
+
             foreach (SceneObjectPart updatedPart in primUpdates)
             {
                 updatedPart.UpdateTaintedBucketSyncInfo(bucketName, DateTime.Now.Ticks);
@@ -808,7 +815,39 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 lock (m_stats) m_statPhysBucketOut++;
                 SendObjectUpdateToRelevantSyncConnectors(updatedPart, syncMsg);
             }
+
         }
+
+        private void UpdateBucektLastSentTime(string bucketName)
+        {
+            long timeStamp = DateTime.Now.Ticks;
+            /*
+            if (m_lastUpdateSentTime.ContainsKey(bucketName))
+            {
+                m_lastUpdateSentTime[bucketName] = timeStamp;
+            }
+            else
+            {
+                m_lastUpdateSentTime.Add(bucketName, timeStamp);
+            }
+             * */
+            m_lastUpdateSentTime[bucketName] = timeStamp;
+        }
+
+        private bool ToSendoutUpdate(SceneObjectPart part, string bucketName)
+        {
+            if (!m_isSyncRelay)
+            {
+                return part.HasPropertyUpdatedLocallyInGivenBucket(bucketName);
+            }
+
+            //if this is a relay node, forward out the updates that have not been sent out since lastUpdateSentTime
+            if (m_lastUpdateSentTime[bucketName] <= part.BucketSyncInfoList[bucketName].LastUpdateTimeStamp)
+                return true;
+            else
+                return false;
+        }
+
         //If nothing configured in the config file, this is the default settings for grouping properties into different bucket
         private void PopulatePropertyBuketMapByDefault()
         {
@@ -822,6 +861,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //Linking each bucket with the sender function that serializes the properties in the bucket and send out sync message
             m_primUpdatesPerBucketSender.Add("General", PrimUpdatesGeneralBucketSender);
             m_primUpdatesPerBucketSender.Add("Physics", PrimUpdatesPhysicsBucketSender);
+
+            m_lastUpdateSentTime.Add("General", 0);
+            m_lastUpdateSentTime.Add("Physics", 0);
 
             //Mapping properties to buckets.
             foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))

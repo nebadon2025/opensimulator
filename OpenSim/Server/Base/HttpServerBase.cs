@@ -97,14 +97,38 @@ namespace OpenSim.Server.Base
 
             if (port == 0)
             {
-                System.Console.WriteLine("Port number not specified or 0, server can't start");
+
                 Thread.CurrentThread.Abort();
             }
+
+            bool ssl_main = networkConfig.GetBoolean("SSL",false);
 
             m_consolePort = (uint)networkConfig.GetInt("ConsolePort", 0);
             m_Port = port;
 
-            m_HttpServer = new BaseHttpServer(port);
+            if ( !ssl_main )
+            {
+                m_HttpServer = new BaseHttpServer(port);
+
+            }
+            else
+            {
+                string cert_path = networkConfig.GetString("CertPath",String.Empty);
+                if ( cert_path == String.Empty )
+                {
+                    System.Console.WriteLine("Path to X509 certificate is missing, server can't start.");
+                    Thread.CurrentThread.Abort();
+                }
+                string cert_pass = networkConfig.GetString("CertPass",String.Empty);
+                if ( cert_pass == String.Empty )
+                {
+                    System.Console.WriteLine("Password for X509 certificate is missing, server can't start.");
+                    Thread.CurrentThread.Abort();
+                }
+                m_HttpServer = new BaseHttpServer(port, ssl_main, cert_path, cert_pass);
+            }
+
+
 
             MainServer.Instance = m_HttpServer;
         }

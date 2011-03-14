@@ -172,7 +172,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (entity is SceneObjectGroup)
             {
-                m_log.Warn(LogHeader + ": start script for obj " + entity.UUID);
+                m_log.Debug(LogHeader + ": start script for obj " + entity.UUID);
                 SceneObjectGroup sog = (SceneObjectGroup)entity; 
                 sog.CreateScriptInstances(0, false, m_scene.DefaultScriptEngine, 0);
                 sog.ResumeScripts();

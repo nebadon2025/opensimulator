@@ -27,7 +27,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
     // The SceneToPhysEngineConnector acts as a thread on the RegionSyncServer to handle incoming
     // messages from PhysEngineToSceneConnectors that run on Physics Engines. It connects the 
     // authoratative Scene with remote script engines.
-    public class SceneToPhysEngineConnector
+    public class SceneToPhysEngineConnector : ISyncStatistics
     {
         #region SceneToPhysEngineConnector members
 
@@ -38,9 +38,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private long bytesIn;
         private long bytesOut;
         private long pollBlocks;
-        private int lastTotalCount;
-        private int lastLocalCount;
-        private int lastRemoteCount;
 
         private int msgCount = 0;
 
@@ -49,7 +46,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Set the addr and port for TcpListener
         private IPAddress m_addr;
         private Int32 m_port;
-        private int m_connection_number;
+        private static int m_connection_number = 0;
         private Scene m_scene;
 
         object m_syncRoot = new object();
@@ -93,30 +90,31 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_connection_number; }
         }
 
-        public string GetStats()
+        public string StatisticIdentifier()
         {
-            string ret;
-            //lock (m_syncRoot)
-            //    syncedAvCount = m_syncedAvatars.Count;
+            return "SceneToPhysEngineConnector" + ConnectionNum.ToString();
+        }
+
+        public string StatisticLine(bool clearFlag)
+        {
+            string ret = "";
             lock (stats)
             {
                 double secondsSinceLastStats = DateTime.Now.Subtract(lastStatTime).TotalSeconds;
                 lastStatTime = DateTime.Now;
 
-                // ret = String.Format("[{0,4}/{1,4}], [{2,4}/{3,4}], [{4,4}/{5,4}], [{6,4} ({7,4})], [{8,8} ({9,8:00.00})], [{10,4} ({11,4})], [{12,8} ({13,8:00.00})], [{14,8} ({15,4}]",
-                ret = String.Format("[{0,4}/{1,4}], [{2,6}/{3,6}], [{4,4}/{5,4}], [{6,6} ({7,6})], [{8,4} ({9,4})]",
-                    //lastTotalCount, totalAvCount, // TOTAL AVATARS
-                    //lastLocalCount, syncedAvCount, // LOCAL TO THIS CLIENT VIEW
-                    //lastRemoteCount, totalAvCount - syncedAvCount, // REMOTE (SHOULD = TOTAL - LOCAL)
-                    msgsIn, (int)(msgsIn / secondsSinceLastStats),
-                    bytesIn, 8 * (bytesIn / secondsSinceLastStats / 1000000), // IN
-                    msgsOut, (int)(msgsOut / secondsSinceLastStats),
-                    bytesOut, 8 * (bytesOut / secondsSinceLastStats / 1000000), // OUT
-                    pollBlocks, (int)(pollBlocks / secondsSinceLastStats)); // NUMBER OF TIMES WE BLOCKED WRITING TO SOCKET
-
-                msgsIn = msgsOut = bytesIn = bytesOut = pollBlocks = 0;
+                ret = String.Format("{0},{1},{2},{3},{4}",
+                    msgsIn, msgsOut, bytesIn, bytesOut, pollBlocks
+                    );
+                if (clearFlag)
+                    msgsIn = msgsOut = bytesIn = bytesOut = pollBlocks = 0;
             }
             return ret;
+        }
+
+        public string StatisticTitle()
+        {
+            return "msgsIn,msgsOut,bytesIn,bytesOut,pollBlocks";
         }
 
         // Check if the client is connected
@@ -162,6 +160,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_receive_loop.Name = Description;
             //m_log.WarnFormat("{0} Started thread: {1}", LogHeader, m_receive_loop.Name);
             m_receive_loop.Start();
+
+            SyncStatisticCollector.Register(this);
 
             //tell the remote script engine about the locX, locY of this authoritative scene
             // SendSceneLoc();

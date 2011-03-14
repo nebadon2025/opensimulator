@@ -252,7 +252,7 @@ namespace OpenSim.Region.CoreModules.World.Media.Moap
 
             SetPartMediaFlags(part, face, me != null);
             //part.ScheduleFullUpdate();
-            part.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.MediaUrl});
+            part.ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.MediaUrl, SceneObjectPartProperties.Shape});
 
             part.TriggerScriptChangedEvent(Changed.MEDIA);
         }

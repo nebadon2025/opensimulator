@@ -333,11 +333,13 @@ namespace OpenSim.Region.Framework.Scenes
             ArrayList errors = new ArrayList();
 
             //In the old async model, this function is supposed to be executed only on a remote script engine, not an authorative Scene
+            /*
             if (RegionSyncModule==null && !IsSyncedScriptEngine())
             {
                 m_log.Warn("This is not the script engine. Should not have received OnUpdateScript event.");
                 return errors;
             }
+             * */ 
             SceneObjectPart part = GetSceneObjectPart(primID);
             SceneObjectGroup group = part.ParentGroup;
             if (isScriptRunning)
@@ -2194,7 +2196,14 @@ namespace OpenSim.Region.Framework.Scenes
             }
                         
             AddNewSceneObject(group, true, pos, rot, vel);
-            
+
+            //SYNC DEBUG
+            string partnames = "";
+            foreach (SceneObjectPart part in group.Parts){
+                partnames += "(" + part.Name + ", " + part.UUID + ")"; 
+            }
+            m_log.DebugFormat("[SCENE] RezObject {0} with InvItem name {1} at pos {2} with parts {3}", group.UUID.ToString(), item.Name, group.RootPart.GroupPosition.ToString(), partnames);
+
             // We can only call this after adding the scene object, since the scene object references the scene
             // to find out if scripts should be activated at all.
             group.CreateScriptInstances(param, true, DefaultScriptEngine, 3);

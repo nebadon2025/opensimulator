@@ -174,7 +174,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.Warn(LogHeader + " Synchronized");
                 foreach (SceneToPhysEngineConnector pec in m_physEngineConnectors)
                 {
-                    m_log.Warn(pec.GetStats());
+                    m_log.Warn(pec.StatisticLine(true));
                 }
             }
         }
@@ -681,7 +681,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         #region Message Logging
         public static bool logInput = false;
         public static bool logOutput = true;
-        public static bool logEnabled = true;
+        public static bool logEnabled = false;
         private class PhysMsgLogger
         {
             public DateTime startTime;

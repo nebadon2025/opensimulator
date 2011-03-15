@@ -245,6 +245,19 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             Watchdog.StartThread(IncomingPacketHandler, "Incoming Packets (" + m_scene.RegionInfo.RegionName + ")", ThreadPriority.Normal, false);
             Watchdog.StartThread(OutgoingPacketHandler, "Outgoing Packets (" + m_scene.RegionInfo.RegionName + ")", ThreadPriority.Normal, false);
             m_elapsedMSSinceLastStatReport = Environment.TickCount;
+            System.Timers.Timer packet_type_timer = new System.Timers.Timer(60000);
+            packet_type_timer.Elapsed +=new System.Timers.ElapsedEventHandler(packet_type_timer_Elapsed);
+            packet_type_timer.AutoReset = true;
+            packet_type_timer.Start();
+        }
+
+        void  packet_type_timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+        {
+            for (int i = 0; i < 9; ++i)
+            {
+                int val = Interlocked.Exchange(ref OutgoingPacket.CatCounts[i], 0);
+                m_log.WarnFormat("OutgoingPacket type {0} count = {1}", i, val);
+            }
         }
 
         public new void Stop()

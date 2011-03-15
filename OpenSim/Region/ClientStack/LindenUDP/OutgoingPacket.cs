@@ -53,7 +53,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         /// <summary>Category this packet belongs to</summary>
         public ThrottleOutPacketType Category;
 
-        public static int[] CatCounts = new int[8];
+        public static int[] CatCounts = new int[9];
 
         /// <summary>
         /// Default constructor
@@ -67,7 +67,10 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             Client = client;
             Buffer = buffer;
             Category = category;
-            CatCounts[(int)category]++;
+            if (category == ThrottleOutPacketType.Unknown)
+                CatCounts[8]++;
+            else
+                CatCounts[(int)category]++;
         }
     }
 }

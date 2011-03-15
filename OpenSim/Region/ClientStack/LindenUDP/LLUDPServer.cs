@@ -254,7 +254,10 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         void  packet_type_timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
         {
             for (int i = 0; i < 9; ++i)
-                m_log.WarnFormat("OutgoingPacket type {0} count = {1}", i, OutgoingPacket.CatCounts[i]);
+            {
+                int val = Interlocked.Exchange(ref OutgoingPacket.CatCounts[i], 0);
+                m_log.WarnFormat("OutgoingPacket type {0} count = {1}", i, val);
+            }
         }
 
         public new void Stop()

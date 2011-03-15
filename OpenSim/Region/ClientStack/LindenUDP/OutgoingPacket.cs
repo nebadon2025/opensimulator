@@ -28,6 +28,7 @@
 using System;
 using OpenSim.Framework;
 using OpenMetaverse;
+using System.Threading;
 
 namespace OpenSim.Region.ClientStack.LindenUDP
 {
@@ -67,10 +68,10 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             Client = client;
             Buffer = buffer;
             Category = category;
+            int type = (int)category;
             if (category == ThrottleOutPacketType.Unknown)
-                CatCounts[8]++;
-            else
-                CatCounts[(int)category]++;
+                type = 8;
+            Interlocked.Increment(ref OutgoingPacket.CatCounts[type]);
         }
     }
 }

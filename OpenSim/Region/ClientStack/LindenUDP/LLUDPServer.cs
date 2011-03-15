@@ -255,7 +255,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         {
             for (int i = 0; i < 9; ++i)
             {
-                int val = Interlocked.Exchange(ref OutgoingPacket.CatCounts[i], 0);
+                int val = Interlocked.Exchange(ref CatCounts[i], 0);
                 m_log.WarnFormat("OutgoingPacket type {0} count = {1}", i, val);
             }
         }
@@ -362,6 +362,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             }
         }
 
+        private int[] CatCounts = new int[9];
+
         /// <summary>
         /// Start the process of sending a packet to the client.
         /// </summary>
@@ -425,6 +427,10 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             #region Queue or Send
 
             OutgoingPacket outgoingPacket = new OutgoingPacket(udpClient, buffer, category);
+            if (category == ThrottleOutPacketType.Unknown)
+                Interlocked.Increment(ref CatCounts[8]);
+            else
+                Interlocked.Increment(ref CatCounts[(int)category]);
 
             // If a Linden Lab 1.23.5 client receives an update packet after a kill packet for an object, it will 
             // continue to display the deleted object until relog.  Therefore, we need to always queue a kill object

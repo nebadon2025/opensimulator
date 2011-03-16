@@ -1631,8 +1631,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 //SendSyncMessage(SymmetricSyncMessage.MsgType.NewObject, sogxml);
                                 SceneObjectGroup sog = (SceneObjectGroup)e;
                                 SendNewObject(sog);
-
-                                //m_log.Debug(LogHeader + ": " + sogxml);
                             }
                         }
                         return;
@@ -1642,8 +1640,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     break;
                 case SymmetricSyncMessage.MsgType.UpdatedObject:
                     {
-                        HandleAddOrUpdateObjectBySynchronization(msg, senderActorID);
-                        //HandleAddNewObject(sog);
+                        //HandleAddOrUpdateObjectBySynchronization(msg, senderActorID);
+                        HandleUpdateObjectBySynchronization(msg, senderActorID);                       
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.UpdatedBucketProperties:
@@ -1722,7 +1720,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //First, create the object group and add it to Scene
             string sogxml = data["sogxml"];
             SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
-            Scene.ObjectUpdateResult updateResult = m_scene.AddOrUpdateObjectBySynchronization(sog);
+            //Scene.ObjectUpdateResult updateResult = m_scene.AddOrUpdateObjectBySynchronization(sog);
+
+            Scene.ObjectUpdateResult updateResult = m_scene.AddNewSceneObjectBySync(sog);
 
             //if this is a relay node, forward the event
             if (m_isSyncRelay)
@@ -1749,9 +1749,47 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_scene.UpdateObjectPartBucketProperties(bucketName, partUUID, data, rBucketSyncInfo);
             }
             //m_log.DebugFormat("{0}: received NewObject sync message from {1}, for object {1}, {2}", LogHeader, senderActorID, sog.Name, sog.UUID);
+        }
 
+        private void HandleUpdateObjectBySynchronization(SymmetricSyncMessage msg, string senderActorID)
+        {
+            string sogxml = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
+            SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
+            lock (m_stats) m_statSOGBucketIn++;
 
+                        if (sog.IsDeleted)
+            {
+                SymmetricSyncMessage.HandleTrivial(LogHeader, msg, String.Format("Ignoring update on deleted object, UUID: {0}.", sog.UUID));
+                return;
+            }
+            else
+            {
+                foreach (SceneObjectPart part in sog.Parts)
+                {
+                    if (part.IsAttachment)
+                    {
+                        m_log.Debug(LogHeader + "HandleUpdateObjectBySynchronization: part " + part.Name + "," + part.UUID + ", IsAttachment = true");
+                    }
+                }
 
+                Scene.ObjectUpdateResult updateResult = m_scene.UpdateObjectBySynchronization(sog);
+
+                switch (updateResult)
+                {
+                    case Scene.ObjectUpdateResult.New:
+                        m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) added.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
+                        break;
+                    case Scene.ObjectUpdateResult.Updated:
+                        m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) updated.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
+                        break;
+                    case Scene.ObjectUpdateResult.Error:
+                        m_log.WarnFormat("[{0} Object \"{1}\" ({1}) ({2}) -- add or update ERROR.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
+                        break;
+                    case Scene.ObjectUpdateResult.Unchanged:
+                        //m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) unchanged after receiving an update.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
+                        break;
+                }
+            }
 
         }
 

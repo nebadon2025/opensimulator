@@ -684,6 +684,11 @@ namespace OpenSim.Region.Framework.Scenes
             return m_sceneGraph.AddOrUpdateObjectBySynchronization(sog);
         }
 
+        public ObjectUpdateResult UpdateObjectBySynchronization(SceneObjectGroup sog)
+        {
+            return m_sceneGraph.UpdateObjectBySynchronization(sog);
+        }
+
         //Similar to DeleteSceneObject, except that this does not change LastUpdateActorID and LastUpdateTimeStamp
         public void DeleteSceneObjectBySynchronization(SceneObjectGroup group)
         {
@@ -732,12 +737,12 @@ namespace OpenSim.Region.Framework.Scenes
             m_sceneGraph.AddNewSceneObjectPart(newPart, parentGroup);
         }
 
-        public void AddNewSceneObjectBySync(SceneObjectGroup group, bool attachToBackup)
+        public ObjectUpdateResult AddNewSceneObjectBySync(SceneObjectGroup group)
         {
-            if(attachToBackup)
-                group.HasGroupChanged = true;
+            //if(attachToBackup)
+            //    group.HasGroupChanged = true;
 
-            m_sceneGraph.AddSceneObjectByStateSynch(group);
+            return m_sceneGraph.AddNewSceneObjectBySync(group);
         }
 
         public void DebugSceneObjectGroups()

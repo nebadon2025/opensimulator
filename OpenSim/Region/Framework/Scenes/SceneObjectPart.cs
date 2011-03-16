@@ -5479,6 +5479,8 @@ namespace OpenSim.Region.Framework.Scenes
                 localPart.TextureAnimation = updatedPart.TextureAnimation;
                 localPart.ParticleSystem = updatedPart.ParticleSystem;
 
+                bool preIsAttachment = localPart.IsAttachment;
+
                 if (!localPart.AttachedAvatar.Equals(updatedPart.AttachedAvatar))
                 {
                     localPart.AttachedAvatar = updatedPart.AttachedAvatar;
@@ -5493,6 +5495,11 @@ namespace OpenSim.Region.Framework.Scenes
                 //{
                 //    localPart.IsAttachment = updatedPart.IsAttachment;
                 //}
+
+                if (localPart.IsAttachment)
+                {
+                    m_log.Debug("GeneralBucketUpdateProcessor: part " + localPart.Name + "," + localPart.UUID + ", IsAttachment = true; previously, IsAttachment = " + preIsAttachment.ToString());
+                }
 
                 localPart.AggregateScriptEvents = updatedPart.AggregateScriptEvents;
 
@@ -5856,7 +5863,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (!m_bucketSyncInfoList[bucketName].LastUpdateActorID.Equals(rBucketSyncInfo.LastUpdateActorID))
                 {
-                    m_log.Warn("Different actors modified SceneObjetPart " + Name + "," + UUID + ", bucket " + bucketName + ", with the same TimeStamp ("
+                    m_log.Warn("UpdateBucketProperties: Different actors modified SceneObjetPart " + Name + "," + UUID + ", bucket " + bucketName + ", with the same TimeStamp ("
                         + m_bucketSyncInfoList[bucketName].LastUpdateActorID
                         + "," + rBucketSyncInfo.LastUpdateActorID +
                         ", CONFLICT RESOLUTION TO BE IMPLEMENTED, PICK A WINNER!!!!");

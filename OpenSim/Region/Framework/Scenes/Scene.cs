@@ -689,6 +689,23 @@ namespace OpenSim.Region.Framework.Scenes
             return m_sceneGraph.UpdateObjectBySynchronization(sog);
         }
 
+        public void DeleteAllSceneObjectsBySync()
+        {
+            lock (Entities)
+            {
+                EntityBase[] entities = Entities.GetEntities();
+                foreach (EntityBase e in entities)
+                {
+                    if (e is SceneObjectGroup)
+                    {
+                        SceneObjectGroup sog = (SceneObjectGroup)e;
+                        if (!sog.IsAttachment)
+                            DeleteSceneObjectBySynchronization((SceneObjectGroup)e);
+                    }
+                }
+            }
+        }
+
         //Similar to DeleteSceneObject, except that this does not change LastUpdateActorID and LastUpdateTimeStamp
         public void DeleteSceneObjectBySynchronization(SceneObjectGroup group)
         {

@@ -1518,7 +1518,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void DoInitialSync()
         {
-            m_scene.DeleteAllSceneObjects();
+            //m_scene.DeleteAllSceneObjects();
+            m_scene.DeleteAllSceneObjectsBySync();
             
             SendSyncMessage(SymmetricSyncMessage.MsgType.RegionName, m_scene.RegionInfo.RegionName);
             m_log.WarnFormat("Sending region name: \"{0}\"", m_scene.RegionInfo.RegionName);

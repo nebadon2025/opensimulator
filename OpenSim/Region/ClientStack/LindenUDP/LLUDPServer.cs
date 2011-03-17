@@ -258,7 +258,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             for (int i = 0; i < 9; ++i)
             {
                 int val = Interlocked.Exchange(ref OutgoingPacket.CatCounts[i], 0);
-                m_log.WarnFormat("OutgoingPacket type {0} count = {1}", i, val);
+                m_log.DebugFormat("OutgoingPacket type {0} count = {1}", i, val);
             }
         }
 

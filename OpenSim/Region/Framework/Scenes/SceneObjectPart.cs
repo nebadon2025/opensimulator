@@ -2202,7 +2202,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
         }
 
-        public void PhysicsCollision(EventArgs e)
+        public virtual void PhysicsCollision(EventArgs e)
         {
             // single threaded here
             if (e == null)
@@ -5495,6 +5495,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //}
 
                 localPart.AggregateScriptEvents = updatedPart.AggregateScriptEvents;
+                aggregateScriptEventSubscriptions();
 
                 m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = updatedPart.BucketSyncInfoList[bucketName].LastUpdateTimeStamp;
                 m_bucketSyncInfoList[bucketName].LastUpdateActorID = updatedPart.BucketSyncInfoList[bucketName].LastUpdateActorID;
@@ -5518,6 +5519,36 @@ namespace OpenSim.Region.Framework.Scenes
             m_bucketSyncInfoList[bucketName].TaintBucketBySync();
         }
 
+        // Do any subscriptions based on the AggregateScriptEvents
+        protected void aggregateScriptEventSubscriptions()
+        {
+            if (
+                ((AggregateScriptEvents & scriptEvents.collision) != 0) ||
+                ((AggregateScriptEvents & scriptEvents.collision_end) != 0) ||
+                ((AggregateScriptEvents & scriptEvents.collision_start) != 0) ||
+                ((AggregateScriptEvents & scriptEvents.land_collision_start) != 0) ||
+                ((AggregateScriptEvents & scriptEvents.land_collision) != 0) ||
+                ((AggregateScriptEvents & scriptEvents.land_collision_end) != 0) ||
+                (CollisionSound != UUID.Zero)
+                )
+            {
+                // subscribe to physics updates.
+                if (PhysActor != null)
+                {
+                    PhysActor.OnCollisionUpdate += PhysicsCollision;
+                    PhysActor.SubscribeEvents(1000);
+
+                }
+            }
+            else
+            {
+                if (PhysActor != null)
+                {
+                    PhysActor.UnSubscribeEvents();
+                    PhysActor.OnCollisionUpdate -= PhysicsCollision;
+                }
+            }
+        }
 
         //NOTE: only touch the properties and BucketSyncInfo that is related to the given bucketName. Other properties and
         //buckets may not be filled at all in "updatedPart".
@@ -5943,6 +5974,30 @@ namespace OpenSim.Region.Framework.Scenes
                 return true;
             }
             return false;
+        }
+
+        public override void PhysicsCollision(EventArgs e)
+        {
+            if (m_parentGroup.Scene.RegionSyncModule != null)
+            {
+                CollisionEventUpdate a = (CollisionEventUpdate)e;
+                Dictionary<uint, ContactPoint> collisionswith = a.m_objCollisionList;
+                OSDArray collisionLocalIDs = new OSDArray();
+                foreach (uint collisionObject in collisionswith.Keys)
+                {
+                    collisionLocalIDs.Add(collisionObject);
+                }
+                object[] eventArgs = new object[2];
+                eventArgs[0] = this.UUID;
+                eventArgs[1] = collisionLocalIDs;
+                m_parentGroup.Scene.RegionSyncModule.PublishSceneEvent(EventManager.EventNames.PhysicsCollision, eventArgs);
+            }
+            PhysicsCollisionLocally(e);
+        }
+
+        public void PhysicsCollisionLocally(EventArgs e)
+        {
+            base.PhysicsCollision(e);
         }
     }
 

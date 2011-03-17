@@ -13,6 +13,7 @@ using OpenSim.Region.CoreModules.Framework.InterfaceCommander;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.Framework.Scenes.Serialization;
+using OpenSim.Region.Physics.Manager;
 using OpenSim.Services.Interfaces;
 using log4net;
 using System.Net;
@@ -591,6 +592,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     return;
                 case EventManager.EventNames.Attach:
                     OnLocalAttach((uint)evArgs[0], (UUID)evArgs[1], (UUID)evArgs[2]);
+                    return;
+                case EventManager.EventNames.PhysicsCollision:
+                    OnLocalPhysicsCollision((UUID)evArgs[0], (OSDArray)evArgs[1]);
                     return;
                 default:
                     return;
@@ -1607,6 +1611,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.ObjectGrabbing:
                 case SymmetricSyncMessage.MsgType.ObjectDeGrab:
                 case SymmetricSyncMessage.MsgType.Attach:
+                case SymmetricSyncMessage.MsgType.PhysicsCollision:
                     {
                         HandleRemoteEvent(msg, senderActorID);
                         return;
@@ -1992,6 +1997,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.Attach:
                     HandleRemoteEvent_OnAttach(init_actorID, evSeqNum, data);
                     break;
+                case SymmetricSyncMessage.MsgType.PhysicsCollision:
+                    HandleRemoteEvent_PhysicsCollision(init_actorID, evSeqNum, data);
+                    break;
             }
 
             //if this is a relay node, forwards the event
@@ -2304,7 +2312,33 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             uint localID = part.LocalId;
             m_scene.EventManager.TriggerOnAttachLocally(localID, itemID, avatarID);
-            
+        }
+
+        private void HandleRemoteEvent_PhysicsCollision(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            UUID primUUID = data["primUUID"].AsUUID();
+            OSDArray collisionLocalIDs = (OSDArray)data["collisionLocalIDs"];
+
+            SceneObjectPart part = m_scene.GetSceneObjectPart(primUUID);
+            if (part == null)
+            {
+                m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no part with UUID {1} found", LogHeader, primUUID);
+                return;
+            }
+            if (collisionLocalIDs == null)
+            {
+                m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no collisionLocalIDs", LogHeader);
+                return;
+            }
+
+            // Build up the collision list. The contact point is ignored so we generate some default.
+            CollisionEventUpdate e = new CollisionEventUpdate();
+            foreach (uint collisionID in collisionLocalIDs)
+            {
+                // e.addCollider(collisionID, new ContactPoint());
+                e.addCollider(collisionID, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
+            }
+            part.PhysicsCollisionLocally(e);
         }
 
         /// <summary>
@@ -2461,6 +2495,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["itemID"] = OSD.FromUUID(itemID);
             data["avatarID"] = OSD.FromUUID(avatarID);
             SendSceneEvent(SymmetricSyncMessage.MsgType.Attach, data);
+        }
+
+        private void OnLocalPhysicsCollision(UUID partUUID, OSDArray collisionLocalIDs)
+        {
+            OSDMap data = new OSDMap();
+            data["primUUID"] = OSD.FromUUID(partUUID);
+            data["collisionLocalIDs"] = collisionLocalIDs;
+            SendSceneEvent(SymmetricSyncMessage.MsgType.PhysicsCollision, data);
         }
 
         private void OnLocalGrabObject(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)

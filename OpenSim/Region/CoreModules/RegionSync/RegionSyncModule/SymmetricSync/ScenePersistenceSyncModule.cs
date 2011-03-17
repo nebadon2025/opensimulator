@@ -89,7 +89,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
 
             //Register for Scene/SceneGraph events
-            //m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(ScenePersistence_OnObjectCreate);
+            m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(ScenePersistence_OnObjectCreate);
             m_scene.SceneGraph.OnObjectCreateBySync += new ObjectCreateBySyncDelegate(ScenePersistence_OnObjectCreateBySync);
         }
 
@@ -164,16 +164,33 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <summary>
         /// ScenePersistence's actions upon an object is added to the local scene.
         /// </summary>
-        private void ScenePersistence_OnObjectCreateBySync(EntityBase entity)
+        private void ScenePersistence_OnObjectCreate(EntityBase entity)
         {
             if (entity is SceneObjectGroup)
             {
-                m_log.Warn(LogHeader + ": link to backup for " + entity.UUID);
+                //m_log.Warn(LogHeader + ":OnObjectCreate -- link to backup for " + entity.UUID);
                 SceneObjectGroup sog = (SceneObjectGroup)entity;
 
                 //probably what we should do here is to set some variable sog.SyncToBackup to true, and sog.ProcessBackup will only run if that value is true, 
                 //then we do not need to worry about where an object is attach-to-backup and modify all those lines.
+                sog.ToPersistObjectState = true;
+                sog.AttachToBackup();
+            }
+        }
 
+        /// <summary>
+        /// ScenePersistence's actions upon an object is added to the local scene.
+        /// </summary>
+        private void ScenePersistence_OnObjectCreateBySync(EntityBase entity)
+        {
+            if (entity is SceneObjectGroup)
+            {
+                //m_log.Warn(LogHeader + ":OnObjectCreateBySync -- link to backup for " + entity.UUID);
+                SceneObjectGroup sog = (SceneObjectGroup)entity;
+
+                //probably what we should do here is to set some variable sog.SyncToBackup to true, and sog.ProcessBackup will only run if that value is true, 
+                //then we do not need to worry about where an object is attach-to-backup and modify all those lines.
+                sog.ToPersistObjectState = true;
                 sog.AttachToBackup();
             }
         }

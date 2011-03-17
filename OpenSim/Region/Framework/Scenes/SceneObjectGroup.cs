@@ -1372,6 +1372,14 @@ namespace OpenSim.Region.Framework.Scenes
                 return;
             }
 
+            //SYMMETRIC SYNC
+            //if we are doing sync across different sync nodes, and are not told to persist the state, don't do anything (only persistence actor will do it)
+            if (m_scene.RegionSyncModule != null && !ToPersistObjectState)
+            {
+                return;
+            }
+            //end of SYMMETRIC SYNC
+
             // Since this is the top of the section of call stack for backing up a particular scene object, don't let
             // any exception propogate upwards.
             try
@@ -2113,9 +2121,9 @@ namespace OpenSim.Region.Framework.Scenes
             //    objectGroup.RootPart.SendScheduledUpdates();
             //}
 
-            //            m_log.DebugFormat(
-            //                "[SCENE OBJECT GROUP]: Linking group with root part {0}, {1} to group with root part {2}, {3}",
-            //                objectGroup.RootPart.Name, objectGroup.RootPart.UUID, RootPart.Name, RootPart.UUID);
+                        m_log.DebugFormat(
+                            "[SCENE OBJECT GROUP]: Linking group with root part {0}, {1} to group with root part {2}, {3}",
+                            objectGroup.RootPart.Name, objectGroup.RootPart.UUID, RootPart.Name, RootPart.UUID);
 
             SceneObjectPart linkPart = objectGroup.m_rootPart;
 
@@ -3556,6 +3564,13 @@ namespace OpenSim.Region.Framework.Scenes
 
         #region SYMMETRIC SYNC
 
+        private bool m_toPersistObjectState = false;
+        public bool ToPersistObjectState
+        {
+            get { return m_toPersistObjectState; }
+            set { m_toPersistObjectState = value; }
+        }
+
         //update the existing copy of the object with updated properties in 'updatedSog'
         //NOTE: updates on script content are handled seperately (e.g. user edited the script and saved it) -- SESyncServerOnUpdateScript(), a handler of EventManager.OnUpdateScript        
         //public void UpdateObjectProperties(SceneObjectGroup updatedSog)
@@ -3847,7 +3862,7 @@ namespace OpenSim.Region.Framework.Scenes
             bool newGroupBySync = true;
             SceneObjectGroup objectGroup = new SceneObjectGroup(delinkPart, newGroupBySync);
 
-            m_scene.AddNewSceneObjectBySync(objectGroup, true);
+            m_scene.AddNewSceneObjectBySync(objectGroup);
 
             if (sendEvents)
                 linkPart.TriggerScriptChangedEvent(Changed.LINK);

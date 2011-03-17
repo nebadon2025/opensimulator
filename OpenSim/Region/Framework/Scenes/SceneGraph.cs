@@ -2002,6 +2002,37 @@ namespace OpenSim.Region.Framework.Scenes
 
         #region SYMMETRIC SYNC
 
+        public Scene.ObjectUpdateResult UpdateObjectBySynchronization(SceneObjectGroup updatedSog)
+        {
+            UUID sogID = updatedSog.UUID;
+            Scene.ObjectUpdateResult updateResult = Scene.ObjectUpdateResult.Unchanged;
+
+            if (Entities.ContainsKey(sogID))
+            {
+                //update the object
+                EntityBase entity = Entities[sogID];
+                if (entity is SceneObjectGroup)
+                {
+                    SceneObjectGroup localSog = (SceneObjectGroup)entity;
+                    updateResult = localSog.UpdateObjectGroupBySync(updatedSog);
+                }
+                else
+                {
+                    m_log.WarnFormat("{0}: Entity with {1} is not of type SceneObjectGroup: {2}",
+                                    "[SCENE GRAPH]", sogID, entity.GetType().ToString());
+                    //return false;
+                    updateResult = Scene.ObjectUpdateResult.Error;
+                }
+            }
+            else
+            {
+                //An object no longer in Entity list, probably linked to other objects, or handed over to another quark.
+                m_log.WarnFormat("[SCENE GRAPH] UpdateObjectBySynchronization: received update for an object {0}, {1} no longer in local Entity list. Ignore update.", updatedSog.Name, updatedSog.UUID);
+            }
+
+            return updateResult;
+        }
+
         public Scene.ObjectUpdateResult AddOrUpdateObjectBySynchronization(SceneObjectGroup updatedSog)
         {
             UUID sogID = updatedSog.UUID;
@@ -2027,7 +2058,7 @@ namespace OpenSim.Region.Framework.Scenes
             else
             {
                 //m_log.Debug(updatedSog.Name+" "+updatedSog.UUID+" not found in Entities list. Need to add");
-                AddSceneObjectByStateSynch(updatedSog);
+                AddNewSceneObjectBySync(updatedSog);
                 updateResult = Scene.ObjectUpdateResult.New;
             }
 
@@ -2040,13 +2071,18 @@ namespace OpenSim.Region.Framework.Scenes
 
         //This is called when an object is added due to receiving a state synchronization message from Scene or an actor. Do similar things as the original AddSceneObject(),
         //but call ScheduleGroupForFullUpdate_TimeStampUnchanged() instead, so as not to modify the timestamp or actorID, since the object was not created locally.
-        public bool AddSceneObjectByStateSynch(SceneObjectGroup sceneObject)
+        public Scene.ObjectUpdateResult AddNewSceneObjectBySync(SceneObjectGroup sceneObject)
         {
+            Scene.ObjectUpdateResult updateResult = Scene.ObjectUpdateResult.New;
+
             if (sceneObject == null || sceneObject.RootPart == null || sceneObject.RootPart.UUID == UUID.Zero)
-                return false;
+                return Scene.ObjectUpdateResult.Error;
 
             if (Entities.ContainsKey(sceneObject.UUID))
-                return false;
+            {
+                m_log.WarnFormat("[SCENE GRAPH] AddNewSceneObjectBySync: Already has object {0}, {1} in local Entity list.", sceneObject.Name, sceneObject.UUID);
+                return Scene.ObjectUpdateResult.Error;
+            }
 
             SceneObjectPart[] children = sceneObject.Parts;
 
@@ -2111,7 +2147,7 @@ namespace OpenSim.Region.Framework.Scenes
                     SceneObjectGroupsByLocalID[part.LocalId] = sceneObject;
             }
 
-            return true;
+            return updateResult;
         }
 
         public void AddNewSceneObjectPart(SceneObjectPart newPart, SceneObjectGroup parentGroup)

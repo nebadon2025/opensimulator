@@ -47,6 +47,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             ObjectGrabbing,
             ObjectDeGrab,
             Attach,
+            PhysicsCollision,
+            //contorl command
+            SyncStateReport,
         }
         #endregion
 

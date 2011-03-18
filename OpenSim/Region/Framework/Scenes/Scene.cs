@@ -684,6 +684,28 @@ namespace OpenSim.Region.Framework.Scenes
             return m_sceneGraph.AddOrUpdateObjectBySynchronization(sog);
         }
 
+        public ObjectUpdateResult UpdateObjectBySynchronization(SceneObjectGroup sog)
+        {
+            return m_sceneGraph.UpdateObjectBySynchronization(sog);
+        }
+
+        public void DeleteAllSceneObjectsBySync()
+        {
+            lock (Entities)
+            {
+                EntityBase[] entities = Entities.GetEntities();
+                foreach (EntityBase e in entities)
+                {
+                    if (e is SceneObjectGroup)
+                    {
+                        SceneObjectGroup sog = (SceneObjectGroup)e;
+                        if (!sog.IsAttachment)
+                            DeleteSceneObjectBySynchronization((SceneObjectGroup)e);
+                    }
+                }
+            }
+        }
+
         //Similar to DeleteSceneObject, except that this does not change LastUpdateActorID and LastUpdateTimeStamp
         public void DeleteSceneObjectBySynchronization(SceneObjectGroup group)
         {
@@ -732,12 +754,12 @@ namespace OpenSim.Region.Framework.Scenes
             m_sceneGraph.AddNewSceneObjectPart(newPart, parentGroup);
         }
 
-        public void AddNewSceneObjectBySync(SceneObjectGroup group, bool attachToBackup)
+        public ObjectUpdateResult AddNewSceneObjectBySync(SceneObjectGroup group)
         {
-            if(attachToBackup)
-                group.HasGroupChanged = true;
+            //if(attachToBackup)
+            //    group.HasGroupChanged = true;
 
-            m_sceneGraph.AddSceneObjectByStateSynch(group);
+            return m_sceneGraph.AddNewSceneObjectBySync(group);
         }
 
         public void DebugSceneObjectGroups()
@@ -795,7 +817,12 @@ namespace OpenSim.Region.Framework.Scenes
                 }
 
                 //m_log.Debug("to link part " + part.DebugObjectPartProperties());
-                m_log.Debug("to link part " + part.Name + "," + part.UUID + "; its SOG has " + part.ParentGroup.Parts + " parts");
+                string partNames = "";
+                foreach (SceneObjectPart child in part.ParentGroup.Parts)
+                {
+                    partNames += "(" + child.Name + "," + child.UUID + ")"; 
+                }
+                m_log.Debug("LinkObjectBySync: " + part.Name + "," + part.UUID + " with root "+root.Name+","+root.UUID+"; its SOG has " + part.ParentGroup.Parts.Length + " parts : "+partNames);
 
                 children.Add(part);
             }
@@ -805,7 +832,13 @@ namespace OpenSim.Region.Framework.Scenes
             //Leverage the LinkObject implementation to get the book keeping of Group and Parts relations right
             m_sceneGraph.LinkObjectsBySync(root, children);
 
-
+            foreach (SceneObjectPart part in linkedGroup.Parts)
+            {
+                if (part.IsAttachment)
+                {
+                    m_log.Debug("LinkObjectBySync: part " + part.Name + "," + part.UUID + " IsAttachment = true after linking");
+                }
+            }
 
 
             //The properties of the newly linked object should be updated later with another UpdatedObject message. 

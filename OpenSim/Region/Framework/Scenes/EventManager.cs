@@ -60,7 +60,7 @@ namespace OpenSim.Region.Framework.Scenes
             ObjectGrabbing,
             ObjectDeGrab,
             Attach, //attaching object to avatar
-
+            PhysicsCollision,
         }
 
         public EventManager(Scene scene)

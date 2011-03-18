@@ -5569,7 +5569,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //m_log.Debug("Received Physics Bucket updates for " + localPart.Name + ","+localPart.UUID
                 //    + ". GroupPosition: " + data["GroupPosition"].AsVector3().ToString()); 
 
-                if (pa != null)
+                if (pa != null && data.ContainsKey("PA_Acceleration"))
                 {
                     pa.Size = data["Size"].AsVector3();
                     pa.Position = data["Position"].AsVector3();

@@ -817,7 +817,12 @@ namespace OpenSim.Region.Framework.Scenes
                 }
 
                 //m_log.Debug("to link part " + part.DebugObjectPartProperties());
-                m_log.Debug("LinkObjectBySync: " + part.Name + "," + part.UUID + " with root "+root.Name+","+root.UUID+"; its SOG has " + part.ParentGroup.Parts + " parts");
+                string partNames = "";
+                foreach (SceneObjectPart child in part.ParentGroup.Parts)
+                {
+                    partNames += "(" + child.Name + "," + child.UUID + ")"; 
+                }
+                m_log.Debug("LinkObjectBySync: " + part.Name + "," + part.UUID + " with root "+root.Name+","+root.UUID+"; its SOG has " + part.ParentGroup.Parts.Length + " parts : "+partNames);
 
                 children.Add(part);
             }

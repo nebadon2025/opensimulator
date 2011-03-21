@@ -28,6 +28,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Reflection;
 using System.Text;
@@ -300,6 +301,73 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         /// <summary>Used to adjust Sun Orbit values so Linden based viewers properly position sun</summary>
         private const float m_sunPainDaHalfOrbitalCutoff = 4.712388980384689858f;
+
+// First log file or time has expired, start writing to a new log file
+//<MIC>
+// -----------------------------------------------------------------
+// -----------------------------------------------------------------
+// -----------------------------------------------------------------
+// -----------------------------------------------------------------
+        public class QueueLogger
+        {
+            public Int32 start = 0;
+            public StreamWriter Log = null;
+            private Dictionary<UUID,int> m_idMap = new Dictionary<UUID,int>();
+
+            public QueueLogger()
+            {
+                DateTime now = DateTime.Now;
+                String fname = String.Format("queue-{0}.log", now.ToString("yyyyMMddHHmmss"));
+                Log = new StreamWriter(fname);
+
+                start = Util.EnvironmentTickCount();
+            }
+
+            public int LookupID(UUID uuid)
+            {
+                int localid;
+                if (! m_idMap.TryGetValue(uuid,out localid))
+                {
+                    localid = m_idMap.Count + 1;
+                    m_idMap[uuid] = localid;
+                }
+                
+                return localid;                
+            }
+        }
+
+        public static QueueLogger QueueLog = null;
+
+        // -----------------------------------------------------------------
+        public void LogAvatarUpdateEvent(UUID client, UUID avatar)
+        {
+            if (QueueLog == null)
+                QueueLog = new QueueLogger();
+
+            Int32 ticks = Util.EnvironmentTickCountSubtract(QueueLog.start);
+            lock(QueueLog)
+            {
+                int cid = QueueLog.LookupID(client);
+                int aid = QueueLog.LookupID(avatar);
+                QueueLog.Log.WriteLine("{0},AU,AV{1:D4},AV{2:D4}",ticks,cid,aid);
+            }
+        }
+
+        // -----------------------------------------------------------------
+        public void LogQueueProcessEvent(UUID client, PriorityQueue queue, uint maxup)
+        {
+            if (QueueLog == null)
+                QueueLog = new QueueLogger();
+
+            Int32 ticks = Util.EnvironmentTickCountSubtract(QueueLog.start);
+            lock(QueueLog)
+            {
+                int cid = QueueLog.LookupID(client);
+                QueueLog.Log.WriteLine("{0},PQ,AV{1:D4},{2},{3}",ticks,cid,queue.Count,maxup);
+            }
+        }
+
+//</MIC>
 
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         protected static Dictionary<PacketType, PacketMethod> PacketHandlers = new Dictionary<PacketType, PacketMethod>(); //Global/static handlers for all clients
@@ -3567,6 +3635,9 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 m_entityUpdates.Enqueue(priority, new EntityUpdate(entity, updateFlags, m_scene.TimeDilation), entity.LocalId);
         }
 
+        private Int32 m_LastQueueFill = 0;
+        private uint m_maxUpdates = 0;
+
         private void ProcessEntityUpdates(int maxUpdates)
         {
             OpenSim.Framework.Lazy<List<ObjectUpdatePacket.ObjectDataBlock>> objectUpdateBlocks = new OpenSim.Framework.Lazy<List<ObjectUpdatePacket.ObjectDataBlock>>();
@@ -3574,8 +3645,30 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             OpenSim.Framework.Lazy<List<ImprovedTerseObjectUpdatePacket.ObjectDataBlock>> terseUpdateBlocks = new OpenSim.Framework.Lazy<List<ImprovedTerseObjectUpdatePacket.ObjectDataBlock>>();
             OpenSim.Framework.Lazy<List<ImprovedTerseObjectUpdatePacket.ObjectDataBlock>> terseAgentUpdateBlocks = new OpenSim.Framework.Lazy<List<ImprovedTerseObjectUpdatePacket.ObjectDataBlock>>();
 
-            if (maxUpdates <= 0) maxUpdates = Int32.MaxValue;
+            if (maxUpdates <= 0)
+            {
+                m_maxUpdates = Int32.MaxValue;
+            }
+            else
+            {
+                if (m_maxUpdates == 0 || m_LastQueueFill == 0)
+                {
+                    m_maxUpdates = (uint)maxUpdates;
+                }
+                else
+                {
+                    if (Util.EnvironmentTickCountSubtract(m_LastQueueFill) < 200)
+                        m_maxUpdates += 5;
+                    else
+                        m_maxUpdates = m_maxUpdates >> 1;
+                }
+                m_maxUpdates = Util.Clamp<uint>(m_maxUpdates,10,500);
+            }
+            m_LastQueueFill = Util.EnvironmentTickCount();
+
             int updatesThisCall = 0;
+
+            LogQueueProcessEvent(this.m_agentId,m_entityUpdates,m_maxUpdates);
 
             // We must lock for both manipulating the kill record and sending the packet, in order to avoid a race
             // condition where a kill can be processed before an out-of-date update for the same object.                        
@@ -3583,7 +3676,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             {
                 float avgTimeDilation = 1.0f;
                 EntityUpdate update;
-                while (updatesThisCall < maxUpdates)
+                while (updatesThisCall < m_maxUpdates)
                 {
                     lock (m_entityUpdates.SyncRoot)
                         if (!m_entityUpdates.TryDequeue(out update))
@@ -3675,6 +3768,9 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                     #endregion UpdateFlags to packet type conversion
     
                     #region Block Construction
+
+                    //if (update.Entity is ScenePresence)
+                        //LogAvatarUpdateEvent(this.m_agentId,update.Entity.UUID);
     
                     // TODO: Remove this once we can build compressed updates
                     canUseCompressed = false;
@@ -3687,36 +3783,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                         }
                         else
                         {
-    //                            if (update.Entity is SceneObjectPart && ((SceneObjectPart)update.Entity).IsAttachment)
-    //                            {
-    //                                SceneObjectPart sop = (SceneObjectPart)update.Entity;
-    //                                string text = sop.Text;
-    //                                if (text.IndexOf("\n") >= 0)
-    //                                    text = text.Remove(text.IndexOf("\n"));
-    //
-    //                                if (m_attachmentsSent.Contains(sop.ParentID))
-    //                                {
-    ////                                    m_log.DebugFormat(
-    ////                                        "[CLIENT]: Sending full info about attached prim {0} text {1}",
-    ////                                        sop.LocalId, text);
-    //
-    //                                    objectUpdateBlocks.Value.Add(CreatePrimUpdateBlock(sop, this.m_agentId));
-    //
-    //                                    m_attachmentsSent.Add(sop.LocalId);
-    //                                }
-    //                                else
-    //                                {
-    //                                    m_log.DebugFormat(
-    //                                        "[CLIENT]: Requeueing full update of prim {0} text {1} since we haven't sent its parent {2} yet",
-    //                                        sop.LocalId, text, sop.ParentID);
-    //
-    //                                    m_entityUpdates.Enqueue(double.MaxValue, update, sop.LocalId);
-    //                                }
-    //                            }
-    //                            else
-    //                            {
-                                objectUpdateBlocks.Value.Add(CreatePrimUpdateBlock((SceneObjectPart)update.Entity, this.m_agentId));
-    //                            }
+                            objectUpdateBlocks.Value.Add(CreatePrimUpdateBlock((SceneObjectPart)update.Entity, this.m_agentId));
                         }
                     }
                     else if (!canUseImproved)
@@ -3810,8 +3877,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         public void ReprioritizeUpdates()
         {
-            //m_log.Debug("[CLIENT]: Reprioritizing prim updates for " + m_firstName + " " + m_lastName);
-
             lock (m_entityUpdates.SyncRoot)
                 m_entityUpdates.Reprioritize(UpdatePriorityHandler);
         }
@@ -3829,7 +3894,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         public void FlushPrimUpdates()
         {
-            m_log.Debug("[CLIENT]: Flushing prim updates to " + m_firstName + " " + m_lastName);
+            m_log.WarnFormat("[CLIENT]: Flushing prim updates to " + m_firstName + " " + m_lastName);
 
             while (m_entityUpdates.Count > 0)
                 ProcessEntityUpdates(-1);

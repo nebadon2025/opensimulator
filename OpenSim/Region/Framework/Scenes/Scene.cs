@@ -832,14 +832,6 @@ namespace OpenSim.Region.Framework.Scenes
             //Leverage the LinkObject implementation to get the book keeping of Group and Parts relations right
             m_sceneGraph.LinkObjectsBySync(root, children);
 
-            foreach (SceneObjectPart part in linkedGroup.Parts)
-            {
-                if (part.IsAttachment)
-                {
-                    m_log.Debug("LinkObjectBySync: part " + part.Name + "," + part.UUID + " IsAttachment = true after linking");
-                }
-            }
-
 
             //The properties of the newly linked object should be updated later with another UpdatedObject message. 
 

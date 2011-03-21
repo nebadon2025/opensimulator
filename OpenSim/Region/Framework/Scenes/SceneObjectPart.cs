@@ -5496,11 +5496,6 @@ namespace OpenSim.Region.Framework.Scenes
                 //    localPart.IsAttachment = updatedPart.IsAttachment;
                 //}
 
-                if (localPart.IsAttachment)
-                {
-                    m_log.Debug("GeneralBucketUpdateProcessor: part " + localPart.Name + "," + localPart.UUID + ", IsAttachment = true; previously, IsAttachment = " + preIsAttachment.ToString());
-                }
-
                 localPart.AggregateScriptEvents = updatedPart.AggregateScriptEvents;
                 aggregateScriptEventSubscriptions();
 

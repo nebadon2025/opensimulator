@@ -505,11 +505,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 data[partTempID] = OSD.FromUUID(part.UUID);
                 partNum++;
 
-                m_log.Debug("SendLinkObject to link " + part.ParentGroup.Name + "," + part.UUID + " with " + root.Name+","+root.UUID);
+                m_log.DebugFormat("{0}: SendLinkObject to link {1},{2} with {3}, {4}", part.Name, part.UUID, root.Name, root.UUID);
             }
-
-            m_log.Debug(LogHeader + " to SendLinkObject to link " + children.Count + " parts to " + root.Name + "," + root.UUID);
-            //m_log.Debug("LinkedObject: "+sogxml);
 
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.LinkObject, OSDParser.SerializeJsonString(data));
             //SendObjectUpdateToRelevantSyncConnectors(linkedGroup, rsm);
@@ -864,15 +861,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //string sogGeneralBucketEncoding = GeneralBucketPropertiesEncoder(bucketName, sog, null);
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogGeneralBucketEncoding);
 
-                //TEMP DEBUG
-                foreach (SceneObjectPart part in sog.Parts)
-                {
-                    if (part.IsAttachment)
-                    {
-                        m_log.Debug(LogHeader + "PrimUpdatesGeneralBucketSender: part " + part.Name + "," + part.UUID + ", IsAttachment = true");
-                    }
-                }
-
                 lock (m_stats) m_statSOGBucketOut++;
 
                 //m_log.DebugFormat(LogHeader + " calling SendObjectUpdateToRelevantSyncConnectors for general bucket for sog {0},{1}", sog.Name, sog.UUID);
@@ -920,13 +908,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 OSDMap partData = PhysicsBucketPropertiesEncoder(bucketName, updatedPart);
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedBucketProperties, OSDParser.SerializeJsonString(partData));
                 //m_log.DebugFormat("{0}: PhysBucketSender for {1}, pos={2}", LogHeader, updatedPart.UUID.ToString(), pa.Position.ToString());
-
-                //TEMP DEBUG
-                if (updatedPart.IsAttachment)
-                {
-                    m_log.Debug(LogHeader + "PrimUpdatesPhysicsBucketSender: part " + updatedPart.Name + "," + updatedPart.UUID + ", IsAttachment = true");
-                }
-                
 
                 lock (m_stats) m_statPhysBucketOut++;
                 SendObjectUpdateToRelevantSyncConnectors(updatedPart, syncMsg);
@@ -1131,7 +1112,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     if (!syncConnectorsSent.Contains(connector.ConnectorNum))
                     {
-                        m_log.Debug(LogHeader + " send DeLinkObject to " + connector.Description);
+                        m_log.DebugFormat("{0}: send DeLinkObject to {1}", LogHeader, connector.Description);
                         connector.EnqueueOutgoingUpdate(sog.UUID, syncMsg.ToBytes());
                         syncConnectorsSent.Add(connector.ConnectorNum);
                     }
@@ -1293,8 +1274,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //For now, we use configuration to access the information. Might be replaced by some Grid Service later on.
         private RegionSyncListenerInfo GetLocalSyncListenerInfo()
         {
-            m_log.Debug(LogHeader + ": Reading in " + m_scene.RegionInfo.RegionName + "_SyncListenerIPAddress" + " and " + m_scene.RegionInfo.RegionName + "_SyncListenerPort");
-
             //string addr = m_sysConfig.GetString(m_scene.RegionInfo.RegionName+"_SyncListenerIPAddress", IPAddrUnknown);
             //int port = m_sysConfig.GetInt(m_scene.RegionInfo.RegionName+"_SyncListenerPort", PortUnknown);
 
@@ -1507,7 +1486,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         SceneObjectSerializer.WriteBucketSyncInfo(writer, bucketSyncInfoList);
 
                         string xmlString = sw.ToString();
-                        m_log.Debug("Serialized xml string: " + xmlString);
+                        m_log.DebugFormat("Serialized xml string: {0}", xmlString);
 
                         //second, test de-serialization
                         XmlTextReader reader = new XmlTextReader(new StringReader(xmlString));
@@ -1573,7 +1552,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_syncConnectors = newlist;
             }
 
-            m_log.Debug("[REGION SYNC MODULE]: new connector " + syncConnector.ConnectorNum);
+            m_log.DebugFormat("{0}: new connector {1}", LogHeader, syncConnector.ConnectorNum);
         }
 
         public void RemoveSyncConnector(SyncConnector syncConnector)
@@ -1805,7 +1784,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //set new terrain
             m_scene.Heightmap.LoadFromXmlString(msgData);
             m_scene.RequestModuleInterface<ITerrainModule>().TaintTerrianBySynchronization(lastUpdateTimeStamp, lastUpdateActorID); ;
-            m_log.Debug(LogHeader + ": Synchronized terrain");
+            m_log.DebugFormat("{0} : Synchronized terrain", LogHeader);
         }
 
         private void HandleAddNewObject(SymmetricSyncMessage msg, string senderActorID)
@@ -1864,13 +1843,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             else
             {
-                foreach (SceneObjectPart part in sog.Parts)
-                {
-                    if (part.IsAttachment)
-                    {
-                        m_log.Debug(LogHeader + "HandleUpdateObjectBySynchronization: part " + part.Name + "," + part.UUID + ", IsAttachment = true");
-                    }
-                }
 
                 //m_log.Debug(LogHeader + "HandleUpdateObjectBySynchronization: sog " + sog.Name + "," + sog.UUID);
 
@@ -1901,16 +1873,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
             lock (m_stats) m_statSOGBucketIn++;
 
-            //SYNC DEBUG
-            /*
-            string partnames = "";
-            foreach (SceneObjectPart part in sog.Parts)
-            {
-                partnames += "(" + part.Name + ", " + part.UUID + ")";
-            }
-             
-            m_log.Debug(LogHeader+" received "+msg.Type.ToString()+" from "+senderActorID+" about obj "+sog.Name+", "+sog.UUID);//+"; parts -- "+partnames);
-             * */ 
 
             if (sog.IsDeleted)
             {
@@ -1919,13 +1881,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             else
             {
-                foreach (SceneObjectPart part in sog.Parts)
-                {
-                    if (part.IsAttachment)
-                    {
-                        m_log.Debug(LogHeader + "HandleAddOrUpdateObjectBySynchronization: part " + part.Name + "," + part.UUID + ", IsAttachment = true");
-                    }
-                }
 
                 Scene.ObjectUpdateResult updateResult = m_scene.AddOrUpdateObjectBySynchronization(sog);
 
@@ -2008,21 +1963,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 data = null;
             }
             return data;
-        }
-
-        /*
-        private void HandleAddNewObject(SceneObjectGroup sog)
-        {
-            //RegionSyncModule only add object to SceneGraph. Any actor specific actions will be implemented 
-            //by each ActorSyncModule, which would be triggered its subcription to event SceneGraph.OnObjectCreate.
-            bool attachToBackup = false;
-
-            if (m_scene.AddNewSceneObject(sog, attachToBackup))
-            {
-                m_log.Debug(LogHeader + ": added obj " + sog.UUID);
-            }
-        }
-         * */ 
+        } 
 
         private void HandleRemovedObject(SymmetricSyncMessage msg, string senderActorID)
         {
@@ -2053,12 +1994,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 if (!softDelete)
                 {
-                    m_log.Debug(LogHeader + " hard delete object " + sog.UUID);
+                    m_log.DebugFormat("{0}: hard delete object {1}", LogHeader, sog.UUID);
                     m_scene.DeleteSceneObjectBySynchronization(sog);
                 }
                 else
                 {
-                    m_log.Debug(LogHeader + " soft delete object " + sog.UUID);
+                    m_log.DebugFormat("{0}: soft delete object {1}", LogHeader, sog.UUID);
                     m_scene.UnlinkSceneObject(sog, true);
                 }
             }
@@ -2097,17 +2038,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 childrenIDs.Add(data[partTempID].AsUUID());
             }
 
-            m_log.Debug(LogHeader + " received LinkObject from " + senderActorID);
-            //m_log.Debug("LinkedObject: " + sogxml);
-
-            //TEMP DEBUG
-            foreach (SceneObjectPart part in linkedGroup.Parts)
-            {
-                if (part.IsAttachment)
-                {
-                    m_log.Debug(LogHeader + "HandleLinkObject: part " + part.Name + "," + part.UUID + " IsAttachment = true in incoming sync message");
-                }
-            }
+            m_log.DebugFormat("{0}: received LinkObject from {1}", LogHeader, senderActorID);
 
             m_scene.LinkObjectBySync(linkedGroup, rootID, childrenIDs);
 
@@ -2237,7 +2168,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="data">OSDMap data of event args</param>
         private void HandleRemoteEvent_OnNewScript(string actorID, ulong evSeqNum, OSDMap data)
         {
-            m_log.Debug(LogHeader + ", " + m_actorID + ": received NewScript");
 
             UUID agentID = data["agentID"].AsUUID();
             UUID primID = data["primID"].AsUUID();
@@ -2264,7 +2194,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             if (updateResult == Scene.ObjectUpdateResult.Updated || updateResult == Scene.ObjectUpdateResult.New)
             {
-                m_log.Debug(LogHeader + ": TriggerNewScriptLocally");
                 //Next, trigger creating the new script
                 SceneObjectPart localPart = m_scene.GetSceneObjectPart(primID);
                 m_scene.EventManager.TriggerNewScriptLocally(agentID, localPart, itemID);
@@ -2298,7 +2227,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="data">OSDMap data of event args</param>
         private void HandleRemoteEvent_OnScriptReset(string actorID, ulong evSeqNum, OSDMap data)
         {
-            m_log.Debug(LogHeader + ", " + m_actorID + ": received ScriptReset");
+            //m_log.Debug(LogHeader + ", " + m_actorID + ": received ScriptReset");
 
             UUID agentID = data["agentID"].AsUUID();
             UUID itemID = data["itemID"].AsUUID();
@@ -2567,7 +2496,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="part">the prim that contains the new script</param>
         private void OnLocalNewScript(UUID clientID, SceneObjectPart part, UUID itemID)
         {
-            m_log.Debug(LogHeader + " RegionSyncModule_OnLocalNewScript");
+            //m_log.Debug(LogHeader + " RegionSyncModule_OnLocalNewScript");
 
             SceneObjectGroup sog = part.ParentGroup;
             if(sog==null){
@@ -2596,7 +2525,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="newAssetID"></param>
         private void OnLocalUpdateScript(UUID agentID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
         {
-            m_log.Debug(LogHeader + " RegionSyncModule_OnUpdateScript");
+            //m_log.Debug(LogHeader + " RegionSyncModule_OnUpdateScript");
 
             OSDMap data = new OSDMap();
             data["agentID"] = OSD.FromUUID(agentID);

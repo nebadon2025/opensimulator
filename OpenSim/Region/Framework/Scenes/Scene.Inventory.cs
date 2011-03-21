@@ -2203,13 +2203,6 @@ namespace OpenSim.Region.Framework.Scenes
                 partnames += "(" + part.Name + ", " + part.UUID + ")"; 
             }
             m_log.DebugFormat("[SCENE] RezObject {0} with InvItem name {1} at pos {2} with parts {3}", group.UUID.ToString(), item.Name, group.RootPart.GroupPosition.ToString(), partnames);
-            foreach (SceneObjectPart part in group.Parts)
-            {
-                if (part.IsAttachment)
-                {
-                    m_log.Debug("[SCENE]: part " + part.Name + "," + part.UUID + ", IsAttachment = true");
-                }
-            }
 
             // We can only call this after adding the scene object, since the scene object references the scene
             // to find out if scripts should be activated at all.

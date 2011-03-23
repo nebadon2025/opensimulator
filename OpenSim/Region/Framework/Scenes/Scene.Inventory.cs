@@ -2198,11 +2198,13 @@ namespace OpenSim.Region.Framework.Scenes
             AddNewSceneObject(group, true, pos, rot, vel);
 
             //SYNC DEBUG
+            /*
             string partnames = "";
             foreach (SceneObjectPart part in group.Parts){
                 partnames += "(" + part.Name + ", " + part.UUID + ")"; 
             }
             m_log.DebugFormat("[SCENE] RezObject {0} with InvItem name {1} at pos {2} with parts {3}", group.UUID.ToString(), item.Name, group.RootPart.GroupPosition.ToString(), partnames);
+             * */ 
 
             // We can only call this after adding the scene object, since the scene object references the scene
             // to find out if scripts should be activated at all.

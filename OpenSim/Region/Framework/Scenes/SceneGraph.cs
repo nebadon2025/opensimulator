@@ -313,8 +313,6 @@ namespace OpenSim.Region.Framework.Scenes
         public bool AddNewSceneObject(
             SceneObjectGroup sceneObject, bool attachToBackup, Vector3 pos, Quaternion rot, Vector3 vel)
         {
-            AddNewSceneObject(sceneObject, true, false);
-
             // we set it's position in world.
             sceneObject.AbsolutePosition = pos;
 
@@ -331,7 +329,12 @@ namespace OpenSim.Region.Framework.Scenes
                 sceneObject.RootPart.ApplyImpulse((vel * sceneObject.GetMass()), false);
                 sceneObject.Velocity = vel;
             }
-        
+
+            //SYMMETRIC SYNC
+            //Moving AddNewSceneObject to the end of this function, so that 
+            //all object properties are set when AddNewSceneObject is called.
+            AddNewSceneObject(sceneObject, true, false);
+
             return true;
         }
 

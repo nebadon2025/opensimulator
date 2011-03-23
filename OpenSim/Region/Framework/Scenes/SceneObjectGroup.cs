@@ -294,12 +294,6 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_rootPart.GroupPosition; }
             set
             {
-                /*
-                SetAbsolutePosition(value);
-                SceneObjectPart[] parts = m_parts.GetArray();
-                for (int i = 0; i < parts.Length; i++)
-                    parts[i].UpdateBucketSyncInfo("GroupPosition");
-                */ 
                 Vector3 val = value;
 
                 //REGION SYNC touched
@@ -307,7 +301,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //if ((m_scene.TestBorderCross(val - Vector3.UnitX, Cardinals.E) || m_scene.TestBorderCross(val + Vector3.UnitX, Cardinals.W)
                 //    || m_scene.TestBorderCross(val - Vector3.UnitY, Cardinals.N) || m_scene.TestBorderCross(val + Vector3.UnitY, Cardinals.S)) 
                 //    && !IsAttachmentCheckFull())
-                if (m_scene.IsBorderCrossing(LocX, LocY, val) && !IsAttachmentCheckFull()&& (!m_scene.LoadingPrims))
+                if (m_scene !=null && m_scene.IsBorderCrossing(LocX, LocY, val) && !IsAttachmentCheckFull()&& (!m_scene.LoadingPrims))
                 {
                     m_scene.CrossPrimGroupIntoNewRegion(val, this, true);
                 }
@@ -3897,8 +3891,8 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void ScheduleGroupForFullUpdate_SyncInfoUnchanged()
         {
-            if (IsAttachment)
-                m_log.DebugFormat("[SOG]: Scheduling full update for {0} {1}", Name, LocalId);
+            //if (IsAttachment)
+            //    m_log.DebugFormat("[SOG]: Scheduling full update for {0} {1}", Name, LocalId);
 
             checkAtTargets();
             RootPart.ScheduleFullUpdate_SyncInfoUnchanged();

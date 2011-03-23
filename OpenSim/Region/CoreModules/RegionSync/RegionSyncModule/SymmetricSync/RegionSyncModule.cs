@@ -419,26 +419,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //no SyncConnector connected. Do nothing.
                 return;
             }
-            
-            /*
-            //m_log.DebugFormat(LogHeader + " SendNewObject called for object {0}, {1}", sog.Name, sog.UUID);
 
-            //This is a new object (newly rezzed). Send out updates for all properties.
-            //For now, a complete list of object properties include properties 
-            //in its xml serialization, plus the set of Physics properties as in Physics bucket
-            OSDMap data = new OSDMap();
-            string sogxml = SceneObjectSerializer.ToXml2Format(sog);
-            data["sogxml"] = OSD.FromString(sogxml);
-            OSDArray partArray = new OSDArray();
-            foreach (SceneObjectPart part in sog.Parts){
-                OSDMap partData = PhysicsBucketPropertiesEncoder(m_physicsBucketName, part);
-                partArray.Add(partData);
-            }
-            data["partPhysicsProperties"] = partArray;
-            //string sogxml = SceneObjectSerializer.ToXml2Format(sog);
-            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.NewObject, OSDParser.SerializeJsonString(data));
-
-             * */
+            //First, make sure the linked group has updated timestamp info for synchronization
+            sog.BucketSyncInfoUpdate();
 
             SymmetricSyncMessage rsm = CreateNewObjectMessage(sog);
 

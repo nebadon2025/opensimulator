@@ -45,8 +45,8 @@ namespace OpenSim.Region.CoreModules.World.Land
         public int Owner = 0;
         public int Group = 0;
         public int Others = 0;
-        public Dictionary <UUID, int> Users =
-                new Dictionary <UUID, int>();
+        public int Selected = 0;
+        public Dictionary <UUID, int> Users = new Dictionary <UUID, int>();
     }
 
     public class PrimCountModule : IPrimCountModule, INonSharedRegionModule
@@ -62,7 +62,6 @@ namespace OpenSim.Region.CoreModules.World.Land
                 new Dictionary<UUID, int>();
         private Dictionary<UUID, ParcelCounts> m_ParcelCounts =
                 new Dictionary<UUID, ParcelCounts>();
-
 
         /// <value>
         /// For now, a simple simwide taint to get this up. Later parcel based
@@ -95,6 +94,7 @@ namespace OpenSim.Region.CoreModules.World.Land
                     OnObjectBeingRemovedFromScene;
             m_Scene.EventManager.OnParcelPrimCountTainted +=
                     OnParcelPrimCountTainted;
+            m_Scene.EventManager.OnLandObjectAdded += delegate(ILandObject lo) { OnParcelPrimCountTainted(); };
         }
 
         public void RegionLoaded(Scene scene)
@@ -219,6 +219,9 @@ namespace OpenSim.Region.CoreModules.World.Land
                     else
                         parcelCounts.Others += partCount;
                 }
+                
+                if (obj.IsSelected)
+                    parcelCounts.Selected += partCount;
             }
         }
 
@@ -322,6 +325,32 @@ namespace OpenSim.Region.CoreModules.World.Land
             
 //            m_log.DebugFormat(
 //                "[PRIM COUNT MODULE]: GetOthersCount for parcel {0} in {1} returning {2}", 
+//                parcelID, m_Scene.RegionInfo.RegionName, count);
+            
+            return count;
+        }
+        
+        /// <summary>
+        /// Get the number of selected prims.
+        /// </summary>
+        /// <param name="parcelID"></param>
+        /// <returns></returns>           
+        public int GetSelectedCount(UUID parcelID)
+        {
+            int count = 0;
+            
+            lock (m_TaintLock)
+            {
+                if (m_Tainted)
+                    Recount();
+
+                ParcelCounts counts;
+                if (m_ParcelCounts.TryGetValue(parcelID, out counts))
+                    count = counts.Selected;
+            }
+            
+//            m_log.DebugFormat(
+//                "[PRIM COUNT MODULE]: GetSelectedCount for parcel {0} in {1} returning {2}", 
 //                parcelID, m_Scene.RegionInfo.RegionName, count);
             
             return count;
@@ -488,6 +517,14 @@ namespace OpenSim.Region.CoreModules.World.Land
             get
             {
                 return m_Parent.GetOthersCount(m_ParcelID);
+            }
+        }
+        
+        public int Selected
+        {
+            get
+            {
+                return m_Parent.GetSelectedCount(m_ParcelID);
             }
         }
         

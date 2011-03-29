@@ -681,10 +681,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             //
             CheckThreatLevel(ThreatLevel.High, "osTeleportAgent");
 
-            TeleportAgent(agent, regionName, position, lookat);
+            TeleportAgent(agent, regionName, position, lookat, false);
         }
 
-        private void TeleportAgent(string agent, string regionName, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat)
+        private void TeleportAgent(string agent, string regionName,
+            LSL_Types.Vector3 position, LSL_Types.Vector3 lookat, bool relaxRestrictions)
         {
             m_host.AddScriptLPS(1);
             UUID agentId = new UUID();
@@ -693,21 +694,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 ScenePresence presence = World.GetScenePresence(agentId);
                 if (presence != null)
                 {
-                    // agent must be over owners land to avoid abuse
-                    if (m_host.OwnerID
+                    // For osTeleportAgent, agent must be over owners land to avoid abuse
+                    // For osTeleportOwner, this restriction isn't necessary
+                    if (relaxRestrictions ||
+                        m_host.OwnerID
                         == World.LandChannel.GetLandObject(
                             presence.AbsolutePosition.X, presence.AbsolutePosition.Y).LandData.OwnerID)
                     {
-                        // Check for hostname, attempt to make a HG link,
-                        // and convert the regionName to the target region
-                        if (regionName.Contains(".") && regionName.Contains(":"))
-                        {
-//                            List<GridRegion> regions = World.GridService.GetRegionsByName(World.RegionInfo.ScopeID, regionName, 1);
-                            string[] parts = regionName.Split(new char[] { ':' });
-                            if (parts.Length > 2)
-                                regionName = parts[0] + ':' + parts[1] + "/ " + parts[2];
-                            regionName = "http://" + regionName;
-                        }
                         World.RequestTeleportLocation(presence.ControllingClient, regionName,
                             new Vector3((float)position.x, (float)position.y, (float)position.z),
                             new Vector3((float)lookat.x, (float)lookat.y, (float)lookat.z), (uint)TPFlags.ViaLocation);
@@ -724,10 +717,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             //
             CheckThreatLevel(ThreatLevel.High, "osTeleportAgent");
 
-            TeleportAgent(agent, regionX, regionY, position, lookat);
+            TeleportAgent(agent, regionX, regionY, position, lookat, false);
         }
 
-        private void TeleportAgent(string agent, int regionX, int regionY, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat)
+        private void TeleportAgent(string agent, int regionX, int regionY,
+            LSL_Types.Vector3 position, LSL_Types.Vector3 lookat, bool relaxRestrictions)
         {
             ulong regionHandle = Util.UIntsToLong(((uint)regionX * (uint)Constants.RegionSize), ((uint)regionY * (uint)Constants.RegionSize));
 
@@ -738,8 +732,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 ScenePresence presence = World.GetScenePresence(agentId);
                 if (presence != null)
                 {
-                    // agent must be over owners land to avoid abuse
-                    if (m_host.OwnerID
+                    // For osTeleportAgent, agent must be over owners land to avoid abuse
+                    // For osTeleportOwner, this restriction isn't necessary
+                    if (relaxRestrictions ||
+                        m_host.OwnerID
                         == World.LandChannel.GetLandObject(
                             presence.AbsolutePosition.X, presence.AbsolutePosition.Y).LandData.OwnerID)
                     {
@@ -762,7 +758,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             // Threat level None because this is what can already be done with the World Map in the viewer
             CheckThreatLevel(ThreatLevel.None, "osTeleportOwner");
 
-            TeleportAgent(m_host.OwnerID.ToString(), regionName, position, lookat);
+            TeleportAgent(m_host.OwnerID.ToString(), regionName, position, lookat, true);
         }
 
         public void osTeleportOwner(LSL_Types.Vector3 position, LSL_Types.Vector3 lookat)
@@ -774,7 +770,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             CheckThreatLevel(ThreatLevel.None, "osTeleportOwner");
 
-            TeleportAgent(m_host.OwnerID.ToString(), regionX, regionY, position, lookat);
+            TeleportAgent(m_host.OwnerID.ToString(), regionX, regionY, position, lookat, true);
         }
 
         // Functions that get information from the agent itself.

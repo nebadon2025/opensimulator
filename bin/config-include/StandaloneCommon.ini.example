@@ -33,6 +33,10 @@
 
 [HGInventoryAccessModule]
     ProfileServerURI = "http://127.0.0.1:9000/profiles"
+	;; If you want to protect your assets from being copied by foreign visitors
+	;; uncomment the next line. You may want to do this on sims that have licensed content.
+	; OutboundPermission = False
+
 
 [Modules]
     ;; Choose 0 or 1 cache modules, and the corresponding config file, if it exists.
@@ -66,13 +70,18 @@
     ; Check4096 = true
 
     ;; Directory for map tile images of remote regions
-    ; MapTileDirectory = "./"
+    ; MapTileDirectory = "./maptiles"
 
     ;; Next, we can specify properties of regions, including default and fallback regions
     ;; The syntax is: Region_<RegioName> = "<flags>"
     ;; where <flags> can be DefaultRegion, FallbackRegion, NoDirectLogin, Persistent, LockedOut
     ;; For example:
     Region_Welcome_Area = "DefaultRegion, FallbackRegion"
+
+    ; === HG ONLY ===
+	;; change this to the address of your simulator
+	Gatekeeper="http://127.0.0.1:9000"
+
 
 [LibraryModule]
     ; Set this if you want to change the name of the OpenSim Library

@@ -551,6 +551,15 @@ namespace OpenSim.Region.CoreModules.World.Terrain
                 m_scene.PhysicsScene.SetTerrain(m_channel.GetFloatsSerialised());
                 m_scene.SaveTerrain();
 
+                //SYMMETRIC SYNC
+                //Terrain has been modified, send out sync message if needed
+                //if (m_scene.RegionSyncModule != null)
+                //{
+                    //m_log.DebugFormat("EventManager_OnTerrainTick: To call SendTerrainUpdates with TS {0} and actorID {1}", m_lastUpdateTimeStamp, m_lastUpdateActorID);
+                    //m_scene.RegionSyncModule.SendTerrainUpdates(m_lastUpdateTimeStamp, m_lastUpdateActorID);
+                //}
+                //end of SYMMETRIC SYNC
+
                 // Clients who look at the map will never see changes after they looked at the map, so i've commented this out.
                 //m_scene.CreateTerrainTexture(true);
             }
@@ -610,12 +619,41 @@ namespace OpenSim.Region.CoreModules.World.Terrain
         {
             m_lastUpdateTimeStamp = timeStamp;
             m_lastUpdateActorID = actorID;
+
+           // m_log.DebugFormat("TerrainModule: updated syncinfo -- TS {0}, actorID {1}", m_lastUpdateTimeStamp, m_lastUpdateActorID);
         }
 
-        public void TaintTerrianBySynchronization(long timeStamp, string actorID)
+        /// <summary>
+        /// Invoked by receiving a terrain sync message. First, check if the 
+        /// timestamp is more advance than the local copy. If so, update the 
+        /// local terrain copy, update the sync info (timestamp and actorID).
+        /// <param name="timeStamp"></param>
+        /// <param name="actorID"></param>
+        /// <param name="terrainData"></param>
+        /// <returns></returns>
+        public bool UpdateTerrianBySync(long timeStamp, string actorID, string terrainData)
         {
-            SyncInfoUpdate(timeStamp, actorID);
-            CheckForTerrainUpdates(false, timeStamp, actorID);
+            if (timeStamp > m_lastUpdateTimeStamp)
+            {
+                if (actorID.Equals(m_lastUpdateActorID) && actorID.Equals(m_scene.GetSyncActorID()))
+                {
+                    m_log.WarnFormat("TerrainModule: Received a Terrain sync message with a more recent timestamp, HOWEVER, actorID on the update is the same with local acotrID ({0})",
+                        actorID);
+                }
+                //SyncInfoUpdate(timeStamp, actorID);
+
+                //m_log.DebugFormat("TerrainModule: to copy new terrain data with TS {0}, actorID {1}", timeStamp, actorID);
+
+                m_scene.Heightmap.LoadFromXmlString(terrainData);
+                CheckForTerrainUpdates(false, timeStamp, actorID);
+                return true;
+            }
+            else if ((timeStamp == m_lastUpdateTimeStamp) && !actorID.Equals(m_lastUpdateActorID))
+            {
+                m_log.WarnFormat("TerrainModule: actors {0} and {1} have edited terrain with the same timestamp, TO DE DONE: need to pick a winner.",
+                    actorID, m_lastUpdateActorID);
+            }
+            return false;
         }
 
         public bool TerrianModifiedLocally(string localActorID)
@@ -631,6 +669,12 @@ namespace OpenSim.Region.CoreModules.World.Terrain
             lastUpdateActorID = m_lastUpdateActorID;
         }
 
+        public void SetSyncInfo(long lastUpdateTimeStamp, string lastUpdateActorID)
+        {
+            m_lastUpdateTimeStamp = lastUpdateTimeStamp;
+            m_lastUpdateActorID = lastUpdateActorID;
+        }
+
         //end of SYMMETRIC SYNC
 
         /// <summary>
@@ -641,14 +685,14 @@ namespace OpenSim.Region.CoreModules.World.Terrain
         private void CheckForTerrainUpdates()
         {
             //SYMMETRIC SYNC
-
+            m_log.DebugFormat("CheckForTerrainUpdates() called");
             //Assumption: Thus function is only called when the terrain is updated by the local actor. 
             //            Updating terrain during receiving sync messages from another actor will call CheckForTerrainUpdates.
 
             //Update the timestamp to the current time tick, and set the LastUpdateActorID to be self
             long currentTimeTick = DateTime.Now.Ticks;
             string localActorID = m_scene.GetSyncActorID();
-            SyncInfoUpdate(currentTimeTick, localActorID);
+            //SyncInfoUpdate(currentTimeTick, localActorID);
             //Check if the terrain has been modified and send out sync message if modified.
             CheckForTerrainUpdates(false, currentTimeTick, localActorID);
 
@@ -698,10 +742,11 @@ namespace OpenSim.Region.CoreModules.World.Terrain
             {
                 m_tainted = true;
                 //SYMMETRIC SYNC
-                //Terrain has been modified, send out sync message if needed
+                //Terrain has been modified, updated the sync info
                 if (m_scene.RegionSyncModule != null)
                 {
-                    m_scene.RegionSyncModule.SendTerrainUpdates(m_lastUpdateActorID);
+                    SyncInfoUpdate(lastUpdateTimeStamp, lastUpdateActorID);
+                    m_scene.RegionSyncModule.SendTerrainUpdates(lastUpdateTimeStamp, lastUpdateActorID);
                 }
                 //end of SYMMETRIC SYNC
             }

@@ -241,9 +241,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                     }, null);
                 }
-                catch (IOException)
+                catch (Exception e)
                 {
-                    m_log.WarnFormat("{0}:{1} has disconnected.", Description, m_connectorNum);
+                    m_log.WarnFormat("{0}:Error in Send() {1} has disconnected -- error message: {2}.", Description, m_connectorNum, e.Message);
                 }
             }
         }
@@ -264,10 +264,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //m_log.WarnFormat("{0} Received: {1}", LogHeader, msg.ToString());
                 }
                 // If there is a problem reading from the client, shut 'er down. 
-                catch
+                catch (Exception e)
                 {
                     //ShutdownClient();
-                    m_log.WarnFormat("{0}:{1} has disconnected.", Description, m_connectorNum);
+                    m_log.WarnFormat("{0}: ReceiveLoop error {1} has disconnected -- error message {2}.", Description, m_connectorNum, e.Message);
                     Shutdown();
                     return;
                 }
@@ -281,7 +281,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_log.WarnFormat("{0} Encountered an exception: {1} (MSGTYPE = {2})", Description, e.Message, msg.ToString());
                 }
             }
-        }
+            }
 
         private void HandleMessage(SymmetricSyncMessage msg)
         {

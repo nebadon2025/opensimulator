@@ -105,7 +105,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //InstallInterfaces();
 
             //Register for the OnPostSceneCreation event
-            //m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
+            m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
 
             //Register for Scene/SceneGraph events
             m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(ScenePersistence_OnObjectCreate);
@@ -177,6 +177,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //If this is the local scene the actor is working on, do something
             if (createdScene == m_scene)
             {
+                m_scene.RequestModuleInterface<ITerrainModule>().SetSyncInfo(DateTime.Now.Ticks, m_scene.GetSyncActorID());
             }
         }
 

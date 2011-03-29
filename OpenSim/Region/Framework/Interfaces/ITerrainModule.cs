@@ -66,7 +66,16 @@ namespace OpenSim.Region.Framework.Interfaces
         void UndoTerrain(ITerrainChannel channel);
 
         //SYMMETRIC SYNC
-        void TaintTerrianBySynchronization(long timeStamp, string actorID);
+        /// <summary>
+        /// Invoked by receiving a terrain sync message. First, check if the 
+        /// timestamp is more advance than the local copy. If so, update the 
+        /// local terrain copy.
+        /// </summary>
+        /// <param name="timeStamp">The time that the updated terrain was 
+        /// created</param>
+        /// <param name="actorID">The actor who created the update.</param>
+        /// <param name="terrainData">The updated terrain</param>
+        bool UpdateTerrianBySync(long timeStamp, string actorID, string terrainData);
         /// <summary>
         /// Return true if the most recent update on terrain is done locally (i.e. not by receiving a terrain-sync message).
         /// </summary>
@@ -79,6 +88,14 @@ namespace OpenSim.Region.Framework.Interfaces
         /// <param name="lastUpdateTimeStamp"></param>
         /// <param name="lastUpdateActorID"></param>
         void GetSyncInfo(out long lastUpdateTimeStamp, out string lastUpdateActorID);
+
+        /// <summary>
+        /// This is only supposed to be called by Persistence actor, which will
+        /// set the timestamp and actorID values for terrain upon initialization time.
+        /// </summary>
+        /// <param name="lastUpdateTimeStamp"></param>
+        /// <param name="lastUpdateActorID"></param>
+        void SetSyncInfo(long lastUpdateTimeStamp, string lastUpdateActorID);
         //end of SYMMETRIC SYNC
     }
 }

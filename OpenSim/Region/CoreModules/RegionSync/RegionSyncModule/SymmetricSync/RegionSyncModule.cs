@@ -393,18 +393,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //The following Sendxxx calls,send out a message immediately, w/o putting it in the SyncConnector's outgoing queue.
         //May need some optimization there on the priorities.
 
-        public void SendTerrainUpdates(string lastUpdateActorID)
+        public void SendTerrainUpdates(long updateTimeStamp, string lastUpdateActorID)
         {
             if (!IsSyncingWithOtherActors())
             {
                 //no SyncConnector connected. Do nothing.
                 return;
             }
-            if(m_isSyncRelay || m_actorID.Equals(lastUpdateActorID))
+            if (m_isSyncRelay || m_actorID.Equals(lastUpdateActorID))
             {
                 //m_scene.Heightmap should have been updated already by the caller, send it out
                 //SendSyncMessage(SymmetricSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString());
-                SendTerrainUpdateMessage();
+                SendTerrainUpdateMessage(updateTimeStamp, lastUpdateActorID);
             }
         }
 
@@ -804,6 +804,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["actorID"] = OSD.FromString(lastUpdateActorID);
             data["timeStamp"] = OSD.FromLong(lastUpdateTimeStamp);
 
+            //m_log.DebugFormat("{0}: Send out terrain with TS {1}, actorID {2}", LogHeader, lastUpdateTimeStamp, lastUpdateActorID);
+
             SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.Terrain, OSDParser.SerializeJsonString(data));
             connector.Send(syncMsg);
         }
@@ -1050,6 +1052,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             return (m_syncConnectors.Count > 0);
         }
+
+        private void SendTerrainUpdateToRelevantSyncConnectors(SymmetricSyncMessage syncMsg, string lastUpdateActorID)
+        {
+            List<SyncConnector> syncConnectors = GetSyncConnectorsForSceneEvents(lastUpdateActorID, syncMsg, null);
+
+            foreach (SyncConnector connector in syncConnectors)
+            {
+                m_log.DebugFormat("{0}: Send terrain update to {1}", LogHeader, connector.OtherSideActorID);
+                connector.Send(syncMsg);
+            }
+        }
+
 
         //Object updates are sent by enqueuing into each connector's outQueue.
         private void SendObjectUpdateToRelevantSyncConnectors(SceneObjectGroup sog, SymmetricSyncMessage syncMsg)
@@ -1761,13 +1775,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             string msgData = data["terrain"].AsString();
-            long lastUpdateTimeStamp = data["actorID"].AsLong();
-            string lastUpdateActorID = data["timeStamp"].AsString();
+            long lastUpdateTimeStamp = data["timeStamp"].AsLong();
+            string lastUpdateActorID = data["actorID"].AsString();
 
-            //set new terrain
-            m_scene.Heightmap.LoadFromXmlString(msgData);
-            m_scene.RequestModuleInterface<ITerrainModule>().TaintTerrianBySynchronization(lastUpdateTimeStamp, lastUpdateActorID); ;
-            m_log.DebugFormat("{0} : Synchronized terrain", LogHeader);
+            //m_log.DebugFormat("{0}: received Terrain update msg, with TS {1}, actorID {2}",LogHeader, lastUpdateTimeStamp, lastUpdateActorID);
+
+            //update the terrain if the incoming terrain data has an more recent timestamp
+            if (m_scene.RequestModuleInterface<ITerrainModule>().UpdateTerrianBySync(lastUpdateTimeStamp, lastUpdateActorID, msgData))
+            {
+                //m_scene.Heightmap.LoadFromXmlString(msgData);
+                //CheckForTerrainUpdates(false, timeStamp, actorID);
+                m_log.DebugFormat("{0} : Synchronized terrain", LogHeader);
+            }
         }
 
         private void HandleAddNewObject(SymmetricSyncMessage msg, string senderActorID)
@@ -1912,19 +1931,30 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.UpdateObjectPartBucketProperties(bucketName, partUUID, data, rBucketSyncInfo);
         }
 
-        private void SendTerrainUpdateMessage()
+        /// <summary>
+        /// Send out a sync message about the updated Terrain. If this is a relay node,
+        /// forward the sync message to all connectors except the one which initiated
+        /// the update.
+        /// </summary>
+        /// <param name="lastUpdateTimeStamp"></param>
+        /// <param name="lastUpdateActorID"></param>
+        private void SendTerrainUpdateMessage(long lastUpdateTimeStamp, string lastUpdateActorID)
         {
             string msgData = m_scene.Heightmap.SaveToXmlString();
-            long lastUpdateTimeStamp;
-            string lastUpdateActorID;
-            m_scene.RequestModuleInterface<ITerrainModule>().GetSyncInfo(out lastUpdateTimeStamp, out lastUpdateActorID);
+            //long lastUpdateTimeStamp;
+            //string lastUpdateActorID;
+            //m_scene.RequestModuleInterface<ITerrainModule>().GetSyncInfo(out lastUpdateTimeStamp, out lastUpdateActorID);
 
             OSDMap data = new OSDMap(3);
             data["terrain"] = OSD.FromString(msgData);
             data["actorID"] = OSD.FromString(lastUpdateActorID);
             data["timeStamp"] = OSD.FromLong(lastUpdateTimeStamp);
 
-            SendSyncMessage(SymmetricSyncMessage.MsgType.Terrain, OSDParser.SerializeJsonString(data));
+            //m_log.DebugFormat("{0}: Ready to send terrain update with lastUpdateTimeStamp {1} and lastUpdateActorID {2}", LogHeader, lastUpdateTimeStamp, lastUpdateActorID);
+
+            SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.Terrain, OSDParser.SerializeJsonString(data));
+            SendTerrainUpdateToRelevantSyncConnectors(syncMsg, lastUpdateActorID);
+            //SendSyncMessage(SymmetricSyncMessage.MsgType.Terrain, OSDParser.SerializeJsonString(data));
         }
 
 

@@ -80,7 +80,7 @@ namespace OpenSim.Region.Framework.Interfaces
         //In RegionSyncModule's implementation, 
         //The following calls send out a message immediately, w/o putting it in the SyncConnector's outgoing queue.
         //May need some optimization there on the priorities.
-        void SendTerrainUpdates(string lastUpdateActorID);
+        void SendTerrainUpdates(long updateTimeStamp, string lastUpdateActorID);
         //For propogating scene events to other actors
         void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs);
 

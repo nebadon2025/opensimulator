@@ -2192,11 +2192,11 @@ namespace OpenSim.Region.Framework.Scenes
                     SceneObjectGroupsByFullID[part.UUID] = sceneObject;
             }
 
-            lock (SceneObjectGroupsByLocalID)
+            lock (SceneObjectGroupsByLocalPartID)
             {
-                SceneObjectGroupsByLocalID[sceneObject.LocalId] = sceneObject;
+                SceneObjectGroupsByLocalPartID[sceneObject.LocalId] = sceneObject;
                 foreach (SceneObjectPart part in children)
-                    SceneObjectGroupsByLocalID[part.LocalId] = sceneObject;
+                    SceneObjectGroupsByLocalPartID[part.LocalId] = sceneObject;
             }
 
             return updateResult;
@@ -2213,11 +2213,11 @@ namespace OpenSim.Region.Framework.Scenes
                     SceneObjectGroupsByFullID[newPart.UUID] = parentGroup;
             }
 
-            lock (SceneObjectGroupsByLocalID)
+            lock (SceneObjectGroupsByLocalPartID)
             {
-                SceneObjectGroupsByLocalID[parentGroup.LocalId] = parentGroup;
+                SceneObjectGroupsByLocalPartID[parentGroup.LocalId] = parentGroup;
                 foreach (SceneObjectPart part in children)
-                    SceneObjectGroupsByLocalID[newPart.LocalId] = parentGroup;
+                    SceneObjectGroupsByLocalPartID[newPart.LocalId] = parentGroup;
             }
         }
 

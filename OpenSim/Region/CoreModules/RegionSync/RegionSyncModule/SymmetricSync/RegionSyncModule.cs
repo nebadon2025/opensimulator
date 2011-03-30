@@ -812,12 +812,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             connector.Send(syncMsg);
         }
 
-        private void HandleGetObjectRequest(SyncConnector connector, SceneObjectGroup sog)
+        private void HandleGetObjectRequest(SyncConnector connector)
         {
-            SymmetricSyncMessage syncMsg = CreateNewObjectMessage(sog);
+            EntityBase[] entities = m_scene.GetEntities();
+            foreach (EntityBase e in entities)
+            {
+                if (e is SceneObjectGroup)
+                {
+                    SceneObjectGroup sog = (SceneObjectGroup)e;
 
-            //SendToSyncConnector(connector, sog, syncMsg);
-            connector.EnqueueOutgoingUpdate(sog.UUID, syncMsg.ToBytes());
+                    //if (connector.IsPositionInSyncQuarks(sog.AbsolutePosition))
+                    //{
+                        SymmetricSyncMessage syncMsg = NewObjectMessageEncoder(sog);
+
+                        //SendToSyncConnector(connector, sog, syncMsg);
+                        connector.EnqueueOutgoingUpdate(sog.UUID, syncMsg.ToBytes());
+                    //}
+                }
+            }
         }
 
         //Read in configuration for which property-bucket each property belongs to, and the description of each bucket
@@ -1259,9 +1271,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     bool inComingMsg = false;
                     globalPos = CoordinatesConversionHandler(globalPos, inComingMsg);
                 }
-                data["Position"] = OSDMap.FromVector3(globalPos); //This records the global GroupPosition.
-
-                 * */ 
+                 * */
+                data["Position"] = OSDMap.FromVector3(globalPos); //This records the global GroupPosition. 
 
                 data["Size"] = OSD.FromVector3(pa.Size);
                 //data["Position"] = OSD.FromVector3(pa.Position);
@@ -1517,6 +1528,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        private void SendSpecialObjectUpdateToRelevantSyncConnectors(string init_actorID, Vector3 globalPos, SymmetricSyncMessage syncMsg)
+        {
+            HashSet<SyncConnector> syncConnectors = GetSyncConnectorsForObjectUpdates(globalPos);
+
+            foreach (SyncConnector connector in syncConnectors)
+            {
+                if (!connector.OtherSideActorID.Equals(init_actorID))
+                    connector.Send(syncMsg);
+            }
+        }
+
         //Events are send out right away, without being put into the connector's outQueue first. 
         //May need a better method for managing the outgoing messages (i.e. prioritizing object updates and events)
         private void SendSceneEventToRelevantSyncConnectors(string init_actorID, SymmetricSyncMessage rsm, SceneObjectGroup sog)
@@ -1591,6 +1613,23 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             return syncConnectors;
+        }
+
+        /// <summary>
+        /// Get the set of sync connectors that connect to syncnodes whose SyncQuarks
+        /// cover the given global position (no need to convert the position).
+        /// </summary>
+        /// <param name="globalPos"></param>
+        /// <returns></returns>
+        private HashSet<SyncConnector> GetSyncConnectorsForObjectUpdates(Vector3 globalPos)
+        {
+            //HashSet<SyncConnector> syncConnectors = m_syncConnectorManager.GetSyncConnectorsByPosition(globalPos);
+            //return syncConnectors;
+
+            //fake an sog to pass to GetSyncConnectorsForObjectUpdates, which 
+            //is not used at all; a temp solution before we migrate to quarks
+            SceneObjectGroup sog = new SceneObjectGroup(); 
+            return GetSyncConnectorsForObjectUpdates(sog);
         }
 
         private HashSet<SyncConnector> GetSyncConnectorsForObjectUpdates(SceneObjectPart updatedPart)
@@ -2110,6 +2149,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                 case SymmetricSyncMessage.MsgType.GetObjects:
                     {
+                        /*
                         EntityBase[] entities = m_scene.GetEntities(); 
                         foreach (EntityBase e in entities)
                         {
@@ -2121,6 +2161,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 HandleGetObjectRequest(syncConnector, sog);
                             }
                         }
+                         * */
+                        HandleGetObjectRequest(syncConnector);
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.NewObject:
@@ -2128,8 +2170,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     break;
                 case SymmetricSyncMessage.MsgType.UpdatedObject:
                     {
-                        //HandleAddOrUpdateObjectBySynchronization(msg, senderActorID);
-                        HandleUpdateObjectBySynchronization(msg, senderActorID);                       
+                        //HandleUpdateObjectBySynchronization(msg, senderActorID);                       
+                        HandleUpdatedObject(msg, senderActorID);                      
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.UpdatedBucketProperties:
@@ -2211,40 +2253,51 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
             OSDMap data = DeserializeMessage(msg);
 
-            //First, create the object group and add it to Scene
-            string sogxml = data["sogxml"];
-            SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
-            //Scene.ObjectUpdateResult updateResult = m_scene.AddOrUpdateObjectBySynchronization(sog);
-
-            //m_log.DebugFormat("{0}: received NewObject sync message from {1}, for object {1}, {2}", LogHeader, senderActorID, sog.Name, sog.UUID);
-
-            Scene.ObjectUpdateResult updateResult = m_scene.AddNewSceneObjectBySync(sog);
-
             //if this is a relay node, forward the event
+            Vector3 globalPos = data["GroupPosition"].AsVector3();
             if (m_isSyncRelay)
             {
-                SendSceneEventToRelevantSyncConnectors(senderActorID, msg, sog);
+                SendSpecialObjectUpdateToRelevantSyncConnectors(senderActorID, globalPos, msg);
             }
 
-            //Second, update the physics properties of each prim in the object
-            OSDArray partArray = (OSDArray)data["partPhysicsProperties"];
-            for (int i = 0; i < partArray.Count; i++)
+            /*
+            if (!m_syncQuarkManager.IsPosInSyncQuarks(globalPos))
             {
-                OSDMap partData = (OSDMap)partArray[i];
-                UUID partUUID = partData["UUID"].AsUUID();
-
-                string bucketName = partData["Bucket"].AsString();
-
-                //m_log.DebugFormat("{0}: HandleUpdatedBucketProperties from {1}: for {2}/{3}", LogHeader, senderActorID, partUUID.ToString(), bucketName);
-
-                BucketSyncInfo rBucketSyncInfo = new BucketSyncInfo(bucketName);
-                rBucketSyncInfo.LastUpdateTimeStamp = partData["LastUpdateTimeStamp"].AsLong();
-                rBucketSyncInfo.LastUpdateActorID = partData["LastUpdateActorID"].AsString();
-                // updatedPart.BucketSyncInfoList.Add(bucketName, rBucketSyncInfo);
-
-                m_scene.UpdateObjectPartBucketProperties(bucketName, partUUID, data, rBucketSyncInfo);
+                m_log.WarnFormat("{0}: Received an update for object at global pos {1}, not within local quarks, ignore the update", LogHeader, globalPos.ToString());
+                return;
             }
-            //m_log.DebugFormat("{0}: after processing NewObject sync message from {1}, for object {1}, {2}", LogHeader, senderActorID, sog.Name, sog.UUID);
+             * */ 
+
+            Object sog;
+            NewObjectMessageDecoder(data, out sog);
+            SceneObjectGroup group = (SceneObjectGroup)sog;
+
+        }
+
+        /// <summary>
+        /// Handler of UpdatedObject message. Note: for a relay node in the 
+        /// sync topology, it won't forward the message right away. Instead,
+        /// the updates are applied locally, and during each heartbeat loop,
+        /// updated objects/prims are collected and updates are then sent out 
+        /// from the relay node.
+        /// </summary>
+        /// <param name="msg"></param>
+        /// <param name="senderActorID"></param>
+        private void HandleUpdatedObject(SymmetricSyncMessage msg, string senderActorID)
+        {
+            OSDMap data = DeserializeMessage(msg);
+
+            string bucketName = data["Bucket"].AsString();
+            //lock (m_stats) m_statSOGBucketIn++;
+
+            if (m_primUpdatesPerBucketReceiver.ContainsKey(bucketName))
+            {
+                m_primUpdatesPerBucketReceiver[bucketName](bucketName, data);
+            }
+            else
+            {
+                m_log.WarnFormat("{0}: Received an update message for properties bucket {1}, no such bucket supported", LogHeader, bucketName);
+            }
         }
 
         private void HandleUpdateObjectBySynchronization(SymmetricSyncMessage msg, string senderActorID)

@@ -5552,8 +5552,12 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        //NOTE: only touch the properties and BucketSyncInfo that is related to the given bucketName. Other properties and
-        //buckets may not be filled at all in "updatedPart".
+        //NOTE: 
+        //1. Only touch the properties and BucketSyncInfo that is related to 
+        //the given bucketName. Other properties and buckets may not be filled 
+        //at all in "updatedPart".
+        //2. For GroupPosition and Position properties, if coordinates conversion
+        //   is needed, the caller should have done that already.
         private void PhysicsBucketUpdateProcessor(Object updatedPartO, string bucketName)
         {
             SceneObjectPart localPart = this;
@@ -5568,6 +5572,10 @@ namespace OpenSim.Region.Framework.Scenes
                 localPart.Velocity = updatedPart.Velocity;
                 localPart.AngularVelocity = updatedPart.AngularVelocity;
                 localPart.RotationOffset = updatedPart.RotationOffset;
+
+                //TEMP DEBUG
+                m_log.DebugFormat("SceneObjectPart.PhysicsBucketUpdateProcessor called for part {0},{1}, at GroupPos {2}", localPart.Name, localPart.UUID, localPart.GroupPosition);
+
                 return;
             }
 
@@ -5585,40 +5593,64 @@ namespace OpenSim.Region.Framework.Scenes
 
             lock (m_bucketUpdateLocks[bucketName])
             {
-                localPart.GroupPosition = data["GroupPosition"].AsVector3();
-                localPart.OffsetPosition = data["OffsetPosition"].AsVector3();
-                localPart.Scale = data["Scale"].AsVector3();
-                localPart.Velocity = data["Velocity"].AsVector3();
-                localPart.AngularVelocity = data["AngularVelocity"].AsVector3();
-                localPart.RotationOffset = data["RotationOffset"].AsQuaternion();
+                if (data.ContainsKey("GroupPosition"))
+                    localPart.GroupPosition = data["GroupPosition"].AsVector3();
+                if (data.ContainsKey("OffsetPosition"))
+                    localPart.OffsetPosition = data["OffsetPosition"].AsVector3();
+                if (data.ContainsKey("Scale"))
+                    localPart.Scale = data["Scale"].AsVector3();
+                if (data.ContainsKey("Velocity"))
+                    localPart.Velocity = data["Velocity"].AsVector3();
+                if (data.ContainsKey("AngularVelocity"))
+                    localPart.AngularVelocity = data["AngularVelocity"].AsVector3();
+                if (data.ContainsKey("RotationOffset"))
+                    localPart.RotationOffset = data["RotationOffset"].AsQuaternion();
 
                 //m_log.Debug("Received Physics Bucket updates for " + localPart.Name + ","+localPart.UUID
                 //    + ". GroupPosition: " + data["GroupPosition"].AsVector3().ToString()); 
 
-                if (pa != null && data.ContainsKey("PA_Acceleration"))
+                if (pa != null)
                 {
-                    pa.Size = data["Size"].AsVector3();
-                    pa.Position = data["Position"].AsVector3();
-                    pa.Force = data["Force"].AsVector3();
+                    if (data.ContainsKey("Size"))
+                        pa.Size = data["Size"].AsVector3();
+                    if (data.ContainsKey("Position"))
+                        pa.Position = data["Position"].AsVector3();
+                    if (data.ContainsKey("Force"))
+                        pa.Force = data["Force"].AsVector3();
                     // pa.Velocity = data["Velocity"].AsVector3();
-                    pa.RotationalVelocity = data["RotationalVelocity"].AsVector3();
-                    pa.Acceleration = data["PA_Acceleration"].AsVector3();
-                    pa.Torque = data["Torque"].AsVector3();
-                    pa.Orientation = data["Orientation"].AsQuaternion();
-                    pa.IsPhysical = data["IsPhysical"].AsBoolean();
-                    pa.Flying = data["Flying"].AsBoolean();
-                    pa.Kinematic = data["Kinematic"].AsBoolean();
-                    pa.Buoyancy = (float)data["Buoyancy"].AsReal();
-                    pa.CollidingGround = data["CollidingGround"].AsBoolean();
-                    pa.IsColliding = data["IsColliding"].AsBoolean();
+                    if (data.ContainsKey("RotationalVelocity"))
+                        pa.RotationalVelocity = data["RotationalVelocity"].AsVector3();
+                    if (data.ContainsKey("PA_Acceleration"))
+                        pa.Acceleration = data["PA_Acceleration"].AsVector3();
+                    if (data.ContainsKey("Torque"))
+                        pa.Torque = data["Torque"].AsVector3();
+                    if (data.ContainsKey("Orientation"))
+                        pa.Orientation = data["Orientation"].AsQuaternion();
+                    if (data.ContainsKey("IsPhysical"))
+                        pa.IsPhysical = data["IsPhysical"].AsBoolean();
+                    if (data.ContainsKey("Flying"))
+                        pa.Flying = data["Flying"].AsBoolean();
+                    if (data.ContainsKey("Kinematic"))
+                        pa.Kinematic = data["Kinematic"].AsBoolean();
+                    if (data.ContainsKey("Buoyancy"))
+                        pa.Buoyancy = (float)data["Buoyancy"].AsReal();
+                    if (data.ContainsKey("CollidingGround"))
+                        pa.CollidingGround = data["CollidingGround"].AsBoolean();
+                    if (data.ContainsKey("IsColliding"))
+                        pa.IsColliding = data["IsColliding"].AsBoolean();
 
-                   // m_log.DebugFormat("{0}: PhysicsBucketUpdateProcessor for {2},{3}. pos={1}", , data["Position"].AsVector3().ToString(), localPart.Name, localPart.UUID);
+                    // m_log.DebugFormat("{0}: PhysicsBucketUpdateProcessor for {2},{3}. pos={1}", , data["Position"].AsVector3().ToString(), localPart.Name, localPart.UUID);
                 }
 
-                m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = data["LastUpdateTimeStamp"].AsLong();
-                m_bucketSyncInfoList[bucketName].LastUpdateActorID = data["LastUpdateActorID"].AsString();
+                if (data.ContainsKey("LastUpdateTimeStamp"))
+                    m_bucketSyncInfoList[bucketName].LastUpdateTimeStamp = data["LastUpdateTimeStamp"].AsLong();
+                if (data.ContainsKey("LastUpdateActorID"))
+                    m_bucketSyncInfoList[bucketName].LastUpdateActorID = data["LastUpdateActorID"].AsString();
 
             }
+
+            //TEMP DEBUG
+            m_log.DebugFormat("SceneObjectPart.PhysicsBucketUpdateProcessor called for part {0},{1}, at GroupPos {2}", localPart.Name, localPart.UUID, localPart.GroupPosition);
 
             //Schedule updates to be sent out, if the local copy has just been updated
             //(1) if we are debugging the actor with a viewer attaching to it,

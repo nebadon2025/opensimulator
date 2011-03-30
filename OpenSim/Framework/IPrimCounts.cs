@@ -25,36 +25,50 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-using System;
-using System.Diagnostics;
-using NUnit.Framework;
+using OpenMetaverse;
 
-namespace OpenSim.Tests.Common
+namespace OpenSim.Framework
 {
-    public class TestHelper
+    public interface IPrimCounts
     {
-        public static bool AssertThisDelegateCausesArgumentException(TestDelegate d)
-        {
-            try
-            {
-                d();
-            }
-            catch(ArgumentException)
-            {
-                return true;
-            }
-
-            return false;
-        }
+        /// <summary>
+        /// Parcel owner owned prims
+        /// </summary>
+        int Owner { get; }
         
         /// <summary>
-        /// A debugging method that can be used to print out which test method you are in 
+        /// Parcel group owned prims
         /// </summary>
-        public static void InMethod()
-        {
-            StackTrace stackTrace = new StackTrace();
-            Console.WriteLine();
-            Console.WriteLine("===> In Test Method : {0} <===", stackTrace.GetFrame(1).GetMethod().Name);
-        }
+        int Group { get; }
+        
+        /// <summary>
+        /// Prims owned by others (not parcel owner or parcel group).
+        /// </summary>
+        int Others { get; }
+
+        /// <summary>
+        /// Selected prims
+        /// </summary>        
+        int Selected { get; }        
+        
+        /// <summary>
+        /// Total prims on the parcel.
+        /// </summary>
+        int Total { get; }
+        
+        /// <summary>
+        /// Prims on the simulator that are owned by the parcel owner, even if they are in other parcels.
+        /// </summary>
+        int Simulator { get; }
+        
+        /// <summary>
+        /// Prims per individual users.
+        /// </summary>
+        IUserPrimCounts Users { get; }
+    }
+
+    public interface IUserPrimCounts
+    {
+        int this[UUID agentID] { get; }
     }
 }

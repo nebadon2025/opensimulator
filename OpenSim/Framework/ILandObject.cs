@@ -27,10 +27,8 @@
 
 using System.Collections.Generic;
 using OpenMetaverse;
-using OpenSim.Framework;
-using OpenSim.Region.Framework.Scenes;
 
-namespace OpenSim.Region.Framework.Interfaces
+namespace OpenSim.Framework
 {
     public delegate int overrideParcelMaxPrimCountDelegate(ILandObject obj);
     public delegate int overrideSimulatorMaxPrimCountDelegate(ILandObject obj);
@@ -44,6 +42,11 @@ namespace OpenSim.Region.Framework.Interfaces
         LandData LandData { get; set; }
         bool[,] LandBitmap { get; set; }
         UUID RegionUUID { get; }
+        
+        /// <summary>
+        /// Prim counts for this land object.
+        /// </summary>
+        IPrimCounts PrimCounts { get; set; }
         
         /// <summary>
         /// The start point for the land object.  This is the western-most point as one scans land working from 
@@ -85,11 +88,8 @@ namespace OpenSim.Region.Framework.Interfaces
         bool[,] MergeLandBitmaps(bool[,] bitmap_base, bool[,] bitmap_add);
         void SendForceObjectSelect(int local_id, int request_type, List<UUID> returnIDs, IClientAPI remote_client);
         void SendLandObjectOwners(IClientAPI remote_client);
-        void ReturnObject(SceneObjectGroup obj);
         void ReturnLandObjects(uint type, UUID[] owners, UUID[] tasks, IClientAPI remote_client);
         void ResetLandPrimCounts();
-        void AddPrimToCount(SceneObjectGroup obj);
-        void RemovePrimFromCount(SceneObjectGroup obj);
         void UpdateLandSold(UUID avatarID, UUID groupID, bool groupOwned, uint AuctionID, int claimprice, int area);
 
         void DeedToGroup(UUID groupID);

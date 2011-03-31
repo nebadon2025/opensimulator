@@ -1548,6 +1548,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             foreach (SyncConnector connector in syncConnectors)
             {
+                lock (m_stats) m_statEventOut++;
                 connector.Send(rsm);
             }
         }
@@ -3246,7 +3247,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(msgType, OSDParser.SerializeJsonString(data));
 
             //send to actors who are interested in the event
-            lock (m_stats) m_statEventOut++;
             SendSceneEventToRelevantSyncConnectors(m_actorID, rsm, null);
         }
 

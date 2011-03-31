@@ -5574,7 +5574,7 @@ namespace OpenSim.Region.Framework.Scenes
                 localPart.RotationOffset = updatedPart.RotationOffset;
 
                 //TEMP DEBUG
-                m_log.DebugFormat("SceneObjectPart.PhysicsBucketUpdateProcessor called for part {0},{1}, at GroupPos {2}", localPart.Name, localPart.UUID, localPart.GroupPosition);
+               // m_log.DebugFormat("SceneObjectPart.PhysicsBucketUpdateProcessor called for part {0},{1}, at GroupPos {2}", localPart.Name, localPart.UUID, localPart.GroupPosition);
 
                 return;
             }
@@ -5650,7 +5650,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             //TEMP DEBUG
-            m_log.DebugFormat("SceneObjectPart.PhysicsBucketUpdateProcessor called for part {0},{1}, at GroupPos {2}", localPart.Name, localPart.UUID, localPart.GroupPosition);
+            //m_log.DebugFormat("SceneObjectPart.PhysicsBucketUpdateProcessor called for part {0},{1}, at GroupPos {2}", localPart.Name, localPart.UUID, localPart.GroupPosition);
 
             //Schedule updates to be sent out, if the local copy has just been updated
             //(1) if we are debugging the actor with a viewer attaching to it,

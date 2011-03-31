@@ -822,7 +822,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     partNames += "(" + child.Name + "," + child.UUID + ")"; 
                 }
-                m_log.Debug("LinkObjectBySync: " + part.Name + "," + part.UUID + " with root "+root.Name+","+root.UUID+"; its SOG has " + part.ParentGroup.Parts.Length + " parts : "+partNames);
+                //m_log.Debug("LinkObjectBySync: " + part.Name + "," + part.UUID + " with root "+root.Name+","+root.UUID+"; its SOG has " + part.ParentGroup.Parts.Length + " parts : "+partNames);
 
                 children.Add(part);
             }

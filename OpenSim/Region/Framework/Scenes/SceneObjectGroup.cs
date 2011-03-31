@@ -2115,9 +2115,9 @@ namespace OpenSim.Region.Framework.Scenes
             //    objectGroup.RootPart.SendScheduledUpdates();
             //}
 
-                        m_log.DebugFormat(
-                            "[SCENE OBJECT GROUP]: Linking group with root part {0}, {1} to group with root part {2}, {3}",
-                            objectGroup.RootPart.Name, objectGroup.RootPart.UUID, RootPart.Name, RootPart.UUID);
+                        //m_log.DebugFormat(
+                        //    "[SCENE OBJECT GROUP]: Linking group with root part {0}, {1} to group with root part {2}, {3}",
+                        //    objectGroup.RootPart.Name, objectGroup.RootPart.UUID, RootPart.Name, RootPart.UUID);
 
             SceneObjectPart linkPart = objectGroup.m_rootPart;
 

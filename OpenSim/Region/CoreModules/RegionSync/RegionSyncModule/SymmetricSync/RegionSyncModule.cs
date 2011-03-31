@@ -458,14 +458,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["softDelete"] = OSD.FromBoolean(softDelete);
 
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
-            //SendObjectUpdateToRelevantSyncConnectors(sog, rsm);
-            SendSceneEventToRelevantSyncConnectors(m_actorID, rsm, sog);
+            SendSpecialObjectUpdateToRelevantSyncConnectors(m_actorID, sog, rsm);
+            //SendSceneEventToRelevantSyncConnectors(m_actorID, rsm, sog);
         }
 
 
         public void SendLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children)
         {
-            if(children.Count==0) return;
+            if (children.Count == 0) return;
 
             if (!IsSyncingWithOtherSyncNodes())
             {
@@ -478,22 +478,23 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             OSDMap data = new OSDMap();
             string sogxml = SceneObjectSerializer.ToXml2Format(linkedGroup);
-            data["linkedGroup"]=OSD.FromString(sogxml);
+            data["linkedGroup"] = OSD.FromString(sogxml);
             data["rootID"] = OSD.FromUUID(root.UUID);
             data["partCount"] = OSD.FromInteger(children.Count);
             data["actorID"] = OSD.FromString(m_actorID);
             int partNum = 0;
-            foreach(SceneObjectPart part in children){
-                string partTempID = "part"+partNum;
+            foreach (SceneObjectPart part in children)
+            {
+                string partTempID = "part" + partNum;
                 data[partTempID] = OSD.FromUUID(part.UUID);
                 partNum++;
 
-                m_log.DebugFormat("{0}: SendLinkObject to link {1},{2} with {3}, {4}", part.Name, part.UUID, root.Name, root.UUID);
+                //m_log.DebugFormat("{0}: SendLinkObject to link {1},{2} with {3}, {4}", part.Name, part.UUID, root.Name, root.UUID);
             }
 
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.LinkObject, OSDParser.SerializeJsonString(data));
-            //SendObjectUpdateToRelevantSyncConnectors(linkedGroup, rsm);
-            SendSceneEventToRelevantSyncConnectors(m_actorID, rsm, linkedGroup);
+            SendSpecialObjectUpdateToRelevantSyncConnectors(m_actorID, linkedGroup, rsm);
+            //SendSceneEventToRelevantSyncConnectors(m_actorID, rsm, linkedGroup);
         }
 
         public void SendDeLinkObject(List<SceneObjectPart> prims, List<SceneObjectGroup> beforeDelinkGroups, List<SceneObjectGroup> afterDelinkGroups)
@@ -924,7 +925,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //string sogxml = SceneObjectSerializer.ToXml2Format(sog);
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.NewObject, OSDParser.SerializeJsonString(data));
 
-            m_log.DebugFormat("{0}: Created a NewObject message for {1},{2}, at pos {3}", LogHeader, sog.Name, sog.UUID, globalPos);
+            //SYNC DEBUG
+            //m_log.DebugFormat("{0}: Created a NewObject message for {1},{2}, at pos {3}", LogHeader, sog.Name, sog.UUID, globalPos);
 
             return rsm;
         }
@@ -948,7 +950,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             sog.AbsolutePosition = localPos;
 
             //TEMP DEBUG
-            m_log.DebugFormat("{0}: received NewObject sync message for object {1}, {2} at pos {3}", LogHeader, sog.Name, sog.UUID, sog.AbsolutePosition.ToString());
+            //m_log.DebugFormat("{0}: received NewObject sync message for object {1}, {2} at pos {3}", LogHeader, sog.Name, sog.UUID, sog.AbsolutePosition.ToString());
 
             Scene.ObjectUpdateResult updateResult = m_scene.AddNewSceneObjectBySync(sog);
 
@@ -1000,7 +1002,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                 lock (m_stats) m_statSOGBucketOut++;
 
-                m_log.DebugFormat(LogHeader + " calling SendObjectUpdateToRelevantSyncConnectors for general bucket for sog {0},{1}", sog.Name, sog.UUID);
+                //TEMP SYNC DEBUG
+                //m_log.DebugFormat(LogHeader + " calling SendObjectUpdateToRelevantSyncConnectors for general bucket for sog {0},{1}", sog.Name, sog.UUID);
 
                 SendObjectUpdateToRelevantSyncConnectors(sog, syncMsg);
 
@@ -1034,7 +1037,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
              * */ 
 
-            m_log.DebugFormat("{0}: PrimUpdatesGeneralBucketReceiver called, for update at GroupPosition {1}", LogHeader, groupPosition.ToString());
+            //TEMP SYNC DEBUG
+            //m_log.DebugFormat("{0}: PrimUpdatesGeneralBucketReceiver called, for update at GroupPosition {1}", LogHeader, groupPosition.ToString());
 
             Object ret;
             GeneralBucketPropertiesDecoder(bucketName, data, out ret);
@@ -1057,11 +1061,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             else
             {
-
-                m_log.DebugFormat("{0}: UpdateObjectBySynchronization to be called for: sog {1}, {2}, at post {3}", LogHeader, sog.Name, sog.UUID, sog.AbsolutePosition);
+                //TEMP SYNC DEBUG
+                //m_log.DebugFormat("{0}: UpdateObjectBySynchronization to be called for: sog {1}, {2}, at post {3}", LogHeader, sog.Name, sog.UUID, sog.AbsolutePosition);
 
                 Scene.ObjectUpdateResult updateResult = m_scene.UpdateObjectBySynchronization(sog);
 
+                /*
                 switch (updateResult)
                 {
                     case Scene.ObjectUpdateResult.New:
@@ -1077,9 +1082,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         //m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) unchanged after receiving an update.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
                         break;
                 }
+                 * */
 
-                m_log.DebugFormat("{0}: end of processing UpdatedObject {4} bucket, for object {1}, {2}, at pos {3}", LogHeader, sog.Name,
-                    sog.UUID, sog.AbsolutePosition, bucketName);
+                //TEMP SYNC DEBUG
+               // m_log.DebugFormat("{0}: end of processing UpdatedObject {4} bucket, for object {1}, {2}, at pos {3}", LogHeader, sog.Name,
+               //     sog.UUID, sog.AbsolutePosition, bucketName);
             }
         }
 
@@ -1121,7 +1128,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["GroupPosition"] = OSDMap.FromVector3(globalPos);
 
             //TEMP DEBUG
-            m_log.Debug(LogHeader + " GeneralBucketPropertiesEncoder for " + sog.Name + "," + sog.UUID + ". GlobalPos: " + globalPos.ToString());
+            //m_log.Debug(LogHeader + " GeneralBucketPropertiesEncoder for " + sog.Name + "," + sog.UUID + ". GlobalPos: " + globalPos.ToString());
 
             return data;
         }
@@ -1194,9 +1201,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.WarnFormat("{0}: Received a {1} bucket update for object at pos {2}, OUT OF local quarks", LogHeader, bucketName, groupPosition.ToString());
                 return;
             }
-             * */ 
+             * */
 
-            m_log.DebugFormat("{0}: PrimUpdatesPhysicsBucketReceiver called, for update at GroupPosition {1}", LogHeader, groupPosition.ToString());
+            //TEMP SYNC DEBUG
+            //m_log.DebugFormat("{0}: PrimUpdatesPhysicsBucketReceiver called, for update at GroupPosition {1}", LogHeader, groupPosition.ToString());
 
             Object ret;
             PhysicsBucketPropertiesDecoder(bucketName, data, out ret);
@@ -1221,10 +1229,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             m_scene.UpdateObjectPartBucketProperties(bucketName, partUUID, data, rBucketSyncInfo);
 
-            //TEMP DEBUG
+            //TEMP SYNC DEBUG
             SceneObjectPart localPart = m_scene.GetSceneObjectPart(partUUID);
-            m_log.DebugFormat("{0}: end of processing UpdatedObject {4} bucket, for part {1}, {2}, at group pos {3}", LogHeader, localPart.Name,
-             localPart.UUID, localPart.GroupPosition, bucketName);
+            //m_log.DebugFormat("{0}: end of processing UpdatedObject {4} bucket, for part {1}, {2}, at group pos {3}", LogHeader, localPart.Name,
+            // localPart.UUID, localPart.GroupPosition, bucketName);
         }
 
         private OSDMap PhysicsBucketPropertiesEncoder(string bucketName, Object part)
@@ -1451,23 +1459,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //m_log.Debug("Send " + syncMsg.Type.ToString() + " about sog "+sog.Name+","+sog.UUID+ " at pos "+sog.AbsolutePosition.ToString()+" to " + connector.OtherSideActorID);
 
                 connector.EnqueueOutgoingUpdate(sog.UUID, syncMsg.ToBytes());
-            }
-        }
-
-        //Object updates are sent by enqueuing into each connector's outQueue.
-        private void SendObjectUpdateToRelevantSyncConnectors(SceneObjectPart updatedPart, SymmetricSyncMessage syncMsg)
-        {
-            HashSet<SyncConnector> syncConnectors = GetSyncConnectorsForObjectUpdates(updatedPart);
-
-            foreach (SyncConnector connector in syncConnectors)
-            {
-                //string sogxml = SceneObjectSerializer.ToXml2Format(sog);
-                //SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
-
-                //m_log.Debug("Send " + syncMsg.Type.ToString() + " about sop " + updatedPart.Name + "," + updatedPart.UUID + " at pos "+updatedPart.GroupPosition.ToString()
-                //+" to " + connector.OtherSideActorID);
-
-                connector.EnqueueOutgoingUpdate(updatedPart.UUID, syncMsg.ToBytes());
             }
         }
 
@@ -2319,6 +2310,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                 Scene.ObjectUpdateResult updateResult = m_scene.UpdateObjectBySynchronization(sog);
 
+                /*
                 switch (updateResult)
                 {
                     case Scene.ObjectUpdateResult.New:
@@ -2334,6 +2326,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         //m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) unchanged after receiving an update.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
                         break;
                 }
+                 * */ 
             }
 
         }
@@ -2445,7 +2438,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 data = null;
             }
             return data;
-        } 
+        }
 
         private void HandleRemovedObject(SymmetricSyncMessage msg, string senderActorID)
         {
@@ -2468,7 +2461,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //if this is a relay node, forwards the event
             if (m_isSyncRelay)
             {
-                SendSceneEventToRelevantSyncConnectors(senderActorID, msg, sog);
+                //SendSceneEventToRelevantSyncConnectors(senderActorID, msg, sog);
+                SendSpecialObjectUpdateToRelevantSyncConnectors(senderActorID, sog, msg);
             }
 
 
@@ -2476,12 +2470,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 if (!softDelete)
                 {
-                    m_log.DebugFormat("{0}: hard delete object {1}", LogHeader, sog.UUID);
+                    //m_log.DebugFormat("{0}: hard delete object {1}", LogHeader, sog.UUID);
                     m_scene.DeleteSceneObjectBySynchronization(sog);
                 }
                 else
                 {
-                    m_log.DebugFormat("{0}: soft delete object {1}", LogHeader, sog.UUID);
+                    //m_log.DebugFormat("{0}: soft delete object {1}", LogHeader, sog.UUID);
                     m_scene.UnlinkSceneObject(sog, true);
                 }
             }
@@ -2502,7 +2496,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //string init_actorID = data["actorID"].AsString();
             string sogxml = data["linkedGroup"].AsString();
-            SceneObjectGroup linkedGroup = SceneObjectSerializer.FromXml2Format(sogxml);
+            //SceneObjectGroup linkedGroup = SceneObjectSerializer.FromXml2Format(sogxml);
+            SceneObjectGroup linkedGroup = DecodeSceneObjectGroup(sogxml);
+
             UUID rootID = data["rootID"].AsUUID();
             int partCount = data["partCount"].AsInteger();
             List<UUID> childrenIDs = new List<UUID>();
@@ -2511,7 +2507,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //if this is a relay node, forwards the event
             if (m_isSyncRelay)
             {
-                SendSceneEventToRelevantSyncConnectors(senderActorID, msg, linkedGroup);
+                //SendSceneEventToRelevantSyncConnectors(senderActorID, msg, linkedGroup);
+                SendSpecialObjectUpdateToRelevantSyncConnectors(senderActorID, linkedGroup, msg);
             }
 
             for (int i = 0; i < partCount; i++)
@@ -2520,7 +2517,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 childrenIDs.Add(data[partTempID].AsUUID());
             }
 
-            m_log.DebugFormat("{0}: received LinkObject from {1}", LogHeader, senderActorID);
+            //TEMP SYNC DEBUG
+            //m_log.DebugFormat("{0}: received LinkObject from {1}", LogHeader, senderActorID);
 
             m_scene.LinkObjectBySync(linkedGroup, rootID, childrenIDs);
 
@@ -2529,11 +2527,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void HandleDelinkObject(SymmetricSyncMessage msg, string senderActorID)
         {
-            //if this is a relay node, forwards the event
-            if (m_isSyncRelay)
-            {
-                SendSceneEventToRelevantSyncConnectors(senderActorID, msg, null);
-            }
+
 
             OSDMap data = DeserializeMessage(msg);
             if (data == null)
@@ -2570,8 +2564,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 string groupTempID = "afterGroup" + i;
                 string sogxml = data[groupTempID].AsString();
-                SceneObjectGroup afterGroup = SceneObjectSerializer.FromXml2Format(sogxml);
+                //SceneObjectGroup afterGroup = SceneObjectSerializer.FromXml2Format(sogxml);
+                SceneObjectGroup afterGroup = DecodeSceneObjectGroup(sogxml);
                 incomingAfterDelinkGroups.Add(afterGroup);
+            }
+
+            //if this is a relay node, forwards the event
+            if (m_isSyncRelay)
+            {
+                List<SceneObjectGroup> beforeDelinkGroups = new List<SceneObjectGroup>();
+                foreach (UUID sogID in beforeDelinkGroupIDs)
+                {
+                    SceneObjectGroup sog = m_scene.SceneGraph.GetGroupByPrim(sogID);
+                    beforeDelinkGroups.Add(sog);
+                }
+                SendDelinkObjectToRelevantSyncConnectors(senderActorID, beforeDelinkGroups, msg);
             }
 
             m_scene.DelinkObjectsBySync(delinkPrimIDs, beforeDelinkGroupIDs, incomingAfterDelinkGroups);

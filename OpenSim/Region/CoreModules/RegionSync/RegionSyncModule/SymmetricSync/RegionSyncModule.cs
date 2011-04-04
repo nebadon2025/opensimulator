@@ -2230,6 +2230,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //m_log.DebugFormat("{0}: received Terrain update msg, with TS {1}, actorID {2}",LogHeader, lastUpdateTimeStamp, lastUpdateActorID);
 
             //update the terrain if the incoming terrain data has an more recent timestamp
+            m_scene.RequestModuleInterface<ITerrainModule>().SetSyncInfo(0, m_scene.GetSyncActorID());
             if (m_scene.RequestModuleInterface<ITerrainModule>().UpdateTerrianBySync(lastUpdateTimeStamp, lastUpdateActorID, msgData))
             {
                 //m_scene.Heightmap.LoadFromXmlString(msgData);

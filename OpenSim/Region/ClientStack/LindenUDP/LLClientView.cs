@@ -3668,7 +3668,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
             int updatesThisCall = 0;
 
-            LogQueueProcessEvent(this.m_agentId,m_entityUpdates,m_maxUpdates);
+            //LogQueueProcessEvent(this.m_agentId,m_entityUpdates,m_maxUpdates);
 
             // We must lock for both manipulating the kill record and sending the packet, in order to avoid a race
             // condition where a kill can be processed before an out-of-date update for the same object.                        

@@ -52,8 +52,9 @@ namespace OpenSim.Region.Framework.Interfaces
     public interface IRegionSyncModule
     {
         bool Active { get; } //if true, this RegionSyncModule is connected into the synchronization overlay 
-        string ActorID { get; }
-        DSGActorTypes DSGActorType { get; set; }
+        string ActorID { get; } //might be phased out soon
+        string SyncID { get; }
+        //DSGActorTypes DSGActorType { get; set; }
         bool IsSyncRelay { get; }
 
         /// <summary>

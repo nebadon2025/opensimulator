@@ -130,27 +130,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //Called after AddRegion() has been called for all region modules of the scene
         public void RegionLoaded(Scene scene)
         {
-            //m_log.Warn(LogHeader + " RegionLoaded() called");
-
-            /*
-            //If this one is configured to start a listener so that other actors can connect to form a overlay, start the listener.
-            //For now, we use the star topology, and ScenePersistence actor is always the one to start the listener.
-            if (m_isSyncListenerLocal)
-            {
-                StartLocalSyncListener();
-            }
-            else
-            {
-                //Start connecting to the remote listener. TO BE IMPLEMENTED. 
-                //For now, the connection will be started by manually typing in "sync start".
-
-            }
-             * */
-
-            //Start symmetric synchronization initialization automatically
-            //SyncStart(null);
-
-            // connect to statistics system
             SyncStatisticCollector.Register(this);
             
         }
@@ -182,22 +161,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Synchronization related members and functions, exposed through IRegionSyncModule interface
         ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-        private DSGActorTypes m_actorType = DSGActorTypes.Unknown;
-        /// <summary>
-        /// The type of the actor running locally. This value will be set by an ActorSyncModule, so that 
-        /// no hard code needed in RegionSyncModule to recoganize the actor's type, thus make it easier
-        /// to add new ActorSyncModules w/o chaning the code in RegionSyncModule.
-        /// </summary>
-        public DSGActorTypes DSGActorType
-        {
-            get { return m_actorType; }
-            set { m_actorType = value; }
-        }
-
+        //ActorID might not be in use anymore. Rather, SyncID should be used. 
+        //(Synchronization is sync node centric, not actor centric.)
         private string m_actorID;
         public string ActorID
         {
             get { return m_actorID; }
+        }
+
+        private string m_syncID;
+        public string SyncID
+        {
+            get { return m_syncID; }
         }
 
         private bool m_active = false;
@@ -228,12 +203,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             
             foreach (string bucketName in m_propertyBucketNames)
             {
-                //if (m_isSyncRelay || part.HasPropertyUpdatedLocallyInGivenBucket(bucketName))
                 if(!part.ParentGroup.IsDeleted && HaveUpdatesToSendoutForSync(part, bucketName))
                 {        
                     lock (m_primUpdateLocks[bucketName])
                     {
-                        //m_log.Debug("Queueing to bucket " + bucketName + " with part " + part.Name + ", " + part.UUID+" at pos "+part.GroupPosition.ToString());
                         m_primUpdates[bucketName][part.UUID] = part;
                     }
                 }
@@ -250,8 +223,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
 
-
+        
         //SendSceneUpdates put each update into an outgoing queue of each SyncConnector
+        /// <summary>
+        /// Send updates to other sync nodes. So far we only handle object updates.
+        /// </summary>
         public void SendSceneUpdates()
         {
             if (!IsSyncingWithOtherSyncNodes())
@@ -271,7 +247,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
             }
 
-            //List<SceneObjectGroup> primUpdates=null;
             Dictionary<string, List<SceneObjectPart>> primUpdates = new Dictionary<string,List<SceneObjectPart>>();
 
             bool updated = false;
@@ -304,18 +279,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
             }
 
-            List<ScenePresence> presenceUpdates = new List<ScenePresence>();
-            /*
-            if (m_presenceUpdates.Count > 0)
-            {
-                lock (m_updateScenePresenceLock)
-                {
-                    updated = true;
-                    presenceUpdates = new List<ScenePresence>(m_presenceUpdates.Values);
-                    m_presenceUpdates.Clear();
-                }
-            }
-             */
 
             if (updated)
             {
@@ -335,48 +298,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             //m_log.Debug(LogHeader + " calling update sender for bucket " + bucketName);
                             m_primUpdatesPerBucketSender[bucketName](bucketName, primUpdates[bucketName]);
                             primUpdates[bucketName].Clear();
-                        }
-                    }
-                    foreach (ScenePresence presence in presenceUpdates)
-                    {
-                        try
-                        {
-                            if (!presence.IsDeleted)
-                            {
-                                /*
-                                OSDMap data = new OSDMap(10);
-                                data["id"] = OSD.FromUUID(presence.UUID);
-                                // Do not include offset for appearance height. That will be handled by RegionSyncClient before sending to viewers
-                                if(presence.AbsolutePosition.IsFinite())
-                                    data["pos"] = OSD.FromVector3(presence.AbsolutePosition);
-                                else
-                                    data["pos"] = OSD.FromVector3(Vector3.Zero);
-                                if(presence.Velocity.IsFinite())
-                                    data["vel"] = OSD.FromVector3(presence.Velocity);
-                                else
-                                    data["vel"] = OSD.FromVector3(Vector3.Zero);
-                                data["rot"] = OSD.FromQuaternion(presence.Rotation);
-                                data["fly"] = OSD.FromBoolean(presence.Flying);
-                                data["flags"] = OSD.FromUInteger((uint)presence.AgentControlFlags);
-                                data["anim"] = OSD.FromString(presence.Animator.CurrentMovementAnimation);
-                                // needed for a full update
-                                if (presence.ParentID != presence.lastSentParentID)
-                                {
-                                    data["coll"] = OSD.FromVector4(presence.CollisionPlane);
-                                    data["off"] = OSD.FromVector3(presence.OffsetPosition);
-                                    data["pID"] = OSD.FromUInteger(presence.ParentID);
-                                    presence.lastSentParentID = presence.ParentID;
-                                }
-
-                                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.UpdatedAvatar, OSDParser.SerializeJsonString(data));
-                                m_server.EnqueuePresenceUpdate(presence.UUID, rsm.ToBytes());
-                                */                           
-
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            m_log.ErrorFormat("[REGION SYNC MODULE] Caught exception sending presence updates for {0}: {1}", presence.Name, e);
                         }
                     }
 
@@ -583,21 +504,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     OnLocalScriptReset((uint)evArgs[0], (UUID)evArgs[1]);
                     return;
                 case EventManager.EventNames.ChatFromClient:
-                    /*if (evArgs.Length < 2)
-                    {
-                        m_log.Error(LogHeader + " not enough event args for ChatFromClient");
-                        return;
-                    }
-                    OnLocalChatFromClient(evArgs[0], (OSChatMessage)evArgs[1]);
-                    return;*/ 
-                case EventManager.EventNames.ChatFromWorld:
-                    /*if (evArgs.Length < 2)
-                    {
-                        m_log.Error(LogHeader + " not enough event args for ChatFromWorld");
-                        return;
-                    }
-                    OnLocalChatFromWorld(evArgs[0], (OSChatMessage)evArgs[1]);
-                    return;*/ 
+                case EventManager.EventNames.ChatFromWorld: 
                 case EventManager.EventNames.ChatBroadcast:
                     if (evArgs.Length < 2)
                     {
@@ -699,9 +606,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         #region RegionSyncModule members and functions
 
-        /////////////////////////////////////////////////////////////////////////////////////////
-        // Synchronization related functions, NOT exposed through IRegionSyncModule interface
-        /////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////////////////////////////////////////////////////////////
+        // Memeber variables
+        ///////////////////////////////////////////////////////////////////////
 
         private static int PortUnknown = -1;
         private static string IPAddrUnknown = String.Empty;
@@ -740,9 +647,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private RegionSyncListener m_localSyncListener = null;
         private bool m_synced = false;
 
-        // Lock is used to synchronize access to the update status and update queues
-        //private object m_updateSceneObjectPartLock = new object();
-        //private Dictionary<UUID, SceneObjectGroup> m_primUpdates = new Dictionary<UUID, SceneObjectGroup>();
+        ///////////////////////////////////////////////////////////////////////
+        // Memeber variables for per-property timestamp
+        ///////////////////////////////////////////////////////////////////////
+
+
+
+        ///////////////////////////////////////////////////////////////////////
+        // Legacy members for bucket-based sync, 
+        ///////////////////////////////////////////////////////////////////////
+
         private Dictionary<string, Object> m_primUpdateLocks = new Dictionary<string, object>();
         private Dictionary<string, Dictionary<UUID, SceneObjectPart>> m_primUpdates = new Dictionary<string, Dictionary<UUID, SceneObjectPart>>();
 
@@ -770,6 +684,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private int m_sendingUpdates = 0;
 
         private int m_maxNumOfPropertyBuckets;
+
+        /////////////////////////////////////////////////////////////////////////////////////////
+        // Synchronization related functions, NOT exposed through IRegionSyncModule interface
+        /////////////////////////////////////////////////////////////////////////////////////////
 
         private void StatsTimerElapsed(object source, System.Timers.ElapsedEventArgs e)
         {
@@ -1690,7 +1608,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_log.Error(LogHeader + "interface Scene.ActorSyncModule has not been set yet");
                     return;
                 }
-                m_actorType = m_scene.ActorSyncModule.ActorType;
+                //m_actorType = m_scene.ActorSyncModule.ActorType;
             }
 
             //Start symmetric synchronization initialization automatically
@@ -1800,12 +1718,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //Start SyncListener if a listener is supposed to run on this actor; Otherwise, initiate connections to remote listeners.
         private void SyncStart(Object[] args)
         {
-            if (m_actorType == DSGActorTypes.Unknown)
-            {
-                m_log.Error(LogHeader + ": SyncStart -- ActorType not set yet. Either it's not defined in config file (DSGActorType), or the ActorSyncModule (ScenePersistenceSyncModule, ScriptEngineSyncModule etc) has not defined it.");
-                return;
-            }
-
             if (m_isSyncListenerLocal)
             {
                 if (m_localSyncListener!=null && m_localSyncListener.IsListening)
@@ -3399,6 +3311,138 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // 
+    ///////////////////////////////////////////////////////////////////////////
+
+    public enum PropertyUpdateSource
+    {
+        Local,
+        BySync
+    }
+
+    public class PropertySyncInfo
+    {
+        private ulong m_lastUpdateTimeStamp;
+        public ulong LastUpdateTimeStamp
+        {
+            get { return m_lastUpdateTimeStamp; }
+        }
+
+        private string m_lastUpdateSyncID;
+        public string LastUpdateSyncID
+        {
+            get { return m_lastUpdateSyncID; }
+        }
+
+        /// <summary>
+        /// The value of the most recent value sent/received by Sync Module.
+        /// For property with simple types, the value is copied directly. 
+        /// For property with complex data structures, the value (values of
+        /// subproperties) is serialized and stored.
+        /// </summary>
+        private Object m_lastUpdateValue;
+        public Object LastUpdateValue
+        {
+            get { return m_lastUpdateValue; }
+        }
+
+        /// <summary>
+        /// Record the time the last sync message about this property is received.
+        /// This value is only meaninful when m_lastUpdateSource==BySync
+        /// </summary>
+        private ulong m_lastSyncUpdateRecvTime;
+        public ulong LastSyncUpdateRecvTime
+        {
+            get { return m_lastSyncUpdateRecvTime; }
+            set { m_lastSyncUpdateRecvTime = value; }
+        }
+
+        private PropertyUpdateSource m_lastUpdateSource;
+        public PropertyUpdateSource LastUpdateSource
+        {
+            get { return m_lastUpdateSource; }
+        }
+
+        private Object m_syncInfoLock = new Object();
+
+        /// <summary>
+        /// Update SyncInfo when the property is updated locally.
+        /// </summary>
+        /// <param name="ts">the time </param>
+        /// <param name="syncID"></param>
+        public void UpdateSyncInfoLocally(ulong ts, string syncID, Object pValue)
+        {
+            lock (m_syncInfoLock)
+            {
+                m_lastUpdateValue = pValue;
+                m_lastUpdateTimeStamp = ts;
+                m_lastUpdateSyncID = syncID;
+                m_lastUpdateSource = PropertyUpdateSource.Local;
+            }
+        }
+
+        /// <summary>
+        /// Update SyncInfo when the property is updated by receiving a sync 
+        /// message.
+        /// </summary>
+        /// <param name="ts"></param>
+        /// <param name="syncID"></param>
+        public void UpdateSyncInfoBySync(ulong ts, string syncID, ulong recvTS, Object pValue)
+        {
+            lock (m_syncInfoLock)
+            {
+                m_lastUpdateValue = pValue;
+                m_lastUpdateTimeStamp = ts;
+                m_lastUpdateSyncID = syncID;
+                m_lastSyncUpdateRecvTime = recvTS;
+                m_lastUpdateSource = PropertyUpdateSource.BySync;
+            }
+        }
+    }
+
+    public class PrimSyncInfo
+    {
+        #region Members
+        public static long TimeOutThreshold;
+
+        private Dictionary<SceneObjectPartProperties, PropertySyncInfo> m_propertiesSyncInfo;
+        public Dictionary<SceneObjectPartProperties, PropertySyncInfo> PropertiesSyncInfo
+        {
+            get { return m_propertiesSyncInfo; }
+        }
+
+        private ulong m_PrimLastUpdateTime;
+        public ulong PrimLastUpdateTime
+        {
+            get { return m_PrimLastUpdateTime; }
+        }
+        #endregion //Members
+
+        #region Constructor
+        public PrimSyncInfo()
+        {
+            m_propertiesSyncInfo = new Dictionary<SceneObjectPartProperties, PropertySyncInfo>();
+
+            foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
+            {
+                PropertySyncInfo syncInfo = new PropertySyncInfo();
+                m_propertiesSyncInfo.Add(property, syncInfo);
+            }
+        }
+        #endregion //Constructor
+
+        public void UpdatePropertySyncInfoLocally(SceneObjectPartProperties property, ulong lastUpdateTS, string syncID, Object pValue)
+        {
+            m_propertiesSyncInfo[property].UpdateSyncInfoLocally(lastUpdateTS, syncID, pValue);
+        }
+
+        public void UpdatePropertySyncInfoBySync(SceneObjectPartProperties property, ulong lastUpdateTS, string syncID, Object pValue, ulong recvTS)
+        {
+            m_propertiesSyncInfo[property].UpdateSyncInfoBySync(lastUpdateTS, syncID, recvTS, pValue);
+        }
     }
  
 }

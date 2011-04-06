@@ -604,8 +604,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         #endregion Console Command Interface
 
-        #region RegionSyncModule members and functions
-
         ///////////////////////////////////////////////////////////////////////
         // Memeber variables
         ///////////////////////////////////////////////////////////////////////
@@ -1263,21 +1261,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 return part.HasPropertyUpdatedLocally(bucketName);
             }
-
-            //return (m_isSyncRelay || part.HasPropertyUpdatedLocallyInGivenBucket(bucketName));
-
-            /*
-            if (!m_isSyncRelay)
-            {
-                return part.HasPropertyUpdatedLocallyInGivenBucket(bucketName);
-            }
-
-            //if this is a relay node, forward out the updates that have not been sent out since lastUpdateSentTime
-            if (m_lastUpdateSentTime[bucketName] <= part.BucketSyncInfoList[bucketName].LastUpdateTimeStamp)
-                return true;
-            else
-                return false;
-             * */ 
         }
 
         //by default, there are two property buckets: the "General" bucket and the "Physics" bucket.
@@ -2020,6 +2003,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        #region Sync message handlers
 
 
         /// <summary>
@@ -2042,30 +2026,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                 case SymmetricSyncMessage.MsgType.Terrain:
                     {
-                        /*
-                        m_scene.Heightmap.LoadFromXmlString(Encoding.ASCII.GetString(msg.Data, 0, msg.Length));
-                        //Inform the terrain module that terrain has been updated
-                        m_scene.RequestModuleInterface<ITerrainModule>().TaintTerrain();
-                        m_log.Debug(LogHeader+": Synchronized terrain");
-                         * */
                         HandleTerrainUpdateMessage(msg, senderActorID);
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.GetObjects:
                     {
-                        /*
-                        EntityBase[] entities = m_scene.GetEntities(); 
-                        foreach (EntityBase e in entities)
-                        {
-                            if (e is SceneObjectGroup)
-                            {
-                                //string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)e);
-                                //SendSyncMessage(SymmetricSyncMessage.MsgType.NewObject, sogxml);
-                                SceneObjectGroup sog = (SceneObjectGroup)e;
-                                HandleGetObjectRequest(syncConnector, sog);
-                            }
-                        }
-                         * */
                         HandleGetObjectRequest(syncConnector);
                         return;
                     }
@@ -2497,6 +2462,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.DelinkObjectsBySync(delinkPrimIDs, beforeDelinkGroupIDs, incomingAfterDelinkGroups);
 
         }
+        #endregion //Sync message handlers
+
+        #region Remote Event handlers
 
         /// <summary>
         /// The common actions for handling remote events (event initiated at other actors and propogated here)
@@ -2643,58 +2611,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             m_scene.EventManager.TriggerScriptResetLocally(part.LocalId, itemID);
         }
-
-        /*
-        /// <summary>
-        /// Special actions for remote event ChatFromClient
-        /// </summary>
-        /// <param name="data">OSDMap data of event args</param>
-        private void HandleRemoteEvent_OnChatFromClient(string actorID, ulong evSeqNum, OSDMap data)
-        {
-            //m_log.Debug(LogHeader + ": received ChatFromClient from "+actorID+", seq "+evSeqNum);
-
-            OSChatMessage args = new OSChatMessage();
-            args.Channel = data["channel"].AsInteger();
-            args.Message = data["msg"].AsString();
-            args.Position = data["pos"].AsVector3();
-            args.From = data["name"].AsString();
-            UUID id = data["id"].AsUUID();
-            args.Scene = m_scene;
-            //args.Type = ChatTypeEnum.Say;
-            args.Type = (ChatTypeEnum) data["type"].AsInteger();
-            ScenePresence sp;
-            m_scene.TryGetScenePresence(id, out sp);
-
-            m_scene.EventManager.TriggerOnChatFromClientLocally(sp, args); //Let WorldCommModule and other modules to catch the event
-            m_scene.EventManager.TriggerOnChatFromWorldLocally(sp, args); //This is to let ChatModule to get the event and deliver it to avatars
-        }
-
-        private void HandleRemoteEvent_OnChatFromWorld(string actorID, ulong evSeqNum, OSDMap data)
-        {
-            //m_log.Debug(LogHeader + ", " + m_actorID + ": received ChatFromWorld from " + actorID + ", seq " + evSeqNum);
-
-            OSChatMessage args = new OSChatMessage();
-            args.Channel = data["channel"].AsInteger();
-            args.Message = data["msg"].AsString();
-            args.Position = data["pos"].AsVector3();
-            args.From = data["name"].AsString();
-            UUID id = data["id"].AsUUID();
-            args.Scene = m_scene;
-            //args.Type = ChatTypeEnum.Say;
-            args.Type = (ChatTypeEnum)data["type"].AsInteger();
-            //ScenePresence sp;
-            //m_scene.TryGetScenePresence(id, out sp);
-
-            m_log.Debug(LogHeader + " TriggerOnChatFromWorldLocally ");
-
-            m_scene.EventManager.TriggerOnChatFromWorldLocally(m_scene, args);
-        }
-
-        private void HandleRemoteEvent_OnChatBroadcast(string actorID, ulong evSeqNum, OSDMap data)
-        {
-            
-        }
-         * */ 
 
         /// <summary>
         /// Handlers for remote chat events: ChatFromClient, ChatFromWorld, ChatBroadcast
@@ -2957,42 +2873,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptReset, data);
         }
 
-        /*
-        private void OnLocalChatFromClient(Object sender, OSChatMessage chat)
-        {
-            ScenePresence avatar = m_scene.GetScenePresence(chat.SenderUUID);
-
-            if (avatar == null)
-            {
-                m_log.Warn(LogHeader + "avatar " + chat.SenderUUID + " not exist locally, NOT sending out ChatFromClient");
-                return;
-            }
-
-            OSDMap data = new OSDMap();
-            data["channel"] = OSD.FromInteger(chat.Channel);
-            data["msg"] = OSD.FromString(chat.Message);
-            data["pos"] = OSD.FromVector3(chat.Position);
-            data["name"] = OSD.FromString(avatar.Name); //note this is different from OnLocalChatFromWorld
-            data["id"] = OSD.FromUUID(chat.SenderUUID);
-            data["type"] = OSD.FromInteger((int)chat.Type);
-            SendSceneEvent(SymmetricSyncMessage.MsgType.ChatFromClient, data);
-        }
-
-
-        private void OnLocalChatFromWorld(Object sender, OSChatMessage chat)
-        {
-
-            OSDMap data = new OSDMap();
-            data["channel"] = OSD.FromInteger(chat.Channel);
-            data["msg"] = OSD.FromString(chat.Message);
-            data["pos"] = OSD.FromVector3(chat.Position);
-            data["name"] = OSD.FromString(chat.From); //note this is different from OnLocalChatFromClient
-            data["id"] = OSD.FromUUID(chat.SenderUUID);
-            data["type"] = OSD.FromInteger((int)chat.Type);
-            SendSceneEvent(SymmetricSyncMessage.MsgType.ChatFromWorld, data);
-        }
-         * */ 
-
         private void OnLocalChatBroadcast(Object sender, OSChatMessage chat)
         {
 
@@ -3049,49 +2929,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void OnLocalGrabObject(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         {
-            /*
-            //we will use the prim's UUID as the identifier, not the localID, to publish the event for the prim                
-            SceneObjectPart part = m_scene.GetSceneObjectPart(localID);
-            if (part == null)
-            {
-                m_log.Warn(LogHeader + ": part with localID " + localID + " not exist");
-                return;
-            }
-
-            //this seems to be useful if the prim touched and the prim handling the touch event are different:
-            //i.e. a child part is touched, pass the event to root, and root handles the event. then root is the "part",
-            //and the child part is the "originalPart"
-            SceneObjectPart originalPart = null;
-            if (originalID != 0)
-            {
-                originalPart = m_scene.GetSceneObjectPart(originalID);
-                if (originalPart == null)
-                {
-                    m_log.Warn(LogHeader + ": part with localID " + localID + " not exist");
-                    return;
-                }
-            }
-
-            OSDMap data = new OSDMap();
-            data["agentID"] = OSD.FromUUID(remoteClient.AgentId);
-            data["primID"] = OSD.FromUUID(part.UUID);
-            if (originalID != 0)
-            {
-                data["originalPrimID"] = OSD.FromUUID(originalPart.UUID);
-            }
-            else
-            {
-                data["originalPrimID"] = OSD.FromUUID(UUID.Zero);
-            }
-            data["offsetPos"] = OSD.FromVector3(offsetPos);
-            
-            data["binormal"] = OSD.FromVector3(surfaceArgs.Binormal);
-            data["faceIndex"] = OSD.FromInteger(surfaceArgs.FaceIndex);
-            data["normal"] = OSD.FromVector3(surfaceArgs.Normal);
-            data["position"] = OSD.FromVector3(surfaceArgs.Position);
-            data["stCoord"] = OSD.FromVector3(surfaceArgs.STCoord);
-            data["uvCoord"] = OSD.FromVector3(surfaceArgs.UVCoord);
-             * */
             OSDMap data = PrepareObjectGrabArgs(localID, originalID, offsetPos, remoteClient, surfaceArgs);
             SendSceneEvent(SymmetricSyncMessage.MsgType.ObjectGrab, data);
         }
@@ -3174,8 +3011,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             return m_eventSeq++;
         }
+        #endregion //Remote Event handlers
 
-        #endregion //RegionSyncModule members and functions
+        #region Per Property SyncInfo management
+        public void RecordPrimUpdatesByLocal(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties)
+        {
+
+        }
+
+        #endregion //Per Property SyncInfo management
+
 
         #region ISyncStatistics
         private object m_stats = new object();

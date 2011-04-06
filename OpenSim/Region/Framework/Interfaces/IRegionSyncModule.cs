@@ -67,9 +67,11 @@ namespace OpenSim.Region.Framework.Interfaces
         List<string> PropertyBucketDescription { get; }
 
         //Enqueue updates for scene-objects and scene-presences
+        //Legacy interface, used in Bucket-sync
         void QueueSceneObjectPartForUpdate(SceneObjectPart part);
         void QueueScenePresenceForTerseUpdate(ScenePresence presence);
-        //void QueueSceneObjectGroupForUpdate(SceneObjectGroup sog);
+
+        void RecordPrimUpdatesByLocal(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties);
 
         //The folloiwng calls deal with object updates, and will insert each update into an outgoing queue of each SyncConnector
         void SendSceneUpdates();

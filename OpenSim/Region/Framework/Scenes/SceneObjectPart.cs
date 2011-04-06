@@ -3203,10 +3203,15 @@ namespace OpenSim.Region.Framework.Scenes
             ClearUpdateSchedule();
 
             //SYMMETRIC SYNC
+            //KittyL: 04/06/2011, No longer calling QueueSceneObjectPartForUpdate 
+            //from here. Local updates are now recorded by calling 
+            //IRegionSyncModule.RecordPrimUpdatesByLocal.
+            /*
             if (m_parentGroup.Scene.RegionSyncModule != null)
             {                
                 m_parentGroup.Scene.RegionSyncModule.QueueSceneObjectPartForUpdate((SceneObjectPart)this);
             }
+             * */ 
             //end of SYMMETRIC SYNC
         }
 
@@ -5937,6 +5942,9 @@ namespace OpenSim.Region.Framework.Scenes
             return partUpdateResult;
         }
 
+        //Implementation of ScheduleFullUpdate and ScheduleTerseUpdate for Bucket 
+        //based synchronization
+        /*
         public override void ScheduleFullUpdate(List<SceneObjectPartProperties> updatedProperties)
         {
             if (updatedProperties != null && updatedProperties.Count > 0)
@@ -5964,6 +5972,36 @@ namespace OpenSim.Region.Framework.Scenes
             base.ScheduleTerseUpdate(updatedProperties);
             //TaintBucketSyncInfo(property);
         }
+         * */
+
+        //Implementation of ScheduleFullUpdate and ScheduleTerseUpdate for Bucket 
+        //based synchronization
+        public override void ScheduleFullUpdate(List<SceneObjectPartProperties> updatedProperties)
+        {
+            if (updatedProperties != null && updatedProperties.Count > 0)
+            {
+                if (m_parentGroup != null && m_parentGroup.Scene.RegionSyncModule != null)
+                {
+                    m_parentGroup.Scene.RegionSyncModule.RecordPrimUpdatesByLocal(this, updatedProperties);
+                }
+            }
+
+            base.ScheduleTerseUpdate(updatedProperties);
+        }
+
+        public override void ScheduleTerseUpdate(List<SceneObjectPartProperties> updatedProperties)
+        {
+            if (updatedProperties != null && updatedProperties.Count > 0)
+            {
+                if (m_parentGroup != null && m_parentGroup.Scene.RegionSyncModule != null)
+                {
+                    m_parentGroup.Scene.RegionSyncModule.RecordPrimUpdatesByLocal(this, updatedProperties);
+                }
+            }
+
+            base.ScheduleTerseUpdate(updatedProperties);
+        }
+
 
         /// <summary>
         /// Schedules this prim for a full update, without changing the timestamp or actorID (info on when and who modified any property).
@@ -5971,33 +6009,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void ScheduleFullUpdate_SyncInfoUnchanged()
         {
-            //m_log.DebugFormat("[SCENE OBJECT PART]: ScheduleFullUpdate_SyncInfoUnchanged for {0} {1}", Name, LocalId);
-
-            if (m_parentGroup != null)
-            {
-                m_parentGroup.QueueForUpdateCheck();
-            }
-
-            int timeNow = Util.UnixTimeSinceEpoch();
-
-            // If multiple updates are scheduled on the same second, we still need to perform all of them
-            // So we'll force the issue by bumping up the timestamp so that later processing sees these need
-            // to be performed.
-            if (timeNow <= TimeStampFull)
-            {
-                TimeStampFull += 1;
-            }
-            else
-            {
-                TimeStampFull = (uint)timeNow;
-            }
-
-            m_updateFlag = 2;
-
-            //            m_log.DebugFormat(
-            //                "[SCENE OBJECT PART]: Scheduling full  update for {0}, {1} at {2}",
-            //                UUID, Name, TimeStampFull);
-
+            base.ScheduleFullUpdate(null);
         }
 
         private bool UpdateCollisionSound(UUID updatedCollisionSound)

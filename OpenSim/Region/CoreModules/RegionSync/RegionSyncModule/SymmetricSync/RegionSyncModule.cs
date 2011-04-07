@@ -3194,6 +3194,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_lastUpdateValue; }
         }
 
+        private string m_lastUpdateValueHash;
+
         /// <summary>
         /// Record the time the last sync message about this property is received.
         /// This value is only meaninful when m_lastUpdateSource==BySync
@@ -3246,13 +3248,23 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_lastUpdateSource = PropertyUpdateSource.BySync;
             }
         }
+
+        public bool IsHashValueEqual(string hashValue)
+        {
+            return m_lastUpdateValueHash.Equals(hashValue);
+        }
+
+        public bool IsValueEqual(Object pValue)
+        {
+            return m_lastUpdateValue.Equals(pValue);
+        }
     }
 
     public class PrimSyncInfo
     {
         #region Members
         public static long TimeOutThreshold;
-
+       
         private Dictionary<SceneObjectPartProperties, PropertySyncInfo> m_propertiesSyncInfo;
         public Dictionary<SceneObjectPartProperties, PropertySyncInfo> PropertiesSyncInfo
         {
@@ -3264,20 +3276,25 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             get { return m_PrimLastUpdateTime; }
         }
+
+        private ILog m_log;
+        private Object m_primSyncInfoLock = new Object();
+
         #endregion //Members
 
-        #region Constructor
+        #region Constructors
         public PrimSyncInfo()
         {
-            m_propertiesSyncInfo = new Dictionary<SceneObjectPartProperties, PropertySyncInfo>();
-
-            foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
-            {
-                PropertySyncInfo syncInfo = new PropertySyncInfo();
-                m_propertiesSyncInfo.Add(property, syncInfo);
-            }
+            InitPropertiesSyncInfo();
         }
-        #endregion //Constructor
+
+        public PrimSyncInfo(ILog log)
+        {
+            InitPropertiesSyncInfo();
+
+            m_log = log;
+        }
+        #endregion //Constructors
 
         public void UpdatePropertySyncInfoLocally(SceneObjectPartProperties property, ulong lastUpdateTS, string syncID, Object pValue)
         {
@@ -3287,6 +3304,342 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void UpdatePropertySyncInfoBySync(SceneObjectPartProperties property, ulong lastUpdateTS, string syncID, Object pValue, ulong recvTS)
         {
             m_propertiesSyncInfo[property].UpdateSyncInfoBySync(lastUpdateTS, syncID, recvTS, pValue);
+        }
+
+        //Triggered when a set of local writes just happened, and ScheduleFullUpdate 
+        //or ScheduleTerseUpdate has been called.
+        /// <summary>
+        /// Update copies of the given list of properties in this SyncModule, 
+        /// by copying property values from SOP's data and set the timestamp 
+        /// and syncID.
+        /// </summary>
+        /// <param name="part"></param>
+        /// <param name="updatedProperties"></param>
+        /// <param name="lastUpdateTS"></param>
+        /// <param name="syncID"></param>
+        public void UpdatePropertiesByLocal(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties, ulong lastUpdateTS, string syncID)
+        {
+            if (part == null) return;
+
+            lock (m_primSyncInfoLock)
+            {
+                foreach (SceneObjectPartProperties property in updatedProperties)
+                {
+                    bool isLocalValueDifferent = false;
+                    bool isFullUpdate = false;
+                    //Compare if the value of the property in this SyncModule is 
+                    //different than the value in SOP
+                    switch (property)
+                    {
+                        case SceneObjectPartProperties.None:
+                            break;
+                        case SceneObjectPartProperties.FullUpdate:
+                            //The caller indicates a FullUpdate. Compare values of all 
+                            //properties and update if needed.
+                            break;
+                        case SceneObjectPartProperties.Shape:
+                        case SceneObjectPartProperties.TaskInventory:
+                            //Convert the value of complex properties to string and hash
+                            isLocalValueDifferent = CompareHashedValues(part, property);
+                            break;
+                        default:
+                            isLocalValueDifferent = CompareValues(part, property);
+                            break;
+                    }
+
+                    if (isFullUpdate)
+                    {
+                        //We should have executed a full update operation above. 
+                        //Break the For loop.
+                        break;
+                    }
+
+                    if (isLocalValueDifferent)
+                    {
+                        Object pLocalValue = GetPropertyLocalValue(part, property);
+                        UpdatePropertySyncInfoLocally(property, lastUpdateTS, syncID, pLocalValue);
+                    }
+                }
+            }
+        }
+
+        private void InitPropertiesSyncInfo()
+        {
+            m_propertiesSyncInfo = new Dictionary<SceneObjectPartProperties, PropertySyncInfo>();
+
+            foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
+            {
+                PropertySyncInfo syncInfo = new PropertySyncInfo();
+                m_propertiesSyncInfo.Add(property, syncInfo);
+            }
+        }
+
+        private bool CompareHashedValues(SceneObjectPart part, SceneObjectPartProperties property)
+        {
+            bool isLocalValueDifferent = false;
+            switch (property)
+            {
+                case SceneObjectPartProperties.Shape:
+                    break;
+                case SceneObjectPartProperties.TaskInventory:
+                    break;
+            }
+            return isLocalValueDifferent;
+        }
+
+        private bool CompareValues(SceneObjectPart part, SceneObjectPartProperties property)
+        {
+            bool isLocalValueDifferent = false;
+            switch (property)
+            {
+                //SOP properties
+                case SceneObjectPartProperties.AggregateScriptEvents:
+                    return part.AggregateScriptEvents.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.AllowedDrop:
+                    return part.AllowedDrop.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.AngularVelocity:
+                    return part.AngularVelocity.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.AttachedAvatar:
+                    return part.AttachedAvatar.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.AttachedPos:
+                    return part.AttachedPos.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.AttachmentPoint:
+                    return part.AttachmentPoint.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.BaseMask:
+                    return part.BaseMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                //PhysActor properties
+                case SceneObjectPartProperties.Buoyancy:
+                    if(part.PhysActor==null){
+                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Buoyancy, yet SOP's PhysActor no longer exsits.");
+                        return true;
+                    }
+                    return part.PhysActor.Buoyancy.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Category:
+                    return part.Category.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.ClickAction:
+                    return part.ClickAction.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.CollisionSound:
+                    return part.CollisionSound.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.CollisionSoundVolume:
+                    return part.CollisionSoundVolume.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Color:
+                    return part.Color.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.CreationDate:
+                    return part.CreationDate.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.CreatorData:
+                    return part.CreatorData.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.CreatorID:
+                    return part.CreatorID.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Description:
+                    return part.Description.Equals(m_propertiesSyncInfo[property].LastUpdateValue); 
+                case SceneObjectPartProperties.EveryoneMask:
+                    return part.EveryoneMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Flags:
+                    return part.Flags.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Flying:
+                    if (part.PhysActor == null)
+                    {
+                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Flying, yet SOP's PhysActor no longer exsits.");
+                        return true;
+                    }
+                    return part.PhysActor.Flying.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.FolderID:
+                    return part.FolderID.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Force:
+                    if (part.PhysActor == null)
+                    {
+                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Force, yet SOP's PhysActor no longer exsits.");
+                        return true;
+                    }
+                    return part.PhysActor.Force.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                //Skip SceneObjectPartProperties.FullUpdate, which should be handled seperatedly
+                case SceneObjectPartProperties.GroupID:
+                    return part.GroupID.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.GroupMask:
+                    return part.GroupMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.GroupPosition:
+                    return part.GroupPosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.InventorySerial:
+                    return part.InventorySerial.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.IsAttachment:
+                    return part.IsAttachment.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.IsColliding:
+                    if (part.PhysActor == null)
+                    {
+                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of IsColliding, yet SOP's PhysActor no longer exsits.");
+                        return true;
+                    }
+                    return part.PhysActor.IsColliding.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                /* case SceneObjectPartProperties.IsCollidingGround:
+                    if (part.PhysActor == null)
+                    {
+                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of IsCollidingGround, yet SOP's PhysActor no longer exsits.");
+                        return true;
+                    }
+                    return part.PhysActor.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                 * */
+                case SceneObjectPartProperties.IsPhysical:
+                    if (part.PhysActor == null)
+                    {
+                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of IsPhysical, yet SOP's PhysActor no longer exsits.");
+                        return true;
+                    }
+                    return part.PhysActor.IsPhysical.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                //SOG properties
+                case SceneObjectPartProperties.IsSelected:
+                    return part.ParentGroup.IsSelected.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Kinematic:
+                    if (part.PhysActor == null)
+                    {
+                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Kinematic, yet SOP's PhysActor no longer exsits.");
+                        return true;
+                    }
+                    return part.PhysActor.Kinematic.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.LastOwnerID:
+                    return part.LastOwnerID.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.LinkNum:
+                    return part.LinkNum.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Material:
+                    return part.Material.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.MediaUrl:
+                    return part.MediaUrl.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Name:
+                    return part.Name.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.NextOwnerMask:
+                    return part.NextOwnerMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.ObjectSaleType:
+                    return part.ObjectSaleType.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.OffsetPosition:
+                    return part.OffsetPosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Orientation:
+                    if (part.PhysActor == null)
+                    {
+                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Orientation, yet SOP's PhysActor no longer exsits.");
+                        return true;
+                    }
+                    return part.PhysActor.Orientation.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.OwnerID:
+                    return part.OwnerID.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.OwnerMask:
+                    return part.OwnerMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.OwnershipCost:
+                    return part.OwnershipCost.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.PA_Acceleration:
+                    if (part.PhysActor == null)
+                    {
+                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of PA.Acceleration, yet SOP's PhysActor no longer exsits.");
+                        return true;
+                    }
+                    return part.PhysActor.Acceleration.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.ParticleSystem:
+                    //return part.ParticleSystem.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                    return ByteArrayEquals(part.ParticleSystem, (Byte[])m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.PassTouches:
+                    return part.PassTouches.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Position:
+                    if (part.PhysActor == null)
+                    {
+                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of PA.Position, yet SOP's PhysActor no longer exsits.");
+                        return true;
+                    }
+                    return part.PhysActor.Position.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.RotationalVelocity:
+                    if (part.PhysActor == null)
+                    {
+                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of RotationalVelocity, yet SOP's PhysActor no longer exsits.");
+                        return true;
+                    }
+                    return part.PhysActor.RotationalVelocity.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.RotationOffset:
+                    return part.RotationOffset.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.SalePrice:
+                    return part.SalePrice.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Scale:
+                    return part.Scale.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.ScriptAccessPin:
+                    return part.ScriptAccessPin.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                //case SceneObjectPartProperties.Shape: -- For "Shape", we need to call CompareHashValues
+                case SceneObjectPartProperties.SitName:
+                    return part.SitName.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.SitTargetOrientation:
+                    return part.SitTargetOrientation.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.SitTargetOrientationLL:
+                    return part.SitTargetOrientationLL.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.SitTargetPosition:
+                    return part.SitTargetPosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.SitTargetPositionLL:
+                    return part.SitTargetPositionLL.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Size:
+                    if (part.PhysActor == null)
+                    {
+                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Size, yet SOP's PhysActor no longer exsits.");
+                        return true;
+                    }
+                    return part.PhysActor.Size.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.SOP_Acceleration:
+                    return part.Acceleration.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Sound:
+                    return part.Sound.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                //case SceneObjectPartProperties.TaskInventory:-- For "TaskInventory", we need to call CompareHashValues
+                case SceneObjectPartProperties.Text:
+                    return part.Text.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.TextureAnimation:
+                    return ByteArrayEquals(part.TextureAnimation, (Byte[])m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Torque:
+                    if (part.PhysActor == null)
+                    {
+                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Torque, yet SOP's PhysActor no longer exsits.");
+                        return true;
+                    }
+                    return part.PhysActor.Torque.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.TouchName:
+                    return part.TouchName.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.UpdateFlag:
+                    return part.UpdateFlag.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.Velocity:
+                    return part.Velocity.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
+                    
+            }
+
+            return isLocalValueDifferent;
+        }
+
+        private bool ByteArrayEquals(Byte[] a, Byte[] b)
+        {
+            if (a.Length != b.Length)
+                return false;
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (a[i] != b[i])
+                    return false;
+            }
+            return true;
+        }
+
+        private Object GetPropertyLocalValue(SceneObjectPart part, SceneObjectPartProperties property)
+        {
+            if (part == null) return null;
+
+            return null;
+        }
+    }
+
+    public class PrimSyncInfoManager
+    {
+        private Dictionary<UUID, PrimSyncInfo> m_primsInSync;
+        public Dictionary<UUID, PrimSyncInfo> PrimsInSync
+        {
+            get { return m_primsInSync; }
+        }
+
+        public PrimSyncInfoManager()
+        {
+            m_primsInSync = new Dictionary<UUID, PrimSyncInfo>();
+        }
+
+        public void UpdatePrimSyncInfo(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties)
+        {
+
         }
     }
  

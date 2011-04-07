@@ -3204,8 +3204,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             //SYMMETRIC SYNC
             //KittyL: 04/06/2011, No longer calling QueueSceneObjectPartForUpdate 
-            //from here. Local updates are now recorded by calling 
-            //IRegionSyncModule.RecordPrimUpdatesByLocal.
+            //from here. Local updates are now recorded by calling IRegionSyncModule.RecordPrimUpdatesByLocal().
             /*
             if (m_parentGroup.Scene.RegionSyncModule != null)
             {                
@@ -5171,7 +5170,7 @@ namespace OpenSim.Region.Framework.Scenes
         Name,
         Material,
         PassTouches,
-        RegionHandle,
+        //RegionHandle,
         ScriptAccessPin,
         GroupPosition,
         OffsetPosition,
@@ -5194,7 +5193,7 @@ namespace OpenSim.Region.Framework.Scenes
         SitTargetPosition,
         SitTargetPositionLL,
         SitTargetOrientationLL,
-        ParentID,
+        //ParentID,
         CreationDate,
         Category,
         SalePrice,

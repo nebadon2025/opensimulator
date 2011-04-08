@@ -1369,7 +1369,9 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             writer.WriteElementString(name, flagsStr.Replace(",", ""));
         }
 
-        static void WriteTaskInventory(XmlTextWriter writer, TaskInventoryDictionary tinv, Dictionary<string, object> options, Scene scene)
+        //DSG SYNC: make it a public function, so that we can call serialization of TaskInventory from other places
+        //static void WriteTaskInventory(XmlTextWriter writer, TaskInventoryDictionary tinv, Dictionary<string, object> options, Scene scene)
+        public static void WriteTaskInventory(XmlTextWriter writer, TaskInventoryDictionary tinv, Dictionary<string, object> options, Scene scene)
         {
             if (tinv.Count > 0) // otherwise skip this
             {
@@ -1423,7 +1425,9 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             }
         }
 
-        static void WriteShape(XmlTextWriter writer, PrimitiveBaseShape shp, Dictionary<string, object> options)
+        //DSG SYNC: make it a public function, so that we can call serialization of Shape from other places
+        //static void WriteShape(XmlTextWriter writer, PrimitiveBaseShape shp, Dictionary<string, object> options)
+        public static void WriteShape(XmlTextWriter writer, PrimitiveBaseShape shp, Dictionary<string, object> options)
         {
             if (shp != null)
             {

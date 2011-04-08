@@ -5226,7 +5226,7 @@ namespace OpenSim.Region.Framework.Scenes
         Flying,
         Buoyancy,
         Kinematic,
-        IsCollidingGround,
+        CollidingGround,
         IsColliding,
         //TODO!!!! To be handled in serialization/deserizaltion for synchronization
         AggregateScriptEvents,

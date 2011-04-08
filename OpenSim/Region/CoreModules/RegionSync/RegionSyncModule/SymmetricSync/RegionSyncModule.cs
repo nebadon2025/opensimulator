@@ -1314,7 +1314,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     case SceneObjectPartProperties.Flying:
                     case SceneObjectPartProperties.Kinematic:
                     case SceneObjectPartProperties.Buoyancy:
-                    case SceneObjectPartProperties.IsCollidingGround:
+                    case SceneObjectPartProperties.CollidingGround:
                     case SceneObjectPartProperties.IsColliding:
                         m_primPropertyBucketMap.Add(property, m_physicsBucketName);
                         break;
@@ -1457,7 +1457,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             foreach (SceneObjectPart part in sog.Parts)
             {
                 /*
-                if (part.LastUpdateActorID.Equals(m_actorID))
+                if (!part.LastUpdateActorID.Equals(m_actorID))
                 {
                     return true;
                 }
@@ -3192,6 +3192,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public Object LastUpdateValue
         {
             get { return m_lastUpdateValue; }
+            //set { m_lastUpdateValue = value; }
         }
 
         private string m_lastUpdateValueHash;
@@ -3216,11 +3217,35 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private Object m_syncInfoLock = new Object();
 
         /// <summary>
-        /// Update SyncInfo when the property is updated locally.
+        /// Update SyncInfo when the property is updated locally. This interface
+        /// is for complex properties that need hashValue for fast comparison,
+        /// such as Shape and TaskInventory.
         /// </summary>
-        /// <param name="ts">the time </param>
+        /// <param name="ts"></param>
         /// <param name="syncID"></param>
-        public void UpdateSyncInfoLocally(ulong ts, string syncID, Object pValue)
+        /// <param name="pValue"></param>
+        /// <param name="pHashedValue">This is only meaningful for complex properties:
+        /// Shape & TaskInventory. For other properties, it is ignore.</param>
+        public void UpdateSyncInfoByLocal(ulong ts, string syncID, Object pValue, string pHashedValue)
+        {
+            lock (m_syncInfoLock)
+            {
+                m_lastUpdateValue = pValue;
+                m_lastUpdateTimeStamp = ts;
+                m_lastUpdateSyncID = syncID;
+                m_lastUpdateSource = PropertyUpdateSource.Local;
+                m_lastUpdateValueHash = pHashedValue;
+            }
+        }
+
+        /// <summary>
+        /// Update SyncInfo when the property is updated locally. This interface
+        /// is for properties of simple types.
+        /// </summary>
+        /// <param name="ts"></param>
+        /// <param name="syncID"></param>
+        /// <param name="pValue"></param>
+        public void UpdateSyncInfoByLocal(ulong ts, string syncID, Object pValue)
         {
             lock (m_syncInfoLock)
             {
@@ -3296,12 +3321,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
         #endregion //Constructors
 
-        public void UpdatePropertySyncInfoLocally(SceneObjectPartProperties property, ulong lastUpdateTS, string syncID, Object pValue)
+        public void UpdatePropertySyncInfoByLocal(SceneObjectPartProperties property, ulong lastUpdateTS, string syncID, Object pValue, string pHashedValue)
         {
-            m_propertiesSyncInfo[property].UpdateSyncInfoLocally(lastUpdateTS, syncID, pValue);
+            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateTS, syncID, pValue, pHashedValue);
         }
 
-        public void UpdatePropertySyncInfoBySync(SceneObjectPartProperties property, ulong lastUpdateTS, string syncID, Object pValue, ulong recvTS)
+        public void UpdatePropertySyncInfoByLocal(SceneObjectPartProperties property, ulong lastUpdateTS, string syncID, Object pValue)
+        {
+            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateTS, syncID, pValue);
+        }
+
+        public void UpdatePropertySyncInfoBySync(SceneObjectPartProperties property, ulong lastUpdateTS, string syncID, Object pValue, Object pHashedValue, ulong recvTS)
         {
             m_propertiesSyncInfo[property].UpdateSyncInfoBySync(lastUpdateTS, syncID, recvTS, pValue);
         }
@@ -3321,43 +3351,64 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (part == null) return;
 
+            //first, see if there are physics properties updated but PhysActor
+            //does not exist
+            foreach (SceneObjectPartProperties property in updatedProperties)
+            {
+                switch (property)
+                {
+                    case SceneObjectPartProperties.Buoyancy:
+                    case SceneObjectPartProperties.Flying:
+                    case SceneObjectPartProperties.Force:
+                    case SceneObjectPartProperties.IsColliding:
+                    case SceneObjectPartProperties.CollidingGround:
+                    case SceneObjectPartProperties.IsPhysical:
+                    case SceneObjectPartProperties.Kinematic:
+                    case SceneObjectPartProperties.Orientation:
+                    case SceneObjectPartProperties.PA_Acceleration:
+                    case SceneObjectPartProperties.Position:
+                    case SceneObjectPartProperties.RotationalVelocity:
+                    case SceneObjectPartProperties.Size:
+                    case SceneObjectPartProperties.Torque:
+                        if (part.PhysActor == null)
+                        {
+                            m_log.WarnFormat("PrimSyncInfo: Informed some physics property in SOP updated, yet SOP's PhysActor no longer exsits.");
+                            return;
+                        }
+                        break;
+                    case SceneObjectPartProperties.FullUpdate:
+                        //Caller indicated many properties have changed. Handle
+                        //this case specially.
+
+                        //compare and update all properties
+
+                        return; 
+                    case SceneObjectPartProperties.None:
+                        //do nothing
+                        break;
+                }
+            }
+
+            //Second, for each updated property in the list, compare the value
+            //maintained here and the value in SOP. If different, update the
+            //value here and set the timestamp and syncID
             lock (m_primSyncInfoLock)
             {
                 foreach (SceneObjectPartProperties property in updatedProperties)
                 {
-                    bool isLocalValueDifferent = false;
-                    bool isFullUpdate = false;
+                    bool updated = false;
                     //Compare if the value of the property in this SyncModule is 
                     //different than the value in SOP
                     switch (property)
                     {
-                        case SceneObjectPartProperties.None:
-                            break;
-                        case SceneObjectPartProperties.FullUpdate:
-                            //The caller indicates a FullUpdate. Compare values of all 
-                            //properties and update if needed.
-                            break;
                         case SceneObjectPartProperties.Shape:
                         case SceneObjectPartProperties.TaskInventory:
                             //Convert the value of complex properties to string and hash
-                            isLocalValueDifferent = CompareHashedValues(part, property);
+                            updated = CompareAndUpdateHashedValueByLocal(part, property, lastUpdateTS, syncID);
                             break;
                         default:
-                            isLocalValueDifferent = CompareValues(part, property);
+                            updated = CompareAndUpdateValueByLocal(part, property, lastUpdateTS, syncID);
                             break;
-                    }
-
-                    if (isFullUpdate)
-                    {
-                        //We should have executed a full update operation above. 
-                        //Break the For loop.
-                        break;
-                    }
-
-                    if (isLocalValueDifferent)
-                    {
-                        Object pLocalValue = GetPropertyLocalValue(part, property);
-                        UpdatePropertySyncInfoLocally(property, lastUpdateTS, syncID, pLocalValue);
                     }
                 }
             }
@@ -3374,237 +3425,1129 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
-        private bool CompareHashedValues(SceneObjectPart part, SceneObjectPartProperties property)
+        private bool CompareAndUpdateHashedValueByLocal(SceneObjectPart part, SceneObjectPartProperties property, ulong lastUpdateTS, string syncID)
         {
             bool isLocalValueDifferent = false;
             switch (property)
             {
                 case SceneObjectPartProperties.Shape:
+                    string primShapeString = SerializePrimPropertyShape(part);
+                    string primShapeStringHash = Util.Md5Hash(primShapeString);
+                    //primShapeString.GetHashCode
+                    if (!m_propertiesSyncInfo[property].IsHashValueEqual(primShapeStringHash))
+                    {
+                        UpdatePropertySyncInfoByLocal(property, lastUpdateTS, syncID, (Object)primShapeString, primShapeStringHash);
+                    }
                     break;
                 case SceneObjectPartProperties.TaskInventory:
+                    string primTaskInventoryString = SerializePrimPropertyTaskInventory(part);
+                    string primTaskInventoryStringHash = Util.Md5Hash(primTaskInventoryString);
+                    if (!m_propertiesSyncInfo[property].IsHashValueEqual(primTaskInventoryStringHash))
+                    {
+                        UpdatePropertySyncInfoByLocal(property, lastUpdateTS, syncID, (Object)primTaskInventoryString, primTaskInventoryStringHash);
+                    }
+                    break;
+                default:
                     break;
             }
             return isLocalValueDifferent;
         }
 
-        private bool CompareValues(SceneObjectPart part, SceneObjectPartProperties property)
+        private string SerializePrimPropertyShape(SceneObjectPart part)
         {
-            bool isLocalValueDifferent = false;
-            switch (property)
+            string serializedShape;
+            using (StringWriter sw = new StringWriter())
             {
-                //SOP properties
-                case SceneObjectPartProperties.AggregateScriptEvents:
-                    return part.AggregateScriptEvents.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.AllowedDrop:
-                    return part.AllowedDrop.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.AngularVelocity:
-                    return part.AngularVelocity.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.AttachedAvatar:
-                    return part.AttachedAvatar.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.AttachedPos:
-                    return part.AttachedPos.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.AttachmentPoint:
-                    return part.AttachmentPoint.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.BaseMask:
-                    return part.BaseMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                //PhysActor properties
-                case SceneObjectPartProperties.Buoyancy:
-                    if(part.PhysActor==null){
-                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Buoyancy, yet SOP's PhysActor no longer exsits.");
-                        return true;
-                    }
-                    return part.PhysActor.Buoyancy.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Category:
-                    return part.Category.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.ClickAction:
-                    return part.ClickAction.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.CollisionSound:
-                    return part.CollisionSound.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.CollisionSoundVolume:
-                    return part.CollisionSoundVolume.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Color:
-                    return part.Color.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.CreationDate:
-                    return part.CreationDate.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.CreatorData:
-                    return part.CreatorData.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.CreatorID:
-                    return part.CreatorID.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Description:
-                    return part.Description.Equals(m_propertiesSyncInfo[property].LastUpdateValue); 
-                case SceneObjectPartProperties.EveryoneMask:
-                    return part.EveryoneMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Flags:
-                    return part.Flags.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Flying:
-                    if (part.PhysActor == null)
-                    {
-                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Flying, yet SOP's PhysActor no longer exsits.");
-                        return true;
-                    }
-                    return part.PhysActor.Flying.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.FolderID:
-                    return part.FolderID.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Force:
-                    if (part.PhysActor == null)
-                    {
-                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Force, yet SOP's PhysActor no longer exsits.");
-                        return true;
-                    }
-                    return part.PhysActor.Force.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                //Skip SceneObjectPartProperties.FullUpdate, which should be handled seperatedly
-                case SceneObjectPartProperties.GroupID:
-                    return part.GroupID.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.GroupMask:
-                    return part.GroupMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.GroupPosition:
-                    return part.GroupPosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.InventorySerial:
-                    return part.InventorySerial.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.IsAttachment:
-                    return part.IsAttachment.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.IsColliding:
-                    if (part.PhysActor == null)
-                    {
-                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of IsColliding, yet SOP's PhysActor no longer exsits.");
-                        return true;
-                    }
-                    return part.PhysActor.IsColliding.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                /* case SceneObjectPartProperties.IsCollidingGround:
-                    if (part.PhysActor == null)
-                    {
-                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of IsCollidingGround, yet SOP's PhysActor no longer exsits.");
-                        return true;
-                    }
-                    return part.PhysActor.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                 * */
-                case SceneObjectPartProperties.IsPhysical:
-                    if (part.PhysActor == null)
-                    {
-                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of IsPhysical, yet SOP's PhysActor no longer exsits.");
-                        return true;
-                    }
-                    return part.PhysActor.IsPhysical.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                //SOG properties
-                case SceneObjectPartProperties.IsSelected:
-                    return part.ParentGroup.IsSelected.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Kinematic:
-                    if (part.PhysActor == null)
-                    {
-                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Kinematic, yet SOP's PhysActor no longer exsits.");
-                        return true;
-                    }
-                    return part.PhysActor.Kinematic.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.LastOwnerID:
-                    return part.LastOwnerID.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.LinkNum:
-                    return part.LinkNum.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Material:
-                    return part.Material.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.MediaUrl:
-                    return part.MediaUrl.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Name:
-                    return part.Name.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.NextOwnerMask:
-                    return part.NextOwnerMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.ObjectSaleType:
-                    return part.ObjectSaleType.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.OffsetPosition:
-                    return part.OffsetPosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Orientation:
-                    if (part.PhysActor == null)
-                    {
-                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Orientation, yet SOP's PhysActor no longer exsits.");
-                        return true;
-                    }
-                    return part.PhysActor.Orientation.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.OwnerID:
-                    return part.OwnerID.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.OwnerMask:
-                    return part.OwnerMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.OwnershipCost:
-                    return part.OwnershipCost.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.PA_Acceleration:
-                    if (part.PhysActor == null)
-                    {
-                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of PA.Acceleration, yet SOP's PhysActor no longer exsits.");
-                        return true;
-                    }
-                    return part.PhysActor.Acceleration.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.ParticleSystem:
-                    //return part.ParticleSystem.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                    return ByteArrayEquals(part.ParticleSystem, (Byte[])m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.PassTouches:
-                    return part.PassTouches.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Position:
-                    if (part.PhysActor == null)
-                    {
-                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of PA.Position, yet SOP's PhysActor no longer exsits.");
-                        return true;
-                    }
-                    return part.PhysActor.Position.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.RotationalVelocity:
-                    if (part.PhysActor == null)
-                    {
-                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of RotationalVelocity, yet SOP's PhysActor no longer exsits.");
-                        return true;
-                    }
-                    return part.PhysActor.RotationalVelocity.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.RotationOffset:
-                    return part.RotationOffset.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.SalePrice:
-                    return part.SalePrice.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Scale:
-                    return part.Scale.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.ScriptAccessPin:
-                    return part.ScriptAccessPin.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                //case SceneObjectPartProperties.Shape: -- For "Shape", we need to call CompareHashValues
-                case SceneObjectPartProperties.SitName:
-                    return part.SitName.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.SitTargetOrientation:
-                    return part.SitTargetOrientation.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.SitTargetOrientationLL:
-                    return part.SitTargetOrientationLL.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.SitTargetPosition:
-                    return part.SitTargetPosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.SitTargetPositionLL:
-                    return part.SitTargetPositionLL.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Size:
-                    if (part.PhysActor == null)
-                    {
-                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Size, yet SOP's PhysActor no longer exsits.");
-                        return true;
-                    }
-                    return part.PhysActor.Size.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.SOP_Acceleration:
-                    return part.Acceleration.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Sound:
-                    return part.Sound.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                //case SceneObjectPartProperties.TaskInventory:-- For "TaskInventory", we need to call CompareHashValues
-                case SceneObjectPartProperties.Text:
-                    return part.Text.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.TextureAnimation:
-                    return ByteArrayEquals(part.TextureAnimation, (Byte[])m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Torque:
-                    if (part.PhysActor == null)
-                    {
-                        m_log.WarnFormat("PrimSyncInfo: Comparing Values of Torque, yet SOP's PhysActor no longer exsits.");
-                        return true;
-                    }
-                    return part.PhysActor.Torque.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.TouchName:
-                    return part.TouchName.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.UpdateFlag:
-                    return part.UpdateFlag.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                case SceneObjectPartProperties.Velocity:
-                    return part.Velocity.Equals(m_propertiesSyncInfo[property].LastUpdateValue);
-                    
+                using (XmlTextWriter writer = new XmlTextWriter(sw))
+                {
+                    SceneObjectSerializer.WriteShape(writer, part.Shape, new Dictionary<string, object>());
+                }
+                serializedShape = sw.ToString();
             }
-
-            return isLocalValueDifferent;
+            return serializedShape;
         }
 
-        private bool ByteArrayEquals(Byte[] a, Byte[] b)
+        private string SerializePrimPropertyTaskInventory(SceneObjectPart part)
+        {
+            string serializedTaskInventory;
+            using (StringWriter sw = new StringWriter())
+            {
+                using (XmlTextWriter writer = new XmlTextWriter(sw))
+                {
+                    SceneObjectSerializer.WriteTaskInventory(writer, part.TaskInventory, new Dictionary<string, object>(), part.ParentGroup.Scene);
+                }
+                serializedTaskInventory = sw.ToString();
+            }
+            return serializedTaskInventory;
+        }
+
+
+
+        /// <summary>
+        /// Compare the value (not "reference") of the given property. 
+        /// Assumption: the caller has already checked if PhysActor exists
+        /// if there are physics properties updated.
+        /// If the value maintained here is different from that in SOP data,
+        /// synchronize the two: 
+        /// (1) if the value here has a timestamp newer than lastUpdateByLocalTS 
+        /// (e.g. due to clock drifts among different sync nodes, a remote
+        /// write might have a newer timestamp than the local write), 
+        /// overwrite the SOP's property with the value here (effectively 
+        /// disvalidate the local write operation that just happened). 
+        /// (2) otherwise, copy SOP's data and update timestamp and syncID 
+        /// as indicated by "lastUpdateByLocalTS" and "syncID".
+        /// </summary>
+        /// <param name="part"></param>
+        /// <param name="property"></param>
+        /// <param name="lastUpdateByLocalTS"></param>
+        /// <param name="syncID"></param>
+        /// <returns>Return true if the property's value maintained in this 
+        /// RegionSyncModule is replaced by SOP's data.</returns>
+        private bool CompareAndUpdateValueByLocal(SceneObjectPart part, SceneObjectPartProperties property, ulong lastUpdateByLocalTS, string syncID)
+        {
+            bool propertyUpdatedByLocal = false;
+            
+            //First, check if the value maintained here is different from that 
+            //in SOP's. If different, next check if the timestamp in SyncInfo is
+            //bigger (newer) than lastUpdateByLocalTS; if so (although ideally 
+            //should not happen, but due to things likc clock not so perfectly 
+            //sync'ed, it might happen), overwrite SOP's value with what's maintained
+            //in SyncInfo; otherwise, copy SOP's data to SyncInfo.
+            
+            //Note: for properties handled in this 
+            //function, they are mainly value types (int, bool, struct, etc).
+            //So they are copied by value, not by reference. 
+            //For a few properties, we copy by clone.
+            switch (property)
+            {
+                ///////////////////////
+                //SOP properties
+                ///////////////////////
+                case SceneObjectPartProperties.AggregateScriptEvents:
+                    if (!part.AggregateScriptEvents.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //copy from SOP's data
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.AggregateScriptEvents);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.AggregateScriptEvents = (scriptEvents) m_propertiesSyncInfo[property].LastUpdateValue; 
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.AllowedDrop:
+                    if (!part.AllowedDrop.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.AllowedDrop);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.AllowedDrop = (bool)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.AngularVelocity:
+                    if (!part.AngularVelocity.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.AngularVelocity);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.AngularVelocity = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.AttachedAvatar:
+                    if (!part.AttachedAvatar.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.AttachedAvatar);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.AttachedAvatar = (UUID)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.AttachedPos:
+                    if (!part.AttachedPos.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.AttachedPos);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.AttachedPos = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.AttachmentPoint:
+                    if (!part.AttachmentPoint.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.AttachmentPoint);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.AttachmentPoint = (uint)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.BaseMask:
+                    if (!part.BaseMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.BaseMask);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.BaseMask = (uint)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Category:
+                    if (!part.Category.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.Category);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.Category = (uint)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.ClickAction:
+                    if (!part.ClickAction.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.ClickAction);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.ClickAction = (byte)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.CollisionSound:
+                    if (!part.CollisionSound.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.CollisionSound);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.CollisionSound = (UUID)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.CollisionSoundVolume:
+                    if (!part.CollisionSoundVolume.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.CollisionSoundVolume);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.CollisionSoundVolume = (float)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Color:
+                    if (!part.Color.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.Color);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.Color = (System.Drawing.Color)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.CreationDate:
+                    if (!part.CreationDate.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.CreationDate);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.CreationDate = (int)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.CreatorData:
+                    if (!part.CreatorData.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.CreatorData.Clone());
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.CreatorData = (string)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.CreatorID:
+                    if (!part.CreatorID.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.CreatorID);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.CreatorID = (UUID)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Description:
+                    if (!part.Description.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.Description.Clone());
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.Description = (string)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }       
+                    break;
+                case SceneObjectPartProperties.EveryoneMask:
+                    if (!part.EveryoneMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.EveryoneMask);
+                             propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.EveryoneMask = (uint)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }       
+                    break;
+                case SceneObjectPartProperties.Flags:
+                    if (!part.Flags.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                        m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.Flags);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.Flags = (PrimFlags)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }       
+                    break;
+                case SceneObjectPartProperties.FolderID:
+                    if (!part.FolderID.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.FolderID);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.FolderID = (UUID)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }    
+                    break;
+                //Skip SceneObjectPartProperties.FullUpdate, which should be handled seperatedly
+                case SceneObjectPartProperties.GroupID:
+                    if (!part.GroupID.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.GroupID);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.GroupID = (UUID)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.GroupMask:
+                    if (!part.GroupMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.GroupMask);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.GroupMask = (uint)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.GroupPosition:
+                    if (!part.GroupPosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.GroupPosition);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.GroupPosition = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.InventorySerial:
+                    if (!part.InventorySerial.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.InventorySerial);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.InventorySerial = (uint)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.IsAttachment:
+                    if (!part.IsAttachment.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.IsAttachment);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.IsAttachment = (bool)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.LastOwnerID:
+                    if (!part.LastOwnerID.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.LastOwnerID);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.LastOwnerID = (UUID)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.LinkNum:
+                    if (!part.LinkNum.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.LinkNum);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.LinkNum = (int)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Material:
+                    if (!part.Material.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.Material);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.Material = (byte)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.MediaUrl:
+                    if (!part.MediaUrl.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.MediaUrl.Clone());
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.MediaUrl = (string)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Name:
+                    if (!part.Name.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.Name.Clone());
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.Name = (string)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.NextOwnerMask:
+                    if (!part.NextOwnerMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.NextOwnerMask);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.NextOwnerMask = (uint)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.ObjectSaleType:
+                    if (!part.ObjectSaleType.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                        {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                        m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.ObjectSaleType);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.ObjectSaleType = (byte)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.OffsetPosition:
+                    if (!part.OffsetPosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                        {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                        m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.OffsetPosition);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.OffsetPosition = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.OwnerID:
+                    if (!part.OwnerID.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.OwnerID);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.OwnerID = (UUID)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.OwnerMask:
+                    if (!part.OwnerMask.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.OwnerMask);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.OwnerMask = (uint)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.OwnershipCost:
+                    if (!part.OwnershipCost.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.OwnershipCost);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.OwnershipCost = (int)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.ParticleSystem:
+                    if (!ByteArrayEquals(part.ParticleSystem, (Byte[])m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, part.ParticleSystem.Clone());
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            byte[] pValue = (byte[])m_propertiesSyncInfo[property].LastUpdateValue;
+                            part.ParticleSystem = (byte[])pValue.Clone();
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.PassTouches:
+                    if (!part.PassTouches.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PassTouches);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.PassTouches = (bool)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.RotationOffset:
+                    if (!part.RotationOffset.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.RotationOffset);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.RotationOffset = (Quaternion)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.SalePrice:
+                    if (!part.SalePrice.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                        {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                        m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.SalePrice);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.SalePrice = (int)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Scale:
+                    if (!part.Scale.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                        {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                        m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.Scale);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.Scale = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.ScriptAccessPin:
+                    if (!part.ScriptAccessPin.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                        {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                        m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.ScriptAccessPin);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.ScriptAccessPin = (int)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                //case SceneObjectPartProperties.Shape: -- For "Shape", we need to call CompareHashValues
+                case SceneObjectPartProperties.SitName:
+                    if (!part.SitName.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.SitName.Clone());
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.SitName = (string)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.SitTargetOrientation:
+                    if (!part.SitTargetOrientation.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.SitTargetOrientation);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.SitTargetOrientation = (Quaternion)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.SitTargetOrientationLL:
+                    if (!part.SitTargetOrientationLL.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                        {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                        m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.SitTargetOrientationLL);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.SitTargetOrientationLL = (Quaternion)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.SitTargetPosition:
+                    if (!part.SitTargetPosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                        {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                        m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.SitTargetPosition);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.SitTargetOrientation = (Quaternion)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.SitTargetPositionLL:
+                    if (!part.SitTargetPositionLL.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                        {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                        m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.SitTargetPositionLL);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.SitTargetPosition = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.SOP_Acceleration:
+                    if (!part.Acceleration.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.Acceleration);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.Acceleration = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Sound:
+                    if (!part.Sound.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.Sound);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.Sound = (UUID)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                //case SceneObjectPartProperties.TaskInventory:-- For "TaskInventory", we need to call CompareHashValues
+                case SceneObjectPartProperties.Text:
+                    if (!part.Text.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.Text.Clone());
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.Text = (string)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.TextureAnimation:
+                    if (!ByteArrayEquals(part.TextureAnimation, (Byte[])m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, part.TextureAnimation.Clone());
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            byte[] pValue = (byte[])m_propertiesSyncInfo[property].LastUpdateValue;
+                            part.TextureAnimation = (byte[])pValue.Clone();
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.TouchName:
+                    if (!part.TouchName.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.TouchName.Clone());
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.TouchName = (string)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.UpdateFlag:
+                    if (!part.UpdateFlag.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.UpdateFlag);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.UpdateFlag = (byte)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Velocity:
+                    if (!part.Velocity.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.Velocity);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.Velocity = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+
+                ///////////////////////
+                //PhysActor properties
+                ///////////////////////
+                case SceneObjectPartProperties.Buoyancy:
+                    if (!part.PhysActor.Buoyancy.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Buoyancy);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.PhysActor.Buoyancy = (float)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Flying:
+                    if (!part.PhysActor.Flying.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Flying);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.PhysActor.Flying = (bool)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Force:
+                    if (!part.PhysActor.Force.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                        {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                        m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Force);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.PhysActor.Force = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.IsColliding:
+                    if (!part.PhysActor.IsColliding.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.IsColliding);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.PhysActor.IsColliding = (bool)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                 case SceneObjectPartProperties.CollidingGround:
+                    if (!part.PhysActor.CollidingGround.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.CollidingGround);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.PhysActor.CollidingGround = (bool)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.IsPhysical:
+                    if (!part.PhysActor.IsPhysical.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.IsPhysical);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.PhysActor.IsPhysical = (bool)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Kinematic:
+                    if (!part.PhysActor.Kinematic.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                        {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                        m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Kinematic);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.PhysActor.Kinematic = (bool)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Orientation:
+                    if (!part.PhysActor.Orientation.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Orientation);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.PhysActor.Orientation = (Quaternion)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.PA_Acceleration:
+                    if (!part.PhysActor.Acceleration.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Acceleration);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.PhysActor.Acceleration = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Position:
+                    if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Position);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.PhysActor.Position = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.RotationalVelocity:
+                    if (!part.PhysActor.RotationalVelocity.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.RotationalVelocity);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.PhysActor.RotationalVelocity = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Size:
+                    if (!part.PhysActor.Size.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                        {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                        m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Size);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.PhysActor.Size = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+                case SceneObjectPartProperties.Torque:
+                    if (!part.PhysActor.Torque.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Torque);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.PhysActor.Torque = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+
+                ///////////////////////
+                //SOG properties
+                ///////////////////////
+                case SceneObjectPartProperties.IsSelected:
+                    if (!part.ParentGroup.IsSelected.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.ParentGroup.IsSelected);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite PhysActor's data
+                            part.ParentGroup.IsSelected = (bool)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
+            }
+
+            return propertyUpdatedByLocal;
+        }
+
+        private bool ByteArrayEquals(byte[] a, byte[] b)
         {
             if (a.Length != b.Length)
                 return false;
@@ -3616,11 +4559,171 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return true;
         }
 
-        private Object GetPropertyLocalValue(SceneObjectPart part, SceneObjectPartProperties property)
+        private Object GetSOPPropertyValue(SceneObjectPart part, SceneObjectPartProperties property)
         {
             if (part == null) return null;
 
-            return null;
+            Object pValue = null;
+            switch (property)
+            {
+                case SceneObjectPartProperties.Shape:
+                    return (Object)SerializePrimPropertyShape(part);
+                    break;
+                case SceneObjectPartProperties.TaskInventory:
+                    return (Object)SerializePrimPropertyTaskInventory(part);
+                    break;
+
+                ///////////////////////
+                //SOP properties
+                ///////////////////////
+                case SceneObjectPartProperties.AggregateScriptEvents:
+                    return (Object)part.AggregateScriptEvents;
+                case SceneObjectPartProperties.AllowedDrop:
+                    return (Object)part.AllowedDrop;
+                case SceneObjectPartProperties.AngularVelocity:
+                    return (Object)part.AngularVelocity;
+                case SceneObjectPartProperties.AttachedAvatar:
+                    return (Object)part.AttachedAvatar;
+                case SceneObjectPartProperties.AttachedPos:
+                    return (Object)part.AttachedPos;
+                case SceneObjectPartProperties.AttachmentPoint:
+                    return (Object)part.AttachmentPoint;
+                case SceneObjectPartProperties.BaseMask:
+                    return (Object)part.BaseMask;
+                case SceneObjectPartProperties.Category:
+                    return (Object)part.Category;
+                case SceneObjectPartProperties.ClickAction:
+                    return (Object)part.ClickAction;
+                case SceneObjectPartProperties.CollisionSound:
+                    return (Object)part.CollisionSound;
+                case SceneObjectPartProperties.CollisionSoundVolume:
+                    return (Object)part.CollisionSoundVolume;
+                case SceneObjectPartProperties.Color:
+                    return (Object)part.Color;
+                case SceneObjectPartProperties.CreationDate:
+                    return (Object)part.CreationDate;
+                case SceneObjectPartProperties.CreatorData:
+                    return (Object)part.CreatorData;
+                case SceneObjectPartProperties.CreatorID:
+                    return (Object)part.CreatorID;
+                case SceneObjectPartProperties.Description:
+                    return (Object)part.Description;
+                case SceneObjectPartProperties.EveryoneMask:
+                    return (Object)part.EveryoneMask;
+                case SceneObjectPartProperties.Flags:
+                    return (Object)part.Flags;
+                case SceneObjectPartProperties.FolderID:
+                    return (Object)part.FolderID;
+                //Skip SceneObjectPartProperties.FullUpdate, which should be handled seperatedly
+                case SceneObjectPartProperties.GroupID:
+                    return (Object)part.GroupID;
+                case SceneObjectPartProperties.GroupMask:
+                    return (Object)part.GroupMask;
+                case SceneObjectPartProperties.GroupPosition:
+                    return (Object)part.GroupPosition;
+                case SceneObjectPartProperties.InventorySerial:
+                    return (Object)part.InventorySerial;
+                case SceneObjectPartProperties.IsAttachment:
+                    return (Object)part.IsAttachment;
+                case SceneObjectPartProperties.LastOwnerID:
+                    return (Object)part.LastOwnerID;
+                case SceneObjectPartProperties.LinkNum:
+                    return (Object)part.LinkNum;
+                case SceneObjectPartProperties.Material:
+                    return (Object)part.Material;
+                case SceneObjectPartProperties.MediaUrl:
+                    return (Object)part.MediaUrl;
+                case SceneObjectPartProperties.Name:
+                    return (Object)part.Name;
+                case SceneObjectPartProperties.NextOwnerMask:
+                    return (Object)part.NextOwnerMask;
+                case SceneObjectPartProperties.ObjectSaleType:
+                    return (Object)part.ObjectSaleType;
+                case SceneObjectPartProperties.OffsetPosition:
+                    return (Object)part.OffsetPosition;
+                case SceneObjectPartProperties.OwnerID:
+                    return (Object)part.OwnerID;
+                case SceneObjectPartProperties.OwnerMask:
+                    return (Object)part.OwnerMask;
+                case SceneObjectPartProperties.OwnershipCost:
+                    return (Object)part.OwnershipCost;
+                case SceneObjectPartProperties.ParticleSystem:
+                    return ByteArrayEquals(part.ParticleSystem, (Byte[])m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.PassTouches:
+                    return (Object)part.PassTouches;
+                case SceneObjectPartProperties.RotationOffset:
+                    return (Object)part.RotationOffset;
+                case SceneObjectPartProperties.SalePrice:
+                    return (Object)part.SalePrice;
+                case SceneObjectPartProperties.Scale:
+                    return (Object)part.Scale;
+                case SceneObjectPartProperties.ScriptAccessPin:
+                    return (Object)part.ScriptAccessPin;
+                //case SceneObjectPartProperties.Shape: -- For "Shape", we need to call CompareHashValues
+                case SceneObjectPartProperties.SitName:
+                    return (Object)part.SitName;
+                case SceneObjectPartProperties.SitTargetOrientation:
+                    return (Object)part.SitTargetOrientation;
+                case SceneObjectPartProperties.SitTargetOrientationLL:
+                    return (Object)part.SitTargetOrientationLL;
+                case SceneObjectPartProperties.SitTargetPosition:
+                    return (Object)part.SitTargetPosition;
+                case SceneObjectPartProperties.SitTargetPositionLL:
+                    return (Object)part.SitTargetPositionLL;
+                case SceneObjectPartProperties.SOP_Acceleration:
+                    return (Object)part.Acceleration;
+                case SceneObjectPartProperties.Sound:
+                    return (Object)part.Sound;
+                //case SceneObjectPartProperties.TaskInventory:-- For "TaskInventory", we need to call CompareHashValues
+                case SceneObjectPartProperties.Text:
+                    return (Object)part.Text;
+                case SceneObjectPartProperties.TextureAnimation:
+                    return ByteArrayEquals(part.TextureAnimation, (Byte[])m_propertiesSyncInfo[property].LastUpdateValue);
+                case SceneObjectPartProperties.TouchName:
+                    return (Object)part.TouchName;
+                case SceneObjectPartProperties.UpdateFlag:
+                    return (Object)part.UpdateFlag;
+                case SceneObjectPartProperties.Velocity:
+                    return (Object)part.Velocity;
+
+                ///////////////////////
+                //PhysActor properties
+                ///////////////////////
+                case SceneObjectPartProperties.Buoyancy:
+                    return (Object)part.PhysActor.Buoyancy;
+                case SceneObjectPartProperties.Flying:
+                    return (Object)part.PhysActor.Flying;
+                case SceneObjectPartProperties.Force:
+                    return (Object)part.PhysActor.Force;
+                case SceneObjectPartProperties.IsColliding:
+                    return (Object)part.PhysActor.IsColliding;
+                case SceneObjectPartProperties.CollidingGround:
+                    return (Object)part.PhysActor.CollidingGround;
+                case SceneObjectPartProperties.IsPhysical:
+                    return (Object)part.PhysActor.IsPhysical;
+                case SceneObjectPartProperties.Kinematic:
+                    return (Object)part.PhysActor.Kinematic;
+                case SceneObjectPartProperties.Orientation:
+                    return (Object)part.PhysActor.Orientation;
+                case SceneObjectPartProperties.PA_Acceleration:
+                    return (Object)part.PhysActor.Acceleration;
+                case SceneObjectPartProperties.Position:
+                    return (Object)part.PhysActor.Position;
+                case SceneObjectPartProperties.RotationalVelocity:
+                    return (Object)part.PhysActor.RotationalVelocity;
+                case SceneObjectPartProperties.Size:
+                    return (Object)part.PhysActor.Size;
+                case SceneObjectPartProperties.Torque:
+                    return (Object)part.PhysActor.Torque;
+
+                ///////////////////////
+                //SOG properties
+                ///////////////////////
+                case SceneObjectPartProperties.IsSelected:
+                    return (Object)part.ParentGroup.IsSelected;
+            }
+
+            return pValue;
         }
     }
 

@@ -3427,7 +3427,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private bool CompareAndUpdateHashedValueByLocal(SceneObjectPart part, SceneObjectPartProperties property, ulong lastUpdateTS, string syncID)
         {
-            bool isLocalValueDifferent = false;
+            bool updated = false;
             switch (property)
             {
                 case SceneObjectPartProperties.Shape:
@@ -3436,7 +3436,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //primShapeString.GetHashCode
                     if (!m_propertiesSyncInfo[property].IsHashValueEqual(primShapeStringHash))
                     {
-                        UpdatePropertySyncInfoByLocal(property, lastUpdateTS, syncID, (Object)primShapeString, primShapeStringHash);
+                        if (lastUpdateTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            UpdatePropertySyncInfoByLocal(property, lastUpdateTS, syncID, (Object)primShapeString, primShapeStringHash);
+                            updated = true;
+                        }
+                        else if (lastUpdateTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            PrimitiveBaseShape shape = DeSerializeShape((string)m_propertiesSyncInfo[property].LastUpdateValue);
+                            part.Shape = shape;
+                        }
+
                     }
                     break;
                 case SceneObjectPartProperties.TaskInventory:
@@ -3444,13 +3454,22 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     string primTaskInventoryStringHash = Util.Md5Hash(primTaskInventoryString);
                     if (!m_propertiesSyncInfo[property].IsHashValueEqual(primTaskInventoryStringHash))
                     {
-                        UpdatePropertySyncInfoByLocal(property, lastUpdateTS, syncID, (Object)primTaskInventoryString, primTaskInventoryStringHash);
+                        if (lastUpdateTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            UpdatePropertySyncInfoByLocal(property, lastUpdateTS, syncID, (Object)primTaskInventoryString, primTaskInventoryStringHash);
+                            updated = true;
+                        }
+                        else if (lastUpdateTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            TaskInventoryDictionary taskInv = DeSerializeTaskInventory((string)m_propertiesSyncInfo[property].LastUpdateValue);
+                            part.TaskInventory = taskInv;
+                        }
                     }
                     break;
                 default:
                     break;
             }
-            return isLocalValueDifferent;
+            return updated;
         }
 
         private string SerializePrimPropertyShape(SceneObjectPart part)
@@ -3467,6 +3486,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return serializedShape;
         }
 
+        //TO BE TESTED
+        private PrimitiveBaseShape DeSerializeShape(string shapeString)
+        {
+            StringReader sr = new StringReader(shapeString);
+            XmlTextReader reader = new XmlTextReader(sr);
+            return SceneObjectSerializer.ReadShape(reader, "Shape"); 
+        }
+
         private string SerializePrimPropertyTaskInventory(SceneObjectPart part)
         {
             string serializedTaskInventory;
@@ -3481,7 +3508,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return serializedTaskInventory;
         }
 
-
+        private TaskInventoryDictionary DeSerializeTaskInventory(string taskInvString)
+        {
+            StringReader sr = new StringReader(taskInvString);
+            XmlTextReader reader = new XmlTextReader(sr);
+            return SceneObjectSerializer.ReadTaskInventory(reader, "TaskInventory");
+        }
 
         /// <summary>
         /// Compare the value (not "reference") of the given property. 

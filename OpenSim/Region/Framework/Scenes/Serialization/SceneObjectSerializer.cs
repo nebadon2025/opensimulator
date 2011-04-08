@@ -1600,7 +1600,9 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             return obj;
         }
 
-        static TaskInventoryDictionary ReadTaskInventory(XmlTextReader reader, string name)
+        //DSG SYNC: make it public to be called outside
+        //static TaskInventoryDictionary ReadTaskInventory(XmlTextReader reader, string name)
+        public static TaskInventoryDictionary ReadTaskInventory(XmlTextReader reader, string name)
         {
             TaskInventoryDictionary tinv = new TaskInventoryDictionary();
 
@@ -1639,7 +1641,9 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             return tinv;
         }
 
-        static PrimitiveBaseShape ReadShape(XmlTextReader reader, string name)
+        //DSG SYNC: make it public to be called outside
+        //static PrimitiveBaseShape ReadShape(XmlTextReader reader, string name)
+        public static PrimitiveBaseShape ReadShape(XmlTextReader reader, string name)
         {
             PrimitiveBaseShape shape = new PrimitiveBaseShape();
 

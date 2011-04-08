@@ -1388,6 +1388,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             tmp.Z = (float)scale.z;
             part.Scale = tmp;
             part.SendFullUpdateToAllClients();
+
+            //DSG SYNC
+            part.ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.Scale });
         }
 
         public LSL_Vector llGetScale()
@@ -5677,6 +5680,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             part.AddTextureAnimation(pTexAnim);
             part.SendFullUpdateToAllClients();
             part.ParentGroup.HasGroupChanged = true;
+
+            //DSG SYNC
+            part.ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.TextureAnimation });   
         }
 
         public void llTriggerSoundLimited(string sound, double volume, LSL_Vector top_north_east,
@@ -6189,6 +6195,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 part.ParentGroup.HasGroupChanged = true;
             }
             part.SendFullUpdateToAllClients();
+
+            //DSG SYNC
+            part.ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.ParticleSystem });
         }
 
         public void llGroundRepel(double height, int water, double tau)

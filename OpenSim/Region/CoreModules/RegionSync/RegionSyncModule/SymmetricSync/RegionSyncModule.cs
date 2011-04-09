@@ -100,6 +100,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SyncStatisticCollector.LogInterval = m_sysConfig.GetInt("SyncLogInterval", 5000);
             SyncStatisticCollector.LogMaxFileTimeMin = m_sysConfig.GetInt("SyncLogMaxFileTimeMin", 5);
             SyncStatisticCollector.LogFileHeader = m_sysConfig.GetString("SyncLogFileHeader", "sync-");
+
+            //initialize PrimSyncInfoManager
+            int syncInfoAgeOutSeconds = m_sysConfig.GetInt("PrimSyncInfoAgeOutSeconds", 300); //unit of seconds
+            TimeSpan tSpan = new TimeSpan(0, 0, syncInfoAgeOutSeconds);
+            m_primSyncInfoManager = new PrimSyncInfoManager(this, tSpan.Ticks, m_log);
         }
 
         //Called after Initialise()
@@ -3014,9 +3019,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         #endregion //Remote Event handlers
 
         #region Per Property SyncInfo management
+
+        private PrimSyncInfoManager m_primSyncInfoManager;
         public void RecordPrimUpdatesByLocal(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties)
         {
+            List<SceneObjectPartProperties> propertiesWithSyncInfoUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoByLocal(part, updatedProperties);
+            OSDMap propertiesToSync = m_primSyncInfoManager.EncodePrimProperties(part, propertiesWithSyncInfoUpdated);
 
+            //TODO: Send out sync message with propertiesToSync
         }
 
         #endregion //Per Property SyncInfo management
@@ -3170,8 +3180,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
     public class PropertySyncInfo
     {
-        private ulong m_lastUpdateTimeStamp;
-        public ulong LastUpdateTimeStamp
+        private long m_lastUpdateTimeStamp;
+        public long LastUpdateTimeStamp
         {
             get { return m_lastUpdateTimeStamp; }
         }
@@ -3201,8 +3211,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// Record the time the last sync message about this property is received.
         /// This value is only meaninful when m_lastUpdateSource==BySync
         /// </summary>
-        private ulong m_lastSyncUpdateRecvTime;
-        public ulong LastSyncUpdateRecvTime
+        private long m_lastSyncUpdateRecvTime;
+        public long LastSyncUpdateRecvTime
         {
             get { return m_lastSyncUpdateRecvTime; }
             set { m_lastSyncUpdateRecvTime = value; }
@@ -3216,6 +3226,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private Object m_syncInfoLock = new Object();
 
+        public PropertySyncInfo(Object initValue, long initTS, string syncID)
+        {
+            m_lastUpdateValue = initValue;
+            m_lastUpdateTimeStamp = initTS;
+            m_lastUpdateSyncID = syncID;
+            //m_lastSyncUpdateRecvTime == ??
+        }
+
         /// <summary>
         /// Update SyncInfo when the property is updated locally. This interface
         /// is for complex properties that need hashValue for fast comparison,
@@ -3226,7 +3244,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="pValue"></param>
         /// <param name="pHashedValue">This is only meaningful for complex properties:
         /// Shape & TaskInventory. For other properties, it is ignore.</param>
-        public void UpdateSyncInfoByLocal(ulong ts, string syncID, Object pValue, string pHashedValue)
+        public void UpdateSyncInfoByLocal(long ts, string syncID, Object pValue, string pHashedValue)
         {
             lock (m_syncInfoLock)
             {
@@ -3245,7 +3263,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="ts"></param>
         /// <param name="syncID"></param>
         /// <param name="pValue"></param>
-        public void UpdateSyncInfoByLocal(ulong ts, string syncID, Object pValue)
+        public void UpdateSyncInfoByLocal(long ts, string syncID, Object pValue)
         {
             lock (m_syncInfoLock)
             {
@@ -3262,7 +3280,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// </summary>
         /// <param name="ts"></param>
         /// <param name="syncID"></param>
-        public void UpdateSyncInfoBySync(ulong ts, string syncID, ulong recvTS, Object pValue)
+        public void UpdateSyncInfoBySync(long ts, string syncID, long recvTS, Object pValue)
         {
             lock (m_syncInfoLock)
             {
@@ -3296,8 +3314,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_propertiesSyncInfo; }
         }
 
-        private ulong m_PrimLastUpdateTime;
-        public ulong PrimLastUpdateTime
+        private long m_PrimLastUpdateTime;
+        public long PrimLastUpdateTime
         {
             get { return m_PrimLastUpdateTime; }
         }
@@ -3308,30 +3326,26 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         #endregion //Members
 
         #region Constructors
-        public PrimSyncInfo()
-        {
-            InitPropertiesSyncInfo();
-        }
 
-        public PrimSyncInfo(ILog log)
+        public PrimSyncInfo(SceneObjectPart part, long initUpdateTimestamp, string syncID, ILog log)
         {
-            InitPropertiesSyncInfo();
+            InitPropertiesSyncInfo(part, initUpdateTimestamp, syncID);
 
             m_log = log;
         }
         #endregion //Constructors
 
-        public void UpdatePropertySyncInfoByLocal(SceneObjectPartProperties property, ulong lastUpdateTS, string syncID, Object pValue, string pHashedValue)
+        public void UpdatePropertySyncInfoByLocal(SceneObjectPartProperties property, long lastUpdateTS, string syncID, Object pValue, string pHashedValue)
         {
             m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateTS, syncID, pValue, pHashedValue);
         }
 
-        public void UpdatePropertySyncInfoByLocal(SceneObjectPartProperties property, ulong lastUpdateTS, string syncID, Object pValue)
+        public void UpdatePropertySyncInfoByLocal(SceneObjectPartProperties property, long lastUpdateTS, string syncID, Object pValue)
         {
             m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateTS, syncID, pValue);
         }
 
-        public void UpdatePropertySyncInfoBySync(SceneObjectPartProperties property, ulong lastUpdateTS, string syncID, Object pValue, Object pHashedValue, ulong recvTS)
+        public void UpdatePropertySyncInfoBySync(SceneObjectPartProperties property, long lastUpdateTS, string syncID, Object pValue, Object pHashedValue, long recvTS)
         {
             m_propertiesSyncInfo[property].UpdateSyncInfoBySync(lastUpdateTS, syncID, recvTS, pValue);
         }
@@ -3339,17 +3353,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //Triggered when a set of local writes just happened, and ScheduleFullUpdate 
         //or ScheduleTerseUpdate has been called.
         /// <summary>
-        /// Update copies of the given list of properties in this SyncModule, 
-        /// by copying property values from SOP's data and set the timestamp 
-        /// and syncID.
+        /// Update copies of the given list of properties in the prim's SyncInfo.
         /// </summary>
         /// <param name="part"></param>
         /// <param name="updatedProperties"></param>
         /// <param name="lastUpdateTS"></param>
         /// <param name="syncID"></param>
-        public void UpdatePropertiesByLocal(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties, ulong lastUpdateTS, string syncID)
+        public List<SceneObjectPartProperties> UpdatePropertiesByLocal(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties, long lastUpdateTS, string syncID)
         {
-            if (part == null) return;
+            List<SceneObjectPartProperties> propertiesWithSyncInfoUpdated = new List<SceneObjectPartProperties>();
+            if (part == null) return propertiesWithSyncInfoUpdated;
 
             //first, see if there are physics properties updated but PhysActor
             //does not exist
@@ -3373,7 +3386,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         if (part.PhysActor == null)
                         {
                             m_log.WarnFormat("PrimSyncInfo: Informed some physics property in SOP updated, yet SOP's PhysActor no longer exsits.");
-                            return;
+                            return propertiesWithSyncInfoUpdated;
                         }
                         break;
                     case SceneObjectPartProperties.FullUpdate:
@@ -3382,7 +3395,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                         //compare and update all properties
 
-                        return; 
+                        return propertiesWithSyncInfoUpdated; 
                     case SceneObjectPartProperties.None:
                         //do nothing
                         break;
@@ -3410,22 +3423,29 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             updated = CompareAndUpdateValueByLocal(part, property, lastUpdateTS, syncID);
                             break;
                     }
+
+                    if (updated)
+                    {
+                        propertiesWithSyncInfoUpdated.Add(property);
+                    }
                 }
             }
+            return propertiesWithSyncInfoUpdated;
         }
 
-        private void InitPropertiesSyncInfo()
+        private void InitPropertiesSyncInfo(SceneObjectPart part, long initUpdateTimestamp, string syncID)
         {
             m_propertiesSyncInfo = new Dictionary<SceneObjectPartProperties, PropertySyncInfo>();
 
             foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
             {
-                PropertySyncInfo syncInfo = new PropertySyncInfo();
+                Object initValue = GetSOPPropertyValue(part, property);
+                PropertySyncInfo syncInfo = new PropertySyncInfo(initValue, initUpdateTimestamp, syncID);
                 m_propertiesSyncInfo.Add(property, syncInfo);
             }
         }
 
-        private bool CompareAndUpdateHashedValueByLocal(SceneObjectPart part, SceneObjectPartProperties property, ulong lastUpdateTS, string syncID)
+        private bool CompareAndUpdateHashedValueByLocal(SceneObjectPart part, SceneObjectPartProperties property, long lastUpdateTS, string syncID)
         {
             bool updated = false;
             switch (property)
@@ -3535,7 +3555,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="syncID"></param>
         /// <returns>Return true if the property's value maintained in this 
         /// RegionSyncModule is replaced by SOP's data.</returns>
-        private bool CompareAndUpdateValueByLocal(SceneObjectPart part, SceneObjectPartProperties property, ulong lastUpdateByLocalTS, string syncID)
+        private bool CompareAndUpdateValueByLocal(SceneObjectPart part, SceneObjectPartProperties property, long lastUpdateByLocalTS, string syncID)
         {
             bool propertyUpdatedByLocal = false;
             
@@ -4600,10 +4620,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 case SceneObjectPartProperties.Shape:
                     return (Object)SerializePrimPropertyShape(part);
-                    break;
                 case SceneObjectPartProperties.TaskInventory:
                     return (Object)SerializePrimPropertyTaskInventory(part);
-                    break;
 
                 ///////////////////////
                 //SOP properties
@@ -4680,7 +4698,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SceneObjectPartProperties.OwnershipCost:
                     return (Object)part.OwnershipCost;
                 case SceneObjectPartProperties.ParticleSystem:
-                    return ByteArrayEquals(part.ParticleSystem, (Byte[])m_propertiesSyncInfo[property].LastUpdateValue);
+                    //byte[], return a cloned copy
+                    return (Object)part.ParticleSystem.Clone();
                 case SceneObjectPartProperties.PassTouches:
                     return (Object)part.PassTouches;
                 case SceneObjectPartProperties.RotationOffset:
@@ -4710,7 +4729,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SceneObjectPartProperties.Text:
                     return (Object)part.Text;
                 case SceneObjectPartProperties.TextureAnimation:
-                    return ByteArrayEquals(part.TextureAnimation, (Byte[])m_propertiesSyncInfo[property].LastUpdateValue);
+                    //byte[], return a cloned copy
+                    return part.TextureAnimation.Clone();
                 case SceneObjectPartProperties.TouchName:
                     return (Object)part.TouchName;
                 case SceneObjectPartProperties.UpdateFlag:
@@ -4762,19 +4782,68 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
     public class PrimSyncInfoManager
     {
         private Dictionary<UUID, PrimSyncInfo> m_primsInSync;
+        private RegionSyncModule m_regionSyncModule;
+        private ILog m_log;
+
+        
+        /// <summary>
+        /// The max time for a SOP's SyncInfo to sit in record 
+        /// w/o being updated either locally or bySync.
+        /// </summary>
+        private long m_ageOutThreshold; 
+
         public Dictionary<UUID, PrimSyncInfo> PrimsInSync
         {
             get { return m_primsInSync; }
         }
 
-        public PrimSyncInfoManager()
+        public PrimSyncInfoManager(RegionSyncModule syncModule, long ageOutTh, ILog log)
         {
             m_primsInSync = new Dictionary<UUID, PrimSyncInfo>();
+            m_regionSyncModule = syncModule;
+            m_ageOutThreshold = ageOutTh;
+            m_log = log;
         }
 
-        public void UpdatePrimSyncInfo(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties)
+        /// <summary>
+        /// For each property in updatedProperties, (1) if the value in SOP's
+        /// data is different than that in PrimSyncInfo, and what's in PrimSyncInfo
+        /// has an older timestamp, then update that property's value and syncInfo
+        /// in PrimSyncInfo; (2) otherwise, skip the property and do nothing.
+        /// </summary>
+        /// <param name="part"></param>
+        /// <param name="updatedProperties"></param>
+        /// <returns>The list properties among updatedProperties whose value
+        /// have been copied over to PrimSyncInfo.</returns>
+        public List<SceneObjectPartProperties> UpdatePrimSyncInfoByLocal(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties)
         {
+            long currentTime = DateTime.Now.Ticks;
+            if (m_primsInSync.ContainsKey(part.UUID))
+            {
+                return m_primsInSync[part.UUID].UpdatePropertiesByLocal(part, updatedProperties, currentTime, m_regionSyncModule.SyncID);
+            }
+            else
+            {
+                //The SOP's SyncInfo is no longer in my record, may due to 
+                //TimeOut or something. Add it back. Assume the properties
+                //were "AgeOut" seconds old.
+                PrimSyncInfo primSyncInfo = new PrimSyncInfo(part, currentTime, m_regionSyncModule.SyncID, m_log);
+                m_primsInSync.Add(part.UUID, primSyncInfo);
 
+                return updatedProperties;
+            }
+        }
+
+        public OSDMap EncodePrimProperties(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties)
+        {
+            OSDMap data = new OSDMap();
+            data["primUUID"] = OSDMap.FromUUID(part.UUID);
+            foreach (SceneObjectPartProperties property in updatedProperties)
+            {
+               // data[property.ToString()] = 
+            }
+
+            return data;
         }
     }
  

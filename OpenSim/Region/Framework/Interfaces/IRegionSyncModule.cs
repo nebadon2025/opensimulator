@@ -68,13 +68,14 @@ namespace OpenSim.Region.Framework.Interfaces
 
         //Enqueue updates for scene-objects and scene-presences
         //Legacy interface, used in Bucket-sync
-        void QueueSceneObjectPartForUpdate(SceneObjectPart part);
+        //void QueueSceneObjectPartForUpdate(SceneObjectPart part);
         void QueueScenePresenceForTerseUpdate(ScenePresence presence);
 
-        void RecordPrimUpdatesByLocal(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties);
+        void ProcessAndEnqueuePrimUpdatesByLocal(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties);
+        void SyncOutPrimUpdates();
 
         //The folloiwng calls deal with object updates, and will insert each update into an outgoing queue of each SyncConnector
-        void SendSceneUpdates();
+        //void SendSceneUpdates();
         void SendNewObject(SceneObjectGroup sog);
         void SendDeleteObject(SceneObjectGroup sog, bool softDelete);
         void SendLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children);

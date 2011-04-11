@@ -1745,7 +1745,8 @@ namespace OpenSim.Region.Framework.Scenes
                 //NOTE: If it is configured as symmetric sync in opensim.ini, the above IsSyncedServer() or IsSyncedClient() should all return false
                 if (RegionSyncModule != null)
                 {
-                    RegionSyncModule.SendSceneUpdates();
+                    //RegionSyncModule.SendSceneUpdates();
+                    RegionSyncModule.SyncOutPrimUpdates();
                 }
                 //end of SYMMETRIC SYNC
 

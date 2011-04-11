@@ -5981,7 +5981,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (m_parentGroup != null && m_parentGroup.Scene.RegionSyncModule != null)
                 {
-                    m_parentGroup.Scene.RegionSyncModule.RecordPrimUpdatesByLocal(this, updatedProperties);
+                    m_parentGroup.Scene.RegionSyncModule.ProcessAndEnqueuePrimUpdatesByLocal(this, updatedProperties);
                 }
             }
 
@@ -5994,7 +5994,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (m_parentGroup != null && m_parentGroup.Scene.RegionSyncModule != null)
                 {
-                    m_parentGroup.Scene.RegionSyncModule.RecordPrimUpdatesByLocal(this, updatedProperties);
+                    m_parentGroup.Scene.RegionSyncModule.ProcessAndEnqueuePrimUpdatesByLocal(this, updatedProperties);
                 }
             }
 

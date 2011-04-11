@@ -3108,12 +3108,47 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_primPropertyUpdates.Clear();
             }
 
-            //Enqueue sync message for sending out
             if (primPropertyUpdates.Count > 0)
             {
-                //OSDMap propertiesToSync = m_primSyncInfoManager.EncodePrimProperties(part, propertiesWithSyncInfoUpdated);
+                //Starting a new thread to prepare sync message and enqueue it to SyncConnectors
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                {
+                    //OSDMap syncData = new OSDMap();
+                    //syncData["primCount"] = OSD.FromInteger(primPropertyUpdates.Count);
+                    //OSDArray primDataArray = new OSDArray();
+                    //syncData["primData"] = (OSD)primDataArray;
 
-                
+                    foreach (KeyValuePair<UUID, HashSet<SceneObjectPartProperties>> updatedPrimProperties in primPropertyUpdates)
+                    {
+                        UUID primUUID = updatedPrimProperties.Key;
+                        HashSet<SceneObjectPartProperties> updatedProperties = updatedPrimProperties.Value;
+                        OSDMap syncData = m_primSyncInfoManager.EncodePrimProperties(primUUID, updatedProperties);
+
+                        SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, OSDParser.SerializeJsonString(syncData));
+                        SendPrimUpdateToRelevantSyncConnectors(primUUID, syncMsg);
+                    }
+                    
+                    // Indicate that the current batch of updates has been completed
+                    Interlocked.Exchange(ref m_sendingPrimPropertyUpdates, 0);
+                });
+            }
+            else
+            {
+                Interlocked.Exchange(ref m_sendingPrimPropertyUpdates, 0);
+            }
+        }
+
+        //Object updates are sent by enqueuing into each connector's outQueue.
+        private void SendPrimUpdateToRelevantSyncConnectors(UUID primUUID, SymmetricSyncMessage syncMsg)
+        {
+            SceneObjectPart updatedPart = m_scene.GetSceneObjectPart(primUUID);
+            if (updatedPart == null)
+                return;
+
+            HashSet<SyncConnector> syncConnectors = GetSyncConnectorsForPrimUpdates(updatedPart);
+            foreach (SyncConnector connector in syncConnectors)
+            {
+                connector.EnqueueOutgoingUpdate(updatedPart.UUID, syncMsg.ToBytes());
             }
         }
 
@@ -5180,13 +5215,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
-        public OSDMap EncodePrimProperties(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties)
+        public OSDMap EncodePrimProperties(UUID primUUID, HashSet<SceneObjectPartProperties> updatedProperties)
         {
             OSDMap data = new OSDMap();
-            data["primUUID"] = OSDMap.FromUUID(part.UUID);
+            data["primUUID"] = OSDMap.FromUUID(primUUID);
+            OSDArray propertyData = new OSDArray();
+            data["propertyData"] = propertyData;
+
             foreach (SceneObjectPartProperties property in updatedProperties)
             {
-               // data[property.ToString()] = 
+                propertyData.Add(m_primsInSync[primUUID].EncodeUpdatedProperties(updatedProperties));   
             }
 
             return data;

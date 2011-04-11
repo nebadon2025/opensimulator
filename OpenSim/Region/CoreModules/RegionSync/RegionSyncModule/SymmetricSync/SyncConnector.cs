@@ -32,6 +32,12 @@ using OpenMetaverse;
 
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
+    public enum SyncConnectorState
+    {
+        Idle, //not connected
+        Initialization, //initializing local copy of Scene
+        Syncing, //done initialization, in normal process of syncing terrain, objects, etc
+    }
     // For implementations, a lot was copied from RegionSyncClientView, especially the SendLoop/ReceiveLoop.
     public class SyncConnector : ISyncStatistics
     {
@@ -53,10 +59,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private long bytesIn=0;
         private long bytesOut=0;
         private DateTime lastStatTime;
+
         // A queue for outgoing traffic. 
         private BlockingUpdateQueue m_outQ = new BlockingUpdateQueue();
-
+        
         private RegionSyncModule m_regionSyncModule = null;
+
+        //members for keeping track of state of this connector
+        private SyncConnectorState m_syncState = SyncConnectorState.Idle;
 
         // unique connector number across all regions
         private static int m_connectorNum = 0;

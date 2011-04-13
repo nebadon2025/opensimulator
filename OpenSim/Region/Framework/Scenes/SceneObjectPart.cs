@@ -5364,6 +5364,28 @@ namespace OpenSim.Region.Framework.Scenes
         };
          * */
 
+        /// <summary>
+        /// Return the list of all prim (SOP) properties, in enum type. 
+        /// Excluding None, FullUpdate.
+        /// </summary>
+        /// <returns></returns>
+        public static HashSet<SceneObjectPartProperties> GetAllPrimProperties()
+        {
+            HashSet<SceneObjectPartProperties> allProperties = new HashSet<SceneObjectPartProperties>();
+            foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
+            {
+                switch (property)
+                {
+                    case SceneObjectPartProperties.None:
+                    case SceneObjectPartProperties.FullUpdate:
+                        break;
+                    default:
+                        allProperties.Add(property);
+                        break;
+                }
+            }
+            return allProperties;
+        }
 
         public static void InitializePropertyBucketInfo(Dictionary<SceneObjectPartProperties, string> propertyBucketMap, List<string> bucketNames, string actorID)
         {

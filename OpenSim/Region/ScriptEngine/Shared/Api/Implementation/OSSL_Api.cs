@@ -2346,7 +2346,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             obj.ParentGroup.HasGroupChanged = true;
             //obj.ScheduleFullUpdate();
-            obj.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Shape});
+            obj.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Shape});
 
         }
 

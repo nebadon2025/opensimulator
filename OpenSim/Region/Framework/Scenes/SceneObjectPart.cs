@@ -2800,7 +2800,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //m_parentGroup.RootPart.m_groupPosition = newpos;
             }
             //ScheduleTerseUpdate();
-            ScheduleTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Position});
+            ScheduleTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Position});
 
             //SendTerseUpdateToAllClients();
         }
@@ -2891,7 +2891,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             //ScheduleFullUpdate();
-            ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Scale});
+            ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Scale});
         }
         
         public void RotLookAt(Quaternion target, float strength, float damping)
@@ -2934,7 +2934,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// Schedules this prim for a full update
         /// </summary>
         //public void ScheduleFullUpdate() :: SYMMETRIC SYNC: changed the interface so that we can identify which property triggers calling this function
-        public virtual void ScheduleFullUpdate(List<SceneObjectPartProperties> updatedProperties)
+        public virtual void ScheduleFullUpdate(List<SceneObjectPartSyncProperties> updatedProperties)
         {
 //            m_log.DebugFormat("[SCENE OBJECT PART]: Scheduling full update for {0} {1}", Name, LocalId);
             
@@ -2969,7 +2969,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// rotation, velocity, rotational velocity and shape information.
         /// </summary>
         //public void ScheduleTerseUpdate()
-        public virtual void ScheduleTerseUpdate(List<SceneObjectPartProperties> updatedProperties)
+        public virtual void ScheduleTerseUpdate(List<SceneObjectPartSyncProperties> updatedProperties)
         {
             if (m_updateFlag < 1)
             {
@@ -3675,7 +3675,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             //ScheduleFullUpdate();
-            ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Text});
+            ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Text});
         }
         
         public void StopLookAt()
@@ -3683,7 +3683,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_parentGroup.stopLookAt();
 
             //m_parentGroup.ScheduleGroupForTerseUpdate();
-            m_parentGroup.ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None});//in stopLookAt(), PhysicsActor shall already take care of tainting which properties have been updated 
+            m_parentGroup.ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None});//in stopLookAt(), PhysicsActor shall already take care of tainting which properties have been updated 
         }
         
         /// <summary>
@@ -3706,7 +3706,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_parentGroup.stopMoveToTarget();
 
             //m_parentGroup.ScheduleGroupForTerseUpdate();
-            m_parentGroup.ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None}); //in stopMoveToTarget(), PhysicsActor shall already take care of tainting which properties have been updated 
+            m_parentGroup.ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None}); //in stopMoveToTarget(), PhysicsActor shall already take care of tainting which properties have been updated 
             //m_parentGroup.ScheduleGroupForFullUpdate();
         }
 
@@ -4255,7 +4255,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             //ScheduleFullUpdate();
-            ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Shape});
+            ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Shape});
         }
 
         public void UpdateGroupPosition(Vector3 pos)
@@ -4267,7 +4267,7 @@ namespace OpenSim.Region.Framework.Scenes
                 Vector3 newPos = new Vector3(pos.X, pos.Y, pos.Z);
                 GroupPosition = newPos;
                 //ScheduleTerseUpdate();
-                ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.GroupPosition});
+                ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.GroupPosition});
             }
         }
 
@@ -4300,7 +4300,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                 OffsetPosition = newPos;
                 //ScheduleTerseUpdate();
-                ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.OffsetPosition});
+                ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.OffsetPosition});
             }
         }
 
@@ -4590,7 +4590,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             //ScheduleFullUpdate();
-            ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.Flags});
+            ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Flags});
         }
 
         public void UpdateRotation(Quaternion rot)
@@ -4603,7 +4603,7 @@ namespace OpenSim.Region.Framework.Scenes
                 RotationOffset = rot;
                 ParentGroup.HasGroupChanged = true;
                 //ScheduleTerseUpdate();
-                ScheduleFullUpdate(new List<SceneObjectPartProperties>() {SceneObjectPartProperties.RotationOffset});
+                ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() {SceneObjectPartSyncProperties.RotationOffset});
             }
         }
 
@@ -4649,7 +4649,7 @@ namespace OpenSim.Region.Framework.Scenes
             ParentGroup.HasGroupChanged = true;
             TriggerScriptChangedEvent(Changed.SHAPE);
             //ScheduleFullUpdate();
-            ScheduleFullUpdate(new List<SceneObjectPartProperties>() {SceneObjectPartProperties.Shape});
+            ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() {SceneObjectPartSyncProperties.Shape});
         }
 
         /// <summary>
@@ -4697,7 +4697,7 @@ namespace OpenSim.Region.Framework.Scenes
             //ParentGroup.ScheduleGroupForFullUpdate();
             //This is sparta
             //ScheduleFullUpdate();
-            ScheduleFullUpdate(new List<SceneObjectPartProperties>() {SceneObjectPartProperties.Shape});
+            ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() {SceneObjectPartSyncProperties.Shape});
         }
 
         public void aggregateScriptEvents()
@@ -4766,7 +4766,7 @@ namespace OpenSim.Region.Framework.Scenes
 //                m_log.DebugFormat(
 //                    "[SCENE OBJECT PART]: Scheduling part {0} {1} for full update in aggregateScriptEvents() since m_parentGroup == null", Name, LocalId);
                 //ScheduleFullUpdate();
-                ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.Flags, SceneObjectPartProperties.AggregateScriptEvents});
+                ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Flags, SceneObjectPartSyncProperties.AggregateScriptEvents});
                 return;
             }
 
@@ -4790,7 +4790,7 @@ namespace OpenSim.Region.Framework.Scenes
 //                m_log.DebugFormat(
 //                    "[SCENE OBJECT PART]: Scheduling part {0} {1} for full update in aggregateScriptEvents()", Name, LocalId);
                 //ScheduleFullUpdate();
-                ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.Flags, SceneObjectPartProperties.AggregateScriptEvents});
+                ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Flags, SceneObjectPartSyncProperties.AggregateScriptEvents});
             }
         }
 
@@ -5155,7 +5155,7 @@ namespace OpenSim.Region.Framework.Scenes
     }
     */
 
-    public enum SceneObjectPartProperties 
+    public enum SceneObjectPartSyncProperties 
     {
         None,
         //Following properties copied from SceneObjectSerializer(), 
@@ -5165,7 +5165,7 @@ namespace OpenSim.Region.Framework.Scenes
         FolderID ,
         InventorySerial,
         TaskInventory,
-        //UUID", 
+        //UUID",  //UUID not supposed to be changed after SOP is created, not included in SyncProperties
         //LocalId", 
         Name,
         Material,
@@ -5271,7 +5271,7 @@ namespace OpenSim.Region.Framework.Scenes
         //TODO: serialization and deserialization processors to be added in SceneObjectSerializer
 
         //The following variables are initialized when RegionSyncModule reads the config file for mapping of properties and buckets
-        private static Dictionary<SceneObjectPartProperties, string> m_primPropertyBucketMap = null;
+        private static Dictionary<SceneObjectPartSyncProperties, string> m_primPropertyBucketMap = null;
         private static List<string> m_propertyBucketNames = null;
 
         private static string m_localActorID = "";
@@ -5369,15 +5369,15 @@ namespace OpenSim.Region.Framework.Scenes
         /// Excluding None, FullUpdate.
         /// </summary>
         /// <returns></returns>
-        public static HashSet<SceneObjectPartProperties> GetAllPrimProperties()
+        public static HashSet<SceneObjectPartSyncProperties> GetAllPrimProperties()
         {
-            HashSet<SceneObjectPartProperties> allProperties = new HashSet<SceneObjectPartProperties>();
-            foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
+            HashSet<SceneObjectPartSyncProperties> allProperties = new HashSet<SceneObjectPartSyncProperties>();
+            foreach (SceneObjectPartSyncProperties property in Enum.GetValues(typeof(SceneObjectPartSyncProperties)))
             {
                 switch (property)
                 {
-                    case SceneObjectPartProperties.None:
-                    case SceneObjectPartProperties.FullUpdate:
+                    case SceneObjectPartSyncProperties.None:
+                    case SceneObjectPartSyncProperties.FullUpdate:
                         break;
                     default:
                         allProperties.Add(property);
@@ -5387,30 +5387,30 @@ namespace OpenSim.Region.Framework.Scenes
             return allProperties;
         }
 
-        public static HashSet<SceneObjectPartProperties> GetAllPrimNonPhysActorProperties()
+        public static HashSet<SceneObjectPartSyncProperties> GetAllPrimNonPhysActorProperties()
         {
-            HashSet<SceneObjectPartProperties> allProperties = new HashSet<SceneObjectPartProperties>();
-            foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
+            HashSet<SceneObjectPartSyncProperties> allProperties = new HashSet<SceneObjectPartSyncProperties>();
+            foreach (SceneObjectPartSyncProperties property in Enum.GetValues(typeof(SceneObjectPartSyncProperties)))
             {
                 switch (property)
                 {
                     //Enum value that is not real properties
-                    case SceneObjectPartProperties.None:
-                    case SceneObjectPartProperties.FullUpdate:
+                    case SceneObjectPartSyncProperties.None:
+                    case SceneObjectPartSyncProperties.FullUpdate:
                     //PhysActor properties
-                    case SceneObjectPartProperties.Buoyancy:
-                    case SceneObjectPartProperties.Flying:
-                    case SceneObjectPartProperties.Force:
-                    case SceneObjectPartProperties.IsColliding:
-                    case SceneObjectPartProperties.CollidingGround:
-                    case SceneObjectPartProperties.IsPhysical:
-                    case SceneObjectPartProperties.Kinematic:
-                    case SceneObjectPartProperties.Orientation:
-                    case SceneObjectPartProperties.PA_Acceleration:
-                    case SceneObjectPartProperties.Position:
-                    case SceneObjectPartProperties.RotationalVelocity:
-                    case SceneObjectPartProperties.Size:
-                    case SceneObjectPartProperties.Torque:
+                    case SceneObjectPartSyncProperties.Buoyancy:
+                    case SceneObjectPartSyncProperties.Flying:
+                    case SceneObjectPartSyncProperties.Force:
+                    case SceneObjectPartSyncProperties.IsColliding:
+                    case SceneObjectPartSyncProperties.CollidingGround:
+                    case SceneObjectPartSyncProperties.IsPhysical:
+                    case SceneObjectPartSyncProperties.Kinematic:
+                    case SceneObjectPartSyncProperties.Orientation:
+                    case SceneObjectPartSyncProperties.PA_Acceleration:
+                    case SceneObjectPartSyncProperties.Position:
+                    case SceneObjectPartSyncProperties.RotationalVelocity:
+                    case SceneObjectPartSyncProperties.Size:
+                    case SceneObjectPartSyncProperties.Torque:
                         break;
                     default:
                         allProperties.Add(property);
@@ -5420,27 +5420,27 @@ namespace OpenSim.Region.Framework.Scenes
             return allProperties;
         }
 
-        public static HashSet<SceneObjectPartProperties> GetAllPhysActorProperties()
+        public static HashSet<SceneObjectPartSyncProperties> GetAllPhysActorProperties()
         {
-            HashSet<SceneObjectPartProperties> allProperties = new HashSet<SceneObjectPartProperties>();
-            foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
+            HashSet<SceneObjectPartSyncProperties> allProperties = new HashSet<SceneObjectPartSyncProperties>();
+            foreach (SceneObjectPartSyncProperties property in Enum.GetValues(typeof(SceneObjectPartSyncProperties)))
             {
                 switch (property)
                 {
                     //PhysActor properties
-                    case SceneObjectPartProperties.Buoyancy:
-                    case SceneObjectPartProperties.Flying:
-                    case SceneObjectPartProperties.Force:
-                    case SceneObjectPartProperties.IsColliding:
-                    case SceneObjectPartProperties.CollidingGround:
-                    case SceneObjectPartProperties.IsPhysical:
-                    case SceneObjectPartProperties.Kinematic:
-                    case SceneObjectPartProperties.Orientation:
-                    case SceneObjectPartProperties.PA_Acceleration:
-                    case SceneObjectPartProperties.Position:
-                    case SceneObjectPartProperties.RotationalVelocity:
-                    case SceneObjectPartProperties.Size:
-                    case SceneObjectPartProperties.Torque:
+                    case SceneObjectPartSyncProperties.Buoyancy:
+                    case SceneObjectPartSyncProperties.Flying:
+                    case SceneObjectPartSyncProperties.Force:
+                    case SceneObjectPartSyncProperties.IsColliding:
+                    case SceneObjectPartSyncProperties.CollidingGround:
+                    case SceneObjectPartSyncProperties.IsPhysical:
+                    case SceneObjectPartSyncProperties.Kinematic:
+                    case SceneObjectPartSyncProperties.Orientation:
+                    case SceneObjectPartSyncProperties.PA_Acceleration:
+                    case SceneObjectPartSyncProperties.Position:
+                    case SceneObjectPartSyncProperties.RotationalVelocity:
+                    case SceneObjectPartSyncProperties.Size:
+                    case SceneObjectPartSyncProperties.Torque:
                         allProperties.Add(property);
                         break;
                     default:
@@ -5450,13 +5450,13 @@ namespace OpenSim.Region.Framework.Scenes
             return allProperties;
         }
 
-        public static HashSet<SceneObjectPartProperties> GetGroupProperties()
+        public static HashSet<SceneObjectPartSyncProperties> GetGroupProperties()
         {
-            HashSet<SceneObjectPartProperties> allProperties = new HashSet<SceneObjectPartProperties>(){SceneObjectPartProperties.IsSelected};
+            HashSet<SceneObjectPartSyncProperties> allProperties = new HashSet<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.IsSelected};
             return allProperties;
         }
 
-        public static void InitializePropertyBucketInfo(Dictionary<SceneObjectPartProperties, string> propertyBucketMap, List<string> bucketNames, string actorID)
+        public static void InitializePropertyBucketInfo(Dictionary<SceneObjectPartSyncProperties, string> propertyBucketMap, List<string> bucketNames, string actorID)
         {
             m_primPropertyBucketMap = propertyBucketMap;
             m_propertyBucketNames = bucketNames;
@@ -5801,14 +5801,14 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         //For tainitng and clearing taints, do i need to lock on m_bucketSyncTaint?
-        public void TaintBucketSyncInfo(SceneObjectPartProperties property)
+        public void TaintBucketSyncInfo(SceneObjectPartSyncProperties property)
         {
             if (m_syncEnabled)
             {
-                if (property == SceneObjectPartProperties.None)
+                if (property == SceneObjectPartSyncProperties.None)
                     return;
 
-                if (property == SceneObjectPartProperties.FullUpdate)
+                if (property == SceneObjectPartSyncProperties.FullUpdate)
                 {
                     foreach (BucketSyncInfo bucketSynInfo in m_bucketSyncInfoList.Values)
                     {
@@ -5896,7 +5896,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// Update the timestamp and actorID information of the bucket the given property belongs to. 
         /// </summary>
         /// <param name="propertyName">Name of the property. Make sure the spelling is consistent with what are defined in PropertyList</param>
-        public void UpdateBucketSyncInfo(SceneObjectPartProperties property)
+        public void UpdateBucketSyncInfo(SceneObjectPartSyncProperties property)
         {
             if (m_syncEnabled && m_bucketSyncInfoList != null && m_bucketSyncInfoList.Count > 0)
             {
@@ -6066,7 +6066,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         //Implementation of ScheduleFullUpdate and ScheduleTerseUpdate for Bucket 
         //based synchronization
-        public override void ScheduleFullUpdate(List<SceneObjectPartProperties> updatedProperties)
+        public override void ScheduleFullUpdate(List<SceneObjectPartSyncProperties> updatedProperties)
         {
             if (updatedProperties != null && updatedProperties.Count > 0)
             {
@@ -6079,7 +6079,7 @@ namespace OpenSim.Region.Framework.Scenes
             base.ScheduleTerseUpdate(updatedProperties);
         }
 
-        public override void ScheduleTerseUpdate(List<SceneObjectPartProperties> updatedProperties)
+        public override void ScheduleTerseUpdate(List<SceneObjectPartSyncProperties> updatedProperties)
         {
             if (updatedProperties != null && updatedProperties.Count > 0)
             {

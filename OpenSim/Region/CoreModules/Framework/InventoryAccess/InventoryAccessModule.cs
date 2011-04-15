@@ -587,7 +587,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     if (!attachment)
                     {
                         //group.ScheduleGroupForFullUpdate();
-                        group.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.FullUpdate}); //new object
+                        group.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate}); //new object
                         
                         float offsetHeight = 0;
                         pos = m_Scene.GetNewRezLocation(
@@ -708,7 +708,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                         rootPart.ParentGroup.ResumeScripts();
 
                         //rootPart.ScheduleFullUpdate();
-                        rootPart.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.FullUpdate});
+                        rootPart.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate});
                     }
 
                     if (!m_Scene.Permissions.BypassPermissions())

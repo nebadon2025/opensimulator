@@ -95,12 +95,12 @@ namespace OpenSim.Region.Framework.Scenes
                         part.Resize(Scale);
                     //part.ParentGroup.ScheduleGroupForTerseUpdate();
                     //SYMMETRIC SYNC
-                    List<SceneObjectPartProperties> updatedProperties = new List<SceneObjectPartProperties>();
-                    updatedProperties.Add(SceneObjectPartProperties.RotationOffset);
+                    List<SceneObjectPartSyncProperties> updatedProperties = new List<SceneObjectPartSyncProperties>();
+                    updatedProperties.Add(SceneObjectPartSyncProperties.RotationOffset);
                     if (Position != Vector3.Zero)
-                        updatedProperties.Add(SceneObjectPartProperties.Position);
+                        updatedProperties.Add(SceneObjectPartSyncProperties.Position);
                     if (Scale != Vector3.Zero)
-                        updatedProperties.Add(SceneObjectPartProperties.Scale);
+                        updatedProperties.Add(SceneObjectPartSyncProperties.Scale);
                     part.ParentGroup.ScheduleGroupForTerseUpdate(updatedProperties);
                 }
                 else
@@ -111,12 +111,12 @@ namespace OpenSim.Region.Framework.Scenes
                     if (Scale != Vector3.Zero)
                         part.Resize(Scale); //part.ScheduleTerseUpdate();
                     //SYMMETRIC SYNC
-                    List<SceneObjectPartProperties> updatedProperties = new List<SceneObjectPartProperties>();
-                    updatedProperties.Add(SceneObjectPartProperties.RotationOffset);
+                    List<SceneObjectPartSyncProperties> updatedProperties = new List<SceneObjectPartSyncProperties>();
+                    updatedProperties.Add(SceneObjectPartSyncProperties.RotationOffset);
                     if (Position != Vector3.Zero)
-                        updatedProperties.Add(SceneObjectPartProperties.OffsetPosition);
+                        updatedProperties.Add(SceneObjectPartSyncProperties.OffsetPosition);
                     if (Scale != Vector3.Zero)
-                        updatedProperties.Add(SceneObjectPartProperties.Scale);
+                        updatedProperties.Add(SceneObjectPartSyncProperties.Scale);
                     part.ScheduleTerseUpdate(updatedProperties);
                 }
                 part.Undoing = false;
@@ -139,13 +139,13 @@ namespace OpenSim.Region.Framework.Scenes
                         part.Resize(Scale);
                     //part.ParentGroup.ScheduleGroupForTerseUpdate();
                     //SYMMETRIC SYNC
-                    List<SceneObjectPartProperties> updatedProperties = new List<SceneObjectPartProperties>();
+                    List<SceneObjectPartSyncProperties> updatedProperties = new List<SceneObjectPartSyncProperties>();
                     if (Rotation != Quaternion.Identity)
-                        updatedProperties.Add(SceneObjectPartProperties.RotationOffset);
+                        updatedProperties.Add(SceneObjectPartSyncProperties.RotationOffset);
                     if (Position != Vector3.Zero)
-                        updatedProperties.Add(SceneObjectPartProperties.Position);
+                        updatedProperties.Add(SceneObjectPartSyncProperties.Position);
                     if (Scale != Vector3.Zero)
-                        updatedProperties.Add(SceneObjectPartProperties.Scale);
+                        updatedProperties.Add(SceneObjectPartSyncProperties.Scale);
                     part.ParentGroup.ScheduleGroupForTerseUpdate(updatedProperties);
                 }
                 else
@@ -158,13 +158,13 @@ namespace OpenSim.Region.Framework.Scenes
                         part.Resize(Scale);
                     //part.ScheduleTerseUpdate();
                     //SYMMETRIC SYNC
-                    List<SceneObjectPartProperties> updatedProperties = new List<SceneObjectPartProperties>();
+                    List<SceneObjectPartSyncProperties> updatedProperties = new List<SceneObjectPartSyncProperties>();
                     if (Rotation != Quaternion.Identity)
-                        updatedProperties.Add(SceneObjectPartProperties.RotationOffset);
+                        updatedProperties.Add(SceneObjectPartSyncProperties.RotationOffset);
                     if (Position != Vector3.Zero)
-                        updatedProperties.Add(SceneObjectPartProperties.Position);
+                        updatedProperties.Add(SceneObjectPartSyncProperties.Position);
                     if (Scale != Vector3.Zero)
-                        updatedProperties.Add(SceneObjectPartProperties.Scale);
+                        updatedProperties.Add(SceneObjectPartSyncProperties.Scale);
                     part.ScheduleTerseUpdate(updatedProperties);
 
                 }

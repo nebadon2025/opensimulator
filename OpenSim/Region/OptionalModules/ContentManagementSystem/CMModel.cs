@@ -291,7 +291,7 @@ namespace OpenSim.Region.OptionalModules.ContentManagement
                     ((SceneObjectGroup)ent).AttachToBackup();
                     ((SceneObjectGroup)ent).HasGroupChanged = true; // If not true, then attaching to backup does nothing because no change is detected.
                     //((SceneObjectGroup)ent).ScheduleGroupForFullUpdate();
-                    ((SceneObjectGroup)ent).ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.FullUpdate}); //don't know what properties to taint, so just taint all
+                    ((SceneObjectGroup)ent).ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate}); //don't know what properties to taint, so just taint all
                 }
                 catch(Exception e)
                 {

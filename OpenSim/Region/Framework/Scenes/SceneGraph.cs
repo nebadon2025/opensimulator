@@ -437,7 +437,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (sendClientUpdates)
                 //sceneObject.ScheduleGroupForFullUpdate();
-                sceneObject.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.None }); 
+                sceneObject.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.None }); 
 
             return true;
         }
@@ -1954,7 +1954,7 @@ namespace OpenSim.Region.Framework.Scenes
                     copy.CreateScriptInstances(0, false, m_parentScene.DefaultScriptEngine, 1);
                     copy.HasGroupChanged = true;
                     //copy.ScheduleGroupForFullUpdate();
-                    copy.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.FullUpdate}); //new object, all property values are new
+                    copy.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate}); //new object, all property values are new
                     copy.ResumeScripts();
 
                     // required for physics to update it's position

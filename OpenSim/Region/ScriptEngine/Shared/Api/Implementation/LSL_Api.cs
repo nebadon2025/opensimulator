@@ -1390,7 +1390,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             part.SendFullUpdateToAllClients();
 
             //DSG SYNC
-            part.ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.Scale });
+            part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Scale });
         }
 
         public LSL_Vector llGetScale()
@@ -1405,7 +1405,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.ClickAction = (byte)action;
             if (m_host.ParentGroup != null) m_host.ParentGroup.HasGroupChanged = true;
             //m_host.ScheduleFullUpdate();
-            m_host.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.ClickAction});
+            m_host.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.ClickAction});
             return;
         }
 
@@ -1658,7 +1658,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             part.ParentGroup.HasGroupChanged = true;
             //part.ScheduleFullUpdate();
-            part.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Shape});
+            part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Shape});
         }
 
         /// <summary>
@@ -1694,7 +1694,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             part.ParentGroup.HasGroupChanged = true;
             //part.ScheduleFullUpdate();
-            part.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Shape});
+            part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Shape});
         }
 
         public LSL_Vector llGetColor(int face)
@@ -1970,7 +1970,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 SceneObjectGroup parent = part.ParentGroup;
                 parent.HasGroupChanged = true;
                 //parent.ScheduleGroupForTerseUpdate();
-                parent.ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.OffsetPosition});
+                parent.ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.OffsetPosition});
             }
         }
 
@@ -2317,7 +2317,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.SoundRadius = 20;    // Magic number, 20 seems reasonable. Make configurable?
 
             //m_host.ScheduleFullUpdate();
-            m_host.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Sound});
+            m_host.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Sound});
             m_host.SendFullUpdateToAllClients();
         }
 
@@ -2338,7 +2338,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     prim.SoundRadius = 20;    // Magic number, 20 seems reasonable. Make configurable?
 
                     //prim.ScheduleFullUpdate();
-                    m_host.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Sound});
+                    m_host.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Sound});
                     prim.SendFullUpdateToAllClients();
                 }
             }
@@ -2351,7 +2351,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.SoundRadius = 20;    // Magic number, 20 seems reasonable. Make configurable?
 
             //m_host.ScheduleFullUpdate();
-            m_host.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Sound});
+            m_host.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Sound});
             m_host.SendFullUpdateToAllClients();
         }
 
@@ -2394,7 +2394,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         part.SoundFlags = 0;
                         part.SoundRadius = 0;
                         //part.ScheduleFullUpdate();
-                        m_host.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Sound});
+                        m_host.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Sound});
                         part.SendFullUpdateToAllClients();
                     }
                     m_host.ParentGroup.LoopSoundMasterPrim = null;
@@ -2407,7 +2407,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     m_host.SoundFlags = 0;
                     m_host.SoundRadius = 0;
                     //m_host.ScheduleFullUpdate();
-                    m_host.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Sound});
+                    m_host.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Sound});
                     m_host.SendFullUpdateToAllClients();
                 }
             }
@@ -2418,7 +2418,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 m_host.SoundFlags = 0;
                 m_host.SoundRadius = 0;
                 //m_host.ScheduleFullUpdate();
-                m_host.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Sound});
+                m_host.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Sound});
                 m_host.SendFullUpdateToAllClients();
             }
         }
@@ -3329,7 +3329,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.AddScriptLPS(1);
             m_host.AngularVelocity = new Vector3((float)(axis.x * spinrate), (float)(axis.y * spinrate), (float)(axis.z * spinrate));
             //m_host.ScheduleTerseUpdate();
-            m_host.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.AngularVelocity});
+            m_host.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.AngularVelocity});
             m_host.SendTerseUpdateToAllClients();
             m_host.ParentGroup.HasGroupChanged = true;
         }
@@ -3624,7 +3624,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 //parentGroup.SyncInfoUpdate();
                 World.RegionSyncModule.SendLinkObject(parentPrim, parentPrim.RootPart, children);
             }
-            m_host.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None}); //SendLinkObject above will synchronize the link operation, no need to taint updates here
+            m_host.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None}); //SendLinkObject above will synchronize the link operation, no need to taint updates here
             //end of SYMMETRIC SYNC
 
             if (client != null)
@@ -3706,7 +3706,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 {
                     World.RegionSyncModule.SendDeLinkObject(parts, beforeDelinkGroups, afterDelinkGroups);
                 }
-                parentPrim.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None});
+                parentPrim.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None});
                 //end of SYMMETRIC SYNC
                 parentPrim.TriggerScriptChangedEvent(Changed.LINK);
 
@@ -3726,7 +3726,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     {
                         World.RegionSyncModule.SendLinkObject(newRoot.ParentGroup, newRoot, new List<SceneObjectPart>(newRoot.ParentGroup.Parts));
                     }
-                    newRoot.ParentGroup.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None});
+                    newRoot.ParentGroup.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None});
                     //end of SYMMETRIC SYNC
 
                 }
@@ -3788,7 +3788,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 afterDelinkGroups.Add(rootPart.ParentGroup);
                 World.RegionSyncModule.SendDeLinkObject(parts, beforeDelinkGroups, afterDelinkGroups); 
             }
-            parentPrim.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None});
+            parentPrim.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None});
             //end of SYMMETRIC SYNC
         }
 
@@ -4028,7 +4028,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.SetText(text, av3, Util.Clip((float)alpha, 0.0f, 1.0f));
             m_host.ParentGroup.HasGroupChanged = true;
             //m_host.ParentGroup.ScheduleGroupForFullUpdate();
-            m_host.ParentGroup.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Text});
+            m_host.ParentGroup.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Text});
         }
 
         public LSL_Float llWater(LSL_Vector offset)
@@ -5682,7 +5682,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             part.ParentGroup.HasGroupChanged = true;
 
             //DSG SYNC
-            part.ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.TextureAnimation });   
+            part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.TextureAnimation });   
         }
 
         public void llTriggerSoundLimited(string sound, double volume, LSL_Vector top_north_east,
@@ -6197,7 +6197,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             part.SendFullUpdateToAllClients();
 
             //DSG SYNC
-            part.ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.ParticleSystem });
+            part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.ParticleSystem });
         }
 
         public void llGroundRepel(double height, int water, double tau)

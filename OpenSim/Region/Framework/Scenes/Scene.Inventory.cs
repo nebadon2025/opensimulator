@@ -2211,7 +2211,7 @@ namespace OpenSim.Region.Framework.Scenes
             group.CreateScriptInstances(param, true, DefaultScriptEngine, 3);
             
             //group.ScheduleGroupForFullUpdate();
-            group.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.FullUpdate}); //new object, all properties have new value
+            group.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate}); //new object, all properties have new value
         
             return group;
         }
@@ -2277,7 +2277,7 @@ namespace OpenSim.Region.Framework.Scenes
                     sog.SetOwnerId(ownerID);
                     sog.SetGroup(groupID, remoteClient);
                     //sog.ScheduleGroupForFullUpdate();
-                    sog.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.OwnerID, SceneObjectPartProperties.GroupID});
+                    sog.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.OwnerID, SceneObjectPartSyncProperties.GroupID});
 
                     SceneObjectPart[] partList = sog.Parts;
                     

@@ -60,7 +60,7 @@ namespace OpenSim.Region.Framework.Interfaces
         /// <summary>
         /// The mapping of a property (identified by its name) to the index of a bucket.
         /// </summary>
-        Dictionary<SceneObjectPartProperties, string> PrimPropertyBucketMap { get; }
+        Dictionary<SceneObjectPartSyncProperties, string> PrimPropertyBucketMap { get; }
         /// <summary>
         /// The text description of the properties in each bucket, e.g. "General", "Physics"
         /// </summary>
@@ -71,7 +71,7 @@ namespace OpenSim.Region.Framework.Interfaces
         //void QueueSceneObjectPartForUpdate(SceneObjectPart part);
         void QueueScenePresenceForTerseUpdate(ScenePresence presence);
 
-        void ProcessAndEnqueuePrimUpdatesByLocal(SceneObjectPart part, List<SceneObjectPartProperties> updatedProperties);
+        void ProcessAndEnqueuePrimUpdatesByLocal(SceneObjectPart part, List<SceneObjectPartSyncProperties> updatedProperties);
         void SyncOutPrimUpdates();
 
         //The folloiwng calls deal with object updates, and will insert each update into an outgoing queue of each SyncConnector

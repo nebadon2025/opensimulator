@@ -5387,6 +5387,75 @@ namespace OpenSim.Region.Framework.Scenes
             return allProperties;
         }
 
+        public static HashSet<SceneObjectPartProperties> GetAllPrimNonPhysActorProperties()
+        {
+            HashSet<SceneObjectPartProperties> allProperties = new HashSet<SceneObjectPartProperties>();
+            foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
+            {
+                switch (property)
+                {
+                    //Enum value that is not real properties
+                    case SceneObjectPartProperties.None:
+                    case SceneObjectPartProperties.FullUpdate:
+                    //PhysActor properties
+                    case SceneObjectPartProperties.Buoyancy:
+                    case SceneObjectPartProperties.Flying:
+                    case SceneObjectPartProperties.Force:
+                    case SceneObjectPartProperties.IsColliding:
+                    case SceneObjectPartProperties.CollidingGround:
+                    case SceneObjectPartProperties.IsPhysical:
+                    case SceneObjectPartProperties.Kinematic:
+                    case SceneObjectPartProperties.Orientation:
+                    case SceneObjectPartProperties.PA_Acceleration:
+                    case SceneObjectPartProperties.Position:
+                    case SceneObjectPartProperties.RotationalVelocity:
+                    case SceneObjectPartProperties.Size:
+                    case SceneObjectPartProperties.Torque:
+                        break;
+                    default:
+                        allProperties.Add(property);
+                        break;
+                }
+            }
+            return allProperties;
+        }
+
+        public static HashSet<SceneObjectPartProperties> GetAllPhysActorProperties()
+        {
+            HashSet<SceneObjectPartProperties> allProperties = new HashSet<SceneObjectPartProperties>();
+            foreach (SceneObjectPartProperties property in Enum.GetValues(typeof(SceneObjectPartProperties)))
+            {
+                switch (property)
+                {
+                    //PhysActor properties
+                    case SceneObjectPartProperties.Buoyancy:
+                    case SceneObjectPartProperties.Flying:
+                    case SceneObjectPartProperties.Force:
+                    case SceneObjectPartProperties.IsColliding:
+                    case SceneObjectPartProperties.CollidingGround:
+                    case SceneObjectPartProperties.IsPhysical:
+                    case SceneObjectPartProperties.Kinematic:
+                    case SceneObjectPartProperties.Orientation:
+                    case SceneObjectPartProperties.PA_Acceleration:
+                    case SceneObjectPartProperties.Position:
+                    case SceneObjectPartProperties.RotationalVelocity:
+                    case SceneObjectPartProperties.Size:
+                    case SceneObjectPartProperties.Torque:
+                        allProperties.Add(property);
+                        break;
+                    default:
+                        break;
+                }
+            }
+            return allProperties;
+        }
+
+        public static HashSet<SceneObjectPartProperties> GetGroupProperties()
+        {
+            HashSet<SceneObjectPartProperties> allProperties = new HashSet<SceneObjectPartProperties>(){SceneObjectPartProperties.IsSelected};
+            return allProperties;
+        }
+
         public static void InitializePropertyBucketInfo(Dictionary<SceneObjectPartProperties, string> propertyBucketMap, List<string> bucketNames, string actorID)
         {
             m_primPropertyBucketMap = propertyBucketMap;

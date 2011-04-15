@@ -1865,6 +1865,25 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         Dictionary<UUID, PrimSyncInfo> primsSyncInfo;
                         SceneObjectDecoder(sogData, out group, out primsSyncInfo);
 
+                        //Add the list of PrimSyncInfo to PrimSyncInfoManager's record.
+                        m_primSyncInfoManager.InsertMultiPrimSyncInfo(primsSyncInfo);
+
+                        //Change each part's UUID so that we can add them to Scene and test the steps in AddNewSceneObjectByDecoding 
+                        foreach (SceneObjectPart part in group.Parts)
+                        {
+                            part.UUID = UUID.Random();
+                        }
+
+                        //Add the decoded object to Scene
+                        Scene.ObjectUpdateResult updateResult = m_scene.AddNewSceneObjectBySync(group);
+
+                        //Now the PhysActor of each part in sog have been created, let's 
+                        //set the PhysActor's properties
+                        foreach (SceneObjectPart part in group.Parts)
+                        {
+                            primsSyncInfo[part.UUID].SetSOPPhyscActorProperties(part);
+                        }
+
                         break;
                     }
                 }
@@ -3244,7 +3263,42 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return data;
         }
 
+        private void AddNewSceneObjectByDecoding(OSDMap data)
+        {
+            SceneObjectGroup group;
+            Dictionary<UUID, PrimSyncInfo> primsSyncInfo;
 
+            SceneObjectDecoder(data, out group, out primsSyncInfo);
+
+            if (group == null)
+            {
+                m_log.WarnFormat("{0}: AddNewSceneObjectByDecoding, no valid SceneObjectGroup has been created", LogHeader);
+                return;
+            }
+
+            //Add the list of PrimSyncInfo to PrimSyncInfoManager's record.
+            m_primSyncInfoManager.InsertMultiPrimSyncInfo(primsSyncInfo);
+
+            //Add the decoded object to Scene
+            Scene.ObjectUpdateResult updateResult = m_scene.AddNewSceneObjectBySync(group);
+
+            //Now the PhysActor of each part in sog have been created, let's 
+            //set the PhysActor's properties
+            foreach (SceneObjectPart part in group.Parts)
+            {
+                primsSyncInfo[part.UUID].SetSOPPhyscActorProperties(part);
+            }
+        }
+
+        /// <summary>
+        /// Decode & create a SOG data structure. Due to the fact that PhysActor
+        /// is only created when SOG.AttachToScene() is called, the returned SOG
+        /// here only have non PhysActor properties decoded and values set. The
+        /// PhysActor properties should be set later by the caller.
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="sog"></param>
+        /// <param name="partsPrimSyncInfo"></param>
         private void SceneObjectDecoder(OSDMap data, out SceneObjectGroup sog, out Dictionary<UUID, PrimSyncInfo> partsPrimSyncInfo)
         {
             sog = new SceneObjectGroup();
@@ -3283,8 +3337,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     OSDMap partData = (OSDMap)otherPartsArray[i];
                     primSyncInfo = m_primSyncInfoManager.DecodePrimProperties(partData);
                     SceneObjectPart part = primSyncInfo.PrimSyncInfoToSOP();
-                    if(part!=null)
+                    if(part!=null){
                         sog.AddPart(part);
+                        partsPrimSyncInfo.Add(part.UUID, primSyncInfo);
+                    }
                 }
             }
 
@@ -3303,7 +3359,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //sog.AbsolutePosition = localPos;
 
         }
-
 
         #endregion //Prim Property Sync management
 
@@ -3938,7 +3993,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     ////////////////////////////
                     case SceneObjectPartProperties.CollisionSoundVolume:
                         //propertyData["Value"] = OSD.FromReal((float)LastUpdateValue);
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsReal());
+                        float csValue = (float)propertyData["Value"].AsReal();
+                        m_lastUpdateValue = (Object)(csValue);
                         break;
 
                     ////////////////////////////
@@ -3999,7 +4055,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     ////////////////////////////////////
                     case SceneObjectPartProperties.Buoyancy:
                         //propertyData["Value"] = OSD.FromReal((float)LastUpdateValue);
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsReal());
+                        float bValue = (float)propertyData["Value"].AsReal();
+                        m_lastUpdateValue = (Object)(bValue);
                         break;
 
                     ////////////////////////////////////
@@ -4072,9 +4129,23 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public static PrimitiveBaseShape DeSerializeShape(string shapeString)
         {
+            if (shapeString == null || shapeString == String.Empty || shapeString == "")
+            {
+                return null;
+            }
             StringReader sr = new StringReader(shapeString);
             XmlTextReader reader = new XmlTextReader(sr);
-            return SceneObjectSerializer.ReadShape(reader, "Shape");
+            PrimitiveBaseShape shapeValue;
+            try
+            {
+                shapeValue = SceneObjectSerializer.ReadShape(reader, "Shape");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("DeSerializeShape: Error " + e.Message);
+                return null;
+            }
+            return shapeValue;
         }
 
         public static string SerializeTaskInventory(SceneObjectPart part)
@@ -4093,9 +4164,22 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public static TaskInventoryDictionary DeSerializeTaskInventory(string taskInvString)
         {
+            if (taskInvString == null || taskInvString == String.Empty || taskInvString == "")
+            {
+                return null;
+            }
             StringReader sr = new StringReader(taskInvString);
             XmlTextReader reader = new XmlTextReader(sr);
-            return SceneObjectSerializer.ReadTaskInventory(reader, "TaskInventory");
+            TaskInventoryDictionary taskVal;
+            try
+            {
+                taskVal = SceneObjectSerializer.ReadTaskInventory(reader, "TaskInventory");
+            }catch(Exception e)
+            {
+                Console.WriteLine("DeSerializeTaskInventory: Error " + e.Message);
+                return null;
+            }
+            return taskVal;
         }
 
         //Copy code from SceneObjectSerializer.SOPToXml2
@@ -4158,9 +4242,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_PrimLastUpdateTime; }
         }
 
+        private UUID m_UUID;
+        public UUID UUID
+        {
+            get { return m_UUID; }
+        }
         private ILog m_log;
         private Object m_primSyncInfoLock = new Object();
         private static HashSet<SceneObjectPartProperties> FullSetPrimProperties = SceneObjectPart.GetAllPrimProperties();
+        private static HashSet<SceneObjectPartProperties> PrimPhysActorProperties = SceneObjectPart.GetAllPhysActorProperties();
+        private static HashSet<SceneObjectPartProperties> GroupProperties = SceneObjectPart.GetGroupProperties();
 
         #endregion //Members
 
@@ -4168,6 +4259,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public PrimSyncInfo(SceneObjectPart part, long initUpdateTimestamp, string syncID)
         {
+            
             InitPropertiesSyncInfo(part, initUpdateTimestamp, syncID);
 
             m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
@@ -4216,39 +4308,32 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (part == null) return propertiesWithSyncInfoUpdated;
 
             HashSet<SceneObjectPartProperties> propertiesToBeSynced = new HashSet < SceneObjectPartProperties >(updatedProperties);
-            //first, see if there are physics properties updated but PhysActor
-            //does not exist
+
             foreach (SceneObjectPartProperties property in updatedProperties)
             {
-                switch (property)
+                //first, see if there are physics properties updated but PhysActor
+                //does not exist
+                if (SceneObjectPart.GetAllPhysActorProperties().Contains(property))
                 {
-                    case SceneObjectPartProperties.Buoyancy:
-                    case SceneObjectPartProperties.Flying:
-                    case SceneObjectPartProperties.Force:
-                    case SceneObjectPartProperties.IsColliding:
-                    case SceneObjectPartProperties.CollidingGround:
-                    case SceneObjectPartProperties.IsPhysical:
-                    case SceneObjectPartProperties.Kinematic:
-                    case SceneObjectPartProperties.Orientation:
-                    case SceneObjectPartProperties.PA_Acceleration:
-                    case SceneObjectPartProperties.Position:
-                    case SceneObjectPartProperties.RotationalVelocity:
-                    case SceneObjectPartProperties.Size:
-                    case SceneObjectPartProperties.Torque:
-                        if (part.PhysActor == null)
-                        {
-                            m_log.WarnFormat("PrimSyncInfo: Informed some physics property in SOP updated, yet SOP's PhysActor no longer exsits.");
+                    if (part.PhysActor == null)
+                    {
+                        m_log.WarnFormat("PrimSyncInfo: Informed some physics property in SOP updated, yet SOP's PhysActor no longer exsits.");
+                        return propertiesWithSyncInfoUpdated;
+                    }
+                }
+                else
+                {
+                    switch (property)
+                    {
+                        case SceneObjectPartProperties.FullUpdate:
+                            //Caller indicated many properties have changed. We need to 
+                            //compare and update all properties
+                            propertiesToBeSynced = FullSetPrimProperties;
                             return propertiesWithSyncInfoUpdated;
-                        }
-                        break;
-                    case SceneObjectPartProperties.FullUpdate:
-                        //Caller indicated many properties have changed. We need to 
-                        //compare and update all properties
-                        propertiesToBeSynced = FullSetPrimProperties;
-                        return propertiesWithSyncInfoUpdated; 
-                    case SceneObjectPartProperties.None:
-                        propertiesToBeSynced.Clear();
-                        break;
+                        case SceneObjectPartProperties.None:
+                            propertiesToBeSynced.Clear();
+                            break;
+                    }
                 }
             }
 
@@ -4346,7 +4431,29 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public SceneObjectPart PrimSyncInfoToSOP()
         {
             SceneObjectPart sop = new SceneObjectPart();
+            foreach (SceneObjectPartProperties property in FullSetPrimProperties)
+            {
+                if (m_propertiesSyncInfo.ContainsKey(property))
+                    SetSOPPropertyValue(sop, property);
+                else
+                {
+                    m_log.WarnFormat("PrimSyncInfoToSOP -- property {0} not in record.", property);
+                }
+            }
             return sop;
+        }
+
+        public void SetSOPPhyscActorProperties(SceneObjectPart sop)
+        {
+            foreach (SceneObjectPartProperties property in PrimPhysActorProperties)
+            {
+                SetSOPPropertyValue(sop, property);
+            }
+        }
+
+        public void SetGroupProperties(SceneObjectPart sop)
+        {
+
         }
 
         private void InitPropertiesSyncInfo(SceneObjectPart part, long initUpdateTimestamp, string syncID)
@@ -5674,6 +5781,265 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return pValue;
         }
 
+        private void SetSOPPropertyValue(SceneObjectPart part, SceneObjectPartProperties property)
+        {
+            if (part == null) return;
+            if (!m_propertiesSyncInfo.ContainsKey(property)){
+                m_log.WarnFormat("SetSOPPropertyValue: property {0} not in record.", property.ToString());
+                return;
+            }
+            PropertySyncInfo pSyncInfo = m_propertiesSyncInfo[property];
+
+            switch (property)
+            {
+                case SceneObjectPartProperties.Shape:
+                    PrimitiveBaseShape shapeVal = PropertySerializer.DeSerializeShape((string)pSyncInfo.LastUpdateValue);
+                    if (shapeVal != null)
+                        part.Shape = shapeVal;
+                    break;
+                case SceneObjectPartProperties.TaskInventory:
+                    TaskInventoryDictionary taskVal = PropertySerializer.DeSerializeTaskInventory((string)pSyncInfo.LastUpdateValue);
+                    if (taskVal != null)
+                        part.TaskInventory = taskVal;
+                    break;
+
+                ///////////////////////
+                //SOP properties
+                ///////////////////////
+                case SceneObjectPartProperties.AggregateScriptEvents:
+                    part.AggregateScriptEvents = (scriptEvents)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.AllowedDrop:
+                    part.AllowedDrop = (bool)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.AngularVelocity:
+                    part.AngularVelocity = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.AttachedAvatar:
+                    part.AttachedAvatar = (UUID)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.AttachedPos:
+                    part.AttachedPos = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.AttachmentPoint:
+                    part.AttachmentPoint = (uint)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.BaseMask:
+                    part.BaseMask = (uint)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Category:
+                    part.Category = (uint)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.ClickAction:
+                    part.ClickAction = (byte)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.CollisionSound:
+                    part.CollisionSound = (UUID)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.CollisionSoundVolume:
+                    part.CollisionSoundVolume = (float)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Color:
+                    part.Color = (System.Drawing.Color)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.CreationDate:
+                    part.CreationDate = (int)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.CreatorData:
+                    part.CreatorData = (string)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.CreatorID:
+                    part.CreatorID = (UUID)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Description:
+                    part.Description = (string)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.EveryoneMask:
+                    part.EveryoneMask = (uint)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Flags:
+                    part.Flags = (PrimFlags)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.FolderID:
+                    part.FolderID = (UUID)pSyncInfo.LastUpdateValue;
+                    break;
+                //Skip SceneObjectPartProperties.FullUpdate, which should be handled seperatedly
+                case SceneObjectPartProperties.GroupID:
+                    part.GroupID = (UUID)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.GroupMask:
+                    part.GroupMask = (uint)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.GroupPosition:
+                    part.GroupPosition = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.InventorySerial:
+                    part.InventorySerial = (uint)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.IsAttachment:
+                    part.IsAttachment = (bool)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.LastOwnerID:
+                    part.LastOwnerID = (UUID)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.LinkNum:
+                    part.LinkNum = (int)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Material:
+                    part.Material = (byte)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.MediaUrl:
+                    part.MediaUrl = (string)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Name:
+                    part.Name = (string)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.NextOwnerMask:
+                    part.NextOwnerMask = (uint)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.ObjectSaleType:
+                    part.ObjectSaleType = (byte)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.OffsetPosition:
+                    part.OffsetPosition = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.OwnerID:
+                    part.OwnerID = (UUID)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.OwnerMask:
+                    part.OwnerMask = (uint)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.OwnershipCost:
+                    part.OwnershipCost = (int)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.ParticleSystem:
+                    //byte[], return a cloned copy
+                    byte[] pValue = (byte[])pSyncInfo.LastUpdateValue;
+                    part.ParticleSystem = (byte[])pValue.Clone();
+                    break;
+                case SceneObjectPartProperties.PassTouches:
+                    part.PassTouches = (bool)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.RotationOffset:
+                    part.RotationOffset = (Quaternion)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.SalePrice:
+                    part.SalePrice = (int)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Scale:
+                    part.Scale = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.ScriptAccessPin:
+                    part.ScriptAccessPin = (int)pSyncInfo.LastUpdateValue;
+                    break;
+                //case SceneObjectPartProperties.Shape: -- For "Shape", we need to call CompareHashValues
+                case SceneObjectPartProperties.SitName:
+                    part.SitName = (string)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.SitTargetOrientation:
+                    part.SitTargetOrientation = (Quaternion)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.SitTargetOrientationLL:
+                    part.SitTargetOrientationLL = (Quaternion)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.SitTargetPosition:
+                    part.SitTargetPosition = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.SitTargetPositionLL:
+                    part.SitTargetPositionLL = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.SOP_Acceleration:
+                    part.Acceleration = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Sound:
+                    part.Sound = (UUID)pSyncInfo.LastUpdateValue;
+                    break;
+                //case SceneObjectPartProperties.TaskInventory:-- For "TaskInventory", we need to call CompareHashValues
+                case SceneObjectPartProperties.Text:
+                    part.Text = (string)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.TextureAnimation:
+                    //byte[], return a cloned copy
+                    byte[] tValue = (byte[])pSyncInfo.LastUpdateValue;
+                    part.TextureAnimation = (byte[])tValue.Clone();
+                    break;
+                case SceneObjectPartProperties.TouchName:
+                    part.TouchName = (string)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.UpdateFlag:
+                    part.UpdateFlag = (byte)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Velocity:
+                    part.Velocity = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+
+                ///////////////////////
+                //PhysActor properties
+                ///////////////////////
+                case SceneObjectPartProperties.Buoyancy:
+                    if (part.PhysActor != null)
+                        part.PhysActor.Buoyancy = (float)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Flying:
+                    if (part.PhysActor != null)
+                        part.PhysActor.Flying = (bool)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Force:
+                    if (part.PhysActor != null)
+                        part.PhysActor.Force = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.IsColliding:
+                    if (part.PhysActor != null)
+                        part.PhysActor.IsColliding = (bool)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.CollidingGround:
+                    if (part.PhysActor != null)
+                        part.PhysActor.CollidingGround = (bool)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.IsPhysical:
+                    if (part.PhysActor != null)
+                        part.PhysActor.IsPhysical = (bool)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Kinematic:
+                    if (part.PhysActor != null)
+                        part.PhysActor.Kinematic = (bool)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Orientation:
+                    if (part.PhysActor != null)
+                        part.PhysActor.Orientation = (Quaternion)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.PA_Acceleration:
+                    if (part.PhysActor != null)
+                        part.PhysActor.Acceleration = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Position:
+                    if (part.PhysActor != null)
+                        part.PhysActor.Position = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.RotationalVelocity:
+                    if (part.PhysActor != null)
+                        part.PhysActor.RotationalVelocity = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Size:
+                    if (part.PhysActor != null)
+                        part.PhysActor.Size = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartProperties.Torque:
+                    if (part.PhysActor != null)
+                        part.PhysActor.Torque = (Vector3)pSyncInfo.LastUpdateValue;
+                    break;
+
+                ///////////////////////
+                //SOG properties
+                ///////////////////////
+                case SceneObjectPartProperties.IsSelected:
+                    if (part.ParentGroup != null)
+                        part.ParentGroup.IsSelected = (bool)pSyncInfo.LastUpdateValue;
+                    break;
+            }
+
+        }
+
     }
 
     public class PrimSyncInfoManager
@@ -5803,7 +6169,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="primSyncInfo"></param>
         /// <returns>True if primSyncInfo is inserted; false if it is already in
         /// but updated.</returns>
-        private bool InsertPrimSyncInfo(UUID primUUID, PrimSyncInfo primSyncInfo)
+        public bool InsertPrimSyncInfo(UUID primUUID, PrimSyncInfo primSyncInfo)
         {
             lock (m_primsInSyncLock)
             {
@@ -5812,9 +6178,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_primsInSync[primUUID] = primSyncInfo;
                     return false;
                 }
+
+                //copy the items from the old list and insert the new record
                 Dictionary<UUID, PrimSyncInfo> newPrimsInSync = new Dictionary<UUID, PrimSyncInfo>(m_primsInSync);
                 newPrimsInSync.Add(primUUID, primSyncInfo);
 
+                //replace the old list
                 m_primsInSync = newPrimsInSync; 
             }
             return true;
@@ -5848,6 +6217,39 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return true;
         }
         
+        public void InsertMultiPrimSyncInfo(Dictionary<UUID, PrimSyncInfo> multiPrimsSyncInfo)
+        {
+            lock (m_primsInSyncLock)
+            {
+                //copy the old list, update the copied list
+                Dictionary<UUID, PrimSyncInfo> newPrimsInSync = new Dictionary<UUID, PrimSyncInfo>(m_primsInSync);
+                foreach (KeyValuePair<UUID, PrimSyncInfo> valPair in multiPrimsSyncInfo)
+                {
+                    UUID primUUID = valPair.Key;
+                    PrimSyncInfo primSyncInfo = valPair.Value;
+                    if (newPrimsInSync.ContainsKey(primUUID))
+                    {
+                        newPrimsInSync[primUUID] = primSyncInfo;
+                        continue;
+                    }
+                    newPrimsInSync.Add(primUUID, primSyncInfo);
+                }
+
+                //replace the old list
+                m_primsInSync = newPrimsInSync;
+            }
+        }
+
+        public PrimSyncInfo GetPrimSyncInfo(UUID primUUID)
+        {
+            if (m_primsInSync.ContainsKey(primUUID))
+            {
+                return m_primsInSync[primUUID];
+            }
+            else
+                return null;
+        }
+
     }
  
 }

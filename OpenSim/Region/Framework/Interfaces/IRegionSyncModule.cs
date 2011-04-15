@@ -74,10 +74,16 @@ namespace OpenSim.Region.Framework.Interfaces
         void ProcessAndEnqueuePrimUpdatesByLocal(SceneObjectPart part, List<SceneObjectPartSyncProperties> updatedProperties);
         void SyncOutPrimUpdates();
 
+        //Legacy calls in Bucket sync'ing
         //The folloiwng calls deal with object updates, and will insert each update into an outgoing queue of each SyncConnector
         //void SendSceneUpdates();
         void SendNewObject(SceneObjectGroup sog);
         void SendDeleteObject(SceneObjectGroup sog, bool softDelete);
+
+        //New functions for per property sync'ing
+        void SyncNewObject(SceneObjectGroup sog);
+        void SyncDeleteObject(SceneObjectGroup sog, bool softDelete);
+
         void SendLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children);
         void SendDeLinkObject(List<SceneObjectPart> prims, List<SceneObjectGroup> beforeDelinkGroups, List<SceneObjectGroup> afterDelinkGroups);
 

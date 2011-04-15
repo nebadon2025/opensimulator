@@ -336,6 +336,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        //Legacy SendNewObject and SendDeleteObject for Bucket based sync protocol
+        
         /// <summary>
         /// Send a sync message to add the given object to other sync nodes.
         /// </summary>
@@ -389,7 +391,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SendSpecialObjectUpdateToRelevantSyncConnectors(m_actorID, sog, rsm);
             //SendSceneEventToRelevantSyncConnectors(m_actorID, rsm, sog);
         }
-
+     
 
         public void SendLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children)
         {
@@ -541,6 +543,40 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        /////////////////////////////////////////////////////////////
+        //New IRegionSyncModule functions for per property sync'ing
+        /////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Called when new object is created in local SceneGraph. (Add new object
+        /// by receiving sync message should not trigger calling this function.)
+        /// </summary>
+        /// <param name="sog"></param>
+        public void SyncNewObject(SceneObjectGroup sog)
+        {
+            //First, add PrimSyncInfoManager's record.
+            foreach (SceneObjectPart part in sog.Parts)
+            {
+                m_primSyncInfoManager.InsertPrimSyncInfo(part, DateTime.Now.Ticks, m_syncID);
+            }
+
+            if (!IsSyncingWithOtherSyncNodes())
+            {
+                //no SyncConnector connected. No need to send out sync messages.
+                return;
+            }
+
+            OSDMap encodedSOG = SceneObjectEncoder(sog);
+            SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.NewObject, OSDParser.SerializeJsonString(encodedSOG));
+
+            //SendObjectUpdateToRelevantSyncConnectors(sog, rsm);
+            //SendSceneEventToRelevantSyncConnectors(m_actorID, rsm, sog);
+            SendSpecialObjectUpdateToRelevantSyncConnectors(m_actorID, sog, syncMsg);
+        }
+
+        public void SyncDeleteObject(SceneObjectGroup sog, bool softDelete)
+        {
+        }
 
         #endregion //IRegionSyncModule  
 
@@ -762,10 +798,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                     //if (connector.IsPositionInSyncQuarks(sog.AbsolutePosition))
                     //{
-                        SymmetricSyncMessage syncMsg = NewObjectMessageEncoder(sog);
 
-                        //SendToSyncConnector(connector, sog, syncMsg);
-                        connector.EnqueueOutgoingUpdate(sog.UUID, syncMsg.ToBytes());
+                    //SymmetricSyncMessage syncMsg = NewObjectMessageEncoder(sog);
+                    OSDMap encodedSOG = SceneObjectEncoder(sog);
+                    SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.NewObject, OSDParser.SerializeJsonString(encodedSOG));
+
+                    //SendToSyncConnector(connector, sog, syncMsg);
+                    connector.EnqueueOutgoingUpdate(sog.UUID, syncMsg.ToBytes());
                     //}
                 }
             }
@@ -2177,8 +2216,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void HandleAddNewObject(SymmetricSyncMessage msg, string senderActorID)
         {
 
-            //string sogxml = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
-            //SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
             OSDMap data = DeserializeMessage(msg);
 
             //if this is a relay node, forward the event
@@ -2196,9 +2233,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
              * */ 
 
-            Object sog;
-            NewObjectMessageDecoder(data, out sog);
-            SceneObjectGroup group = (SceneObjectGroup)sog;
+            //NewObjectMessageDecoder(data, out sog);
+            
+            //SceneObjectGroup group = SceneObjectDecoder(
+            AddNewSceneObjectByDecoding(data);
 
         }
 
@@ -3573,7 +3611,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_property = property;
             m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-                
+
         }
 
         public PropertySyncInfo(SceneObjectPartSyncProperties property, Object initValue, long initTS, string syncID)
@@ -3869,7 +3907,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                 default:
                     m_log.WarnFormat("PrimSynInfo.PropertyToOSD -- no handler for property {0} ", m_property);
-                    break; 
+                    break;
             }
             return propertyData;
         }
@@ -3879,238 +3917,241 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (!propertyData.ContainsKey("LastUpdateTimeStamp"))
             {
                 m_log.WarnFormat("PrimSynInfo.FromOSDMap -- OSDMap missing LastUpdateTimeStamp");
-            }else{
+            }
+            else
+            {
                 m_lastUpdateTimeStamp = propertyData["LastUpdateTimeStamp"].AsLong();
             }
 
             if (!propertyData.ContainsKey("LastUpdateSyncID"))
             {
-                m_log.WarnFormat("PrimSynInfo.FromOSDMap -- OSDMap missing LastUpdateSyncID"); 
-            }else{
-                m_lastUpdateSyncID = propertyData["LastUpdateSyncID"].AsString();
-            }
-
-            if (!propertyData.ContainsKey("Value"))
-            {
                 m_log.WarnFormat("PrimSynInfo.FromOSDMap -- OSDMap missing LastUpdateSyncID");
             }
             else
             {
-                switch (m_property)
-                {
-                    ///////////////////////////////////////
-                    //SOP properties with complex structure
-                    ///////////////////////////////////////
-                    case SceneObjectPartSyncProperties.Shape:
-                    case SceneObjectPartSyncProperties.TaskInventory:
-                        m_lastUpdateValue = (Object)propertyData["Value"].AsString();
-                        break;
+                m_lastUpdateSyncID = propertyData["LastUpdateSyncID"].AsString();
+            }
 
-                    ////////////////////////////
-                    //SOP properties, enum types
-                    ////////////////////////////
-                    case SceneObjectPartSyncProperties.AggregateScriptEvents:
-                        scriptEvents sEvents = (scriptEvents)(propertyData["Value"].AsInteger());
-                        m_lastUpdateValue = (Object)sEvents;
-                        //propertyData["Value"] = OSD.FromInteger((int)((scriptEvents)LastUpdateValue));
-                        break;
-                    case SceneObjectPartSyncProperties.Flags:
-                        PrimFlags flags = (PrimFlags)(propertyData["Value"].AsInteger());
-                        m_lastUpdateValue = (Object)flags;
-                        //propertyData["Value"] = OSD.FromInteger((int)((PrimFlags)LastUpdateValue));
-                        break;
-                    ////////////////////////////
-                    //SOP properties, bool types
-                    ////////////////////////////
-                    case SceneObjectPartSyncProperties.AllowedDrop:
-                    case SceneObjectPartSyncProperties.IsAttachment:
-                    case SceneObjectPartSyncProperties.PassTouches:
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsBoolean());
-                        //propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
-                        break;
+            //We do not test if propertyData.ContainsKey("Value"), since Jason
+            //serialization seems does not include a value if it's equals to
+            //the default value. So just let Jason decoding to set the value 
+            //either by reading out of the OSDMap, or set to default value.
 
-                    ////////////////////////////
-                    //SOP properties, Vector3 types
-                    ////////////////////////////
-                    case SceneObjectPartSyncProperties.AngularVelocity:
-                    case SceneObjectPartSyncProperties.AttachedPos:
-                    case SceneObjectPartSyncProperties.GroupPosition:
-                    case SceneObjectPartSyncProperties.OffsetPosition:
-                    case SceneObjectPartSyncProperties.Scale:
-                    case SceneObjectPartSyncProperties.SitTargetPosition:
-                    case SceneObjectPartSyncProperties.SitTargetPositionLL:
-                    case SceneObjectPartSyncProperties.SOP_Acceleration:
-                    case SceneObjectPartSyncProperties.Velocity:
-                        //propertyData["Value"] = OSD.FromVector3((Vector3)LastUpdateValue);
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsVector3());
-                        break;
+            switch (m_property)
+            {
+                ///////////////////////////////////////
+                //SOP properties with complex structure
+                ///////////////////////////////////////
+                case SceneObjectPartSyncProperties.Shape:
+                case SceneObjectPartSyncProperties.TaskInventory:
+                    m_lastUpdateValue = (Object)propertyData["Value"].AsString();
+                    break;
 
-                    ////////////////////////////
-                    //SOP properties, UUID types
-                    ////////////////////////////
-                    case SceneObjectPartSyncProperties.AttachedAvatar:
-                    case SceneObjectPartSyncProperties.CollisionSound:
-                    case SceneObjectPartSyncProperties.CreatorID:
-                    case SceneObjectPartSyncProperties.FolderID:
-                    case SceneObjectPartSyncProperties.GroupID:
-                    case SceneObjectPartSyncProperties.LastOwnerID:
-                    case SceneObjectPartSyncProperties.OwnerID:
-                    case SceneObjectPartSyncProperties.Sound:
-                        //propertyData["Value"] = OSD.FromUUID((UUID)LastUpdateValue);
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsUUID());
-                        break;
+                ////////////////////////////
+                //SOP properties, enum types
+                ////////////////////////////
+                case SceneObjectPartSyncProperties.AggregateScriptEvents:
+                    scriptEvents sEvents = (scriptEvents)(propertyData["Value"].AsInteger());
+                    m_lastUpdateValue = (Object)sEvents;
+                    //propertyData["Value"] = OSD.FromInteger((int)((scriptEvents)LastUpdateValue));
+                    break;
+                case SceneObjectPartSyncProperties.Flags:
+                    PrimFlags flags = (PrimFlags)(propertyData["Value"].AsInteger());
+                    m_lastUpdateValue = (Object)flags;
+                    //propertyData["Value"] = OSD.FromInteger((int)((PrimFlags)LastUpdateValue));
+                    break;
+                ////////////////////////////
+                //SOP properties, bool types
+                ////////////////////////////
+                case SceneObjectPartSyncProperties.AllowedDrop:
+                case SceneObjectPartSyncProperties.IsAttachment:
+                case SceneObjectPartSyncProperties.PassTouches:
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsBoolean());
+                    //propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
+                    break;
 
-                    //case SceneObjectPartProperties.AttachedPos:
-                    ////////////////////////////
-                    //SOP properties, uint types
-                    ////////////////////////////
-                    case SceneObjectPartSyncProperties.AttachmentPoint:
-                    case SceneObjectPartSyncProperties.BaseMask:
-                    case SceneObjectPartSyncProperties.Category:
-                    case SceneObjectPartSyncProperties.EveryoneMask:
-                    case SceneObjectPartSyncProperties.GroupMask:
-                    case SceneObjectPartSyncProperties.InventorySerial:
-                    case SceneObjectPartSyncProperties.NextOwnerMask:
-                    case SceneObjectPartSyncProperties.OwnerMask:
-                        //propertyData["Value"] = OSD.FromUInteger((uint)LastUpdateValue);
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsUInteger());
-                        break;
+                ////////////////////////////
+                //SOP properties, Vector3 types
+                ////////////////////////////
+                case SceneObjectPartSyncProperties.AngularVelocity:
+                case SceneObjectPartSyncProperties.AttachedPos:
+                case SceneObjectPartSyncProperties.GroupPosition:
+                case SceneObjectPartSyncProperties.OffsetPosition:
+                case SceneObjectPartSyncProperties.Scale:
+                case SceneObjectPartSyncProperties.SitTargetPosition:
+                case SceneObjectPartSyncProperties.SitTargetPositionLL:
+                case SceneObjectPartSyncProperties.SOP_Acceleration:
+                case SceneObjectPartSyncProperties.Velocity:
+                    //propertyData["Value"] = OSD.FromVector3((Vector3)LastUpdateValue);
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsVector3());
+                    break;
 
-                    //case SceneObjectPartProperties.BaseMask:
-                    //case SceneObjectPartProperties.Category:
+                ////////////////////////////
+                //SOP properties, UUID types
+                ////////////////////////////
+                case SceneObjectPartSyncProperties.AttachedAvatar:
+                case SceneObjectPartSyncProperties.CollisionSound:
+                case SceneObjectPartSyncProperties.CreatorID:
+                case SceneObjectPartSyncProperties.FolderID:
+                case SceneObjectPartSyncProperties.GroupID:
+                case SceneObjectPartSyncProperties.LastOwnerID:
+                case SceneObjectPartSyncProperties.OwnerID:
+                case SceneObjectPartSyncProperties.Sound:
+                    //propertyData["Value"] = OSD.FromUUID((UUID)LastUpdateValue);
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsUUID());
+                    break;
 
-                    ////////////////////////////
-                    //SOP properties, byte types
-                    ////////////////////////////                    
-                    case SceneObjectPartSyncProperties.ClickAction:
-                    case SceneObjectPartSyncProperties.Material:
-                    case SceneObjectPartSyncProperties.ObjectSaleType:
-                    case SceneObjectPartSyncProperties.UpdateFlag:
-                        //propertyData["Value"] = OSD.FromInteger((byte)LastUpdateValue);
-                        byte pValue = (byte)(propertyData["Value"].AsInteger());
-                        m_lastUpdateValue = (Object)pValue;
-                        break;
-                    //case SceneObjectPartProperties.CollisionSound:
+                //case SceneObjectPartProperties.AttachedPos:
+                ////////////////////////////
+                //SOP properties, uint types
+                ////////////////////////////
+                case SceneObjectPartSyncProperties.AttachmentPoint:
+                case SceneObjectPartSyncProperties.BaseMask:
+                case SceneObjectPartSyncProperties.Category:
+                case SceneObjectPartSyncProperties.EveryoneMask:
+                case SceneObjectPartSyncProperties.GroupMask:
+                case SceneObjectPartSyncProperties.InventorySerial:
+                case SceneObjectPartSyncProperties.NextOwnerMask:
+                case SceneObjectPartSyncProperties.OwnerMask:
+                    //propertyData["Value"] = OSD.FromUInteger((uint)LastUpdateValue);
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsUInteger());
+                    break;
 
-                    ////////////////////////////
-                    //SOP properties, float types
-                    ////////////////////////////
-                    case SceneObjectPartSyncProperties.CollisionSoundVolume:
-                        //propertyData["Value"] = OSD.FromReal((float)LastUpdateValue);
-                        float csValue = (float)propertyData["Value"].AsReal();
-                        m_lastUpdateValue = (Object)(csValue);
-                        break;
+                //case SceneObjectPartProperties.BaseMask:
+                //case SceneObjectPartProperties.Category:
 
-                    ////////////////////////////
-                    //SOP properties, Color(struct type)
-                    ////////////////////////////
-                    case SceneObjectPartSyncProperties.Color:
-                        //propertyData["Value"] = OSD.FromString(PropertySerializer.SerializeColor((System.Drawing.Color)LastUpdateValue));
-                        System.Drawing.Color cValue = PropertySerializer.DeSerializeColor(propertyData["Value"].AsString());
-                        m_lastUpdateValue = (Object)cValue;
-                        break;
+                ////////////////////////////
+                //SOP properties, byte types
+                ////////////////////////////                    
+                case SceneObjectPartSyncProperties.ClickAction:
+                case SceneObjectPartSyncProperties.Material:
+                case SceneObjectPartSyncProperties.ObjectSaleType:
+                case SceneObjectPartSyncProperties.UpdateFlag:
+                    //propertyData["Value"] = OSD.FromInteger((byte)LastUpdateValue);
+                    byte pValue = (byte)(propertyData["Value"].AsInteger());
+                    m_lastUpdateValue = (Object)pValue;
+                    break;
+                //case SceneObjectPartProperties.CollisionSound:
 
-                    ////////////////////////////
-                    //SOP properties, int types
-                    ////////////////////////////
-                    case SceneObjectPartSyncProperties.CreationDate:
-                    case SceneObjectPartSyncProperties.LinkNum:
-                    case SceneObjectPartSyncProperties.OwnershipCost:
-                    case SceneObjectPartSyncProperties.SalePrice:
-                    case SceneObjectPartSyncProperties.ScriptAccessPin:
-                        //propertyData["Value"] = OSD.FromInteger((int)LastUpdateValue);
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsInteger());
-                        break;
+                ////////////////////////////
+                //SOP properties, float types
+                ////////////////////////////
+                case SceneObjectPartSyncProperties.CollisionSoundVolume:
+                    //propertyData["Value"] = OSD.FromReal((float)LastUpdateValue);
+                    float csValue = (float)propertyData["Value"].AsReal();
+                    m_lastUpdateValue = (Object)(csValue);
+                    break;
 
-                    ////////////////////////////
-                    //SOP properties, string types
-                    ////////////////////////////
-                    case SceneObjectPartSyncProperties.CreatorData:
-                    case SceneObjectPartSyncProperties.Description:
-                    case SceneObjectPartSyncProperties.MediaUrl:
-                    case SceneObjectPartSyncProperties.Name:
-                    case SceneObjectPartSyncProperties.SitName:
-                    case SceneObjectPartSyncProperties.Text:
-                    case SceneObjectPartSyncProperties.TouchName:
-                        //propertyData["Value"] = OSD.FromString((string)LastUpdateValue);
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsString());
-                        break;
-                    ////////////////////////////
-                    //SOP properties, byte[]  types
-                    ////////////////////////////
-                    case SceneObjectPartSyncProperties.ParticleSystem:
-                    case SceneObjectPartSyncProperties.TextureAnimation:
-                        //propertyData["Value"] = OSD.FromBinary((byte[])LastUpdateValue);
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsBinary());
-                        break;
+                ////////////////////////////
+                //SOP properties, Color(struct type)
+                ////////////////////////////
+                case SceneObjectPartSyncProperties.Color:
+                    //propertyData["Value"] = OSD.FromString(PropertySerializer.SerializeColor((System.Drawing.Color)LastUpdateValue));
+                    System.Drawing.Color cValue = PropertySerializer.DeSerializeColor(propertyData["Value"].AsString());
+                    m_lastUpdateValue = (Object)cValue;
+                    break;
 
-                    ////////////////////////////
-                    //SOP properties, Quaternion  types
-                    ////////////////////////////
-                    case SceneObjectPartSyncProperties.RotationOffset:
-                    case SceneObjectPartSyncProperties.SitTargetOrientation:
-                    case SceneObjectPartSyncProperties.SitTargetOrientationLL:
-                        //propertyData["Value"] = OSD.FromQuaternion((Quaternion)LastUpdateValue);
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsQuaternion());
-                        break;
+                ////////////////////////////
+                //SOP properties, int types
+                ////////////////////////////
+                case SceneObjectPartSyncProperties.CreationDate:
+                case SceneObjectPartSyncProperties.LinkNum:
+                case SceneObjectPartSyncProperties.OwnershipCost:
+                case SceneObjectPartSyncProperties.SalePrice:
+                case SceneObjectPartSyncProperties.ScriptAccessPin:
+                    //propertyData["Value"] = OSD.FromInteger((int)LastUpdateValue);
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsInteger());
+                    break;
 
-                    ////////////////////////////////////
-                    //PhysActor properties, float type
-                    ////////////////////////////////////
-                    case SceneObjectPartSyncProperties.Buoyancy:
-                        //propertyData["Value"] = OSD.FromReal((float)LastUpdateValue);
-                        float bValue = (float)propertyData["Value"].AsReal();
-                        m_lastUpdateValue = (Object)(bValue);
-                        break;
+                ////////////////////////////
+                //SOP properties, string types
+                ////////////////////////////
+                case SceneObjectPartSyncProperties.CreatorData:
+                case SceneObjectPartSyncProperties.Description:
+                case SceneObjectPartSyncProperties.MediaUrl:
+                case SceneObjectPartSyncProperties.Name:
+                case SceneObjectPartSyncProperties.SitName:
+                case SceneObjectPartSyncProperties.Text:
+                case SceneObjectPartSyncProperties.TouchName:
+                    //propertyData["Value"] = OSD.FromString((string)LastUpdateValue);
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsString());
+                    break;
+                ////////////////////////////
+                //SOP properties, byte[]  types
+                ////////////////////////////
+                case SceneObjectPartSyncProperties.ParticleSystem:
+                case SceneObjectPartSyncProperties.TextureAnimation:
+                    //propertyData["Value"] = OSD.FromBinary((byte[])LastUpdateValue);
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsBinary());
+                    break;
 
-                    ////////////////////////////////////
-                    //PhysActor properties, bool type
-                    ////////////////////////////////////
-                    case SceneObjectPartSyncProperties.Flying:
-                    case SceneObjectPartSyncProperties.IsColliding:
-                    case SceneObjectPartSyncProperties.CollidingGround:
-                    case SceneObjectPartSyncProperties.IsPhysical:
-                    case SceneObjectPartSyncProperties.Kinematic:
-                        //propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsBoolean());
-                        break;
+                ////////////////////////////
+                //SOP properties, Quaternion  types
+                ////////////////////////////
+                case SceneObjectPartSyncProperties.RotationOffset:
+                case SceneObjectPartSyncProperties.SitTargetOrientation:
+                case SceneObjectPartSyncProperties.SitTargetOrientationLL:
+                    //propertyData["Value"] = OSD.FromQuaternion((Quaternion)LastUpdateValue);
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsQuaternion());
+                    break;
 
-                    ////////////////////////////////////
-                    //PhysActor properties, Vector3 type
-                    ////////////////////////////////////
-                    case SceneObjectPartSyncProperties.Force:
-                    case SceneObjectPartSyncProperties.PA_Acceleration:
-                    case SceneObjectPartSyncProperties.Position:
-                    case SceneObjectPartSyncProperties.RotationalVelocity:
-                    case SceneObjectPartSyncProperties.Size:
-                    case SceneObjectPartSyncProperties.Torque:
-                        //propertyData["Value"] = OSD.FromVector3((Vector3)LastUpdateValue);
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsVector3());
-                        break;
+                ////////////////////////////////////
+                //PhysActor properties, float type
+                ////////////////////////////////////
+                case SceneObjectPartSyncProperties.Buoyancy:
+                    //propertyData["Value"] = OSD.FromReal((float)LastUpdateValue);
+                    float bValue = (float)propertyData["Value"].AsReal();
+                    m_lastUpdateValue = (Object)(bValue);
+                    break;
 
-                    ////////////////////////////////////
-                    //PhysActor properties, Quaternion type
-                    ////////////////////////////////////
-                    case SceneObjectPartSyncProperties.Orientation:
-                        //propertyData["Value"] = OSD.FromQuaternion((Quaternion)LastUpdateValue);
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsQuaternion());
-                        break;
+                ////////////////////////////////////
+                //PhysActor properties, bool type
+                ////////////////////////////////////
+                case SceneObjectPartSyncProperties.Flying:
+                case SceneObjectPartSyncProperties.IsColliding:
+                case SceneObjectPartSyncProperties.CollidingGround:
+                case SceneObjectPartSyncProperties.IsPhysical:
+                case SceneObjectPartSyncProperties.Kinematic:
+                    //propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsBoolean());
+                    break;
 
-                    ///////////////////////
-                    //SOG properties
-                    ///////////////////////
-                    case SceneObjectPartSyncProperties.IsSelected:
-                        //propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
-                        m_lastUpdateValue = (Object)(propertyData["Value"].AsBoolean());
-                        break;
+                ////////////////////////////////////
+                //PhysActor properties, Vector3 type
+                ////////////////////////////////////
+                case SceneObjectPartSyncProperties.Force:
+                case SceneObjectPartSyncProperties.PA_Acceleration:
+                case SceneObjectPartSyncProperties.Position:
+                case SceneObjectPartSyncProperties.RotationalVelocity:
+                case SceneObjectPartSyncProperties.Size:
+                case SceneObjectPartSyncProperties.Torque:
+                    //propertyData["Value"] = OSD.FromVector3((Vector3)LastUpdateValue);
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsVector3());
+                    break;
 
-                    default:
-                        m_log.WarnFormat("PrimSynInfo.PropertyToOSD -- no handler for property {0} ", m_property);
-                        break; 
+                ////////////////////////////////////
+                //PhysActor properties, Quaternion type
+                ////////////////////////////////////
+                case SceneObjectPartSyncProperties.Orientation:
+                    //propertyData["Value"] = OSD.FromQuaternion((Quaternion)LastUpdateValue);
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsQuaternion());
+                    break;
 
-                }
+                ///////////////////////
+                //SOG properties
+                ///////////////////////
+                case SceneObjectPartSyncProperties.IsSelected:
+                    //propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsBoolean());
+                    break;
+
+                default:
+                    m_log.WarnFormat("PrimSynInfo.PropertyToOSD -- no handler for property {0} ", m_property);
+                    break;
+
             }
         }
+
     }
 
     public class PropertySerializer
@@ -6130,22 +6171,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             data["primUUID"] = OSDMap.FromUUID(primUUID);
-            //OSDMap propertyData = new OSDMap();
-            //data["propertyData"] = propertyData;
 
             //If SceneObjectPartProperties.FullUpdate is in updatedProperties,
             //convert it to the full list of all properties
-
             HashSet<SceneObjectPartSyncProperties> propertiesToEncoded = updatedProperties;
             if (updatedProperties.Contains(SceneObjectPartSyncProperties.FullUpdate))
             {
                 propertiesToEncoded = SceneObjectPart.GetAllPrimProperties();
             }
 
-            //foreach (SceneObjectPartProperties property in propertiesToEncoded)
-            //{
-                //propertyData.Add(property.ToString(), m_primsInSync[primUUID].EncodePropertiesSyncInfo(propertiesToEncoded));
-            //}
             OSDMap propertyData = m_primsInSync[primUUID].EncodePropertiesSyncInfo(propertiesToEncoded);
             data["propertyData"] = propertyData;
 
@@ -6165,7 +6199,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             PrimSyncInfo primSynInfo = new PrimSyncInfo(primUUID, propertyData);
 
             return primSynInfo;
-            //InsertPrimSyncInfo(primUUID, );
         }
 
         /// <summary>

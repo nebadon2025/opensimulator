@@ -429,10 +429,11 @@ namespace OpenSim.Region.Framework.Scenes
                     SceneObjectGroupsByLocalPartID[part.LocalId] = sceneObject;
             }
 
-            //SYMMETRIC SYNC: sending NewObject event, and sending it before calling ScheduleGroupForFullUpdate
+            //DSG SYNC: sending NewObject event, and sending it before calling ScheduleGroupForFullUpdate
             if (m_parentScene.RegionSyncModule != null)
             {
-                m_parentScene.RegionSyncModule.SendNewObject(sceneObject);
+                //m_parentScene.RegionSyncModule.SendNewObject(sceneObject);
+                m_parentScene.RegionSyncModule.SyncNewObject(sceneObject);
             }
 
             if (sendClientUpdates)

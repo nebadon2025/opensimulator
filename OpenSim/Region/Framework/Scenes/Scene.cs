@@ -709,9 +709,6 @@ namespace OpenSim.Region.Framework.Scenes
         //Similar to DeleteSceneObject, except that this does not change LastUpdateActorID and LastUpdateTimeStamp
         public void DeleteSceneObjectBySynchronization(SceneObjectGroup group)
         {
-            //            m_log.DebugFormat("[SCENE]: Deleting scene object {0} {1}", group.Name, group.UUID);
-
-            //SceneObjectPart rootPart = group.GetChildPart(group.UUID);
 
             // Serialise calls to RemoveScriptInstances to avoid
             // deadlocking on m_parts inside SceneObjectGroup
@@ -2593,16 +2590,18 @@ namespace OpenSim.Region.Framework.Scenes
                 EventManager.TriggerParcelPrimCountTainted();
             }
 
-            group.DeleteGroupFromScene(silent);
-
-//            m_log.DebugFormat("[SCENE]: Exit DeleteSceneObject() for {0} {1}", group.Name, group.UUID);            
-
+            //DSG SYNC
             //Propagate the RemovedObject message
             if (RegionSyncModule != null)
             {
-                RegionSyncModule.SendDeleteObject(group, false);
+                //RegionSyncModule.SendDeleteObject(group, false);
+                RegionSyncModule.SyncDeleteObject(group, false);
             }
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
+
+            group.DeleteGroupFromScene(silent);
+
+//            m_log.DebugFormat("[SCENE]: Exit DeleteSceneObject() for {0} {1}", group.Name, group.UUID);            
              
         }
 

@@ -569,13 +569,32 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             OSDMap encodedSOG = SceneObjectEncoder(sog);
             SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.NewObject, OSDParser.SerializeJsonString(encodedSOG));
 
-            //SendObjectUpdateToRelevantSyncConnectors(sog, rsm);
-            //SendSceneEventToRelevantSyncConnectors(m_actorID, rsm, sog);
             SendSpecialObjectUpdateToRelevantSyncConnectors(m_actorID, sog, syncMsg);
         }
 
         public void SyncDeleteObject(SceneObjectGroup sog, bool softDelete)
         {
+            //First, remove from PrimSyncInfoManager's record.
+            foreach (SceneObjectPart part in sog.Parts)
+            {
+                m_primSyncInfoManager.RemovePrimSyncInfo(part);
+            }
+
+            if (!IsSyncingWithOtherSyncNodes())
+            {
+                //no SyncConnector connected. Do nothing.
+                return;
+            }
+
+            OSDMap data = new OSDMap();
+            data["UUID"] = OSD.FromUUID(sog.UUID);
+            //TODO: need to put in SyncID instead of ActorID here. 
+            //For now, keep it the same for simple debugging
+            data["actorID"] = OSD.FromString(m_actorID); 
+            data["softDelete"] = OSD.FromBoolean(softDelete);
+
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
+            SendSpecialObjectUpdateToRelevantSyncConnectors(m_actorID, sog, rsm);
         }
 
         #endregion //IRegionSyncModule  
@@ -2445,6 +2464,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 if (!softDelete)
                 {
                     //m_log.DebugFormat("{0}: hard delete object {1}", LogHeader, sog.UUID);
+                    foreach (SceneObjectPart part in sog.Parts)
+                    {
+                        m_primSyncInfoManager.RemovePrimSyncInfo(part);
+                    }
                     m_scene.DeleteSceneObjectBySynchronization(sog);
                 }
                 else
@@ -3123,9 +3146,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="updatedProperties"></param>
         public void ProcessAndEnqueuePrimUpdatesByLocal(SceneObjectPart part, List<SceneObjectPartSyncProperties> updatedProperties)
         {
-            m_log.DebugFormat("ProcessAndEnqueuePrimUpdatesByLocal called. Simply return for now. More testing later.");
-            return;
-
             //Sync values with SOP's data and update timestamp according, to 
             //obtain the list of properties that really have been updated
             //and should be propogated to other sync nodes.
@@ -3384,6 +3404,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         partsPrimSyncInfo.Add(part.UUID, primSyncInfo);
                     }
                 }
+            }
+
+            foreach (SceneObjectPart part in sog.Parts)
+            {
+                partsPrimSyncInfo[part.UUID].SetGroupProperties(part);
             }
 
             //Convert the coordinates if necessary
@@ -4501,7 +4526,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void SetGroupProperties(SceneObjectPart sop)
         {
-
+            foreach (SceneObjectPartSyncProperties property in GroupProperties)
+            {
+                SetSOPPropertyValue(sop, property);
+            }
         }
 
         private void InitPropertiesSyncInfo(SceneObjectPart part, long initUpdateTimestamp, string syncID)
@@ -6278,6 +6306,22 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //replace the old list
                 m_primsInSync = newPrimsInSync;
             }
+        }
+
+        public bool RemovePrimSyncInfo(SceneObjectPart part)
+        {
+            if (!m_primsInSync.ContainsKey(part.UUID))
+            {
+                return false;
+            }
+            lock (m_primsInSyncLock)
+            {
+                Dictionary<UUID, PrimSyncInfo> newPrimsInSync = new Dictionary<UUID, PrimSyncInfo>(m_primsInSync);
+                newPrimsInSync.Remove(part.UUID);
+
+                m_primsInSync = newPrimsInSync;
+            }
+            return true;
         }
 
         public PrimSyncInfo GetPrimSyncInfo(UUID primUUID)

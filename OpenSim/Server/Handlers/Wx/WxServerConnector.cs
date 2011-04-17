@@ -1,3 +1,30 @@
+/*
+ * Copyright (c) Contributors, http://opensimulator.org/
+ * See CONTRIBUTORS.TXT for a full list of copyright holders.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the OpenSimulator Project nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 using System;
 using Nini.Config;
 using OpenSim.Server.Base;
@@ -7,51 +34,54 @@ using OpenSim.Server.Handlers.Base;
 
 namespace OpenSim.Server.Handlers.WxServerHandler
 {
+    /// <summary>
+    /// Wx service connector.
+    /// </summary>
+    /// <exception cref='Exception'>
+    /// Represents errors that occur during application execution.
+    /// </exception>
     public class WxServiceConnector : ServiceConnector
     {
+        private IWxService m_WxService = null;
 
-        private IWxService m_WxService;
-        // Looks for [WxService] in the config file
         private string m_ConfigName = "WxService";
         private IHttpServer m_HttpServer;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="OpenSim.Server.Handlers.WxServerHandler.WxServiceConnector"/> class.
+        /// </summary>
+        /// <param name='config'>
+        /// Config.
+        /// </param>
+        /// <param name='server'>
+        /// Main Http erver.
+        /// </param>
+        /// <param name='configName'>
+        /// Config name.
+        /// </param>
+        /// <exception cref='Exception'>
+        /// Represents errors that occur during application execution.
+        /// </exception>
         public WxServiceConnector(IConfigSource config, IHttpServer server, string configName)
             : base(config, server, configName)
         {
             m_HttpServer = server;
-            // Load wxService here
-            // Add stream handlers vvv Grid
+
             IConfig serverConfig = config.Configs[m_ConfigName];
             if (serverConfig == null)
-                throw new Exception(String.Format("No section {0} in config file", m_ConfigName));
+                throw new Exception(String.Format("[Wx]: No section {0} in config file", m_ConfigName));
 
             string WxService = serverConfig.GetString("LocalServiceModule",
                     String.Empty);
 
             if (WxService == String.Empty)
-                throw new Exception("No LocalServiceModule in config file");
+                throw new Exception("[Wx]: No LocalServiceModule in config file");
 
-            Object[] args = new Object[] { config, server };
+            Object[] args = new Object[] { config, m_HttpServer };
             m_WxService = ServerUtils.LoadPlugin<IWxService>(WxService, args);
 
-            // BLUEWALL: Getting started again,
-            // the WxService can be loaded up then it can take over loading if it knows the server
-            // I'm pretty sure the entry below was done before the split. So, it may not be relevent now
-            //
-            // We can add the handlers here from some loader mechanism to make it pluggable
-            // so from our application we do something like...
-            // m_Connector.addHandler(new Handler(ServiceNameForMe))...
-            // Then we will add the handler object and pass ServiceName
-            // ***This is our time to pass the needed handlers back up to init
-            //    the handler
-            // BLUEWALL: need to pickup the handlers here and push them to the httpd server
-            //            via the WxService handler initializer
-            //
-            //            May be able to push the server up to the WxService so it will be
-            //            able to register them as it loads them.
-            //
-            // vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-            //server.AddStreamHandler(new WxPostHandler(m_WxService));
+            if(m_WxService == null)
+                throw new Exception("[Wx]: Could not load WxService!");
         }
     }
 }

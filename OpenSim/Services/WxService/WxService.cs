@@ -1,3 +1,30 @@
+/*
+ * Copyright (c) Contributors, http://opensimulator.org/
+ * See CONTRIBUTORS.TXT for a full list of copyright holders.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the OpenSimulator Project nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY
+ * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 using System;
 using System.Reflection;
 using System.Collections.Generic;
@@ -15,11 +42,11 @@ using OpenMetaverse;
 
 namespace OpenSim.Services.WxService
 {
-    // This will be the extension type for the handlers
+    /// <summary>
+    /// Interface for user-provided WxService handlers.
+    /// </summary>
     public interface IWxHandler
     {
-
-        void Test();
         void Init(IConfigSource config);
         void AddWxHandler();
     }
@@ -36,12 +63,7 @@ namespace OpenSim.Services.WxService
                 new List<IWxHandler>();
 
         private IConfigSource m_Config;
-        // The methods here will talk to the database
-        // This is loaded by our ServerHandler as the "LocalServiceModule = " in the section named by the
-        // m_ConfigName value
-        //
-        // Need to look at connectors
-        //
+
         /// <summary>
         /// Initializes a new instance of the <see cref="OpenSim.Services.WxService.WxService"/> class.
         /// </summary>
@@ -52,48 +74,42 @@ namespace OpenSim.Services.WxService
             : base (config)
         {
             m_HttpServer = server;
-            m_log.InfoFormat("[BWx]: BlueWall Wx Loading ... ");
+            m_log.InfoFormat("[Wx]: WxService Loading ... ");
             m_Config = config;
             IConfig WxConfig = config.Configs["WxService"];
-            // IConfig WxHandlerConfig = config.Configs["WxHandlers"];
-            string handlerList = WxConfig.GetString("WxHandlers", String.Empty);
+            string handlerList = null;
 
-            // Load our configuration items
             if (WxConfig != null)
             {
-                // Register handlers...
-                // server.AddStreamHandler(new WxPostHandler(m_WxService));
-
-                // Initialization: the ServerConnector just wants to get this loaded and doesn't
-                //                 read the rest. Then, we can load assemblies that are needed
-                //                 here to do our own work. The handlers will supply the information
-                //                 needed to load their assemblies.
-
+                handlerList = WxConfig.GetString("WxHandlers", String.Empty);
             }
 
-            // Now load the handler plugins
+            // load the handler plugins
             if (handlerList != null)
             {
-                m_log.InfoFormat("[WxService]: Wx Loading Handlers... ");
+                m_log.InfoFormat("[Wx]: WxService Loading Handlers... ");
 
                 string dllName = null;
                 string asyName = null;
 
                 // [WxService]::WxHandlers contains the handler plugin configurations
-                // Handler.dll:HandlerAssembly@HandlerConfig
-                // string handlerList = WxConfig.GetString("WxHandlers", String.Empty);
+                // Handler.dll:HandlerAssembly;
                 string[] handlers = handlerList.Split(new char[] {',', ' '});
 
                 foreach (string handler in handlers )
                 {
-                    // split into dllName and AssemblyName@ConfigName
+                    // split into dllName and AssemblyName
                     string[] s1 = handler.Split( new char[] {':'});
                     if (s1.Length > 1)
                     {
                         dllName = s1[0];
                         asyName = s1[1];
                     }
-                    // Need an error message here and exit if we have mal-formed config settings
+                    else
+                    {
+                        m_log.FatalFormat("[Wx]: Could not load handler: {0}", handler);
+                        continue;
+                    }
 
                     IWxHandler handlerObj = null;
 
@@ -107,16 +123,30 @@ namespace OpenSim.Services.WxService
                     // Will add any startup methods needed to the interface
                     if ( handlerObj != null )
                     {
-
                         m_WxHandlers.Add(handlerObj);
                         handlerObj.Init(m_Config);
                         handlerObj.AddWxHandler();
-
+                    }
+                    else
+                    {
+                        m_log.FatalFormat("[Wx]: Could not load handler: {0}", dllName);
+                        throw new Exception("[Wx]: Could not load handler");
                     }
                 }
             }
+            else
+            {
+                m_log.Fatal("[Wx]: No WxHandlers section in ini, cannot proceed!");
+                throw new Exception("No WxHandlers section in ini, cannot proceed!");
+            }
         }
 
+        /// <summary>
+        /// Adds the wx handler to our server.
+        /// </summary>
+        /// <param name='handler'>
+        /// Handler.
+        /// </param>
         public void AddWxHandler(BaseStreamHandler handler)
         {
             m_HttpServer.AddStreamHandler(handler);

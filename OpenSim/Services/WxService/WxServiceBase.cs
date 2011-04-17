@@ -17,10 +17,6 @@ namespace OpenSim.Services.WxService
             string dllName = String.Empty;
             string connString = String.Empty;
             string realm = "regions";
-
-            // Do our configuration here
-            // Can load database connectors and plugins referenced in the config
-
             //
             // Try reading the [DatabaseService] section, if it exists
             //

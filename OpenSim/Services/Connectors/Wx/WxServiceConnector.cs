@@ -29,6 +29,10 @@ namespace OpenSim.Services.Connectors
         public UserAccount GetUserData(UUID userID) {
             return null;
         }
+
+        public void AddWxHandler(BaseStreamHandler handler)
+        {
+        }
     }
 }
 

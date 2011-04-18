@@ -2169,9 +2169,13 @@ namespace OpenSim.Region.Framework.Scenes
                 sceneObject.RootPart.SetParentLocalId(avatar.LocalId);
             }
 
-            //SYMMETRIC SYNC, 
+            //DSG SYNC, 
+            sceneObject.HasGroupChanged = true;
+            //NewObject is sent via a specific sync message, not through updates;
+            //hence not passing any property list here in calling
+            //ScheduleGroupForFullUpdate().
             sceneObject.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
-            //end of SYMMETRIC SYNC, 
+            //end of DSG SYNC, 
 
             Entities.Add(sceneObject);
 

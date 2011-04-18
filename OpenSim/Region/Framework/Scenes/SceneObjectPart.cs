@@ -3204,7 +3204,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             //SYMMETRIC SYNC
             //KittyL: 04/06/2011, No longer calling QueueSceneObjectPartForUpdate 
-            //from here. Local updates are now recorded by calling IRegionSyncModule.RecordPrimUpdatesByLocal().
+            //from here. Local updates are now recorded by calling IRegionSyncModule.ProcessAndEnqueuePrimUpdatesByLocal().
             /*
             if (m_parentGroup.Scene.RegionSyncModule != null)
             {                
@@ -6070,13 +6070,13 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (updatedProperties != null && updatedProperties.Count > 0)
             {
-                if (m_parentGroup != null && m_parentGroup.Scene.RegionSyncModule != null)
+                if (m_parentGroup != null && m_parentGroup.Scene!=null && m_parentGroup.Scene.RegionSyncModule != null)
                 {
                     m_parentGroup.Scene.RegionSyncModule.ProcessAndEnqueuePrimUpdatesByLocal(this, updatedProperties);
                 }
             }
 
-            base.ScheduleTerseUpdate(updatedProperties);
+            base.ScheduleFullUpdate(updatedProperties);
         }
 
         public override void ScheduleTerseUpdate(List<SceneObjectPartSyncProperties> updatedProperties)
@@ -6135,6 +6135,11 @@ namespace OpenSim.Region.Framework.Scenes
         {
             base.PhysicsCollision(e);
         }
+
+        ///////////////////////////////////////////////////////////////////////
+        //Per property sync functions
+        ///////////////////////////////////////////////////////////////////////
+
     }
 
     //end of SYMMETRIC SYNC

@@ -71,6 +71,7 @@ namespace OpenSim.Region.Framework.Interfaces
         //void QueueSceneObjectPartForUpdate(SceneObjectPart part);
         void QueueScenePresenceForTerseUpdate(ScenePresence presence);
 
+        //void ProcessAndEnqueuePrimUpdatesBySync(SceneObjectPart part, List<SceneObjectPartSyncProperties> updatedProperties);
         void ProcessAndEnqueuePrimUpdatesByLocal(SceneObjectPart part, List<SceneObjectPartSyncProperties> updatedProperties);
         void SyncOutPrimUpdates();
 

@@ -80,13 +80,14 @@ namespace OpenSim.Region.Framework.Interfaces
         //void SendSceneUpdates();
         void SendNewObject(SceneObjectGroup sog);
         void SendDeleteObject(SceneObjectGroup sog, bool softDelete);
+        void SendLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children);
+        void SendDeLinkObject(List<SceneObjectPart> prims, List<SceneObjectGroup> beforeDelinkGroups, List<SceneObjectGroup> afterDelinkGroups);
 
         //New functions for per property sync'ing
         void SyncNewObject(SceneObjectGroup sog);
         void SyncDeleteObject(SceneObjectGroup sog, bool softDelete);
-
-        void SendLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children);
-        void SendDeLinkObject(List<SceneObjectPart> prims, List<SceneObjectGroup> beforeDelinkGroups, List<SceneObjectGroup> afterDelinkGroups);
+        void SyncLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children);
+        void SyncDeLinkObject(List<SceneObjectPart> prims, List<SceneObjectGroup> beforeDelinkGroups, List<SceneObjectGroup> afterDelinkGroups);
 
         //In RegionSyncModule's implementation, 
         //The following calls send out a message immediately, w/o putting it in the SyncConnector's outgoing queue.

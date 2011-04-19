@@ -1631,13 +1631,13 @@ namespace OpenSim.Region.Framework.Scenes
                 parentGroup.TriggerScriptChangedEvent(Changed.LINK);
                 parentGroup.HasGroupChanged = true;
 
-                //SYMMETRIC SYNC
-                //Schedule a LinkObject message for synchronization purpose. This will lead to enqueue a LinkObject message in SyncConnector's outgoingQueue,
-                //so should return quickly. 
+                //DSG SYNC
+                //Send out LinkObject sync messages. 
                 if (m_parentScene.RegionSyncModule != null)
                 {
                     //Tell other actors to link the SceneObjectParts together as a new group. 
-                    m_parentScene.RegionSyncModule.SendLinkObject(parentGroup, root, children);
+                    //m_parentScene.RegionSyncModule.SendLinkObject(parentGroup, root, children);
+                    m_parentScene.RegionSyncModule.SyncLinkObject(parentGroup, root, children);
                 }
 
                 //Schedule updates as in legacy OpenSim code, to send updates to viewers connected to this actor (at least needed for client managers).
@@ -1645,7 +1645,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //via the LinkObject message sent above.
                 parentGroup.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
 
-                //end of SYMMETRIC SYNC
+                //end of DSG SYNC
                 
             }
             finally

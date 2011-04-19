@@ -827,15 +827,13 @@ namespace OpenSim.Region.Framework.Scenes
             //m_log.Debug("to link " + children.Count + " parts with " + root.Name);
 
             //Leverage the LinkObject implementation to get the book keeping of Group and Parts relations right
-            m_sceneGraph.LinkObjectsBySync(root, children);
+            m_sceneGraph.LinkObjectsBySync(root, children); 
 
 
-            //The properties of the newly linked object should be updated later with another UpdatedObject message. 
-
+            //KittyL 04/19/2011: no longer update properties here, caller will do it
             //Set the property values as in the incoming copy of the object group
-
-            SceneObjectGroup localGroup = root.ParentGroup;
-            localGroup.UpdateObjectGroupBySync(linkedGroup);
+            //SceneObjectGroup localGroup = root.ParentGroup;
+            //localGroup.UpdateObjectGroupBySync(linkedGroup);
 
             //debug
             /*

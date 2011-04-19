@@ -599,6 +599,92 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SendSpecialObjectUpdateToRelevantSyncConnectors(m_actorID, sog, rsm);
         }
 
+        public void SyncLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children)
+        {
+            if (children.Count == 0) return;
+
+            if (!IsSyncingWithOtherSyncNodes())
+            {
+                //no SyncConnector connected. Do nothing.
+                return;
+            }
+
+            //First, make sure the linked group has updated timestamp info for synchronization
+            linkedGroup.BucketSyncInfoUpdate();
+
+            OSDMap data = new OSDMap();
+            OSDMap encodedSOG = SceneObjectEncoder(linkedGroup);
+            data["linkedGroup"] = encodedSOG;
+            data["rootID"] = OSD.FromUUID(root.UUID);
+            data["partCount"] = OSD.FromInteger(children.Count);
+            data["actorID"] = OSD.FromString(m_actorID);
+            int partNum = 0;
+            foreach (SceneObjectPart part in children)
+            {
+                string partTempID = "part" + partNum;
+                data[partTempID] = OSD.FromUUID(part.UUID);
+                partNum++;
+
+                //m_log.DebugFormat("{0}: SendLinkObject to link {1},{2} with {3}, {4}", part.Name, part.UUID, root.Name, root.UUID);
+            }
+
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.LinkObject, OSDParser.SerializeJsonString(data));
+            SendSpecialObjectUpdateToRelevantSyncConnectors(m_actorID, linkedGroup, rsm);
+            //SendSceneEventToRelevantSyncConnectors(m_actorID, rsm, linkedGroup);
+        }
+
+        public void SyncDeLinkObject(List<SceneObjectPart> prims, List<SceneObjectGroup> beforeDelinkGroups, List<SceneObjectGroup> afterDelinkGroups)
+        {
+            if (prims.Count == 0 || beforeDelinkGroups.Count == 0) return;
+
+            if (!IsSyncingWithOtherSyncNodes())
+            {
+                //no SyncConnector connected. Do nothing.
+                return;
+            }
+
+            OSDMap data = new OSDMap();
+            data["partCount"] = OSD.FromInteger(prims.Count);
+            int partNum = 0;
+            foreach (SceneObjectPart part in prims)
+            {
+                string partTempID = "part" + partNum;
+                data[partTempID] = OSD.FromUUID(part.UUID);
+                partNum++;
+            }
+            //We also include the IDs of beforeDelinkGroups, for now it is more for sanity checking at the receiving end, so that the receiver 
+            //could make sure its delink starts with the same linking state of the groups/prims.
+            data["beforeGroupsCount"] = OSD.FromInteger(beforeDelinkGroups.Count);
+            int groupNum = 0;
+            foreach (SceneObjectGroup affectedGroup in beforeDelinkGroups)
+            {
+                string groupTempID = "beforeGroup" + groupNum;
+                data[groupTempID] = OSD.FromUUID(affectedGroup.UUID);
+                groupNum++;
+            }
+
+            //include the property values of each object after delinking, for synchronizing the values
+            data["afterGroupsCount"] = OSD.FromInteger(afterDelinkGroups.Count);
+            groupNum = 0;
+            foreach (SceneObjectGroup afterGroup in afterDelinkGroups)
+            {
+                string groupTempID = "afterGroup" + groupNum;
+                string sogxml = SceneObjectSerializer.ToXml2Format(afterGroup);
+                data[groupTempID] = OSD.FromString(sogxml);
+                groupNum++;
+            }
+
+            //make sure the newly delinked objects have the updated timestamp information
+            foreach (SceneObjectGroup sog in afterDelinkGroups)
+            {
+                sog.BucketSyncInfoUpdate();
+            }
+
+            SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.DelinkObject, OSDParser.SerializeJsonString(data));
+            SendDelinkObjectToRelevantSyncConnectors(m_actorID, beforeDelinkGroups, rsm);
+        }
+
+
         #endregion //IRegionSyncModule  
 
         #region ICommandableModule Members
@@ -2153,7 +2239,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.NewObject:
-                    HandleAddNewObject(msg, senderActorID);
+                    //HandleAddNewObject(msg, senderActorID);
+                    HandleSyncNewObject(msg, senderActorID);
                     break;
                 case SymmetricSyncMessage.MsgType.UpdatedPrimProperties:
                     HandleUpdatedPrimProperties(msg, senderActorID);
@@ -2176,12 +2263,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                 case SymmetricSyncMessage.MsgType.LinkObject:
                     {
-                        HandleLinkObject(msg, senderActorID);
+                        //HandleLinkObject(msg, senderActorID);
+                        HandleSyncLinkObject(msg, senderActorID);
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.DelinkObject:
                     {
-                        HandleDelinkObject(msg, senderActorID);
+                        //HandleDelinkObject(msg, senderActorID);
+                        HandleSyncDelinkObject(msg, senderActorID);
                         return;
                     }
                     //EVENTS PROCESSING
@@ -2241,7 +2330,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Per property sync handlers
         ///////////////////////////////////////////////////////////////////////
 
-        private void HandleAddNewObject(SymmetricSyncMessage msg, string senderActorID)
+        private void HandleSyncNewObject(SymmetricSyncMessage msg, string senderActorID)
         {
 
             OSDMap data = DeserializeMessage(msg);
@@ -2260,8 +2349,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
             }
              * */ 
-
-            //NewObjectMessageDecoder(data, out sog);
             
             AddNewSceneObjectByDecoding(data);
 
@@ -2302,10 +2389,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 List<SceneObjectPartSyncProperties> propertiesUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoBySync(sop, propertiesSyncInfo);
 
                 //SYNC DEBUG
-                if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.Shape))
-                {
-                    m_log.DebugFormat("Shape updated: " + PropertySerializer.SerializeShape(sop)); 
-                }
+                //if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.Shape))
+                //{
+                //    m_log.DebugFormat("Shape updated: " + PropertySerializer.SerializeShape(sop)); 
+                //}
 
                 if (propertiesUpdated.Count > 0)
                 {
@@ -2319,9 +2406,161 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        private void HandleSyncLinkObject(SymmetricSyncMessage msg, string senderActorID)
+        {
+
+            // Get the data from message and error check
+            OSDMap data = DeserializeMessage(msg);
+            if (data == null)
+            {
+                SymmetricSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                return;
+            }
+
+            OSDMap encodedSOG = (OSDMap)data["linkedGroup"];
+            SceneObjectGroup linkedGroup;
+            Dictionary<UUID, PrimSyncInfo> primsSyncInfo;
+
+            SceneObjectDecoder(encodedSOG, out linkedGroup, out primsSyncInfo);
+
+            if (linkedGroup == null)
+            {
+                m_log.WarnFormat("{0}: HandleSyncLinkObject, no valid Linked-Group has been deserialized", LogHeader);
+                return;
+            }
+
+            UUID rootID = data["rootID"].AsUUID();
+            int partCount = data["partCount"].AsInteger();
+            List<UUID> childrenIDs = new List<UUID>();
+
+
+            //if this is a relay node, forwards the event
+            if (m_isSyncRelay)
+            {
+                //SendSceneEventToRelevantSyncConnectors(senderActorID, msg, linkedGroup);
+                SendSpecialObjectUpdateToRelevantSyncConnectors(senderActorID, linkedGroup, msg);
+            }
+
+            for (int i = 0; i < partCount; i++)
+            {
+                string partTempID = "part" + i;
+                childrenIDs.Add(data[partTempID].AsUUID());
+            }
+
+            //TEMP SYNC DEBUG
+            //m_log.DebugFormat("{0}: received LinkObject from {1}", LogHeader, senderActorID);
+
+            m_scene.LinkObjectBySync(linkedGroup, rootID, childrenIDs);
+
+            //Update properties, if any has changed
+            foreach (KeyValuePair<UUID, PrimSyncInfo> incomingPrimSyncInfo in primsSyncInfo)
+            {
+                UUID primUUID = incomingPrimSyncInfo.Key;
+                PrimSyncInfo updatedPrimSyncInfo = incomingPrimSyncInfo.Value;
+
+                SceneObjectPart part = m_scene.GetSceneObjectPart(primUUID);
+                if (part == null)
+                {
+                    m_log.WarnFormat("{0}: HandleSyncLinkObject, prim {1} not in local Scene Graph after LinkObjectBySync is called", LogHeader, primUUID);
+                }
+                else
+                {
+                    m_primSyncInfoManager.UpdatePrimSyncInfoBySync(part, updatedPrimSyncInfo);
+                }
+            }
+        }
+
+        private void HandleSyncDelinkObject(SymmetricSyncMessage msg, string senderActorID)
+        {
+
+
+            OSDMap data = DeserializeMessage(msg);
+            if (data == null)
+            {
+                SymmetricSyncMessage.HandleError(LogHeader, msg, "Could not deserialize JSON data.");
+                return;
+            }
+
+            //List<SceneObjectPart> localPrims = new List<SceneObjectPart>();
+            List<UUID> delinkPrimIDs = new List<UUID>();
+            List<UUID> beforeDelinkGroupIDs = new List<UUID>();
+            List<SceneObjectGroup> incomingAfterDelinkGroups = new List<SceneObjectGroup>();
+
+            int partCount = data["partCount"].AsInteger();
+            for (int i = 0; i < partCount; i++)
+            {
+                string partTempID = "part" + i;
+                UUID primID = data[partTempID].AsUUID();
+                //SceneObjectPart localPart = m_scene.GetSceneObjectPart(primID);
+                //localPrims.Add(localPart);
+                delinkPrimIDs.Add(primID);
+            }
+
+            int beforeGroupCount = data["beforeGroupsCount"].AsInteger();
+            for (int i = 0; i < beforeGroupCount; i++)
+            {
+                string groupTempID = "beforeGroup" + i;
+                UUID beforeGroupID = data[groupTempID].AsUUID();
+                beforeDelinkGroupIDs.Add(beforeGroupID);
+            }
+
+            int afterGroupsCount = data["afterGroupsCount"].AsInteger();
+            for (int i = 0; i < afterGroupsCount; i++)
+            {
+                string groupTempID = "afterGroup" + i;
+                string sogxml = data[groupTempID].AsString();
+                //SceneObjectGroup afterGroup = SceneObjectSerializer.FromXml2Format(sogxml);
+                SceneObjectGroup afterGroup = DecodeSceneObjectGroup(sogxml);
+                incomingAfterDelinkGroups.Add(afterGroup);
+            }
+
+            //if this is a relay node, forwards the event
+            if (m_isSyncRelay)
+            {
+                List<SceneObjectGroup> beforeDelinkGroups = new List<SceneObjectGroup>();
+                foreach (UUID sogID in beforeDelinkGroupIDs)
+                {
+                    SceneObjectGroup sog = m_scene.SceneGraph.GetGroupByPrim(sogID);
+                    beforeDelinkGroups.Add(sog);
+                }
+                SendDelinkObjectToRelevantSyncConnectors(senderActorID, beforeDelinkGroups, msg);
+            }
+
+            m_scene.DelinkObjectsBySync(delinkPrimIDs, beforeDelinkGroupIDs, incomingAfterDelinkGroups);
+
+        }
+
+
         ///////////////////////////////////////////////////////////////////////
         // Bucket sync handlers
         ///////////////////////////////////////////////////////////////////////
+
+        private void HandleAddNewObject(SymmetricSyncMessage msg, string senderActorID)
+        {
+
+            OSDMap data = DeserializeMessage(msg);
+
+            //if this is a relay node, forward the event
+            Vector3 globalPos = data["GroupPosition"].AsVector3();
+            if (m_isSyncRelay)
+            {
+                SendSpecialObjectUpdateToRelevantSyncConnectors(senderActorID, globalPos, msg);
+            }
+
+            /*
+            if (!m_syncQuarkManager.IsPosInSyncQuarks(globalPos))
+            {
+                m_log.WarnFormat("{0}: Received an update for object at global pos {1}, not within local quarks, ignore the update", LogHeader, globalPos.ToString());
+                return;
+            }
+             * */
+
+            SceneObjectGroup sog;
+            Object group;
+            NewObjectMessageDecoder(data, out group);
+            sog = (SceneObjectGroup)group; 
+            //Might need to do something with SOG, or no more actions, just return
+        }
 
         /// <summary>
         /// Handler of UpdatedObject message. Note: for a relay node in the 
@@ -3375,6 +3614,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (syncData.Count > 0)
             {
                 //SYNC DEBUG
+                
                 string pString = "";
                 foreach (SceneObjectPartSyncProperties property in updatedProperties)
                 {
@@ -3383,10 +3623,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.DebugFormat("{0}: SendPrimPropertyUpdates for {1}, {2}, with updated properties -- {3}", LogHeader, sop.Name, sop.UUID, pString);
 
                 //SYNC DEBUG
+                /*
                 if (updatedProperties.Contains(SceneObjectPartSyncProperties.Shape))
                 {
                     m_log.DebugFormat("Shape updated: " + PropertySerializer.SerializeShape(sop));
                 }
+                 * */ 
 
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedPrimProperties, OSDParser.SerializeJsonString(syncData));
                 SendPrimUpdateToRelevantSyncConnectors(primUUID, syncMsg);
@@ -4677,6 +4919,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             return propertiesUpdated;
         }
+
+        public List<SceneObjectPartSyncProperties> UpdatePropertiesBySync(SceneObjectPart part, PrimSyncInfo updatedPrimSyncInfo)
+        {
+            HashSet<PropertySyncInfo> propertiesSyncInfo = new HashSet<PropertySyncInfo>(updatedPrimSyncInfo.PropertiesSyncInfo.Values);
+            return UpdatePropertiesBySync(part, propertiesSyncInfo);
+        }
+
 
         /// <summary>
         /// Encode the SyncInfo of each property, including its current value 
@@ -6464,6 +6713,20 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        public List<SceneObjectPartSyncProperties> UpdatePrimSyncInfoBySync(SceneObjectPart part, PrimSyncInfo updatedPrimSyncInfo)
+        {
+            if (m_primsInSync.ContainsKey(part.UUID))
+            {
+                PrimSyncInfo primSyncInfo = m_primsInSync[part.UUID];
+                return primSyncInfo.UpdatePropertiesBySync(part, updatedPrimSyncInfo);
+            }
+            else
+            {
+                //This should not happen, as we should only receive UpdatedPrimProperties after receiving a NewObject message
+                m_log.WarnFormat("PrimSyncInfoManager.UpdatePrimSyncInfoBySync: SOP {0},{1} not in local record of PrimSyncInfo.", part.Name, part.UUID);
+                return new List<SceneObjectPartSyncProperties>();
+            }
+        }
 
         public OSDMap EncodePrimProperties(UUID primUUID, HashSet<SceneObjectPartSyncProperties> updatedProperties)
         {

@@ -578,7 +578,6 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         private static void ProcessScale(SceneObjectPart obj, XmlTextReader reader)
         {
             obj.Scale = Util.ReadVector(reader, "Scale");
-            //obj.SetScale(Util.ReadVector(reader, "Scale"));
         }
 
         private static void ProcessUpdateFlag(SceneObjectPart obj, XmlTextReader reader)
@@ -1471,6 +1470,9 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 writer.WriteElementString("ProfileBegin", shp.ProfileBegin.ToString());
                 writer.WriteElementString("ProfileEnd", shp.ProfileEnd.ToString());
                 writer.WriteElementString("ProfileHollow", shp.ProfileHollow.ToString());
+                //DSG SYNC: added serialization of Shape
+                WriteVector(writer, "Scale", shp.Scale);
+                //end of DSG SYNC
                 writer.WriteElementString("State", shp.State.ToString());
 
                 WriteFlags(writer, "ProfileShape", shp.ProfileShape.ToString(), options);

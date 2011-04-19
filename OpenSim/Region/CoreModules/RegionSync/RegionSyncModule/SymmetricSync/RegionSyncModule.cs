@@ -2291,12 +2291,27 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             if (propertiesSyncInfo.Count>0)
             {
+                //SYNC DEBUG
+                string pString = "";
+                foreach (PropertySyncInfo p in propertiesSyncInfo)
+                {
+                    pString += p.Property.ToString() + " ";
+                }
+                m_log.DebugFormat("{0}: HandleUpdatedPrimProperties, for prim {1},{2} with updated properties -- {3}", LogHeader, sop.Name, sop.UUID, pString);
+
                 List<SceneObjectPartSyncProperties> propertiesUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoBySync(sop, propertiesSyncInfo);
+
+                //SYNC DEBUG
+                if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.Shape))
+                {
+                    m_log.DebugFormat("Shape updated: " + PropertySerializer.SerializeShape(sop)); 
+                }
 
                 if (propertiesUpdated.Count > 0)
                 {
                     //Enqueue the updated SOP and its properties for sync 
                     ProcessAndEnqueuePrimUpdatesBySync(sop, propertiesUpdated);
+
                     //Calling SOP.ScheduleFullUpdate(), so that viewers, if any,
                     //will receive updates as well.
                     sop.ScheduleFullUpdate(null);
@@ -3350,10 +3365,29 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void SendPrimPropertyUpdates(UUID primUUID, HashSet<SceneObjectPartSyncProperties> updatedProperties)
         {
+            SceneObjectPart sop = m_scene.GetSceneObjectPart(primUUID);
+
+            if (sop == null || sop.ParentGroup.IsDeleted)
+                return; 
+
             OSDMap syncData = m_primSyncInfoManager.EncodePrimProperties(primUUID, updatedProperties);
 
             if (syncData.Count > 0)
             {
+                //SYNC DEBUG
+                string pString = "";
+                foreach (SceneObjectPartSyncProperties property in updatedProperties)
+                {
+                    pString += property.ToString() + " ";
+                }
+                m_log.DebugFormat("{0}: SendPrimPropertyUpdates for {1}, {2}, with updated properties -- {3}", LogHeader, sop.Name, sop.UUID, pString);
+
+                //SYNC DEBUG
+                if (updatedProperties.Contains(SceneObjectPartSyncProperties.Shape))
+                {
+                    m_log.DebugFormat("Shape updated: " + PropertySerializer.SerializeShape(sop));
+                }
+
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedPrimProperties, OSDParser.SerializeJsonString(syncData));
                 SendPrimUpdateToRelevantSyncConnectors(primUUID, syncMsg);
             }

@@ -6083,7 +6083,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (updatedProperties != null && updatedProperties.Count > 0)
             {
-                if (m_parentGroup != null && m_parentGroup.Scene.RegionSyncModule != null)
+                if (m_parentGroup != null && m_parentGroup.Scene != null && m_parentGroup.Scene.RegionSyncModule != null)
                 {
                     m_parentGroup.Scene.RegionSyncModule.ProcessAndEnqueuePrimUpdatesByLocal(this, updatedProperties);
                 }

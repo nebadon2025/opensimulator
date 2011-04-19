@@ -609,9 +609,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
             }
 
-            //First, make sure the linked group has updated timestamp info for synchronization
-            linkedGroup.BucketSyncInfoUpdate();
-
             OSDMap data = new OSDMap();
             OSDMap encodedSOG = SceneObjectEncoder(linkedGroup);
             data["linkedGroup"] = encodedSOG;
@@ -669,15 +666,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             foreach (SceneObjectGroup afterGroup in afterDelinkGroups)
             {
                 string groupTempID = "afterGroup" + groupNum;
-                string sogxml = SceneObjectSerializer.ToXml2Format(afterGroup);
-                data[groupTempID] = OSD.FromString(sogxml);
+                //string sogxml = SceneObjectSerializer.ToXml2Format(afterGroup);
+                //data[groupTempID] = OSD.FromString(sogxml);
+                OSDMap encodedSOG = SceneObjectEncoder(afterGroup);
+                data[groupTempID] = encodedSOG;
                 groupNum++;
-            }
-
-            //make sure the newly delinked objects have the updated timestamp information
-            foreach (SceneObjectGroup sog in afterDelinkGroups)
-            {
-                sog.BucketSyncInfoUpdate();
             }
 
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.DelinkObject, OSDParser.SerializeJsonString(data));
@@ -2420,7 +2413,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             OSDMap encodedSOG = (OSDMap)data["linkedGroup"];
             SceneObjectGroup linkedGroup;
             Dictionary<UUID, PrimSyncInfo> primsSyncInfo;
-
             SceneObjectDecoder(encodedSOG, out linkedGroup, out primsSyncInfo);
 
             if (linkedGroup == null)
@@ -2433,18 +2425,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             int partCount = data["partCount"].AsInteger();
             List<UUID> childrenIDs = new List<UUID>();
 
+            for (int i = 0; i < partCount; i++)
+            {
+                string partTempID = "part" + i;
+                childrenIDs.Add(data[partTempID].AsUUID());
+            }
 
             //if this is a relay node, forwards the event
             if (m_isSyncRelay)
             {
                 //SendSceneEventToRelevantSyncConnectors(senderActorID, msg, linkedGroup);
                 SendSpecialObjectUpdateToRelevantSyncConnectors(senderActorID, linkedGroup, msg);
-            }
-
-            for (int i = 0; i < partCount; i++)
-            {
-                string partTempID = "part" + i;
-                childrenIDs.Add(data[partTempID].AsUUID());
             }
 
             //TEMP SYNC DEBUG
@@ -2472,8 +2463,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void HandleSyncDelinkObject(SymmetricSyncMessage msg, string senderActorID)
         {
-
-
             OSDMap data = DeserializeMessage(msg);
             if (data == null)
             {
@@ -2485,6 +2474,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             List<UUID> delinkPrimIDs = new List<UUID>();
             List<UUID> beforeDelinkGroupIDs = new List<UUID>();
             List<SceneObjectGroup> incomingAfterDelinkGroups = new List<SceneObjectGroup>();
+            List<Dictionary<UUID, PrimSyncInfo>> incomingPrimSyncInfo = new List<Dictionary<UUID, PrimSyncInfo>>();
 
             int partCount = data["partCount"].AsInteger();
             for (int i = 0; i < partCount; i++)
@@ -2508,10 +2498,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             for (int i = 0; i < afterGroupsCount; i++)
             {
                 string groupTempID = "afterGroup" + i;
-                string sogxml = data[groupTempID].AsString();
-                //SceneObjectGroup afterGroup = SceneObjectSerializer.FromXml2Format(sogxml);
-                SceneObjectGroup afterGroup = DecodeSceneObjectGroup(sogxml);
+                //string sogxml = data[groupTempID].AsString();
+                SceneObjectGroup afterGroup;
+                OSDMap encodedSOG = (OSDMap)data[groupTempID];
+                Dictionary<UUID, PrimSyncInfo> primsSyncInfo;
+                SceneObjectDecoder(encodedSOG, out afterGroup, out primsSyncInfo);
                 incomingAfterDelinkGroups.Add(afterGroup);
+                incomingPrimSyncInfo.Add(primsSyncInfo);
             }
 
             //if this is a relay node, forwards the event
@@ -2528,6 +2521,26 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             m_scene.DelinkObjectsBySync(delinkPrimIDs, beforeDelinkGroupIDs, incomingAfterDelinkGroups);
 
+            //Sync properties 
+            //Update properties, for each prim in each deLinked-Object
+            foreach (Dictionary<UUID, PrimSyncInfo> primsSyncInfo in incomingPrimSyncInfo)
+            {
+                foreach (KeyValuePair<UUID, PrimSyncInfo> inPrimSyncInfo in primsSyncInfo)
+                {
+                    UUID primUUID = inPrimSyncInfo.Key;
+                    PrimSyncInfo updatedPrimSyncInfo = inPrimSyncInfo.Value;
+
+                    SceneObjectPart part = m_scene.GetSceneObjectPart(primUUID);
+                    if (part == null)
+                    {
+                        m_log.WarnFormat("{0}: HandleSyncDelinkObject, prim {1} not in local Scene Graph after DelinkObjectsBySync is called", LogHeader, primUUID);
+                    }
+                    else
+                    {
+                        m_primSyncInfoManager.UpdatePrimSyncInfoBySync(part, updatedPrimSyncInfo);
+                    }
+                }
+            }
         }
 
 

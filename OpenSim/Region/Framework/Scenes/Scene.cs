@@ -846,6 +846,14 @@ namespace OpenSim.Region.Framework.Scenes
              * */ 
         }
 
+        /// <summary>
+        /// Delink objects after receiving DelinkObject sync message.
+        /// Assumption: the actor whichever initiates the DelinkObject
+        /// operation has already done premission checking.
+        /// </summary>
+        /// <param name="delinkPrimIDs"></param>
+        /// <param name="beforeDelinkGroupIDs"></param>
+        /// <param name="incomingAfterDelinkGroups"></param>
         public void DelinkObjectsBySync(List<UUID> delinkPrimIDs, List<UUID> beforeDelinkGroupIDs, List<SceneObjectGroup> incomingAfterDelinkGroups)
         {
             m_sceneGraph.DelinkObjectsBySync(delinkPrimIDs, beforeDelinkGroupIDs, incomingAfterDelinkGroups);

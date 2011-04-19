@@ -1643,7 +1643,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //Schedule updates as in legacy OpenSim code, to send updates to viewers connected to this actor (at least needed for client managers).
                 //But timestamp won't be changed, so that when other actors get the update, they's simple ignore the updates since they already get them
                 //via the LinkObject message sent above.
-                parentGroup.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
+                parentGroup.ScheduleGroupForFullUpdate(null);
 
                 //end of DSG SYNC
                 
@@ -1782,19 +1782,19 @@ namespace OpenSim.Region.Framework.Scenes
                     afterDelinkGroups.Add(g);
                 }
 
-                //SYMMETRIC SYNC
+                //DSG SYNC
                 //Send out DelinkObject message to other actors to sychronize their object list 
                 if (m_parentScene.RegionSyncModule != null)
                 {
-                    m_parentScene.RegionSyncModule.SendDeLinkObject(prims, beforeDelinkGroups, afterDelinkGroups);
+                    m_parentScene.RegionSyncModule.SyncDeLinkObject(prims, beforeDelinkGroups, afterDelinkGroups);
                 }
-                //Schedule updates as in legacy OpenSim code, to send updates to viewers connected to this actor (at least needed for client managers).
-                //But timestamp won't be changed, so that when other actors get the update, they's simple ignore the updates since they already get them
+                //Schedule updates as in legacy OpenSim code, to send updates 
+                //to viewers connected to this actor (at least needed for client managers).
                 foreach (SceneObjectGroup sog in afterDelinkGroups)
                 {
-                    sog.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
+                    sog.ScheduleGroupForFullUpdate(null);
                 }
-                //end of SYMMETRIC SYNC
+                //end of DSG SYNC
             }
             finally
             {
@@ -2174,7 +2174,7 @@ namespace OpenSim.Region.Framework.Scenes
             //NewObject is sent via a specific sync message, not through updates;
             //hence not passing any property list here in calling
             //ScheduleGroupForFullUpdate().
-            sceneObject.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
+            sceneObject.ScheduleGroupForFullUpdate(null);
             //end of DSG SYNC, 
 
             Entities.Add(sceneObject);
@@ -2283,7 +2283,7 @@ namespace OpenSim.Region.Framework.Scenes
                 parentGroup.TriggerScriptChangedEvent(Changed.LINK);
                 parentGroup.HasGroupChanged = true;
                 //Do not change the timestamp and actorID values
-                parentGroup.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
+                parentGroup.ScheduleGroupForFullUpdate(null);
 
             }
             finally
@@ -2302,6 +2302,7 @@ namespace OpenSim.Region.Framework.Scenes
         public void DelinkObjectsBySync(List<UUID> delinkPrimIDs, List<UUID> beforeDelinkGroupIDs, List<SceneObjectGroup> incomingAfterDelinkGroups)
         {
             Dictionary<UUID, SceneObjectGroup> localBeforeDelinkGroups = new Dictionary<UUID, SceneObjectGroup>();
+            List<SceneObjectGroup> localAfterDelinkGroups = new List<SceneObjectGroup>(); 
             Dictionary<UUID, SceneObjectPart> delinkPrims = new Dictionary<UUID, SceneObjectPart>();
             bool beforeStateConsistent = true;
             bool afterStateConsistent = true;
@@ -2383,9 +2384,8 @@ namespace OpenSim.Region.Framework.Scenes
                     m_log.Warn("DelinkObjectsBySync: before-delink state not consistent in local copy and the incoming copy. Return without further operations.");
                 }else{
                     //Next, apply the delink operation locally.
-                    List<SceneObjectGroup> localAfterDelinkGroups = DelinkObjectsBySync(new List<SceneObjectPart>(delinkPrims.Values));
+                    localAfterDelinkGroups = DelinkObjectsBySync(new List<SceneObjectPart>(delinkPrims.Values));
 
-                    
                     //Check if local after-state agrees with that in the remote copy, and update the groups' properties
                     if (localAfterDelinkGroups.Count != incomingAfterDelinkGroups.Count)
                     {
@@ -2407,10 +2407,15 @@ namespace OpenSim.Region.Framework.Scenes
                             }
                             else
                             {
-                                localAfterGroup.UpdateObjectGroupBySync(incomingAfterDelinkGroupsDictionary[localAfterGroup.UUID]);
+                                //localAfterGroup.UpdateObjectGroupBySync(incomingAfterDelinkGroupsDictionary[localAfterGroup.UUID]);
                             }
                         }
                     }
+                }
+
+                foreach (SceneObjectGroup sog in localAfterDelinkGroups)
+                {
+                    sog.ScheduleGroupForFullUpdate(null);
                 }
             }
             finally
@@ -2423,7 +2428,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        //Similar to DelinkObjects(), w/o triggering any ScheduleFullUpdate(),
+        //Similar to DelinkObjects(), but calling DelinkFromGroupBySync instead
         private List<SceneObjectGroup> DelinkObjectsBySync(List<SceneObjectPart> prims)
         {
             //!!!Caller of this function should already lock on m_updateLock, so no locking here !!!

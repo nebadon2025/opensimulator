@@ -173,17 +173,30 @@ namespace OpenSim.Region.CoreModules.World.Land
 
         // NOTE: Call under Taint Lock
         private void AddObject(SceneObjectGroup obj)
-        {
-//            m_log.DebugFormat("[PRIM COUNT MODULE]: Adding object {0} {1} to prim count", obj.Name, obj.UUID);
-            
+        {                       
             if (obj.IsAttachment)
                 return;
             if (((obj.RootPart.Flags & PrimFlags.TemporaryOnRez) != 0))
-                return;
+                return;                       
 
             Vector3 pos = obj.AbsolutePosition;
             ILandObject landObject = m_Scene.LandChannel.GetLandObject(pos.X, pos.Y);
+            
+            // If for some reason there is no land object (perhaps the object is out of bounds) then we can't count it
+            if (landObject == null)
+            {
+//                m_log.WarnFormat(
+//                    "[PRIM COUNT MODULE]: Found no land object for {0} at position ({1}, {2}) on {3}", 
+//                    obj.Name, pos.X, pos.Y, m_Scene.RegionInfo.RegionName);
+                
+                return;
+            }
+            
             LandData landData = landObject.LandData;
+            
+//            m_log.DebugFormat(
+//                "[PRIM COUNT MODULE]: Adding object {0} with {1} parts to prim count for parcel {2} on {3}", 
+//                obj.Name, obj.Parts.Length, landData.Name, m_Scene.RegionInfo.RegionName);                        
             
 //            m_log.DebugFormat(
 //                "[PRIM COUNT MODULE]: Object {0} is owned by {1} over land owned by {2}", 
@@ -201,27 +214,29 @@ namespace OpenSim.Region.CoreModules.World.Land
                 else
                     parcelCounts.Users[obj.OwnerID] = partCount;
 
-                if (landData.IsGroupOwned)
+                if (obj.IsSelected)
                 {
-                    if (obj.OwnerID == landData.GroupID)
-                        parcelCounts.Owner += partCount;
-                    else if (obj.GroupID == landData.GroupID)
-                        parcelCounts.Group += partCount;
-                    else
-                        parcelCounts.Others += partCount;
+                    parcelCounts.Selected += partCount;                
                 }
                 else
                 {
-                    if (obj.OwnerID == landData.OwnerID)
-                        parcelCounts.Owner += partCount;
-                    else if (obj.GroupID == landData.GroupID)
-                        parcelCounts.Group += partCount;
+                    if (landData.IsGroupOwned)
+                    {
+                        if (obj.OwnerID == landData.GroupID)
+                            parcelCounts.Owner += partCount;
+                        else if (landData.GroupID != UUID.Zero && obj.GroupID == landData.GroupID)
+                            parcelCounts.Group += partCount;
+                        else
+                            parcelCounts.Others += partCount;
+                    }
                     else
-                        parcelCounts.Others += partCount;
+                    {
+                        if (obj.OwnerID == landData.OwnerID)
+                            parcelCounts.Owner += partCount;
+                        else
+                            parcelCounts.Others += partCount;
+                    }
                 }
-                
-                if (obj.IsSelected)
-                    parcelCounts.Selected += partCount;
             }
         }
 
@@ -377,6 +392,7 @@ namespace OpenSim.Region.CoreModules.World.Land
                     count = counts.Owner;
                     count += counts.Group;
                     count += counts.Others;
+                    count += counts.Selected;
                 }
             }
             
@@ -465,7 +481,9 @@ namespace OpenSim.Region.CoreModules.World.Land
 
                 m_OwnerMap[landData.GlobalID] = landData.OwnerID;
                 m_SimwideCounts[landData.OwnerID] = 0;
-//                m_log.DebugFormat("[PRIM COUNT MODULE]: Adding parcel count for {0}", landData.GlobalID);
+//                m_log.DebugFormat(
+//                    "[PRIM COUNT MODULE]: Initializing parcel count for {0} on {1}", 
+//                    landData.Name, m_Scene.RegionInfo.RegionName);
                 m_ParcelCounts[landData.GlobalID] = new ParcelCounts();
             }
 

@@ -756,6 +756,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
         }
 
+
+        public void SendObjectPropertiesFamilyData(ISceneEntity entity, uint requestFlags)
+        {
+        }
+
+        public void SendObjectPropertiesReply(ISceneEntity entity)
+        {
+        }
+
+
         public void SendObjectPropertiesFamilyData(uint RequestFlags, UUID ObjectUUID, UUID OwnerID, UUID GroupID,
                                                     uint BaseMask, uint OwnerMask, uint GroupMask, uint EveryoneMask,
                                                     uint NextOwnerMask, int OwnershipCost, byte SaleType,int SalePrice, uint Category,

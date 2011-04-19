@@ -347,7 +347,6 @@ namespace OpenSim.Framework
 
         public bool commFailTF = false;
         public ConfigurationMember configMember;
-        public string DataStore = String.Empty;
         public string RegionFile = String.Empty;
         public bool isSandbox = false;
         public bool Persistent = true;
@@ -798,10 +797,6 @@ namespace OpenSim.Framework
             m_regionLocX = Convert.ToUInt32(locationElements[0]);
             m_regionLocY = Convert.ToUInt32(locationElements[1]);
 
-
-            // Datastore (is this implemented? Omitted from example!)
-            DataStore = config.GetString("Datastore", String.Empty);
-
             // Internal IP
             IPAddress address;
 
@@ -925,9 +920,6 @@ namespace OpenSim.Framework
 
             string location = String.Format("{0},{1}", m_regionLocX, m_regionLocY);
             config.Set("Location", location);
-
-            if (DataStore != String.Empty)
-                config.Set("Datastore", DataStore);
 
             config.Set("InternalAddress", m_internalEndPoint.Address.ToString());
             config.Set("InternalPort", m_internalEndPoint.Port);
@@ -1105,9 +1097,6 @@ namespace OpenSim.Framework
                 case "sim_location_y":
                     m_regionLocY = (uint) configuration_result;
                     break;
-                case "datastore":
-                    DataStore = (string) configuration_result;
-                    break;
                 case "internal_ip_address":
                     IPAddress address = (IPAddress) configuration_result;
                     m_internalEndPoint = new IPEndPoint(address, 0);
@@ -1253,11 +1242,6 @@ namespace OpenSim.Framework
             regionInfo.RegionName = regionName;
             regionInfo.ServerURI = serverURI;
             return regionInfo;
-        }
-
-        public int getInternalEndPointPort()
-        {
-            return m_internalEndPoint.Port;
         }
 
         public Dictionary<string, object> ToKeyValuePairs()

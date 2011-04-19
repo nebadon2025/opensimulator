@@ -1001,7 +1001,6 @@ namespace OpenSim.Region.Framework.Scenes
             m_regInfo = regInfo;
             m_regionHandle = m_regInfo.RegionHandle;
             m_regionName = m_regInfo.RegionName;
-            m_datastore = m_regInfo.DataStore;
             m_lastUpdate = Util.EnvironmentTickCount();
 
             m_physicalPrim = physicalPrim;
@@ -1961,20 +1960,6 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Recount SceneObjectPart in parcel aabb
-        /// </summary>
-        private void UpdateLand()
-        {
-            if (LandChannel != null)
-            {
-                if (LandChannel.IsLandPrimCountTainted())
-                {
-                    EventManager.TriggerParcelPrimCountUpdate();
-                }
-            }
-        }
-
-        /// <summary>
         /// Update the terrain if it needs to be updated.
         /// </summary>
         private void UpdateTerrain()
@@ -2068,8 +2053,11 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Return object to avatar Message
+        /// Tell an agent that their object has been returned. 
         /// </summary>
+        /// <remarks>
+        /// The actual return is handled by the caller.
+        /// </remarks>
         /// <param name="agentID">Avatar Unique Id</param>
         /// <param name="objectName">Name of object returned</param>
         /// <param name="location">Location of object returned</param>
@@ -5448,7 +5436,20 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public Vector3[] GetCombinedBoundingBox(List<SceneObjectGroup> objects, out float minX, out float maxX, out float minY, out float maxY, out float minZ, out float maxZ)
+        /// <summary>
+        /// Get the volume of space that will encompass all the given objects.
+        /// </summary>
+        /// <param name="objects"></param>
+        /// <param name="minX"></param>
+        /// <param name="maxX"></param>
+        /// <param name="minY"></param>
+        /// <param name="maxY"></param>
+        /// <param name="minZ"></param>
+        /// <param name="maxZ"></param>
+        /// <returns></returns>
+        public static Vector3[] GetCombinedBoundingBox(
+           List<SceneObjectGroup> objects, 
+           out float minX, out float maxX, out float minY, out float maxY, out float minZ, out float maxZ)
         {
             minX = 256;
             maxX = -256;
@@ -5463,7 +5464,20 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 float ominX, ominY, ominZ, omaxX, omaxY, omaxZ;
 
+                Vector3 vec = g.AbsolutePosition;
+
                 g.GetAxisAlignedBoundingBoxRaw(out ominX, out omaxX, out ominY, out omaxY, out ominZ, out omaxZ);
+               
+//                m_log.DebugFormat(
+//                    "[SCENE]: For {0} found AxisAlignedBoundingBoxRaw {1}, {2}", 
+//                    g.Name, new Vector3(ominX, ominY, ominZ), new Vector3(omaxX, omaxY, omaxZ));
+
+                ominX += vec.X;
+                omaxX += vec.X;
+                ominY += vec.Y;
+                omaxY += vec.Y;
+                ominZ += vec.Z;
+                omaxZ += vec.Z;
 
                 if (minX > ominX)
                     minX = ominX;

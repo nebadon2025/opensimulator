@@ -545,7 +545,7 @@ namespace OpenSim.Region.Framework.Scenes
             HasInventoryChanged = true;
             m_part.ParentGroup.HasGroupChanged = true;
 
-            //SYMMETRIC SYNC: add ScheduleFullUpdate to enable synchronization across actors
+            //DSG SYNC: add ScheduleFullUpdate to enable synchronization across actors
             m_part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.TaskInventory, SceneObjectPartSyncProperties.InventorySerial});
         }
 
@@ -1180,7 +1180,7 @@ namespace OpenSim.Region.Framework.Scenes
         #endregion REGION SYNC
     }
 
-    #region SYMMETRIC SYNC
+    #region DSG SYNC
     public class SceneObjectPartInventory : SceneObjectPartInventoryBase
     {
         private SceneObjectPart m_part;

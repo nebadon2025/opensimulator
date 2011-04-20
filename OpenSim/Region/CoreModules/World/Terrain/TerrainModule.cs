@@ -551,14 +551,14 @@ namespace OpenSim.Region.CoreModules.World.Terrain
                 m_scene.PhysicsScene.SetTerrain(m_channel.GetFloatsSerialised());
                 m_scene.SaveTerrain();
 
-                //SYMMETRIC SYNC
+                //DSG SYNC
                 //Terrain has been modified, send out sync message if needed
                 //if (m_scene.RegionSyncModule != null)
                 //{
                     //m_log.DebugFormat("EventManager_OnTerrainTick: To call SendTerrainUpdates with TS {0} and actorID {1}", m_lastUpdateTimeStamp, m_lastUpdateActorID);
                     //m_scene.RegionSyncModule.SendTerrainUpdates(m_lastUpdateTimeStamp, m_lastUpdateActorID);
                 //}
-                //end of SYMMETRIC SYNC
+                //end of DSG SYNC
 
                 // Clients who look at the map will never see changes after they looked at the map, so i've commented this out.
                 //m_scene.CreateTerrainTexture(true);
@@ -600,7 +600,7 @@ namespace OpenSim.Region.CoreModules.World.Terrain
             client.OnUnackedTerrain += client_OnUnackedTerrain;
         }
         
-        //SYMMETRIC SYNC
+        //DSG SYNC
         private long m_lastUpdateTimeStamp = DateTime.Now.Ticks;
         public long LastUpdateTimeStamp
         {
@@ -675,7 +675,7 @@ namespace OpenSim.Region.CoreModules.World.Terrain
             m_lastUpdateActorID = lastUpdateActorID;
         }
 
-        //end of SYMMETRIC SYNC
+        //end of DSG SYNC
 
         /// <summary>
         /// Checks to see if the terrain has been modified since last check
@@ -684,7 +684,7 @@ namespace OpenSim.Region.CoreModules.World.Terrain
         /// </summary>
         private void CheckForTerrainUpdates()
         {
-            //SYMMETRIC SYNC
+            //DSG SYNC
             m_log.DebugFormat("CheckForTerrainUpdates() called");
             //Assumption: Thus function is only called when the terrain is updated by the local actor. 
             //            Updating terrain during receiving sync messages from another actor will call CheckForTerrainUpdates.
@@ -696,7 +696,7 @@ namespace OpenSim.Region.CoreModules.World.Terrain
             //Check if the terrain has been modified and send out sync message if modified.
             CheckForTerrainUpdates(false, currentTimeTick, localActorID);
 
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
 
             //CheckForTerrainUpdates(false);
         }
@@ -710,9 +710,9 @@ namespace OpenSim.Region.CoreModules.World.Terrain
         /// <param name="respectEstateSettings">should height map deltas be limited to the estate settings limits</param>
         /// </summary>
         //private void CheckForTerrainUpdates(bool respectEstateSettings)
-        //SYMMETRIC SYNC: Change the interface, to input the right sync information for the most recent update
+        //DSG SYNC: Change the interface, to input the right sync information for the most recent update
         private void CheckForTerrainUpdates(bool respectEstateSettings, long lastUpdateTimeStamp, string lastUpdateActorID)
-        //end of SYMMETRIC SYNC
+        //end of DSG SYNC
         {
             bool shouldTaint = false;
             float[] serialised = m_channel.GetFloatsSerialised();
@@ -741,14 +741,14 @@ namespace OpenSim.Region.CoreModules.World.Terrain
             if (shouldTaint)
             {
                 m_tainted = true;
-                //SYMMETRIC SYNC
+                //DSG SYNC
                 //Terrain has been modified, updated the sync info
                 if (m_scene.RegionSyncModule != null)
                 {
                     SyncInfoUpdate(lastUpdateTimeStamp, lastUpdateActorID);
                     m_scene.RegionSyncModule.SendTerrainUpdates(lastUpdateTimeStamp, lastUpdateActorID);
                 }
-                //end of SYMMETRIC SYNC
+                //end of DSG SYNC
             }
         }
 
@@ -862,9 +862,9 @@ namespace OpenSim.Region.CoreModules.World.Terrain
                             m_channel, allowMask, west, south, height, size, seconds);
 
                         //CheckForTerrainUpdates(!god); //revert changes outside estate limits
-                        //SYMMETRIC SYNC
+                        //DSG SYNC
                         CheckForTerrainUpdates(!god, DateTime.Now.Ticks, m_scene.GetSyncActorID());
-                        //end of SYMMETRIC SYNC
+                        //end of DSG SYNC
                     }
                 }
                 else
@@ -906,9 +906,9 @@ namespace OpenSim.Region.CoreModules.World.Terrain
                             m_channel, fillArea, size);
 
                         //CheckForTerrainUpdates(!god); //revert changes outside estate limits
-                        //SYMMETRIC SYNC
+                        //DSG SYNC
                         CheckForTerrainUpdates(!god, DateTime.Now.Ticks, m_scene.GetSyncActorID());
-                        //end of SYMMETRIC SYNC
+                        //end of DSG SYNC
                     }
                 }
                 else

@@ -38,7 +38,7 @@ using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 
 namespace OpenSim.Region.Framework.Scenes
 {
-    //SYMMETRIC SYNC: Rename the original EventManager as EventManagerBase, and implement a new EventManager that inherits from EventManagerBase
+    //DSG SYNC: Rename the original EventManager as EventManagerBase, and implement a new EventManager that inherits from EventManagerBase
 
     /// <summary>
     /// A wrapper class to implement handle event differently depending on if they are initiated locally or remotelly (i.e. by another actor)
@@ -1113,7 +1113,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        //SYMMETRIC SYNC: overridden at new EventManager class
+        //DSG SYNC: overridden at new EventManager class
         //public void TriggerObjectGrab(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         public virtual void TriggerObjectGrab(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         {
@@ -1136,7 +1136,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        //SYMMETRIC SYNC: overridden at new EventManager class
+        //DSG SYNC: overridden at new EventManager class
         //public void TriggerObjectGrabbing(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         public virtual void TriggerObjectGrabbing(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         {
@@ -1159,7 +1159,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
          }
 
-        //SYMMETRIC SYNC: overridden at new EventManager class
+        //DSG SYNC: overridden at new EventManager class
         //public void TriggerObjectDeGrab(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         public virtual void TriggerObjectDeGrab(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         {
@@ -1851,7 +1851,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        //SYMMETRIC SYNC: the function is overridden in new EventManager
+        //DSG SYNC: the function is overridden in new EventManager
         //public void TriggerOnChatFromWorld(Object sender, OSChatMessage chat)
         public virtual void TriggerOnChatFromWorld(Object sender, OSChatMessage chat)
         {
@@ -1874,7 +1874,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        //SYMMETRIC SYNC: overiding this in the inherited class
+        //DSG SYNC: overiding this in the inherited class
         //public void TriggerOnChatFromClient(Object sender, OSChatMessage chat)
         public virtual void TriggerOnChatFromClient(Object sender, OSChatMessage chat)
         {
@@ -2550,7 +2550,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
         #endregion
 
-        //SYMMETRIC SYNC
+        //DSG SYNC
         public event PostSceneCreation OnPostSceneCreation;
         public delegate void PostSceneCreation(Scene createdScene);
         public void TriggerOnPostSceneCreation(Scene createdScene)
@@ -2619,6 +2619,6 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
         }
-        //end of SYMMETRIC SYNC
+        //end of DSG SYNC
     }
 }

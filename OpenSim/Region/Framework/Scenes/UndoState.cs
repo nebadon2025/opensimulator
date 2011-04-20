@@ -94,7 +94,7 @@ namespace OpenSim.Region.Framework.Scenes
                     if (Scale != Vector3.Zero)
                         part.Resize(Scale);
                     //part.ParentGroup.ScheduleGroupForTerseUpdate();
-                    //SYMMETRIC SYNC
+                    //DSG SYNC
                     List<SceneObjectPartSyncProperties> updatedProperties = new List<SceneObjectPartSyncProperties>();
                     updatedProperties.Add(SceneObjectPartSyncProperties.RotationOffset);
                     if (Position != Vector3.Zero)
@@ -110,7 +110,7 @@ namespace OpenSim.Region.Framework.Scenes
                     part.UpdateRotation(Rotation);
                     if (Scale != Vector3.Zero)
                         part.Resize(Scale); //part.ScheduleTerseUpdate();
-                    //SYMMETRIC SYNC
+                    //DSG SYNC
                     List<SceneObjectPartSyncProperties> updatedProperties = new List<SceneObjectPartSyncProperties>();
                     updatedProperties.Add(SceneObjectPartSyncProperties.RotationOffset);
                     if (Position != Vector3.Zero)
@@ -138,7 +138,7 @@ namespace OpenSim.Region.Framework.Scenes
                     if (Scale != Vector3.Zero)
                         part.Resize(Scale);
                     //part.ParentGroup.ScheduleGroupForTerseUpdate();
-                    //SYMMETRIC SYNC
+                    //DSG SYNC
                     List<SceneObjectPartSyncProperties> updatedProperties = new List<SceneObjectPartSyncProperties>();
                     if (Rotation != Quaternion.Identity)
                         updatedProperties.Add(SceneObjectPartSyncProperties.RotationOffset);
@@ -157,7 +157,7 @@ namespace OpenSim.Region.Framework.Scenes
                     if (Scale != Vector3.Zero)
                         part.Resize(Scale);
                     //part.ScheduleTerseUpdate();
-                    //SYMMETRIC SYNC
+                    //DSG SYNC
                     List<SceneObjectPartSyncProperties> updatedProperties = new List<SceneObjectPartSyncProperties>();
                     if (Rotation != Quaternion.Identity)
                         updatedProperties.Add(SceneObjectPartSyncProperties.RotationOffset);

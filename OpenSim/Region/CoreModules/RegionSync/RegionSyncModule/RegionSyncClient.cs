@@ -318,7 +318,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Syncing to region \"{0}\"", m_regionName));
                         return;
                     }
-                //SYMMETRIC SYNC: do not handle terrian and object updates
+                //DSG SYNC: do not handle terrian and object updates
                 case RegionSyncMessage.MsgType.Terrain:
                     {
                         if(!m_symSync)
@@ -378,7 +378,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         return;
                     }
-                    //end of SYMMETRIC SYNC
+                    //end of DSG SYNC
                 case RegionSyncMessage.MsgType.NewAvatar:
                     {
                         // Get the data from message and error check
@@ -854,13 +854,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.RegionName, m_scene.RegionInfo.RegionName));
             m_log.WarnFormat("Sending region name: \"{0}\"", m_scene.RegionInfo.RegionName);
-            //SYMMETRIC SYNC: commenting out terrian and object updates
+            //DSG SYNC: commenting out terrian and object updates
             if (!m_symSync)
             {
                 Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetTerrain));
                 Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetObjects));
             }
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetAvatars));
 
             // Register for events which will be forwarded to authoritative scene
@@ -910,11 +910,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // Register for interesting client events which will be forwarded to auth sim
             // These are the raw packet data blocks from the client, intercepted and sent up to the sim
             client.OnAgentUpdateRaw += HandleAgentUpdateRaw;
-            //SYMMETRIC SYNC: do not subscribe to OnChatFromClientRaw: RegionSyncModule + Scene.EventManager will handle this. 
+            //DSG SYNC: do not subscribe to OnChatFromClientRaw: RegionSyncModule + Scene.EventManager will handle this. 
             //client.OnChatFromClientRaw += HandleChatFromClientRaw;
             client.OnAgentRequestSit += HandleAgentRequestSit;
             client.OnAgentSit += HandleAgentSit;
-            //SYMMETRIC SYNC: do not subscribe to OnGrabObject, OnGrabUpdate, and OnDeGrabObject: RegionSyncModule + Scene.EventManager will handle this. 
+            //DSG SYNC: do not subscribe to OnGrabObject, OnGrabUpdate, and OnDeGrabObject: RegionSyncModule + Scene.EventManager will handle this. 
             //client.OnGrabObject += HandleGrabObject;
             //client.OnGrabUpdate += HandleGrabUpdate;
             //client.OnDeGrabObject += HandleDeGrabObject;

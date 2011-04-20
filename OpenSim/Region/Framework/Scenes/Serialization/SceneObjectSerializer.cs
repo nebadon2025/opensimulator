@@ -215,7 +215,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
                     sceneObject.AddPart(part);
 
-                    //SYMMETRIC SYNC
+                    //DSG SYNC
                     //KittyL: 12/27/2010, added ActorID for symmetric synch model
                     //part.SetLastUpdateActorID();
 
@@ -329,7 +329,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             m_SOPXmlProcessors.Add("TextureAnimation", ProcessTextureAnimation);
             m_SOPXmlProcessors.Add("ParticleSystem", ProcessParticleSystem);
 
-            //SYMMETRIC SYNC
+            //DSG SYNC
             m_SOPXmlProcessors.Add("LocalFlags", ProcessLocalFlags);
             //m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
             //m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
@@ -340,7 +340,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             m_SOPXmlProcessors.Add("AggregateScriptEvents", ProcessAggregateScriptEvents);
 
             m_SOPXmlProcessors.Add("BucketSyncInfoList", ProcessBucketSyncInfo);
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
 
             #endregion
 
@@ -425,7 +425,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         }
 
         #region SOPXmlProcessors
-        //SYMMETRIC SYNC NOTE: -- assignments in de-serialization should directly set the values w/o triggering SceneObjectPart.UpdateBucketSyncInfo;
+        //DSG SYNC NOTE: -- assignments in de-serialization should directly set the values w/o triggering SceneObjectPart.UpdateBucketSyncInfo;
         private static void ProcessAllowedDrop(SceneObjectPart obj, XmlTextReader reader)
         {
             obj.AllowedDrop = Util.ReadBoolean(reader);            
@@ -706,7 +706,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             obj.ParticleSystem = Convert.FromBase64String(reader.ReadElementContentAsString("ParticleSystem", String.Empty));
         }
 
-        //SYMMETRIC SYNC
+        //DSG SYNC
         /*
         private static void ProcessUpdateTimeStamp(SceneObjectPart obj, XmlTextReader reader)
         {
@@ -799,7 +799,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 reader.ReadEndElement(); // BucketSyncInfoList
         }
 
-        //end of SYMMETRIC SYNC
+        //end of DSG SYNC
 
         #endregion
 
@@ -1271,10 +1271,10 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             writer.WriteElementString("GroupMask", sop.GroupMask.ToString());
             writer.WriteElementString("EveryoneMask", sop.EveryoneMask.ToString());
             writer.WriteElementString("NextOwnerMask", sop.NextOwnerMask.ToString());
-            //SYMMETRIC SYNC: also serialize SceneObjectPart:LocalFlags, so that it can be propogated across actors
+            //DSG SYNC: also serialize SceneObjectPart:LocalFlags, so that it can be propogated across actors
             WriteFlags(writer, "Flags", sop.Flags.ToString(), options);
             WriteFlags(writer, "LocalFlags", sop.LocalFlags.ToString(), options);
-            //end SYMMETRIC SYNC
+            //end DSG SYNC
             WriteUUID(writer, "CollisionSound", sop.CollisionSound, options);
             writer.WriteElementString("CollisionSoundVolume", sop.CollisionSoundVolume.ToString());
             if (sop.MediaUrl != null)
@@ -1282,7 +1282,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             WriteBytes(writer, "TextureAnimation", sop.TextureAnimation);
             WriteBytes(writer, "ParticleSystem", sop.ParticleSystem);
 
-            //SYMMETRIC SYNC
+            //DSG SYNC
             //These properties are only meaningful for synchronization purpose. For saving oar files, they are not necessary.
             //We may remove these if later we use a different method to encode object properties for synchronization.
             WriteUUID(writer, "AttachedAvatar", sop.AttachedAvatar, options);
@@ -1291,12 +1291,12 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             //writer.WriteElementString("IsAttachment", sop.IsAttachment.ToString().ToLower()); //IsAttachment is written last, so that on deserialization, it will be deserialized later than other Attachment properties
             WriteFlags(writer, "AggregateScriptEvents", sop.AggregateScriptEvents.ToString(), options);
             WriteBucketSyncInfo(writer, sop.BucketSyncInfoList);
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
 
             writer.WriteEndElement();
         }
 
-        //SYMMETRIC SYNC
+        //DSG SYNC
         public static void WriteBucketSyncInfo(XmlTextWriter writer, Dictionary<string, BucketSyncInfo> bucketSyncInfoList)
         {
             if (bucketSyncInfoList!=null || bucketSyncInfoList.Count > 0) // otherwise skip this
@@ -1318,7 +1318,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             }
 
         }
-        //end of SYMMETRIC SYNC
+        //end of DSG SYNC
 
         static void WriteUUID(XmlTextWriter writer, string name, UUID id, Dictionary<string, object> options)
         {

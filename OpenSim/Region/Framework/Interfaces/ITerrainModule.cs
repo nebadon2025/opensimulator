@@ -65,7 +65,7 @@ namespace OpenSim.Region.Framework.Interfaces
 
         void UndoTerrain(ITerrainChannel channel);
 
-        //SYMMETRIC SYNC
+        //DSG SYNC
         /// <summary>
         /// Invoked by receiving a terrain sync message. First, check if the 
         /// timestamp is more advance than the local copy. If so, update the 
@@ -96,6 +96,6 @@ namespace OpenSim.Region.Framework.Interfaces
         /// <param name="lastUpdateTimeStamp"></param>
         /// <param name="lastUpdateActorID"></param>
         void SetSyncInfo(long lastUpdateTimeStamp, string lastUpdateActorID);
-        //end of SYMMETRIC SYNC
+        //end of DSG SYNC
     }
 }

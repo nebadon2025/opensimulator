@@ -129,7 +129,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         #region Fields
 
-        //SYMMETRIC SYNC
+        //DSG SYNC
         //public bool AllowedDrop;
         private bool m_allowedDrop;
         public bool AllowedDrop
@@ -2933,7 +2933,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Schedules this prim for a full update
         /// </summary>
-        //public void ScheduleFullUpdate() :: SYMMETRIC SYNC: changed the interface so that we can identify which property triggers calling this function
+        //public void ScheduleFullUpdate() :: DSG SYNC: changed the interface so that we can identify which property triggers calling this function
         public virtual void ScheduleFullUpdate(List<SceneObjectPartSyncProperties> updatedProperties)
         {
 //            m_log.DebugFormat("[SCENE OBJECT PART]: Scheduling full update for {0} {1}", Name, LocalId);
@@ -3202,7 +3202,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
             ClearUpdateSchedule();
 
-            //SYMMETRIC SYNC
+            //DSG SYNC
             //KittyL: 04/06/2011, No longer calling QueueSceneObjectPartForUpdate 
             //from here. Local updates are now recorded by calling IRegionSyncModule.ProcessAndEnqueuePrimUpdatesByLocal().
             /*
@@ -3211,7 +3211,7 @@ namespace OpenSim.Region.Framework.Scenes
                 m_parentGroup.Scene.RegionSyncModule.QueueSceneObjectPartForUpdate((SceneObjectPart)this);
             }
              * */ 
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
         }
 
         /// <summary>
@@ -4983,7 +4983,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         #endregion
 
-        #region SYMMETRIC SYNC
+        #region DSG SYNC
 
         //Time stamp for the most recent update on this prim. We only have one time-stamp per prim for now.
         //The goal is to evetually have time-stamp per property bucket for each prim.
@@ -4998,7 +4998,7 @@ namespace OpenSim.Region.Framework.Scenes
 
     }
 
-    //SYMMETRIC SYNC
+    //DSG SYNC
 
     //Information for concurrency control of one bucket of prim proproperties.
     public class BucketSyncInfo
@@ -6142,5 +6142,5 @@ namespace OpenSim.Region.Framework.Scenes
 
     }
 
-    //end of SYMMETRIC SYNC
+    //end of DSG SYNC
 }

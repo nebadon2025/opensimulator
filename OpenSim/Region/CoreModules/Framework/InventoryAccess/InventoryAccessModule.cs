@@ -674,7 +674,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
 
                     rootPart.TrimPermissions();
 
-                    //SYMMETRIC SYNC: move this part to the bottom of this function, 
+                    //DSG SYNC: move this part to the bottom of this function, 
                     //so that all properties of the object would have been set once
                     //AddNewSceneObject is called.
                     if (attachment)

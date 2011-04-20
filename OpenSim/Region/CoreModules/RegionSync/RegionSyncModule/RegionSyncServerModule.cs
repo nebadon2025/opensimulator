@@ -151,7 +151,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //m_scene.EventManager.OnNewPresence += new EventManager.OnNewPresenceDelegate(EventManager_OnNewPresence);
             m_scene.EventManager.OnRemovePresence += new EventManager.OnRemovePresenceDelegate(EventManager_OnRemovePresence);
             
-            //SYMMETRIC SYNC: do not handle object updates
+            //DSG SYNC: do not handle object updates
             /*
             if (!m_symsync)
             {
@@ -162,7 +162,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_scene.EventManager.OnOarFileLoaded += new EventManager.OarFileLoaded(EventManager_OnOarFileLoaded);
             }
              * */
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
             // Start the server and listen for RegionSyncClients
             m_serveraddr = m_scene.RegionInfo.AvatarSyncServerAddress;
             m_serverport = m_scene.RegionInfo.AvatarSyncServerPort;
@@ -300,7 +300,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 // Sending the message when it's first queued would yield lower latency but much higher load on the simulator
                 // as parts may be updated many many times very quickly. Need to implement a higher resolution send in heartbeat
 
-                //SYMMETRIC SYNC: do not handle object updates
+                //DSG SYNC: do not handle object updates
                 /*
                 if (!m_symsync)
                 {
@@ -317,7 +317,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                 }
                  * */ 
-                //end of SYMMETRIC SYNC
+                //end of DSG SYNC
                 foreach (ScenePresence presence in presenceUpdates)
                 {
                     try

@@ -1944,6 +1944,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             foreach (SceneObjectGroup sog in sogList)
             {
                 m_log.WarnFormat("SyncStateReport -- SOG: name {0}, UUID {1}, position {2}", sog.Name, sog.UUID, sog.AbsolutePosition);
+                foreach (SceneObjectPart part in sog.Parts)
+                {
+                    m_log.WarnFormat("               -- part {0}, UUID {1}, LocalID {2}, offset-position {3}", part.Name, part.UUID, part.LocalId, part.OffsetPosition);
+                }
             }
 
             if (m_isSyncRelay)
@@ -2541,6 +2545,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                 }
             }
+
+
         }
 
 

@@ -634,9 +634,9 @@ namespace OpenSim.Region.Framework.Scenes
         #endregion 
 
 
-        #region SYMMETRIC SYNC
+        #region DSG SYNC
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        //KittyL: 12/23/2010. SYMMETRIC SYNC: Implementation for the symmetric synchronization model.
+        //KittyL: 12/23/2010. DSG SYNC: Implementation for the symmetric synchronization model.
         ///////////////////////////////////////////////////////////////////////////////////////////////
 
         private IRegionSyncModule m_regionSyncModule = null;
@@ -866,7 +866,18 @@ namespace OpenSim.Region.Framework.Scenes
             return m_sceneGraph.UpdateObjectPartBucketProperties(bucketName, partUUID, updatePart, bucketSyncInfo);
         }
 
-        #endregion //SYMMETRIC SYNC
+        public bool AddNewSceneObjectByDelink(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates)
+        {
+            if (m_sceneGraph.AddNewSceneObjectByDelink(sceneObject, attachToBackup, sendClientUpdates))
+            {
+                EventManager.TriggerObjectAddedToScene(sceneObject);
+                return true;
+            }
+
+            return false;
+        }
+
+        #endregion //DSG SYNC
 
         public ICapabilitiesModule CapsModule
         {
@@ -1010,10 +1021,10 @@ namespace OpenSim.Region.Framework.Scenes
             m_physicalPrim = physicalPrim;
             m_seeIntoRegionFromNeighbor = SeeIntoRegionFromNeighbor;
 
-            //SYMMETRIC SYNC: pass Scene reference to EventManager
+            //DSG SYNC: pass Scene reference to EventManager
             //m_eventManager = new EventManager();
             m_eventManager = new EventManager(this);
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
             m_permissions = new ScenePermissions(this);
 
             m_asyncSceneObjectDeleter = new AsyncSceneObjectGroupDeleter(this);
@@ -1219,10 +1230,10 @@ namespace OpenSim.Region.Framework.Scenes
 
             m_regInfo = regInfo;
 
-            //SYMMETRIC SYNC: pass Scene reference to EventManager
+            //DSG SYNC: pass Scene reference to EventManager
             //m_eventManager = new EventManager();
             m_eventManager = new EventManager(this);
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
 
             m_lastUpdate = Util.EnvironmentTickCount();
         }
@@ -1557,13 +1568,13 @@ namespace OpenSim.Region.Framework.Scenes
             PhysEngineToSceneConnectorModule = RequestModuleInterface<IPhysEngineToSceneConnectorModule>();
             SceneToPhysEngineSyncServer = RequestModuleInterface<ISceneToPhysEngineServer>();
             //////////////////////////////////////////////////////////////////////
-            //SYMMETRIC SYNC (KittyL: started 12/23/2010)
+            //DSG SYNC (KittyL: started 12/23/2010)
             //////////////////////////////////////////////////////////////////////
             m_regionSyncModule = RequestModuleInterface<IRegionSyncModule>();
             m_DSGActorSyncModule = RequestModuleInterface<IDSGActorSyncModule>();
 
             //////////////////////////////////////////////////////////////////////
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
             //////////////////////////////////////////////////////////////////////
             
             // Shoving this in here for now, because we have the needed
@@ -1743,7 +1754,7 @@ namespace OpenSim.Region.Framework.Scenes
                     m_regionSyncServerModule.SendUpdates();
                 }
 
-                //SYMMETRIC SYNC
+                //DSG SYNC
 
                 //NOTE: If it is configured as symmetric sync in opensim.ini, the above IsSyncedServer() or IsSyncedClient() should all return false
                 if (RegionSyncModule != null)
@@ -1751,7 +1762,7 @@ namespace OpenSim.Region.Framework.Scenes
                     //RegionSyncModule.SendSceneUpdates();
                     RegionSyncModule.SyncOutPrimUpdates();
                 }
-                //end of SYMMETRIC SYNC
+                //end of DSG SYNC
 
                 int tmpPhysicsMS2 = Util.EnvironmentTickCount();
                 if ((Frame % m_update_physics == 0) && m_physics_enabled && (IsSyncedServer() || IsPhysEngineActor()))
@@ -3228,7 +3239,7 @@ namespace OpenSim.Region.Framework.Scenes
             client.OnUpdatePrimFlags += m_sceneGraph.UpdatePrimFlags;
             client.OnRequestObjectPropertiesFamily += m_sceneGraph.RequestObjectPropertiesFamily;
             client.OnObjectPermissions += HandleObjectPermissionsUpdate;
-            //SYMMETRIC SYNC: return the code back to its original OpenSim version
+            //DSG SYNC: return the code back to its original OpenSim version
             //if (IsSyncedServer())
             //{
                 client.OnGrabObject += ProcessObjectGrab;
@@ -3728,7 +3739,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             ForEachClient(delegate(IClientAPI client) { client.SendKillObject(m_regionHandle, localID); });
 
-            //SYMMETRIC SYNC: object remove should be handled through RegionSyncModule
+            //DSG SYNC: object remove should be handled through RegionSyncModule
             // REGION SYNC
             /*
             if( IsSyncedServer() )

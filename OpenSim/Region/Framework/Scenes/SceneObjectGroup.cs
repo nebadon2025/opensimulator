@@ -498,7 +498,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         #region Constructors
 
-        //SYMMETRIC SYNC
+        //DSG SYNC
         public SceneObjectGroup(SceneObjectPart part, bool newGroupBySync)
         {
             if (!newGroupBySync)
@@ -627,7 +627,7 @@ namespace OpenSim.Region.Framework.Scenes
             // for the same object with very different properties.  The caller must schedule the update.
             //ScheduleGroupForFullUpdate();
 
-            //SYMMETRIC SYNC
+            //DSG SYNC
             if (m_scene.RegionSyncModule != null)
             {
                 foreach (SceneObjectPart part in Parts)
@@ -1212,7 +1212,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 SceneObjectPart part = parts[i];
 
-                //SYMMETRIC SYNC: object remove should be handled through RegionSyncModule
+                //DSG SYNC: object remove should be handled through RegionSyncModule
                 /*
                 // REGION SYNC
                 if (Scene.IsSyncedServer())
@@ -1221,7 +1221,7 @@ namespace OpenSim.Region.Framework.Scenes
                     //return;
                 }
                  * */
-                //end of SYMMETRIC SYNC
+                //end of DSG SYNC
 
                 Scene.ForEachScenePresence(delegate(ScenePresence avatar)
                 {
@@ -1366,13 +1366,13 @@ namespace OpenSim.Region.Framework.Scenes
                 return;
             }
 
-            //SYMMETRIC SYNC
+            //DSG SYNC
             //if we are doing sync across different sync nodes, and are not told to persist the state, don't do anything (only persistence actor will do it)
             if (m_scene.RegionSyncModule != null && !ToPersistObjectState)
             {
                 return;
             }
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
 
             // Since this is the top of the section of call stack for backing up a particular scene object, don't let
             // any exception propogate upwards.
@@ -2200,11 +2200,11 @@ namespace OpenSim.Region.Framework.Scenes
             //HasGroupChanged = true;
             //ScheduleGroupForFullUpdate();
 
-            //SYMMETRIC SYNC
+            //DSG SYNC
             //The DeleteObject message will be enqueued to be sent out by another thread, and the call will return quickly.
             //if (m_scene.RegionSyncModule != null)
             //    m_scene.RegionSyncModule.SendDeleteObject(objectGroup, true);
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
 
         }
 
@@ -2307,7 +2307,11 @@ namespace OpenSim.Region.Framework.Scenes
 
             SceneObjectGroup objectGroup = new SceneObjectGroup(linkPart);
 
-            m_scene.AddNewSceneObject(objectGroup, true);
+            //m_scene.AddNewSceneObject(objectGroup, true);
+            //DSG SYNC: calling AddNewSceneObjectByDelink, so that later on we know
+            //the "new" object is added by delink operation, no need to send sync
+            //message of NewObject
+            m_scene.AddNewSceneObjectByDelink(objectGroup, true, true);
 
             if (sendEvents)
                 linkPart.TriggerScriptChangedEvent(Changed.LINK);
@@ -3556,7 +3560,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
 #endregion 
 
-        #region SYMMETRIC SYNC
+        #region DSG SYNC
 
         private bool m_toPersistObjectState = false;
         public bool ToPersistObjectState
@@ -3779,14 +3783,11 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         //Similar actions with DelinkFromGroup, except that m_scene.AddNewSceneObjectBySync is called
-        //!!!!!!!!!!!!!!!!!!NOTE!!!!!!!!!!!!!!!
-        //All SOP properties below is set through calling SetXXX(value) instead of by "XXX=value", as such a value is being changed due to sync (
-        //i.e. triggered by remote operation instead of by local operation
         public SceneObjectGroup DelinkFromGroupBySync(SceneObjectPart delinkPart, bool sendEvents)
         {
-            //                m_log.DebugFormat(
-            //                    "[SCENE OBJECT GROUP]: Delinking part {0}, {1} from group with root part {2}, {3}",
-            //                    linkPart.Name, linkPart.UUID, RootPart.Name, RootPart.UUID);
+            m_log.DebugFormat(
+                "[SCENE OBJECT GROUP]: Delinking part {0}, {1}, {4} from group with root part {2}, {3}",
+                delinkPart.Name, delinkPart.UUID, RootPart.Name, RootPart.UUID, delinkPart.LocalId);
 
             SceneObjectPartBase linkPart = (SceneObjectPartBase)delinkPart;
             linkPart.ClearUndoState();
@@ -3803,9 +3804,7 @@ namespace OpenSim.Region.Framework.Scenes
                 if (parts.Length == 1 && RootPart != null)
                 {
                     // Single prim left
-                    //RootPart.LinkNum = 0;
-                    //RootPart.SetProperty("LinkNum", 0);
-                    ((SceneObjectPartBase)RootPart).LinkNum = 0;
+                    RootPart.LinkNum = 0;
                 }
                 else
                 {
@@ -3815,16 +3814,13 @@ namespace OpenSim.Region.Framework.Scenes
                         if (part.LinkNum > linkPart.LinkNum)
                         {
                             part.LinkNum--;
-                            //int linkNum = part.LinkNum - 1;
-                            //part.SetProperty("LinkNum", linkNum);
                         }
                     }
                 }
             }
 
-            linkPart.ParentID = 0; //ParentID is a value set only locally and ignored in synchronization, so no need to call SetProperty to set its value
+            linkPart.ParentID = 0; //ParentID is a value set only locally and ignored in synchronization, so no need to set its value
             linkPart.LinkNum = 0;
-            //linkPart.SetParentID(0);
 
             if (linkPart.PhysActor != null)
             {
@@ -3842,15 +3838,6 @@ namespace OpenSim.Region.Framework.Scenes
             linkPart.GroupPosition = AbsolutePosition + linkPart.OffsetPosition;
             linkPart.OffsetPosition = new Vector3(0, 0, 0);
             linkPart.RotationOffset = worldRot;
-
-            //linkPart.SetOffsetPosition(new Vector3(axPos.X, axPos.Y, axPos.Z));
-            //linkPart.SetGroupPosition(AbsolutePosition + linkPart.OffsetPosition);
-            //linkPart.SetOffsetPosition(new Vector3(0, 0, 0));
-            //linkPart.SetRotationOffset(worldRot);
-            //linkPart.SetProperty("OffsetPosition", new Vector3(axPos.X, axPos.Y, axPos.Z));
-            //linkPart.SetProperty("GroupPosition", AbsolutePosition + linkPart.OffsetPosition);
-            //linkPart.SetProperty("OffsetPosition", new Vector3(0, 0, 0));
-            //linkPart.SetProperty("RotationOffset", worldRot);
 
             //SceneObjectGroup objectGroup = new SceneObjectGroup(linkPart);
             bool newGroupBySync = true;

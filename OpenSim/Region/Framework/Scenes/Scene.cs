@@ -791,8 +791,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="childrenIDs"></param>
         public void LinkObjectBySync(SceneObjectGroup linkedGroup, UUID rootID, List<UUID> childrenIDs)
         {
-            //m_log.Debug("Start to LinkObjectBySync");
-            //DebugSceneObjectGroups();
+            m_log.Debug("Start to LinkObjectBySync");
+            DebugSceneObjectGroups();
 
             List<SceneObjectPart> children = new List<SceneObjectPart>();
             SceneObjectPart root = GetSceneObjectPart(rootID);
@@ -813,7 +813,9 @@ namespace OpenSim.Region.Framework.Scenes
                     continue;
                 }
 
-                //m_log.Debug("to link part " + part.DebugObjectPartProperties());
+                //TEMP DEBUG
+                m_log.Debug("to link part " + part.DebugObjectPartProperties());
+
                 string partNames = "";
                 foreach (SceneObjectPart child in part.ParentGroup.Parts)
                 {
@@ -836,14 +838,14 @@ namespace OpenSim.Region.Framework.Scenes
             //localGroup.UpdateObjectGroupBySync(linkedGroup);
 
             //debug
-            /*
+            
             m_log.Debug("after SceneGraph.LinkObjectsBySync, the newly linked group is \n" + root.ParentGroup.DebugObjectUpdateResult());
             m_log.Debug("parts before linking now have properties: ");
             foreach (SceneObjectPart part in children)
             {
                 m_log.Debug(part.DebugObjectPartProperties());
             }
-             * */ 
+             
         }
 
         /// <summary>

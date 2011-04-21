@@ -5469,11 +5469,12 @@ namespace OpenSim.Region.Framework.Scenes
         public string DebugObjectPartProperties()
         {
             string debugMsg = "UUID " + UUID + ", Name " + Name + ", localID " + LocalId;
-            debugMsg += ", parentID " + ParentID + ", parentUUID " + ParentUUID;
-            foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
-            {
-                debugMsg += ", Bucket " + pair.Key + ": TimeStamp - " + pair.Value.LastUpdateTimeStamp + ", ActorID - " + pair.Value.LastUpdateActorID;
-            }
+            //debugMsg += ", parentID " + ParentID + ", parentUUID " + ParentUUID;
+            //foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
+            //{
+            //    debugMsg += ", Bucket " + pair.Key + ": TimeStamp - " + pair.Value.LastUpdateTimeStamp + ", ActorID - " + pair.Value.LastUpdateActorID;
+            //}
+            debugMsg += ", AggregateScriptEvents = " + AggregateScriptEvents.ToString()+", OffsetPosition: "+OffsetPosition; 
             return debugMsg;
         }
 

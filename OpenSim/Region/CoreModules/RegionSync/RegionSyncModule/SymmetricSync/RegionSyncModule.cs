@@ -603,12 +603,22 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (children.Count == 0) return;
 
+            //the group is just linked, each part has quite some properties changed 
+            //(OffsetPosition, etc). Need to sync the property values in PrimSyncInfoManager
+            //first
+            foreach (SceneObjectPart part in linkedGroup.Parts)
+            {
+                m_primSyncInfoManager.UpdatePrimSyncInfoByLocal(part, new List<SceneObjectPartSyncProperties> { SceneObjectPartSyncProperties.FullUpdate });
+            }
+
+
             if (!IsSyncingWithOtherSyncNodes())
             {
                 //no SyncConnector connected. Do nothing.
                 return;
             }
 
+            //Now encode the linkedGroup for sync
             OSDMap data = new OSDMap();
             OSDMap encodedSOG = SceneObjectEncoder(linkedGroup);
             data["linkedGroup"] = encodedSOG;
@@ -633,6 +643,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void SyncDeLinkObject(List<SceneObjectPart> prims, List<SceneObjectGroup> beforeDelinkGroups, List<SceneObjectGroup> afterDelinkGroups)
         {
             if (prims.Count == 0 || beforeDelinkGroups.Count == 0) return;
+
+            //the prims are just delinked, each part has quite some properties changed 
+            //(OffsetPosition, etc). Need to sync the property values in PrimSyncInfoManager
+            //first
+            foreach (SceneObjectPart part in prims)
+            {
+                m_primSyncInfoManager.UpdatePrimSyncInfoByLocal(part, new List<SceneObjectPartSyncProperties> { SceneObjectPartSyncProperties.FullUpdate });
+            }
+
 
             if (!IsSyncingWithOtherSyncNodes())
             {
@@ -2386,10 +2405,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 List<SceneObjectPartSyncProperties> propertiesUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoBySync(sop, propertiesSyncInfo);
 
                 //SYNC DEBUG
-                //if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.Shape))
-                //{
-                //    m_log.DebugFormat("Shape updated: " + PropertySerializer.SerializeShape(sop)); 
-                //}
+                if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.AggregateScriptEvents))
+                {
+                    m_log.DebugFormat("AggregateScriptEvents updated: " + sop.AggregateScriptEvents); 
+                }
 
                 if (propertiesUpdated.Count > 0)
                 {
@@ -2418,6 +2437,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SceneObjectGroup linkedGroup;
             Dictionary<UUID, PrimSyncInfo> primsSyncInfo;
             SceneObjectDecoder(encodedSOG, out linkedGroup, out primsSyncInfo);
+
+            //TEMP DEBUG
+            m_log.DebugFormat("{0}: received linkedGroup: {1}", LogHeader, linkedGroup.DebugObjectUpdateResult());
+            //m_log.DebugFormat(linkedGroup.DebugObjectUpdateResult());
 
             if (linkedGroup == null)
             {
@@ -3642,12 +3665,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.DebugFormat("{0}: SendPrimPropertyUpdates for {1}, {2}, with updated properties -- {3}", LogHeader, sop.Name, sop.UUID, pString);
 
                 //SYNC DEBUG
-                /*
-                if (updatedProperties.Contains(SceneObjectPartSyncProperties.Shape))
+                
+                if (updatedProperties.Contains(SceneObjectPartSyncProperties.AggregateScriptEvents))
                 {
-                    m_log.DebugFormat("Shape updated: " + PropertySerializer.SerializeShape(sop));
+                    m_log.DebugFormat("SendPrimPropertyUpdates -- AggregateScriptEvents: " + sop.AggregateScriptEvents);
                 }
-                 * */ 
+                
 
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedPrimProperties, OSDParser.SerializeJsonString(syncData));
                 SendPrimUpdateToRelevantSyncConnectors(primUUID, syncMsg);
@@ -4802,6 +4825,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_UUID = id;
             InitPropertiesSyncInfoFromOSDMap(primSyncInfoData);
+            m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         }
 
         #endregion //Constructors
@@ -5169,6 +5193,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             //copy from SOP's data
                             m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.AggregateScriptEvents);
                             propertyUpdatedByLocal = true;
+
+                            //TEMP DEBUG
+                            m_log.DebugFormat("CompareValue_UpdateByLocal -- copy SOP's AggregateScriptEvents {0}", part.AggregateScriptEvents);
                         }
                         else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
                         {
@@ -6410,6 +6437,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 case SceneObjectPartSyncProperties.AggregateScriptEvents:
                     part.AggregateScriptEvents = (scriptEvents)pSyncInfo.LastUpdateValue;
+
+                    m_log.DebugFormat("set {0} value to be {1}", property.ToString(), part.AggregateScriptEvents);
+
                     break;
                 case SceneObjectPartSyncProperties.AllowedDrop:
                     part.AllowedDrop = (bool)pSyncInfo.LastUpdateValue;

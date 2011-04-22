@@ -1936,13 +1936,29 @@ namespace OpenSim.Region.Framework.Scenes
             //RootPart.ScheduleFullUpdate();
             RootPart.ScheduleFullUpdate(updatedProperties);
 
+            //For group properties, we only need to send it once per SOG,
+            //hence remove them from the updatedProperties for other parts
+            List<SceneObjectPartSyncProperties> otherPartsUpdatedProperties = updatedProperties;
+            if (updatedProperties!=null)
+            {
+                HashSet<SceneObjectPartSyncProperties> hashedList = new HashSet<SceneObjectPartSyncProperties>(updatedProperties);
+                foreach (SceneObjectPartSyncProperties groupProperty in SceneObjectPart.GetGroupProperties())
+                {
+                    if (updatedProperties.Contains(groupProperty))
+                    {
+                        hashedList.Remove(groupProperty);
+                    }
+                }
+                otherPartsUpdatedProperties = new List<SceneObjectPartSyncProperties>(hashedList);
+            }
+
             SceneObjectPart[] parts = m_parts.GetArray();
             for (int i = 0; i < parts.Length; i++)
             {
                 SceneObjectPart part = parts[i];
                 if (part != RootPart)
                     //part.ScheduleFullUpdate();
-                    part.ScheduleFullUpdate(updatedProperties);
+                    part.ScheduleFullUpdate(otherPartsUpdatedProperties);
             }
         }
 

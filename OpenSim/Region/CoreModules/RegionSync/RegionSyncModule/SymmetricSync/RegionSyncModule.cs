@@ -102,6 +102,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SyncStatisticCollector.LogFileHeader = m_sysConfig.GetString("SyncLogFileHeader", "sync-");
 
             //initialize PrimSyncInfoManager
+            PrimSyncInfoManager.DebugLog = m_log;
+            PrimSyncInfo.DebugLog = m_log;
+            PropertySyncInfo.DebugLog = m_log;
             int syncInfoAgeOutSeconds = m_sysConfig.GetInt("PrimSyncInfoAgeOutSeconds", 300); //unit of seconds
             TimeSpan tSpan = new TimeSpan(0, 0, syncInfoAgeOutSeconds);
             m_primSyncInfoManager = new PrimSyncInfoManager(this, tSpan.Ticks);
@@ -3506,7 +3509,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //and should be propogated to other sync nodes.
             HashSet<SceneObjectPartSyncProperties> propertiesWithSyncInfoUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoByLocal(part, updatedProperties);
 
-            //Enqueue the prim with the set of updated properties
+            /*
+            //For group properties, we only need to send it once per SOG,
+            //hence only enqueue it with root part
+            foreach (SceneObjectPartSyncProperties groupProperty in SceneObjectPart.GetGroupProperties())
+            {
+                if (propertiesWithSyncInfoUpdated.Contains(groupProperty))
+                {
+                    SceneObjectPart rootpart = part.ParentGroup.RootPart;
+                    if (m_primPropertyUpdates.ContainsKey(rootpart.UUID))
+                    {
+                        m_primPropertyUpdates[rootpart.UUID].Add(groupProperty);
+                    }
+                    else
+                    {
+                        m_primPropertyUpdates.Add(rootpart.UUID, new HashSet<SceneObjectPartSyncProperties>() { groupProperty });
+                    }
+                }
+                propertiesWithSyncInfoUpdated.Remove(groupProperty);
+            }
+             * */ 
+
+            //Enqueue the prim with the set of updated properties, excluding the group properties
             if (propertiesWithSyncInfoUpdated.Count > 0)
             {
                 lock (m_primPropertyUpdateLock)
@@ -4008,7 +4032,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
     public class PropertySyncInfo
     {
-        private ILog m_log = null;
+        //private ILog m_log;
+        public static ILog DebugLog;
 
         private long m_lastUpdateTimeStamp;
         public long LastUpdateTimeStamp
@@ -4065,8 +4090,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public PropertySyncInfo(SceneObjectPartSyncProperties property)
         {
             m_property = property;
-            m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
         }
 
         public PropertySyncInfo(SceneObjectPartSyncProperties property, Object initValue, long initTS, string syncID)
@@ -4084,8 +4107,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_lastUpdateValueHash = GetPropertyHashValue((string)initValue);
                     break;
             }
-
-            m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         }
 
         /// <summary>
@@ -4095,7 +4116,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="syncData"></param>
         public PropertySyncInfo(SceneObjectPartSyncProperties property, OSDMap syncData)
         {
-            m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
             m_property = property;
             FromOSDMap(syncData);
         }
@@ -4160,7 +4180,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     if (!m_lastUpdateSyncID.Equals(pSyncInfo.LastUpdateSyncID))
                     {
-                        m_log.WarnFormat("CompareAndUpdateSyncInfoBySync: property {0} being updated by {1} and {2} at the same time. Do nothing as of current implementation. TO RESOLVE.",
+                        DebugLog.WarnFormat("CompareAndUpdateSyncInfoBySync: property {0} being updated by {1} and {2} at the same time. Do nothing as of current implementation. TO RESOLVE.",
                             m_property, m_lastUpdateSyncID, pSyncInfo.LastUpdateSyncID);
                     }
                 }
@@ -4203,11 +4223,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public bool IsValueEqual(Object pValue)
         {
             return m_lastUpdateValue.Equals(pValue);
-        }
-
-        public void SetLog(ILog log)
-        {
-            m_log = log;
         }
 
         /// <summary>
@@ -4406,7 +4421,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     break;
 
                 default:
-                    m_log.WarnFormat("PrimSynInfo.PropertyToOSD -- no handler for property {0} ", m_property);
+                    DebugLog.WarnFormat("PrimSynInfo.PropertyToOSD -- no handler for property {0} ", m_property);
                     break;
             }
             return propertyData;
@@ -4421,7 +4436,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (!propertyData.ContainsKey("LastUpdateTimeStamp"))
             {
-                m_log.WarnFormat("PrimSynInfo.FromOSDMap -- OSDMap missing LastUpdateTimeStamp");
+                DebugLog.WarnFormat("PrimSynInfo.FromOSDMap -- OSDMap missing LastUpdateTimeStamp");
             }
             else
             {
@@ -4430,7 +4445,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             if (!propertyData.ContainsKey("LastUpdateSyncID"))
             {
-                m_log.WarnFormat("PrimSynInfo.FromOSDMap -- OSDMap missing LastUpdateSyncID");
+                DebugLog.WarnFormat("PrimSynInfo.FromOSDMap -- OSDMap missing LastUpdateSyncID");
             }
             else
             {
@@ -4652,7 +4667,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     break;
 
                 default:
-                    m_log.WarnFormat("PrimSynInfo.PropertyToOSD -- no handler for property {0} ", m_property);
+                    DebugLog.WarnFormat("PrimSynInfo.PropertyToOSD -- no handler for property {0} ", m_property);
                     break;
 
             }
@@ -4786,7 +4801,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
     {
         #region Members
         public static long TimeOutThreshold;
-       
+        public static ILog DebugLog;
+
         private Dictionary<SceneObjectPartSyncProperties, PropertySyncInfo> m_propertiesSyncInfo = new Dictionary<SceneObjectPartSyncProperties,PropertySyncInfo>();
         public Dictionary<SceneObjectPartSyncProperties, PropertySyncInfo> PropertiesSyncInfo
         {
@@ -4804,7 +4820,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             get { return m_UUID; }
         }
-        private ILog m_log;
+
         private Object m_primSyncInfoLock = new Object();
         private static HashSet<SceneObjectPartSyncProperties> FullSetPrimProperties = SceneObjectPart.GetAllPrimProperties();
         private static HashSet<SceneObjectPartSyncProperties> PrimPhysActorProperties = SceneObjectPart.GetAllPhysActorProperties();
@@ -4818,21 +4834,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_UUID = part.UUID;
             InitPropertiesSyncInfo(part, initUpdateTimestamp, syncID);
-
-            m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-            //m_fullSetPrimProperties = SceneObjectPart.GetAllPrimProperties();
         }
 
         public PrimSyncInfo()
         {
-            m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         }
 
         public PrimSyncInfo(UUID id, OSDMap primSyncInfoData)
         {
             m_UUID = id;
             InitPropertiesSyncInfoFromOSDMap(primSyncInfoData);
-            m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         }
 
         #endregion //Constructors
@@ -4880,7 +4891,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     if (part.PhysActor == null)
                     {
-                        m_log.WarnFormat("PrimSyncInfo: Informed some physics property in SOP updated, yet SOP's PhysActor no longer exsits.");
+                        DebugLog.WarnFormat("PrimSyncInfo: Informed some physics property in SOP updated, yet SOP's PhysActor no longer exsits.");
                         return propertiesToBeSynced;
                     }
                 }
@@ -4952,7 +4963,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 if (!m_propertiesSyncInfo.ContainsKey(property))
                 {
                     //Should not happen
-                    m_log.WarnFormat("PrimSyncInfo.UpdatePropertiesBySync -- no record of property {0} for SOP {1},{2}", property, part.Name, part.UUID);
+                    DebugLog.WarnFormat("PrimSyncInfo.UpdatePropertiesBySync -- no record of property {0} for SOP {1},{2}", property, part.Name, part.UUID);
                 }
                 else
                 {
@@ -5027,7 +5038,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     PropertySyncInfo propertySyncInfo = new PropertySyncInfo(property, (OSDMap)primSyncInfoData[propertyString]);
                     propertiesSyncInfo.Add(propertySyncInfo);
                 }else{
-                    //m_log.WarnFormat("DecodeAndSetProperiesSyncInfo: Property {0} not a valid SceneObjectPartSyncProperties", propertyString);
+                    //DebugLog.WarnFormat("DecodeAndSetProperiesSyncInfo: Property {0} not a valid SceneObjectPartSyncProperties", propertyString);
                 }
             }
             return propertiesSyncInfo;
@@ -5045,7 +5056,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     SetSOPPropertyValue(sop, property);
                 else
                 {
-                    m_log.WarnFormat("PrimSyncInfoToSOP -- property {0} not in record.", property);
+                    DebugLog.WarnFormat("PrimSyncInfoToSOP -- property {0} not in record.", property);
                 }
             }
             return sop;
@@ -5095,7 +5106,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
                 else
                 {
-                    m_log.WarnFormat("InitPropertiesSyncInfoFromOSDMap: Property {0} not included in the given OSDMap", property);
+                    DebugLog.WarnFormat("InitPropertiesSyncInfoFromOSDMap: Property {0} not included in the given OSDMap", property);
                 }
             }
         }
@@ -5202,7 +5213,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             propertyUpdatedByLocal = true;
 
                             //TEMP DEBUG
-                            m_log.DebugFormat("CompareValue_UpdateByLocal -- copy SOP's AggregateScriptEvents {0}", part.AggregateScriptEvents);
+                            DebugLog.DebugFormat("CompareValue_UpdateByLocal -- copy SOP's AggregateScriptEvents {0}", part.AggregateScriptEvents);
                         }
                         else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
                         {
@@ -6427,7 +6438,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (part == null) return;
             if (!m_propertiesSyncInfo.ContainsKey(property)){
-                m_log.WarnFormat("SetSOPPropertyValue: property {0} not in record.", property.ToString());
+                DebugLog.WarnFormat("SetSOPPropertyValue: property {0} not in record.", property.ToString());
                 return;
             }
             PropertySyncInfo pSyncInfo = m_propertiesSyncInfo[property];
@@ -6451,7 +6462,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SceneObjectPartSyncProperties.AggregateScriptEvents:
                     part.AggregateScriptEvents = (scriptEvents)pSyncInfo.LastUpdateValue;
 
-                    m_log.DebugFormat("set {0} value to be {1}", property.ToString(), part.AggregateScriptEvents);
+                    DebugLog.DebugFormat("set {0} value to be {1}", property.ToString(), part.AggregateScriptEvents);
 
                     break;
                 case SceneObjectPartSyncProperties.AllowedDrop:
@@ -6787,6 +6798,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
     public class PrimSyncInfoManager
     {
+        //private ILog DebugLog;
+        public static ILog DebugLog;
+
         /// <summary>
         /// Lock for write-accessing m_primsInSync. We assume accesses to m_primsInSync
         /// are in the "many reads, a few writes" pattern. Writers needs to lock on it.
@@ -6798,8 +6812,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private Object m_primsInSyncLock = new Object();
         private Dictionary<UUID, PrimSyncInfo> m_primsInSync;
         private RegionSyncModule m_regionSyncModule;
-        private ILog m_log;
-
+        
         
         /// <summary>
         /// The max time for a SOP's SyncInfo to sit in record 
@@ -6817,8 +6830,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_primsInSync = new Dictionary<UUID, PrimSyncInfo>();
             m_regionSyncModule = syncModule;
             m_ageOutThreshold = ageOutTh;
-
-            m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         }
 
         public bool IsPrimSyncInfoExist(UUID primUUID)
@@ -6866,7 +6877,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             else
             {
                 //This should not happen, as we should only receive UpdatedPrimProperties after receiving a NewObject message
-                m_log.WarnFormat("PrimSyncInfoManager.UpdatePrimSyncInfoBySync: SOP {0},{1} not in local record of PrimSyncInfo.", part.Name, part.UUID);
+                DebugLog.WarnFormat("PrimSyncInfoManager.UpdatePrimSyncInfoBySync: SOP {0},{1} not in local record of PrimSyncInfo.", part.Name, part.UUID);
                 return new List<SceneObjectPartSyncProperties>();
             }
         }
@@ -6881,7 +6892,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             else
             {
                 //This should not happen, as we should only receive UpdatedPrimProperties after receiving a NewObject message
-                m_log.WarnFormat("PrimSyncInfoManager.UpdatePrimSyncInfoBySync: SOP {0},{1} not in local record of PrimSyncInfo.", part.Name, part.UUID);
+                DebugLog.WarnFormat("PrimSyncInfoManager.UpdatePrimSyncInfoBySync: SOP {0},{1} not in local record of PrimSyncInfo.", part.Name, part.UUID);
                 return new List<SceneObjectPartSyncProperties>();
             }
         }
@@ -6891,7 +6902,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             OSDMap data = new OSDMap();
             if (!m_primsInSync.ContainsKey(primUUID))
             {
-                m_log.WarnFormat("EncodePrimProperties: {0} not in RegionSyncModule's PrimSyncInfo list yet", primUUID);
+                DebugLog.WarnFormat("EncodePrimProperties: {0} not in RegionSyncModule's PrimSyncInfo list yet", primUUID);
                 return data;
             }
 
@@ -6916,12 +6927,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             HashSet<PropertySyncInfo> propertiesSyncInfo = new HashSet<PropertySyncInfo>();
             if (!primPropertiesData.ContainsKey("propertyData"))
             {
-                m_log.WarnFormat("DecodePrimProperties: propertyData is missing");
+                DebugLog.WarnFormat("DecodePrimProperties: propertyData is missing");
                 return propertiesSyncInfo;
             }
             
             //if(!m_primsInSync.ContainsKey(primUUID)){
-            //    m_log.WarnFormat("prim {0} not in PrimSyncInfoManager's record");
+            //    DebugLog.WarnFormat("prim {0} not in PrimSyncInfoManager's record");
             //    return;
             //}
             propertiesSyncInfo = PrimSyncInfo.DecodeProperiesSyncInfo((OSDMap)primPropertiesData["propertyData"]);
@@ -6933,7 +6944,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (!primData.ContainsKey("primUUID") || !primData.ContainsKey("propertyData"))
             {
-                m_log.WarnFormat("DecodeFullSetPrimProperties: either primUUID or propertyData is missing");
+                DebugLog.WarnFormat("DecodeFullSetPrimProperties: either primUUID or propertyData is missing");
                 return null;
             }
             UUID primUUID = primData["primUUID"];

@@ -5228,17 +5228,19 @@ namespace OpenSim.Region.Framework.Scenes
         Kinematic,
         CollidingGround,
         IsColliding,
-        //TODO!!!! To be handled in serialization/deserizaltion for synchronization
+
+        //Properties need to be synced, but not in xml serializations
         AggregateScriptEvents,
         IsAttachment,
         AttachedAvatar,
         AttachedPos,
         AttachmentPoint,
         //TODO!!!! To be handled in serialization/deserizaltion for synchronization
-        IsSelected,
         Sound, //This indicates any Sound related property has changed: Sound, SoundGain, SoundFlags,SoundRadius,
         //Addition properties to be added here
 
+        //Group properties
+        IsSelected,
         //Client Manager may want to add some property here that viewers care about and should be synchronized across actors
 
         FullUpdate,

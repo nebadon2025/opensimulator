@@ -1965,7 +1965,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.WarnFormat("SyncStateReport -- SOG: name {0}, UUID {1}, position {2}", sog.Name, sog.UUID, sog.AbsolutePosition);
                 foreach (SceneObjectPart part in sog.Parts)
                 {
-                    m_log.WarnFormat("               -- part {0}, UUID {1}, LocalID {2}, offset-position {3}", part.Name, part.UUID, part.LocalId, part.OffsetPosition);
+                    Vector3 pos = Vector3.Zero;
+                    if (part.PhysActor != null)
+                    {
+                        pos = part.PhysActor.Position;
+                    }
+                    m_log.WarnFormat("               -- part {0}, UUID {1}, LocalID {2}, GroupPos {3}, offset-position {4}, Position {5}, AggregateScriptEvents ={6}, Flags = {7}, LocalFlags {8}", 
+                        part.Name, part.UUID, part.LocalId, part.GroupPosition, part.OffsetPosition, 
+                        pos, part.AggregateScriptEvents, part.Flags, part.LocalFlags);
                 }
             }
 
@@ -5320,7 +5327,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
                         {
                             //overwrite SOP's data
-                            part.ClickAction = (byte)m_propertiesSyncInfo[property].LastUpdateValue;
+                            SetSOPCollisionSound(part, (UUID)m_propertiesSyncInfo[property].LastUpdateValue);
                         }
                     }
                     break;
@@ -5506,6 +5513,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     break;
                 case SceneObjectPartSyncProperties.GroupPosition:
+                    /*
                     if (!part.GroupPosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
                     {
                         if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
@@ -5519,6 +5527,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             part.GroupPosition = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
                         }
                     }
+                     * */
+                    propertyUpdatedByLocal = CompareAndUpdateSOPGroupPosition(part, lastUpdateByLocalTS, syncID);
                     break;
                 case SceneObjectPartSyncProperties.InventorySerial:
                     if (!part.InventorySerial.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
@@ -6134,6 +6144,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     break;
                 case SceneObjectPartSyncProperties.Position:
+                    /*
                     if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
                     {
                         if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
@@ -6147,6 +6158,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             part.PhysActor.Position = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
                         }
                     }
+                     * */
+                    propertyUpdatedByLocal = CompareAndUpdateSOPPosition(part, lastUpdateByLocalTS, syncID);
                     break;
                 case SceneObjectPartSyncProperties.RotationalVelocity:
                     if (!part.PhysActor.RotationalVelocity.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
@@ -6466,7 +6479,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     part.ClickAction = (byte)pSyncInfo.LastUpdateValue;
                     break;
                 case SceneObjectPartSyncProperties.CollisionSound:
-                    part.CollisionSound = (UUID)pSyncInfo.LastUpdateValue;
+                    //part.CollisionSound = (UUID)pSyncInfo.LastUpdateValue;
+                    SetSOPCollisionSound(part, (UUID)pSyncInfo.LastUpdateValue);
                     break;
                 case SceneObjectPartSyncProperties.CollisionSoundVolume:
                     part.CollisionSoundVolume = (float)pSyncInfo.LastUpdateValue;
@@ -6674,6 +6688,101 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { property }); 
         }
 
+        //Do not call "part.CollisionSound =" to go through its set function.
+        //We don't want the side effect of calling aggregateScriptEvents.
+        private void SetSOPCollisionSound(SceneObjectPart part, UUID cSound)
+        {
+            if (part.UpdateCollisionSound(cSound))
+            {
+                part.ParentGroup.Scene.EventManager.TriggerAggregateScriptEvents(part);
+            }
+        }
+
+        //In SOP's implementation, GroupPosition and SOP.PhysActor.Position are 
+        //correlated. We need to make sure that they are both properly synced.
+        private bool CompareAndUpdateSOPGroupPosition(SceneObjectPart part, long lastUpdateByLocalTS, string syncID)
+        {
+            if (!part.GroupPosition.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue))
+            {
+                if (lastUpdateByLocalTS > m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateTimeStamp)
+                {
+                    //Update cached value with SOP.GroupPosition
+                    m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.GroupPosition);
+
+                    //Also may need to cached PhysActor.Position
+                    if (part.PhysActor != null)
+                    {
+                        if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateValue))
+                        {
+                            m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Position);
+                        }
+            
+                    }
+                    return true;
+                }
+                else if (lastUpdateByLocalTS < m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateTimeStamp)
+                {
+                    //overwrite SOP's data, set function of GroupPosition updates PhysActor.Position as well
+                    part.GroupPosition = (Vector3)m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue;
+
+                    //PhysActor.Position is just updated by setting GroupPosition 
+                    //above, so need to update the cached value of Position here.
+                    if (part.PhysActor != null)
+                    {
+                        if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateValue))
+                        {
+                            //Set the timestamp and syncID to be the same with GroupPosition
+                            long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateTimeStamp;
+                            string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateSyncID;
+                            m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].UpdateSyncInfoByLocal(lastUpdateTimestamp,
+                                lastUpdateSyncID, (Object)part.PhysActor.Position);
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        private bool CompareAndUpdateSOPPosition(SceneObjectPart part, long lastUpdateByLocalTS, string syncID)
+        {
+            if (part.PhysActor == null)
+                return false;
+
+            if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateValue))
+            {
+                if (lastUpdateByLocalTS > m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateTimeStamp)
+                {
+                    //Update SOP.PhysActor.Position 
+                    m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Position);
+
+                    //Also may need to update SOP.GroupPosition (especially for root parts)
+                    if (!part.GroupPosition.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue))
+                    {
+                        //Update SOP.GroupPosition
+                        m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.GroupPosition);
+                    }
+                    return true;
+                }
+                else if (lastUpdateByLocalTS < m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateTimeStamp)
+                {
+                    //overwrite PhysActor's data with the cached value
+                    part.PhysActor.Position = (Vector3)m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateValue;
+
+                    //GroupPosition may change due to PhysActor.Position changes,
+                    //especially for root parts. Sync the value of GroupPosition.
+                    if (!part.GroupPosition.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue))
+                    {
+                        //Need to reset SOP.GroupPosition to the cached value here
+                        //Set the timestamp and syncID to be the same with Position
+                        long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateTimeStamp;
+                        string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateSyncID;
+                        m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].UpdateSyncInfoByLocal(lastUpdateTimestamp,
+                            lastUpdateSyncID, (Object)part.GroupPosition);
+                    }
+                }
+            }
+            return false;
+        }
     }
 
     public class PrimSyncInfoManager

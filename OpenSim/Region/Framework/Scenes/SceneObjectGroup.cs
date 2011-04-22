@@ -1291,7 +1291,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             //ScheduleGroupForFullUpdate();
-            ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){ SceneObjectPartSyncProperties.Flags}); //do we also need to synchronize SOG properties such as m_scriptListens_atRotTarget? (does any acotr other than script engine care about it?)
+            ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){ SceneObjectPartSyncProperties.Flags, SceneObjectPartSyncProperties.AggregateScriptEvents}); //do we also need to synchronize SOG properties such as m_scriptListens_atRotTarget? (does any acotr other than script engine care about it?)
         }
 
         public void SetText(string text, Vector3 color, double alpha)

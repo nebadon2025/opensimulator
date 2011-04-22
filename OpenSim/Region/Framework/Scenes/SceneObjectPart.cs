@@ -6103,7 +6103,7 @@ namespace OpenSim.Region.Framework.Scenes
             base.ScheduleFullUpdate(null);
         }
 
-        private bool UpdateCollisionSound(UUID updatedCollisionSound)
+        public bool UpdateCollisionSound(UUID updatedCollisionSound)
         {
             if (this.CollisionSound != updatedCollisionSound)
             {

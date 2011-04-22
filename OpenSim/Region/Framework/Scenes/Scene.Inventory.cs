@@ -2337,6 +2337,9 @@ namespace OpenSim.Region.Framework.Scenes
             List<SceneObjectPart> children = new List<SceneObjectPart>();
             SceneObjectPart root = GetSceneObjectPart(parentPrimId);
 
+            //DSG DEBUG
+            m_log.Debug("Scene.LinkObjects -- ROOT: " + root.DebugObjectPartProperties());
+
             if (root == null)
             {
                 m_log.DebugFormat("[LINK]: Can't find linkset root prim {0}", parentPrimId);
@@ -2355,6 +2358,9 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if (part == null)
                     continue;
+
+                //DSG DEBUG
+                m_log.Debug("Scene.LinkObjects -- child to link: " + part.DebugObjectPartProperties());
 
                 if (!owners.Contains(part.OwnerID))
                     owners.Add(part.OwnerID);

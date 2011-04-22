@@ -5452,6 +5452,18 @@ namespace OpenSim.Region.Framework.Scenes
             return allProperties;
         }
 
+        public static HashSet<SceneObjectPartSyncProperties> GetAllNonPhysActorProperties()
+        {
+            HashSet<SceneObjectPartSyncProperties> allProperties = GetAllPrimProperties();
+            HashSet<SceneObjectPartSyncProperties> physActorProperties = GetAllPhysActorProperties();
+
+            foreach (SceneObjectPartSyncProperties pProperty in physActorProperties)
+            {
+                allProperties.Remove(pProperty);
+            }
+            return allProperties;
+        }
+
         public static HashSet<SceneObjectPartSyncProperties> GetGroupProperties()
         {
             HashSet<SceneObjectPartSyncProperties> allProperties = new HashSet<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.IsSelected};

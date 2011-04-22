@@ -3654,15 +3654,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         HashSet<SceneObjectPartSyncProperties> updatedProperties = updatedPrimProperties.Value;
 
                         SendPrimPropertyUpdates(primUUID, updatedProperties);
-                        /*
-                        OSDMap syncData = m_primSyncInfoManager.EncodePrimProperties(primUUID, updatedProperties);
-
-                        if (syncData.Count > 0)
-                        {
-                            SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, OSDParser.SerializeJsonString(syncData));
-                            SendPrimUpdateToRelevantSyncConnectors(primUUID, syncMsg);
-                        }
-                         * */ 
                     }
                     
                     // Indicate that the current batch of updates has been completed
@@ -3682,7 +3673,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (sop == null || sop.ParentGroup.IsDeleted)
                 return; 
 
-            OSDMap syncData = m_primSyncInfoManager.EncodePrimProperties(primUUID, updatedProperties);
+            OSDMap syncData = m_primSyncInfoManager.EncodePrimProperties(sop, updatedProperties);
 
             if (syncData.Count > 0)
             {
@@ -3751,7 +3742,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //This should not happen, but we deal with it by inserting a newly created PrimSynInfo
                 m_primSyncInfoManager.InsertPrimSyncInfo(sog.RootPart, DateTime.Now.Ticks, m_syncID);
             }
-            data["RootPart"] = m_primSyncInfoManager.EncodePrimProperties(sog.RootPart.UUID, fullPropertyList);
+            data["RootPart"] = m_primSyncInfoManager.EncodePrimProperties(sog.RootPart, fullPropertyList);
 
 
             //int otherPartsCount = sog.Parts.Length - 1;
@@ -3767,7 +3758,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         //This should not happen, but we deal with it by inserting a newly created PrimSynInfo
                         m_primSyncInfoManager.InsertPrimSyncInfo(part, DateTime.Now.Ticks, m_syncID);
                     }
-                    OSDMap partData = m_primSyncInfoManager.EncodePrimProperties(part.UUID, fullPropertyList);
+                    OSDMap partData = m_primSyncInfoManager.EncodePrimProperties(part, fullPropertyList);
                     otherPartsArray.Add(partData);
                 }
             }
@@ -4824,6 +4815,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private Object m_primSyncInfoLock = new Object();
         private static HashSet<SceneObjectPartSyncProperties> FullSetPrimProperties = SceneObjectPart.GetAllPrimProperties();
         private static HashSet<SceneObjectPartSyncProperties> PrimPhysActorProperties = SceneObjectPart.GetAllPhysActorProperties();
+        private static HashSet<SceneObjectPartSyncProperties> PrimNonPhysActorProperties = SceneObjectPart.GetAllPrimNonPhysActorProperties();
         private static HashSet<SceneObjectPartSyncProperties> GroupProperties = SceneObjectPart.GetGroupProperties();
 
         #endregion //Members
@@ -4902,7 +4894,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         case SceneObjectPartSyncProperties.FullUpdate:
                             //Caller indicated many properties have changed. We need to 
                             //compare and update all properties
-                            propertiesToBeSynced = FullSetPrimProperties;
+                            if (part.PhysActor == null)
+                                propertiesToBeSynced = PrimNonPhysActorProperties;
+                            else
+                                propertiesToBeSynced = FullSetPrimProperties;
                             break;
                             //return propertiesToBeSynced;
                         case SceneObjectPartSyncProperties.None:
@@ -5006,14 +5001,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     foreach (SceneObjectPartSyncProperties property in FullSetPrimProperties)
                     {
-                        propertyData.Add(property.ToString(), m_propertiesSyncInfo[property].ToOSDMap());
+                        if (m_propertiesSyncInfo.ContainsKey(property))
+                            propertyData.Add(property.ToString(), m_propertiesSyncInfo[property].ToOSDMap());
+                        else
+                        {
+                            DebugLog.WarnFormat("PrimSyncInfo: property {0} not in sync cache", property);
+                        }
                     }
                 }
                 else
                 {
                     foreach (SceneObjectPartSyncProperties property in propertiesToSync)
                     {
-                        propertyData.Add(property.ToString(), m_propertiesSyncInfo[property].ToOSDMap());
+                        if (m_propertiesSyncInfo.ContainsKey(property))
+                            propertyData.Add(property.ToString(), m_propertiesSyncInfo[property].ToOSDMap());
+                        else
+                        {
+                            DebugLog.WarnFormat("PrimSyncInfo: property {0} not in sync cache", property);
+                        }
                     }
                 }
             }
@@ -5056,7 +5061,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     SetSOPPropertyValue(sop, property);
                 else
                 {
-                    DebugLog.WarnFormat("PrimSyncInfoToSOP -- property {0} not in record.", property);
+                    //This might just be fine. For phantom objects, they don't have 
+                    //PhysActor properties, and those properties would end up here.
+
+                    //DebugLog.WarnFormat("PrimSyncInfoToSOP -- property {0} not in record.", property);
                 }
             }
             return sop;
@@ -5081,7 +5089,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void InitPropertiesSyncInfo(SceneObjectPart part, long initUpdateTimestamp, string syncID)
         {
             m_propertiesSyncInfo.Clear();
-            foreach (SceneObjectPartSyncProperties property in FullSetPrimProperties)
+            HashSet<SceneObjectPartSyncProperties> initPrimProperties;
+
+            if (part.PhysActor == null)
+                initPrimProperties = PrimNonPhysActorProperties;
+            else
+                initPrimProperties = FullSetPrimProperties;
+
+            foreach (SceneObjectPartSyncProperties property in initPrimProperties)
             {
                 Object initValue = GetSOPPropertyValue(part, property);
                 PropertySyncInfo syncInfo = new PropertySyncInfo(property, initValue, initUpdateTimestamp, syncID);
@@ -5106,7 +5121,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
                 else
                 {
-                    DebugLog.WarnFormat("InitPropertiesSyncInfoFromOSDMap: Property {0} not included in the given OSDMap", property);
+                    //For Phantom prims, they don't have PhysActor properties. So this branch could happen.
+                    //DebugLog.WarnFormat("InitPropertiesSyncInfoFromOSDMap: Property {0} not included in the given OSDMap", property);
                 }
             }
         }
@@ -5115,6 +5131,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private bool CompareHashedValue_UpdateByLocal(SceneObjectPart part, SceneObjectPartSyncProperties property, long lastUpdateTS, string syncID)
         {
             bool updated = false;
+            if (!m_propertiesSyncInfo.ContainsKey(property))
+            {
+                Object initValue = GetSOPPropertyValue(part, property);
+                PropertySyncInfo syncInfo = new PropertySyncInfo(property, initValue, lastUpdateTS, syncID);
+                m_propertiesSyncInfo.Add(property, syncInfo);
+                return true;
+            }
             switch (property)
             {
                 case SceneObjectPartSyncProperties.Shape:
@@ -5186,7 +5209,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private bool CompareValue_UpdateByLocal(SceneObjectPart part, SceneObjectPartSyncProperties property, long lastUpdateByLocalTS, string syncID)
         {
             bool propertyUpdatedByLocal = false;
-            
+
+            if (!m_propertiesSyncInfo.ContainsKey(property))
+            {
+                Object initValue = GetSOPPropertyValue(part, property);
+                PropertySyncInfo syncInfo = new PropertySyncInfo(property, initValue, lastUpdateByLocalTS, syncID);
+                m_propertiesSyncInfo.Add(property, syncInfo);
+                return true;
+            }
+
             //First, check if the value maintained here is different from that 
             //in SOP's. If different, next check if the timestamp in SyncInfo is
             //bigger (newer) than lastUpdateByLocalTS; if so (although ideally 
@@ -6260,7 +6291,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             return true;
         }
-
+       
         private Object GetSOPPropertyValue(SceneObjectPart part, SceneObjectPartSyncProperties property)
         {
             if (part == null) return null;
@@ -6392,30 +6423,56 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //PhysActor properties
                 ///////////////////////
                 case SceneObjectPartSyncProperties.Buoyancy:
+                    if (part.PhysActor == null)
+                        return null;
                     return (Object)part.PhysActor.Buoyancy;
                 case SceneObjectPartSyncProperties.Flying:
+                    if (part.PhysActor == null)
+                        return null;
                     return (Object)part.PhysActor.Flying;
                 case SceneObjectPartSyncProperties.Force:
+                    if (part.PhysActor == null)
+                        return null;
                     return (Object)part.PhysActor.Force;
                 case SceneObjectPartSyncProperties.IsColliding:
+                    if (part.PhysActor == null)
+                        return null;
                     return (Object)part.PhysActor.IsColliding;
                 case SceneObjectPartSyncProperties.CollidingGround:
+                    if (part.PhysActor == null)
+                        return null;
                     return (Object)part.PhysActor.CollidingGround;
                 case SceneObjectPartSyncProperties.IsPhysical:
+                    if (part.PhysActor == null)
+                        return null;
                     return (Object)part.PhysActor.IsPhysical;
                 case SceneObjectPartSyncProperties.Kinematic:
+                    if (part.PhysActor == null)
+                        return null;
                     return (Object)part.PhysActor.Kinematic;
                 case SceneObjectPartSyncProperties.Orientation:
+                    if (part.PhysActor == null)
+                        return null;
                     return (Object)part.PhysActor.Orientation;
                 case SceneObjectPartSyncProperties.PA_Acceleration:
+                    if (part.PhysActor == null)
+                        return null;
                     return (Object)part.PhysActor.Acceleration;
                 case SceneObjectPartSyncProperties.Position:
+                    if (part.PhysActor == null)
+                        return null;
                     return (Object)part.PhysActor.Position;
                 case SceneObjectPartSyncProperties.RotationalVelocity:
+                    if (part.PhysActor == null)
+                        return null;
                     return (Object)part.PhysActor.RotationalVelocity;
                 case SceneObjectPartSyncProperties.Size:
+                    if (part.PhysActor == null)
+                        return null;
                     return (Object)part.PhysActor.Size;
                 case SceneObjectPartSyncProperties.Torque:
+                    if (part.PhysActor == null)
+                        return null;
                     return (Object)part.PhysActor.Torque;
 
                 ///////////////////////
@@ -6438,7 +6495,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             if (part == null) return;
             if (!m_propertiesSyncInfo.ContainsKey(property)){
-                DebugLog.WarnFormat("SetSOPPropertyValue: property {0} not in record.", property.ToString());
+                //DebugLog.WarnFormat("SetSOPPropertyValue: property {0} not in record.", property.ToString());
+                //For phantom prims, they don't have physActor properties, 
+                //so for those properties, simply return
+                return;
+            }
+
+            if (!m_propertiesSyncInfo.ContainsKey(property))
+            {
+                DebugLog.WarnFormat("PrimSyncInfo: property {0} not in sync cache", property);
                 return;
             }
             PropertySyncInfo pSyncInfo = m_propertiesSyncInfo[property];
@@ -6897,9 +6962,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
-        public OSDMap EncodePrimProperties(UUID primUUID, HashSet<SceneObjectPartSyncProperties> updatedProperties)
+        public OSDMap EncodePrimProperties(SceneObjectPart sop, HashSet<SceneObjectPartSyncProperties> updatedProperties)
         {
             OSDMap data = new OSDMap();
+            UUID primUUID = sop.UUID;
             if (!m_primsInSync.ContainsKey(primUUID))
             {
                 DebugLog.WarnFormat("EncodePrimProperties: {0} not in RegionSyncModule's PrimSyncInfo list yet", primUUID);
@@ -6913,7 +6979,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             HashSet<SceneObjectPartSyncProperties> propertiesToEncoded = updatedProperties;
             if (updatedProperties.Contains(SceneObjectPartSyncProperties.FullUpdate))
             {
-                propertiesToEncoded = SceneObjectPart.GetAllPrimProperties();
+                if (sop.PhysActor != null)
+                    propertiesToEncoded = SceneObjectPart.GetAllPrimProperties();
+                else
+                    propertiesToEncoded = SceneObjectPart.GetAllPrimNonPhysActorProperties();
             }
 
             OSDMap propertyData = m_primsInSync[primUUID].EncodePropertiesSyncInfo(propertiesToEncoded);

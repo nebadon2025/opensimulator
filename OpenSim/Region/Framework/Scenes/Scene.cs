@@ -4254,6 +4254,15 @@ namespace OpenSim.Region.Framework.Scenes
                 return false;
             }
 
+            int num = m_sceneGraph.GetNumberOfScenePresences();
+
+            if (num >= RegionInfo.RegionSettings.AgentLimit)
+            {
+                if (!Permissions.IsAdministrator(cAgentData.AgentID))
+                    return false;
+            }
+
+
             ScenePresence childAgentUpdate = WaitGetScenePresence(cAgentData.AgentID);
 
             if (childAgentUpdate != null)
@@ -5563,6 +5572,17 @@ namespace OpenSim.Region.Framework.Scenes
         // child agent creation, thereby emulating the SL behavior.
         public bool QueryAccess(UUID agentID, Vector3 position, out string reason)
         {
+            int num = m_sceneGraph.GetNumberOfScenePresences();
+
+            if (num >= RegionInfo.RegionSettings.AgentLimit)
+            {
+                if (!Permissions.IsAdministrator(agentID))
+                {
+                    reason = "The region is full";
+                    return false;
+                }
+            }
+
             reason = String.Empty;
             return true;
         }

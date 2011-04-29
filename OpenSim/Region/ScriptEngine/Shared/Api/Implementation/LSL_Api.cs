@@ -3622,9 +3622,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 //Tell other actors to link the SceneObjectParts together as a new group. 
                 //parentGroup.SyncInfoUpdate();
-                World.RegionSyncModule.SendLinkObject(parentPrim, parentPrim.RootPart, children);
+                //World.RegionSyncModule.SendLinkObject(parentPrim, parentPrim.RootPart, children);
+                World.RegionSyncModule.SyncLinkObject(parentPrim, parentPrim.RootPart, children);
             }
-            m_host.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None}); //SendLinkObject above will synchronize the link operation, no need to taint updates here
+            m_host.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.None }); //SyncLinkObject above will synchronize the link operation, no need to taint updates here
             //end of DSG SYNC
 
             if (client != null)
@@ -3724,7 +3725,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     //DSG SYNC
                     if (World.RegionSyncModule != null)
                     {
-                        World.RegionSyncModule.SendLinkObject(newRoot.ParentGroup, newRoot, new List<SceneObjectPart>(newRoot.ParentGroup.Parts));
+                        //World.RegionSyncModule.SendLinkObject(newRoot.ParentGroup, newRoot, new List<SceneObjectPart>(newRoot.ParentGroup.Parts));
+                        World.RegionSyncModule.SyncLinkObject(newRoot.ParentGroup, newRoot, new List<SceneObjectPart>(newRoot.ParentGroup.Parts));
                     }
                     newRoot.ParentGroup.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None});
                     //end of DSG SYNC
@@ -7089,6 +7091,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             return;
 
                         code = (int)rules.GetLSLIntegerItem(idx++);
+
+                        //debug
+                        part.ParentGroup.Scene.RegionSyncModule.Debug("LSL_Api: Prim " + part.Name + "," + part.UUID + ", changing shape to " + code);
 
                         remain = rules.Length - idx;
                         float hollow;

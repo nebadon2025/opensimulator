@@ -101,6 +101,8 @@ namespace OpenSim.Region.Framework.Interfaces
         //void QueuePresenceForTerseUpdate(ScenePresence presence)
         //void SendAvatarUpdates();
 
+        //Debug purpose, mainly for LSL scripts
+        void Debug(String debugMsg);
     }
 
     /// <summary>

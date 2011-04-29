@@ -42,6 +42,7 @@ using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes.Scripting;
 using OpenSim.Region.Framework.Scenes.Serialization;
 using OpenSim.Region.Physics.Manager;
+using System.IO;
 
 namespace OpenSim.Region.Framework.Scenes
 {
@@ -5488,7 +5489,9 @@ namespace OpenSim.Region.Framework.Scenes
             //{
             //    debugMsg += ", Bucket " + pair.Key + ": TimeStamp - " + pair.Value.LastUpdateTimeStamp + ", ActorID - " + pair.Value.LastUpdateActorID;
             //}
-            debugMsg += ", AggregateScriptEvents = " + AggregateScriptEvents.ToString()+", OffsetPosition: "+OffsetPosition; 
+            debugMsg += ", AggregateScriptEvents = " + AggregateScriptEvents.ToString()+", OffsetPosition: "+OffsetPosition;
+            String hashedShape = Util.Md5Hash(SerializeShape());
+            debugMsg += ", hashed Shape = " + hashedShape;
             return debugMsg;
         }
 
@@ -6155,6 +6158,21 @@ namespace OpenSim.Region.Framework.Scenes
         //Per property sync functions
         ///////////////////////////////////////////////////////////////////////
 
+
+        //For debugging, same implemenation with PropertySerializer.SerializeShape
+        private string SerializeShape()
+        {
+            string serializedShape;
+            using (StringWriter sw = new StringWriter())
+            {
+                using (XmlTextWriter writer = new XmlTextWriter(sw))
+                {
+                    SceneObjectSerializer.WriteShape(writer, Shape, new Dictionary<string, object>());
+                }
+                serializedShape = sw.ToString();
+            }
+            return serializedShape;
+        }
     }
 
     //end of DSG SYNC

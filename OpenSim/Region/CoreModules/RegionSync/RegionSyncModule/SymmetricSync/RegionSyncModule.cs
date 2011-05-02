@@ -5204,7 +5204,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             UpdatePropertySyncInfoByLocal(property, lastUpdateTS, syncID, (Object)primShapeString, primShapeStringHash);
 
                             //DSG DEBUG
-                            //DebugLog.DebugFormat("CompareHashedValue_UpdateByLocal - Shape of {0}, {1}, updated: hashed value {2}", part.Name, part.UUID, m_propertiesSyncInfo[property].LastUpdateValueHash);
+                            DebugLog.DebugFormat("CompareHashedValue_UpdateByLocal - Shape of {0}, {1} updated: SOP hashed shape: {2}, cached hash {3}",
+                                part.Name, part.UUID, primShapeStringHash, m_propertiesSyncInfo[property].LastUpdateValueHash);
 
                             updated = true;
                         }
@@ -6569,11 +6570,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     if (shapeVal != null)
                     {
                         part.Shape = shapeVal;
-                        /*
+                        
                         String hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(part)));
                         DebugLog.DebugFormat("prim type of SOP {0}, {1}, changed, hashed shape = {2} in SOP, = {3} in PrimSyncInfoManager",
                             part.Name, part.UUID, hashedShape, pSyncInfo.LastUpdateValueHash);
-                         * */ 
+                         
                     }
                     else
                     {

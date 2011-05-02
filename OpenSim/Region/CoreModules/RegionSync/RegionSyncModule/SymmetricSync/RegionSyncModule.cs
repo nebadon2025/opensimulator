@@ -2409,7 +2409,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (propertiesSyncInfo.Count>0)
             {
                 //SYNC DEBUG
-                /*
+                
                 string pString = "";
                 foreach (PropertySyncInfo p in propertiesSyncInfo)
                 {
@@ -2417,10 +2417,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     if (p.Property == SceneObjectPartSyncProperties.Shape)
                     {
                         PrimitiveBaseShape shape = PropertySerializer.DeSerializeShape((String)p.LastUpdateValue);
-                        m_log.DebugFormat("Shaped changed on SOP {0}, {1} to ProfileShape {2}", sop.Name, sop.UUID, shape.ProfileShape);
+                        m_log.DebugFormat("Shape changed on SOP {0}, {1} to ProfileShape {2}", sop.Name, sop.UUID, shape.ProfileShape);
                     }
                 }
-                 * */
+                 
                 //m_log.DebugFormat("ms {0}: HandleUpdatedPrimProperties, for prim {1},{2} with updated properties -- {3}", DateTime.Now.Millisecond, sop.Name, sop.UUID, pString);
 
 
@@ -6570,10 +6570,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     if (shapeVal != null)
                     {
                         part.Shape = shapeVal;
-                        
+                        /*
                         String hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(part)));
-                        DebugLog.DebugFormat("prim type of SOP {0}, {1}, changed, hashed shape = {2} in SOP, = {3} in PrimSyncInfoManager",
+                        DebugLog.DebugFormat("Shape of SOP {0}, {1}, changed, hashed shape = {2} in SOP, = {3} in PrimSyncInfoManager",
                             part.Name, part.UUID, hashedShape, pSyncInfo.LastUpdateValueHash);
+                         * */
                          
                     }
                     else

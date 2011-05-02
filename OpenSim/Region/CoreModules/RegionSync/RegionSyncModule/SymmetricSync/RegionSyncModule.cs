@@ -2409,6 +2409,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (propertiesSyncInfo.Count>0)
             {
                 //SYNC DEBUG
+                /*
                 string pString = "";
                 foreach (PropertySyncInfo p in propertiesSyncInfo)
                 {
@@ -2417,9 +2418,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     {
                         PrimitiveBaseShape shape = PropertySerializer.DeSerializeShape((String)p.LastUpdateValue);
                         m_log.DebugFormat("Shaped changed on SOP {0}, {1} to ProfileShape {2}", sop.Name, sop.UUID, shape.ProfileShape);
-                        //m_log.DebugFormat("SOP {0}, {1} Shape value in incoming message: {1
                     }
                 }
+                 * */
                 //m_log.DebugFormat("ms {0}: HandleUpdatedPrimProperties, for prim {1},{2} with updated properties -- {3}", DateTime.Now.Millisecond, sop.Name, sop.UUID, pString);
 
 
@@ -2431,12 +2432,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //m_log.DebugFormat("AggregateScriptEvents updated: " + sop.AggregateScriptEvents); 
                 }
 
+                /*
                 if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.Shape))
                 {
                     String hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(sop)));
                     m_log.DebugFormat("HandleUpdatedPrimProperties -- SOP {0},{1}, Shape, ProfileShape {2}, hashed value in SOP:{3}, in PrinSyncInfoManager: {4}",
                         sop.Name, sop.UUID, sop.Shape.ProfileShape, hashedShape, m_primSyncInfoManager.GetPrimSyncInfo(sop.UUID).PropertiesSyncInfo[SceneObjectPartSyncProperties.Shape].LastUpdateValueHash);
                 }
+                 * */ 
 
                 if (propertiesUpdated.Count > 0)
                 {
@@ -2467,7 +2470,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SceneObjectDecoder(encodedSOG, out linkedGroup, out primsSyncInfo);
 
             //TEMP DEBUG
-            m_log.DebugFormat(" received linkedGroup: {1}", linkedGroup.DebugObjectUpdateResult());
+            // m_log.DebugFormat(" received linkedGroup: {0}", linkedGroup.DebugObjectUpdateResult());
             //m_log.DebugFormat(linkedGroup.DebugObjectUpdateResult());
 
             if (linkedGroup == null)
@@ -3527,7 +3530,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //and should be propogated to other sync nodes.
             HashSet<SceneObjectPartSyncProperties> propertiesWithSyncInfoUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoByLocal(part, updatedProperties);
 
-            /*
+            /* //Below is done at SOG level, not here (TO DOUBLE CHECK)
             //For group properties, we only need to send it once per SOG,
             //hence only enqueue it with root part
             foreach (SceneObjectPartSyncProperties groupProperty in SceneObjectPart.GetGroupProperties())
@@ -3548,12 +3551,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
              * */ 
 
+            /*
             if(updatedProperties.Contains(SceneObjectPartSyncProperties.Shape))
             {
                 string hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(part)));
                 m_log.DebugFormat("ProcessAndEnqueuePrimUpdatesByLocal: Shape of SOP {0}, {1} updated, ProfileShape {2}, hashed value in SOP: {3}, in PrimSyncInfoManager: {4}", 
                     part.Name, part.UUID, part.Shape.ProfileShape, hashedShape, m_primSyncInfoManager.GetPrimSyncInfo(part.UUID).PropertiesSyncInfo[SceneObjectPartSyncProperties.Shape].LastUpdateValueHash);
             }
+             * */ 
 
             //Enqueue the prim with the set of updated properties, excluding the group properties
             if (propertiesWithSyncInfoUpdated.Count > 0)
@@ -3712,7 +3717,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     pString += property.ToString() + " ";
                 }
-                m_log.DebugFormat("{0}: SendPrimPropertyUpdates for {1}, {2}, with updated properties -- {3}", LogHeader, sop.Name, sop.UUID, pString);
+                //m_log.DebugFormat("{0}: SendPrimPropertyUpdates for {1}, {2}, with updated properties -- {3}", LogHeader, sop.Name, sop.UUID, pString);
 
                 //DSG DEBUG
                 
@@ -3721,6 +3726,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                    // m_log.DebugFormat("SendPrimPropertyUpdates -- AggregateScriptEvents: " + sop.AggregateScriptEvents);
                 }
 
+                /*
                 if (updatedProperties.Contains(SceneObjectPartSyncProperties.Shape))
                 {
                     String hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(sop)));
@@ -3728,6 +3734,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         sop.Name, sop.UUID, sop.Shape.ProfileShape,
                         hashedShape, m_primSyncInfoManager.GetPrimSyncInfo(sop.UUID).PropertiesSyncInfo[SceneObjectPartSyncProperties.Shape].LastUpdateValueHash);
                 }
+                 * */
 
 
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedPrimProperties, OSDParser.SerializeJsonString(syncData));
@@ -3820,7 +3827,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             //DSG DEBUG
-            m_log.DebugFormat("calling AddNewSceneObjectByDecoding for SOG {1}, {2}", group.Name, group.UUID);
+            m_log.DebugFormat("calling AddNewSceneObjectByDecoding for SOG {0}, {1}", group.Name, group.UUID);
 
             //Add the list of PrimSyncInfo to PrimSyncInfoManager's record.
             m_primSyncInfoManager.InsertMultiPrimSyncInfo(primsSyncInfo);
@@ -5197,7 +5204,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             UpdatePropertySyncInfoByLocal(property, lastUpdateTS, syncID, (Object)primShapeString, primShapeStringHash);
 
                             //DSG DEBUG
-                            DebugLog.DebugFormat("CompareHashedValue_UpdateByLocal - Shape of {0}, {1}, updated: hashed value {2}", part.Name, part.UUID, m_propertiesSyncInfo[property].LastUpdateValueHash);
+                            //DebugLog.DebugFormat("CompareHashedValue_UpdateByLocal - Shape of {0}, {1}, updated: hashed value {2}", part.Name, part.UUID, m_propertiesSyncInfo[property].LastUpdateValueHash);
 
                             updated = true;
                         }
@@ -6562,9 +6569,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     if (shapeVal != null)
                     {
                         part.Shape = shapeVal;
+                        /*
                         String hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(part)));
-                        DebugLog.DebugFormat("prim type of SOP {0}, {1}, changed, hashed shape = {2} in SOP, = {3} in PrimSyncInfoManager", 
+                        DebugLog.DebugFormat("prim type of SOP {0}, {1}, changed, hashed shape = {2} in SOP, = {3} in PrimSyncInfoManager",
                             part.Name, part.UUID, hashedShape, pSyncInfo.LastUpdateValueHash);
+                         * */ 
+                    }
+                    else
+                    {
+
                     }
                     break;
                 case SceneObjectPartSyncProperties.TaskInventory:

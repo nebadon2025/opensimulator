@@ -814,6 +814,7 @@ namespace OpenSim.Region.Framework.Scenes
                 }
 
                 //TEMP DEBUG
+                /*
                 m_log.Debug("to link part " + part.DebugObjectPartProperties());
 
                 string partNames = "";
@@ -822,6 +823,7 @@ namespace OpenSim.Region.Framework.Scenes
                     partNames += "(" + child.Name + "," + child.UUID + ")"; 
                 }
                 //m_log.Debug("LinkObjectBySync: " + part.Name + "," + part.UUID + " with root "+root.Name+","+root.UUID+"; its SOG has " + part.ParentGroup.Parts.Length + " parts : "+partNames);
+                 * */
 
                 children.Add(part);
             }
@@ -838,13 +840,14 @@ namespace OpenSim.Region.Framework.Scenes
             //localGroup.UpdateObjectGroupBySync(linkedGroup);
 
             //DSG DEBUG
-            
+            /*
             m_log.Debug("after SceneGraph.LinkObjectsBySync, the newly linked group is \n" + root.ParentGroup.DebugObjectUpdateResult());
             m_log.Debug("parts before linking now have properties: ");
             foreach (SceneObjectPart part in children)
             {
                 m_log.Debug(part.DebugObjectPartProperties());
             }
+             * */
              
         }
 

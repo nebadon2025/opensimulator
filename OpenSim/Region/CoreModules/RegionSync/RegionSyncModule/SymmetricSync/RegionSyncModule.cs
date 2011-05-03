@@ -2409,7 +2409,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (propertiesSyncInfo.Count>0)
             {
                 //SYNC DEBUG
-                
+                /*
                 string pString = "";
                 foreach (PropertySyncInfo p in propertiesSyncInfo)
                 {
@@ -2420,6 +2420,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         m_log.DebugFormat("Shape to be changed on SOP {0}, {1} to ProfileShape {2}", sop.Name, sop.UUID, shape.ProfileShape);
                     }
                 }
+                 * */ 
                  
                  
                 //m_log.DebugFormat("ms {0}: HandleUpdatedPrimProperties, for prim {1},{2} with updated properties -- {3}", DateTime.Now.Millisecond, sop.Name, sop.UUID, pString);
@@ -4979,10 +4980,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             HashSet<SceneObjectPartSyncProperties> propertiesUpdatedByLocal = new HashSet<SceneObjectPartSyncProperties>();
 
             //DSG DEBUG
+            /*
             if (propertiesToBeSynced.Contains(SceneObjectPartSyncProperties.Shape))
             {
                 DebugLog.DebugFormat("UpdatePropertiesByLocal: to update cache of SOP {0}, {1} Shape to {2}", part.Name, part.UUID, part.Shape.ProfileShape);
             }
+             * */ 
 
             lock (m_primSyncInfoLock)
             {

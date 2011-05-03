@@ -4652,7 +4652,7 @@ namespace OpenSim.Region.Framework.Scenes
             //ScheduleFullUpdate();
 
             //DSG DEBUG
-            m_log.DebugFormat("{0}, {1}: shaped updated to {2}, calling ScheduleFullUpdate.", Name, UUID, Shape.ProfileShape);
+            //m_log.DebugFormat("{0}, {1}: shaped updated to {2}, calling ScheduleFullUpdate.", Name, UUID, Shape.ProfileShape);
 
             ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() {SceneObjectPartSyncProperties.Shape});
         }

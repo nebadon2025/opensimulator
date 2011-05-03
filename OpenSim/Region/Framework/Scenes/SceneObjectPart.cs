@@ -4650,6 +4650,10 @@ namespace OpenSim.Region.Framework.Scenes
             ParentGroup.HasGroupChanged = true;
             TriggerScriptChangedEvent(Changed.SHAPE);
             //ScheduleFullUpdate();
+
+            //DSG DEBUG
+            m_log.DebugFormat("{0}, {1}: shaped updated to {2}, calling ScheduleFullUpdate.", Name, UUID, Shape.ProfileShape);
+
             ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() {SceneObjectPartSyncProperties.Shape});
         }
 
@@ -6088,9 +6092,22 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (updatedProperties != null && updatedProperties.Count > 0)
             {
-                if (m_parentGroup != null && m_parentGroup.Scene!=null && m_parentGroup.Scene.RegionSyncModule != null)
+                if (m_parentGroup != null && m_parentGroup.Scene != null && m_parentGroup.Scene.RegionSyncModule != null)
                 {
+                    /*
+                    if (updatedProperties.Contains(SceneObjectPartSyncProperties.Shape))
+                    {
+                        m_log.DebugFormat("{0}, {1} -- calling ProcessAndEnqueuePrimUpdatesByLocal to update to Shape {2}", Name, UUID, Shape.ProfileShape);
+                    }
+                     * */
                     m_parentGroup.Scene.RegionSyncModule.ProcessAndEnqueuePrimUpdatesByLocal(this, updatedProperties);
+                }
+                else
+                {
+                    if (updatedProperties.Contains(SceneObjectPartSyncProperties.Shape))
+                    {
+                        m_log.DebugFormat("{0}, {1} Shape changed to {2}, but this SOP not attached to Scene yet", Name, UUID, Shape.ProfileShape);
+                    }
                 }
             }
 

@@ -7092,9 +7092,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                         code = (int)rules.GetLSLIntegerItem(idx++);
 
-                        //debug
-                        part.ParentGroup.Scene.RegionSyncModule.Debug("LSL_Api: Prim " + part.Name + "," + part.UUID + ", changing shape to " + code);
-
                         remain = rules.Length - idx;
                         float hollow;
                         LSL_Vector twist;

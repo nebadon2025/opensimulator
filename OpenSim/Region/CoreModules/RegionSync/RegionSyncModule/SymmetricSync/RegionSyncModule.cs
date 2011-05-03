@@ -5190,11 +5190,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             else
                 initPrimProperties = FullSetPrimProperties;
 
-            foreach (SceneObjectPartSyncProperties property in initPrimProperties)
+            lock (m_primSyncInfoLock)
             {
-                Object initValue = GetSOPPropertyValue(part, property);
-                PropertySyncInfo syncInfo = new PropertySyncInfo(property, initValue, initUpdateTimestamp, syncID);
-                m_propertiesSyncInfo.Add(property, syncInfo);
+                foreach (SceneObjectPartSyncProperties property in initPrimProperties)
+                {
+                    Object initValue = GetSOPPropertyValue(part, property);
+                    PropertySyncInfo syncInfo = new PropertySyncInfo(property, initValue, initUpdateTimestamp, syncID);
+                    m_propertiesSyncInfo.Add(property, syncInfo);
+                }
             }
         }
 
@@ -5205,18 +5208,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="primSyncInfoData"></param>
         private void InitPropertiesSyncInfoFromOSDMap(OSDMap primSyncInfoData)
         {
-            m_propertiesSyncInfo.Clear();
-            foreach (SceneObjectPartSyncProperties property in FullSetPrimProperties)
+            lock (m_primSyncInfoLock)
             {
-                if (primSyncInfoData.ContainsKey(property.ToString()))
+                m_propertiesSyncInfo.Clear();
+                foreach (SceneObjectPartSyncProperties property in FullSetPrimProperties)
                 {
-                    PropertySyncInfo propertySyncInfo = new PropertySyncInfo(property, (OSDMap)primSyncInfoData[property.ToString()]);
-                    m_propertiesSyncInfo.Add(property, propertySyncInfo);
-                }
-                else
-                {
-                    //For Phantom prims, they don't have PhysActor properties. So this branch could happen.
-                    //DebugLog.WarnFormat("InitPropertiesSyncInfoFromOSDMap: Property {0} not included in the given OSDMap", property);
+                    if (primSyncInfoData.ContainsKey(property.ToString()))
+                    {
+                        PropertySyncInfo propertySyncInfo = new PropertySyncInfo(property, (OSDMap)primSyncInfoData[property.ToString()]);
+                        m_propertiesSyncInfo.Add(property, propertySyncInfo);
+                    }
+                    else
+                    {
+                        //For Phantom prims, they don't have PhysActor properties. So this branch could happen.
+                        //DebugLog.WarnFormat("InitPropertiesSyncInfoFromOSDMap: Property {0} not included in the given OSDMap", property);
+                    }
                 }
             }
         }

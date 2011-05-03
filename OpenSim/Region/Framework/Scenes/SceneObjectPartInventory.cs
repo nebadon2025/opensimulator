@@ -294,7 +294,7 @@ namespace OpenSim.Region.Framework.Scenes
                     m_part.ParentGroup.Scene.EventManager.TriggerRezScript(
                         m_part.LocalId, item.ItemID, String.Empty, startParam, postOnRez, engine, stateSource);
                     m_part.ParentGroup.AddActiveScriptCount(1);
-                    m_part.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Flags, SceneObjectPartProperties.TaskInventory});
+                    m_part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Flags, SceneObjectPartSyncProperties.TaskInventory});
                     return;
                 }
 
@@ -322,7 +322,7 @@ namespace OpenSim.Region.Framework.Scenes
                     m_part.ParentGroup.Scene.EventManager.TriggerRezScript(
                         m_part.LocalId, item.ItemID, script, startParam, postOnRez, engine, stateSource);
                     m_part.ParentGroup.AddActiveScriptCount(1);
-                    m_part.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Flags, SceneObjectPartProperties.TaskInventory});
+                    m_part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Flags, SceneObjectPartSyncProperties.TaskInventory});
                 }
             }
         }
@@ -545,8 +545,8 @@ namespace OpenSim.Region.Framework.Scenes
             HasInventoryChanged = true;
             m_part.ParentGroup.HasGroupChanged = true;
 
-            //SYMMETRIC SYNC: add ScheduleFullUpdate to enable synchronization across actors
-            m_part.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.TaskInventory, SceneObjectPartProperties.InventorySerial});
+            //DSG SYNC: add ScheduleFullUpdate to enable synchronization across actors
+            m_part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.TaskInventory, SceneObjectPartSyncProperties.InventorySerial});
         }
 
         /// <summary>
@@ -769,7 +769,7 @@ namespace OpenSim.Region.Framework.Scenes
                 if (!ContainsScripts())
                     m_part.RemFlag(PrimFlags.Scripted);
 
-                m_part.ScheduleFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.TaskInventory});
+                m_part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.TaskInventory});
 
                 return type;
                 
@@ -1183,7 +1183,7 @@ namespace OpenSim.Region.Framework.Scenes
         #endregion REGION SYNC
     }
 
-    #region SYMMETRIC SYNC
+    #region DSG SYNC
     public class SceneObjectPartInventory : SceneObjectPartInventoryBase
     {
         private SceneObjectPart m_part;

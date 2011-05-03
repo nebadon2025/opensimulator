@@ -634,9 +634,9 @@ namespace OpenSim.Region.Framework.Scenes
         #endregion 
 
 
-        #region SYMMETRIC SYNC
+        #region DSG SYNC
         ///////////////////////////////////////////////////////////////////////////////////////////////
-        //KittyL: 12/23/2010. SYMMETRIC SYNC: Implementation for the symmetric synchronization model.
+        //KittyL: 12/23/2010. DSG SYNC: Implementation for the symmetric synchronization model.
         ///////////////////////////////////////////////////////////////////////////////////////////////
 
         private IRegionSyncModule m_regionSyncModule = null;
@@ -709,9 +709,6 @@ namespace OpenSim.Region.Framework.Scenes
         //Similar to DeleteSceneObject, except that this does not change LastUpdateActorID and LastUpdateTimeStamp
         public void DeleteSceneObjectBySynchronization(SceneObjectGroup group)
         {
-            //            m_log.DebugFormat("[SCENE]: Deleting scene object {0} {1}", group.Name, group.UUID);
-
-            //SceneObjectPart rootPart = group.GetChildPart(group.UUID);
 
             // Serialise calls to RemoveScriptInstances to avoid
             // deadlocking on m_parts inside SceneObjectGroup
@@ -794,7 +791,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="childrenIDs"></param>
         public void LinkObjectBySync(SceneObjectGroup linkedGroup, UUID rootID, List<UUID> childrenIDs)
         {
-            //m_log.Debug("Start to LinkObjectBySync");
+            m_log.Debug("Start to LinkObjectBySync");
             //DebugSceneObjectGroups();
 
             List<SceneObjectPart> children = new List<SceneObjectPart>();
@@ -816,13 +813,17 @@ namespace OpenSim.Region.Framework.Scenes
                     continue;
                 }
 
-                //m_log.Debug("to link part " + part.DebugObjectPartProperties());
+                //TEMP DEBUG
+                /*
+                m_log.Debug("to link part " + part.DebugObjectPartProperties());
+
                 string partNames = "";
                 foreach (SceneObjectPart child in part.ParentGroup.Parts)
                 {
                     partNames += "(" + child.Name + "," + child.UUID + ")"; 
                 }
                 //m_log.Debug("LinkObjectBySync: " + part.Name + "," + part.UUID + " with root "+root.Name+","+root.UUID+"; its SOG has " + part.ParentGroup.Parts.Length + " parts : "+partNames);
+                 * */
 
                 children.Add(part);
             }
@@ -830,17 +831,15 @@ namespace OpenSim.Region.Framework.Scenes
             //m_log.Debug("to link " + children.Count + " parts with " + root.Name);
 
             //Leverage the LinkObject implementation to get the book keeping of Group and Parts relations right
-            m_sceneGraph.LinkObjectsBySync(root, children);
+            m_sceneGraph.LinkObjectsBySync(root, children); 
 
 
-            //The properties of the newly linked object should be updated later with another UpdatedObject message. 
-
+            //KittyL 04/19/2011: no longer update properties here, caller will do it
             //Set the property values as in the incoming copy of the object group
+            //SceneObjectGroup localGroup = root.ParentGroup;
+            //localGroup.UpdateObjectGroupBySync(linkedGroup);
 
-            SceneObjectGroup localGroup = root.ParentGroup;
-            localGroup.UpdateObjectGroupBySync(linkedGroup);
-
-            //debug
+            //DSG DEBUG
             /*
             m_log.Debug("after SceneGraph.LinkObjectsBySync, the newly linked group is \n" + root.ParentGroup.DebugObjectUpdateResult());
             m_log.Debug("parts before linking now have properties: ");
@@ -848,9 +847,18 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 m_log.Debug(part.DebugObjectPartProperties());
             }
-             * */ 
+             * */
+             
         }
 
+        /// <summary>
+        /// Delink objects after receiving DelinkObject sync message.
+        /// Assumption: the actor whichever initiates the DelinkObject
+        /// operation has already done premission checking.
+        /// </summary>
+        /// <param name="delinkPrimIDs"></param>
+        /// <param name="beforeDelinkGroupIDs"></param>
+        /// <param name="incomingAfterDelinkGroups"></param>
         public void DelinkObjectsBySync(List<UUID> delinkPrimIDs, List<UUID> beforeDelinkGroupIDs, List<SceneObjectGroup> incomingAfterDelinkGroups)
         {
             m_sceneGraph.DelinkObjectsBySync(delinkPrimIDs, beforeDelinkGroupIDs, incomingAfterDelinkGroups);
@@ -863,7 +871,18 @@ namespace OpenSim.Region.Framework.Scenes
             return m_sceneGraph.UpdateObjectPartBucketProperties(bucketName, partUUID, updatePart, bucketSyncInfo);
         }
 
-        #endregion //SYMMETRIC SYNC
+        public bool AddNewSceneObjectByDelink(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates)
+        {
+            if (m_sceneGraph.AddNewSceneObjectByDelink(sceneObject, attachToBackup, sendClientUpdates))
+            {
+                EventManager.TriggerObjectAddedToScene(sceneObject);
+                return true;
+            }
+
+            return false;
+        }
+
+        #endregion //DSG SYNC
 
         public ICapabilitiesModule CapsModule
         {
@@ -1006,10 +1025,10 @@ namespace OpenSim.Region.Framework.Scenes
             m_physicalPrim = physicalPrim;
             m_seeIntoRegionFromNeighbor = SeeIntoRegionFromNeighbor;
 
-            //SYMMETRIC SYNC: pass Scene reference to EventManager
+            //DSG SYNC: pass Scene reference to EventManager
             //m_eventManager = new EventManager();
             m_eventManager = new EventManager(this);
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
             m_permissions = new ScenePermissions(this);
 
             m_asyncSceneObjectDeleter = new AsyncSceneObjectGroupDeleter(this);
@@ -1215,10 +1234,10 @@ namespace OpenSim.Region.Framework.Scenes
 
             m_regInfo = regInfo;
 
-            //SYMMETRIC SYNC: pass Scene reference to EventManager
+            //DSG SYNC: pass Scene reference to EventManager
             //m_eventManager = new EventManager();
             m_eventManager = new EventManager(this);
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
 
             m_lastUpdate = Util.EnvironmentTickCount();
         }
@@ -1553,13 +1572,13 @@ namespace OpenSim.Region.Framework.Scenes
             PhysEngineToSceneConnectorModule = RequestModuleInterface<IPhysEngineToSceneConnectorModule>();
             SceneToPhysEngineSyncServer = RequestModuleInterface<ISceneToPhysEngineServer>();
             //////////////////////////////////////////////////////////////////////
-            //SYMMETRIC SYNC (KittyL: started 12/23/2010)
+            //DSG SYNC (KittyL: started 12/23/2010)
             //////////////////////////////////////////////////////////////////////
             m_regionSyncModule = RequestModuleInterface<IRegionSyncModule>();
             m_DSGActorSyncModule = RequestModuleInterface<IDSGActorSyncModule>();
 
             //////////////////////////////////////////////////////////////////////
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
             //////////////////////////////////////////////////////////////////////
             
             // Shoving this in here for now, because we have the needed
@@ -1739,14 +1758,15 @@ namespace OpenSim.Region.Framework.Scenes
                     m_regionSyncServerModule.SendUpdates();
                 }
 
-                //SYMMETRIC SYNC
+                //DSG SYNC
 
                 //NOTE: If it is configured as symmetric sync in opensim.ini, the above IsSyncedServer() or IsSyncedClient() should all return false
                 if (RegionSyncModule != null)
                 {
-                    RegionSyncModule.SendSceneUpdates();
+                    //RegionSyncModule.SendSceneUpdates();
+                    RegionSyncModule.SyncOutPrimUpdates();
                 }
-                //end of SYMMETRIC SYNC
+                //end of DSG SYNC
 
                 int tmpPhysicsMS2 = Util.EnvironmentTickCount();
                 if ((Frame % m_update_physics == 0) && m_physics_enabled && (IsSyncedServer() || IsPhysEngineActor()))
@@ -2403,7 +2423,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             //sceneObject.ScheduleGroupForFullUpdate();
-            sceneObject.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.FullUpdate}); //new object, all properties have new value
+            sceneObject.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate}); //new object, all properties have new value
 
             return sceneObject;
         }
@@ -2580,16 +2600,18 @@ namespace OpenSim.Region.Framework.Scenes
                 EventManager.TriggerParcelPrimCountTainted();
             }
 
-            group.DeleteGroupFromScene(silent);
-
-//            m_log.DebugFormat("[SCENE]: Exit DeleteSceneObject() for {0} {1}", group.Name, group.UUID);            
-
+            //DSG SYNC
             //Propagate the RemovedObject message
             if (RegionSyncModule != null)
             {
-                RegionSyncModule.SendDeleteObject(group, false);
+                //RegionSyncModule.SendDeleteObject(group, false);
+                RegionSyncModule.SyncDeleteObject(group, false);
             }
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
+
+            group.DeleteGroupFromScene(silent);
+
+//            m_log.DebugFormat("[SCENE]: Exit DeleteSceneObject() for {0} {1}", group.Name, group.UUID);            
              
         }
 
@@ -3210,7 +3232,7 @@ namespace OpenSim.Region.Framework.Scenes
             client.OnUpdatePrimFlags += m_sceneGraph.UpdatePrimFlags;
             client.OnRequestObjectPropertiesFamily += m_sceneGraph.RequestObjectPropertiesFamily;
             client.OnObjectPermissions += HandleObjectPermissionsUpdate;
-            //SYMMETRIC SYNC: return the code back to its original OpenSim version
+            //DSG SYNC: return the code back to its original OpenSim version
             //if (IsSyncedServer())
             //{
                 client.OnGrabObject += ProcessObjectGrab;
@@ -3710,7 +3732,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             ForEachClient(delegate(IClientAPI client) { client.SendKillObject(m_regionHandle, localID); });
 
-            //SYMMETRIC SYNC: object remove should be handled through RegionSyncModule
+            //DSG SYNC: object remove should be handled through RegionSyncModule
             // REGION SYNC
             /*
             if( IsSyncedServer() )
@@ -4532,7 +4554,7 @@ namespace OpenSim.Region.Framework.Scenes
                 if (ent is SceneObjectGroup)
                 {
                     //((SceneObjectGroup)ent).ScheduleGroupForFullUpdate();
-                    ((SceneObjectGroup)ent).ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None}); //This is not due to property being updated, hence passing "None" property.
+                    ((SceneObjectGroup)ent).ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None}); //This is not due to property being updated, hence passing "None" property.
                 }
             }
         }

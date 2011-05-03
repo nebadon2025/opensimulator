@@ -213,7 +213,7 @@ namespace OpenSim.Region.Framework.Scenes
                 isAttachment = true;
             else
                 //part.ParentGroup.ScheduleGroupForFullUpdate();
-                part.ParentGroup.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.IsSelected});
+                part.ParentGroup.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate});
 
             // If it's not an attachment, and we are allowed to move it,
             // then we might have done so. If we moved across a parcel

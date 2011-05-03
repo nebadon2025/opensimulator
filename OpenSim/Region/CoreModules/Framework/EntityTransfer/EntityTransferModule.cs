@@ -1603,7 +1603,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             {
                 grp.OffsetForNewRegion(oldGroupPosition);
                 //grp.ScheduleGroupForFullUpdate();
-                grp.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Position});
+                grp.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Position});
             }
         }
 

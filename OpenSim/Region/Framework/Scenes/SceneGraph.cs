@@ -47,9 +47,9 @@ namespace OpenSim.Region.Framework.Scenes
 
     public delegate void ObjectDeleteDelegate(EntityBase obj);
 
-    //SYMMETRIC SYNC
+    //DSG SYNC
     public delegate void ObjectCreateBySyncDelegate(EntityBase obj);
-    //end of SYMMETRIC SYNC
+    //end of DSG SYNC
 
 
     /// <summary>
@@ -69,9 +69,9 @@ namespace OpenSim.Region.Framework.Scenes
         public event ObjectCreateDelegate OnObjectCreate;
         public event ObjectDeleteDelegate OnObjectRemove;
 
-        //SYMMETRIC SYNC
+        //DSG SYNC
         public event ObjectCreateBySyncDelegate OnObjectCreateBySync;
-        //end of SYMMETRIC SYNC
+        //end of DSG SYNC
 
         #endregion
 
@@ -288,7 +288,7 @@ namespace OpenSim.Region.Framework.Scenes
                 sceneObject.HasGroupChanged = true;
             }
 
-            return AddSceneObject(sceneObject, attachToBackup, sendClientUpdates);
+            return AddSceneObject(sceneObject, attachToBackup, sendClientUpdates, false);
         }
                 
         /// <summary>
@@ -310,7 +310,7 @@ namespace OpenSim.Region.Framework.Scenes
             if (attachToBackup)
                 sceneObject.HasGroupChanged = true;
 
-            return AddSceneObject(sceneObject, attachToBackup, sendClientUpdates);
+            return AddSceneObject(sceneObject, attachToBackup, sendClientUpdates, false);
         }
         
         /// <summary>
@@ -344,7 +344,7 @@ namespace OpenSim.Region.Framework.Scenes
                 sceneObject.Velocity = vel;
             }
 
-            //SYMMETRIC SYNC
+            //DSG SYNC
             //Moving AddNewSceneObject to the end of this function, so that 
             //all object properties are set when AddNewSceneObject is called.
             AddNewSceneObject(sceneObject, true, false);
@@ -368,17 +368,17 @@ namespace OpenSim.Region.Framework.Scenes
         /// <returns>
         /// true if the object was added, false if an object with the same uuid was already in the scene
         /// </returns>
-        protected bool AddSceneObject(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates)
+        protected bool AddSceneObject(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates, bool addedByDelink)
         {
             if (sceneObject == null || sceneObject.RootPart == null || sceneObject.RootPart.UUID == UUID.Zero)
                 return false;
 
             if (Entities.ContainsKey(sceneObject.UUID))
                 return false;
-            
-//            m_log.DebugFormat(
-//                "[SCENEGRAPH]: Adding scene object {0} {1}, with {2} parts on {3}", 
-//                sceneObject.Name, sceneObject.UUID, sceneObject.Parts.Length, m_parentScene.RegionInfo.RegionName);
+
+            //            m_log.DebugFormat(
+            //                "[SCENEGRAPH]: Adding scene object {0} {1}, with {2} parts on {3}", 
+            //                sceneObject.Name, sceneObject.UUID, sceneObject.Parts.Length, m_parentScene.RegionInfo.RegionName);
 
             SceneObjectPart[] children = sceneObject.Parts;
 
@@ -403,18 +403,18 @@ namespace OpenSim.Region.Framework.Scenes
             m_numPrim += children.Length;
 
             sceneObject.AttachToScene(m_parentScene);
-            
+
             Entities.Add(sceneObject);
 
             if (attachToBackup)
                 sceneObject.AttachToBackup();
-            
+
             if (OnObjectCreate != null)
                 OnObjectCreate(sceneObject);
 
             lock (SceneObjectGroupsByFullID)
                 SceneObjectGroupsByFullID[sceneObject.UUID] = sceneObject;
-            
+
             lock (SceneObjectGroupsByFullPartID)
             {
                 SceneObjectGroupsByFullPartID[sceneObject.UUID] = sceneObject;
@@ -429,15 +429,15 @@ namespace OpenSim.Region.Framework.Scenes
                     SceneObjectGroupsByLocalPartID[part.LocalId] = sceneObject;
             }
 
-            //SYMMETRIC SYNC: sending NewObject event, and sending it before calling ScheduleGroupForFullUpdate
-            if (m_parentScene.RegionSyncModule != null)
-            {
-                m_parentScene.RegionSyncModule.SendNewObject(sceneObject);
-            }
-
             if (sendClientUpdates)
                 //sceneObject.ScheduleGroupForFullUpdate();
-                sceneObject.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.None }); 
+                sceneObject.ScheduleGroupForFullUpdate(null);
+
+            //DSG SYNC: sending NewObject event, and sending it before calling ScheduleGroupForFullUpdate
+            if (m_parentScene.RegionSyncModule != null && !addedByDelink)
+            {
+                m_parentScene.RegionSyncModule.SyncNewObject(sceneObject);
+            }
 
             return true;
         }
@@ -1637,21 +1637,21 @@ namespace OpenSim.Region.Framework.Scenes
                 parentGroup.TriggerScriptChangedEvent(Changed.LINK);
                 parentGroup.HasGroupChanged = true;
 
-                //SYMMETRIC SYNC
-                //Schedule a LinkObject message for synchronization purpose. This will lead to enqueue a LinkObject message in SyncConnector's outgoingQueue,
-                //so should return quickly. 
+                //DSG SYNC
+                //Send out LinkObject sync messages. 
                 if (m_parentScene.RegionSyncModule != null)
                 {
                     //Tell other actors to link the SceneObjectParts together as a new group. 
-                    m_parentScene.RegionSyncModule.SendLinkObject(parentGroup, root, children);
+                    //m_parentScene.RegionSyncModule.SendLinkObject(parentGroup, root, children);
+                    m_parentScene.RegionSyncModule.SyncLinkObject(parentGroup, root, children);
                 }
 
                 //Schedule updates as in legacy OpenSim code, to send updates to viewers connected to this actor (at least needed for client managers).
                 //But timestamp won't be changed, so that when other actors get the update, they's simple ignore the updates since they already get them
                 //via the LinkObject message sent above.
-                parentGroup.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
+                parentGroup.ScheduleGroupForFullUpdate(null);
 
-                //end of SYMMETRIC SYNC
+                //end of DSG SYNC
                 
             }
             finally
@@ -1673,7 +1673,7 @@ namespace OpenSim.Region.Framework.Scenes
                 List<SceneObjectPart> rootParts = new List<SceneObjectPart>();
                 List<SceneObjectGroup> affectedGroups = new List<SceneObjectGroup>();
 
-                //SYMMETRIC SYNC, record the new object groups after the delink operation
+                //DSG SYNC, record the new object groups after the delink operation
                 List<SceneObjectGroup> beforeDelinkGroups = new List<SceneObjectGroup>();
                 List<SceneObjectGroup> afterDelinkGroups = new List<SceneObjectGroup>();
 
@@ -1694,7 +1694,7 @@ namespace OpenSim.Region.Framework.Scenes
                             if (!affectedGroups.Contains(group))
                             {
                                 affectedGroups.Add(group);
-                                //SYMMETRIC SYNC
+                                //DSG SYNC
                                 beforeDelinkGroups.Add(group);
                             }
                         }
@@ -1711,7 +1711,7 @@ namespace OpenSim.Region.Framework.Scenes
                     // handled further. Do the honors here.
                     child.ParentGroup.HasGroupChanged = true;
 
-                    //SYMMETRIC SYNC, delay ScheduleGroupForFullUpdate till the end of the delink operations. 
+                    //DSG SYNC, delay ScheduleGroupForFullUpdate till the end of the delink operations. 
                     //child.ParentGroup.ScheduleGroupForFullUpdate();
                     afterDelinkGroups.Add(child.ParentGroup);
                 }
@@ -1783,24 +1783,24 @@ namespace OpenSim.Region.Framework.Scenes
                     g.TriggerScriptChangedEvent(Changed.LINK);
                     g.HasGroupChanged = true; // Persist
 
-                    //SYMMETRIC SYNC, delay ScheduleGroupForFullUpdate till the end of the delink operations. 
+                    //DSG SYNC, delay ScheduleGroupForFullUpdate till the end of the delink operations. 
                     //g.ScheduleGroupForFullUpdate();
                     afterDelinkGroups.Add(g);
                 }
 
-                //SYMMETRIC SYNC
+                //DSG SYNC
                 //Send out DelinkObject message to other actors to sychronize their object list 
                 if (m_parentScene.RegionSyncModule != null)
                 {
-                    m_parentScene.RegionSyncModule.SendDeLinkObject(prims, beforeDelinkGroups, afterDelinkGroups);
+                    m_parentScene.RegionSyncModule.SyncDeLinkObject(prims, beforeDelinkGroups, afterDelinkGroups);
                 }
-                //Schedule updates as in legacy OpenSim code, to send updates to viewers connected to this actor (at least needed for client managers).
-                //But timestamp won't be changed, so that when other actors get the update, they's simple ignore the updates since they already get them
+                //Schedule updates as in legacy OpenSim code, to send updates 
+                //to viewers connected to this actor (at least needed for client managers).
                 foreach (SceneObjectGroup sog in afterDelinkGroups)
                 {
-                    sog.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
+                    sog.ScheduleGroupForFullUpdate(null);
                 }
-                //end of SYMMETRIC SYNC
+                //end of DSG SYNC
             }
             finally
             {
@@ -1961,7 +1961,7 @@ namespace OpenSim.Region.Framework.Scenes
                     copy.CreateScriptInstances(0, false, m_parentScene.DefaultScriptEngine, 1);
                     copy.HasGroupChanged = true;
                     //copy.ScheduleGroupForFullUpdate();
-                    copy.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.FullUpdate}); //new object, all property values are new
+                    copy.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate}); //new object, all property values are new
                     copy.ResumeScripts();
 
                     // required for physics to update it's position
@@ -2059,7 +2059,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         #endregion // REGION SYNC
 
-        #region SYMMETRIC SYNC
+        #region DSG SYNC
 
         public Scene.ObjectUpdateResult UpdateObjectBySynchronization(SceneObjectGroup updatedSog)
         {
@@ -2175,9 +2175,13 @@ namespace OpenSim.Region.Framework.Scenes
                 sceneObject.RootPart.SetParentLocalId(avatar.LocalId);
             }
 
-            //SYMMETRIC SYNC, 
-            sceneObject.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
-            //end of SYMMETRIC SYNC, 
+            //DSG SYNC, 
+            sceneObject.HasGroupChanged = true;
+            //NewObject is sent via a specific sync message, not through updates;
+            //hence not passing any property list here in calling
+            //ScheduleGroupForFullUpdate().
+            sceneObject.ScheduleGroupForFullUpdate(null);
+            //end of DSG SYNC, 
 
             Entities.Add(sceneObject);
 
@@ -2248,7 +2252,7 @@ namespace OpenSim.Region.Framework.Scenes
                             // Make sure no child prim is set for sale
                             // So that, on delink, no prims are unwittingly
                             // left for sale and sold off
-                            //SYMMETRIC SYNC: need to copy value w/o trigger UpdateBucketSyncInfo
+                            //DSG SYNC: need to copy value w/o trigger UpdateBucketSyncInfo
                             //child.RootPart.ObjectSaleType = 0;
                             //child.RootPart.SalePrice = 10;
                             //child.RootPart.SetObjectSaleType(0);
@@ -2285,7 +2289,7 @@ namespace OpenSim.Region.Framework.Scenes
                 parentGroup.TriggerScriptChangedEvent(Changed.LINK);
                 parentGroup.HasGroupChanged = true;
                 //Do not change the timestamp and actorID values
-                parentGroup.ScheduleGroupForFullUpdate_SyncInfoUnchanged();
+                parentGroup.ScheduleGroupForFullUpdate(null);
 
             }
             finally
@@ -2304,6 +2308,7 @@ namespace OpenSim.Region.Framework.Scenes
         public void DelinkObjectsBySync(List<UUID> delinkPrimIDs, List<UUID> beforeDelinkGroupIDs, List<SceneObjectGroup> incomingAfterDelinkGroups)
         {
             Dictionary<UUID, SceneObjectGroup> localBeforeDelinkGroups = new Dictionary<UUID, SceneObjectGroup>();
+            List<SceneObjectGroup> localAfterDelinkGroups = new List<SceneObjectGroup>(); 
             Dictionary<UUID, SceneObjectPart> delinkPrims = new Dictionary<UUID, SceneObjectPart>();
             bool beforeStateConsistent = true;
             bool afterStateConsistent = true;
@@ -2385,9 +2390,8 @@ namespace OpenSim.Region.Framework.Scenes
                     m_log.Warn("DelinkObjectsBySync: before-delink state not consistent in local copy and the incoming copy. Return without further operations.");
                 }else{
                     //Next, apply the delink operation locally.
-                    List<SceneObjectGroup> localAfterDelinkGroups = DelinkObjectsBySync(new List<SceneObjectPart>(delinkPrims.Values));
+                    localAfterDelinkGroups = DelinkObjectsBySync(new List<SceneObjectPart>(delinkPrims.Values));
 
-                    
                     //Check if local after-state agrees with that in the remote copy, and update the groups' properties
                     if (localAfterDelinkGroups.Count != incomingAfterDelinkGroups.Count)
                     {
@@ -2409,10 +2413,16 @@ namespace OpenSim.Region.Framework.Scenes
                             }
                             else
                             {
-                                localAfterGroup.UpdateObjectGroupBySync(incomingAfterDelinkGroupsDictionary[localAfterGroup.UUID]);
+                                //No longer calling update prim's properties here, caller will do that
+                                //localAfterGroup.UpdateObjectGroupBySync(incomingAfterDelinkGroupsDictionary[localAfterGroup.UUID]);
                             }
                         }
                     }
+                }
+
+                foreach (SceneObjectGroup sog in localAfterDelinkGroups)
+                {
+                    sog.ScheduleGroupForFullUpdate(null);
                 }
             }
             finally
@@ -2425,7 +2435,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        //Similar to DelinkObjects(), w/o triggering any ScheduleFullUpdate(),
+        //Similar to DelinkObjects(), but calling DelinkFromGroupBySync instead
         private List<SceneObjectGroup> DelinkObjectsBySync(List<SceneObjectPart> prims)
         {
             //!!!Caller of this function should already lock on m_updateLock, so no locking here !!!
@@ -2553,6 +2563,17 @@ namespace OpenSim.Region.Framework.Scenes
             return localPart.UpdateBucketProperties(bucketName, updatedPart, bucketSyncInfo);
         }
 
-        #endregion //SYMMETRIC SYNC
+        protected internal bool AddNewSceneObjectByDelink(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates)
+        {
+            // Ensure that we persist this new scene object if it's not an
+            // attachment
+            if (attachToBackup)
+                sceneObject.HasGroupChanged = true;
+
+            bool addedByDelink = true;
+            return AddSceneObject(sceneObject, attachToBackup, sendClientUpdates, addedByDelink);
+        }
+
+        #endregion //DSG SYNC
     }
 }

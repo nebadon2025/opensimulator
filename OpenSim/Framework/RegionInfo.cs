@@ -386,7 +386,7 @@ namespace OpenSim.Framework
         public string RemotingAddress;
         public UUID ScopeID = UUID.Zero;
 
-        //SYMMETRIC SYNC
+        //DSG SYNC
         //IP:port for the symmetric sync listener this actor is configured to connect to
         private string m_syncServerAddr = String.Empty;
         private int m_syncServerPort;
@@ -398,7 +398,7 @@ namespace OpenSim.Framework
         private int m_physicsSyncServerPort;
         private uint m_quarkLocX;
         private uint m_quarkLocY;
-        //end of SYMMETRIC SYNC
+        //end of DSG SYNC
 
         // Apparently, we're applying the same estatesettings regardless of whether it's local or remote.
 
@@ -694,7 +694,7 @@ namespace OpenSim.Framework
             get { return Util.UIntsToLong((RegionLocX * (uint) Constants.RegionSize), (RegionLocY * (uint) Constants.RegionSize)); }
         }
 
-        //SYMMETRIC SYNC
+        //DSG SYNC
         public string SyncServerAddress
         {
             get { return m_syncServerAddr; }
@@ -731,7 +731,7 @@ namespace OpenSim.Framework
             get { return m_quarkLocY; }
             set { m_quarkLocY = value; }
         }
-        //end of SYMMETRIC SYNC
+        //end of DSG SYNC
 
         public void SetEndPoint(string ipaddr, int port)
         {
@@ -886,7 +886,7 @@ namespace OpenSim.Framework
             //
             ScopeID = new UUID(config.GetString("ScopeID", UUID.Zero.ToString()));
 
-            // SYMMETRIC SYNC
+            // DSG SYNC
             m_syncServerAddr = config.GetString("SyncServerAddress", String.Empty);
             m_syncServerPort = config.GetInt("SyncServerPort", -1);
             //if either IP or port is not configured, we set IP to empty to raise warning later
@@ -911,7 +911,7 @@ namespace OpenSim.Framework
             m_quarkLocY = Convert.ToUInt32(quarkLocElements[1]);
 
 
-            // end of SYMMETRIC SYNC
+            // end of DSG SYNC
 
         }
 

@@ -609,8 +609,8 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                                     UUID RayTargetID, byte BypassRayCast, bool RayEndIsIntersection,
                                     bool RezSelected, bool RemoveItem, UUID fromTaskID, bool attachment)
         {
-//            m_log.DebugFormat("[INVENTORY ACCESS MODULE]: RezObject for {0}, item {1}", remoteClient.Name, itemID);
-            
+            //            m_log.DebugFormat("[INVENTORY ACCESS MODULE]: RezObject for {0}, item {1}", remoteClient.Name, itemID);
+
             byte bRayEndIsIntersection = (byte)(RayEndIsIntersection ? 1 : 0);
             Vector3 scale = new Vector3(0.5f, 0.5f, 0.5f);
             Vector3 pos = m_Scene.GetNewRezLocation(
@@ -696,15 +696,15 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                                     itemId, n.OuterXml);
                             objlist.Add(g);
                             XmlElement el = (XmlElement)n;
-                            
+
                             string rawX = el.GetAttribute("offsetx");
                             string rawY = el.GetAttribute("offsety");
                             string rawZ = el.GetAttribute("offsetz");
-//                        
-//                            m_log.DebugFormat(
-//                                "[INVENTORY ACCESS MODULE]: Converting coalesced object {0} offset <{1}, {2}, {3}>", 
-//                                g.Name, rawX, rawY, rawZ);
-                            
+                            //                        
+                            //                            m_log.DebugFormat(
+                            //                                "[INVENTORY ACCESS MODULE]: Converting coalesced object {0} offset <{1}, {2}, {3}>", 
+                            //                                g.Name, rawX, rawY, rawZ);
+
                             float x = Convert.ToSingle(rawX);
                             float y = Convert.ToSingle(rawY);
                             float z = Convert.ToSingle(rawZ);
@@ -730,7 +730,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                         return null;
                     }
 
-                    for (int i = 0 ; i < objlist.Count ; i++ )
+                    for (int i = 0; i < objlist.Count; i++)
                     {
                         group = objlist[i];
 
@@ -770,8 +770,8 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                         // can reflect that, if not, we set it's position in world.
                         if (!attachment)
                         {
-                            group.ScheduleGroupForFullUpdate(null);
-                            
+                            group.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate});
+
                             group.AbsolutePosition = pos + veclist[i];
                         }
                         else
@@ -828,7 +828,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                                     }
                                     part.GroupMask = 0; // DO NOT propagate here
                                 }
-                                
+
                                 group.ApplyNextOwnerPermissions();
                             }
                         }
@@ -853,12 +853,11 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                         {
                             if (group.RootPart.Shape.PCode == (byte)PCode.Prim)
                                 group.ClearPartAttachmentData();
-                            
+
                             // Fire on_rez
                             group.CreateScriptInstances(0, true, m_Scene.DefaultScriptEngine, 1);
                             rootPart.ParentGroup.ResumeScripts();
-
-                            rootPart.ScheduleFullUpdate(null);
+                            rootPart.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.FullUpdate });
                         }
                     }
 
@@ -883,6 +882,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
 
             return null;
         }
+
 
         protected void AddUserData(SceneObjectGroup sog)
         {

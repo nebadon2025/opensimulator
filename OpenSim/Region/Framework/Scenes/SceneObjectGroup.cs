@@ -509,7 +509,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         #region Constructors
 
-        //SYMMETRIC SYNC
+        //DSG SYNC
         public SceneObjectGroup(SceneObjectPart part, bool newGroupBySync)
         {
             if (!newGroupBySync)
@@ -638,7 +638,7 @@ namespace OpenSim.Region.Framework.Scenes
             // for the same object with very different properties.  The caller must schedule the update.
             //ScheduleGroupForFullUpdate();
 
-            //SYMMETRIC SYNC
+            //DSG SYNC
             if (m_scene.RegionSyncModule != null)
             {
                 foreach (SceneObjectPart part in Parts)
@@ -1028,7 +1028,7 @@ namespace OpenSim.Region.Framework.Scenes
             AttachToBackup();
             m_scene.EventManager.TriggerParcelPrimCountTainted();
             //m_rootPart.ScheduleFullUpdate();
-            m_rootPart.ScheduleFullUpdate(new List<SceneObjectPartProperties>() { SceneObjectPartProperties.GroupPosition, SceneObjectPartProperties.AttachmentPoint}); //Physics properties, such as Position, OffsetPosition, etc, should be tainted in ApplyPhysics()
+            m_rootPart.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.GroupPosition, SceneObjectPartSyncProperties.AttachmentPoint}); //Physics properties, such as Position, OffsetPosition, etc, should be tainted in ApplyPhysics()
             m_rootPart.ClearUndoState();
         }
 
@@ -1223,7 +1223,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 SceneObjectPart part = parts[i];
 
-                //SYMMETRIC SYNC: object remove should be handled through RegionSyncModule
+                //DSG SYNC: object remove should be handled through RegionSyncModule
                 /*
                 // REGION SYNC
                 if (Scene.IsSyncedServer())
@@ -1232,7 +1232,7 @@ namespace OpenSim.Region.Framework.Scenes
                     //return;
                 }
                  * */
-                //end of SYMMETRIC SYNC
+                //end of DSG SYNC
 
                 Scene.ForEachScenePresence(delegate(ScenePresence avatar)
                 {
@@ -1302,7 +1302,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             //ScheduleGroupForFullUpdate();
-            ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){ SceneObjectPartProperties.Flags}); //do we also need to synchronize SOG properties such as m_scriptListens_atRotTarget? (does any acotr other than script engine care about it?)
+            ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){ SceneObjectPartSyncProperties.Flags, SceneObjectPartSyncProperties.AggregateScriptEvents}); //do we also need to synchronize SOG properties such as m_scriptListens_atRotTarget? (does any acotr other than script engine care about it?)
         }
 
         public void SetText(string text, Vector3 color, double alpha)
@@ -1315,7 +1315,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             HasGroupChanged = true;
             //m_rootPart.ScheduleFullUpdate();
-            m_rootPart.ScheduleFullUpdate(new List<SceneObjectPartProperties>() {SceneObjectPartProperties.Text, SceneObjectPartProperties.Color});
+            m_rootPart.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() {SceneObjectPartSyncProperties.Text, SceneObjectPartSyncProperties.Color});
         }
 
         /// <summary>
@@ -1377,13 +1377,13 @@ namespace OpenSim.Region.Framework.Scenes
                 return;
             }
 
-            //SYMMETRIC SYNC
+            //DSG SYNC
             //if we are doing sync across different sync nodes, and are not told to persist the state, don't do anything (only persistence actor will do it)
             if (m_scene.RegionSyncModule != null && !ToPersistObjectState)
             {
                 return;
             }
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
 
             // Since this is the top of the section of call stack for backing up a particular scene object, don't let
             // any exception propogate upwards.
@@ -1560,7 +1560,7 @@ namespace OpenSim.Region.Framework.Scenes
                 dupe.AttachToBackup();
 
                 //ScheduleGroupForFullUpdate();
-                ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.FullUpdate}); 
+                ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate}); 
             }
 
             return dupe;
@@ -1814,7 +1814,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             //part.ScheduleFullUpdate();
-            part.ScheduleFullUpdate(new List<SceneObjectPartProperties>() {SceneObjectPartProperties.OwnerID, SceneObjectPartProperties.GroupID, SceneObjectPartProperties.LastOwnerID});
+            part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() {SceneObjectPartSyncProperties.OwnerID, SceneObjectPartSyncProperties.GroupID, SceneObjectPartSyncProperties.LastOwnerID});
         }
 
         /// <summary>
@@ -1942,7 +1942,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// Schedule a full update for this scene object
         /// </summary>
         //public void ScheduleGroupForFullUpdate()
-        public void ScheduleGroupForFullUpdate(List<SceneObjectPartProperties> updatedProperties)
+        public void ScheduleGroupForFullUpdate(List<SceneObjectPartSyncProperties> updatedProperties)
         {
 //            if (IsAttachment)
 //                m_log.DebugFormat("[SOG]: Scheduling full update for {0} {1}", Name, LocalId);
@@ -1951,13 +1951,29 @@ namespace OpenSim.Region.Framework.Scenes
             //RootPart.ScheduleFullUpdate();
             RootPart.ScheduleFullUpdate(updatedProperties);
 
+            //For group properties, we only need to send it once per SOG,
+            //hence remove them from the updatedProperties for other parts
+            List<SceneObjectPartSyncProperties> otherPartsUpdatedProperties = updatedProperties;
+            if (updatedProperties!=null)
+            {
+                HashSet<SceneObjectPartSyncProperties> hashedList = new HashSet<SceneObjectPartSyncProperties>(updatedProperties);
+                foreach (SceneObjectPartSyncProperties groupProperty in SceneObjectPart.GetGroupProperties())
+                {
+                    if (updatedProperties.Contains(groupProperty))
+                    {
+                        hashedList.Remove(groupProperty);
+                    }
+                }
+                otherPartsUpdatedProperties = new List<SceneObjectPartSyncProperties>(hashedList);
+            }
+
             SceneObjectPart[] parts = m_parts.GetArray();
             for (int i = 0; i < parts.Length; i++)
             {
                 SceneObjectPart part = parts[i];
                 if (part != RootPart)
                     //part.ScheduleFullUpdate();
-                    part.ScheduleFullUpdate(updatedProperties);
+                    part.ScheduleFullUpdate(otherPartsUpdatedProperties);
             }
         }
 
@@ -1965,7 +1981,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// Schedule a terse update for this scene object
         /// </summary>
         //public void ScheduleGroupForTerseUpdate()
-        public void ScheduleGroupForTerseUpdate(List<SceneObjectPartProperties> updatedProperties)
+        public void ScheduleGroupForTerseUpdate(List<SceneObjectPartSyncProperties> updatedProperties)
         {
            // m_log.DebugFormat("[SOG]: Scheduling terse update for {0} {1}", Name, UUID);
 
@@ -2215,11 +2231,11 @@ namespace OpenSim.Region.Framework.Scenes
             //HasGroupChanged = true;
             //ScheduleGroupForFullUpdate();
 
-            //SYMMETRIC SYNC
+            //DSG SYNC
             //The DeleteObject message will be enqueued to be sent out by another thread, and the call will return quickly.
             //if (m_scene.RegionSyncModule != null)
             //    m_scene.RegionSyncModule.SendDeleteObject(objectGroup, true);
-            //end of SYMMETRIC SYNC
+            //end of DSG SYNC
 
         }
 
@@ -2322,7 +2338,11 @@ namespace OpenSim.Region.Framework.Scenes
 
             SceneObjectGroup objectGroup = new SceneObjectGroup(linkPart);
 
-            m_scene.AddNewSceneObject(objectGroup, true);
+            //m_scene.AddNewSceneObject(objectGroup, true);
+            //DSG SYNC: calling AddNewSceneObjectByDelink, so that later on we know
+            //the "new" object is added by delink operation, no need to send sync
+            //message of NewObject
+            m_scene.AddNewSceneObjectByDelink(objectGroup, true, true);
 
             if (sendEvents)
                 linkPart.TriggerScriptChangedEvent(Changed.LINK);
@@ -2731,7 +2751,7 @@ namespace OpenSim.Region.Framework.Scenes
                 HasGroupChanged = true;
                 part.TriggerScriptChangedEvent(Changed.SCALE);
                 //ScheduleGroupForFullUpdate();
-                ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None}); //above actions only update Scale for the given part, and part.Resize() will taint Scale as updated
+                ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None}); //above actions only update Scale for the given part, and part.Resize() will taint Scale as updated
 
                 //if (part.UUID == m_rootPart.UUID)
                 //{
@@ -2884,7 +2904,7 @@ namespace OpenSim.Region.Framework.Scenes
                 HasGroupChanged = true;
                 m_rootPart.TriggerScriptChangedEvent(Changed.SCALE);
                 //ScheduleGroupForTerseUpdate();
-                ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Scale});
+                ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Scale});
             }
         }
 
@@ -2926,10 +2946,10 @@ namespace OpenSim.Region.Framework.Scenes
             //we need to do a terse update even if the move wasn't allowed
             // so that the position is reset in the client (the object snaps back)
             //ScheduleGroupForTerseUpdate();
-            List<SceneObjectPartProperties> updatedProperties = new List<SceneObjectPartProperties>() { SceneObjectPartProperties.GroupPosition };
+            List<SceneObjectPartSyncProperties> updatedProperties = new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.GroupPosition };
             if (IsAttachment)
             {
-                updatedProperties.Add(SceneObjectPartProperties.AttachedPos);
+                updatedProperties.Add(SceneObjectPartSyncProperties.AttachedPos);
             }
             ScheduleGroupForTerseUpdate(updatedProperties);
         }
@@ -2995,7 +3015,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             HasGroupChanged = true;
             //ScheduleGroupForTerseUpdate();
-            ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Position, SceneObjectPartProperties.OffsetPosition});
+            ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Position, SceneObjectPartSyncProperties.OffsetPosition});
         }
 
         public void OffsetForNewRegion(Vector3 offset)
@@ -3028,7 +3048,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             HasGroupChanged = true;
             //ScheduleGroupForTerseUpdate();
-            ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Orientation}); //Above actions only update m_rootPart's RotationOffset, and m_rootPart.UpdateRotation will taint RotationOffset as updated
+            ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Orientation}); //Above actions only update m_rootPart's RotationOffset, and m_rootPart.UpdateRotation will taint RotationOffset as updated
         }
 
         /// <summary>
@@ -3055,7 +3075,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             HasGroupChanged = true;
             //ScheduleGroupForTerseUpdate();
-            ScheduleGroupForTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.Position, SceneObjectPartProperties.Orientation}); //RotationOffset is only updated for m_rootPart, and m_rootPart.UpdateRotation should already taint RotationOffset as updated
+            ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Position, SceneObjectPartSyncProperties.Orientation}); //RotationOffset is only updated for m_rootPart, and m_rootPart.UpdateRotation should already taint RotationOffset as updated
         }
 
         /// <summary>
@@ -3143,7 +3163,7 @@ namespace OpenSim.Region.Framework.Scenes
                     newRot *= Quaternion.Inverse(axRot);
                     prim.RotationOffset = newRot;
                     //prim.ScheduleTerseUpdate();
-                    prim.ScheduleTerseUpdate(new List<SceneObjectPartProperties>(){ SceneObjectPartProperties.RotationOffset, SceneObjectPartProperties.OffsetPosition});
+                    prim.ScheduleTerseUpdate(new List<SceneObjectPartSyncProperties>(){ SceneObjectPartSyncProperties.RotationOffset, SceneObjectPartSyncProperties.OffsetPosition});
                 }
             }
 
@@ -3158,7 +3178,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             //m_rootPart.ScheduleTerseUpdate();
-            m_rootPart.ScheduleTerseUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.RotationOffset});
+            m_rootPart.ScheduleTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.RotationOffset});
         }
 
         #endregion
@@ -3571,7 +3591,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
 #endregion 
 
-        #region SYMMETRIC SYNC
+        #region DSG SYNC
 
         private bool m_toPersistObjectState = false;
         public bool ToPersistObjectState
@@ -3794,14 +3814,11 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         //Similar actions with DelinkFromGroup, except that m_scene.AddNewSceneObjectBySync is called
-        //!!!!!!!!!!!!!!!!!!NOTE!!!!!!!!!!!!!!!
-        //All SOP properties below is set through calling SetXXX(value) instead of by "XXX=value", as such a value is being changed due to sync (
-        //i.e. triggered by remote operation instead of by local operation
         public SceneObjectGroup DelinkFromGroupBySync(SceneObjectPart delinkPart, bool sendEvents)
         {
-            //                m_log.DebugFormat(
-            //                    "[SCENE OBJECT GROUP]: Delinking part {0}, {1} from group with root part {2}, {3}",
-            //                    linkPart.Name, linkPart.UUID, RootPart.Name, RootPart.UUID);
+            m_log.DebugFormat(
+                "[SCENE OBJECT GROUP]: Delinking part {0}, {1}, {4} from group with root part {2}, {3}",
+                delinkPart.Name, delinkPart.UUID, RootPart.Name, RootPart.UUID, delinkPart.LocalId);
 
             SceneObjectPartBase linkPart = (SceneObjectPartBase)delinkPart;
             linkPart.ClearUndoState();
@@ -3818,9 +3835,7 @@ namespace OpenSim.Region.Framework.Scenes
                 if (parts.Length == 1 && RootPart != null)
                 {
                     // Single prim left
-                    //RootPart.LinkNum = 0;
-                    //RootPart.SetProperty("LinkNum", 0);
-                    ((SceneObjectPartBase)RootPart).LinkNum = 0;
+                    RootPart.LinkNum = 0;
                 }
                 else
                 {
@@ -3830,16 +3845,13 @@ namespace OpenSim.Region.Framework.Scenes
                         if (part.LinkNum > linkPart.LinkNum)
                         {
                             part.LinkNum--;
-                            //int linkNum = part.LinkNum - 1;
-                            //part.SetProperty("LinkNum", linkNum);
                         }
                     }
                 }
             }
 
-            linkPart.ParentID = 0; //ParentID is a value set only locally and ignored in synchronization, so no need to call SetProperty to set its value
+            linkPart.ParentID = 0; //ParentID is a value set only locally and ignored in synchronization, so no need to set its value
             linkPart.LinkNum = 0;
-            //linkPart.SetParentID(0);
 
             if (linkPart.PhysActor != null)
             {
@@ -3857,15 +3869,6 @@ namespace OpenSim.Region.Framework.Scenes
             linkPart.GroupPosition = AbsolutePosition + linkPart.OffsetPosition;
             linkPart.OffsetPosition = new Vector3(0, 0, 0);
             linkPart.RotationOffset = worldRot;
-
-            //linkPart.SetOffsetPosition(new Vector3(axPos.X, axPos.Y, axPos.Z));
-            //linkPart.SetGroupPosition(AbsolutePosition + linkPart.OffsetPosition);
-            //linkPart.SetOffsetPosition(new Vector3(0, 0, 0));
-            //linkPart.SetRotationOffset(worldRot);
-            //linkPart.SetProperty("OffsetPosition", new Vector3(axPos.X, axPos.Y, axPos.Z));
-            //linkPart.SetProperty("GroupPosition", AbsolutePosition + linkPart.OffsetPosition);
-            //linkPart.SetProperty("OffsetPosition", new Vector3(0, 0, 0));
-            //linkPart.SetProperty("RotationOffset", worldRot);
 
             //SceneObjectGroup objectGroup = new SceneObjectGroup(linkPart);
             bool newGroupBySync = true;
@@ -4151,6 +4154,91 @@ namespace OpenSim.Region.Framework.Scenes
             }
             
         }
+
+        ///////////////////////////////////////////////////////////////////////
+        // Per SOP property based sync
+        ///////////////////////////////////////////////////////////////////////
+
+        /// <summary>
+        /// Update the existing copy of the object with updated properties in 'updatedSog'. 
+        /// </summary>
+        /// <param name="updatedSog"></param>
+        /// <returns></returns>
+        public Scene.ObjectUpdateResult UpdateSOGBySync(SceneObjectGroup updatedSog)
+        {
+            //This GroupID check should be done by the actor who initiates the object update
+            //if (!this.GroupID.Equals(updatedSog.GroupID))
+            //    return Scene.ObjectUpdateResult.Error;
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
+            //NOTE!!! 
+            //We do not want to simply call SceneObjectGroup.Copy here to clone the object: 
+            //the prims (SceneObjectParts) in updatedSog are different instances than those in the local copy,
+            //and we want to preserve the references to the prims in this local copy, especially for scripts 
+            //of each prim, where the scripts have references to the local copy. If the local copy is replaced,
+            //the prims (parts) will be replaces and we need to update all the references that were pointing to 
+            //the previous prims.
+            ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+            Scene.ObjectUpdateResult groupUpdateResult = Scene.ObjectUpdateResult.Unchanged;
+            Dictionary<UUID, SceneObjectPart> updatedParts = new Dictionary<UUID, SceneObjectPart>();
+
+            lock (m_parts.SyncRoot)
+            {
+                //This function is called by LinkObjectBySync and DelinkObjectBySinc(),
+                //which should have updated the parts in this SOG, hence should be no need to 
+                //add or remove parts to sync
+
+                if (this.PrimCount != updatedSog.PrimCount)
+                {
+                    m_log.WarnFormat("UpdateSOGBySync: For SOP {0}, local copy has {1} parts, while incoming updated copy has {2} parts. Inconsistent.", this.UUID,
+                        this.PrimCount, updatedSog.PrimCount);
+                }
+
+                //now update properties of the parts
+                foreach (SceneObjectPart part in this.Parts)
+                {
+                    Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Unchanged;
+                    SceneObjectPart updatedPart = updatedSog.GetChildPart(part.UUID);
+
+                    if (updatedPart == null)
+                    {
+                        m_log.WarnFormat("UpdateSOGBySync: part {0},{1} exists in local copy, not in incoming updated copy", part.Name, part.UUID);
+                    }
+                    else
+                    {
+                        partUpdateResult = part.UpdateAllProperties(updatedPart);
+
+                        if (partUpdateResult != Scene.ObjectUpdateResult.Unchanged)
+                        {
+                            groupUpdateResult = partUpdateResult;
+                        }
+                    }
+                }
+
+                //Just to make sure the parts each has the right localID of the rootpart
+                UpdateParentIDs();
+            }
+
+            //Schedule updates to be sent out, if the local copy has just been updated
+            //(1) if we are debugging the actor with a viewer attaching to it,
+            //we need to schedule updates to be sent to the viewer.
+            //(2) or if we are a relaying node to relay updates, we need to forward the updates.
+            //NOTE: LastUpdateTimeStamp and LastUpdateActorID should be kept the same as in the received copy of the object.
+            if (groupUpdateResult == Scene.ObjectUpdateResult.Updated)
+            {
+                ScheduleGroupForFullUpdate_SyncInfoUnchanged();
+            }
+
+            //debug the update result
+            if (groupUpdateResult == Scene.ObjectUpdateResult.Updated)
+            {
+                DebugObjectUpdateResult();
+            }
+
+            return groupUpdateResult;
+        }
+
 
         #endregion
     }

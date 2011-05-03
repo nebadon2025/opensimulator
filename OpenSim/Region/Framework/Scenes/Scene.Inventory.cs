@@ -251,7 +251,7 @@ namespace OpenSim.Region.Framework.Scenes
             AssetService.Store(asset);
 
             //REGION SYNC: if RegionSyncEnabled, move script related operations to be after update inventory item
-            //SYMMETRIC SYNC: commenting out old REGION SYNC code, the RemoveScriptInstance would be handled by ScriptEngineSyncModule
+            //DSG SYNC: commenting out old REGION SYNC code, the RemoveScriptInstance would be handled by ScriptEngineSyncModule
             /*
             if (!RegionSyncEnabled)
             {
@@ -270,7 +270,7 @@ namespace OpenSim.Region.Framework.Scenes
             part.GetProperties(remoteClient);
 
             ////REGION SYNC 
-            //SYMMETRIC SYNC: commenting out old REGION SYNC code, the RemoveScriptInstance would be handled by ScriptEngineSyncModule
+            //DSG SYNC: commenting out old REGION SYNC code, the RemoveScriptInstance would be handled by ScriptEngineSyncModule
             /*
             if (!RegionSyncEnabled)
             {
@@ -309,7 +309,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
              * */
 
-            //SYMMETRIC SYNC: Distributed Scene Graph implementation  
+            //DSG SYNC: Distributed Scene Graph implementation  
             m_log.Debug("Scene.Inventory: to call EventManager.TriggerUpdateScript, agentID: " + remoteClient.AgentId);
             //Trigger OnUpdateScript event.
             EventManager.TriggerUpdateScript(remoteClient.AgentId, itemId, primId, isScriptRunning, item.AssetID);
@@ -370,7 +370,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
         #endregion 
 
-        #region SYMMETRIC SYNC
+        #region DSG SYNC
         public void SymSync_OnNewScript(UUID avatarID, UUID itemID, SceneObjectPart part)
         {
             TaskInventoryItem item = part.Inventory.GetInventoryItem(itemID);
@@ -433,7 +433,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             return errors;
         }
-        #endregion //SYMMETRIC SYNC
+        #endregion //DSG SYNC
 
 
          /// <summary>
@@ -1714,7 +1714,7 @@ namespace OpenSim.Region.Framework.Scenes
                         part.ParentGroup.AddInventoryItem(remoteClient, localID, item, copyID);
                         part.GetProperties(remoteClient);
 
-                        //SYMMETRIC SYNC
+                        //DSG SYNC
                         /* Original OpenSim code, commented out 
                         // TODO: switch to posting on_rez here when scripts
                         // have state in inventory
@@ -1741,7 +1741,7 @@ namespace OpenSim.Region.Framework.Scenes
                             //part.GetProperties(remoteClient);
                             part.ParentGroup.ResumeScripts();
                         }
-                        //end of SYMMETRIC SYNC
+                        //end of DSG SYNC
 
                     }
                     else
@@ -1801,7 +1801,7 @@ namespace OpenSim.Region.Framework.Scenes
                 part.Inventory.AddInventoryItem(taskItem, false);
                 part.GetProperties(remoteClient);
 
-                //SYMMETRIC SYNC
+                //DSG SYNC
                 //part.Inventory.CreateScriptInstance(taskItem, 0, false, DefaultScriptEngine, 0);
                 //part.ParentGroup.ResumeScripts();
                 if (RegionSyncModule != null)
@@ -1819,7 +1819,7 @@ namespace OpenSim.Region.Framework.Scenes
                     //part.GetProperties(remoteClient);
                     part.ParentGroup.ResumeScripts();
                 }
-                //end of SYMMETRIC SYNC
+                //end of DSG SYNC
             }
         }
 
@@ -2256,7 +2256,7 @@ namespace OpenSim.Region.Framework.Scenes
             group.CreateScriptInstances(param, true, DefaultScriptEngine, 3);
             
             //group.ScheduleGroupForFullUpdate();
-            group.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.FullUpdate}); //new object, all properties have new value
+            group.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate}); //new object, all properties have new value
         
             return group;
         }
@@ -2322,7 +2322,7 @@ namespace OpenSim.Region.Framework.Scenes
                     sog.SetOwnerId(ownerID);
                     sog.SetGroup(groupID, remoteClient);
                     //sog.ScheduleGroupForFullUpdate();
-                    sog.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.OwnerID, SceneObjectPartProperties.GroupID});
+                    sog.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.OwnerID, SceneObjectPartSyncProperties.GroupID});
 
                     SceneObjectPart[] partList = sog.Parts;
                     
@@ -2386,6 +2386,9 @@ namespace OpenSim.Region.Framework.Scenes
             List<SceneObjectPart> children = new List<SceneObjectPart>();
             SceneObjectPart root = GetSceneObjectPart(parentPrimId);
 
+            //DSG DEBUG
+            m_log.Debug("Scene.LinkObjects -- ROOT: " + root.DebugObjectPartProperties());
+
             if (root == null)
             {
                 m_log.DebugFormat("[LINK]: Can't find linkset root prim {0}", parentPrimId);
@@ -2404,6 +2407,9 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if (part == null)
                     continue;
+
+                //DSG DEBUG
+                m_log.Debug("Scene.LinkObjects -- child to link: " + part.DebugObjectPartProperties());
 
                 if (!owners.Contains(part.OwnerID))
                     owners.Add(part.OwnerID);

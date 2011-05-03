@@ -4795,7 +4795,8 @@ namespace OpenSim.Region.Framework.Scenes
 //                m_log.DebugFormat(
 //                    "[SCENE OBJECT PART]: Scheduling part {0} {1} for full update in aggregateScriptEvents()", Name, LocalId);
                 //ScheduleFullUpdate();
-                ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Flags, SceneObjectPartSyncProperties.AggregateScriptEvents});
+                ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Flags, SceneObjectPartSyncProperties.LocalFlags,
+                    SceneObjectPartSyncProperties.AggregateScriptEvents});
             }
         }
 
@@ -5218,7 +5219,8 @@ namespace OpenSim.Region.Framework.Scenes
         MediaUrl,
         TextureAnimation,
         ParticleSystem,
-        //Property names below copied from PhysicsActor, they are necessary in synchronization, but not covered the above properties
+        //Property names below copied from PhysicsActor, they are necessary in 
+        //synchronization, but not covered by xml serialization
         //Physics properties "Velocity" is covered above
         Position,
         Size,
@@ -5236,10 +5238,11 @@ namespace OpenSim.Region.Framework.Scenes
 
         //Properties need to be synced, but not in xml serializations
         AggregateScriptEvents,
-        IsAttachment,
         AttachedAvatar,
         AttachedPos,
         AttachmentPoint,
+        IsAttachment,
+        LocalFlags,
         //TODO!!!! To be handled in serialization/deserizaltion for synchronization
         Sound, //This indicates any Sound related property has changed: Sound, SoundGain, SoundFlags,SoundRadius,
         //Addition properties to be added here

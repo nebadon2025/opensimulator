@@ -4299,6 +4299,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     propertyData["Value"] = OSD.FromInteger((int)((scriptEvents)LastUpdateValue));
                     break;
                 case SceneObjectPartSyncProperties.Flags:
+                case SceneObjectPartSyncProperties.LocalFlags:
                     propertyData["Value"] = OSD.FromInteger((int)((PrimFlags)LastUpdateValue));
                     break;
                 ////////////////////////////
@@ -4523,6 +4524,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //propertyData["Value"] = OSD.FromInteger((int)((scriptEvents)LastUpdateValue));
                     break;
                 case SceneObjectPartSyncProperties.Flags:
+                case SceneObjectPartSyncProperties.LocalFlags:
                     PrimFlags flags = (PrimFlags)(propertyData["Value"].AsInteger());
                     m_lastUpdateValue = (Object)flags;
                     //propertyData["Value"] = OSD.FromInteger((int)((PrimFlags)LastUpdateValue));
@@ -5740,6 +5742,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                     }
                     break;
+                case SceneObjectPartSyncProperties.LocalFlags:
+                    if (!part.LocalFlags.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.LocalFlags);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.LocalFlags = (PrimFlags)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
                 case SceneObjectPartSyncProperties.Material:
                     if (!part.Material.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
                     {
@@ -6461,6 +6478,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     return (Object)part.LastOwnerID;
                 case SceneObjectPartSyncProperties.LinkNum:
                     return (Object)part.LinkNum;
+                case SceneObjectPartSyncProperties.LocalFlags:
+                    return (Object)part.LocalFlags;
                 case SceneObjectPartSyncProperties.Material:
                     return (Object)part.Material;
                 case SceneObjectPartSyncProperties.MediaUrl:
@@ -6719,6 +6738,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     break;
                 case SceneObjectPartSyncProperties.LinkNum:
                     part.LinkNum = (int)pSyncInfo.LastUpdateValue;
+                    break;
+                case SceneObjectPartSyncProperties.LocalFlags:
+                    part.LocalFlags = (PrimFlags)pSyncInfo.LastUpdateValue;
                     break;
                 case SceneObjectPartSyncProperties.Material:
                     part.Material = (byte)pSyncInfo.LastUpdateValue;

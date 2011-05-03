@@ -3684,12 +3684,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     foreach (KeyValuePair<UUID, HashSet<SceneObjectPartSyncProperties>> updatedPrimProperties in primPropertyUpdates)
                     {
                         UUID primUUID = updatedPrimProperties.Key;
-                        HashSet<SceneObjectPartSyncProperties> updatedProperties = updatedPrimProperties.Value;
+                        SceneObjectPart sop = m_scene.GetSceneObjectPart(primUUID);
 
-                        //Sync the SOP data and cached property values in PrimSyncInfoManager again
-                        //HashSet<SceneObjectPartSyncProperties> propertiesWithSyncInfoUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoByLocal(part, updatedProperties);
+                        if (sop == null || sop.ParentGroup.IsDeleted)
+                            continue;
+                        else
+                        {
+                            HashSet<SceneObjectPartSyncProperties> updatedProperties = updatedPrimProperties.Value;
 
-                        SendPrimPropertyUpdates(primUUID, updatedProperties);
+                            //Sync the SOP data and cached property values in PrimSyncInfoManager again
+                            HashSet<SceneObjectPartSyncProperties> propertiesWithSyncInfoUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoByLocal(sop, new List<SceneObjectPartSyncProperties>(updatedProperties));
+                            SendPrimPropertyUpdates(sop, updatedProperties);
+                        }
                     }
                     
                     // Indicate that the current batch of updates has been completed
@@ -3702,13 +3708,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
-        private void SendPrimPropertyUpdates(UUID primUUID, HashSet<SceneObjectPartSyncProperties> updatedProperties)
+        private void SendPrimPropertyUpdates(SceneObjectPart sop, HashSet<SceneObjectPartSyncProperties> updatedProperties)
         {
-            SceneObjectPart sop = m_scene.GetSceneObjectPart(primUUID);
-
-            if (sop == null || sop.ParentGroup.IsDeleted)
-                return; 
-
             OSDMap syncData = m_primSyncInfoManager.EncodePrimProperties(sop, updatedProperties);
 
             if (syncData.Count > 0)
@@ -3741,7 +3742,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
 
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedPrimProperties, OSDParser.SerializeJsonString(syncData));
-                SendPrimUpdateToRelevantSyncConnectors(primUUID, syncMsg);
+                SendPrimUpdateToRelevantSyncConnectors(sop.UUID, syncMsg);
             }
         }
 

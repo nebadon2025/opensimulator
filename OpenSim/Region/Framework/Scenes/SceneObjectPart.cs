@@ -5641,7 +5641,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         // Do any subscriptions based on the AggregateScriptEvents
-        protected void aggregateScriptEventSubscriptions()
+        public void aggregateScriptEventSubscriptions()
         {
             if (
                 ((AggregateScriptEvents & scriptEvents.collision) != 0) ||

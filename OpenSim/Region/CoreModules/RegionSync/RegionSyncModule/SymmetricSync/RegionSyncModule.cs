@@ -1977,9 +1977,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     {
                         pos = part.PhysActor.Position;
                     }
-                    m_log.WarnFormat("               -- part {0}, UUID {1}, LocalID {2}, GroupPos {3}, offset-position {4}, Position {5}, AggregateScriptEvents ={6}, Flags = {7}, LocalFlags {8}", 
+                    m_log.WarnFormat("-- part {0}, UUID {1}, LocalID {2}, GroupPos {3}, offset-position {4}, Position {5}, AggregateScriptEvents ={6}, Flags = {7}, LocalFlags {8}, Scale {9}", 
                         part.Name, part.UUID, part.LocalId, part.GroupPosition, part.OffsetPosition, 
-                        pos, part.AggregateScriptEvents, part.Flags, part.LocalFlags);
+                        pos, part.AggregateScriptEvents, part.Flags, part.LocalFlags, part.Scale);
                 }
             }
 
@@ -2003,26 +2003,51 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     if (entity is SceneObjectGroup)
                     {
-                        //Legacy serialization/deserialization for bucket based sync 
-                        /*
-                        //first test serialization
-                        StringWriter sw = new StringWriter();
-                        XmlTextWriter writer = new XmlTextWriter(sw);
-                        Dictionary<string, BucketSyncInfo> bucketSyncInfoList = new Dictionary<string,BucketSyncInfo>();
-                        BucketSyncInfo generalBucket = new BucketSyncInfo(DateTime.Now.Ticks, m_actorID, "General");
-                        bucketSyncInfoList.Add("General", generalBucket);
-                        BucketSyncInfo physicsBucket = new BucketSyncInfo(DateTime.Now.Ticks, m_actorID, "Physics");
-                        bucketSyncInfoList.Add("Physics", physicsBucket);
-                        SceneObjectSerializer.WriteBucketSyncInfo(writer, bucketSyncInfoList);
 
-                        string xmlString = sw.ToString();
-                        m_log.DebugFormat("Serialized xml string: {0}", xmlString);
+                        SceneObjectGroup sog = (SceneObjectGroup)entity;
 
-                        //second, test de-serialization
-                        XmlTextReader reader = new XmlTextReader(new StringReader(xmlString));
-                        SceneObjectPart part = new SceneObjectPart();
-                        SceneObjectSerializer.ProcessBucketSyncInfo(part, reader);
-                         * */
+                        string sogXml = sog.ToXml2();
+
+                        SceneObjectGroup sogCopy = SceneXmlLoader.DeserializeGroupFromXml2(sogXml);
+                    }
+                }
+            }
+        }
+
+        //debug functions
+        private void BucketSyncDebug()
+        {
+            //Legacy serialization/deserialization for bucket based sync 
+            /*
+            //first test serialization
+            StringWriter sw = new StringWriter();
+            XmlTextWriter writer = new XmlTextWriter(sw);
+            Dictionary<string, BucketSyncInfo> bucketSyncInfoList = new Dictionary<string,BucketSyncInfo>();
+            BucketSyncInfo generalBucket = new BucketSyncInfo(DateTime.Now.Ticks, m_actorID, "General");
+            bucketSyncInfoList.Add("General", generalBucket);
+            BucketSyncInfo physicsBucket = new BucketSyncInfo(DateTime.Now.Ticks, m_actorID, "Physics");
+            bucketSyncInfoList.Add("Physics", physicsBucket);
+            SceneObjectSerializer.WriteBucketSyncInfo(writer, bucketSyncInfoList);
+
+            string xmlString = sw.ToString();
+            m_log.DebugFormat("Serialized xml string: {0}", xmlString);
+
+            //second, test de-serialization
+            XmlTextReader reader = new XmlTextReader(new StringReader(xmlString));
+            SceneObjectPart part = new SceneObjectPart();
+            SceneObjectSerializer.ProcessBucketSyncInfo(part, reader);
+             * */
+        }
+
+        private void PrimSyncSerializationDebug()
+        {
+            if (m_scene != null)
+            {
+                EntityBase[] entities = m_scene.GetEntities();
+                foreach (EntityBase entity in entities)
+                {
+                    if (entity is SceneObjectGroup)
+                    {
 
                         SceneObjectGroup sog = (SceneObjectGroup)entity;
 
@@ -2032,7 +2057,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         {
                             m_primSyncInfoManager.InsertPrimSyncInfo(part, DateTime.Now.Ticks, m_syncID);
                         }
-                        
+
                         //Next test serialization
                         OSDMap sogData = SceneObjectEncoder(sog);
 
@@ -2050,7 +2075,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             UUID oldUUID = part.UUID;
                             part.UUID = UUID.Random();
 
-                            PrimSyncInfo syncInfo =  primsSyncInfo[oldUUID];
+                            PrimSyncInfo syncInfo = primsSyncInfo[oldUUID];
                             primsSyncInfo.Add(part.UUID, syncInfo);
                         }
 
@@ -2068,7 +2093,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                 }
             }
+
         }
+
+        //end of debug functions
+
 
         //Start connections to each remote listener. 
         //For now, there is only one remote listener.
@@ -3664,7 +3693,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //Skip if the prim is on longer in the local Scene Graph
                     if (prim == null)
                     {
-                        m_log.WarnFormat("{0}: in SyncOutPrimUpdates, prim {1} no longer in local SceneGraph", LogHeader, primUUID);
+                        //m_log.WarnFormat("{0}: in SyncOutPrimUpdates, prim {1} no longer in local SceneGraph", LogHeader, primUUID);
                         continue;
                     }
                     //Skip if the object group is being deleted
@@ -3694,6 +3723,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                             //Sync the SOP data and cached property values in PrimSyncInfoManager again
                             HashSet<SceneObjectPartSyncProperties> propertiesWithSyncInfoUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoByLocal(sop, new List<SceneObjectPartSyncProperties>(updatedProperties));
+                            updatedProperties.UnionWith(propertiesWithSyncInfoUpdated);
                             SendPrimPropertyUpdates(sop, updatedProperties);
                         }
                     }
@@ -6658,7 +6688,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 case SceneObjectPartSyncProperties.AggregateScriptEvents:
                     part.AggregateScriptEvents = (scriptEvents)pSyncInfo.LastUpdateValue;
-
+                    part.aggregateScriptEventSubscriptions();
                     //DebugLog.DebugFormat("set {0} value to be {1}", property.ToString(), part.AggregateScriptEvents);
 
                     break;
@@ -6669,13 +6699,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     part.AngularVelocity = (Vector3)pSyncInfo.LastUpdateValue;
                     break;
                 case SceneObjectPartSyncProperties.AttachedAvatar:
-                    part.AttachedAvatar = (UUID)pSyncInfo.LastUpdateValue;
+                    //part.AttachedAvatar = (UUID)pSyncInfo.LastUpdateValue;
+                    UUID attachedAvatar = (UUID)pSyncInfo.LastUpdateValue;
+                    if (!part.AttachedAvatar.Equals(attachedAvatar))
+                    {
+                        part.AttachedAvatar = attachedAvatar;
+                        ScenePresence avatar = part.ParentGroup.Scene.GetScenePresence(attachedAvatar);
+                        part.ParentGroup.RootPart.SetParentLocalId(avatar.LocalId);
+                    }
                     break;
                 case SceneObjectPartSyncProperties.AttachedPos:
                     part.AttachedPos = (Vector3)pSyncInfo.LastUpdateValue;
                     break;
                 case SceneObjectPartSyncProperties.AttachmentPoint:
-                    part.AttachmentPoint = (uint)pSyncInfo.LastUpdateValue;
+                    //part.AttachmentPoint = (uint)pSyncInfo.LastUpdateValue;
+                    part.SetAttachmentPoint((uint)pSyncInfo.LastUpdateValue);
                     break;
                 case SceneObjectPartSyncProperties.BaseMask:
                     part.BaseMask = (uint)pSyncInfo.LastUpdateValue;

@@ -2167,7 +2167,9 @@ namespace OpenSim.Region.Framework.Scenes
 
             sceneObject.AttachToScene(m_parentScene);
 
-            //Take some special care of the case of this object being an attachment
+            //Take some special care of the case of this object being an attachment, 
+            //since localID of attachedAvatar is different in different sync node's 
+            //Scene copies.
             sceneObject.RootPart.SetAttachmentPoint(sceneObject.RootPart.AttachmentPoint); 
             if (sceneObject.IsAttachment)
             {
@@ -2175,13 +2177,10 @@ namespace OpenSim.Region.Framework.Scenes
                 sceneObject.RootPart.SetParentLocalId(avatar.LocalId);
             }
 
-            //DSG SYNC, 
             sceneObject.HasGroupChanged = true;
             //NewObject is sent via a specific sync message, not through updates;
-            //hence not passing any property list here in calling
-            //ScheduleGroupForFullUpdate().
-            sceneObject.ScheduleGroupForFullUpdate(null);
-            //end of DSG SYNC, 
+            //hence not passing any property list here 
+            sceneObject.ScheduleGroupForFullUpdate(null); 
 
             Entities.Add(sceneObject);
 

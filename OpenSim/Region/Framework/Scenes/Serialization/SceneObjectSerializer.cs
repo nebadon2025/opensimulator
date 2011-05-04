@@ -346,6 +346,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             m_SOPXmlProcessors.Add("TextureAnimation", ProcessTextureAnimation);
             m_SOPXmlProcessors.Add("ParticleSystem", ProcessParticleSystem);
 
+            /*
             //DSG SYNC
             m_SOPXmlProcessors.Add("LocalFlags", ProcessLocalFlags);
             //m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
@@ -358,6 +359,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
             m_SOPXmlProcessors.Add("BucketSyncInfoList", ProcessBucketSyncInfo);
             //end of DSG SYNC
+             * */ 
 
             #endregion
 
@@ -1302,12 +1304,14 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             //DSG SYNC
             //These properties are only meaningful for synchronization purpose. For saving oar files, they are not necessary.
             //We may remove these if later we use a different method to encode object properties for synchronization.
+            /*
             WriteUUID(writer, "AttachedAvatar", sop.AttachedAvatar, options);
             WriteVector(writer, "AttachedPos", sop.AttachedPos);
             writer.WriteElementString("AttachmentPoint", sop.AttachmentPoint.ToString());
             //writer.WriteElementString("IsAttachment", sop.IsAttachment.ToString().ToLower()); //IsAttachment is written last, so that on deserialization, it will be deserialized later than other Attachment properties
             WriteFlags(writer, "AggregateScriptEvents", sop.AggregateScriptEvents.ToString(), options);
             WriteBucketSyncInfo(writer, sop.BucketSyncInfoList);
+             * */ 
             //end of DSG SYNC
 
             writer.WriteEndElement();

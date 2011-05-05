@@ -706,7 +706,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        //Similar to DeleteSceneObject, except that this does not change LastUpdateActorID and LastUpdateTimeStamp
+        //Similar to DeleteSceneObject, except that this does not trigger SyncDeleteObject
         public void DeleteSceneObjectBySynchronization(SceneObjectGroup group)
         {
 

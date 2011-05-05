@@ -203,7 +203,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //Inform script engine to save script states and stop scripts
             m_scene.EventManager.TriggerScriptEngineSyncStop();
             //remove all objects
-            m_scene.DeleteAllSceneObjects();
+            m_scene.DeleteAllSceneObjectsBySync();
         }
 
         public void ScriptEngine_OnNewScript(UUID agentID, SceneObjectPart part, UUID itemID)

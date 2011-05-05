@@ -3909,7 +3909,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             OSDMap rootData = (OSDMap)data["RootPart"];
             //Decode and copy to the list of PrimSyncInfo
             PrimSyncInfo primSyncInfo = m_primSyncInfoManager.DecodeFullSetPrimProperties(rootData);
-            SceneObjectPart root = primSyncInfo.PrimSyncInfoToSOP();
+            SceneObjectPart root= primSyncInfo.PrimSyncInfoToSOP();
 
             if (root != null)
             {
@@ -3930,6 +3930,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     OSDMap partData = (OSDMap)otherPartsArray[i];
                     primSyncInfo = m_primSyncInfoManager.DecodeFullSetPrimProperties(partData);
                     SceneObjectPart part = primSyncInfo.PrimSyncInfoToSOP();
+
                     if(part!=null){
                         sog.AddPart(part);
                         partsPrimSyncInfo.Add(part.UUID, primSyncInfo);
@@ -5074,22 +5075,29 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     else
                     {
-                        //Compare timestamp and update SyncInfo if necessary
-                        updated = m_propertiesSyncInfo[property].CompareAndUpdateSyncInfoBySync(pSyncInfo, recvTS);
-                        //If updated, update the property value in SOP
-                        if (updated)
+                        try
                         {
-                            //DSG DEBUG
-                            /*
-                            if (property == SceneObjectPartSyncProperties.Shape)
+                            //Compare timestamp and update SyncInfo if necessary
+                            updated = m_propertiesSyncInfo[property].CompareAndUpdateSyncInfoBySync(pSyncInfo, recvTS);
+                            //If updated, update the property value in SOP
+                            if (updated)
                             {
-                                DebugLog.DebugFormat("UpdatePropertiesBySync: updating Shape of {0}, {1}", part.Name, part.UUID);
-                            }
-                             * */ 
+                                //DSG DEBUG
+                                /*
+                                if (property == SceneObjectPartSyncProperties.Shape)
+                                {
+                                    DebugLog.DebugFormat("UpdatePropertiesBySync: updating Shape of {0}, {1}", part.Name, part.UUID);
+                                }
+                                 * */
 
-                            //UpdateSOPProperty(part, m_propertiesSyncInfo[property]);
-                            SetSOPPropertyValue(part, property);
-                            propertiesUpdated.Add(property);
+                                //UpdateSOPProperty(part, m_propertiesSyncInfo[property]);
+                                SetSOPPropertyValue(part, property);
+                                propertiesUpdated.Add(property);
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            DebugLog.ErrorFormat("Error in updating property {0}: {1}", property, e.Message);
                         }
                     }
                 }
@@ -5186,7 +5194,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             foreach (SceneObjectPartSyncProperties property in FullSetPrimProperties)
             {
                 if (m_propertiesSyncInfo.ContainsKey(property))
-                    SetSOPPropertyValue(sop, property);
+                {
+                    try
+                    {
+                        SetSOPPropertyValue(sop, property);
+                    }
+                    catch (Exception e)
+                    {
+                        DebugLog.ErrorFormat("Error in setting SOP property {0}: {1}", property, e.Message);
+                    }
+                }
                 else
                 {
                     //This might just be fine. For phantom objects, they don't have 
@@ -6706,7 +6723,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SceneObjectPartSyncProperties.AttachedAvatar:
                     //part.AttachedAvatar = (UUID)pSyncInfo.LastUpdateValue;
                     UUID attachedAvatar = (UUID)pSyncInfo.LastUpdateValue;
-                    if (!part.AttachedAvatar.Equals(attachedAvatar))
+                    if (!part.AttachedAvatar.Equals(attachedAvatar) && part.ParentGroup !=null)
                     {
                         part.AttachedAvatar = attachedAvatar;
                         ScenePresence avatar = part.ParentGroup.Scene.GetScenePresence(attachedAvatar);

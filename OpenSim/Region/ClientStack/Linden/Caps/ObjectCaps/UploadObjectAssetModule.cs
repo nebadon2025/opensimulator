@@ -48,10 +48,9 @@ using OSD = OpenMetaverse.StructuredData.OSD;
 using OSDMap = OpenMetaverse.StructuredData.OSDMap;
 using OpenSim.Framework.Capabilities;
 using ExtraParamType = OpenMetaverse.ExtraParamType;
-
 using System.Collections.Generic;
 
-namespace OpenSim.Region.CoreModules.Avatar.ObjectCaps
+namespace OpenSim.Region.ClientStack.Linden
 {
     [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule")]
     public class UploadObjectAssetModule : INonSharedRegionModule

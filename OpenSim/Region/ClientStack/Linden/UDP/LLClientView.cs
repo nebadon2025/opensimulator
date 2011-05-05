@@ -11740,7 +11740,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
             info.userEP = m_userEndPoint;
             info.proxyEP = null;
-            info.agentcircuit = new sAgentCircuitData(RequestClientInfo());
+            info.agentcircuit = RequestClientInfo();
 
             return info;
         }

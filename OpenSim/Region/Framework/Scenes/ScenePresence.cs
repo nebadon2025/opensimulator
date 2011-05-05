@@ -232,6 +232,16 @@ namespace OpenSim.Region.Framework.Scenes
         private Dictionary<ulong, string> m_knownChildRegions = new Dictionary<ulong, string>();
 
         /// <summary>
+        /// Copy of the script states while the agent is in transit. This state may
+        /// need to be placed back in case of transfer fail.
+        /// </summary>
+        public List<string> InTransitScriptStates
+        {
+            get { return m_InTransitScriptStates; }
+        }
+        private List<string> m_InTransitScriptStates = new List<string>();
+
+        /// <summary>
         /// Implemented Control Flags
         /// </summary>
         private enum Dir_ControlFlags
@@ -840,6 +850,9 @@ namespace OpenSim.Region.Framework.Scenes
 
             //m_log.DebugFormat("[SCENE]: known regions in {0}: {1}", Scene.RegionInfo.RegionName, KnownChildRegionHandles.Count);
 
+            bool wasChild = m_isChildAgent;
+            m_isChildAgent = false;
+
             IGroupsModule gm = m_scene.RequestModuleInterface<IGroupsModule>();
             if (gm != null)
                 m_grouptitle = gm.GetGroupTitle(m_uuid);
@@ -929,14 +942,21 @@ namespace OpenSim.Region.Framework.Scenes
             // Animator.SendAnimPack();
 
             m_scene.SwapRootAgentCount(false);
-            
-            //CachedUserInfo userInfo = m_scene.CommsManager.UserProfileCacheService.GetUserDetails(m_uuid);
-            //if (userInfo != null)
-            //        userInfo.FetchInventory();
-            //else
-            //    m_log.ErrorFormat("[SCENE]: Could not find user info for {0} when making it a root agent", m_uuid);
-            
-            m_isChildAgent = false;
+
+            // The initial login scene presence is already root when it gets here
+            // and it has already rezzed the attachments and started their scripts.
+            // We do the following only for non-login agents, because their scripts
+            // haven't started yet.
+            if (wasChild && Attachments != null && Attachments.Count > 0)
+            {
+                m_log.DebugFormat("[SCENE PRESENCE]: Restarting scripts in attachments...");
+                // Resume scripts
+                Attachments.ForEach(delegate(SceneObjectGroup sog)
+                {
+                    sog.RootPart.ParentGroup.CreateScriptInstances(0, false, m_scene.DefaultScriptEngine, GetStateSource());
+                    sog.ResumeScripts();
+                });
+            }
 
             // send the animations of the other presences to me
             m_scene.ForEachScenePresence(delegate(ScenePresence presence)
@@ -946,6 +966,20 @@ namespace OpenSim.Region.Framework.Scenes
             });
 
             m_scene.EventManager.TriggerOnMakeRootAgent(this);
+        }
+
+        public int GetStateSource()
+        {
+            AgentCircuitData aCircuit = m_scene.AuthenticateHandler.GetAgentCircuitData(UUID);
+
+            if (aCircuit != null && (aCircuit.teleportFlags != (uint)TeleportFlags.Default))
+            {
+                // This will get your attention
+                //m_log.Error("[XXX] Triggering CHANGED_TELEPORT");
+
+                return 5; // StateSource.Teleporting
+            }
+            return 2; // StateSource.PrimCrossing
         }
 
         /// <summary>
@@ -1139,7 +1173,6 @@ namespace OpenSim.Region.Framework.Scenes
                 AbsolutePosition = pos;
             }
 
-            m_isChildAgent = false;
             bool m_flying = ((m_AgentControlFlags & AgentManager.ControlFlags.AGENT_CONTROL_FLY) != 0);
             MakeRootAgent(AbsolutePosition, m_flying);
 
@@ -2372,6 +2405,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         // vars to support reduced update frequency when velocity is unchanged
         private Vector3 lastVelocitySentToAllClients = Vector3.Zero;
+        private Vector3 lastPositionSentToAllClients = Vector3.Zero;
         private int lastTerseUpdateToAllClientsTick = Util.EnvironmentTickCount();
 
         /// <summary>
@@ -2381,14 +2415,29 @@ namespace OpenSim.Region.Framework.Scenes
         {
             int currentTick = Util.EnvironmentTickCount();
 
-            // decrease update frequency when avatar is moving but velocity is not changing
-            if (m_velocity.Length() < 0.01f
-                || Vector3.Distance(lastVelocitySentToAllClients, m_velocity) > 0.01f
-                || currentTick - lastTerseUpdateToAllClientsTick > 1500)
+            // Decrease update frequency when avatar is moving but velocity is
+            // not changing.
+            // If there is a mismatch between distance travelled and expected
+            // distance based on last velocity sent and velocity hasnt changed,
+            // then send a new terse update
+
+            float timeSinceLastUpdate = (currentTick - lastTerseUpdateToAllClientsTick) * 0.001f;
+
+            Vector3 expectedPosition = lastPositionSentToAllClients + lastVelocitySentToAllClients * timeSinceLastUpdate;
+
+            float distanceError = Vector3.Distance(OffsetPosition, expectedPosition);
+
+            float speed = Velocity.Length();
+            float velocidyDiff = Vector3.Distance(lastVelocitySentToAllClients, Velocity);
+
+            if (speed < 0.01f // allow rotation updates if avatar position is unchanged
+                || Math.Abs(distanceError) > 0.25f // arbitrary distance error threshold
+                || velocidyDiff > 0.01f) // did velocity change from last update?
             {
                 m_perfMonMS = currentTick;
-                lastVelocitySentToAllClients = m_velocity;
+                lastVelocitySentToAllClients = Velocity;
                 lastTerseUpdateToAllClientsTick = currentTick;
+                lastPositionSentToAllClients = OffsetPosition;
 
                 m_scene.ForEachClient(SendTerseUpdateToClient);
 
@@ -3103,6 +3152,7 @@ namespace OpenSim.Region.Framework.Scenes
                 cAgent.AttachmentObjects = new List<ISceneObject>();
                 cAgent.AttachmentObjectStates = new List<string>();
                 IScriptModule se = m_scene.RequestModuleInterface<IScriptModule>();
+                m_InTransitScriptStates.Clear();
                 foreach (SceneObjectGroup sog in m_attachments)
                 {
                     // We need to make a copy and pass that copy
@@ -3112,7 +3162,11 @@ namespace OpenSim.Region.Framework.Scenes
                     ((SceneObjectGroup)clone).RootPart.GroupPosition = sog.RootPart.AttachedPos;
                     ((SceneObjectGroup)clone).RootPart.IsAttachment = false;
                     cAgent.AttachmentObjects.Add(clone);
-                    cAgent.AttachmentObjectStates.Add(sog.GetStateSnapshot());
+                    string state = sog.GetStateSnapshot();
+                    cAgent.AttachmentObjectStates.Add(state);
+                    m_InTransitScriptStates.Add(state);
+                    // Let's remove the scripts of the original object here
+                    sog.RemoveScriptInstances(true);
                 }
             }
         }

@@ -764,13 +764,17 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                         // one full update during the attachment
                         // process causes some clients to fail to display the
                         // attachment properly.
-                        m_Scene.AddNewSceneObject(group, true, false);
+                        //m_Scene.AddNewSceneObject(group, true, false);
+                        //DSG SYNC: tell RegionSyncModule not to call SyncNewObject 
+                        //          yet, as not all properties have been set yet
+                        bool triggerSyncNewObject = false;
+                        m_Scene.AddNewSceneObjectByRez(group, true, false, triggerSyncNewObject);
 
                         // if attachment we set it's asset id so object updates
                         // can reflect that, if not, we set it's position in world.
                         if (!attachment)
                         {
-                            group.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate});
+                            group.ScheduleGroupForFullUpdate(null);
 
                             group.AbsolutePosition = pos + veclist[i];
                         }
@@ -857,7 +861,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                             // Fire on_rez
                             group.CreateScriptInstances(0, true, m_Scene.DefaultScriptEngine, 1);
                             rootPart.ParentGroup.ResumeScripts();
-                            rootPart.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.FullUpdate });
+                            rootPart.ScheduleFullUpdate(null);
                         }
                     }
 
@@ -875,6 +879,12 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                                 m_Scene.InventoryService.DeleteItems(item.Owner, uuids);
                             }
                         }
+                    }
+
+                    //DSG SYNC: now all properties have been set, sending NewObject message, 
+                    if (m_Scene.RegionSyncModule != null)
+                    {
+                        m_Scene.RegionSyncModule.SyncNewObject(group);
                     }
                 }
                 return group;

@@ -882,6 +882,29 @@ namespace OpenSim.Region.Framework.Scenes
             return false;
         }
 
+        /// <summary>
+        /// Add a newly created object to the scene
+        /// </summary>
+        /// <param name="sceneObject"></param>
+        /// <param name="attachToBackup">
+        /// If true, the object is made persistent into the scene.
+        /// If false, the object will not persist over server restarts
+        /// </param>
+        /// <param name="sendClientUpdates">
+        /// If true, updates for the new scene object are sent to all viewers in range.
+        /// If false, it is left to the caller to schedule the update
+        /// </param>
+        public bool AddNewSceneObjectByRez(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates, bool triggerSyncNewObject)
+        {
+            if (m_sceneGraph.AddNewSceneObjectByRez(sceneObject, attachToBackup, sendClientUpdates, triggerSyncNewObject))
+            {
+                EventManager.TriggerObjectAddedToScene(sceneObject);
+                return true;
+            }
+
+            return false;
+        }
+
         #endregion //DSG SYNC
 
         public ICapabilitiesModule CapsModule

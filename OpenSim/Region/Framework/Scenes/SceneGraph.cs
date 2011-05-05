@@ -288,7 +288,7 @@ namespace OpenSim.Region.Framework.Scenes
                 sceneObject.HasGroupChanged = true;
             }
 
-            return AddSceneObject(sceneObject, attachToBackup, sendClientUpdates, false);
+            return AddSceneObject(sceneObject, attachToBackup, sendClientUpdates, true);
         }
                 
         /// <summary>
@@ -310,7 +310,8 @@ namespace OpenSim.Region.Framework.Scenes
             if (attachToBackup)
                 sceneObject.HasGroupChanged = true;
 
-            return AddSceneObject(sceneObject, attachToBackup, sendClientUpdates, false);
+            //DSG SYNC: passing true to trigger SyncNewObject
+            return AddSceneObject(sceneObject, attachToBackup, sendClientUpdates, true);
         }
         
         /// <summary>
@@ -368,7 +369,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <returns>
         /// true if the object was added, false if an object with the same uuid was already in the scene
         /// </returns>
-        protected bool AddSceneObject(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates, bool addedByDelink)
+        protected bool AddSceneObject(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates, bool triggerSyncNewObject)
         {
             if (sceneObject == null || sceneObject.RootPart == null || sceneObject.RootPart.UUID == UUID.Zero)
                 return false;
@@ -434,7 +435,7 @@ namespace OpenSim.Region.Framework.Scenes
                 sceneObject.ScheduleGroupForFullUpdate(null);
 
             //DSG SYNC: sending NewObject event, and sending it before calling ScheduleGroupForFullUpdate
-            if (m_parentScene.RegionSyncModule != null && !addedByDelink)
+            if (m_parentScene.RegionSyncModule != null && triggerSyncNewObject)
             {
                 m_parentScene.RegionSyncModule.SyncNewObject(sceneObject);
             }
@@ -2569,8 +2570,18 @@ namespace OpenSim.Region.Framework.Scenes
             if (attachToBackup)
                 sceneObject.HasGroupChanged = true;
 
-            bool addedByDelink = true;
-            return AddSceneObject(sceneObject, attachToBackup, sendClientUpdates, addedByDelink);
+            bool triggerSyncNewObject = false;
+            return AddSceneObject(sceneObject, attachToBackup, sendClientUpdates, triggerSyncNewObject);
+        }
+
+        protected internal bool AddNewSceneObjectByRez(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates, bool triggerSyncNewObject)
+        {
+            // Ensure that we persist this new scene object if it's not an
+            // attachment
+            if (attachToBackup)
+                sceneObject.HasGroupChanged = true;
+
+            return AddSceneObject(sceneObject, attachToBackup, sendClientUpdates, triggerSyncNewObject);
         }
 
         #endregion //DSG SYNC

@@ -1977,9 +1977,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     {
                         pos = part.PhysActor.Position;
                     }
-                    m_log.WarnFormat("-- part {0}, UUID {1}, LocalID {2}, GroupPos {3}, offset-position {4}, Position {5}, AggregateScriptEvents ={6}, Flags = {7}, LocalFlags {8}, Scale {9}", 
-                        part.Name, part.UUID, part.LocalId, part.GroupPosition, part.OffsetPosition, 
-                        pos, part.AggregateScriptEvents, part.Flags, part.LocalFlags, part.Scale);
+                    m_log.WarnFormat("-- part {0}, UUID {1}, LocalID {2}, GroupPos {3}, offset-position {4}, Position {5}, AggregateScriptEvents ={6}, AttachedAvatar={7}, AttachmentPoint = {8}, AttachedPos={9}",
+                        //Flags = {7}, LocalFlags {8}, Scale {9}", 
+                        part.Name, part.UUID, part.LocalId, part.GroupPosition, part.OffsetPosition,
+                        pos, part.AggregateScriptEvents,
+                        //part.Flags, part.LocalFlags, part.Scale);
+                        part.AttachedAvatar, part.AttachmentPoint, part.AttachedPos
+                    );
                 }
             }
 
@@ -3870,11 +3874,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             Scene.ObjectUpdateResult updateResult = m_scene.AddNewSceneObjectBySync(group);
 
             //Now the PhysActor of each part in sog have been created, let's 
-            //set the PhysActor's properties
+            //set the PhysActor's properties. Also trigger aggregateScriptEventSubscriptions
+            //since it may access PhysActor to link collision events
             foreach (SceneObjectPart part in group.Parts)
             {
-                //primsSyncInfo[part.UUID].SetSOPPhyscActorProperties(part);
                 m_primSyncInfoManager.SetSOPPhyscActorProperties(part);
+                part.aggregateScriptEventSubscriptions();
             }
         }
 

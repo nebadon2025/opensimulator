@@ -2237,7 +2237,10 @@ namespace OpenSim.Region.Framework.Scenes
                     sourcePart.Inventory.RemoveInventoryItem(item.ItemID);
             }
                                     
-            AddNewSceneObject(group, true);
+            //AddNewSceneObject(group, true);
+            //DSG SYNC
+            bool triggerSyncNewObject = false;
+            AddNewSceneObjectByRez(group, true, true, triggerSyncNewObject);
             
             group.AbsolutePosition = pos;
             group.Velocity = vel;            
@@ -2256,8 +2259,14 @@ namespace OpenSim.Region.Framework.Scenes
             group.CreateScriptInstances(param, true, DefaultScriptEngine, 3);
             
             //group.ScheduleGroupForFullUpdate();
-            group.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate}); //new object, all properties have new value
-        
+            group.ScheduleGroupForFullUpdate(null); //new object, all properties have new value
+
+            //DSG SYNC: now all properties have been set, sending NewObject message, 
+            if (RegionSyncModule != null)
+            {
+                RegionSyncModule.SyncNewObject(group);
+            }
+
             return group;
         }
 

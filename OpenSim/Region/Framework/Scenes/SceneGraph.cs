@@ -2175,7 +2175,13 @@ namespace OpenSim.Region.Framework.Scenes
             if (sceneObject.IsAttachment)
             {
                 ScenePresence avatar = m_parentScene.GetScenePresence(sceneObject.RootPart.AttachedAvatar);
-                sceneObject.RootPart.SetParentLocalId(avatar.LocalId);
+                //It is possible that the avatar has not been fully 
+                //created locally when attachment objects are sync'ed.
+                //So we need to check if the avatar already exists.
+                //If not, handling of NewAvatar will evetually trigger
+                //calling of SetParentLocalId.
+                if(avatar!=null)
+                    sceneObject.RootPart.SetParentLocalId(avatar.LocalId);
             }
 
             sceneObject.HasGroupChanged = true;

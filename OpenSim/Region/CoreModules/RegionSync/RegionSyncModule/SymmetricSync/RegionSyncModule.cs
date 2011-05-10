@@ -132,6 +132,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
             //m_scene.EventManager.OnObjectBeingRemovedFromScene += new EventManager.ObjectBeingRemovedFromScene(RegionSyncModule_OnObjectBeingRemovedFromScene);
 
+            m_scene.EventManager.OnNewPresence += OnNewPresence; 
+
             LogHeader += "-LocalRegion " + scene.RegionInfo.RegionName;
 
             m_syncID = GetSyncID();
@@ -1775,6 +1777,25 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Start symmetric synchronization initialization automatically
             SyncStart(null);
+        }
+
+        private void OnNewPresence(ScenePresence avatar)
+        {
+            //Go through the objects, if any of them are attachments of the
+            //new avatar, link them.
+            EntityBase[] entities = m_scene.GetEntities();
+            foreach (EntityBase e in entities)
+            {
+                if (e is SceneObjectGroup)
+                {
+                    SceneObjectGroup sog = (SceneObjectGroup)e;
+                    if (sog.RootPart.AttachedAvatar == avatar.UUID)
+                    {
+                        sog.RootPart.SetParentLocalId(avatar.LocalId);
+                    }
+                }
+            }
+
         }
 
         private void StartLocalSyncListener()
@@ -4911,23 +4932,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private static HashSet<SceneObjectPartSyncProperties> PrimNonPhysActorProperties = SceneObjectPart.GetAllPrimNonPhysActorProperties();
         private static HashSet<SceneObjectPartSyncProperties> GroupProperties = SceneObjectPart.GetGroupProperties();
 
+        private PrimSyncInfoManager m_syncInfoManager;
+
         #endregion //Members
 
         #region Constructors
 
-        public PrimSyncInfo(SceneObjectPart part, long initUpdateTimestamp, string syncID)
+        public PrimSyncInfo(SceneObjectPart part, long initUpdateTimestamp, string syncID, PrimSyncInfoManager manager)
         {
             m_UUID = part.UUID;
+            m_syncInfoManager = manager;
             InitPropertiesSyncInfo(part, initUpdateTimestamp, syncID);
         }
 
-        public PrimSyncInfo()
+        public PrimSyncInfo(PrimSyncInfoManager manager)
         {
+            m_syncInfoManager = manager;
         }
 
-        public PrimSyncInfo(UUID id, OSDMap primSyncInfoData)
+        public PrimSyncInfo(UUID id, OSDMap primSyncInfoData, PrimSyncInfoManager manager)
         {
             m_UUID = id;
+            m_syncInfoManager = manager;
             InitPropertiesSyncInfoFromOSDMap(primSyncInfoData);
         }
 
@@ -4937,18 +4963,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateTS, syncID, pValue, pHashedValue);
         }
-
-        /*
-        public void UpdatePropertyByLocal(SceneObjectPartSyncProperties property, long lastUpdateTS, string syncID, Object pValue)
-        {
-            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateTS, syncID, pValue);
-        }
-         * */ 
-
-        //public void UpdatePropertySyncInfoBySync(SceneObjectPartSyncProperties property, long lastUpdateTS, string syncID, Object pValue, Object pHashedValue, long recvTS)
-        //{
-        //    m_propertiesSyncInfo[property].UpdateSyncInfoBySync(lastUpdateTS, syncID, recvTS, pValue);
-        //}
 
         //Triggered when a set of local writes just happened, and ScheduleFullUpdate 
         //or ScheduleTerseUpdate has been called.
@@ -5229,6 +5243,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 SetSOPPropertyValue(sop, property);
             }
+        }
+
+        private Scene GetLocalScene()
+        {
+            return m_syncInfoManager.GetLocalScene();
         }
 
         /// <summary>
@@ -6723,11 +6742,32 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SceneObjectPartSyncProperties.AttachedAvatar:
                     //part.AttachedAvatar = (UUID)pSyncInfo.LastUpdateValue;
                     UUID attachedAvatar = (UUID)pSyncInfo.LastUpdateValue;
-                    if (!part.AttachedAvatar.Equals(attachedAvatar) && part.ParentGroup !=null)
+                    if (!part.AttachedAvatar.Equals(attachedAvatar))
                     {
                         part.AttachedAvatar = attachedAvatar;
-                        ScenePresence avatar = part.ParentGroup.Scene.GetScenePresence(attachedAvatar);
-                        part.ParentGroup.RootPart.SetParentLocalId(avatar.LocalId);
+                        Scene localScene = GetLocalScene();
+                        ScenePresence avatar = localScene.GetScenePresence(attachedAvatar);
+                        //It is possible that the avatar has not been fully 
+                        //created locally when attachment objects are sync'ed.
+                        //So we need to check if the avatar already exists.
+                        //If not, handling of NewAvatar will evetually trigger
+                        //calling of SetParentLocalId.
+                        if (avatar != null)
+                        {
+                            if (part.ParentGroup != null)
+                            {
+                                part.ParentGroup.RootPart.SetParentLocalId(avatar.LocalId);
+                            }
+                            else
+                            {
+                                //If this SOP is not a part of group yet, record the 
+                                //avatar's localID for now. If this SOP is rootpart of
+                                //the group, then the localID is the right setting; 
+                                //otherwise, this SOP will be linked to the SOG it belongs
+                                //to later, and that will rewrite the parent localID.
+                                part.SetParentLocalId(avatar.LocalId);
+                            }
+                        }
                     }
                     break;
                 case SceneObjectPartSyncProperties.AttachedPos:
@@ -7097,6 +7137,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return m_primsInSync.ContainsKey(primUUID);
         }
 
+        public Scene GetLocalScene()
+        {
+            return m_regionSyncModule.LocalScene;
+        }
+
         /// <summary>
         /// For each property in updatedProperties, (1) if the value in SOP's
         /// data is different than that in PrimSyncInfo, and what's in PrimSyncInfo
@@ -7120,7 +7165,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //The SOP's SyncInfo is no longer in my record, may due to 
                 //TimeOut or something. Add it back. Assume the properties
                 //were "AgeOut" seconds old.
-                PrimSyncInfo primSyncInfo = new PrimSyncInfo(part, currentTime, m_regionSyncModule.SyncID);
+                PrimSyncInfo primSyncInfo = new PrimSyncInfo(part, currentTime, m_regionSyncModule.SyncID, this);
                 InsertPrimSyncInfo(part.UUID, primSyncInfo);
 
                 return new HashSet<SceneObjectPartSyncProperties>(updatedProperties);
@@ -7214,7 +7259,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             UUID primUUID = primData["primUUID"];
             OSDMap propertyData = (OSDMap)primData["propertyData"];
 
-            PrimSyncInfo primSynInfo = new PrimSyncInfo(primUUID, propertyData);
+            PrimSyncInfo primSynInfo = new PrimSyncInfo(primUUID, propertyData, this);
 
             return primSynInfo;
         }
@@ -7259,7 +7304,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             long lastUpdateTimeStamp = syncInfoInitTime - m_ageOutThreshold;
 
-            PrimSyncInfo primSyncInfo = new PrimSyncInfo(part, lastUpdateTimeStamp, syncID);
+            PrimSyncInfo primSyncInfo = new PrimSyncInfo(part, lastUpdateTimeStamp, syncID, this);
             lock (m_primsInSyncLock)
             {
                 if (m_primsInSync.ContainsKey(part.UUID))

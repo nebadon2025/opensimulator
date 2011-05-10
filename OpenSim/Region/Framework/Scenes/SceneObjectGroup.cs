@@ -1061,7 +1061,7 @@ namespace OpenSim.Region.Framework.Scenes
         ///
         /// </summary>
         /// <param name="part"></param>
-        private void SetPartAsNonRoot(SceneObjectPart part)
+        public void SetPartAsNonRoot(SceneObjectPart part)
         {
             part.ParentID = m_rootPart.LocalId;
             part.ClearUndoState();

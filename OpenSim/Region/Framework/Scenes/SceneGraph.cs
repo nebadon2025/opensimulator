@@ -2033,42 +2033,6 @@ namespace OpenSim.Region.Framework.Scenes
             return updateResult;
         }
 
-        public Scene.ObjectUpdateResult AddOrUpdateObjectBySynchronization(SceneObjectGroup updatedSog)
-        {
-            UUID sogID = updatedSog.UUID;
-            Scene.ObjectUpdateResult updateResult = Scene.ObjectUpdateResult.Unchanged;
-
-            if (Entities.ContainsKey(sogID))
-            {
-                //update the object
-                EntityBase entity = Entities[sogID];
-                if (entity is SceneObjectGroup)
-                {
-                    SceneObjectGroup localSog = (SceneObjectGroup)entity;
-                    updateResult = localSog.UpdateObjectGroupBySync(updatedSog);
-                }
-                else
-                {
-                    m_log.WarnFormat("{0}: Entity with {1} iss not of type SceneObjectGroup: {2}",
-                                    "[SCENE GRAPH]", sogID, entity.GetType().ToString());
-                    //return false;
-                    updateResult = Scene.ObjectUpdateResult.Error;
-                }
-            }
-            else
-            {
-                //m_log.Debug(updatedSog.Name+" "+updatedSog.UUID+" not found in Entities list. Need to add");
-                AddNewSceneObjectBySync(updatedSog);
-                updateResult = Scene.ObjectUpdateResult.New;
-            }
-
-            //Debug
-            //m_log.Debug("after AddOrUpdateObjectBySynchronization");
-            //m_parentScene.DebugSceneObjectGroups();
-
-            return updateResult;
-        }
-
         //This is called when an object is added due to receiving a state synchronization message from Scene or an actor. Do similar things as the original AddSceneObject(),
         //but call ScheduleGroupForFullUpdate_TimeStampUnchanged() instead, so as not to modify the timestamp or actorID, since the object was not created locally.
         public Scene.ObjectUpdateResult AddNewSceneObjectBySync(SceneObjectGroup sceneObject)

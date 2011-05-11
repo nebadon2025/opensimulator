@@ -663,14 +663,6 @@ namespace OpenSim.Region.Framework.Scenes
             return "";
         }
 
-        //This function should only be called by an actor who's local Scene is just a cache of the authorative Scene.
-        //If the object already exists, use the new copy to replace it.
-        //Return true if added, false if just updated
-        public ObjectUpdateResult AddOrUpdateObjectBySynchronization(SceneObjectGroup sog)
-        {
-            return m_sceneGraph.AddOrUpdateObjectBySynchronization(sog);
-        }
-
         public ObjectUpdateResult UpdateObjectBySynchronization(SceneObjectGroup sog)
         {
             return m_sceneGraph.UpdateObjectBySynchronization(sog);

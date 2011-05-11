@@ -599,17 +599,6 @@ namespace OpenSim.Region.Framework.Scenes
             // Don't trigger the update here - otherwise some client issues occur when multiple updates are scheduled
             // for the same object with very different properties.  The caller must schedule the update.
             //ScheduleGroupForFullUpdate();
-
-            //DSG SYNC
-            /*
-            if (m_scene.RegionSyncModule != null)
-            {
-                foreach (SceneObjectPart part in Parts)
-                {
-                    part.InitializeBucketSyncInfo();
-                }
-            }
-             * */ 
         }
 
         public Vector3 GroupScale()
@@ -3999,37 +3988,6 @@ namespace OpenSim.Region.Framework.Scenes
 
         }
 
-        ///////////////////////////////////////////////////////////////////////
-        // Bucket based sync
-        ///////////////////////////////////////////////////////////////////////
-
-        public void BucketSyncInfoUpdate()
-        {
-            long timeStamp = DateTime.Now.Ticks;
-            string actorID = m_scene.GetSyncActorID();
-            foreach (SceneObjectPart part in Parts)
-            {
-                //part.SyncInfoUpdate(timeStamp, actorID);
-                part.UpdateAllBucketSyncInfo(timeStamp);
-            }
-        }
-
-        public void UpdateTaintedBucketSyncInfo(long timeStamp)
-        {
-            foreach (SceneObjectPart part in Parts)
-            {
-                part.UpdateTaintedBucketSyncInfo(timeStamp);
-            }
-        }
-
-        public void UpdateTaintedBucketSyncInfo(string bucketName, long timeStamp)
-        {
-            foreach (SceneObjectPart part in Parts)
-            {
-                part.UpdateTaintedBucketSyncInfo(bucketName, timeStamp);
-            }
-            
-        }
 
         ///////////////////////////////////////////////////////////////////////
         // Per SOP property based sync

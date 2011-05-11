@@ -1941,42 +1941,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         }
 
-        private void HandleAddOrUpdateObjectBySynchronization(SymmetricSyncMessage msg, string senderActorID)
-        {
-            string sogxml = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
-            SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
-            lock (m_stats) m_statSOGBucketIn++;
-
-
-            if (sog.IsDeleted)
-            {
-                SymmetricSyncMessage.HandleTrivial(LogHeader, msg, String.Format("Ignoring update on deleted object, UUID: {0}.", sog.UUID));
-                return;
-            }
-            else
-            {
-
-                Scene.ObjectUpdateResult updateResult = m_scene.AddOrUpdateObjectBySynchronization(sog);
-
-                //if (added)
-                switch (updateResult)
-                {
-                    case Scene.ObjectUpdateResult.New:
-                        m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) added.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
-                        break;
-                    case Scene.ObjectUpdateResult.Updated:
-                        m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) updated.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
-                        break;
-                    case Scene.ObjectUpdateResult.Error:
-                        m_log.WarnFormat("[{0} Object \"{1}\" ({1}) ({2}) -- add or update ERROR.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
-                        break;
-                    case Scene.ObjectUpdateResult.Unchanged:
-                        //m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) unchanged after receiving an update.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
-                        break;
-                }
-            }
-        }
-
         /// <summary>
         /// Send out a sync message about the updated Terrain. If this is a relay node,
         /// forward the sync message to all connectors except the one which initiated
@@ -2151,27 +2115,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             UUID agentID = data["agentID"].AsUUID();
             UUID primUUID = data["primUUID"].AsUUID();
             UUID itemID = data["itemID"].AsUUID();
-
-            /*
-            string sogXml = data["sog"].AsString();
-            SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogXml);
-            SceneObjectPart part = null;
-            
-            foreach (SceneObjectPart prim in sog.Parts)
-            {
-                if(prim.UUID.Equals(primID)){
-                    part = prim;
-                    break;
-                }
-            }
-            if(part == null)
-            {
-                m_log.Warn(LogHeader+": part "+primID+" not exist in the serialized object, do nothing");
-                return;
-            }
-            //Update the object first
-            Scene.ObjectUpdateResult updateResult = m_scene.AddOrUpdateObjectBySynchronization(sog);
-             * */
 
             SceneObjectPart localPart = m_scene.GetSceneObjectPart(primUUID);
 
@@ -2445,16 +2388,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //sog = new SceneObjectGroup(part);
                 return;
             }
-            /*
-            //For simplicity, we just leverage a SOP's serialization method to transmit the information of new inventory item for the script).
-            //This can certainly be optimized later (e.g. only sending serialization of the inventory item)
-            OSDMap data = new OSDMap();
-            data["agentID"] = OSD.FromUUID(clientID);
-            data["primID"] = OSD.FromUUID(part.UUID);
-            data["itemID"] = OSD.FromUUID(itemID); //id of the new inventory item of the part
-            data["sog"] = OSD.FromString(SceneObjectSerializer.ToXml2Format(sog));
-             * */
-
             HashSet<SceneObjectPartSyncProperties> updatedProperties = m_primSyncInfoManager.UpdatePrimSyncInfoByLocal(part, 
                 new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.TaskInventory});
 

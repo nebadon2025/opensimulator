@@ -601,6 +601,7 @@ namespace OpenSim.Region.Framework.Scenes
             //ScheduleGroupForFullUpdate();
 
             //DSG SYNC
+            /*
             if (m_scene.RegionSyncModule != null)
             {
                 foreach (SceneObjectPart part in Parts)
@@ -608,6 +609,7 @@ namespace OpenSim.Region.Framework.Scenes
                     part.InitializeBucketSyncInfo();
                 }
             }
+             * */ 
         }
 
         public Vector3 GroupScale()

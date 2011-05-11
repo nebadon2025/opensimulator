@@ -851,13 +851,6 @@ namespace OpenSim.Region.Framework.Scenes
             m_sceneGraph.DelinkObjectsBySync(delinkPrimIDs, beforeDelinkGroupIDs, incomingAfterDelinkGroups);
         }
 
-        //public ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, Dictionary<string, Object> updatedProperties, BucketSyncInfo rBucketSyncInfo)
-        public ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, 
-                                Object updatePart, BucketSyncInfo bucketSyncInfo)
-        {
-            return m_sceneGraph.UpdateObjectPartBucketProperties(bucketName, partUUID, updatePart, bucketSyncInfo);
-        }
-
         public bool AddNewSceneObjectByDelink(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates)
         {
             if (m_sceneGraph.AddNewSceneObjectByDelink(sceneObject, attachToBackup, sendClientUpdates))

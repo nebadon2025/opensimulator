@@ -2198,18 +2198,8 @@ namespace OpenSim.Region.Framework.Scenes
                             // Make sure no child prim is set for sale
                             // So that, on delink, no prims are unwittingly
                             // left for sale and sold off
-                            //DSG SYNC: need to copy value w/o trigger UpdateBucketSyncInfo
-                            //child.RootPart.ObjectSaleType = 0;
-                            //child.RootPart.SalePrice = 10;
-                            //child.RootPart.SetObjectSaleType(0);
-                            //child.RootPart.SetSalePrice(10);
-                            //child.RootPart.SetProperty("ObjectSaleType", 0);
-                            //child.RootPart.SetProperty("SalePrice", 10);
-
-                            //casting SOP to SOPBase to make sure we call SOPBase.Property set function, not the SOP.Property set function
-                            SceneObjectPartBase rootPart = (SceneObjectPartBase)child.RootPart;
-                            rootPart.ObjectSaleType = 0;
-                            rootPart.SalePrice = 10;
+                            child.RootPart.ObjectSaleType = 0;
+                            child.RootPart.SalePrice = 10;
                             childGroups.Add(child);
                         }
                     }
@@ -2494,19 +2484,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             return afterDelinkGroups;
-        }
-
-        //public Scene.ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, Dictionary<string, Object> updatedProperties, BucketSyncInfo rBucketSyncInfo)
-        public Scene.ObjectUpdateResult UpdateObjectPartBucketProperties(string bucketName, UUID partUUID, 
-                            Object updatedPart, BucketSyncInfo bucketSyncInfo)
-        {
-            SceneObjectPart localPart = GetSceneObjectPart(partUUID);
-            if (localPart == null)
-            {
-                m_log.Warn("No SOP found: UUID -- " + partUUID);
-                return Scene.ObjectUpdateResult.Unchanged;
-            }
-            return localPart.UpdateBucketProperties(bucketName, updatedPart, bucketSyncInfo);
         }
 
         protected internal bool AddNewSceneObjectByDelink(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates)

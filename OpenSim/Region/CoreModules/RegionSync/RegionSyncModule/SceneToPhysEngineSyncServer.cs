@@ -106,15 +106,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //list of idle physics engines that have registered.
         private List<IdlePhysEngineInfo> m_idlePhysEngineList = new List<IdlePhysEngineInfo>();
 
-        //List of all quarks, each using the concatenation of x,y values of its left-bottom corners, 
-        // where the x,y values are the offset position in the scene.
-        //private Dictionary<string, QuarkInfo> m_quarksInScene = new Dictionary<string, QuarkInfo>();
 
         private string LogHeader = "[SCENE TO PHYS ENGINE SYNC SERVER]";
-
-        //Quark related info
-        //private int QuarkInfo.SizeX;
-        //private int QuarkInfo.SizeY;
 
         #region ICommandableModule Members
         private readonly Commander m_commander = new Commander("phys");
@@ -134,13 +127,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             Command cmdSyncStatus = new Command("status", CommandIntentions.COMMAND_HAZARDOUS, SyncStatus, "Displays synchronization status.");
 
-            //The following two commands are more for easier debugging purpose
-            // Command cmdSyncSetQuarks = new Command("quarkSpace", CommandIntentions.COMMAND_HAZARDOUS, SetQuarkList, "Set the set of quarks to subscribe to. For debugging purpose. Should be issued before \"sync start\"");
-            // cmdSyncSetQuarks.AddArgument("quarkSpace", "The (rectangle) space of quarks to subscribe, represented by x0_y0,x1_y1, the left-bottom and top-right corners of the rectangel space", "String");
-
-            // Command cmdSyncSetQuarkSize = new Command("quarksize", CommandIntentions.COMMAND_HAZARDOUS, SetQuarkSize, "Set the size of each quark. For debugging purpose. Should be issued before \"sync quarks\"");
-            // cmdSyncSetQuarkSize.AddArgument("quarksizeX", "The size on x axis of each quark", "Integer");
-            // cmdSyncSetQuarkSize.AddArgument("quarksizeY", "The size on y axis of each quark", "Integer");
 
             // m_commander.RegisterCommand("start", cmdSyncStart);
             // m_commander.RegisterCommand("stop", cmdSyncStop);
@@ -322,7 +308,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_allScenes.Add(m_scene);
             }
 
-            //InitQuarksInScene();
             SubscribeToEvents();
             m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
             InstallInterfaces();
@@ -371,18 +356,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             UnSubscribeToEvents();
         }
 
-        /*
-        public void RegisterQuarkSubscription(List<QuarkInfo> quarkSubscriptions, SceneToPhysEngineConnector peConnector)
-        {
-            foreach (QuarkInfo quark in quarkSubscriptions)
-            {
-                string quarkID = quark.QuarkStringRepresentation;
-                // TODO: does the physics engine connect to quarks. Next line commented out.
-                // m_quarksInScene[quarkID].PEConnector = peConnector;
-                m_log.Debug(LogHeader + ": " + quarkID + " subscribed by "+peConnector.Description);
-            }
-        }
-         * */ 
 
         // Add a connector to a physics engine
         public void AddSyncedPhysEngine(SceneToPhysEngineConnector peConnector)

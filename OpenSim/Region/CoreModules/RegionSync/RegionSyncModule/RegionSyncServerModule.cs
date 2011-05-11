@@ -507,17 +507,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //a boolean variable to indicate in symmetric sync is configured
         //private bool m_symsync = false;
 
-        /*
-        public bool IsSymSync
-        {
-            get { return IsSymSync; }
-        }
-         * */
-
-        //quark related information
-        //private int QuarkInfo.SizeX;
-        //private int QuarkInfo.SizeY;
-
         #endregion
 
         #region Event Handlers

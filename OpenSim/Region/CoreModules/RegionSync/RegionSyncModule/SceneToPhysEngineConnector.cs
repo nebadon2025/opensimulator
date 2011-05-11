@@ -144,17 +144,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public bool Connected
         { get { return m_tcpclient.Connected; } }
 
-        //private int QuarkInfo.SizeX;
-        //private int QuarkInfo.SizeY;
-        //private List<QuarkInfo> m_quarkSubscriptions;
-        /*
-        Dictionary<string, QuarkInfo> m_quarkSubscriptions;
-        public Dictionary<string, QuarkInfo> QuarkSubscriptionList
-        {
-            get { return m_quarkSubscriptions; }
-        }
-        */ 
-
 
         #endregion
 
@@ -167,9 +156,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_addr = ((IPEndPoint)client.Client.RemoteEndPoint).Address;
             m_port = ((IPEndPoint)client.Client.RemoteEndPoint).Port;
             m_syncServer = syncServer;
-
-            //QuarkInfo.SizeX = quarkSizeX;
-            //QuarkInfo.SizeY = quarkSizeY;
 
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
             //m_log.WarnFormat("{0} Constructed", LogHeader);
@@ -454,26 +440,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return;
         }
 
-        /*
-        //For simplicity, we assume the subscription sent by PhysEngine is legistimate (no overlapping with other script engines, etc)
-        private void HandleQuarkSubscription(RegionSyncMessage msg)
-        {
-            string quarkString = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
-            m_log.Debug(LogHeader + ": received quark-string: " + quarkString);
-
-            List<string> quarkStringList = RegionSyncUtil.QuarkStringToStringList(quarkString);
-            //m_quarkSubscriptions = RegionSyncUtil.GetQuarkInfoList(quarkStringList, QuarkInfo.SizeX, QuarkInfo.SizeY);
-            List<QuarkInfo> quarkList = RegionSyncUtil.GetQuarkInfoList(quarkStringList);
-            m_syncServer.RegisterQuarkSubscription(quarkList, this);
-
-            m_quarkSubscriptions = new Dictionary<string, QuarkInfo>();
-            foreach (QuarkInfo quark in quarkList)
-            {
-                m_quarkSubscriptions.Add(quark.QuarkStringRepresentation, quark);
-            }
-        }
-         * */ 
-
         private RegionSyncMessage PrepareObjectUpdateMessage(RegionSyncMessage.MsgType msgType, SceneObjectGroup sog)
         {
             OSDMap data = new OSDMap(3);
@@ -549,36 +515,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         #endregion Send/Receive messages to/from the remote Physics Engine
-
-        #region Spacial query functions (should be eventually implemented within Scene)
-        /*
-        //This should be a function of Scene, but since we don't have the quark concept in Scene yet, 
-        //for now we implement it here.
-        //Ideally, for quark based space representation, the Scene has a list of quarks, and each quark points
-        //to a list of objects within that quark. Then it's much easier to return the right set of objects within
-        //a certain space. (Or use DB that supports spatial queries.)
-        List<SceneObjectGroup> GetObjectsInGivenSpace(Scene scene, Dictionary<string, QuarkInfo> quarkSubscriptions)
-        {
-            List<EntityBase> entities = m_scene.GetEntities();
-            List<SceneObjectGroup> sogList = new List<SceneObjectGroup>();
-            foreach (EntityBase e in entities)
-            {
-                if (e is SceneObjectGroup)
-                {
-                    SceneObjectGroup sog = (SceneObjectGroup)e;
-                    string quarkID = RegionSyncUtil.GetQuarkIDByPosition(sog.AbsolutePosition);
-                    if (m_quarkSubscriptions.ContainsKey(quarkID))
-                    {
-                        sogList.Add(sog);
-                    }
-                }
-            }
-
-            return sogList;
-        }
-        */
-
-        #endregion 
 
         #region Load balancing functions
         /*

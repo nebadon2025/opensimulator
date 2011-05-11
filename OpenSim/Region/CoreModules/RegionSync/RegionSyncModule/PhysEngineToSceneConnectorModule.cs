@@ -65,10 +65,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private PhysEngineToSceneConnector m_idlePEToSceneConnector = null;
         private PhysEngineToSceneConnector m_physEngineToSceneConnector = null;
 
-        //quark information
-        //private int QuarkInfo.SizeX;
-        //private int QuarkInfo.SizeY;
-        //private string m_quarkListString;
         private string m_subscriptionSpaceString;
 
         #endregion PhysEngineToSceneConnectorModule members and functions
@@ -303,8 +299,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             Command cmdSyncStatus = new Command("status", CommandIntentions.COMMAND_HAZARDOUS, SyncStatus, "Displays synchronization status.");
 
             //The following two commands are more for easier debugging purpose
-            Command cmdSyncSetQuarks = new Command("quarkSpace", CommandIntentions.COMMAND_HAZARDOUS, SetQuarkList, "Set the set of quarks to subscribe to. For debugging purpose. Should be issued before \"sync start\"");
-            cmdSyncSetQuarks.AddArgument("quarkSpace", "The (rectangle) space of quarks to subscribe, represented by x0_y0,x1_y1, the left-bottom and top-right corners of the rectangel space", "String");
+            //Command cmdSyncSetQuarks = new Command("quarkSpace", CommandIntentions.COMMAND_HAZARDOUS, SetQuarkList, "Set the set of quarks to subscribe to. For debugging purpose. Should be issued before \"sync start\"");
+            //cmdSyncSetQuarks.AddArgument("quarkSpace", "The (rectangle) space of quarks to subscribe, represented by x0_y0,x1_y1, the left-bottom and top-right corners of the rectangel space", "String");
 
             //Command cmdSyncSetQuarkSize = new Command("quarksize", CommandIntentions.COMMAND_HAZARDOUS, SetQuarkSize, "Set the size of each quark. For debugging purpose. Should be issued before \"sync quarks\"");
             //cmdSyncSetQuarkSize.AddArgument("quarksizeX", "The size on x axis of each quark", "Integer");
@@ -361,9 +357,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //m_log.Warn(LogHeader + " Starting synchronization");
                 m_log.Warn(LogHeader + ": Starting RegionSyncPhysEngine");
 
-                //Only one remote scene to connect to. Subscribe to whatever specified in the config file.
-                //List<string> quarkStringList = RegionSyncUtil.QuarkStringToStringList(m_quarkListString);
-                //InitPhysEngineToSceneConnector(quarkStringList);
                 InitPhysEngineToSceneConnector(m_subscriptionSpaceString);
             }
         }

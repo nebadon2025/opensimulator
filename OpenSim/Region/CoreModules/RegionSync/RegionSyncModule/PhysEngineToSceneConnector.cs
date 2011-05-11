@@ -46,13 +46,6 @@ using Nini.Config;
 
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
-    //The data structure that maintains the list of quarks a script engine subscribes to.
-    //It might be better to organize the quarks in a k-d tree structure, for easier
-    //partitioning of the quarks based on spatial information.
-    //But for now, we just assume the quarks each script engine operates on form a rectangle shape.
-    //So we just use xmin,ymin and xmax,ymax to identify the rectange; and use a List structure to
-    //store the quarks.
-    //Quark size is defined in QuarkInfo.SizeX and QuarkInfo.SizeY.
 
     // The RegionSyncPhysEngine has a receive thread to process messages from the RegionSyncServer.
     // It is the client side of the synchronization channel, and send to and receive updates from the 

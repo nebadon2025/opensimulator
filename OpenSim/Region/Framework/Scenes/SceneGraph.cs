@@ -2000,66 +2000,6 @@ namespace OpenSim.Region.Framework.Scenes
 
         #endregion
 
-        #region REGION SYNC
-
-        protected internal bool IsObjectInScene(SceneObjectGroup sog)
-        {
-            if (Entities.ContainsKey(sog.UUID))
-                return true;
-            else
-            {
-                return false;
-            }
-        }
-        
-        //Return false if the entity with the UUID is not a SceneObjectGroup, 
-        //otherwise, return true.
-        /*
-        protected internal bool AddOrUpdateObjectInScene(SceneObjectGroup updatedSog, bool debugWithViewer)
-        {
-            UUID sogID = updatedSog.UUID;
-
-            if (Entities.ContainsKey(sogID))
-            {
-                //update the object
-                EntityBase entity = Entities[sogID];
-                if (entity is SceneObjectGroup)
-                {
-                    SceneObjectGroup oldSog = (SceneObjectGroup)entity;
-                    oldSog.UpdateObjectProperties(updatedSog);
-
-                    if (debugWithViewer)
-                    {
-                        //if we need to debug the script engine with a viewer attaching to it,
-                        //we need to schedule updates to be sent to the viewer
-                        oldSog.ScheduleGroupForFullUpdate(new List<SceneObjectPartProperties>(){SceneObjectPartProperties.None});
-                    }
-                }
-                else
-                {
-                    m_log.WarnFormat("{0}: Entity with {1} is not of type SceneObjectGroup: {2}",
-                                    "[SCENE GRAPH]", sogID, entity.GetType().ToString());
-                    //return false;
-                }
-                return false;
-            }
-            else
-            {
-                //Add a new object
-                //For now, we set sendClientUpdates to true, for debugging purpose -- so that we could log a viewer in to 
-                //see if scripts are running properly
-                //Since this is a Script Engine's local Scene cache, do not backup to DB
-                AddSceneObject(updatedSog, false, debugWithViewer);
-                //AddSceneObject(updatedSog, false, false);
-
-                return true;
-            }
-
-        }
-         * */ 
-
-        #endregion // REGION SYNC
-
         #region DSG SYNC
 
         public Scene.ObjectUpdateResult UpdateObjectBySynchronization(SceneObjectGroup updatedSog)

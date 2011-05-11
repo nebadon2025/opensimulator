@@ -4934,78 +4934,12 @@ namespace OpenSim.Region.Framework.Scenes
             return new Color4(color.R, color.G, color.B, (byte)(0xFF - color.A));
         }
 
-        #region REGION SYNC
-
-        public void UpdateObjectPartProperties(SceneObjectPart updatedPart)
-        {
-            //So far this function is written with Script Engine updating local Scene cache in mind.
-            //
-            //Assumptions: 
-            //(1) prim's UUID and LocalID won't change.
-            //(2) CreaterIF, OwnerID, GroupID,  won't change
-            //For now, we only update a small set of properties, which is a subset of the serialized object data.
-            //We simply assume other properties won't change. (Just a temporary work-around.)
-            //Properties that will be updated:
-            //GroupPosition, OffsetPosition,RotationOffset, Velocity, AngularVelocity, Acceleration,
-            //<Color />   <LinkNum>0</LinkNum>  , Scale
-            //
-            //And we do not update Physics properties.
-
-            //The above assumptions and limited updating actions can be easily fixed once Scene supports
-            //[property name, property value] type of detailed updates.
-
-            //Need to be able to update TaskInventory, so that new scripts will be added
-            
-            if (updatedPart == null)
-                return;
-
-            this.GroupPosition = updatedPart.GroupPosition;
-            this.OffsetPosition = updatedPart.OffsetPosition;
-            this.RotationOffset = updatedPart.RotationOffset;
-            this.AngularVelocity = updatedPart.AngularVelocity;
-            this.Acceleration = updatedPart.Acceleration;
-            this.Color = updatedPart.Color;
-            this.LinkNum = updatedPart.LinkNum;
-            this.Velocity = updatedPart.Velocity;
-            this.Scale = updatedPart.Scale;
-            this.SitAnimation = updatedPart.SitAnimation;
-            this.SitName = updatedPart.SitName;
-            this.SitTargetAvatar = updatedPart.SitTargetAvatar;
-            this.SitTargetOrientation = updatedPart.SitTargetOrientation;
-            this.SitTargetOrientationLL = updatedPart.SitTargetOrientationLL;
-            this.SitTargetPosition = updatedPart.SitTargetPosition;
-            this.SitTargetPositionLL = updatedPart.SitTargetPositionLL;
-            
-            this.ObjectFlags = updatedPart.ObjectFlags;
-
-            this.m_inventory.Items = (TaskInventoryDictionary)updatedPart.m_inventory.Items.Clone();
-
-            //update shape information, for now, only update fileds in Shape whose set functions are defined in PrimitiveBaseShape
-            this.Shape = updatedPart.Shape.Copy();
-            this.Shape.TextureEntry = updatedPart.Shape.TextureEntry;
-
-        }
-
-        #endregion
-
-        #region DSG SYNC
-
-        //Time stamp for the most recent update on this prim. We only have one time-stamp per prim for now.
-        //The goal is to evetually have time-stamp per property bucket for each prim.
-        private long m_lastUpdateTimeStamp = DateTime.Now.Ticks;
-        public long LastUpdateTimeStamp
-        {
-            get { return m_lastUpdateTimeStamp; }
-            set { m_lastUpdateTimeStamp = value; }
-        }
-
-        #endregion 
-
     }
 
     //DSG SYNC
 
     //Information for concurrency control of one bucket of prim proproperties.
+
     public class BucketSyncInfo
     {
         private long m_lastUpdateTimeStamp;
@@ -5083,82 +5017,6 @@ namespace OpenSim.Region.Framework.Scenes
             m_bucketTaintedBySync = false;
         }
     }
-
-    /*
-    public enum SceneObjectPartProperties:ulong 
-        {
-        //Following properties copied from SceneObjectSerializer(), 
-            AllowedDrop = (ulong) 1<<0,
-            CreatorID = (ulong) 1<<1,
-            CreatorData = (ulong) 1 <<2,
-            FolderID = (ulong) 1 << 3,
-            InventorySerial = (ulong) 1 << 4,
-            TaskInventory = (ulong) 1 << 5,
-            //UUID", 
-            //LocalId", 
-            Name = (ulong) 1 << 6,
-            Material = (ulong) 1 <<7,
-            PassTouches = (ulong) 1 << 8,
-            RegionHandle = (ulong) 1 << 9,
-            ScriptAccessPin = (ulong) 1 << 10,
-            GroupPosition = (ulong) 1 << 11,
-            OffsetPosition = (ulong) 1 << 12,
-            RotationOffset = (ulong) 1 << 13,
-            Velocity = (ulong) 1 << 14,
-            AngularVelocity = (ulong) 1 << 15,
-            //"Acceleration", 
-            SOP_Acceleration = (ulong) 1 << 16,  //SOP and PA read/write their own local copies of acceleration, so we distinguish the copies
-            Description = (ulong) 1 << 17,
-            Color = (ulong) 1 << 18,
-            Text = (ulong) 1 << 19,
-            SitName = (ulong) 1 << 20,
-            TouchName = (ulong) 1 << 21,
-            LinkNum = (ulong) 1 << 22,
-            ClickAction = (ulong) 1 << 23,
-            Shape = (ulong) 1 << 24,
-            Scale = (ulong) 1 << 25,
-            UpdateFlag = (ulong) 1 << 26,
-            SitTargetOrientation = (ulong) 1 << 27,
-            SitTargetPosition = (ulong) 1 << 28,
-            SitTargetPositionLL = (ulong) 1 << 29,
-            SitTargetOrientationLL = (ulong) 1 << 30,
-            ParentID = (ulong)1 << 31,
-            CreationDate = (ulong) 1 << 32,
-            Category = (ulong) 1 << 33,
-            SalePrice = (ulong) 1 << 34,
-            ObjectSaleType = (ulong) 1 << 35,
-            OwnershipCost = (ulong) 1 << 36,
-            GroupID = (ulong) 1 << 37,
-            OwnerID = (ulong) 1 << 38,
-            LastOwnerID = (ulong) 1 << 39,
-            BaseMask = (ulong) 1 << 40,
-            OwnerMask = (ulong) 1 << 41,
-            GroupMask = (ulong) 1 << 42,
-            EveryoneMask = (ulong) 1 << 43,
-            NextOwnerMask = (ulong) 1 << 44,
-            Flags = (ulong) 1 << 45,
-            CollisionSound = (ulong) 1 << 46,
-            CollisionSoundVolume = (ulong) 1 << 47,
-            MediaUrl = (ulong) 1 << 48,
-            TextureAnimation = (ulong) 1 << 49,
-            ParticleSystem = (ulong) 1 << 50,
-            //Property names below copied from PhysicsActor, they are necessary in synchronization, but not covered the above properties
-            //Physics properties "Velocity" is covered above
-            Position = (ulong) 1 << 51,
-            Size = (ulong) 1 << 52,
-            Force = (ulong) 1 << 53,
-            RotationalVelocity = (ulong) 1 << 54,
-            PA_Acceleration = (ulong) 1 << 55,
-            Torque = (ulong) 1 << 56,
-            Orientation = (ulong) 1 << 57,
-            IsPhysical = (ulong) 1 << 58,
-            Flying = (ulong) 1 << 59,
-            Buoyancy = (ulong) 1 << 60,
-            //To be handled
-            AttachmentPoint = (ulong)1 << 61,
-            FullUpdate = UInt64.MaxValue
-    }
-    */
 
     public enum SceneObjectPartSyncProperties 
     {
@@ -5297,82 +5155,7 @@ namespace OpenSim.Region.Framework.Scenes
         //property set functions will be called and might trigger UpdateBucketSyncInfo() if not guarded carefully.
         private bool m_syncEnabled = false;
 
-        //The list of each prim's properties. This is the list of properties that matter in synchronizing prim copies on different actors.
-        //This list is created based on properties included in the serialization/deserialization process (see SceneObjectSerializer()) and the 
-        //properties Physics Engine needs to synchronize to other actors.
-        /*
-        public static List<string> PropertyList = new List<string>()
-        {
-            //Following properties copied from SceneObjectSerializer()
-            "AllowedDrop", 
-            "CreatorID", 
-            "CreatorData", 
-            "FolderID", 
-            "InventorySerial", 
-            "TaskInventory", 
-            "UUID", 
-            "LocalId", 
-            "Name", 
-            "Material", 
-            "PassTouches", 
-            "RegionHandle", 
-            "ScriptAccessPin", 
-            "GroupPosition", 
-            "OffsetPosition", 
-            "RotationOffset", 
-            "Velocity", 
-            "AngularVelocity", 
-            //"Acceleration", 
-            "SOP_Acceleration",  //SOP and PA read/write their own local copies of acceleration, so we distinguish the copies
-            "Description", 
-            "Color", 
-            "Text", 
-            "SitName", 
-            "TouchName", 
-            "LinkNum", 
-            "ClickAction", 
-            "Shape", 
-            "Scale", 
-            "UpdateFlag", 
-            "SitTargetOrientation", 
-            "SitTargetPosition", 
-            "SitTargetPositionLL", 
-            "SitTargetOrientationLL", 
-            "ParentID", 
-            "CreationDate", 
-            "Category", 
-            "SalePrice", 
-            "ObjectSaleType", 
-            "OwnershipCost", 
-            "GroupID", 
-            "OwnerID", 
-            "LastOwnerID", 
-            "BaseMask", 
-            "OwnerMask", 
-            "GroupMask", 
-            "EveryoneMask", 
-            "NextOwnerMask", 
-            "Flags", 
-            "CollisionSound", 
-            "CollisionSoundVolume", 
-            "MediaUrl", 
-            "TextureAnimation", 
-            "ParticleSystem", 
-            //Property names below copied from PhysicsActor, they are necessary in synchronization, but not covered the above properties
-            //Physics properties "Velocity" is covered above
-            "Position",
-            "Size", 
-            "Force",
-            "RotationalVelocity",
-            "PA_Acceleration",
-            "Torque",
-            "Orientation",
-            "IsPhysical",
-            "Flying",
-            "Buoyancy",
-        };
-         * */
-
+        #region SceneObjectPartSyncProperties categorization
         /// <summary>
         /// Return the list of all prim (SOP) properties, in enum type. 
         /// Excluding None, FullUpdate.
@@ -5477,6 +5260,10 @@ namespace OpenSim.Region.Framework.Scenes
             return allProperties;
         }
 
+        #endregion SceneObjectPartSyncProperties categorization
+
+
+        #region BucketSync
         public static void InitializePropertyBucketInfo(Dictionary<SceneObjectPartSyncProperties, string> propertyBucketMap, List<string> bucketNames, string actorID)
         {
             m_primPropertyBucketMap = propertyBucketMap;
@@ -5485,20 +5272,6 @@ namespace OpenSim.Region.Framework.Scenes
             //m_bucketCount = bucketNames.Count;
 
             //RegisterBucketUpdateProcessor();
-        }
-
-        public string DebugObjectPartProperties()
-        {
-            string debugMsg = "UUID " + UUID + ", Name " + Name + ", localID " + LocalId;
-            //debugMsg += ", parentID " + ParentID + ", parentUUID " + ParentUUID;
-            //foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
-            //{
-            //    debugMsg += ", Bucket " + pair.Key + ": TimeStamp - " + pair.Value.LastUpdateTimeStamp + ", ActorID - " + pair.Value.LastUpdateActorID;
-            //}
-            debugMsg += ", AggregateScriptEvents = " + AggregateScriptEvents.ToString()+", OffsetPosition: "+OffsetPosition;
-            String hashedShape = Util.Md5Hash(SerializeShape());
-            debugMsg += ", hashed Shape = " + hashedShape;
-            return debugMsg;
         }
 
         /// <summary>
@@ -5638,37 +5411,6 @@ namespace OpenSim.Region.Framework.Scenes
 
             //Mark the bucket as having been tainted by sync operations
             m_bucketSyncInfoList[bucketName].TaintBucketBySync();
-        }
-
-        // Do any subscriptions based on the AggregateScriptEvents
-        public void aggregateScriptEventSubscriptions()
-        {
-            if (
-                ((AggregateScriptEvents & scriptEvents.collision) != 0) ||
-                ((AggregateScriptEvents & scriptEvents.collision_end) != 0) ||
-                ((AggregateScriptEvents & scriptEvents.collision_start) != 0) ||
-                ((AggregateScriptEvents & scriptEvents.land_collision_start) != 0) ||
-                ((AggregateScriptEvents & scriptEvents.land_collision) != 0) ||
-                ((AggregateScriptEvents & scriptEvents.land_collision_end) != 0) ||
-                (CollisionSound != UUID.Zero)
-                )
-            {
-                // subscribe to physics updates.
-                if (PhysActor != null)
-                {
-                    PhysActor.OnCollisionUpdate += PhysicsCollision;
-                    PhysActor.SubscribeEvents(1000);
-
-                }
-            }
-            else
-            {
-                if (PhysActor != null)
-                {
-                    PhysActor.UnSubscribeEvents();
-                    PhysActor.OnCollisionUpdate -= PhysicsCollision;
-                }
-            }
         }
 
         //NOTE: 
@@ -5884,7 +5626,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-
         /// <summary>
         /// Update the timestamp information of each property bucket, and clear out the taint on each bucket. This function won't
         /// clear the taints. Caller should clear the taints if needed.
@@ -6056,38 +5797,9 @@ namespace OpenSim.Region.Framework.Scenes
             return partUpdateResult;
         }
 
-        //Implementation of ScheduleFullUpdate and ScheduleTerseUpdate for Bucket 
-        //based synchronization
-        /*
-        public override void ScheduleFullUpdate(List<SceneObjectPartProperties> updatedProperties)
-        {
-            if (updatedProperties != null && updatedProperties.Count > 0)
-            {
-                foreach (SceneObjectPartProperties property in updatedProperties)
-                {
-                    TaintBucketSyncInfo(property);
-                }
-            }
-            base.ScheduleFullUpdate(updatedProperties);
-            //TaintBucketSyncInfo(property);
-        }
+        #endregion BucketSync
 
-        public override void ScheduleTerseUpdate(List<SceneObjectPartProperties> updatedProperties)
-        {
-            if (updatedProperties != null && updatedProperties.Count > 0)
-            {
-                //m_log.DebugFormat("{0}: Tainting bucket for properties {1}", 
-                //            "[SCENE OBJECT PART]", updatedProperties.ToString());
-                foreach (SceneObjectPartProperties property in updatedProperties)
-                {
-                    TaintBucketSyncInfo(property);
-                }
-            }
-            base.ScheduleTerseUpdate(updatedProperties);
-            //TaintBucketSyncInfo(property);
-        }
-         * */
-
+        #region overridden SOPBase functions
         //Implementation of ScheduleFullUpdate and ScheduleTerseUpdate for Bucket 
         //based synchronization
         public override void ScheduleFullUpdate(List<SceneObjectPartSyncProperties> updatedProperties)
@@ -6129,6 +5841,9 @@ namespace OpenSim.Region.Framework.Scenes
             base.ScheduleTerseUpdate(updatedProperties);
         }
 
+        #endregion overridden SOPBase functions
+
+        #region DSG SYNC supporting functions
 
         /// <summary>
         /// Schedules this prim for a full update, without changing the timestamp or actorID (info on when and who modified any property).
@@ -6173,6 +5888,52 @@ namespace OpenSim.Region.Framework.Scenes
             base.PhysicsCollision(e);
         }
 
+
+        public string DebugObjectPartProperties()
+        {
+            string debugMsg = "UUID " + UUID + ", Name " + Name + ", localID " + LocalId;
+            //debugMsg += ", parentID " + ParentID + ", parentUUID " + ParentUUID;
+            //foreach (KeyValuePair<string, BucketSyncInfo> pair in m_bucketSyncInfoList)
+            //{
+            //    debugMsg += ", Bucket " + pair.Key + ": TimeStamp - " + pair.Value.LastUpdateTimeStamp + ", ActorID - " + pair.Value.LastUpdateActorID;
+            //}
+            debugMsg += ", AggregateScriptEvents = " + AggregateScriptEvents.ToString() + ", OffsetPosition: " + OffsetPosition;
+            String hashedShape = Util.Md5Hash(SerializeShape());
+            debugMsg += ", hashed Shape = " + hashedShape;
+            return debugMsg;
+        }
+
+        // Do any subscriptions based on the AggregateScriptEvents
+        public void aggregateScriptEventSubscriptions()
+        {
+            if (
+                ((AggregateScriptEvents & scriptEvents.collision) != 0) ||
+                ((AggregateScriptEvents & scriptEvents.collision_end) != 0) ||
+                ((AggregateScriptEvents & scriptEvents.collision_start) != 0) ||
+                ((AggregateScriptEvents & scriptEvents.land_collision_start) != 0) ||
+                ((AggregateScriptEvents & scriptEvents.land_collision) != 0) ||
+                ((AggregateScriptEvents & scriptEvents.land_collision_end) != 0) ||
+                (CollisionSound != UUID.Zero)
+                )
+            {
+                // subscribe to physics updates.
+                if (PhysActor != null)
+                {
+                    PhysActor.OnCollisionUpdate += PhysicsCollision;
+                    PhysActor.SubscribeEvents(1000);
+
+                }
+            }
+            else
+            {
+                if (PhysActor != null)
+                {
+                    PhysActor.UnSubscribeEvents();
+                    PhysActor.OnCollisionUpdate -= PhysicsCollision;
+                }
+            }
+        }
+
         ///////////////////////////////////////////////////////////////////////
         //Per property sync functions
         ///////////////////////////////////////////////////////////////////////
@@ -6192,6 +5953,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
             return serializedShape;
         }
+
+        #endregion DSG SYNC supporting functions
     }
 
     //end of DSG SYNC

@@ -296,12 +296,6 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 Vector3 val = value;
 
-                //REGION SYNC touched
-
-                //if ((m_scene.TestBorderCross(val - Vector3.UnitX, Cardinals.E) || m_scene.TestBorderCross(val + Vector3.UnitX, Cardinals.W)
-                //    || m_scene.TestBorderCross(val - Vector3.UnitY, Cardinals.N) || m_scene.TestBorderCross(val + Vector3.UnitY, Cardinals.S)) 
-                //    && !IsAttachmentCheckFull())
-                // if (m_scene !=null && m_scene.IsBorderCrossing(LocX, LocY, val) && !IsAttachmentCheckFull()&& (!m_scene.LoadingPrims))
                 if (Scene != null)
                 {
                     if ((Scene.TestBorderCross(val - Vector3.UnitX, Cardinals.E) || Scene.TestBorderCross(val + Vector3.UnitX, Cardinals.W)
@@ -311,7 +305,6 @@ namespace OpenSim.Region.Framework.Scenes
                         m_scene.CrossPrimGroupIntoNewRegion(val, this, true);
                     }
                 }
-                //end REGION SYNC touched
                 if (RootPart.GetStatusSandbox())
                 {
                     if (Util.GetDistanceTo(RootPart.StatusSandboxPos, value) > 10)
@@ -3555,59 +3548,6 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_locY = value; }
         }
          
-
-        //update the existing copy of the object with updated properties in 'updatedSog'
-        //TODO: handle updates on script content seperately (e.g. user edited the script and saved it).
-        public void UpdateObjectProperties(SceneObjectGroup updatedSog)
-        {
-            if (!this.GroupID.Equals(updatedSog.GroupID))
-                return;
-
-            //So far this function is written with Script Engine updating local Scene cache in mind.
-
-            //We do not want to simply call SceneObjectGroup.Copy here to clone the object.
-            //We need to preserve the references to the prims (SceneObjectParts) inside the group,
-            //since their scripts are referencing back to the prims, and we have to update those
-            //references if we call SceneObjectGroup.Copy(), which creates new SceneObjectPart for all 
-            //non root parts. (So is SceneObjectGroup.CopyPart().)
-            //Plus, we do not need to trigger client updating, since Script engine does not have client connections.
-            lock (m_parts.SyncRoot)
-            {
-                // Adds and updates parts in this SOG
-                Dictionary<UUID, SceneObjectPart> updatedParts = new Dictionary<UUID, SceneObjectPart>();
-                foreach (SceneObjectPart updatedPart in updatedSog.Parts)
-                {
-                    SceneObjectPart oldPart;
-                    m_parts.TryGetValue(updatedPart.UUID, out oldPart);
-                    if(oldPart != null)
-                    {
-                        oldPart.UpdateObjectPartProperties(updatedPart);
-                        updatedParts.Add(updatedPart.UUID, updatedPart);
-                    }
-                    else
-                    {
-                        //a new part
-                        m_parts.Add(updatedPart.UUID, updatedPart);
-                    }
-                }
-
-                // Deletes parts that are no longer in this SOG
-                List<UUID> deletedParts = new List<UUID>();
-                foreach(SceneObjectPart part in m_parts.GetArray())
-                {
-                    if(!updatedParts.ContainsKey(part.UUID))
-                    {
-                        deletedParts.Add(part.UUID);
-                    }
-                }
-                foreach(UUID deletedPart in deletedParts)
-                    m_parts.Remove(deletedPart);
-            } 
-
-            //update the authoritative scene that this object is located, which is identified by (LocX, LocY)
-            this.m_locX = updatedSog.LocX;
-            this.m_locY = updatedSog.LocY;
-        }
 #endregion 
 
         #region DSG SYNC
@@ -3955,23 +3895,15 @@ namespace OpenSim.Region.Framework.Scenes
 
             linkPart.OffsetPosition = linkPart.GroupPosition - AbsolutePosition;
             linkPart.GroupPosition = AbsolutePosition;
-            //linkPart.SetOffsetPosition(linkPart.GroupPosition - AbsolutePosition);
-            //linkPart.SetGroupPosition(AbsolutePosition);
-            //linkPart.SetProperty("OffsetPosition", linkPart.GroupPosition - AbsolutePosition);
-            //linkPart.SetProperty("GroupPosition", AbsolutePosition);
             Vector3 axPos = linkPart.OffsetPosition;
 
             Quaternion parentRot = m_rootPart.RotationOffset;
             axPos *= Quaternion.Inverse(parentRot);
 
             linkPart.OffsetPosition = axPos;
-            //linkPart.SetOffsetPosition(axPos);
-            //linkPart.SetProperty("OffsetPosition", axPos);
             Quaternion oldRot = linkPart.RotationOffset;
             Quaternion newRot = Quaternion.Inverse(parentRot) * oldRot;
             linkPart.RotationOffset = newRot;
-            //linkPart.SetRotationOffset(newRot);
-            //linkPart.SetProperty("RotationOffset", newRot);
 
             //ParentID is only valid locally, so remote value is ignored and no syncinfo will be modified
             linkPart.ParentID = m_rootPart.LocalId;
@@ -3994,12 +3926,10 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         // Don't update root prim link number
                         part.LinkNum += objectGroup.PrimCount;
-                        //part.SetProperty("LinkNum",objectGroup.PrimCount);
                     }
                 }
 
                 linkPart.LinkNum = 2;
-                //linkPart.SetProperty("LinkNum",2);
 
                 linkPart.SetParent(this);
                 linkPart.CreateSelected = true;
@@ -4059,65 +3989,28 @@ namespace OpenSim.Region.Framework.Scenes
             part.GroupPosition = oldGroupPosition + part.OffsetPosition;
             part.OffsetPosition = Vector3.Zero;
             part.RotationOffset = worldRot;
-            //part.SetOffsetPosition(axPos);
-            //part.SetGroupPosition(oldGroupPosition + part.OffsetPosition);
-            //part.SetOffsetPosition(Vector3.Zero);
-            //part.SetRotationOffset(worldRot);
-            //part.SetProperty("OffsetPosition", axPos);
-            //part.SetProperty("GroupPosition", oldGroupPosition + part.OffsetPosition);
-            //part.SetProperty("OffsetPosition", Vector3.Zero);
-            //part.SetProperty("RotationOffset", worldRot);
-
             part.SetParent(this);
             part.ParentID = m_rootPart.LocalId;
 
             m_parts.Add(part.UUID, linkPart);
 
             part.LinkNum = linkNum;
-            //part.SetProperty("LinkNum",linkNum);
 
             part.OffsetPosition = part.GroupPosition - AbsolutePosition;
-            //part.SetOffsetPosition(part.GroupPosition - AbsolutePosition);
-            //part.SetProperty("OffsetPosition", part.GroupPosition - AbsolutePosition);
 
             Quaternion rootRotation = m_rootPart.RotationOffset;
 
             Vector3 pos = part.OffsetPosition;
             pos *= Quaternion.Inverse(rootRotation);
             part.OffsetPosition = pos;
-            //part.SetOffsetPosition(pos);
-            //part.SetProperty("OffsetPosition", pos);
 
             parentRot = m_rootPart.RotationOffset;
             oldRot = part.RotationOffset;
             Quaternion newRot = Quaternion.Inverse(parentRot) * oldRot;
             part.RotationOffset = newRot;
-            //part.SetRotationOffset(newRot);
-            //part.SetProperty("RotationOffset", newRot);
         }
 
 
-        
-        public void BucketSyncInfoUpdate()
-        {
-            long timeStamp = DateTime.Now.Ticks;
-            string actorID = m_scene.GetSyncActorID();
-            foreach (SceneObjectPart part in Parts)
-            {
-                //part.SyncInfoUpdate(timeStamp, actorID);
-                part.UpdateAllBucketSyncInfo(timeStamp);
-            }
-        }
-
-        /*
-        public void SyncInfoUpdate(long timeStamp, string actorID)
-        {
-            foreach (SceneObjectPart part in Parts)
-            {
-                part.SyncInfoUpdate(timeStamp, actorID);
-            }
-        }
-         * */
 
         /// <summary>
         /// Attach this object to a scene after a new object is created due to receiving a sync message. 
@@ -4155,6 +4048,21 @@ namespace OpenSim.Region.Framework.Scenes
             // for the same object with very different properties.  The caller must schedule the update.
             //ScheduleGroupForFullUpdate();
 
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+        // Bucket based sync
+        ///////////////////////////////////////////////////////////////////////
+
+        public void BucketSyncInfoUpdate()
+        {
+            long timeStamp = DateTime.Now.Ticks;
+            string actorID = m_scene.GetSyncActorID();
+            foreach (SceneObjectPart part in Parts)
+            {
+                //part.SyncInfoUpdate(timeStamp, actorID);
+                part.UpdateAllBucketSyncInfo(timeStamp);
+            }
         }
 
         public void UpdateTaintedBucketSyncInfo(long timeStamp)

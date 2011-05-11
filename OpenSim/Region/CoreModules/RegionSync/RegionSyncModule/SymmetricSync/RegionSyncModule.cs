@@ -3581,41 +3581,25 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (part.ParentGroup == null || part.ParentGroup.IsDeleted)
                 return;
 
+            //Do some sanity checking of the properties
+            List<SceneObjectPartSyncProperties> checkedUpdatedProperties = new List<SceneObjectPartSyncProperties>();
+            foreach (SceneObjectPartSyncProperties property in updatedProperties)
+            {
+                if (PrimSyncInfo.PrimPhysActorProperties.Contains(property) && part.PhysActor == null)
+                {
+                    m_log.WarnFormat("ProcessAndEnqueuePrimUpdatesByLocal: informed that property {0} changed in {1},{2}, which does not have PhysActor yet. Wrong property passed in!!!",
+                        property, part.Name, part.UUID);
+                }
+                else
+                {
+                    checkedUpdatedProperties.Add(property);
+                }
+            }
+
             //Sync values with SOP's data and update timestamp according, to 
             //obtain the list of properties that really have been updated
             //and should be propogated to other sync nodes.
-            HashSet<SceneObjectPartSyncProperties> propertiesWithSyncInfoUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoByLocal(part, updatedProperties);
-
-            /* //Below is done at SOG level, not here (TO DOUBLE CHECK)
-            //For group properties, we only need to send it once per SOG,
-            //hence only enqueue it with root part
-            foreach (SceneObjectPartSyncProperties groupProperty in SceneObjectPart.GetGroupProperties())
-            {
-                if (propertiesWithSyncInfoUpdated.Contains(groupProperty))
-                {
-                    SceneObjectPart rootpart = part.ParentGroup.RootPart;
-                    if (m_primPropertyUpdates.ContainsKey(rootpart.UUID))
-                    {
-                        m_primPropertyUpdates[rootpart.UUID].Add(groupProperty);
-                    }
-                    else
-                    {
-                        m_primPropertyUpdates.Add(rootpart.UUID, new HashSet<SceneObjectPartSyncProperties>() { groupProperty });
-                    }
-                }
-                propertiesWithSyncInfoUpdated.Remove(groupProperty);
-            }
-             * */ 
-
-            /*
-            if(updatedProperties.Contains(SceneObjectPartSyncProperties.Shape))
-            {
-                string hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(part)));
-                m_log.DebugFormat("ProcessAndEnqueuePrimUpdatesByLocal: Shape of SOP {0}, {1} updated, ProfileShape {2}, hashed value in SOP: {3}, in PrimSyncInfoManager: {4}", 
-                    part.Name, part.UUID, part.Shape.ProfileShape, hashedShape, m_primSyncInfoManager.GetPrimSyncInfo(part.UUID).PropertiesSyncInfo[SceneObjectPartSyncProperties.Shape].LastUpdateValueHash);
-            }
-             * */ 
-             
+            HashSet<SceneObjectPartSyncProperties> propertiesWithSyncInfoUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoByLocal(part, checkedUpdatedProperties);
 
             //Enqueue the prim with the set of updated properties, excluding the group properties
             if (propertiesWithSyncInfoUpdated.Count > 0)
@@ -4927,10 +4911,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
         private Object m_primSyncInfoLock = new Object();
-        private static HashSet<SceneObjectPartSyncProperties> FullSetPrimProperties = SceneObjectPart.GetAllPrimProperties();
-        private static HashSet<SceneObjectPartSyncProperties> PrimPhysActorProperties = SceneObjectPart.GetAllPhysActorProperties();
-        private static HashSet<SceneObjectPartSyncProperties> PrimNonPhysActorProperties = SceneObjectPart.GetAllPrimNonPhysActorProperties();
-        private static HashSet<SceneObjectPartSyncProperties> GroupProperties = SceneObjectPart.GetGroupProperties();
+        public static HashSet<SceneObjectPartSyncProperties> FullSetPrimProperties = SceneObjectPart.GetAllPrimProperties();
+        public static HashSet<SceneObjectPartSyncProperties> PrimPhysActorProperties = SceneObjectPart.GetAllPhysActorProperties();
+        public static HashSet<SceneObjectPartSyncProperties> PrimNonPhysActorProperties = SceneObjectPart.GetAllPrimNonPhysActorProperties();
+        public static HashSet<SceneObjectPartSyncProperties> GroupProperties = SceneObjectPart.GetGroupProperties();
 
         private PrimSyncInfoManager m_syncInfoManager;
 

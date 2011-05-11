@@ -3048,7 +3048,17 @@ namespace OpenSim.Region.Framework.Scenes
 
             HasGroupChanged = true;
             //ScheduleGroupForTerseUpdate();
-            ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Orientation}); //Above actions only update m_rootPart's RotationOffset, and m_rootPart.UpdateRotation will taint RotationOffset as updated
+            //DSG SYNC
+            //Above actions only update m_rootPart's RotationOffset, and m_rootPart.UpdateRotation will taint RotationOffset as updated
+            if (actor != null)
+            {
+                ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>() {SceneObjectPartSyncProperties.RotationOffset, SceneObjectPartSyncProperties.Orientation });
+            }
+            else
+            {
+                ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.RotationOffset });
+            }
+            //end DSG SYNC
         }
 
         /// <summary>
@@ -3074,8 +3084,17 @@ namespace OpenSim.Region.Framework.Scenes
             AbsolutePosition = pos;
 
             HasGroupChanged = true;
+            //DSG SYNC
             //ScheduleGroupForTerseUpdate();
-            ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Position, SceneObjectPartSyncProperties.Orientation}); //RotationOffset is only updated for m_rootPart, and m_rootPart.UpdateRotation should already taint RotationOffset as updated
+            if (actor != null)
+            {
+                //RotationOffset is only updated for m_rootPart, and m_rootPart.UpdateRotation should already taint RotationOffset as updated
+                ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Position, SceneObjectPartSyncProperties.Orientation });
+            }
+            else
+            {
+                ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Position });
+            }
         }
 
         /// <summary>

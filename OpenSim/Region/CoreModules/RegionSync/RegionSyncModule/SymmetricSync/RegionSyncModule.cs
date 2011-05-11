@@ -2149,9 +2149,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
 
             UUID agentID = data["agentID"].AsUUID();
-            UUID primID = data["primID"].AsUUID();
+            UUID primUUID = data["primUUID"].AsUUID();
             UUID itemID = data["itemID"].AsUUID();
 
+            /*
             string sogXml = data["sog"].AsString();
             SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogXml);
             SceneObjectPart part = null;
@@ -2170,14 +2171,27 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             //Update the object first
             Scene.ObjectUpdateResult updateResult = m_scene.AddOrUpdateObjectBySynchronization(sog);
+             * */
 
-            if (updateResult == Scene.ObjectUpdateResult.Updated || updateResult == Scene.ObjectUpdateResult.New)
+            SceneObjectPart localPart = m_scene.GetSceneObjectPart(primUUID);
+
+            if (localPart == null || localPart.ParentGroup.IsDeleted)
             {
-                //Next, trigger creating the new script
-                SceneObjectPart localPart = m_scene.GetSceneObjectPart(primID);
-                m_scene.EventManager.TriggerNewScriptLocally(agentID, localPart, itemID);
+                m_log.WarnFormat("{0}: HandleRemoteEvent_OnNewScript -- prim {1} no longer in local SceneGraph", LogHeader, primUUID);
+                return;
             }
+
+            HashSet<PropertySyncInfo> propertiesSyncInfo = m_primSyncInfoManager.DecodePrimProperties(data);
+            if (propertiesSyncInfo.Count > 0)
+            {
+                List<SceneObjectPartSyncProperties> propertiesUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoBySync(localPart, propertiesSyncInfo);
+            }
+
+            //The TaskInventory value might have already been sync'ed by UpdatedPrimProperties, 
+            //but we still need to create the script instance by reading out the inventory.
+            m_scene.EventManager.TriggerNewScriptLocally(agentID, localPart, itemID);
         }
+        
        
 
         /// <summary>
@@ -2431,6 +2445,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //sog = new SceneObjectGroup(part);
                 return;
             }
+            /*
             //For simplicity, we just leverage a SOP's serialization method to transmit the information of new inventory item for the script).
             //This can certainly be optimized later (e.g. only sending serialization of the inventory item)
             OSDMap data = new OSDMap();
@@ -2438,8 +2453,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["primID"] = OSD.FromUUID(part.UUID);
             data["itemID"] = OSD.FromUUID(itemID); //id of the new inventory item of the part
             data["sog"] = OSD.FromString(SceneObjectSerializer.ToXml2Format(sog));
+             * */
 
-            SendSceneEvent(SymmetricSyncMessage.MsgType.NewScript, data);
+            HashSet<SceneObjectPartSyncProperties> updatedProperties = m_primSyncInfoManager.UpdatePrimSyncInfoByLocal(part, 
+                new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.TaskInventory});
+
+            //It is very likely that the TaskInventory cache data in PrimSyncInfoManager
+            //has been updated by local RezScript(), which will only update
+            //inventory but not creating script instance unless this is a 
+            //script engine. We just make sure that if that does not happen 
+            //ealier than this, we are sync'ing the new TaskInventory.
+            updatedProperties.Add(SceneObjectPartSyncProperties.TaskInventory);
+
+            OSDMap syncData = m_primSyncInfoManager.EncodePrimProperties(part, updatedProperties);
+            //syncData already includes primUUID, add agentID and itemID next
+            syncData["agentID"] = OSD.FromUUID(clientID);
+            syncData["itemID"] = OSD.FromUUID(itemID); //id of the new inventory item of the part
+
+            SendSceneEvent(SymmetricSyncMessage.MsgType.NewScript, syncData);
         }
 
         /// <summary>
@@ -2826,16 +2857,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                    // m_log.DebugFormat("SendPrimPropertyUpdates -- AggregateScriptEvents: " + sop.AggregateScriptEvents);
                 }
-
-                /*
-                if (updatedProperties.Contains(SceneObjectPartSyncProperties.Shape))
-                {
-                    String hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(sop)));
-                    m_log.DebugFormat("SendPrimPropertyUpdates -- SOP {0},{1}, Shape updated: ProfileShape {2}, hashed value in SOP:{3}, in PrinSyncInfoManager: {4}", 
-                        sop.Name, sop.UUID, sop.Shape.ProfileShape,
-                        hashedShape, m_primSyncInfoManager.GetPrimSyncInfo(sop.UUID).PropertiesSyncInfo[SceneObjectPartSyncProperties.Shape].LastUpdateValueHash);
-                }
-                 */ 
 
 
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedPrimProperties, OSDParser.SerializeJsonString(syncData));

@@ -68,7 +68,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_scene = scene;
         }
 
-        #region UpdateScript 
+        #region NewScript 
         //triggered by client.OnRezScript
         public override void TriggerNewScript(UUID clientID, SceneObjectPart part, UUID itemID)
         {

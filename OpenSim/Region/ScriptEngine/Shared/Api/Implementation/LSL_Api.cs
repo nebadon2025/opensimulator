@@ -3705,7 +3705,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 //Send out DelinkObject message to other actors to sychronize their object list 
                 if (World.RegionSyncModule != null)
                 {
-                    World.RegionSyncModule.SendDeLinkObject(parts, beforeDelinkGroups, afterDelinkGroups);
+                    World.RegionSyncModule.SyncDeLinkObject(parts, beforeDelinkGroups, afterDelinkGroups);
                 }
                 parentPrim.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None});
                 //end of DSG SYNC
@@ -3749,7 +3749,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     beforeDelinkGroups.Add(parentPrim);
                     List<SceneObjectGroup> afterDelinkGroups = new List<SceneObjectGroup>();
                     afterDelinkGroups.Add(childPrim.ParentGroup);
-                    World.RegionSyncModule.SendDeLinkObject(new List<SceneObjectPart>(parentPrim.Parts), beforeDelinkGroups, afterDelinkGroups);
+                    World.RegionSyncModule.SyncDeLinkObject(new List<SceneObjectPart>(parentPrim.Parts), beforeDelinkGroups, afterDelinkGroups);
                 }
                 //end of DSG SYNC
 
@@ -3788,7 +3788,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 parts.Add(rootPart);
                 afterDelinkGroups.Add(rootPart.ParentGroup);
-                World.RegionSyncModule.SendDeLinkObject(parts, beforeDelinkGroups, afterDelinkGroups); 
+                World.RegionSyncModule.SyncDeLinkObject(parts, beforeDelinkGroups, afterDelinkGroups); 
             }
             parentPrim.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None});
             //end of DSG SYNC

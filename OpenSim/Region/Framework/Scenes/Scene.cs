@@ -483,23 +483,10 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_regionSyncMode = value; }
         }
 
-        
-        protected IScriptEngineToSceneConnectorModule m_scriptEngineToSceneConnectorModule;
-        public IScriptEngineToSceneConnectorModule ScriptEngineToSceneConnectorModule
-        {
-            get { return m_scriptEngineToSceneConnectorModule; }
-            set { m_scriptEngineToSceneConnectorModule = value; }
-        }
-
-        public bool IsSyncedScriptEngine()
-        {
-            return (m_scriptEngineToSceneConnectorModule != null && m_scriptEngineToSceneConnectorModule.Active && m_scriptEngineToSceneConnectorModule.Synced);
-        }
-
         public bool ToScheduleFullUpdate()
         {
             //Only Scene (SyncServer) or Client Manager (SyncClient) will schedule update to send to its client. Script Engine will not (its update should be sent to Scene).
-            return (IsSyncedClient() || IsSyncedServer() || (IsSyncedScriptEngine() && m_scriptEngineToSceneConnectorModule.DebugWithViewer)); 
+            return (IsSyncedClient() || IsSyncedServer()); 
         }
 
        
@@ -1591,7 +1578,7 @@ namespace OpenSim.Region.Framework.Scenes
             //REGION SYNC
             RegionSyncServerModule = RequestModuleInterface<IRegionSyncServerModule>();
             RegionSyncClientModule = RequestModuleInterface<IRegionSyncClientModule>();
-            ScriptEngineToSceneConnectorModule = RequestModuleInterface<IScriptEngineToSceneConnectorModule>();
+            //ScriptEngineToSceneConnectorModule = RequestModuleInterface<IScriptEngineToSceneConnectorModule>();
             PhysEngineToSceneConnectorModule = RequestModuleInterface<IPhysEngineToSceneConnectorModule>();
             SceneToPhysEngineSyncServer = RequestModuleInterface<ISceneToPhysEngineServer>();
             //////////////////////////////////////////////////////////////////////

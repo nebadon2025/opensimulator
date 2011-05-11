@@ -47,7 +47,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                OpenSim.cs
                RegionSyncServerModule.cs
                RegionSyncClientModule.cs
-               ScriptEngineToSceneConnectorModule.cs
              */
             m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 

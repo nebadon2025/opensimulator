@@ -391,7 +391,6 @@ namespace OpenSim
             //Add one more command handler for "sync start", to pass simulator-wise information to one valide Scene.
             //A trick to enable Script Engine to run scripts in several adjacent regions (all objects and their scripts 
             //exisited in the valid region, but all regions have their Scene data structure up and hold the RegionInfo.
-            //More details, see ScriptEngineToSceneConnector.cs.
             m_console.Commands.AddCommand("region", false, "sync start",
                               "sync start",
                               "start synchronization with the authoratative Scene", SyncStart);

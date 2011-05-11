@@ -327,7 +327,7 @@ namespace OpenSim.Region.Framework.Scenes
         //Scene does permission checking, asset creation and storing, then informs Script Engine to 
         //update the script.
         ////////////////////////////////////////////////////////////////////////////////////////////////
-        //Only should be called when this is the cached Scene of script engine (e.g. from ScriptEngineToSceneConnector)
+        //Only should be called when this is the cached Scene of script engine 
         public ArrayList OnUpdateScript(UUID avatarID, UUID itemID, UUID primID, bool isScriptRunning, UUID newAssetID)
         {
             ArrayList errors = new ArrayList();

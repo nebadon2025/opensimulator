@@ -147,12 +147,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //private int QuarkInfo.SizeX;
         //private int QuarkInfo.SizeY;
         //private List<QuarkInfo> m_quarkSubscriptions;
+        /*
         Dictionary<string, QuarkInfo> m_quarkSubscriptions;
         public Dictionary<string, QuarkInfo> QuarkSubscriptionList
         {
             get { return m_quarkSubscriptions; }
         }
-
+        */ 
 
 
         #endregion
@@ -453,6 +454,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return;
         }
 
+        /*
         //For simplicity, we assume the subscription sent by PhysEngine is legistimate (no overlapping with other script engines, etc)
         private void HandleQuarkSubscription(RegionSyncMessage msg)
         {
@@ -470,6 +472,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_quarkSubscriptions.Add(quark.QuarkStringRepresentation, quark);
             }
         }
+         * */ 
 
         private RegionSyncMessage PrepareObjectUpdateMessage(RegionSyncMessage.MsgType msgType, SceneObjectGroup sog)
         {

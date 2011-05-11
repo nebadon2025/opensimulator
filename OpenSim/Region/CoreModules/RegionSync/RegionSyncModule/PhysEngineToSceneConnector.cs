@@ -97,16 +97,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private long m_messagesSent = 0;
         private long m_messagesReceived = 0;
 
-        private QuarkSubsriptionInfo m_subscribedQuarks; 
+        //private QuarkSubsriptionInfo m_subscribedQuarks; 
         
 
         private IConfig m_sysConfig;
 
         //members for load balancing purpose
         //private TcpClient m_loadMigrationSouceEnd = null;
-        private LoadMigrationEndPoint m_loadMigrationSouceEnd = null;
+        //private LoadMigrationEndPoint m_loadMigrationSouceEnd = null;
         private Thread m_loadMigrationSrcRcvLoop;
-        private LoadMigrationListener m_loadMigrationListener = null;
+        //private LoadMigrationListener m_loadMigrationListener = null;
 
         //List of queued messages, when the space that the updated object is located is being migrated
         private List<RegionSyncMessage> m_updateMsgQueue = new List<RegionSyncMessage>();
@@ -130,17 +130,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SceneToPhysEngineSyncServer.logDir = m_sysConfig.GetString("PhysLogDir", ".");
 
             //assume we are connecting to the whole scene as one big quark
-            m_subscribedQuarks = new QuarkSubsriptionInfo(0, 0, (int)Constants.RegionSize, (int)Constants.RegionSize);
-        }
-
-        private List<string> GetQuarkStringList()
-        {
-            List<string> quarkList = new List<string>();
-            foreach (QuarkInfo quark in m_subscribedQuarks.QuarkList)
-            {
-                quarkList.Add(quark.QuarkStringRepresentation);
-            }
-            return quarkList;
+            //m_subscribedQuarks = new QuarkSubsriptionInfo(0, 0, (int)Constants.RegionSize, (int)Constants.RegionSize);
         }
          
         // Start the RegionSyncPhysEngine client thread
@@ -195,21 +185,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         }
 
 
-        private void SendQuarkSubscription()
-        {
-            List<string> quarkStringList = GetQuarkStringList();
-            string quarkString = RegionSyncUtil.QuarkStringListToString(quarkStringList);
-
-            m_log.Debug(LogHeader + ": subscribe to quarks: " + quarkString);
-            //Send(quarkString);
-            RegionSyncMessage msg = new RegionSyncMessage(RegionSyncMessage.MsgType.QuarkSubscription, quarkString);
-            Send(msg);
-        }
-
+        /*
         public void SetQuarkSubscription(QuarkSubsriptionInfo quarks)
         {
             m_subscribedQuarks = quarks;
         }
+         * */ 
 
         public void RegisterIdle()
         {
@@ -246,8 +227,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //stop the migration connections
             //ShutdownClient(m_loadMigrationSouceEnd);
-            if (m_loadMigrationListener != null)
-                m_loadMigrationListener.Shutdown();
+            //if (m_loadMigrationListener != null)
+            //    m_loadMigrationListener.Shutdown();
         }
 
         public void ReportStatus()

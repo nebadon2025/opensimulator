@@ -119,12 +119,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             string peServerPort = scene.RegionInfo.RegionName + "_SceneToPESyncServerPort";
             m_peSyncServerport = syncConfig.GetInt(peServerPort, DefaultPort);
             DefaultPort++;
-            
-            // m_symsync = syncConfig.GetBoolean("SymSync", false);
-
-            //Get quark information
-            QuarkInfo.SizeX = syncConfig.GetInt("QuarkSizeX", (int)Constants.RegionSize);
-            QuarkInfo.SizeY = syncConfig.GetInt("QuarkSizeY", (int)Constants.RegionSize);
 
             m_scene = scene;
             m_scene.RegisterModuleInterface<IRegionSyncServerModule>(this);
@@ -176,14 +170,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_server.Start();
                 m_statsTimer.Elapsed += new System.Timers.ElapsedEventHandler(StatsTimerElapsed);
                 m_statsTimer.Start();
-            }
-
-            if (!m_seSyncServeraddr.Equals(IPAddrUnknown) && m_seSyncServerport != PortUnknown)
-            {
-                m_log.Warn("[REGION SYNC SERVER MODULE] Starting SceneToScriptEngineSyncServer");
-                //Start the sync server for script engines
-                m_sceneToSESyncServer = new SceneToScriptEngineSyncServer(m_scene, m_seSyncServeraddr, m_seSyncServerport);
-                m_sceneToSESyncServer.Start();
             }
 
             m_peSyncServeraddr = m_scene.RegionInfo.PhysicsSyncServerAddress;
@@ -422,8 +408,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //when an object is deleted, this function (DeleteObject) could be triggered more than once. So we check 
                 //if the object part is already removed is the scene (part==null)
                 //m_log.Debug("Inform script engine about the deleted object");
-                if(m_sceneToSESyncServer!=null)
-                    m_sceneToSESyncServer.SendToSE(rsm, part.ParentGroup);
+                //if(m_sceneToSESyncServer!=null)
+                //    m_sceneToSESyncServer.SendToSE(rsm, part.ParentGroup);
             }
             
         }
@@ -438,8 +424,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             get
             {
-                //if (m_server == null || !m_server.Synced)
-                if((m_server == null || !m_server.Synced) && (m_sceneToSESyncServer==null || !m_sceneToSESyncServer.Synced))
+                if (m_server == null || !m_server.Synced)
+                //if((m_server == null || !m_server.Synced) && (m_sceneToSESyncServer==null || !m_sceneToSESyncServer.Synced))
                     return false;
                 return true;
             }
@@ -450,9 +436,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             RegionSyncMessage msg = new RegionSyncMessage(RegionSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString());
             if(m_server!=null)
                 m_server.Broadcast(msg);
-            //KittyL: added for SE
-            if(m_sceneToSESyncServer!=null)
-                m_sceneToSESyncServer.SendToAllConnectedSE(msg);
         }
 
         #region cruft
@@ -514,7 +497,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         //Sync-server for script engines
         private string m_seSyncServeraddr;
         private int m_seSyncServerport;
-        private SceneToScriptEngineSyncServer m_sceneToSESyncServer = null;
+        //private SceneToScriptEngineSyncServer m_sceneToSESyncServer = null;
 
         //Sync-server for physics engines
         private string m_peSyncServeraddr;
@@ -561,7 +544,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 SceneObjectGroup sog = (SceneObjectGroup)entity;
                 m_server.BroadcastToCM(RegionSyncMessage.MsgType.NewObject, sog);
 
-                m_sceneToSESyncServer.SendToSE(RegionSyncMessage.MsgType.NewObject, sog);
+                //m_sceneToSESyncServer.SendToSE(RegionSyncMessage.MsgType.NewObject, sog);
 
             }
             else
@@ -582,7 +565,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //m_server.Broadcast(rsm);
                 SceneObjectGroup sog = (SceneObjectGroup)copy;
                 m_server.BroadcastToCM(RegionSyncMessage.MsgType.NewObject, sog);
-                m_sceneToSESyncServer.SendToSE(RegionSyncMessage.MsgType.NewObject, sog);
+                //m_sceneToSESyncServer.SendToSE(RegionSyncMessage.MsgType.NewObject, sog);
             }
             else
             {
@@ -611,7 +594,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //when an object is deleted, this function (DeleteObject) could be triggered more than once. So we check 
                     //if the object part is already removed is the scene (part==null)
                     //m_log.Debug("Inform script engine about the deleted object");
-                    m_sceneToSESyncServer.SendToSE(rsm, part.ParentGroup);
+                    //m_sceneToSESyncServer.SendToSE(rsm, part.ParentGroup);
                 }
             }
             else

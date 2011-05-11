@@ -285,7 +285,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             return (IsAttachment || (m_rootPart.Shape.PCode == 9 && m_rootPart.Shape.State != 0));
         }
-        
+
         /// <summary>
         /// The absolute position of this scene object in the scene
         /// </summary>
@@ -299,22 +299,23 @@ namespace OpenSim.Region.Framework.Scenes
                 if (Scene != null)
                 {
                     if ((Scene.TestBorderCross(val - Vector3.UnitX, Cardinals.E) || Scene.TestBorderCross(val + Vector3.UnitX, Cardinals.W)
-                        || Scene.TestBorderCross(val - Vector3.UnitY, Cardinals.N) || Scene.TestBorderCross(val + Vector3.UnitY, Cardinals.S)) 
+                        || Scene.TestBorderCross(val - Vector3.UnitY, Cardinals.N) || Scene.TestBorderCross(val + Vector3.UnitY, Cardinals.S))
                         && !IsAttachmentCheckFull() && (!Scene.LoadingPrims))
                     {
                         m_scene.CrossPrimGroupIntoNewRegion(val, this, true);
                     }
                 }
+
                 if (RootPart.GetStatusSandbox())
                 {
                     if (Util.GetDistanceTo(RootPart.StatusSandboxPos, value) > 10)
                     {
                         RootPart.ScriptSetPhysicsStatus(false);
-                        
+
                         if (Scene != null)
                             Scene.SimChat(Utils.StringToBytes("Hit Sandbox Limit"),
                                   ChatTypeEnum.DebugChannel, 0x7FFFFFFF, RootPart.AbsolutePosition, Name, UUID, false);
-                        
+
                         return;
                     }
                 }
@@ -330,41 +331,9 @@ namespace OpenSim.Region.Framework.Scenes
                 //m_rootPart.GroupPosition.Z);
                 //m_scene.PhysicsScene.AddPhysicsActorTaint(m_rootPart.PhysActor);
                 //}
-                
+
                 if (Scene != null)
                     Scene.EventManager.TriggerParcelPrimCountTainted();
-            }
-        }
-        public void SetAbsolutePosition(Vector3 value)
-        {
-            Vector3 val = value;
-
-            //REGION SYNC touched
-
-            //if ((m_scene.TestBorderCross(val - Vector3.UnitX, Cardinals.E) || m_scene.TestBorderCross(val + Vector3.UnitX, Cardinals.W)
-            //    || m_scene.TestBorderCross(val - Vector3.UnitY, Cardinals.N) || m_scene.TestBorderCross(val + Vector3.UnitY, Cardinals.S)) 
-            //    && !IsAttachmentCheckFull())
-            if (m_scene.IsBorderCrossing(LocX, LocY, val) && !IsAttachmentCheckFull() && (!m_scene.LoadingPrims))
-            {
-                m_scene.CrossPrimGroupIntoNewRegion(val, this, true);
-            }
-            //end REGION SYNC touched
-            if (RootPart.GetStatusSandbox())
-            {
-                if (Util.GetDistanceTo(RootPart.StatusSandboxPos, value) > 10)
-                {
-                    RootPart.ScriptSetPhysicsStatus(false);
-                    Scene.SimChat(Utils.StringToBytes("Hit Sandbox Limit"),
-                          ChatTypeEnum.DebugChannel, 0x7FFFFFFF, RootPart.AbsolutePosition, Name, UUID, false);
-                    return;
-                }
-            }
-
-            SceneObjectPart[] parts = m_parts.GetArray();
-            for (int i = 0; i < parts.Length; i++)
-            {
-                parts[i].GroupPosition = val;
-                //parts[i].SetGroupPosition(val);
             }
         }
 
@@ -3531,24 +3500,6 @@ namespace OpenSim.Region.Framework.Scenes
 
         #endregion
 
-#region REGION SYNC
-
-        //the LocX and LocY of the authoritative scene that this object is located 
-        
-        private uint m_locX;
-        private uint m_locY;
-        public uint LocX
-        {
-            get { return m_locX; }
-            set { m_locX = value; }
-        }
-        public uint LocY
-        {
-            get { return m_locY; }
-            set { m_locY = value; }
-        }
-         
-#endregion 
 
         #region DSG SYNC
 
@@ -3966,11 +3917,7 @@ namespace OpenSim.Region.Framework.Scenes
             // Here's the deal, this is ABSOLUTELY CRITICAL so the physics scene gets the update about the 
             // position of linkset prims.  IF YOU CHANGE THIS, YOU MUST TEST colliding with just linked and 
             // unmoved prims!
-            //ResetChildPrimPhysicsPositions();
-            //EntityBase sogBase = (EntityBase)this;
-            //sogBase.AbsolutePosition = AbsolutePosition;
-            SetAbsolutePosition(AbsolutePosition);
-
+            ResetChildPrimPhysicsPositions();
         }
 
         private void LinkNonRootPartBySync(SceneObjectPart linkPart, Vector3 oldGroupPosition, Quaternion oldGroupRotation, int linkNum)

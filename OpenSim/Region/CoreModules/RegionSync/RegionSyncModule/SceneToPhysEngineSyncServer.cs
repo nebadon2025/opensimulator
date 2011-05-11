@@ -108,7 +108,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         //List of all quarks, each using the concatenation of x,y values of its left-bottom corners, 
         // where the x,y values are the offset position in the scene.
-        private Dictionary<string, QuarkInfo> m_quarksInScene = new Dictionary<string, QuarkInfo>();
+        //private Dictionary<string, QuarkInfo> m_quarksInScene = new Dictionary<string, QuarkInfo>();
 
         private string LogHeader = "[SCENE TO PHYS ENGINE SYNC SERVER]";
 
@@ -307,11 +307,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Constructor
         public SceneToPhysEngineSyncServer(Scene scene, string addr, int port)
         {
-            if (QuarkInfo.SizeX == -1 || QuarkInfo.SizeY == -1)
-            {
-                m_log.Error(LogHeader + " QuarkInfo.SizeX or QuarkInfo.SizeY has not been configured yet.");
-                Environment.Exit(0); ;
-            }
 
             m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
             //m_log.Warn(LogHeader + "Constructed");
@@ -327,7 +322,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_allScenes.Add(m_scene);
             }
 
-            InitQuarksInScene();
+            //InitQuarksInScene();
             SubscribeToEvents();
             m_scene.EventManager.OnPluginConsole += EventManager_OnPluginConsole;
             InstallInterfaces();
@@ -376,15 +371,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             UnSubscribeToEvents();
         }
 
-        private void InitQuarksInScene()
-        {
-            List<QuarkInfo> quarkList = RegionSyncUtil.GetAllQuarksInScene();
-            foreach (QuarkInfo quark in quarkList)
-            {
-                m_quarksInScene.Add(quark.QuarkStringRepresentation, quark);
-            }
-        }
-
+        /*
         public void RegisterQuarkSubscription(List<QuarkInfo> quarkSubscriptions, SceneToPhysEngineConnector peConnector)
         {
             foreach (QuarkInfo quark in quarkSubscriptions)
@@ -395,6 +382,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.Debug(LogHeader + ": " + quarkID + " subscribed by "+peConnector.Description);
             }
         }
+         * */ 
 
         // Add a connector to a physics engine
         public void AddSyncedPhysEngine(SceneToPhysEngineConnector peConnector)
@@ -524,9 +512,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             else
             {
-                //Find the right SceneToSEConnector by the object's position
-                //TO FINISH: Map the object to a quark first, then map the quark to SceneToSEConnector
-                string quarkID = RegionSyncUtil.GetQuarkIDByPosition(sog.AbsolutePosition);
                 // TODO: connection of physics engine to quarks. Next line commented out
                 // SceneToPhysEngineConnector peConnector = m_quarksInScene[quarkID].PEConnector;
 

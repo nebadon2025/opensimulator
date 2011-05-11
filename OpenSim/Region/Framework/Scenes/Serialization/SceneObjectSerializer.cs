@@ -232,10 +232,6 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
                     sceneObject.AddPart(part);
 
-                    //DSG SYNC
-                    //KittyL: 12/27/2010, added ActorID for symmetric synch model
-                    //part.SetLastUpdateActorID();
-
                     // SceneObjectGroup.AddPart() tries to be smart and automatically set the LinkNum.
                     // We override that here
                     if (originalLinkNum != 0)
@@ -345,22 +341,6 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             m_SOPXmlProcessors.Add("MediaUrl", ProcessMediaUrl);
             m_SOPXmlProcessors.Add("TextureAnimation", ProcessTextureAnimation);
             m_SOPXmlProcessors.Add("ParticleSystem", ProcessParticleSystem);
-
-            /*
-            //DSG SYNC
-            m_SOPXmlProcessors.Add("LocalFlags", ProcessLocalFlags);
-            //m_SOPXmlProcessors.Add("LastUpdateTimeStamp", ProcessUpdateTimeStamp);
-            //m_SOPXmlProcessors.Add("LastUpdateActorID", ProcessLastUpdateActorID);
-            m_SOPXmlProcessors.Add("IsAttachment", ProcessIsAttachment);
-            m_SOPXmlProcessors.Add("AttachedAvatar", ProcessAttachedAvatar);
-            m_SOPXmlProcessors.Add("AttachedPos", ProcessAttachedPos);
-            m_SOPXmlProcessors.Add("AttachmentPoint", ProcessAttachmentPoint);
-            m_SOPXmlProcessors.Add("AggregateScriptEvents", ProcessAggregateScriptEvents);
-
-            m_SOPXmlProcessors.Add("BucketSyncInfoList", ProcessBucketSyncInfo);
-            //end of DSG SYNC
-             * */ 
-
             #endregion
 
             #region TaskInventoryXmlProcessors initialization
@@ -444,7 +424,6 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         }
 
         #region SOPXmlProcessors
-        //DSG SYNC NOTE: -- assignments in de-serialization should directly set the values w/o triggering SceneObjectPart.UpdateBucketSyncInfo;
         private static void ProcessAllowedDrop(SceneObjectPart obj, XmlTextReader reader)
         {
             obj.AllowedDrop = Util.ReadBoolean(reader);            
@@ -724,101 +703,6 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         {
             obj.ParticleSystem = Convert.FromBase64String(reader.ReadElementContentAsString("ParticleSystem", String.Empty));
         }
-
-        //DSG SYNC
-        /*
-        private static void ProcessUpdateTimeStamp(SceneObjectPart obj, XmlTextReader reader)
-        {
-            obj.LastUpdateTimeStamp = reader.ReadElementContentAsLong("LastUpdateTimeStamp", string.Empty);
-        }
-
-        private static void ProcessLastUpdateActorID(SceneObjectPart obj, XmlTextReader reader)
-        {
-            obj.LastUpdateActorID = reader.ReadElementContentAsString("LastUpdateActorID", string.Empty);
-        }
-         * */ 
-         
-
-        private static void ProcessLocalFlags(SceneObjectPart obj, XmlTextReader reader)
-        {
-            obj.LocalFlags = Util.ReadEnum<PrimFlags>(reader, "LocalFlags");
-        }
-         
-
-        private static void ProcessIsAttachment(SceneObjectPart obj, XmlTextReader reader)
-        {
-            obj.IsAttachment = Util.ReadBoolean(reader);   
-        }
-
-        private static void ProcessAttachedAvatar(SceneObjectPart obj, XmlTextReader reader)
-        {
-            obj.AttachedAvatar = Util.ReadUUID(reader, "AttachedAvatar");
-        }
-
-        private static void ProcessAttachedPos(SceneObjectPart obj, XmlTextReader reader)
-        {
-            obj.AttachedPos = Util.ReadVector(reader, "AttachedPos");
-        }
-
-        private static void ProcessAttachmentPoint(SceneObjectPart obj, XmlTextReader reader)
-        {
-            obj.AttachmentPoint = (uint)reader.ReadElementContentAsInt("AttachmentPoint", string.Empty);
-        }
-
-        private static void ProcessAggregateScriptEvents(SceneObjectPart obj, XmlTextReader reader)
-        {
-            obj.AggregateScriptEvents = Util.ReadEnum<scriptEvents>(reader, "AggregateScriptEvents");
-        }
-
-        public static void ProcessBucketSyncInfo(SceneObjectPart obj, XmlTextReader reader)
-        {
-            obj.BucketSyncInfoList = new Dictionary<string, BucketSyncInfo>();
-
-            if (reader.IsEmptyElement)
-            {
-                reader.Read();
-                return;   
-            }
-            string elementName = "BucketSyncInfoList";
-            reader.ReadStartElement(elementName, String.Empty);
-
-            while (reader.Name == "Bucket")
-            {
-                reader.ReadStartElement("Bucket", String.Empty); // Bucket
-                string bucketName="";
-                long timeStamp = 0;
-                string actorID = "";
-                while (reader.NodeType != XmlNodeType.EndElement)
-                {
-                    
-                    switch (reader.Name)
-                    {
-                        case "Name":
-                            bucketName = reader.ReadElementContentAsString("Name", String.Empty);
-                            break;
-                        case "TimeStamp":
-                            timeStamp = reader.ReadElementContentAsLong("TimeStamp", String.Empty);
-                            break;
-                        case "ActorID":
-                            actorID = reader.ReadElementContentAsString("ActorID", String.Empty);
-                            break;
-                        default:
-                            reader.ReadOuterXml();
-                            break;
-
-                    }
-                    
-                }
-                reader.ReadEndElement();
-                BucketSyncInfo bucketSyncInfo = new BucketSyncInfo(timeStamp, actorID, bucketName);
-                obj.BucketSyncInfoList.Add(bucketName, bucketSyncInfo);
-            }
-
-            if (reader.NodeType == XmlNodeType.EndElement)
-                reader.ReadEndElement(); // BucketSyncInfoList
-        }
-
-        //end of DSG SYNC
 
         #endregion
 
@@ -1290,10 +1174,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             writer.WriteElementString("GroupMask", sop.GroupMask.ToString());
             writer.WriteElementString("EveryoneMask", sop.EveryoneMask.ToString());
             writer.WriteElementString("NextOwnerMask", sop.NextOwnerMask.ToString());
-            //DSG SYNC: also serialize SceneObjectPart:LocalFlags, so that it can be propogated across actors
             WriteFlags(writer, "Flags", sop.Flags.ToString(), options);
-            WriteFlags(writer, "LocalFlags", sop.LocalFlags.ToString(), options);
-            //end DSG SYNC
             WriteUUID(writer, "CollisionSound", sop.CollisionSound, options);
             writer.WriteElementString("CollisionSoundVolume", sop.CollisionSoundVolume.ToString());
             if (sop.MediaUrl != null)
@@ -1301,45 +1182,8 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             WriteBytes(writer, "TextureAnimation", sop.TextureAnimation);
             WriteBytes(writer, "ParticleSystem", sop.ParticleSystem);
 
-            //DSG SYNC
-            //These properties are only meaningful for synchronization purpose. For saving oar files, they are not necessary.
-            //We may remove these if later we use a different method to encode object properties for synchronization.
-            /*
-            WriteUUID(writer, "AttachedAvatar", sop.AttachedAvatar, options);
-            WriteVector(writer, "AttachedPos", sop.AttachedPos);
-            writer.WriteElementString("AttachmentPoint", sop.AttachmentPoint.ToString());
-            //writer.WriteElementString("IsAttachment", sop.IsAttachment.ToString().ToLower()); //IsAttachment is written last, so that on deserialization, it will be deserialized later than other Attachment properties
-            WriteFlags(writer, "AggregateScriptEvents", sop.AggregateScriptEvents.ToString(), options);
-            WriteBucketSyncInfo(writer, sop.BucketSyncInfoList);
-             * */ 
-            //end of DSG SYNC
-
             writer.WriteEndElement();
         }
-
-        //DSG SYNC
-        public static void WriteBucketSyncInfo(XmlTextWriter writer, Dictionary<string, BucketSyncInfo> bucketSyncInfoList)
-        {
-            if (bucketSyncInfoList!=null || bucketSyncInfoList.Count > 0) // otherwise skip this
-            {
-                
-                writer.WriteStartElement("BucketSyncInfoList");
-                foreach (KeyValuePair<string, BucketSyncInfo> pair in bucketSyncInfoList)
-                {
-                    BucketSyncInfo bucketSyncInfo = pair.Value;
-                    writer.WriteStartElement("Bucket");
-                    writer.WriteElementString("Name", bucketSyncInfo.BucketName);
-                    writer.WriteElementString("TimeStamp", bucketSyncInfo.LastUpdateTimeStamp.ToString());
-                    writer.WriteElementString("ActorID", bucketSyncInfo.LastUpdateActorID);
-                    writer.WriteEndElement(); // Bucket
-                }
-
-                writer.WriteEndElement(); // BucketSyncInfo
-
-            }
-
-        }
-        //end of DSG SYNC
 
         static void WriteUUID(XmlTextWriter writer, string name, UUID id, Dictionary<string, object> options)
         {
@@ -1491,7 +1335,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 writer.WriteElementString("ProfileBegin", shp.ProfileBegin.ToString());
                 writer.WriteElementString("ProfileEnd", shp.ProfileEnd.ToString());
                 writer.WriteElementString("ProfileHollow", shp.ProfileHollow.ToString());
-                //DSG SYNC: added serialization of Shape
+                //DSG SYNC: added serialization of Scale
                 WriteVector(writer, "Scale", shp.Scale);
                 //end of DSG SYNC
                 writer.WriteElementString("State", shp.State.ToString());

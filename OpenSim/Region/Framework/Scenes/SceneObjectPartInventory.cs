@@ -1198,7 +1198,6 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 base.Serial = value;
-                //m_part.UpdateBucketSyncInfo("InventorySerial");
             }
         }
     }

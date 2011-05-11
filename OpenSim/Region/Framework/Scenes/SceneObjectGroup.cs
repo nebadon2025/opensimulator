@@ -3505,6 +3505,7 @@ namespace OpenSim.Region.Framework.Scenes
         //NOTE: updates on script content are handled seperately (e.g. user edited the script and saved it) -- SESyncServerOnUpdateScript(), a handler of EventManager.OnUpdateScript        
         //public void UpdateObjectProperties(SceneObjectGroup updatedSog)
 
+        /*
         /// <summary>
         /// Update the existing copy of the object with updated properties in 'updatedSog'. For now we update 
         /// all properties. Later on this should be edited to allow only updating a bucket of properties.
@@ -3532,14 +3533,6 @@ namespace OpenSim.Region.Framework.Scenes
 
             lock (m_parts.SyncRoot)
             {
-                //update rootpart, if changed
-                /*
-                if (m_rootPart.UUID != updatedSog.RootPart.UUID)
-                {
-                    m_rootPart = updatedSog.RootPart;
-                    rootPartChanged = true;
-                }
-                 * */
 
                 //foreach (KeyValuePair<UUID, SceneObjectPart> pair in updatedSog.Parts)
                 Dictionary<UUID, SceneObjectPart> remainedParts = new Dictionary<UUID, SceneObjectPart>();
@@ -3620,53 +3613,6 @@ namespace OpenSim.Region.Framework.Scenes
 
                 //Just to make sure the parts each has the right localID of the rootpart
                 UpdateParentIDs();
-
-                /*
-                //old code below
-                foreach (SceneObjectPart updatedPart in updatedSog.Parts)
-                {
-                    UUID partUUID = updatedPart.UUID;
-                    Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Unchanged;
-                    if (HasChildPrim(partUUID))
-                    {
-                        //update the existing part
-                        SceneObjectPart oldPart = GetChildPart(partUUID);
-                        partUpdateResult = oldPart.UpdateAllProperties(updatedPart);
-                        updatedParts.Add(partUUID, updatedPart);
-                    }
-                    else
-                    {
-                        //a new part
-                        //m_parts.Add(partUUID, updatedPart);
-                        AddPart(updatedPart);
-                        partUpdateResult = Scene.ObjectUpdateResult.New;
-                    }
-
-                    if (partUpdateResult != Scene.ObjectUpdateResult.Unchanged)
-                    {
-                        if (partUpdateResult == Scene.ObjectUpdateResult.New)
-                            groupUpdateResult = Scene.ObjectUpdateResult.Updated;
-                        else
-                            groupUpdateResult = partUpdateResult; //Error or Updated
-                    }
-                }
-
-                //For any parts that are not in the updatesParts (the old parts that are still in updatedSog), delete them.
-                foreach (SceneObjectPart oldPart in this.Parts)
-                {
-                    if (!updatedParts.ContainsKey(oldPart.UUID))
-                    {
-                        m_parts.Remove(oldPart.UUID);
-                        partsRemoved = true;
-                    }
-                }
-
-                //Update the rootpart's ID in each non root parts
-                if (rootPartChanged)
-                {
-                    UpdateParentIDs();
-                }
-                 * */ 
             }
 
             //Schedule updates to be sent out, if the local copy has just been updated
@@ -3687,6 +3633,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             return groupUpdateResult;
         }
+        */
 
         public string DebugObjectUpdateResult()
         {
@@ -3950,130 +3897,11 @@ namespace OpenSim.Region.Framework.Scenes
 
 
 
-        /// <summary>
-        /// Attach this object to a scene after a new object is created due to receiving a sync message. 
-        /// Code similar to AttachToScene, except that this does not invoke InitializeBucketSyncInfo of each part,
-        /// as that information is included in the incoming message.
-        /// </summary>
-        /// <param name="scene"></param>
-        public void AttachToSceneBySync(Scene scene)
-        {
-            m_scene = scene;
-            RegionHandle = m_scene.RegionInfo.RegionHandle;
-
-            if (m_rootPart.Shape.PCode != 9 || m_rootPart.Shape.State == 0)
-                m_rootPart.ParentID = 0;
-            if (m_rootPart.LocalId == 0)
-                m_rootPart.LocalId = m_scene.AllocateLocalId();
-
-            SceneObjectPart[] parts = m_parts.GetArray();
-            for (int i = 0; i < parts.Length; i++)
-            {
-                SceneObjectPart part = parts[i];
-                if (Object.ReferenceEquals(part, m_rootPart))
-                    continue;
-
-                if (part.LocalId == 0)
-                    part.LocalId = m_scene.AllocateLocalId();
-
-                part.ParentID = m_rootPart.LocalId;
-                //m_log.DebugFormat("[SCENE]: Given local id {0} to part {1}, linknum {2}, parent {3} {4}", part.LocalId, part.UUID, part.LinkNum, part.ParentID, part.ParentUUID);
-            }
-
-            ApplyPhysics(m_scene.m_physicalPrim);
-
-            // Don't trigger the update here - otherwise some client issues occur when multiple updates are scheduled
-            // for the same object with very different properties.  The caller must schedule the update.
-            //ScheduleGroupForFullUpdate();
-
-        }
-
-
         ///////////////////////////////////////////////////////////////////////
         // Per SOP property based sync
         ///////////////////////////////////////////////////////////////////////
 
-        /// <summary>
-        /// Update the existing copy of the object with updated properties in 'updatedSog'. 
-        /// </summary>
-        /// <param name="updatedSog"></param>
-        /// <returns></returns>
-        public Scene.ObjectUpdateResult UpdateSOGBySync(SceneObjectGroup updatedSog)
-        {
-            //This GroupID check should be done by the actor who initiates the object update
-            //if (!this.GroupID.Equals(updatedSog.GroupID))
-            //    return Scene.ObjectUpdateResult.Error;
-
-            ////////////////////////////////////////////////////////////////////////////////////////////////////
-            //NOTE!!! 
-            //We do not want to simply call SceneObjectGroup.Copy here to clone the object: 
-            //the prims (SceneObjectParts) in updatedSog are different instances than those in the local copy,
-            //and we want to preserve the references to the prims in this local copy, especially for scripts 
-            //of each prim, where the scripts have references to the local copy. If the local copy is replaced,
-            //the prims (parts) will be replaces and we need to update all the references that were pointing to 
-            //the previous prims.
-            ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-            Scene.ObjectUpdateResult groupUpdateResult = Scene.ObjectUpdateResult.Unchanged;
-            Dictionary<UUID, SceneObjectPart> updatedParts = new Dictionary<UUID, SceneObjectPart>();
-
-            lock (m_parts.SyncRoot)
-            {
-                //This function is called by LinkObjectBySync and DelinkObjectBySinc(),
-                //which should have updated the parts in this SOG, hence should be no need to 
-                //add or remove parts to sync
-
-                if (this.PrimCount != updatedSog.PrimCount)
-                {
-                    m_log.WarnFormat("UpdateSOGBySync: For SOP {0}, local copy has {1} parts, while incoming updated copy has {2} parts. Inconsistent.", this.UUID,
-                        this.PrimCount, updatedSog.PrimCount);
-                }
-
-                //now update properties of the parts
-                foreach (SceneObjectPart part in this.Parts)
-                {
-                    Scene.ObjectUpdateResult partUpdateResult = Scene.ObjectUpdateResult.Unchanged;
-                    SceneObjectPart updatedPart = updatedSog.GetChildPart(part.UUID);
-
-                    if (updatedPart == null)
-                    {
-                        m_log.WarnFormat("UpdateSOGBySync: part {0},{1} exists in local copy, not in incoming updated copy", part.Name, part.UUID);
-                    }
-                    else
-                    {
-                        partUpdateResult = part.UpdateAllProperties(updatedPart);
-
-                        if (partUpdateResult != Scene.ObjectUpdateResult.Unchanged)
-                        {
-                            groupUpdateResult = partUpdateResult;
-                        }
-                    }
-                }
-
-                //Just to make sure the parts each has the right localID of the rootpart
-                UpdateParentIDs();
-            }
-
-            //Schedule updates to be sent out, if the local copy has just been updated
-            //(1) if we are debugging the actor with a viewer attaching to it,
-            //we need to schedule updates to be sent to the viewer.
-            //(2) or if we are a relaying node to relay updates, we need to forward the updates.
-            //NOTE: LastUpdateTimeStamp and LastUpdateActorID should be kept the same as in the received copy of the object.
-            if (groupUpdateResult == Scene.ObjectUpdateResult.Updated)
-            {
-                ScheduleGroupForFullUpdate_SyncInfoUnchanged();
-            }
-
-            //debug the update result
-            if (groupUpdateResult == Scene.ObjectUpdateResult.Updated)
-            {
-                DebugObjectUpdateResult();
-            }
-
-            return groupUpdateResult;
-        }
-
-
+      
         #endregion
     }
 }

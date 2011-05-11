@@ -663,10 +663,12 @@ namespace OpenSim.Region.Framework.Scenes
             return "";
         }
 
+        /*
         public ObjectUpdateResult UpdateObjectBySynchronization(SceneObjectGroup sog)
         {
             return m_sceneGraph.UpdateObjectBySynchronization(sog);
         }
+         * */ 
 
         public void DeleteAllSceneObjectsBySync()
         {

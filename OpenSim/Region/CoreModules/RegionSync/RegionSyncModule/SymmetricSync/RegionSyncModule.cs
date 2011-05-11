@@ -207,22 +207,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_propertyBucketNames; }
         }
 
-        public void QueueSceneObjectPartForUpdate(SceneObjectPart part)
-        {
-            
-            foreach (string bucketName in m_propertyBucketNames)
-            {
-                if(!part.ParentGroup.IsDeleted && HaveUpdatesToSendoutForSync(part, bucketName))
-                {        
-                    lock (m_primUpdateLocks[bucketName])
-                    {
-                        m_primUpdates[bucketName][part.UUID] = part;
-                    }
-                }
-            }   
-        }
-
-
         public void QueueScenePresenceForTerseUpdate(ScenePresence presence)
         {
             lock (m_updateScenePresenceLock)
@@ -773,20 +757,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //}
                 }
             }
-        }
-
-
-        private bool HaveUpdatesToSendoutForSync(SceneObjectPart part, string bucketName)
-        {
-            if (m_isSyncRelay)
-            {
-                return (part.HasPropertyUpdatedLocally(bucketName) || part.HasPropertyUpdatedBySync(bucketName));
-            }
-            else
-            {
-                return part.HasPropertyUpdatedLocally(bucketName);
-            }
-        }
+        } 
 
         private bool IsSyncingWithOtherSyncNodes()
         {
@@ -956,15 +927,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private HashSet<SyncConnector> GetSyncConnectorsForPrimUpdates(SceneObjectPart updatedPart)
         {
-            /*
-            Vector3 globalPos = updatedPart.GroupPosition;
-            if (CoordinatesConversionHandler != null)
-            {
-                bool inComingMsg = false; //this function should only be triggered by trying to send messages out
-                globalPos = CoordinatesConversionHandler(globalPos, inComingMsg);
-            }
-            return m_syncConnectorManager.GetSyncConnectorsByPosition(globalPos);
-             * */
             HashSet<SyncConnector> syncConnectors = new HashSet<SyncConnector>(GetSyncConnectorsForObjectUpdates(updatedPart.ParentGroup));
             return syncConnectors;
         }
@@ -1541,15 +1503,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.NewObject:
-                    //HandleAddNewObject(msg, senderActorID);
                     HandleSyncNewObject(msg, senderActorID);
                     break;
                 case SymmetricSyncMessage.MsgType.UpdatedPrimProperties:
                     HandleUpdatedPrimProperties(msg, senderActorID);
                     break;
                 case SymmetricSyncMessage.MsgType.UpdatedObject:
-                    {
-                        //HandleUpdateObjectBySynchronization(msg, senderActorID);                       
+                    {                      
                         HandleUpdatedObject(msg, senderActorID);                      
                         return;
                     }
@@ -1636,14 +1596,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 SendSpecialObjectUpdateToRelevantSyncConnectors(senderActorID, globalPos, msg);
             }
-
-            /*
-            if (!m_syncQuarkManager.IsPosInSyncQuarks(globalPos))
-            {
-                m_log.WarnFormat("{0}: Received an update for object at global pos {1}, not within local quarks, ignore the update", LogHeader, globalPos.ToString());
-                return;
-            }
-             * */ 
             
             AddNewSceneObjectByDecoding(data);
 
@@ -1694,12 +1646,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 List<SceneObjectPartSyncProperties> propertiesUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoBySync(sop, propertiesSyncInfo);
 
                 //SYNC DEBUG
+                /*
                 if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.AggregateScriptEvents))
                 {
                     //m_log.DebugFormat("AggregateScriptEvents updated: " + sop.AggregateScriptEvents); 
                 }
 
-                /*
                 if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.Shape))
                 {
                     String hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(sop)));
@@ -1900,45 +1852,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 m_log.WarnFormat("{0}: Received an update message for properties bucket {1}, no such bucket supported", LogHeader, bucketName);
             }
-        }
-
-        private void HandleUpdateObjectBySynchronization(SymmetricSyncMessage msg, string senderActorID)
-        {
-            string sogxml = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
-            SceneObjectGroup sog = SceneObjectSerializer.FromXml2Format(sogxml);
-            lock (m_stats) m_statSOGBucketIn++;
-
-            if (sog.IsDeleted)
-            {
-                SymmetricSyncMessage.HandleTrivial(LogHeader, msg, String.Format("Ignoring update on deleted object, UUID: {0}.", sog.UUID));
-                return;
-            }
-            else
-            {
-
-                //m_log.Debug(LogHeader + "HandleUpdateObjectBySynchronization: sog " + sog.Name + "," + sog.UUID);
-
-                Scene.ObjectUpdateResult updateResult = m_scene.UpdateObjectBySynchronization(sog);
-
-                /*
-                switch (updateResult)
-                {
-                    case Scene.ObjectUpdateResult.New:
-                        m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) added.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
-                        break;
-                    case Scene.ObjectUpdateResult.Updated:
-                        m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) updated.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
-                        break;
-                    case Scene.ObjectUpdateResult.Error:
-                        m_log.WarnFormat("[{0} Object \"{1}\" ({1}) ({2}) -- add or update ERROR.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
-                        break;
-                    case Scene.ObjectUpdateResult.Unchanged:
-                        //m_log.DebugFormat("[{0} Object \"{1}\" ({1}) ({2}) unchanged after receiving an update.", LogHeader, sog.Name, sog.UUID.ToString(), sog.LocalId.ToString());
-                        break;
-                }
-                 * */ 
-            }
-
         }
 
         /// <summary>
@@ -2824,13 +2737,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["UUID"] = OSD.FromUUID(sog.UUID);
 
             Vector3 globalPos = sog.AbsolutePosition;
-            /*
-            if (CoordinatesConversionHandler != null)
-            {
-                bool inComingMsg = false;
-                globalPos = CoordinatesConversionHandler(globalPos, inComingMsg);
-            }
-             * */
             data["GroupPosition"] = OSDMap.FromVector3(globalPos);
 
             HashSet<SceneObjectPartSyncProperties> fullPropertyList = new HashSet<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.FullUpdate };
@@ -2842,9 +2748,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
             data["RootPart"] = m_primSyncInfoManager.EncodePrimProperties(sog.RootPart, fullPropertyList);
 
-
-            //int otherPartsCount = sog.Parts.Length - 1;
-            //data["OtherPartsCount"] = OSD.FromInteger(otherPartsCount); 
             OSDArray otherPartsArray = new OSDArray();
             foreach (SceneObjectPart part in sog.Parts)
             {
@@ -2861,9 +2764,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
             }
             data["OtherParts"] = otherPartsArray;
-            
-            //string sogxml = SceneObjectSerializer.ToXml2Format(sog);
-            //SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.NewObject, OSDParser.SerializeJsonString(data));
 
             return data;
         }
@@ -2959,20 +2859,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 partsPrimSyncInfo[part.UUID].SetGroupProperties(part);
             }
-
-            //Convert the coordinates if necessary
-            /*
-            Vector3 globalPos;
-            if(data.ContainsKey("GroupPosition"))
-                globalPos = data["GroupPosition"].AsVector3();
-            Vector3 localPos = globalPos;
-            if (CoordinatesConversionHandler != null)
-            {
-                bool inComingMsg = true;
-                localPos = CoordinatesConversionHandler(globalPos, inComingMsg);
-            }
-             * */
-            //sog.AbsolutePosition = localPos;
 
         }
 
@@ -4732,21 +4618,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     break;
                 case SceneObjectPartSyncProperties.GroupPosition:
-                    /*
-                    if (!part.GroupPosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
-                    {
-                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
-                        {
-                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.GroupPosition);
-                            propertyUpdatedByLocal = true;
-                        }
-                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
-                        {
-                            //overwrite SOP's data
-                            part.GroupPosition = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
-                        }
-                    }
-                     * */
                     propertyUpdatedByLocal = CompareAndUpdateSOPGroupPosition(part, lastUpdateByLocalTS, syncID);
                     break;
                 case SceneObjectPartSyncProperties.InventorySerial:
@@ -5378,21 +5249,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     break;
                 case SceneObjectPartSyncProperties.Position:
-                    /*
-                    if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
-                    {
-                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
-                        {
-                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Position);
-                            propertyUpdatedByLocal = true;
-                        }
-                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
-                        {
-                            //overwrite PhysActor's data
-                            part.PhysActor.Position = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
-                        }
-                    }
-                     * */
                     propertyUpdatedByLocal = CompareAndUpdateSOPPosition(part, lastUpdateByLocalTS, syncID);
                     break;
                 case SceneObjectPartSyncProperties.RotationalVelocity:

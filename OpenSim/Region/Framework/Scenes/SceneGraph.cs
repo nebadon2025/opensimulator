@@ -2002,6 +2002,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         #region DSG SYNC
 
+        /*
         public Scene.ObjectUpdateResult UpdateObjectBySynchronization(SceneObjectGroup updatedSog)
         {
             UUID sogID = updatedSog.UUID;
@@ -2032,7 +2033,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             return updateResult;
         }
-
+        */ 
         //This is called when an object is added due to receiving a state synchronization message from Scene or an actor. Do similar things as the original AddSceneObject(),
         //but call ScheduleGroupForFullUpdate_TimeStampUnchanged() instead, so as not to modify the timestamp or actorID, since the object was not created locally.
         public Scene.ObjectUpdateResult AddNewSceneObjectBySync(SceneObjectGroup sceneObject)

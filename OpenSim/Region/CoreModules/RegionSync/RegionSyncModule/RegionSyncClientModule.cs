@@ -248,7 +248,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.Warn("[REGION SYNC CLIENT MODULE] Starting RegionSyncClient");
 
                 m_client = new RegionSyncClient(m_scene, m_serveraddr, m_serverport);
-                //m_client.SetSymSync(m_symsync);
                 m_client.Start();
             }
         }

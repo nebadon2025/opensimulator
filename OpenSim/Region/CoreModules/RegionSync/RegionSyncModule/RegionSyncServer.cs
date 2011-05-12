@@ -226,7 +226,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //m_log.Debug("SOG " + sog.UUID);
 
-            //RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.NewObject, sogxml);
             RegionSyncMessage rsm = new RegionSyncMessage(msgType, sogxml);
             Broadcast(rsm);
         }

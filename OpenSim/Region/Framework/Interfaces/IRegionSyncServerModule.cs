@@ -39,19 +39,10 @@ namespace OpenSim.Region.Framework.Interfaces
         bool Active { get; }
         bool Synced { get; }
 
-        //bool IsSymSync { get; } //If SymSync is set to true in the config file, then Symmetric Sync is running and object updates should be handled through RegionSyncModule
-
-        void QueuePartForUpdate(SceneObjectPart part);
         void QueuePresenceForTerseUpdate(ScenePresence presence);
         void SendUpdates();
-        //void DeleteObject(ulong regionHandle, uint localID);
-        void DeleteObject(ulong regionHandle, uint localID, SceneObjectPart part);
         void SendAppearance(UUID agentID);
         void SendAnimations(UUID agentID, UUID[] animations, int[] seqs, UUID sourceAgentId, UUID[] objectIDs);
 
-        //KittyL: added to support remote script engine actor
-        //void SendRezScript(SceneObjectGroup sog);
-        //void SendResetScene();
-        void SendLoadWorldMap(ITerrainChannel heightMap);
     }
 }

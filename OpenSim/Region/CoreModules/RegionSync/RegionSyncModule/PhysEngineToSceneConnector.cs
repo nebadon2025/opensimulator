@@ -179,20 +179,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void DoInitialSync()
         {
-            // m_validLocalScene.DeleteAllSceneObjects();
-            //m_log.Debug(LogHeader + ": send actor type " + m_actorType);
-            //Send(new RegionSyncMessage(RegionSyncMessage.MsgType.ActorType, Convert.ToString((int)m_actorType)));
-            //KittyL??? Do we need to send in RegionName?
-
-            //Send(new RegionSyncMessage(RegionSyncMessage.MsgType.RegionName, m_scene.RegionInfo.RegionName));
-            //m_log.WarnFormat("Sending region name: \"{0}\"", m_scene.RegionInfo.RegionName);
-
-            // Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetTerrain));
-            // Send(new RegionSyncMessage(RegionSyncMessage.MsgType.GetObjects));
-
-            // Register for events which will be forwarded to authoritative scene
-            // m_scene.EventManager.OnNewClient += EventManager_OnNewClient;
-            //m_scene.EventManager.OnClientClosed += new EventManager.ClientClosed(RemoveLocalClient);
         }
 
         // Disconnect from the RegionSyncServer and close client thread

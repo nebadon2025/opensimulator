@@ -1444,9 +1444,6 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 AddFullUpdateToAvatar(avatar);
             });
-            // REGION SYNC
-            if (m_parentGroup.Scene.IsSyncedServer())
-                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate((SceneObjectPart)this);
         }
 
         /// <summary>
@@ -1474,9 +1471,6 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 AddTerseUpdateToAvatar(avatar);
             });
-            // REGION SYNC
-            if (m_parentGroup.Scene.IsSyncedServer())
-                m_parentGroup.Scene.RegionSyncServerModule.QueuePartForUpdate((SceneObjectPart)this);
         }
 
         public void AddTerseUpdateToAvatar(ScenePresence presence)

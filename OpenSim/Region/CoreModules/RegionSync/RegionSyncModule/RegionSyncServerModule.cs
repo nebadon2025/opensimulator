@@ -145,18 +145,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //m_scene.EventManager.OnNewPresence += new EventManager.OnNewPresenceDelegate(EventManager_OnNewPresence);
             m_scene.EventManager.OnRemovePresence += new EventManager.OnRemovePresenceDelegate(EventManager_OnRemovePresence);
             
-            //DSG SYNC: do not handle object updates
-            /*
-            if (!m_symsync)
-            {
-                m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(SceneGraph_OnObjectCreate);
-                m_scene.SceneGraph.OnObjectDuplicate += new ObjectDuplicateDelegate(SceneGraph_OnObjectDuplicate);
-                //m_scene.SceneGraph.OnObjectRemove += new ObjectDeleteDelegate(SceneGraph_OnObjectRemove);
-                //m_scene.StatsReporter.OnSendStatsResult += new SimStatsReporter.SendStatResult(StatsReporter_OnSendStatsResult);
-                m_scene.EventManager.OnOarFileLoaded += new EventManager.OarFileLoaded(EventManager_OnOarFileLoaded);
-            }
-             * */
-            //end of DSG SYNC
             // Start the server and listen for RegionSyncClients
             m_serveraddr = m_scene.RegionInfo.AvatarSyncServerAddress;
             m_serverport = m_scene.RegionInfo.AvatarSyncServerPort;
@@ -227,23 +215,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Lock is used to synchronize access to the update status and both update queues
         private object m_updateLock = new object();
         private int m_sendingUpdates;
-        private Dictionary<UUID, SceneObjectGroup> m_primUpdates = new Dictionary<UUID, SceneObjectGroup>();
+        //private Dictionary<UUID, SceneObjectGroup> m_primUpdates = new Dictionary<UUID, SceneObjectGroup>();
         private Dictionary<UUID, ScenePresence> m_presenceUpdates = new Dictionary<UUID, ScenePresence>();
 
         private System.Timers.Timer m_statsTimer = new System.Timers.Timer(1000);
         //private TextWriter m_statsWriter = File.AppendText("syncstats.txt");
         private TextWriter m_statsWriter;
 
-        public void QueuePartForUpdate(SceneObjectPart part)
-        {
-            if (!Active || !Synced)
-                return;
-            lock (m_updateLock)
-            {
-                m_primUpdates[part.ParentGroup.UUID] = part.ParentGroup;
-            }
-            //m_log.WarnFormat("[REGION SYNC SERVER MODULE] QueuePartForUpdate: {0}", part.UUID.ToString());
-        }
 
         public void QueuePresenceForTerseUpdate(ScenePresence presence)
         {
@@ -273,9 +251,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             lock (m_updateLock)
             {
-                primUpdates = new List<SceneObjectGroup>(m_primUpdates.Values);
+                //primUpdates = new List<SceneObjectGroup>(m_primUpdates.Values);
                 presenceUpdates = new List<ScenePresence>(m_presenceUpdates.Values);
-                m_primUpdates.Clear();
+                //m_primUpdates.Clear();
                 m_presenceUpdates.Clear();
             }
 
@@ -286,24 +264,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 // Sending the message when it's first queued would yield lower latency but much higher load on the simulator
                 // as parts may be updated many many times very quickly. Need to implement a higher resolution send in heartbeat
 
-                //DSG SYNC: do not handle object updates
-                /*
-                if (!m_symsync)
-                {
-                    foreach (SceneObjectGroup sog in primUpdates)
-                    {
-                        if (!sog.IsDeleted)
-                        {
-                            //KittyL: modified to broadcast to different types of actors
-                            if (m_server != null)
-                                m_server.BroadcastToCM(RegionSyncMessage.MsgType.UpdatedObject, sog);
-                            if (m_sceneToSESyncServer != null)
-                                m_sceneToSESyncServer.SendToSE(RegionSyncMessage.MsgType.UpdatedObject, sog);
-                        }
-                    }
-                }
-                 * */ 
-                //end of DSG SYNC
                 foreach (ScenePresence presence in presenceUpdates)
                 {
                     try
@@ -381,39 +341,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // m_clientView.Send(rsm);
         }
 
-        public void DeleteObject(ulong regionHandle, uint localID, SceneObjectPart part)
-        {
-            if (!Active || !Synced)
-                return;
-
-            //First, tell client managers to remove the SceneObjectPart 
-            OSDMap data = new OSDMap(2);
-            data["regionHandle"] = OSD.FromULong(regionHandle);
-            data["localID"] = OSD.FromUInteger(localID);
-            RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
-            //m_server.BroadcastToCM(rsm);
-            if(m_server!=null)
-                m_server.Broadcast(rsm);
-
-            //KittyL: Second, tell script engine to remove the object, identified by UUID
-            //UUID objID = m_scene.GetSceneObjectPart(localID).ParentGroup.UUID;
-            //SceneObjectPart part = m_scene.GetSceneObjectPart(localID);
-            if (part != null)
-            {
-                data = new OSDMap(1);
-                
-                data["UUID"] = OSD.FromUUID(part.UUID);
-                rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
-                
-                //when an object is deleted, this function (DeleteObject) could be triggered more than once. So we check 
-                //if the object part is already removed is the scene (part==null)
-                //m_log.Debug("Inform script engine about the deleted object");
-                //if(m_sceneToSESyncServer!=null)
-                //    m_sceneToSESyncServer.SendToSE(rsm, part.ParentGroup);
-            }
-            
-        }
-
         public bool Active
         {
             get { return m_active; }
@@ -431,56 +358,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
+        /*
         public void SendLoadWorldMap(ITerrainChannel heightMap)
         {
             RegionSyncMessage msg = new RegionSyncMessage(RegionSyncMessage.MsgType.Terrain, m_scene.Heightmap.SaveToXmlString());
             if(m_server!=null)
                 m_server.Broadcast(msg);
         }
+         * */ 
 
-        #region cruft
-#if false
-        
-        public void QueuePartForUpdate(SceneObjectPart part)
-        { 
-            
-            m_server.Broadcast(string.Format("QueuePartForUpdate - Name:{0}, LocalID:{1}, UUID:{2}", part.Name, part.LocalId.ToString(), part.UUID.ToString()));
-            m_log.Warn(string.Format("QueuePartForUpdate - Name:{0}, LocalID:{1}, UUID:{2}", part.Name, part.LocalId.ToString(), part.UUID.ToString()));
-            //m_log.Warn(System.Environment.StackTrace);
-            
-        }
-        
-        public void SendPartFullUpdate(SceneObjectPart part)
-        { 
-            /*
-            m_server.Broadcast(string.Format("SendPartFullUpdate - Name:{0}, LocalID:{1}, UUID:{2}", part.Name, part.LocalId.ToString(), part.UUID.ToString()));
-            m_log.Warn(string.Format("SendPartFullUpdate - Name:{0}, LocalID:{1}, UUID:{2}", part.Name, part.LocalId.ToString(), part.UUID.ToString())); 
-             * */
-        }
-        public void SendPartTerseUpdate(SceneObjectPart part)
-        {
-            /*
-            m_server.Broadcast(string.Format("SendPartTerseUpdate - Name:{0}, LocalID:{1}, UUID:{2}", part.Name, part.LocalId.ToString(), part.UUID.ToString()));
-            m_log.Warn(string.Format("SendPartTerseUpdate - Name:{0}, LocalID:{1}, UUID:{2}", part.Name, part.LocalId.ToString(), part.UUID.ToString())); 
-             * */
-        } 
-        public void SendShutdownConnectionNotice(Scene scene)
-        { 
-            /*
-            m_server.Broadcast("SendShutdownConnectionNotice");
-            m_log.Warn("SendShutdownConnectionNotice"); 
-             * */
-        }
-        public void SendKillObject(ulong regionHandle, uint localID)
-        { 
-            /*
-            m_server.Broadcast(string.Format("SendKillObject - regionHandle:{0}, localID:{1}", regionHandle.ToString(), localID.ToString()));
-            m_log.Warn(string.Format("SendKillObject - regionHandle:{0}, localID:{1}", regionHandle.ToString(), localID.ToString()));
-            m_log.Warn(System.Environment.StackTrace);
-             * */
-        }
-#endif
-        #endregion
         #endregion
 
         #region RegionSyncServerModule members
@@ -510,87 +396,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         #endregion
 
         #region Event Handlers
-        private void SceneGraph_OnObjectCreate(EntityBase entity)
-        {
-            if (!Synced)
-                return;
-
-//            m_log.Debug("[RegionSyncServerModule]: SceneGraph_OnObjectCreate() called");
-
-            if (entity is SceneObjectGroup)
-            {
-                /*
-                string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)entity);
-
-                SceneObjectGroup sog = (SceneObjectGroup)entity;
-                m_log.Debug("SOG " + sog.UUID); 
-
-                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.NewObject, sogxml);
-                //KittyL: edited to support both Client Manager and Script Engine actors
-                //m_server.Broadcast(rsm);
-                m_server.BroadcastToCM(rsm);
-                 * */
-                SceneObjectGroup sog = (SceneObjectGroup)entity;
-                m_server.BroadcastToCM(RegionSyncMessage.MsgType.NewObject, sog);
-
-                //m_sceneToSESyncServer.SendToSE(RegionSyncMessage.MsgType.NewObject, sog);
-
-            }
-            else
-            {
-                m_log.Warn("SceneGraph_OnObjectCreate called with non-SceneObjectGroup");
-            }
-        }
-
-        private void SceneGraph_OnObjectDuplicate(EntityBase original, EntityBase copy)
-        {
-            if (!Synced)
-                return;
-            if (original is SceneObjectGroup && copy is SceneObjectGroup)
-            {
-             
-                //string sogxml = SceneObjectSerializer.ToXml2Format((SceneObjectGroup)copy);
-                //RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.NewObject, sogxml);
-                //m_server.Broadcast(rsm);
-                SceneObjectGroup sog = (SceneObjectGroup)copy;
-                m_server.BroadcastToCM(RegionSyncMessage.MsgType.NewObject, sog);
-                //m_sceneToSESyncServer.SendToSE(RegionSyncMessage.MsgType.NewObject, sog);
-            }
-            else
-            {
-                m_log.Warn("SceneGraph_OnObjectDuplicate called with non-SceneObjectGroup");
-            }
-        }
-
-        private void SceneGraph_OnObjectRemove(EntityBase entity)
-        {
-            if (!Synced)
-                return;
-            if (entity is SceneObjectGroup)
-            {
-                // No reason to send the entire object, just send the UUID to be deleted
-                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedObject, entity.UUID.ToString());
-                m_server.Broadcast(rsm);
-
-                SceneObjectPart part = m_scene.GetSceneObjectPart(entity.UUID);
-                if (part != null)
-                {
-                    OSDMap data = new OSDMap(1);
-
-                    data["UUID"] = OSD.FromUUID(part.UUID);
-                    rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
-
-                    //when an object is deleted, this function (DeleteObject) could be triggered more than once. So we check 
-                    //if the object part is already removed is the scene (part==null)
-                    //m_log.Debug("Inform script engine about the deleted object");
-                    //m_sceneToSESyncServer.SendToSE(rsm, part.ParentGroup);
-                }
-            }
-            else
-            {
-                m_log.Warn("SceneGraph_OnObjectDelete called with non-SceneObjectGroup");
-            }
-        }
 
         // A ficticious event
         public void Scene_AddNewPrim(SceneObjectGroup sog)
@@ -599,89 +404,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return;
         }
 
-        /*
-        public void StatsReporter_OnSendStatsResult(SimStats stats)
-        {
-            //m_log.Warn("SendSimStats"); 
-        }
-
-        void EventManager_OnObjectBeingRemovedFromScene(SceneObjectGroup sog)
-        {
-            string msg = (string.Format("EventManager_OnObjectBeingRemovedFromScene" + System.Environment.NewLine +
-            "REMOVE: ownerID {0}, groupID {1}, pos {2}, rot {3}, shape {4}, id {5}, localID {6}", sog.OwnerID.ToString(), sog.GroupID.ToString(), sog.RootPart.GroupPosition.ToString(), sog.Rotation.ToString(), sog.RootPart.Shape.ToString(), sog.UUID.ToString(), sog.LocalId.ToString()));
-            m_server.Broadcast(msg);
-            m_log.Warn("[REGION SYNC SERVER MODULE] " + msg);
-            DebugSceneStats();
-        }
-
-        void SceneGraph_OnObjectRemove(EntityBase obj)
-        {
-            SceneObjectGroup sog = (SceneObjectGroup)obj;
-            string msg = (string.Format("SceneGraph_OnObjectRemove" + System.Environment.NewLine + 
-            "REMOVE: ownerID {0}, groupID {1}, pos {2}, rot {3}, shape {4}, id {5}, localID {6}", sog.OwnerID.ToString(), sog.GroupID.ToString(), sog.RootPart.GroupPosition.ToString(), sog.Rotation.ToString(), sog.RootPart.Shape.ToString(), sog.UUID.ToString(), sog.LocalId.ToString()));
-            m_server.Broadcast(msg);
-            m_log.Warn("[REGION SYNC SERVER MODULE] " + msg);
-            DebugSceneStats();
-        }
-
-        void SceneGraph_OnObjectDuplicate(EntityBase original, EntityBase clone)
-        {
-            SceneObjectGroup sog1 = (SceneObjectGroup)original;
-            SceneObjectGroup sog2 = (SceneObjectGroup)clone;
-            string msg = (string.Format("SceneGraph_OnObjectDuplicate" +
-                System.Environment.NewLine +
-                "ORIGINAL: ownerID {0}, groupID {1}, pos {2}, rot {3}, shape {4}, id {5}, localID {6}" + 
-                System.Environment.NewLine + 
-                "CLONE: ownerID {7}, groupID {8}, pos {9}, rot {10}, shape {11}, id {12}, localID {13}", 
-                sog1.OwnerID.ToString(), sog1.GroupID.ToString(), sog1.RootPart.GroupPosition.ToString(), sog1.Rotation.ToString(), sog1.RootPart.Shape.ToString(), sog1.UUID.ToString(), sog1.LocalId.ToString(),
-                sog2.OwnerID.ToString(), sog2.GroupID.ToString(), sog2.RootPart.GroupPosition.ToString(), sog2.Rotation.ToString(), sog2.RootPart.Shape.ToString(), sog2.UUID.ToString(), sog2.LocalId.ToString()));
-            m_server.Broadcast(msg);
-            m_log.Warn("[REGION SYNC SERVER MODULE] " + msg);
-
-            m_log.WarnFormat("[REGION SYNC SERVER MODULE] SceneGraph_OnObjectDuplicate");
-            DebugSceneStats();
-        }
-
-        void SceneGraph_OnObjectCreate(EntityBase obj)
-        {
-            SceneObjectGroup sog = (SceneObjectGroup)obj;
-            string msg = (string.Format("SceneGraph_OnObjectCreate" + System.Environment.NewLine +
-                "CREATE: ownerID {0}, groupID {1}, pos {2}, rot {3}, shape {4}, id {5}, localID {6}", sog.OwnerID.ToString(), sog.GroupID.ToString(), sog.RootPart.GroupPosition.ToString(), sog.Rotation.ToString(), sog.RootPart.Shape.ToString(), sog.UUID.ToString(), sog.LocalId.ToString()));
-            m_server.Broadcast(msg);
-            m_log.Warn("[REGION SYNC SERVER MODULE] " + msg);
-            //DebugSceneStats();
-            
-        }
-
-        void EventManager_OnLandObjectRemoved(UUID globalID)
-        {
-            m_log.WarnFormat("[REGION SYNC SERVER MODULE] EventManager_OnLandObjectRemoved");
-            DebugSceneStats();
-        }
-
-        void EventManager_OnLandObjectAdded(ILandObject newParcel)
-        {
-            m_log.WarnFormat("[REGION SYNC SERVER MODULE] EventManager_OnLandObjectAdded");
-            DebugSceneStats();
-        }
-
-        void EventManager_OnClientMovement(ScenePresence client)
-        {  
-            m_moveCounter++;
-            if (m_moveCounter % 100 == 0)
-            {
-                m_server.Broadcast(msg);
-                m_log.Warn("REGION SYNC SERVER MODULE] " + msg);
-            }
-        }
-
-        void EventManager_OnAvatarEnteringNewParcel(ScenePresence avatar, int localLandID, UUID regionID)
-        {
-            m_log.WarnFormat("[REGION SYNC SERVER MODULE] (OnAvatarEnteringNewParcel) Avatar \"{0}\" has joined the scene {1} {2} {3} {4}", avatar.Name, avatar.ControllingClient.AgentId.ToString(), avatar.UUID.ToString(), localLandID, regionID.ToString());
-            DebugSceneStats();
-        }
-
-        */
         private void EventManager_OnNewPresence(ScenePresence presence)
         {
             if (!Synced)
@@ -722,12 +444,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             OSDMap data = new OSDMap();
             data["agentID"] = OSD.FromUUID(agentID);
             m_server.Broadcast(new RegionSyncMessage(RegionSyncMessage.MsgType.RemovedAvatar, OSDParser.SerializeJsonString(data)));
-        }
-
-        private void EventManager_OnOarFileLoaded(Guid requestID, string errorMsg)
-        {
-            //we ignore the requestID and the errorMsg
-            SendLoadWorldMap(m_scene.Heightmap);
         }
 
         #endregion

@@ -2165,8 +2165,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             //REGION SYNC
             //Inform actors of the new terrain
-            if (IsSyncedServer())
-                RegionSyncServerModule.SendLoadWorldMap(Heightmap);
+            //if (IsSyncedServer())
+            //    RegionSyncServerModule.SendLoadWorldMap(Heightmap);
         }
 
         /// <summary>

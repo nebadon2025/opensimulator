@@ -83,10 +83,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             AvatarTeleportOut, // An LLClientView (real client) was converted to a RegionSyncAvatar
             AvatarTeleportIn,  // A RegionSyncAvatar was converted to an LLClientView (real client)
             // SIM -> CM
-            Terrain,
-            NewObject,       // objects
-            UpdatedObject,   // objects
-            RemovedObject,   // objects
+            //Terrain,
+            //NewObject,       // objects
+            //UpdatedObject,   // objects
+            //RemovedObject,   // objects
             NewAvatar,       // avatars
             UpdatedAvatar,   // avatars
             AnimateAvatar,

@@ -131,7 +131,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // m_commander.RegisterCommand("start", cmdSyncStart);
             // m_commander.RegisterCommand("stop", cmdSyncStop);
             m_commander.RegisterCommand("status", cmdSyncStatus);
-            // m_commander.RegisterCommand("quarkSpace", cmdSyncSetQuarks);
 
             lock (m_scene)
             {

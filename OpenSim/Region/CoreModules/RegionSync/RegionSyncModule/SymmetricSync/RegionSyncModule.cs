@@ -745,9 +745,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     SceneObjectGroup sog = (SceneObjectGroup)e;
 
-                    //if (connector.IsPositionInSyncQuarks(sog.AbsolutePosition))
-                    //{
-
                     //SymmetricSyncMessage syncMsg = NewObjectMessageEncoder(sog);
                     OSDMap encodedSOG = SceneObjectEncoder(sog);
                     SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.NewObject, OSDParser.SerializeJsonString(encodedSOG));

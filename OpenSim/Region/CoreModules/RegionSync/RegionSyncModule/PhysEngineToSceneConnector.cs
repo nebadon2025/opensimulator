@@ -90,9 +90,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private long m_messagesSent = 0;
         private long m_messagesReceived = 0;
 
-        //private QuarkSubsriptionInfo m_subscribedQuarks; 
-        
-
         private IConfig m_sysConfig;
 
         //members for load balancing purpose
@@ -121,9 +118,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             SceneToPhysEngineSyncServer.logEnabled = m_sysConfig.GetBoolean("PhysLogEnabled", false);
             SceneToPhysEngineSyncServer.logDir = m_sysConfig.GetString("PhysLogDir", ".");
-
-            //assume we are connecting to the whole scene as one big quark
-            //m_subscribedQuarks = new QuarkSubsriptionInfo(0, 0, (int)Constants.RegionSize, (int)Constants.RegionSize);
         }
          
         // Start the RegionSyncPhysEngine client thread
@@ -172,18 +166,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             RegionSyncMessage msg = new RegionSyncMessage(RegionSyncMessage.MsgType.ActorStatus, Convert.ToString((int)ActorStatus.Sync));
             Send(msg);
-            // SendQuarkSubscription();
             Thread.Sleep(100);
             DoInitialSync();
         }
-
-
-        /*
-        public void SetQuarkSubscription(QuarkSubsriptionInfo quarks)
-        {
-            m_subscribedQuarks = quarks;
-        }
-         * */ 
 
         public void RegisterIdle()
         {

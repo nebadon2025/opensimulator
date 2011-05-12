@@ -110,7 +110,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             OnRezScript,
             OnScriptReset,
             OnUpdateScript,
-            QuarkSubscription,
             // Scene -> Script Engine
             NewObjectWithScript,
             SceneLocation,
@@ -124,14 +123,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             LoadMigrationNotice,
             LoadBalanceResponse,
             LoadBalanceRejection,
-            //Overloaded script engine overloaded -> idle script engine
-            //MigratingQuarks,
-            MigrationSpace,
-            ScriptStateSyncStart,
-            ScriptStateSyncPerObject,
-            ScriptStateSyncEnd,
-            //Idle script engine overloaded -> overloaded script engine
-            ScriptStateSyncRequest,
             // Physics Engine -> Scene
             PhysTerseUpdate,
             PhysOutOfBounds,

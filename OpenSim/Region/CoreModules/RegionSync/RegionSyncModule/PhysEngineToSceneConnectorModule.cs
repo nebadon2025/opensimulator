@@ -298,18 +298,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             Command cmdSyncStatus = new Command("status", CommandIntentions.COMMAND_HAZARDOUS, SyncStatus, "Displays synchronization status.");
 
-            //The following two commands are more for easier debugging purpose
-            //Command cmdSyncSetQuarks = new Command("quarkSpace", CommandIntentions.COMMAND_HAZARDOUS, SetQuarkList, "Set the set of quarks to subscribe to. For debugging purpose. Should be issued before \"sync start\"");
-            //cmdSyncSetQuarks.AddArgument("quarkSpace", "The (rectangle) space of quarks to subscribe, represented by x0_y0,x1_y1, the left-bottom and top-right corners of the rectangel space", "String");
-
-            //Command cmdSyncSetQuarkSize = new Command("quarksize", CommandIntentions.COMMAND_HAZARDOUS, SetQuarkSize, "Set the size of each quark. For debugging purpose. Should be issued before \"sync quarks\"");
-            //cmdSyncSetQuarkSize.AddArgument("quarksizeX", "The size on x axis of each quark", "Integer");
-            //cmdSyncSetQuarkSize.AddArgument("quarksizeY", "The size on y axis of each quark", "Integer");
-
             m_commander.RegisterCommand("start", cmdSyncStart);
             m_commander.RegisterCommand("stop", cmdSyncStop);
             m_commander.RegisterCommand("status", cmdSyncStatus);
-            //m_commander.RegisterCommand("quarkSpace", cmdSyncSetQuarks);
 
             lock (m_scene)
             {
@@ -359,13 +350,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                 InitPhysEngineToSceneConnector(m_subscriptionSpaceString);
             }
-        }
-
-        private void SetQuarkList(Object[] args)
-        {
-            m_subscriptionSpaceString = (string)args[0];
-
-            InitPhysEngineToSceneConnector(m_subscriptionSpaceString);
         }
 
 

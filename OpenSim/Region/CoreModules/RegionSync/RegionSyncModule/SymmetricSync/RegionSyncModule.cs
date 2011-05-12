@@ -793,9 +793,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             foreach (SyncConnector connector in syncConnectors)
             {
-                //string sogxml = SceneObjectSerializer.ToXml2Format(sog);
-                //SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedObject, sogxml);
-
                 //m_log.Debug("Send " + syncMsg.Type.ToString() + " about sop " + updatedPart.Name + "," + updatedPart.UUID + " at pos "+updatedPart.GroupPosition.ToString()
                 //+" to " + connector.OtherSideActorID);
 
@@ -828,7 +825,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <summary>
         /// Send some special object updatess to other sync nodes, including: 
         /// NewObject, RemoveObject, LinkObject. The sync messages are sent out right
-        /// away, without being enqueue'ed as UpdatedObject messages.
+        /// away, without being enqueue'ed as object update messages.
         /// </summary>
         /// <param name="sog"></param>
         /// <param name="syncMsg"></param>
@@ -1505,11 +1502,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.UpdatedPrimProperties:
                     HandleUpdatedPrimProperties(msg, senderActorID);
                     break;
-                case SymmetricSyncMessage.MsgType.UpdatedObject:
-                    {                      
-                        HandleUpdatedObject(msg, senderActorID);                      
-                        return;
-                    }
                 case SymmetricSyncMessage.MsgType.RemovedObject:
                     {
                         HandleRemovedObject(msg, senderActorID);
@@ -1815,41 +1807,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                 }
             }
-
-
         }
 
-
-        ///////////////////////////////////////////////////////////////////////
-        // Bucket sync handlers
-        ///////////////////////////////////////////////////////////////////////
-
-
-        /// <summary>
-        /// Handler of UpdatedObject message. Note: for a relay node in the 
-        /// sync topology, it won't forward the message right away. Instead,
-        /// the updates are applied locally, and during each heartbeat loop,
-        /// updated objects/prims are collected and updates are then sent out 
-        /// from the relay node.
-        /// </summary>
-        /// <param name="msg"></param>
-        /// <param name="senderActorID"></param>
-        private void HandleUpdatedObject(SymmetricSyncMessage msg, string senderActorID)
-        {
-            OSDMap data = DeserializeMessage(msg);
-
-            string bucketName = data["Bucket"].AsString();
-            //lock (m_stats) m_statSOGBucketIn++;
-
-            if (m_primUpdatesPerBucketReceiver.ContainsKey(bucketName))
-            {
-                m_primUpdatesPerBucketReceiver[bucketName](bucketName, data);
-            }
-            else
-            {
-                m_log.WarnFormat("{0}: Received an update message for properties bucket {1}, no such bucket supported", LogHeader, bucketName);
-            }
-        }
 
         /// <summary>
         /// Send out a sync message about the updated Terrain. If this is a relay node,

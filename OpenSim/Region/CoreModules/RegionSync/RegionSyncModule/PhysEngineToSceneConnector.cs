@@ -481,13 +481,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             // TODO: modify for physics
             OSDMap data = DeserializeMessage(msg);
-            /*
-            if (data["locX"] == null || data["locY"] == null || data["sogXml"] == null)
-            {
-                m_log.Warn(LogHeader + ": parameters missing in NewObject/UpdatedObject message, need to have locX, locY, sogXml");
-                return;
-            }
-             * */
             uint locX = data["locX"].AsUInteger();
             uint locY = data["locY"].AsUInteger();
             string sogxml = data["sogXml"].AsString();

@@ -48,7 +48,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             Terrain,
             NewObject,       // objects
             UpdatedPrimProperties, //per property sync
-            UpdatedObject,   // objects
+            //UpdatedObject,   // objects
             UpdatedBucketProperties, //object properties in one bucket
             RemovedObject,   // objects
             LinkObject,

@@ -102,12 +102,21 @@ namespace OpenSim.Services.Connectors.Simulation
                 args["destination_uuid"] = OSD.FromString(destination.RegionID.ToString());
                 args["teleport_flags"] = OSD.FromString(flags.ToString());
 
-                OSDMap result = WebUtil.PostToService(uri, args, 20000);
+                OSDMap result = WebUtil.PostToServiceCompressed(uri, args, 30000);
                 if (result["Success"].AsBoolean())
                     return true;
                 
+                result = WebUtil.PostToService(uri, args, 30000);
+
+                if (result["Success"].AsBoolean())
+                {
+                    m_log.WarnFormat(
+                    "[REMOTE SIMULATION CONNECTOR]: Remote simulator {0} did not accept compressed transfer, suggest updating it.", destination.RegionName);
+                    return true;
+                }
+                
                 m_log.WarnFormat(
-                    "[REMOTE SIMULATION CONNECTOR]: Failed to create agent {0} {1} at remote simulator {1}", 
+                    "[REMOTE SIMULATION CONNECTOR]: Failed to create agent {0} {1} at remote simulator {2}", 
                     aCircuit.firstname, aCircuit.lastname, destination.RegionName);                       
                 reason = result["Message"] != null ? result["Message"].AsString() : "error";
                 return false;
@@ -207,7 +216,12 @@ namespace OpenSim.Services.Connectors.Simulation
                 args["destination_name"] = OSD.FromString(destination.RegionName);
                 args["destination_uuid"] = OSD.FromString(destination.RegionID.ToString());
 
-                OSDMap result = WebUtil.PutToService(uri, args, timeout);
+                OSDMap result = WebUtil.PutToServiceCompressed(uri, args, timeout);
+                if (result["Success"].AsBoolean())
+                    return true;
+
+                result = WebUtil.PutToService(uri, args, timeout);
+
                 return result["Success"].AsBoolean();
             }
             catch (Exception e)
@@ -274,7 +288,7 @@ namespace OpenSim.Services.Connectors.Simulation
 
             try
             {
-                OSDMap result = WebUtil.ServiceOSDRequest(uri, request, "QUERYACCESS", 10000);
+                OSDMap result = WebUtil.ServiceOSDRequest(uri, request, "QUERYACCESS", 10000, false);
                 bool success = result["success"].AsBoolean();
                 if (result.ContainsKey("_Result"))
                 {
@@ -326,7 +340,7 @@ namespace OpenSim.Services.Connectors.Simulation
 
             try
             {
-                WebUtil.ServiceOSDRequest(uri, null, "DELETE", 10000);
+                WebUtil.ServiceOSDRequest(uri, null, "DELETE", 10000, false);
             }
             catch (Exception e)
             {
@@ -346,7 +360,7 @@ namespace OpenSim.Services.Connectors.Simulation
 
             try
             {
-                WebUtil.ServiceOSDRequest(uri, null, "DELETE", 10000);
+                WebUtil.ServiceOSDRequest(uri, null, "DELETE", 10000, false);
             }
             catch (Exception e)
             {

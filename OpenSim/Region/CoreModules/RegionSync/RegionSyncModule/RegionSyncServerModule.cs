@@ -81,7 +81,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             string mode = syncConfig.GetString("Mode", "").ToLower();
             if(mode != "server")
             {
-                scene.RegionSyncEnabled = false;
+                //scene.RegionSyncEnabled = false;
                 m_active = false;
                 m_log.WarnFormat("[REGION SYNC SERVER MODULE] RegionSyncModule is in {0} mode. Shutting down.", mode);
                 return;

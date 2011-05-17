@@ -567,8 +567,8 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
         protected void AttachToAgent(ScenePresence avatar, SceneObjectGroup so, uint attachmentpoint, Vector3 attachOffset, bool silent)
         {
 
-            m_log.DebugFormat("[ATTACHMENTS MODULE]: Adding attachment {0} to avatar {1} in pt {2} pos {3} {4}", Name, avatar.Name,
-                attachmentpoint, attachOffset, so.RootPart.AttachedPos);
+            m_log.DebugFormat("[ATTACHMENTS MODULE] Region {5}: Adding attachment {0} to avatar {1} in pt {2} pos {3} {4}", Name, avatar.Name,
+                attachmentpoint, attachOffset, so.RootPart.AttachedPos, m_scene.RegionInfo.RegionName);
                               
             so.DetachFromBackup();
 

@@ -302,6 +302,8 @@ namespace OpenSim.Region.Framework.Scenes
                         || Scene.TestBorderCross(val - Vector3.UnitY, Cardinals.N) || Scene.TestBorderCross(val + Vector3.UnitY, Cardinals.S))
                         && !IsAttachmentCheckFull() && (!Scene.LoadingPrims))
                     {
+                        //DSG DEBUG
+                        m_log.DebugFormat("Object {0},{1} at pos {2}, to call CrossPrimGroupIntoNewRegion.", Name, UUID, val);
                         m_scene.CrossPrimGroupIntoNewRegion(val, this, true);
                     }
                 }

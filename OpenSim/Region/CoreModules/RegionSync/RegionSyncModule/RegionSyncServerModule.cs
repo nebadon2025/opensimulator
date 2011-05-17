@@ -234,6 +234,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //m_log.DebugFormat("[REGION SYNC SERVER MODULE] QueuePresenceForUpdate: {0}", presence.UUID.ToString());
         }
 
+        //DSG DEBUG
+        private Vector3 lastPos;
+
         public void SendUpdates()
         {
             if (!Active || !Synced)
@@ -295,6 +298,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 data["off"] = OSD.FromVector3(presence.OffsetPosition);
                                 data["pID"] = OSD.FromUInteger(presence.ParentID);
                                 presence.lastSentParentID = presence.ParentID;
+                            }
+
+                            //DSG DEBUG
+                            //Vector3 diff = presence.AbsolutePosition - lastPos;
+                            if (Vector3.Distance(presence.AbsolutePosition, lastPos) > 0.1)
+                            {
+                                m_log.DebugFormat("Sending UpdatedAvatar for avatar {0}, with new pos {1}", presence.Name, presence.AbsolutePosition);
+                                lastPos = presence.AbsolutePosition;
                             }
 
                             RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.UpdatedAvatar, OSDParser.SerializeJsonString(data));

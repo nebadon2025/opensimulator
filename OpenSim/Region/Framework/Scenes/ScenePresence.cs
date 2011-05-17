@@ -2934,6 +2934,9 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 else if (neighbor > 0)
                 {
+                    //DSG DEBUG
+                    m_log.DebugFormat("{0} now at pos {1}, calling CrossToNewRegion", Name);
+
                     if (!CrossToNewRegion())
                     {
                         if (m_requestedSitTargetUUID == UUID.Zero)

@@ -31,6 +31,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Security;
 using System.Reflection;
@@ -140,22 +141,32 @@ namespace OpenSim.Framework
         /// PUT JSON-encoded data to a web service that returns LLSD or
         /// JSON data
         /// </summary>
+        public static OSDMap PutToServiceCompressed(string url, OSDMap data, int timeout)
+        {
+            return ServiceOSDRequest(url,data, "PUT", timeout, true);
+        }
+
         public static OSDMap PutToService(string url, OSDMap data, int timeout)
         {
-            return ServiceOSDRequest(url,data, "PUT", timeout);
+            return ServiceOSDRequest(url,data, "PUT", timeout, false);
         }
 
         public static OSDMap PostToService(string url, OSDMap data, int timeout)
         {
-            return ServiceOSDRequest(url, data, "POST", timeout);
+            return ServiceOSDRequest(url, data, "POST", timeout, false);
+        }
+
+        public static OSDMap PostToServiceCompressed(string url, OSDMap data, int timeout)
+        {
+            return ServiceOSDRequest(url, data, "POST", timeout, true);
         }
 
         public static OSDMap GetFromService(string url, int timeout)
         {
-            return ServiceOSDRequest(url, null, "GET", timeout);
+            return ServiceOSDRequest(url, null, "GET", timeout, false);
         }
         
-        public static OSDMap ServiceOSDRequest(string url, OSDMap data, string method, int timeout)
+        public static OSDMap ServiceOSDRequest(string url, OSDMap data, string method, int timeout, bool compressed)
         {
             int reqnum = m_requestNumber++;
             // m_log.DebugFormat("[WEB UTIL]: <{0}> start osd request for {1}, method {2}",reqnum,url,method);
@@ -180,10 +191,31 @@ namespace OpenSim.Framework
                     string strBuffer =  OSDParser.SerializeJsonString(data);
                     byte[] buffer = System.Text.Encoding.UTF8.GetBytes(strBuffer);
 
-                    request.ContentType = "application/json";
-                    request.ContentLength = buffer.Length;   //Count bytes to send
-                    using (Stream requestStream = request.GetRequestStream())
-                            requestStream.Write(buffer, 0, buffer.Length);         //Send it
+                    if (compressed)
+                    {
+                        request.ContentType = "application/x-gzip";
+                        using (MemoryStream ms = new MemoryStream())
+                        {
+                            using (GZipStream comp = new GZipStream(ms, CompressionMode.Compress))
+                            {
+                                comp.Write(buffer, 0, buffer.Length);
+                                // We need to close the gzip stream before we write it anywhere
+                                // because apparently something important related to gzip compression
+                                // gets written on the strteam upon Dispose()
+                            }
+                            byte[] buf = ms.ToArray();
+                            request.ContentLength = buf.Length;   //Count bytes to send
+                            using (Stream requestStream = request.GetRequestStream())
+                                requestStream.Write(buf, 0, (int)buf.Length);
+                        }
+                    }
+                    else
+                    {
+                        request.ContentType = "application/json";
+                        request.ContentLength = buffer.Length;   //Count bytes to send
+                        using (Stream requestStream = request.GetRequestStream())
+                                requestStream.Write(buffer, 0, buffer.Length);         //Send it
+                    }
                 }
                 
                 // capture how much time was spent writing, this may seem silly
@@ -809,7 +841,7 @@ namespace OpenSim.Framework
             {
                 if ((verb == "POST") || (verb == "PUT"))
                 {
-                    request.ContentType = "text/www-form-urlencoded";
+                    request.ContentType = "application/x-www-form-urlencoded";
 
                     int length = 0;
                     using (StreamWriter writer = new StreamWriter(buffer))
@@ -886,6 +918,10 @@ namespace OpenSim.Framework
 
     public class SynchronousRestObjectRequester
     {
+        private static readonly ILog m_log =
+            LogManager.GetLogger(
+            MethodBase.GetCurrentMethod().DeclaringType);
+
         /// <summary>
         /// Perform a synchronous REST request.
         /// </summary>
@@ -929,8 +965,9 @@ namespace OpenSim.Framework
                     requestStream = request.GetRequestStream();
                     requestStream.Write(buffer.ToArray(), 0, length);
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
+                    m_log.WarnFormat("[SynchronousRestObjectRequester]: exception in sending data to {0}: {1}", requestUrl, e); 
                     return deserial;
                 }
                 finally
@@ -944,19 +981,28 @@ namespace OpenSim.Framework
             {
                 using (WebResponse resp = request.GetResponse())
                 {
-                    if (resp.ContentLength > 0)
+                    if (resp.ContentLength != 0)
                     {
                         Stream respStream = resp.GetResponseStream();
                         XmlSerializer deserializer = new XmlSerializer(typeof(TResponse));
                         deserial = (TResponse)deserializer.Deserialize(respStream);
                         respStream.Close();
                     }
+                    else
+                        m_log.WarnFormat("[SynchronousRestObjectRequester]: Oops! no content found in response stream from {0} {1}", requestUrl, verb);
+
                 }
             }
             catch (System.InvalidOperationException)
             {
                 // This is what happens when there is invalid XML
+                m_log.WarnFormat("[SynchronousRestObjectRequester]: Invalid XML {0} {1}", requestUrl, typeof(TResponse).ToString());
             }
+            catch (Exception e)
+            {
+                m_log.WarnFormat("[SynchronousRestObjectRequester]: Exception on response from {0} {1}", requestUrl, e);
+            }
+
             return deserial;
         }
     }

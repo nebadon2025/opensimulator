@@ -1733,26 +1733,29 @@ namespace OpenSim.Region.Framework.Scenes
 
                 // Run through all ScenePresences looking for updates
                 // Presence updates and queued object updates for each presence are sent to clients
-                if (IsSyncedClient())
+                if (RegionSyncEnabled)
                 {
-                // If it's a client manager, just send prim updates
-                // This will get fixed later to only send to locally logged in presences rather than all presences
-                // but requires pulling apart the concept of a client from the concept of a presence/avatar
-                    ForEachScenePresence(delegate(ScenePresence sp) { sp.SendPrimUpdates(); });
-                    if(Frame % 20 == 0)
-                        RegionSyncClientModule.SendCoarseLocations();
-                    // make border crossing work in the CMs
-                    m_sceneGraph.ForEachScenePresence(delegate(ScenePresence sp)
-                            {
-                            if (!sp.IsChildAgent)
-                            {
-                            // Check that we have a physics actor or we're sitting on something
-                            if (sp.ParentID == 0 && sp.PhysicsActor != null || sp.ParentID != 0)
-                            {
-                            sp.CheckForBorderCrossing();
-                            }
-                            }
-                            });
+                    if (IsSyncedClient())
+                    {
+                        // If it's a client manager, just send prim updates
+                        // This will get fixed later to only send to locally logged in presences rather than all presences
+                        // but requires pulling apart the concept of a client from the concept of a presence/avatar
+                        ForEachScenePresence(delegate(ScenePresence sp) { sp.SendPrimUpdates(); });
+                        if (Frame % 20 == 0)
+                            RegionSyncClientModule.SendCoarseLocations();
+                        // make border crossing work in the CMs
+                        m_sceneGraph.ForEachScenePresence(delegate(ScenePresence sp)
+                                {
+                                    if (!sp.IsChildAgent)
+                                    {
+                                        // Check that we have a physics actor or we're sitting on something
+                                        if (sp.ParentID == 0 && sp.PhysicsActor != null || sp.ParentID != 0)
+                                        {
+                                            sp.CheckForBorderCrossing();
+                                        }
+                                    }
+                                });
+                    }
                 }
                 else
                 {

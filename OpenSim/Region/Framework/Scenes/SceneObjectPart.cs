@@ -2794,7 +2794,12 @@ namespace OpenSim.Region.Framework.Scenes
                 //m_parentGroup.RootPart.m_groupPosition = newpos;
             }
             //ScheduleTerseUpdate();
-            ScheduleTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Position});
+            ScheduleTerseUpdate(new List<SceneObjectPartSyncProperties>(){
+                SceneObjectPartSyncProperties.Position,
+                SceneObjectPartSyncProperties.Orientation,
+                SceneObjectPartSyncProperties.Velocity,
+                SceneObjectPartSyncProperties.RotationalVelocity
+            });
 
             //SendTerseUpdateToAllClients();
         }

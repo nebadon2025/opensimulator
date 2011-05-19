@@ -373,7 +373,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     pa.Kinematic = data["kinematic"].AsBoolean();    // receive??
                     pa.Buoyancy = (float)(data["buoyancy"].AsReal());
                     pa.CollidingGround = data["isCollidingGround"].AsBoolean();
-                    pa.IsColliding = data["isCollidingGround"].AsBoolean();
+                    pa.IsColliding = data["isColliding"].AsBoolean();
                     pa.ChangingActorID = actorID;
 
                     pa.RequestPhysicsterseUpdate(); // tell the system the values have changed
@@ -431,8 +431,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["isPhysical"] = OSD.FromBoolean(pa.IsPhysical);
             data["flying"] = OSD.FromBoolean(pa.Flying);
             data["buoyancy"] = OSD.FromReal(pa.Buoyancy);
-            // data["isColliding"] = OSD.FromBoolean(pa.IsColliding);
-            // data["isCollidingGround"] = OSD.FromBoolean(pa.CollidingGround);
+            data["isColliding"] = OSD.FromBoolean(pa.IsColliding);
+            data["isCollidingGround"] = OSD.FromBoolean(pa.CollidingGround);
 
             RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.PhysUpdateAttributes, 
                                                                 OSDParser.SerializeJsonString(data));

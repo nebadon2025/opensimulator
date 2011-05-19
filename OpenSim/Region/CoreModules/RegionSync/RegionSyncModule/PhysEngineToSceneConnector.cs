@@ -342,7 +342,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 UUID uuid = data["uuid"].AsUUID();
                 string actorID = data["actorID"].AsString();
-                m_log.DebugFormat("{0}: HandlPhysUpdateAttributes for {1}", LogHeader, uuid);
+                // m_log.DebugFormat("{0}: HandlPhysUpdateAttributes for {1}", LogHeader, uuid);
                 PhysicsActor pa = FindPhysicsActor(uuid);
                 if (pa != null)
                 {

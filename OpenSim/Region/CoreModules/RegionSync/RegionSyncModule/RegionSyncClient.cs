@@ -511,10 +511,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         {
                             m_log.ErrorFormat("{0} Caught exception in UpdatedAvatar handler (TrySetMovementAnimation): {1}", LogHeader(), e.Message);
                         }
+                        /*
                         string result = String.Format("Avatar \"{0}\" ({1}) ({2}) updated (pos:{3}, vel:{4}, rot:{5}, fly:{6})",
                                 presence.Name, presence.UUID.ToString(), presence.LocalId.ToString(),
                                 presence.AbsolutePosition.ToString(), presence.Velocity.ToString(), 
                                 presence.Rotation.ToString(), presence.PhysicsActor.Flying ? "Y" : "N");
+                         * */ 
                         // RegionSyncMessage.HandleSuccess(LogHeader(), msg, result);
                         return;
                     }

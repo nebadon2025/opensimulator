@@ -773,7 +773,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if (IsAttachment)
                 {
-                    if (m_parentGroup != null) //need to check this, it would be null while deserialization -- IsAttachment is now serialized
+                    if (m_parentGroup != null) 
                     {
                         ScenePresence sp = m_parentGroup.Scene.GetScenePresence(AttachedAvatar);
                         if (sp != null)

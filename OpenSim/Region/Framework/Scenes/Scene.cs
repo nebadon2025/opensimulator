@@ -3700,6 +3700,11 @@ namespace OpenSim.Region.Framework.Scenes
                 m_sceneGraph.RemoveScenePresence(agentID);
                 m_clientManager.Remove(agentID);
 
+                //DSG
+                // We need to keep track of this state in case this group is still queued for sync'ing.
+                avatar.IsDeleted = true;
+                //end of DSG
+
                 try
                 {
                     avatar.Close();

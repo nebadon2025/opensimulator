@@ -57,31 +57,8 @@ namespace OpenSim.Region.Framework.Interfaces
         //DSGActorTypes DSGActorType { get; set; }
         bool IsSyncRelay { get; }
 
-        /// <summary>
-        /// The mapping of a property (identified by its name) to the index of a bucket.
-        /// </summary>
-        Dictionary<SceneObjectPartSyncProperties, string> PrimPropertyBucketMap { get; }
-        /// <summary>
-        /// The text description of the properties in each bucket, e.g. "General", "Physics"
-        /// </summary>
-        List<string> PropertyBucketDescription { get; }
-
-        //Enqueue updates for scene-objects and scene-presences
-        //Legacy interface, used in Bucket-sync
-        //void QueueSceneObjectPartForUpdate(SceneObjectPart part);
-        void QueueScenePresenceForTerseUpdate(ScenePresence presence);
-
-        //void ProcessAndEnqueuePrimUpdatesBySync(SceneObjectPart part, List<SceneObjectPartSyncProperties> updatedProperties);
         void ProcessAndEnqueuePrimUpdatesByLocal(SceneObjectPart part, List<SceneObjectPartSyncProperties> updatedProperties);
         void SyncOutPrimUpdates();
-
-        //Legacy calls in Bucket sync'ing
-        //The folloiwng calls deal with object updates, and will insert each update into an outgoing queue of each SyncConnector
-        //void SendSceneUpdates();
-        //void SendNewObject(SceneObjectGroup sog);
-        //void SendDeleteObject(SceneObjectGroup sog, bool softDelete);
-        //void SendLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children);
-        //void SendDeLinkObject(List<SceneObjectPart> prims, List<SceneObjectGroup> beforeDelinkGroups, List<SceneObjectGroup> afterDelinkGroups);
 
         //New functions for per property sync'ing
         void SyncNewObject(SceneObjectGroup sog);
@@ -89,9 +66,6 @@ namespace OpenSim.Region.Framework.Interfaces
         void SyncLinkObject(SceneObjectGroup linkedGroup, SceneObjectPart root, List<SceneObjectPart> children);
         void SyncDeLinkObject(List<SceneObjectPart> prims, List<SceneObjectGroup> beforeDelinkGroups, List<SceneObjectGroup> afterDelinkGroups);
 
-        //In RegionSyncModule's implementation, 
-        //The following calls send out a message immediately, w/o putting it in the SyncConnector's outgoing queue.
-        //May need some optimization there on the priorities.
         void SendTerrainUpdates(long updateTimeStamp, string lastUpdateActorID);
         //For propogating scene events to other actors
         void PublishSceneEvent(EventManager.EventNames ev, Object[] evArgs);
@@ -101,7 +75,7 @@ namespace OpenSim.Region.Framework.Interfaces
         //void QueuePresenceForTerseUpdate(ScenePresence presence)
         //void SendAvatarUpdates();
 
-        //Debug purpose, mainly for LSL scripts
+        //Debug purpose, mainly for debugging properties updated by LSL scripts
         void Debug(String debugMsg);
     }
 

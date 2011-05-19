@@ -983,7 +983,8 @@ namespace OpenSim.Region.Framework.Scenes
             AttachToBackup();
             m_scene.EventManager.TriggerParcelPrimCountTainted();
             //m_rootPart.ScheduleFullUpdate();
-            m_rootPart.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.GroupPosition, SceneObjectPartSyncProperties.AttachmentPoint}); //Physics properties, such as Position, OffsetPosition, etc, should be tainted in ApplyPhysics()
+            m_rootPart.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.GroupPosition, SceneObjectPartSyncProperties.AttachmentPoint,
+                SceneObjectPartSyncProperties.AttachedAvatar, SceneObjectPartSyncProperties.Flags}); //Physics properties, such as Position, OffsetPosition, etc, should be tainted in ApplyPhysics()
             m_rootPart.ClearUndoState();
         }
 

@@ -434,7 +434,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //sceneObject.ScheduleGroupForFullUpdate();
                 sceneObject.ScheduleGroupForFullUpdate(null);
 
-            //DSG SYNC: sending NewObject event, and sending it before calling ScheduleGroupForFullUpdate
+            //DSG SYNC: sending NewObject event,
             if (m_parentScene.RegionSyncModule != null && triggerSyncNewObject)
             {
                 m_parentScene.RegionSyncModule.SyncNewObject(sceneObject);

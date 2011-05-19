@@ -196,114 +196,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_isSyncRelay; }
         }
 
-        private Dictionary<SceneObjectPartSyncProperties, string> m_primPropertyBucketMap = new Dictionary<SceneObjectPartSyncProperties, string>();
-        public Dictionary<SceneObjectPartSyncProperties, string> PrimPropertyBucketMap
-        {
-            get { return m_primPropertyBucketMap; }
-        }
-        private List<string> m_propertyBucketNames = new List<string>();
-        public List<string> PropertyBucketDescription
-        {
-            get { return m_propertyBucketNames; }
-        }
-
-        public void QueueScenePresenceForTerseUpdate(ScenePresence presence)
-        {
-            lock (m_updateScenePresenceLock)
-            {
-                m_presenceUpdates[presence.UUID] = presence;
-            }
-        }
-
-
-        
-        //SendSceneUpdates put each update into an outgoing queue of each SyncConnector
-        /// <summary>
-        /// Send updates to other sync nodes. So far we only handle object updates.
-        /// </summary>
-        public void SendSceneUpdates()
-        {
-            if (!IsSyncingWithOtherSyncNodes())
-            {
-                //no SyncConnector connected. clear update queues and return.
-                foreach (string bucketName in m_propertyBucketNames)
-                {
-                    m_primUpdates[bucketName].Clear();
-                }
-                return;
-            }
-
-            // Existing value of 1 indicates that updates are currently being sent so skip updates this pass
-            if (Interlocked.Exchange(ref m_sendingUpdates, 1) == 1)
-            {
-                m_log.DebugFormat("[REGION SYNC MODULE] SendUpdates(): An update thread is already running.");
-                return;
-            }
-
-            Dictionary<string, List<SceneObjectPart>> primUpdates = new Dictionary<string,List<SceneObjectPart>>();
-
-            bool updated = false;
-            //copy the updated SOG list and clear m_primUpdates for immediately future usage
-            foreach (string bucketName in m_propertyBucketNames)
-            {
-                if (m_primUpdates[bucketName].Count > 0)
-                {
-                    //m_log.DebugFormat(m_primUpdates[bucketName].Count + " to send {0} updated parts in bucket {1}", m_primUpdates[bucketName].Count, bucketName);
-
-                    lock (m_primUpdateLocks[bucketName])
-                    {
-                        updated = true;
-                        //primUpdates.Add(bucketName, new List<SceneObjectPart>(m_primUpdates[bucketName].Values));
-
-                        //copy the update list
-                        List<SceneObjectPart> updateList = new List<SceneObjectPart>();
-                        foreach (SceneObjectPart part in m_primUpdates[bucketName].Values)
-                        {
-                            if (!part.ParentGroup.IsDeleted)
-                            {
-                                //m_log.DebugFormat("include {0},{1} in update list", part.Name, part.UUID);
-                                updateList.Add(part);
-                            }
-                        }
-                        primUpdates.Add(bucketName, updateList);
-
-                        m_primUpdates[bucketName].Clear();
-                    }
-                }
-            }
-
-
-            if (updated)
-            {
-                long timeStamp = DateTime.Now.Ticks;
-
-                // This could be another thread for sending outgoing messages or just have the Queue functions
-                // create and queue the messages directly into the outgoing server thread.
-                System.Threading.ThreadPool.QueueUserWorkItem(delegate
-                {
-                    // Dan's note: Sending the message when it's first queued would yield lower latency but much higher load on the simulator
-                    // as parts may be updated many many times very quickly. Need to implement a higher resolution send in heartbeat
-
-                    foreach (string bucketName in m_propertyBucketNames)
-                    {
-                        if (primUpdates.ContainsKey(bucketName) && primUpdates[bucketName].Count > 0)
-                        {
-                            //m_log.Debug(LogHeader + " calling update sender for bucket " + bucketName);
-                            m_primUpdatesPerBucketSender[bucketName](bucketName, primUpdates[bucketName]);
-                            primUpdates[bucketName].Clear();
-                        }
-                    }
-
-                    // Indicate that the current batch of updates has been completed
-                    Interlocked.Exchange(ref m_sendingUpdates, 0);
-                });
-            }
-            else
-            {
-                Interlocked.Exchange(ref m_sendingUpdates, 0);
-            }
-        }
-
         //The following Sendxxx calls,send out a message immediately, w/o putting it in the SyncConnector's outgoing queue.
         //May need some optimization there on the priorities.
 
@@ -2654,12 +2546,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //m_log.DebugFormat("{0}: SendPrimPropertyUpdates for {1}, {2}, with updated properties -- {3}", LogHeader, sop.Name, sop.UUID, pString);
 
                 //DSG DEBUG
-                
-                if (updatedProperties.Contains(SceneObjectPartSyncProperties.AggregateScriptEvents))
+                /*
+                if (updatedProperties.Contains(SceneObjectPartSyncProperties.GroupPosition))
                 {
-                   // m_log.DebugFormat("SendPrimPropertyUpdates -- AggregateScriptEvents: " + sop.AggregateScriptEvents);
+                    m_log.DebugFormat("SendPrimPropertyUpdates -- prim {0}: GroupPosition: {1} ", sop.Name, sop.GroupPosition);
                 }
-
+                if (updatedProperties.Contains(SceneObjectPartSyncProperties.Position))
+                {
+                    m_log.DebugFormat("SendPrimPropertyUpdates -- prim {0}: Position: {1} ", sop.Name, sop.PhysActor.Position);
+                }
+                 * */ 
 
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedPrimProperties, OSDParser.SerializeJsonString(syncData));
                 SendPrimUpdateToRelevantSyncConnectors(sop.UUID, syncMsg);
@@ -5553,29 +5449,37 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     if (!part.AttachedAvatar.Equals(attachedAvatar))
                     {
                         part.AttachedAvatar = attachedAvatar;
-                        Scene localScene = GetLocalScene();
-                        ScenePresence avatar = localScene.GetScenePresence(attachedAvatar);
-                        //It is possible that the avatar has not been fully 
-                        //created locally when attachment objects are sync'ed.
-                        //So we need to check if the avatar already exists.
-                        //If not, handling of NewAvatar will evetually trigger
-                        //calling of SetParentLocalId.
-                        if (avatar != null)
+                        if (attachedAvatar != UUID.Zero)
                         {
-                            if (part.ParentGroup != null)
+                            Scene localScene = GetLocalScene();
+                            ScenePresence avatar = localScene.GetScenePresence(attachedAvatar);
+                            //It is possible that the avatar has not been fully 
+                            //created locally when attachment objects are sync'ed.
+                            //So we need to check if the avatar already exists.
+                            //If not, handling of NewAvatar will evetually trigger
+                            //calling of SetParentLocalId.
+                            if (avatar != null)
                             {
-                                part.ParentGroup.RootPart.SetParentLocalId(avatar.LocalId);
-                            }
-                            else
-                            {
-                                //If this SOP is not a part of group yet, record the 
-                                //avatar's localID for now. If this SOP is rootpart of
-                                //the group, then the localID is the right setting; 
-                                //otherwise, this SOP will be linked to the SOG it belongs
-                                //to later, and that will rewrite the parent localID.
-                                part.SetParentLocalId(avatar.LocalId);
+                                if (part.ParentGroup != null)
+                                {
+                                    part.ParentGroup.RootPart.SetParentLocalId(avatar.LocalId);
+                                }
+                                else
+                                {
+                                    //If this SOP is not a part of group yet, record the 
+                                    //avatar's localID for now. If this SOP is rootpart of
+                                    //the group, then the localID is the right setting; 
+                                    //otherwise, this SOP will be linked to the SOG it belongs
+                                    //to later, and that will rewrite the parent localID.
+                                    part.SetParentLocalId(avatar.LocalId);
+                                }
                             }
                         }
+                        else
+                        {
+                            part.SetParentLocalId(0);
+                        }
+
                     }
                     break;
                 case SceneObjectPartSyncProperties.AttachedPos:

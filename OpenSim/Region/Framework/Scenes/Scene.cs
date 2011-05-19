@@ -1751,7 +1751,8 @@ namespace OpenSim.Region.Framework.Scenes
                                         // Check that we have a physics actor or we're sitting on something
                                         if (sp.ParentID == 0 && sp.PhysicsActor != null || sp.ParentID != 0)
                                         {
-                                            sp.CheckForBorderCrossing();
+                                            if(!sp.IsSyncedAvatar)
+                                                sp.CheckForBorderCrossing();
                                         }
                                     }
                                 });

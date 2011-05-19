@@ -1232,10 +1232,12 @@ namespace OpenSim.Region.Framework.Scenes
             SendInitialData();
 
             // Create child agents in neighbouring regions
-            if (!m_isChildAgent && !m_scene.IsAuthoritativeScene())
+            //if (!m_isChildAgent && !m_scene.IsAuthoritativeScene())
+            
+            if (!m_isChildAgent && !IsSyncedAvatar)
             {
-                m_log.DebugFormat("[SCENE PRESENCE]: Requesting neighbouring children. cagent={0}, auth={1}",
-                        m_isChildAgent.ToString(), m_scene.IsAuthoritativeScene());
+                m_log.DebugFormat("[SCENE PRESENCE]: Requesting neighbouring children. cagent={0}",
+                        m_isChildAgent.ToString());
                 IEntityTransferModule m_agentTransfer = m_scene.RequestModuleInterface<IEntityTransferModule>();
                 if (m_agentTransfer != null)
                     m_agentTransfer.EnableChildAgents(this);

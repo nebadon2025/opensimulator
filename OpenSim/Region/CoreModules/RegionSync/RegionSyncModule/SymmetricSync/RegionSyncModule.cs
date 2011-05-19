@@ -1089,13 +1089,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     {
                         pos = part.PhysActor.Position;
                     }
-                    m_log.WarnFormat("-- part {0}, UUID {1}, LocalID {2}, GroupPos {3}, offset-position {4}, Position {5}, AggregateScriptEvents ={6}, AttachedAvatar={7}, AttachmentPoint = {8}, AttachedPos={9}",
-                        //Flags = {7}, LocalFlags {8}, Scale {9}", 
-                        part.Name, part.UUID, part.LocalId, part.GroupPosition, part.OffsetPosition,
-                        pos, part.AggregateScriptEvents,
-                        //part.Flags, part.LocalFlags, part.Scale);
-                        part.AttachedAvatar, part.AttachmentPoint, part.AttachedPos
-                    );
+                    string debugMsg = "Part " + part.Name + "," + part.UUID+", LocalID "+part.LocalId;
+                    if (part.ParentGroup.RootPart.UUID == part.UUID)
+                        debugMsg += ", RootPart, ";
+                    else
+                        debugMsg += ", ChildPart, ";
+                    debugMsg += "ParentId = " + part.ParentID;
+                    debugMsg += ", GroupPos " + part.GroupPosition + ", offset-position " + part.OffsetPosition;
+                    debugMsg += ", AttachedAvatar="+part.AttachedAvatar+", AttachmentPoint = "+part.AttachmentPoint;
+                    m_log.WarnFormat(debugMsg);
                 }
             }
 

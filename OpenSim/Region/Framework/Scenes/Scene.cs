@@ -3074,10 +3074,10 @@ namespace OpenSim.Region.Framework.Scenes
         public override void AddNewClient(IClientAPI client)
         {
             //AddNewClient2(client, true);
-            AddNewClient2(client, true, true);
+            AddNewClient2(client, false, true);
         }
         //public void AddNewClient2(IClientAPI client, bool managed)
-        public void AddNewClient2(IClientAPI client, bool managed, bool rezAttachment)
+        public void AddNewClient2(IClientAPI client, bool isSyncedAvatar, bool rezAttachment)
         {
 
             AgentCircuitData aCircuit = m_authenticateHandler.GetAgentCircuitData(client.CircuitCode);
@@ -3103,6 +3103,7 @@ namespace OpenSim.Region.Framework.Scenes
                 SubscribeToClientEvents(client);
 
                 ScenePresence sp = m_sceneGraph.CreateAndAddChildScenePresence(client, aCircuit == null ? null : aCircuit.Appearance);
+                sp.IsSyncedAvatar = isSyncedAvatar;
                 m_eventManager.TriggerOnNewPresence(sp);
 
                 //presence.initializeScenePresence(client, RegionInfo, this);

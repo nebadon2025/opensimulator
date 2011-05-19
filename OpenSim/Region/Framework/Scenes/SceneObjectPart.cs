@@ -1627,6 +1627,7 @@ namespace OpenSim.Region.Framework.Scenes
                 if (!isPhantom && !IsAttachment && !(Shape.PathCurve == (byte) Extrusion.Flexible))
                 {
                     PhysActor = m_parentGroup.Scene.PhysicsScene.AddPrimShape(
+                        LocalId,
                         string.Format("{0}/{1}", Name, UUID),
                         Shape,
                         AbsolutePosition,
@@ -4495,6 +4496,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     // It's not phantom anymore. So make sure the physics engine get's knowledge of it
                     PhysActor = m_parentGroup.Scene.PhysicsScene.AddPrimShape(
+                        LocalId,
                         string.Format("{0}/{1}", Name, UUID),
                         Shape,
                         AbsolutePosition,

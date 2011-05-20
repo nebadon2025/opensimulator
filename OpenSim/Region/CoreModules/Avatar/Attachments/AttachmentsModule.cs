@@ -475,6 +475,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                                 group.HasGroupChanged = true;
 
                         UpdateKnownItem(remoteClient, group, group.GetFromItemID(), group.OwnerID);
+
                         m_scene.DeleteSceneObject(group, false);
                         return;
                     }

@@ -448,6 +448,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 if (m_scene.TryGetScenePresence(agentID, out presence))
                                 {
                                     string name = presence.Name;
+
                                     m_scene.SceneGraph.DeleteSceneObject(UUID.Zero, true);
                                     m_scene.RemoveClient(agentID);
                                     RegionSyncMessage.HandleSuccess(LogHeader, msg, String.Format("Agent \"{0}\" was removed from scene.", name));

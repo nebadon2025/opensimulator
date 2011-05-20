@@ -331,6 +331,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["actorID"] = OSD.FromString(m_actorID); 
             data["softDelete"] = OSD.FromBoolean(softDelete);
 
+            //m_log.DebugFormat("{0}: Send DeleteObject out for {1},{2}", m_scene.RegionInfo.RegionName, sog.Name, sog.UUID);
+
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.RemovedObject, OSDParser.SerializeJsonString(data));
             SendSpecialObjectUpdateToRelevantSyncConnectors(m_actorID, sog, rsm);
         }
@@ -882,7 +884,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     SceneObjectGroup sog = (SceneObjectGroup)e;
                     if (sog.RootPart.AttachedAvatar == avatar.UUID)
                     {
-                        sog.RootPart.SetParentLocalId(avatar.LocalId);
+                        m_scene.AttachObjectBySync(avatar, sog);
                     }
                 }
             }
@@ -1078,7 +1080,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 primCount += sog.Parts.Length;
             }
 
-            m_log.WarnFormat("SyncStateReport -- Object count: {0}, Prim Count {1} ", sogList.Count, primCount);
+            m_log.WarnFormat("SyncStateReport {0} -- Object count: {1}, Prim Count {2} ", m_scene.RegionInfo.RegionName, sogList.Count, primCount);
             foreach (SceneObjectGroup sog in sogList)
             {
                 m_log.WarnFormat("SyncStateReport -- SOG: name {0}, UUID {1}, position {2}", sog.Name, sog.UUID, sog.AbsolutePosition);
@@ -1091,13 +1093,22 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     string debugMsg = "Part " + part.Name + "," + part.UUID+", LocalID "+part.LocalId;
                     if (part.ParentGroup.RootPart.UUID == part.UUID)
+                    {
                         debugMsg += ", RootPart, ";
-                    else
-                        debugMsg += ", ChildPart, ";
-                    debugMsg += "ParentId = " + part.ParentID;
-                    debugMsg += ", GroupPos " + part.GroupPosition + ", offset-position " + part.OffsetPosition;
-                    debugMsg += ", AttachedAvatar="+part.AttachedAvatar+", AttachmentPoint = "+part.AttachmentPoint;
-                    m_log.WarnFormat(debugMsg);
+                        //else
+                        //    debugMsg += ", ChildPart, ";
+                        debugMsg += "ParentId = " + part.ParentID;
+                        debugMsg += ", GroupPos " + part.GroupPosition + ", offset-position " + part.OffsetPosition;
+                        debugMsg += ", AttachedAvatar=" + part.AttachedAvatar + ", AttachmentPoint = " + part.AttachmentPoint;
+                        debugMsg += ", AttachedPos = " + part.AttachedPos;
+
+                        ScenePresence sp = m_scene.GetScenePresence(part.AttachedAvatar);
+                        if (sp != null)
+                        {
+                            debugMsg += ", attached avatar's localID = "+sp.LocalId;
+                        }
+                        m_log.WarnFormat(debugMsg);
+                    }
                 }
             }
 
@@ -2652,6 +2663,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_primSyncInfoManager.SetSOPPhyscActorProperties(part);
                 part.aggregateScriptEventSubscriptions();
             }
+
+            group.ScheduleGroupForFullUpdate(null);
         }
 
         /// <summary>

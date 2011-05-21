@@ -1208,6 +1208,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             }
             if (!m_lastUpdateSent)
             {
+                ChangingActorID = RegionSyncServerModule.ActorID;
                 this.RequestPhysicsterseUpdate();
             }
         }

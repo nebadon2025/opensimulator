@@ -732,12 +732,71 @@ namespace OpenSim.Region.Framework.Scenes
             m_sceneGraph.AddNewSceneObjectPart(newPart, parentGroup);
         }
 
-        public ObjectUpdateResult AddNewSceneObjectBySync(SceneObjectGroup group)
+        public ObjectUpdateResult AddNewSceneObjectBySync(SceneObjectGroup sceneObject)
         {
             //if(attachToBackup)
             //    group.HasGroupChanged = true;
 
-            return m_sceneGraph.AddNewSceneObjectBySync(group);
+            if (sceneObject.IsAttachmentCheckFull()) // Attachment
+            {
+                //sceneObject.RootPart.AddFlag(PrimFlags.TemporaryOnRez);
+                //sceneObject.RootPart.AddFlag(PrimFlags.Phantom);
+
+                m_sceneGraph.AddNewSceneObjectBySync(sceneObject);
+
+                // Handle attachment special case
+                SceneObjectPart RootPrim = sceneObject.RootPart;
+
+                // Fix up attachment Parent Local ID
+                ScenePresence sp = GetScenePresence(RootPrim.AttachedAvatar);
+
+                if (sp != null)
+                {
+                    //RootPrim.RemFlag(PrimFlags.TemporaryOnRez);
+
+                    AttachObjectBySync(sp, sceneObject);
+
+                }
+                else
+                {
+                    //RootPrim.RemFlag(PrimFlags.TemporaryOnRez);
+                    //RootPrim.AddFlag(PrimFlags.TemporaryOnRez);
+
+                    sceneObject.ScheduleGroupForFullUpdate(null);
+                }
+
+                return Scene.ObjectUpdateResult.New;
+            }
+            else
+            {
+                return m_sceneGraph.AddNewSceneObjectBySync(sceneObject);
+            }
+
+            //return m_sceneGraph.AddNewSceneObjectBySync(group);
+        }
+
+        //Link the attachments to avatar. Assumption: attachments properties,
+        //including AttachedAvatar, AttachedPos, etc have already been sync'ed
+        //by sync messages such as NewObject or UpdatePrimProperties. Here we only
+        //need to set the parentID and add attachments to avatar's list. 
+        public void AttachObjectBySync(ScenePresence sp, SceneObjectGroup group)
+        {
+
+            //group.DetachFromBackup();
+
+            // Remove from database and parcel prim count
+            //DeleteFromStorage(group.UUID);
+            //EventManager.TriggerParcelPrimCountTainted();
+
+            //ScenePresence sp = m_scene.GetScenePresence(remoteClient.AgentId);
+            sp.AddAttachment(group);
+            group.RootPart.SetParentLocalId(sp.LocalId);
+
+            // In case it is later dropped again, don't let
+            // it get cleaned up
+            group.RootPart.RemFlag(PrimFlags.TemporaryOnRez);
+
+            group.ScheduleGroupForFullUpdate(null);
         }
 
         public void DebugSceneObjectGroups()
@@ -814,21 +873,6 @@ namespace OpenSim.Region.Framework.Scenes
             //Leverage the LinkObject implementation to get the book keeping of Group and Parts relations right
             m_sceneGraph.LinkObjectsBySync(root, children); 
 
-
-            //KittyL 04/19/2011: no longer update properties here, caller will do it
-            //Set the property values as in the incoming copy of the object group
-            //SceneObjectGroup localGroup = root.ParentGroup;
-            //localGroup.UpdateObjectGroupBySync(linkedGroup);
-
-            //DSG DEBUG
-            /*
-            m_log.Debug("after SceneGraph.LinkObjectsBySync, the newly linked group is \n" + root.ParentGroup.DebugObjectUpdateResult());
-            m_log.Debug("parts before linking now have properties: ");
-            foreach (SceneObjectPart part in children)
-            {
-                m_log.Debug(part.DebugObjectPartProperties());
-            }
-             * */
              
         }
 
@@ -878,6 +922,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             return false;
         }
+
 
         #endregion //DSG SYNC
 
@@ -2626,7 +2671,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             group.DeleteGroupFromScene(silent);
 
-//            m_log.DebugFormat("[SCENE]: Exit DeleteSceneObject() for {0} {1}", group.Name, group.UUID);            
+            //m_log.DebugFormat("[SCENE]: Exit DeleteSceneObject() for {0} {1}, slient? {2}", group.Name, group.UUID, silent);            
              
         }
 

@@ -3699,6 +3699,7 @@ namespace OpenSim.Region.Framework.Scenes
                                    (int) (color.Y*0xff),
                                    (int) (color.Z*0xff));
             SetText(text);
+            ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Color, SceneObjectPartSyncProperties.Text });
         }
 
         public void StopMoveToTarget()
@@ -4771,7 +4772,8 @@ namespace OpenSim.Region.Framework.Scenes
 //                m_log.DebugFormat(
 //                    "[SCENE OBJECT PART]: Scheduling part {0} {1} for full update in aggregateScriptEvents() since m_parentGroup == null", Name, LocalId);
                 //ScheduleFullUpdate();
-                ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Flags, SceneObjectPartSyncProperties.AggregateScriptEvents});
+                ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Flags, SceneObjectPartSyncProperties.LocalFlags, 
+                    SceneObjectPartSyncProperties.AggregateScriptEvents });
                 return;
             }
 

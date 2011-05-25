@@ -1099,8 +1099,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         //    debugMsg += ", ChildPart, ";
                         debugMsg += "ParentId = " + part.ParentID;
                         debugMsg += ", GroupPos " + part.GroupPosition + ", offset-position " + part.OffsetPosition;
-                        debugMsg += ", AttachedAvatar=" + part.AttachedAvatar + ", AttachmentPoint = " + part.AttachmentPoint;
-                        debugMsg += ", AttachedPos = " + part.AttachedPos;
+                        if (part.IsAttachment)
+                        {
+                            debugMsg += ", AttachedAvatar=" + part.AttachedAvatar + ", AttachmentPoint = " + part.AttachmentPoint;
+                            debugMsg += ", AttachedPos = " + part.AttachedPos;
+                        }
+                        debugMsg += ", Flags = " + part.Flags.ToString();
+                        debugMsg += ", LocalFlags = " + part.LocalFlags.ToString();
+                        if (part.Text != String.Empty)
+                        {
+                            debugMsg += ", Text = " + part.Text+", Color = "+part.Color.ToString();
+                        }
 
                         ScenePresence sp = m_scene.GetScenePresence(part.AttachedAvatar);
                         if (sp != null)

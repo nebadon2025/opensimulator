@@ -37,5 +37,8 @@ namespace OpenSim.Region.Framework.Interfaces
         event UndeliveredMessage OnUndeliveredMessage;
 
         void SendInstantMessage(GridInstantMessage im, MessageResultNotification result);
+
+        //DSG: add this to the interface to enable outsiders to call it
+        void SendGridInstantMessageViaXMLRPC(GridInstantMessage im, MessageResultNotification result);
     }
 }

@@ -446,7 +446,10 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
         }
 
 
-        protected virtual void SendGridInstantMessageViaXMLRPC(GridInstantMessage im, MessageResultNotification result)
+        //protected virtual void SendGridInstantMessageViaXMLRPC(GridInstantMessage im, MessageResultNotification result)
+        //DSG: make this function public, so that we can call from outside to 
+        //use the Grid Service to send the instant message.
+        public virtual void SendGridInstantMessageViaXMLRPC(GridInstantMessage im, MessageResultNotification result)
         {
             GridInstantMessageDelegate d = SendGridInstantMessageViaXMLRPCAsync;
 

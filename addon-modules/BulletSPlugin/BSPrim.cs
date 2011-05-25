@@ -56,6 +56,7 @@ public sealed class BSPrim : PhysicsActor
     private bool _stopped;
     private bool _grabbed;
     private bool _isSelected;
+    private bool _isVolumeDetect;
     private OMV.Vector3 _position;
     private float _mass;
     private float _density;
@@ -109,6 +110,7 @@ public sealed class BSPrim : PhysicsActor
         _hullKey = 0;
         _pbs = pbs;
         _isPhysical = pisPhysical;
+        _isVolumeDetect = false;
         _subscribedEventsMs = 0;
         _friction = _scene.DefaultFriction; // TODO: compute based on object material
         _density = _scene.DefaultDensity; // TODO: compute based on object material
@@ -323,7 +325,21 @@ public sealed class BSPrim : PhysicsActor
     public override void VehicleFlags(int param, bool remove) { }
 
     // Allows the detection of collisions with inherently non-physical prims. see llVolumeDetect for more
-    public override void SetVolumeDetect(int param) { return; }
+    public override void SetVolumeDetect(int param) {
+        bool newValue = (param != 0);
+        if (_isVolumeDetect != newValue)
+        {
+            _isVolumeDetect = newValue;
+            _scene.TaintedObject(delegate()
+            {
+                // make the object ghostly or not (walk throughable)
+                BulletSimAPI.SetObjectGhost(_scene.WorldID, LocalID, _isVolumeDetect);
+                // set whether we hear about collisions
+                BulletSimAPI.SetObjectCollidable(_scene.WorldID, LocalID, !IsPhantom);
+            });
+        }
+        return; 
+    }
 
     public override OMV.Vector3 GeometricCenter { get { return OMV.Vector3.Zero; } }
     public override OMV.Vector3 CenterOfMass { get { return OMV.Vector3.Zero; } }
@@ -1069,14 +1085,14 @@ public sealed class BSPrim : PhysicsActor
     public void Collide(uint collidingWith, ActorTypes type, OMV.Vector3 contactPoint, OMV.Vector3 contactNormal, float pentrationDepth)
     {
         // m_log.DebugFormat("{0}: Collide: ms={1}, id={2}, with={3}", LogHeader, _subscribedEventsMs, LocalID, collidingWith);
-        if (_subscribedEventsMs == 0) return;   // nothing in the object is waiting for collision events
-
-        // The following makes it so we can sense we're colliding this simulation step
+        // The following makes IsColliding() and IsCollidingGround() work
         _collidingStep = _scene.SimulationStep;
         if (collidingWith == BSScene.TERRAIN_ID || collidingWith == BSScene.GROUNDPLANE_ID)
         {
             _collidingGroundStep = _scene.SimulationStep;
         }
+
+        if (_subscribedEventsMs == 0) return;   // nothing in the object is waiting for collision events
 
         // create the event for the collision
         Dictionary<uint, ContactPoint> contactPoints = new Dictionary<uint, ContactPoint>();

@@ -30,6 +30,7 @@ using log4net;
 using OpenMetaverse;
 using OpenSim.Framework;
 using OpenSim.Region.Physics.Manager;
+using OpenSim.Region.CoreModules.RegionSync.RegionSyncModule;
 
 namespace OpenSim.Region.Physics.BulletSPlugin
 {
@@ -123,7 +124,19 @@ public class BSCharacter : PhysicsActor
 
     public override void RequestPhysicsterseUpdate()
     {
-        base.RequestPhysicsterseUpdate();
+        if (PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
+        {
+            // if the values have changed and it was I who changed them, send an update
+            if (this.lastValues.Changed(this) && ChangingActorID == RegionSyncServerModule.ActorID)
+            {
+                // m_log.DebugFormat("{0}: Sending terse update for {1}", LogHeader, LocalID);
+                PhysEngineToSceneConnectorModule.RouteUpdate(this);
+            }
+        }
+        else
+        {
+            base.RequestPhysicsterseUpdate();
+        }
     }
 
     public override bool Stopped { 
@@ -132,6 +145,7 @@ public class BSCharacter : PhysicsActor
     public override Vector3 Size { 
         get { return _size; } 
         set { _size = value;
+            base.ChangingActorID = RegionSyncServerModule.ActorID;
         } 
     }
     public override PrimitiveBaseShape Shape { 
@@ -158,11 +172,12 @@ public class BSCharacter : PhysicsActor
 
     public override Vector3 Position { 
         get {
-            _position = BulletSimAPI.GetObjectPosition(_scene.WorldID, _localID);
+            // _position = BulletSimAPI.GetObjectPosition(_scene.WorldID, _localID);
             return _position; 
         } 
         set {
             _position = value;
+            base.ChangingActorID = RegionSyncServerModule.ActorID;
             _scene.TaintedObject(delegate()
             {
                 BulletSimAPI.SetObjectTranslation(_scene.WorldID, _localID, _position, _orientation);
@@ -178,7 +193,7 @@ public class BSCharacter : PhysicsActor
         get { return _force; } 
         set {
             _force = value;
-            m_log.DebugFormat("{0}: Force = {1}", LogHeader, _force);
+            // m_log.DebugFormat("{0}: Force = {1}", LogHeader, _force);
             _scene.TaintedObject(delegate()
             {
                 BulletSimAPI.SetObjectForce(_scene.WorldID, _localID, _force);
@@ -204,6 +219,7 @@ public class BSCharacter : PhysicsActor
         get { return _velocity; } 
         set {
             _velocity = value;
+            base.ChangingActorID = RegionSyncServerModule.ActorID;
             _scene.TaintedObject(delegate()
             {
                 BulletSimAPI.SetObjectVelocity(_scene.WorldID, _localID, _velocity);
@@ -229,7 +245,7 @@ public class BSCharacter : PhysicsActor
             _orientation = value;
             _scene.TaintedObject(delegate()
             {
-                _position = BulletSimAPI.GetObjectPosition(_scene.WorldID, _localID);
+                // _position = BulletSimAPI.GetObjectPosition(_scene.WorldID, _localID);
                 BulletSimAPI.SetObjectTranslation(_scene.WorldID, _localID, _position, _orientation);
             });
         } 
@@ -329,15 +345,16 @@ public class BSCharacter : PhysicsActor
             _force.X += force.X;
             _force.Y += force.Y;
             _force.Z += force.Z;
+            base.ChangingActorID = RegionSyncServerModule.ActorID;
+            _scene.TaintedObject(delegate()
+            {
+                BulletSimAPI.SetObjectForce(_scene.WorldID, _localID, _force);
+            });
         }
         else
         {
             m_log.WarnFormat("{0}: Got a NaN force applied to a Character", LogHeader);
         }
-        _scene.TaintedObject(delegate()
-        {
-            BulletSimAPI.SetObjectForce(_scene.WorldID, _localID, _force);
-        });
         //m_lastUpdateSent = false;
     }
     public override void AddAngularForce(Vector3 force, bool pushforce) { 
@@ -387,14 +404,13 @@ public class BSCharacter : PhysicsActor
         }
         if (changed)
         {
-            base.RequestPhysicsterseUpdate();
+            this.RequestPhysicsterseUpdate();
         }
     }
 
     public void Collide(uint collidingWith, ActorTypes type, Vector3 contactPoint, Vector3 contactNormal, float pentrationDepth)
     {
         // m_log.DebugFormat("{0}: Collide: ms={1}, id={2}, with={3}", LogHeader, _subscribedEventsMs, LocalID, collidingWith);
-        if (_subscribedEventsMs == 0) return;   // don't want collisions
 
         // The following says we're colliding this simulation step
         _collidingStep = _scene.SimulationStep;
@@ -402,6 +418,8 @@ public class BSCharacter : PhysicsActor
         {
             _collidingGroundStep = _scene.SimulationStep;
         }
+
+        if (_subscribedEventsMs == 0) return;   // don't want collisions
 
         Dictionary<uint, ContactPoint> contactPoints = new Dictionary<uint, ContactPoint>();
         contactPoints.Add(collidingWith, new ContactPoint(contactPoint, contactNormal, pentrationDepth));

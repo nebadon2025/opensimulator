@@ -40,14 +40,18 @@ using OpenSim.Region.Framework;
 // Based on material, set density and friction
 // More efficient memory usage in passing hull information from BSPrim to BulletSim
 // Four states of prim: Physical, regular, phantom and selected. Are we modeling these correctly?
-//     In SL one can set both physical and phantom (gravity, does not effect others, makes collisions)
-//     Need three states for objects: sense and report collisions, have physical effects, affects other objects
+//     In SL one can set both physical and phantom (gravity, does not effect others, makes collisions with ground)
 // LinkSets
 //     Freeing of memory of linksets in BulletSim::DestroyObject
-// Should prim.link() and prim.delink() be done at taint time?
+//     Set child prims phantom since the physicality is handled by the parent prim
+//     Linked children need rotation relative to parent (passed as world rotation)
+// Should prim.link() and prim.delink() membership checking happen at taint time?
 // Pass collision enable flags to BulletSim code so collisions are not reported up unless they are really needed
-// Set child prims phantom since the physicality is handled by the parent prim
-// Linked children need rotation relative to parent (passed as world rotation)
+// Set bouyancy(). Maybe generalize SetFlying() to SetBouyancy() and use the factor to change the gravity effect
+// Test sculpties
+// Mesh sharing. Use meshHash to tell if we already have a hull of that shape and only create once
+// Do attachments need to be handled separately? Need collision events. Do not collide with VolumeDetect
+// Parameterize BulletSim. Pass a structure of parameters to the C++ code. Capsule size, friction, ...
 // 
 namespace OpenSim.Region.Physics.BulletSPlugin
 {
@@ -82,6 +86,7 @@ public class BSScene : PhysicsScene
 
     public delegate void TaintCallback();
     private List<TaintCallback> _taintedObjects;
+    private Object _taintLock = new Object();
 
     private BulletSimAPI.DebugLogCallback debugLogCallbackHandle;
 
@@ -243,18 +248,21 @@ public class BSScene : PhysicsScene
                 IntPtr updatePointer = updatedEntities[ii];
                 EntityProperties entprop = (EntityProperties)Marshal.PtrToStructure(updatePointer, typeof(EntityProperties));
                 // m_log.DebugFormat("{0}: entprop: id={1}, pos={2}", LogHeader, entprop.ID, entprop.Position);
-                if (m_avatars.ContainsKey(entprop.ID))
+                BSCharacter actor;
+                if (m_avatars.TryGetValue(entprop.ID, out actor))
                 {
-                    BSCharacter actor = m_avatars[entprop.ID];
                     actor.UpdateProperties(entprop);
+                    continue;
                 }
-                if (m_prims.ContainsKey(entprop.ID))
+                BSPrim prim;
+                if (m_prims.TryGetValue(entprop.ID, out prim))
                 {
-                    BSPrim prim = m_prims[entprop.ID];
                     prim.UpdateProperties(entprop);
                 }
             }
         }
+
+        // if (collidersCount > 0 || updatedEntityCount > 0) m_log.WarnFormat("{0}: collisions={1}, updates={2}", LogHeader, collidersCount/2, updatedEntityCount);
 
         return 11f; // returns frames per second
     }
@@ -269,20 +277,18 @@ public class BSScene : PhysicsScene
         }
 
         ActorTypes type = ActorTypes.Prim;
-        if (m_avatars.ContainsKey(collidingWith))
-            type = ActorTypes.Agent;
-        else if (collidingWith == TERRAIN_ID || collidingWith == GROUNDPLANE_ID)
+        if (collidingWith == TERRAIN_ID || collidingWith == GROUNDPLANE_ID)
             type = ActorTypes.Ground;
+        else if (m_avatars.ContainsKey(collidingWith))
+            type = ActorTypes.Agent;
 
-        if (m_prims.ContainsKey(localID))
-        {
-            BSPrim prim = m_prims[localID];
+        BSPrim prim;
+        if (m_prims.TryGetValue(localID, out prim)) {
             prim.Collide(collidingWith, type, Vector3.Zero, Vector3.UnitZ, 0.01f);
             return;
         }
-        if (m_avatars.ContainsKey(localID))
-        {
-            BSCharacter actor = m_avatars[localID];
+        BSCharacter actor;
+        if (m_avatars.TryGetValue(localID, out actor)) {
             actor.Collide(collidingWith, type, Vector3.Zero, Vector3.UnitZ, 0.01f);
             return;
         }
@@ -440,8 +446,8 @@ public class BSScene : PhysicsScene
     // We rely on C#'s closure to save and restore the context for the delegate.
     public void TaintedObject(TaintCallback callback)
     {
-        // do we need to lock?
-        _taintedObjects.Add(callback);
+        lock (_taintLock)
+            _taintedObjects.Add(callback);
         return;
     }
 
@@ -451,8 +457,12 @@ public class BSScene : PhysicsScene
     public void ProcessTaints()
     {
         // swizzle a new list into the list location so we can process what's there
-        List<TaintCallback> newList = new List<TaintCallback>();
-        List<TaintCallback> oldList = (List<TaintCallback>)Interlocked.Exchange(ref _taintedObjects, newList);
+        List<TaintCallback> oldList;
+        lock (_taintLock)
+        {
+            oldList = _taintedObjects;
+            _taintedObjects = new List<TaintCallback>();
+        }
 
         foreach (TaintCallback callback in oldList)
         {

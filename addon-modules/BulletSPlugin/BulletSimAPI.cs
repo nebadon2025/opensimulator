@@ -145,6 +145,9 @@ public static extern bool SetObjectCollidable(uint worldID, uint id, bool phanto
 public static extern bool SetObjectDynamic(uint worldID, uint id, bool isDynamic, float mass);
 
 [DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
+public static extern bool SetObjectGhost(uint worldID, uint id, bool ghostly);
+
+[DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
 public static extern bool SetObjectFlying(uint worldID, uint id, bool flying);
 
 [DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]

@@ -66,6 +66,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             ActorConnect,
             AgentAdd,       
             AgentUpdate,
+            AgentSameRegionTeleport,
             AgentRemove,
             AgentRequestSit,
             AgentSit,

@@ -676,6 +676,9 @@ namespace OpenSim.Region.OptionalModules.Agent.InternetRelayClientView.Server
         public event RequestMapBlocks OnRequestMapBlocks;
         public event RequestMapName OnMapNameRequest;
         public event TeleportLocationRequest OnTeleportLocationRequest;
+        //DSG: 
+        public event SameRegionTeleportlRequest OnSameRegionTeleportlRequest;
+        //end of DSG
         public event DisconnectUser OnDisconnectUser;
         public event RequestAvatarProperties OnRequestAvatarProperties;
         public event SetAlwaysRun OnSetAlwaysRun;

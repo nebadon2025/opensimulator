@@ -202,6 +202,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     RemoveLocalClient(kvp.Key, m_scene);
                     // Remove the agent update handler from the client
                     kvp.Value.OnAgentUpdateRaw -= HandleAgentUpdateRaw;
+                    kvp.Value.OnSameRegionTeleportlRequest -= HandleAgentSameRegionTeleport;
                 }
             }
             catch (Exception e)
@@ -848,6 +849,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // Register for interesting client events which will be forwarded to auth sim
             // These are the raw packet data blocks from the client, intercepted and sent up to the sim
             client.OnAgentUpdateRaw += HandleAgentUpdateRaw;
+            client.OnSameRegionTeleportlRequest += HandleAgentSameRegionTeleport;
             //DSG SYNC: do not subscribe to OnChatFromClientRaw: RegionSyncModule + Scene.EventManager will handle this. 
             //client.OnChatFromClientRaw += HandleChatFromClientRaw;
             client.OnAgentRequestSit += HandleAgentRequestSit;
@@ -930,6 +932,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public void HandleAgentUpdateRaw(object sender, byte[] agentData)
         {
             Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentUpdate, agentData));
+        }
+
+        //KittyL: Added to support teleporting within the same region
+        public void HandleAgentSameRegionTeleport(object sender, byte[] tpLocReq)
+        {
+            Send(new RegionSyncMessage(RegionSyncMessage.MsgType.AgentSameRegionTeleport, tpLocReq));
         }
 
         public void HandleAgentRequestSit(object sender, UUID agentID, UUID targetID, Vector3 offset)
@@ -1133,6 +1141,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             // These are the raw packet data blocks from the client, intercepted and sent up to the sim
             client.OnAgentUpdateRaw += HandleAgentUpdateRaw;
             client.OnChatFromClientRaw += HandleChatFromClientRaw;
+            //KittyL: added to support same region teleport
+            client.OnSameRegionTeleportlRequest += HandleAgentSameRegionTeleport;
             presence.IsSyncedAvatar = false;
         }
     }

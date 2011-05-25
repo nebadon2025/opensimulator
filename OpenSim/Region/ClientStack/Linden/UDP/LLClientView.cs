@@ -143,6 +143,9 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         public event RequestMapBlocks OnRequestMapBlocks;
         public event RequestMapName OnMapNameRequest;
         public event TeleportLocationRequest OnTeleportLocationRequest;
+        //DSG: 
+        public event SameRegionTeleportlRequest OnSameRegionTeleportlRequest;
+        //end of DSG
         public event TeleportLandmarkRequest OnTeleportLandmarkRequest;
         public event DisconnectUser OnDisconnectUser;
         public event RequestAvatarProperties OnRequestAvatarProperties;
@@ -8471,6 +8474,21 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             #endregion
 
             TeleportLocationRequest handlerTeleportLocationRequest = OnTeleportLocationRequest;
+
+            //DSG: KittyL -- added to support same region teleport
+            if (tpLocReq.Info.RegionHandle == m_scene.RegionInfo.RegionHandle)
+            {
+                SameRegionTeleportlRequest handlerSameRegionTeleportlRequest = OnSameRegionTeleportlRequest;
+                if (handlerSameRegionTeleportlRequest != null)
+                {
+                    byte[] xb = new byte[tpLocReq.Length];
+                    int i = 0;
+                    xb = tpLocReq.ToBytes();
+                    handlerSameRegionTeleportlRequest(this, xb);
+                    //return true;
+                }
+            }
+
             if (handlerTeleportLocationRequest != null)
             {
                 handlerTeleportLocationRequest(this, tpLocReq.Info.RegionHandle, tpLocReq.Info.Position,

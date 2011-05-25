@@ -184,6 +184,9 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         public event RequestMapBlocks OnRequestMapBlocks;
         public event RequestMapName OnMapNameRequest;
         public event TeleportLocationRequest OnTeleportLocationRequest;
+        //DSG: 
+        public event SameRegionTeleportlRequest OnSameRegionTeleportlRequest;
+        //end of DSG
         public event TeleportLandmarkRequest OnTeleportLandmarkRequest;
         public event DisconnectUser OnDisconnectUser;
         public event RequestAvatarProperties OnRequestAvatarProperties;

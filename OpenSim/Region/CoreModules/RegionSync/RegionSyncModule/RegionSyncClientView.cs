@@ -420,6 +420,26 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             return;
                         }
                     }
+                case RegionSyncMessage.MsgType.AgentSameRegionTeleport:
+                    //KittyL: added to support same region teleporting
+                    int lent = 0;
+                    TeleportLocationRequestPacket tpLocReq = new TeleportLocationRequestPacket(msg.Data, ref lent);
+
+                    RegionSyncAvatar avatar;
+                    bool avFound;
+                    lock (m_syncRoot)
+                    {
+                        avFound = m_syncedAvatars.TryGetValue(tpLocReq.AgentData.AgentID, out avatar);
+                    }
+                    if (!avFound)
+                    {
+                        RegionSyncMessage.HandleWarning(LogHeader, msg, String.Format("Received agent update for avatar not owned by this client view {0}", tpLocReq.AgentData.AgentID));
+                        return;
+                    }
+
+                    m_scene.RequestTeleportLocation(avatar, m_scene.RegionInfo.RegionHandle, tpLocReq.Info.Position,
+                                               tpLocReq.Info.LookAt, 16);
+                    return;
                 case RegionSyncMessage.MsgType.AgentRemove:
                     {
                         // Get the data from message and error check

@@ -83,6 +83,9 @@ namespace OpenSim.Framework
     public delegate void TeleportLocationRequest(
         IClientAPI remoteClient, ulong regionHandle, Vector3 position, Vector3 lookAt, uint flags);
 
+    //DSG: 
+    public delegate void SameRegionTeleportlRequest(IClientAPI remoteClient, byte[] tpLocReq);
+
     public delegate void TeleportLandmarkRequest(
         IClientAPI remoteClient, UUID regionID, Vector3 position);
 
@@ -784,6 +787,9 @@ namespace OpenSim.Framework
         event RequestMapBlocks OnRequestMapBlocks;
         event RequestMapName OnMapNameRequest;
         event TeleportLocationRequest OnTeleportLocationRequest;
+        //DSG: 
+        event SameRegionTeleportlRequest OnSameRegionTeleportlRequest;
+        //end of DSG
         event DisconnectUser OnDisconnectUser;
         event RequestAvatarProperties OnRequestAvatarProperties;
         event SetAlwaysRun OnSetAlwaysRun;

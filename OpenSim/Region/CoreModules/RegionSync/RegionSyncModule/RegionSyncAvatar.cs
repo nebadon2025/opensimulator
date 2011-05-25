@@ -33,6 +33,8 @@ using OpenSim.Framework;
 using OpenSim.Framework.Client;
 using OpenSim.Region.Framework.Scenes;
 
+using OpenSim.Region.Framework.Interfaces;
+
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
     public class RegionSyncAvatar : IClientAPI, IClientCore
@@ -509,7 +511,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public void SendInstantMessage(GridInstantMessage im)
         {
-            
+            IMessageTransferModule m_msgTransferModule = m_scene.RequestModuleInterface<IMessageTransferModule>();
+
+            if (m_msgTransferModule != null)
+            {
+                m_msgTransferModule.SendGridInstantMessageViaXMLRPC(im, delegate(bool success) { });
+            }
         }
 
         public void SendGenericMessage(string method, List<string> message)

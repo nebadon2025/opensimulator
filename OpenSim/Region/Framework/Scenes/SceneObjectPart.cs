@@ -5247,14 +5247,41 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 CollisionEventUpdate a = (CollisionEventUpdate)e;
                 Dictionary<uint, ContactPoint> collisionswith = a.m_objCollisionList;
+                /*
                 OSDArray collisionLocalIDs = new OSDArray();
                 foreach (uint collisionObject in collisionswith.Keys)
                 {
                     collisionLocalIDs.Add(collisionObject);
                 }
+                 * */
+                OSDArray collisionUUIDs = new OSDArray();
+                foreach (uint collisionObject in collisionswith.Keys)
+                {
+                    SceneObjectPart part = m_parentGroup.Scene.GetSceneObjectPart(collisionObject);
+                    if (part == null)
+                    {
+                        //collisionObject not a prim in local Scene, check if it's an avatar
+                        ScenePresence sp = m_parentGroup.Scene.GetScenePresence(collisionObject);
+
+                        if (sp == null)
+                        {
+                            m_log.WarnFormat("PhysicsCollision: {0},{1} is informed to be collided with {2}(localID), but the latter prim/avatar is not found in local Scene",
+                                Name, UUID, collisionObject);
+                        }
+                        else
+                        {
+                            collisionUUIDs.Add(OSD.FromUUID(sp.UUID));
+                        }
+                    }
+                    else
+                    {
+                        collisionUUIDs.Add(OSD.FromUUID(part.UUID));
+                    }
+                }
                 object[] eventArgs = new object[2];
                 eventArgs[0] = this.UUID;
-                eventArgs[1] = collisionLocalIDs;
+                //eventArgs[1] = collisionLocalIDs;
+                eventArgs[1] = collisionUUIDs;
                 m_parentGroup.Scene.RegionSyncModule.PublishSceneEvent(EventManager.EventNames.PhysicsCollision, eventArgs);
             }
             PhysicsCollisionLocally(e);
@@ -5433,7 +5460,7 @@ namespace OpenSim.Region.Framework.Scenes
                 if (pa == null)
                 {
                     //DSG DEBUG
-                    m_log.DebugFormat("Creating PhysActor for SOP {0}, {1}, so far Flags = ", Name, UUID, Flags.ToString());
+                    m_log.DebugFormat("Creating PhysActor for SOP {0}, {1}, so far Flags = {2}", Name, UUID, Flags.ToString());
 
                     // It's not phantom anymore. So make sure the physics engine get's knowledge of it
                     PhysActor = m_parentGroup.Scene.PhysicsScene.AddPrimShape(
@@ -5533,7 +5560,7 @@ namespace OpenSim.Region.Framework.Scenes
             ParentGroup.HasGroupChanged = true;
             //ScheduleFullUpdate();
 
-            m_log.DebugFormat("End of UpdatePrimFlagsBySync for SOP {0}, {1}, so far Flags = ", Name, UUID, Flags.ToString());
+            m_log.DebugFormat("End of UpdatePrimFlagsBySync for SOP {0}, {1}, so far Flags = {2}", Name, UUID, Flags.ToString());
 
             //caller will trigger this, See SetSOPFlags()
             //ScheduleFullUpdate(null);

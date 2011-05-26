@@ -2134,7 +2134,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void HandleRemoteEvent_PhysicsCollision(string actorID, ulong evSeqNum, OSDMap data)
         {
             UUID primUUID = data["primUUID"].AsUUID();
-            OSDArray collisionLocalIDs = (OSDArray)data["collisionLocalIDs"];
+            //OSDArray collisionLocalIDs = (OSDArray)data["collisionLocalIDs"];
+            OSDArray collisionUUIDs = (OSDArray)data["collisionUUIDs"];
 
             SceneObjectPart part = m_scene.GetSceneObjectPart(primUUID);
             if (part == null)
@@ -2142,7 +2143,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no part with UUID {1} found", LogHeader, primUUID);
                 return;
             }
-            if (collisionLocalIDs == null)
+            if (collisionUUIDs == null)
             {
                 m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no collisionLocalIDs", LogHeader);
                 return;
@@ -2150,10 +2151,37 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             // Build up the collision list. The contact point is ignored so we generate some default.
             CollisionEventUpdate e = new CollisionEventUpdate();
+            /*
             foreach (uint collisionID in collisionLocalIDs)
             {
                 // e.addCollider(collisionID, new ContactPoint());
                 e.addCollider(collisionID, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
+            }
+             * */
+            for(int i=0; i<collisionUUIDs.Count; i++)
+            {
+                OSD arg = collisionUUIDs[i];
+                UUID collidingUUID = arg.AsUUID();
+
+                SceneObjectPart collidingPart = m_scene.GetSceneObjectPart(collidingUUID);
+                if (collidingPart == null)
+                {
+                    //collision object is not a prim, check if it's an avatar
+                    ScenePresence sp = m_scene.GetScenePresence(collidingUUID);
+                    if (sp == null)
+                    {
+                        m_log.WarnFormat("Received collision event for SOP {0},{1} with another SOP {2}, but the latter is not found in local Scene",
+                            part.Name, part.UUID, collidingUUID);
+                    }
+                    else
+                    {
+                        e.addCollider(sp.LocalId, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
+                    }
+                }
+                else
+                {
+                    e.addCollider(collidingPart.LocalId, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
+                }
             }
             part.PhysicsCollisionLocally(e);
         }
@@ -2277,11 +2305,20 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SendSceneEvent(SymmetricSyncMessage.MsgType.Attach, data);
         }
 
+        /*
         private void OnLocalPhysicsCollision(UUID partUUID, OSDArray collisionLocalIDs)
         {
             OSDMap data = new OSDMap();
             data["primUUID"] = OSD.FromUUID(partUUID);
             data["collisionLocalIDs"] = collisionLocalIDs;
+            SendSceneEvent(SymmetricSyncMessage.MsgType.PhysicsCollision, data);
+        }
+         * */
+        private void OnLocalPhysicsCollision(UUID partUUID, OSDArray collisionUUIDs)
+        {
+            OSDMap data = new OSDMap();
+            data["primUUID"] = OSD.FromUUID(partUUID);
+            data["collisionUUIDs"] = collisionUUIDs;
             SendSceneEvent(SymmetricSyncMessage.MsgType.PhysicsCollision, data);
         }
 
@@ -5716,7 +5753,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SceneObjectPartSyncProperties.VolumeDetectActive:
                     //part.ParentGroup.UpdatePrimFlagsBySync(part.LocalId, part., IsTemporary, IsPhantom, part.VolumeDetectActive);
                     bool isVD = (bool)pSyncInfo.LastUpdateValue;
-                    DebugLog.DebugFormat("VolumeDetectActive updated on SOP {0}, to {1}", part.Name, part.VolumeDetectActive);
+                    DebugLog.DebugFormat("VolumeDetectActive updated on SOP {0}, to {1}", part.Name, isVD);
                     if (part.ParentGroup != null)
                     {
                         DebugLog.DebugFormat("calling ScriptSetVolumeDetectBySync");

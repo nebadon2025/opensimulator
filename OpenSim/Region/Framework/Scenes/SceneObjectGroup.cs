@@ -3900,7 +3900,38 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
 
+        public void UpdatePrimFlagsBySync(uint localID, bool UsePhysics, bool IsTemporary, bool IsPhantom, bool IsVolumeDetect)
+        {
+            SceneObjectPart selectionPart = GetChildPart(localID);
 
+            if (IsTemporary)
+            {
+                DetachFromBackup();
+                // Remove from database and parcel prim count
+                //
+                m_scene.DeleteFromStorage(UUID);
+                m_scene.EventManager.TriggerParcelPrimCountTainted();
+            }
+
+            if (selectionPart != null)
+            {
+                SceneObjectPart[] parts = m_parts.GetArray();
+                for (int i = 0; i < parts.Length; i++)
+                {
+                    SceneObjectPart part = parts[i];
+                    if (part.Scale.X > m_scene.RegionInfo.PhysPrimMax ||
+                        part.Scale.Y > m_scene.RegionInfo.PhysPrimMax ||
+                        part.Scale.Z > m_scene.RegionInfo.PhysPrimMax)
+                    {
+                        UsePhysics = false; // Reset physics
+                        break;
+                    }
+                }
+
+                for (int i = 0; i < parts.Length; i++)
+                    parts[i].UpdatePrimFlagsBySync(UsePhysics, IsTemporary, IsPhantom, IsVolumeDetect);
+            }
+        }
         ///////////////////////////////////////////////////////////////////////
         // Per SOP property based sync
         ///////////////////////////////////////////////////////////////////////

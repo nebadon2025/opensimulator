@@ -5026,6 +5026,7 @@ namespace OpenSim.Region.Framework.Scenes
         //TODO!!!! To be handled in serialization/deserizaltion for synchronization
         Sound, //This indicates any Sound related property has changed: Sound, SoundGain, SoundFlags,SoundRadius,
         //Addition properties to be added here
+        VolumeDetectActive, 
 
         //Group properties
         IsSelected,
@@ -5311,6 +5312,205 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         #endregion DSG SYNC supporting functions
+
+        //Similar to UpdatePrimFlags, except that it does not trigger ScheduleFullUpdate(Flags).
+        public void UpdatePrimFlagsBySync(bool UsePhysics, bool IsTemporary, bool IsPhantom, bool IsVD)
+        {
+            bool wasUsingPhysics = ((Flags & PrimFlags.Physics) != 0);
+            bool wasTemporary = ((Flags & PrimFlags.TemporaryOnRez) != 0);
+            bool wasPhantom = ((Flags & PrimFlags.Phantom) != 0);
+            bool wasVD = VolumeDetectActive;
+
+            if ((UsePhysics == wasUsingPhysics) && (wasTemporary == IsTemporary) && (wasPhantom == IsPhantom) && (IsVD == wasVD))
+            {
+                return;
+            }
+
+            // Special cases for VD. VD can only be called from a script 
+            // and can't be combined with changes to other states. So we can rely
+            // that...
+            // ... if VD is changed, all others are not.
+            // ... if one of the others is changed, VD is not.
+            if (IsVD) // VD is active, special logic applies
+            {
+                // State machine logic for VolumeDetect
+                // More logic below
+                bool phanReset = (IsPhantom != wasPhantom) && !IsPhantom;
+
+                if (phanReset) // Phantom changes from on to off switch VD off too
+                {
+                    IsVD = false;               // Switch it of for the course of this routine
+                    VolumeDetectActive = false; // and also permanently
+                    if (PhysActor != null)
+                        PhysActor.SetVolumeDetect(0);   // Let physics know about it too
+                }
+                else
+                {
+                    IsPhantom = false;
+                    // If volumedetect is active we don't want phantom to be applied.
+                    // If this is a new call to VD out of the state "phantom"
+                    // this will also cause the prim to be visible to physics
+                }
+
+            }
+
+            if (UsePhysics && IsJoint())
+            {
+                IsPhantom = true;
+            }
+
+            if (UsePhysics)
+            {
+                AddFlag(PrimFlags.Physics);
+                if (!wasUsingPhysics)
+                {
+                    DoPhysicsPropertyUpdate(UsePhysics, false);
+                    if (m_parentGroup != null)
+                    {
+                        if (!m_parentGroup.IsDeleted)
+                        {
+                            if (LocalId == m_parentGroup.RootPart.LocalId)
+                            {
+                                m_parentGroup.CheckSculptAndLoad();
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                RemFlag(PrimFlags.Physics);
+                if (wasUsingPhysics)
+                {
+                    DoPhysicsPropertyUpdate(UsePhysics, false);
+                }
+            }
+
+
+            if (IsPhantom || IsAttachment || (Shape.PathCurve == (byte)Extrusion.Flexible)) // note: this may have been changed above in the case of joints
+            {
+                AddFlag(PrimFlags.Phantom);
+                if (PhysActor != null)
+                {
+                    m_parentGroup.Scene.PhysicsScene.RemovePrim(PhysActor);
+                    /// that's not wholesome.  Had to make Scene public
+                    PhysActor = null;
+                }
+            }
+            else // Not phantom
+            {
+                RemFlag(PrimFlags.Phantom);
+
+                PhysicsActor pa = PhysActor;
+                if (pa == null)
+                {
+                    //DSG DEBUG
+                    m_log.DebugFormat("Creating PhysActor for SOP {0}, {1}, so far Flags = ", Name, UUID, Flags.ToString());
+
+                    // It's not phantom anymore. So make sure the physics engine get's knowledge of it
+                    PhysActor = m_parentGroup.Scene.PhysicsScene.AddPrimShape(
+                        LocalId,
+                        string.Format("{0}/{1}", Name, UUID),
+                        Shape,
+                        AbsolutePosition,
+                        Scale,
+                        RotationOffset,
+                        UsePhysics);
+
+                    pa = PhysActor;
+                    if (pa != null)
+                    {
+                        pa.LocalID = LocalId;
+                        pa.UUID = this.UUID;
+                        DoPhysicsPropertyUpdate(UsePhysics, true);
+                        if (m_parentGroup != null)
+                        {
+                            if (!m_parentGroup.IsDeleted)
+                            {
+                                if (LocalId == m_parentGroup.RootPart.LocalId)
+                                {
+                                    m_parentGroup.CheckSculptAndLoad();
+                                }
+                            }
+                        }
+                        if (
+                            ((AggregateScriptEvents & scriptEvents.collision) != 0) ||
+                            ((AggregateScriptEvents & scriptEvents.collision_end) != 0) ||
+                            ((AggregateScriptEvents & scriptEvents.collision_start) != 0) ||
+                            ((AggregateScriptEvents & scriptEvents.land_collision_start) != 0) ||
+                            ((AggregateScriptEvents & scriptEvents.land_collision) != 0) ||
+                            ((AggregateScriptEvents & scriptEvents.land_collision_end) != 0) ||
+                            (CollisionSound != UUID.Zero)
+                            )
+                        {
+                            PhysActor.OnCollisionUpdate += PhysicsCollision;
+                            PhysActor.SubscribeEvents(1000);
+                        }
+                    }
+                }
+                else // it already has a physical representation
+                {
+                    pa.IsPhysical = UsePhysics;
+
+                    DoPhysicsPropertyUpdate(UsePhysics, false); // Update physical status. If it's phantom this will remove the prim
+                    if (m_parentGroup != null)
+                    {
+                        if (!m_parentGroup.IsDeleted)
+                        {
+                            if (LocalId == m_parentGroup.RootPart.LocalId)
+                            {
+                                m_parentGroup.CheckSculptAndLoad();
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (IsVD)
+            {
+                // If the above logic worked (this is urgent candidate to unit tests!)
+                // we now have a physicsactor.
+                // Defensive programming calls for a check here.
+                // Better would be throwing an exception that could be catched by a unit test as the internal 
+                // logic should make sure, this Physactor is always here.
+                if (this.PhysActor != null)
+                {
+                    PhysActor.SetVolumeDetect(1);
+                    AddFlag(PrimFlags.Phantom); // We set this flag also if VD is active
+                    this.VolumeDetectActive = true;
+                }
+            }
+            else
+            {   // Remove VolumeDetect in any case. Note, it's safe to call SetVolumeDetect as often as you like
+                // (mumbles, well, at least if you have infinte CPU powers :-))
+                PhysicsActor pa = this.PhysActor;
+                if (pa != null)
+                {
+                    PhysActor.SetVolumeDetect(0);
+                }
+                this.VolumeDetectActive = false;
+            }
+
+
+            if (IsTemporary)
+            {
+                AddFlag(PrimFlags.TemporaryOnRez);
+            }
+            else
+            {
+                RemFlag(PrimFlags.TemporaryOnRez);
+            }
+            //            m_log.Debug("Update:  PHY:" + UsePhysics.ToString() + ", T:" + IsTemporary.ToString() + ", PHA:" + IsPhantom.ToString() + " S:" + CastsShadows.ToString());
+
+            ParentGroup.HasGroupChanged = true;
+            //ScheduleFullUpdate();
+
+            m_log.DebugFormat("End of UpdatePrimFlagsBySync for SOP {0}, {1}, so far Flags = ", Name, UUID, Flags.ToString());
+
+            //caller will trigger this, See SetSOPFlags()
+            //ScheduleFullUpdate(null);
+        }
+
     }
 
     //end of DSG SYNC

@@ -1110,6 +1110,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         {
                             debugMsg += ", Text = " + part.Text+", Color = "+part.Color.ToString();
                         }
+                        debugMsg += ", AggregateScriptEvents = " + part.AggregateScriptEvents;
 
                         ScenePresence sp = m_scene.GetScenePresence(part.AttachedAvatar);
                         if (sp != null)
@@ -1549,12 +1550,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 List<SceneObjectPartSyncProperties> propertiesUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoBySync(sop, propertiesSyncInfo);
 
                 //SYNC DEBUG
-                /*
+                
                 if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.AggregateScriptEvents))
                 {
-                    //m_log.DebugFormat("AggregateScriptEvents updated: " + sop.AggregateScriptEvents); 
+                    m_log.DebugFormat("AggregateScriptEvents updated: " + sop.AggregateScriptEvents); 
                 }
-
+                /*
                 if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.Shape))
                 {
                     String hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(sop)));
@@ -2568,11 +2569,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //m_log.DebugFormat("{0}: SendPrimPropertyUpdates for {1}, {2}, with updated properties -- {3}", LogHeader, sop.Name, sop.UUID, pString);
 
                 //DSG DEBUG
-                /*
-                if (updatedProperties.Contains(SceneObjectPartSyncProperties.GroupPosition))
+
+                if (updatedProperties.Contains(SceneObjectPartSyncProperties.AggregateScriptEvents))
                 {
-                    m_log.DebugFormat("SendPrimPropertyUpdates -- prim {0}: GroupPosition: {1} ", sop.Name, sop.GroupPosition);
+                    m_log.DebugFormat("SendPrimPropertyUpdates -- prim {0}: AggregateScriptEvents: {1} ", sop.Name, sop.AggregateScriptEvents);
                 }
+                /*
                 if (updatedProperties.Contains(SceneObjectPartSyncProperties.Position))
                 {
                     m_log.DebugFormat("SendPrimPropertyUpdates -- prim {0}: Position: {1} ", sop.Name, sop.PhysActor.Position);
@@ -3123,6 +3125,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SceneObjectPartSyncProperties.AllowedDrop:
                 case SceneObjectPartSyncProperties.IsAttachment:
                 case SceneObjectPartSyncProperties.PassTouches:
+                case SceneObjectPartSyncProperties.VolumeDetectActive:
                     propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
                     break;
 
@@ -3350,6 +3353,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SceneObjectPartSyncProperties.AllowedDrop:
                 case SceneObjectPartSyncProperties.IsAttachment:
                 case SceneObjectPartSyncProperties.PassTouches:
+                case SceneObjectPartSyncProperties.VolumeDetectActive:
                     m_lastUpdateValue = (Object)(propertyData["Value"].AsBoolean());
                     //propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
                     break;
@@ -4183,7 +4187,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             propertyUpdatedByLocal = true;
 
                             //TEMP DEBUG
-                            //DebugLog.DebugFormat("CompareValue_UpdateByLocal -- copy SOP's AggregateScriptEvents {0}", part.AggregateScriptEvents);
+                            DebugLog.DebugFormat("CompareValue_UpdateByLocal -- copy SOP's AggregateScriptEvents {0}", part.AggregateScriptEvents);
                         }
                         else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
                         {
@@ -4985,6 +4989,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                     }
                     break;
+                case SceneObjectPartSyncProperties.VolumeDetectActive:
+                    if (!part.VolumeDetectActive.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.VolumeDetectActive);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOP's data
+                            part.VolumeDetectActive = (bool)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                    break;
 
                 ///////////////////////
                 //PhysActor properties
@@ -5337,6 +5356,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     return (Object)part.UpdateFlag;
                 case SceneObjectPartSyncProperties.Velocity:
                     return (Object)part.Velocity;
+                case SceneObjectPartSyncProperties.VolumeDetectActive:
+                    return (Object)part.VolumeDetectActive;
 
                 ///////////////////////
                 //PhysActor properties
@@ -5458,7 +5479,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SceneObjectPartSyncProperties.AggregateScriptEvents:
                     part.AggregateScriptEvents = (scriptEvents)pSyncInfo.LastUpdateValue;
                     part.aggregateScriptEventSubscriptions();
-                    //DebugLog.DebugFormat("set {0} value to be {1}", property.ToString(), part.AggregateScriptEvents);
+                    DebugLog.DebugFormat("set {0} value to be {1}", property.ToString(), part.AggregateScriptEvents);
 
                     break;
                 case SceneObjectPartSyncProperties.AllowedDrop:
@@ -5548,7 +5569,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     part.EveryoneMask = (uint)pSyncInfo.LastUpdateValue;
                     break;
                 case SceneObjectPartSyncProperties.Flags:
-                    part.Flags = (PrimFlags)pSyncInfo.LastUpdateValue;
+                    //part.Flags = (PrimFlags)pSyncInfo.LastUpdateValue;
+                    SetSOPFlags(part, (PrimFlags)pSyncInfo.LastUpdateValue);
                     break;
                 case SceneObjectPartSyncProperties.FolderID:
                     part.FolderID = (UUID)pSyncInfo.LastUpdateValue;
@@ -5665,6 +5687,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SceneObjectPartSyncProperties.Velocity:
                     part.Velocity = (Vector3)pSyncInfo.LastUpdateValue;
                     break;
+                case SceneObjectPartSyncProperties.VolumeDetectActive:
+                    part.VolumeDetectActive = (bool)pSyncInfo.LastUpdateValue;
+                    part.aggregateScriptEventSubscriptions();
+                    break;
 
                 ///////////////////////
                 //PhysActor properties
@@ -5743,6 +5769,26 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 part.ParentGroup.Scene.EventManager.TriggerAggregateScriptEvents(part);
             }
+        }
+
+        private void SetSOPFlags(SceneObjectPart part, PrimFlags flags)
+        {
+            //Do not set part.Flags yet, 
+            //part.Flags = flags;
+
+            bool UsePhysics = (flags & PrimFlags.Physics) != 0;
+            bool IsTemporary = (flags & PrimFlags.TemporaryOnRez) != 0;
+            //bool IsVolumeDetect = part.VolumeDetectActive;
+            bool IsPhantom = (flags & PrimFlags.Phantom) != 0;
+
+            if (part.ParentGroup != null)
+            {
+                part.ParentGroup.UpdatePrimFlagsBySync(part.LocalId, UsePhysics, IsTemporary, IsPhantom, part.VolumeDetectActive);
+                //part.UpdatePrimFlagsBySync(UsePhysics, IsTemporary, IsPhantom, part.VolumeDetectActive);
+            }
+            part.Flags = flags;
+            part.aggregateScriptEventSubscriptions();
+            part.ScheduleFullUpdate(null);
         }
 
         //In SOP's implementation, GroupPosition and SOP.PhysActor.Position are 

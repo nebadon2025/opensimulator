@@ -1111,6 +1111,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             debugMsg += ", Text = " + part.Text+", Color = "+part.Color.ToString();
                         }
                         debugMsg += ", AggregateScriptEvents = " + part.AggregateScriptEvents;
+                        debugMsg += ", VolumeDetectActive" + part.VolumeDetectActive; 
 
                         ScenePresence sp = m_scene.GetScenePresence(part.AttachedAvatar);
                         if (sp != null)
@@ -2955,6 +2956,23 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_property = property;
         }
 
+        public PropertySyncInfo(PropertySyncInfo pSyncInfo)
+        {
+            m_property = pSyncInfo.Property;
+            m_lastUpdateValue = pSyncInfo.LastUpdateValue;
+            m_lastUpdateTimeStamp = pSyncInfo.LastUpdateTimeStamp;
+            m_lastUpdateSyncID = pSyncInfo.LastUpdateSyncID;
+            //m_lastSyncUpdateRecvTime == ??
+
+            switch (m_property)
+            {
+                case SceneObjectPartSyncProperties.Shape:
+                case SceneObjectPartSyncProperties.TaskInventory:
+                    m_lastUpdateValueHash = GetPropertyHashValue((string)pSyncInfo.LastUpdateValue);
+                    break;
+            }
+        }
+
         public PropertySyncInfo(SceneObjectPartSyncProperties property, Object initValue, long initTS, string syncID)
         {
             m_property = property;
@@ -3846,8 +3864,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //different than the value in SOP
                     if (!m_propertiesSyncInfo.ContainsKey(property))
                     {
-                        //Should not happen
-                        DebugLog.WarnFormat("PrimSyncInfo.UpdatePropertiesBySync -- no record of property {0} for SOP {1},{2}", property, part.Name, part.UUID);
+                        //could happen if PhysActor is just created (object stops being phantom)
+                        if (PrimSyncInfo.PrimPhysActorProperties.Contains(property))
+                        {
+                            PropertySyncInfo syncInfo = new PropertySyncInfo(pSyncInfo);
+                            m_propertiesSyncInfo.Add(property, syncInfo);   
+                        }
+                        else
+                        {
+                            DebugLog.WarnFormat("PrimSyncInfo.UpdatePropertiesBySync -- no record of property {0} for SOP {1},{2}", property, part.Name, part.UUID);
+                        }
                     }
                     else
                     {
@@ -5478,8 +5504,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 case SceneObjectPartSyncProperties.AggregateScriptEvents:
                     part.AggregateScriptEvents = (scriptEvents)pSyncInfo.LastUpdateValue;
-                    part.aggregateScriptEventSubscriptions();
                     DebugLog.DebugFormat("set {0} value to be {1}", property.ToString(), part.AggregateScriptEvents);
+                    part.aggregateScriptEventSubscriptions();
 
                     break;
                 case SceneObjectPartSyncProperties.AllowedDrop:
@@ -5688,7 +5714,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     part.Velocity = (Vector3)pSyncInfo.LastUpdateValue;
                     break;
                 case SceneObjectPartSyncProperties.VolumeDetectActive:
-                    part.VolumeDetectActive = (bool)pSyncInfo.LastUpdateValue;
+                    //part.ParentGroup.UpdatePrimFlagsBySync(part.LocalId, part., IsTemporary, IsPhantom, part.VolumeDetectActive);
+                    bool isVD = (bool)pSyncInfo.LastUpdateValue;
+                    DebugLog.DebugFormat("VolumeDetectActive updated on SOP {0}, to {1}", part.Name, part.VolumeDetectActive);
+                    if (part.ParentGroup != null)
+                    {
+                        DebugLog.DebugFormat("calling ScriptSetVolumeDetectBySync");
+                        part.ParentGroup.ScriptSetVolumeDetectBySync(isVD);
+                    }
+                    part.VolumeDetectActive = isVD;
                     part.aggregateScriptEventSubscriptions();
                     break;
 

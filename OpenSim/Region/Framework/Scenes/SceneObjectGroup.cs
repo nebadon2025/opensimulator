@@ -3932,6 +3932,16 @@ namespace OpenSim.Region.Framework.Scenes
                     parts[i].UpdatePrimFlagsBySync(UsePhysics, IsTemporary, IsPhantom, IsVolumeDetect);
             }
         }
+
+        public void ScriptSetVolumeDetectBySync(bool SetVD)
+        {
+            m_log.DebugFormat("ScriptSetVolumeDetectBySync called for SOG {0}", Name);
+
+            bool UsePhysics = ((RootPart.Flags & PrimFlags.Physics) != 0);
+            bool IsTemporary = ((RootPart.Flags & PrimFlags.TemporaryOnRez) != 0);
+            bool IsPhantom = ((RootPart.Flags & PrimFlags.Phantom) != 0);
+            UpdatePrimFlagsBySync(RootPart.LocalId, UsePhysics, IsTemporary, IsPhantom, SetVD);
+        }
         ///////////////////////////////////////////////////////////////////////
         // Per SOP property based sync
         ///////////////////////////////////////////////////////////////////////

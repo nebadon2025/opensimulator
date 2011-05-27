@@ -37,9 +37,16 @@ using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Services.Interfaces;
 
+//DSG
+using Nwc.XmlRpc;
+using System.Net;
+using System.Collections;
+using GridRegion = OpenSim.Services.Interfaces.GridRegion;
+using PresenceInfo = OpenSim.Services.Interfaces.PresenceInfo;
+
 namespace OpenSim.Region.CoreModules.Avatar.Dialog
 {
-    public class DialogModule : IRegionModule, IDialogModule
+    public class DialogModule : IRegionModule, IDialogModule 
     { 
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         
@@ -61,7 +68,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Dialog
                 HandleAlertConsoleCommand);
         }
         
-        public void PostInitialise() {}
+        //public void PostInitialise() {}
         public void Close() {}
         public string Name { get { return "Dialog Module"; } }
         public bool IsSharedModule { get { return false; } }
@@ -214,5 +221,161 @@ namespace OpenSim.Region.CoreModules.Avatar.Dialog
             
             return result;
         }
+
+        #region GridCommunication
+        private IPresenceService m_PresenceService;
+        protected IPresenceService PresenceService
+        {
+            get
+            {
+                if (m_PresenceService == null)
+                    m_PresenceService = m_scene.RequestModuleInterface<IPresenceService>();
+                return m_PresenceService;
+            }
+        }
+        //DSG added to support llDialog with distributed script engine and client manager,
+        //following the same communication pattern as grid_instant_message
+
+        public virtual void SendGridDialogViaXMLRPCAsync(UUID avatarID, string objectName, UUID objectID, string ownerFirstName,
+            string ownerLastName, string message, UUID textureID, int ch, string[] buttonlabels, UUID prevRegionID)
+        {
+            UUID toAgentID;
+            PresenceInfo upd = null;
+            // Non-cached user agent lookup.
+            PresenceInfo[] presences = PresenceService.GetAgents(new string[] { avatarID.ToString() });
+
+            if (presences != null && presences.Length > 0)
+            {
+                foreach (PresenceInfo p in presences)
+                {
+                    if (p.RegionID != UUID.Zero)
+                    {
+                        upd = p;
+                        break;
+                    }
+                }
+
+                if (upd != null)
+                {
+                    // check if we've tried this before..
+                    // This is one way to end the recursive loop
+                    //
+                    if (upd.RegionID == prevRegionID)
+                    {
+                        //Dialog content undelivered
+                        m_log.WarnFormat("Couldn't deliver dialog to {0}" + avatarID);
+                        return;
+                    }
+                }
+                else
+                {
+                    //Dialog content undelivered
+                    m_log.WarnFormat("Couldn't deliver dialog to {0}" + toAgentID);
+                    return;
+                }
+            }
+
+            if (upd != null)
+            {
+                GridRegion reginfo = m_scene.GridService.GetRegionByUUID(m_scene.RegionInfo.ScopeID,
+                    upd.RegionID);
+                if (reginfo != null)
+                {
+                    Hashtable msgdata = ConvertGridDialogToXMLRPC(avatarID, objectName, objectID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels);
+                    //= ConvertGridInstantMessageToXMLRPC(im);
+                    // Not actually used anymore, left in for compatibility
+                    // Remove at next interface change
+                    //
+                    msgdata["region_handle"] = 0;
+
+                    bool imresult = doDialogSending(reginfo, msgdata);
+                    if (imresult)
+                    {
+                        SendGridDialogViaXMLRPCAsync(avatarID, objectName, objectID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels, prevRegionID);
+                    }
+                }
+            }
+        }
+
+        private Hashtable ConvertGridDialogToXMLRPC(UUID avatarID, string objectName, UUID objectID, string ownerFirstName, string ownerLastName,
+            string message, UUID textureID, int ch, string[] buttonlabels)
+        {
+            Hashtable msgdata = new Hashtable();
+            return msgdata;
+        }
+
+        /// <summary>
+        /// This actually does the XMLRPC Request
+        /// </summary>
+        /// <param name="reginfo">RegionInfo we pull the data out of to send the request to</param>
+        /// <param name="xmlrpcdata">The Instant Message data Hashtable</param>
+        /// <returns>Bool if the message was successfully delivered at the other side.</returns>
+        protected virtual bool doDialogSending(GridRegion reginfo, Hashtable xmlrpcdata)
+        {
+
+            ArrayList SendParams = new ArrayList();
+            SendParams.Add(xmlrpcdata);
+            XmlRpcRequest GridReq = new XmlRpcRequest("grid_dialog", SendParams);
+            try
+            {
+
+                XmlRpcResponse GridResp = GridReq.Send(reginfo.ServerURI, 3000);
+
+                Hashtable responseData = (Hashtable)GridResp.Value;
+
+                if (responseData.ContainsKey("success"))
+                {
+                    if ((string)responseData["success"] == "TRUE")
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            catch (WebException e)
+            {
+                m_log.ErrorFormat("[GRID INSTANT MESSAGE]: Error sending grid_dialog to {0} the host didn't respond " + e.ToString(), reginfo.ServerURI.ToString());
+            }
+
+            return false;
+        }
+
+        public virtual void PostInitialise()
+        {
+            MainServer.Instance.AddXmlRPCHandler(
+                "grid_dialog", processXMLRPCGridDialog);
+        }
+
+                /// <summary>
+        /// Process a XMLRPC Grid Instant Message
+        /// </summary>
+        /// <param name="request">XMLRPC parameters
+        /// </param>
+        /// <returns>Nothing much</returns>
+        protected virtual XmlRpcResponse processXMLRPCGridDialog(XmlRpcRequest request, IPEndPoint remoteClient)
+        {
+            bool successful = false;
+
+            //Send response back to region calling if it was successful
+            // calling region uses this to know when to look up a user's location again.
+            XmlRpcResponse resp = new XmlRpcResponse();
+            Hashtable respdata = new Hashtable();
+            if (successful)
+                respdata["success"] = "TRUE";
+            else
+                respdata["success"] = "FALSE";
+            resp.Value = respdata;
+
+            return resp;
+        }
+
+#endregion //GridCommunication
     }
 }

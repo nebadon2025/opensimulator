@@ -40,7 +40,7 @@ using Mono.Addins;
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
 
-    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AttachmentsModule")]
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "ClientManagerSyncModule")]
     public class ClientManagerSyncModule : INonSharedRegionModule, IDSGActorSyncModule
     {
         #region INonSharedRegionModule

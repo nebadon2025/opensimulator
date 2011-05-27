@@ -39,7 +39,7 @@ using Mono.Addins;
 
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
-    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AttachmentsModule")]
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "ScenePersistenceSyncModule")]
     public class ScenePersistenceSyncModule : INonSharedRegionModule, IDSGActorSyncModule    
     {
         #region INonSharedRegionModule

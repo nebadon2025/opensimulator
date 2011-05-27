@@ -50,7 +50,7 @@ using OpenMetaverse.StructuredData;
 /////////////////////////////////////////////////////////////////////////////////////////////
 namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 {
-    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AttachmentsModule")]
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "RegionSyncModule")]
     public class RegionSyncModule : INonSharedRegionModule, IRegionSyncModule, ICommandableModule, ISyncStatistics
     //public class RegionSyncModule : IRegionModule, IRegionSyncModule, ICommandableModule
     {

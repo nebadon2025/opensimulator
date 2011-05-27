@@ -22,6 +22,7 @@
  */
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using Nini.Config;
@@ -210,14 +211,36 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         {
             m_log.Debug(LogHeader + " ScriptEngine_OnUpdateScript");
 
-            m_scene.SymSync_OnNewScript(agentID, itemID, part);
+            ArrayList errors = m_scene.SymSync_OnNewScript(agentID, itemID, part);
+            //The errors should be sent back to the client's viewer who submitted 
+            //the new script. But for now, let just display it in concole and 
+            //log it.
+            LogScriptErrors(errors);
         }
 
         //Assumption, when this function is triggered, the new script asset has already been saved.
         public void ScriptEngine_OnUpdateScript(UUID agentID, UUID itemID, UUID primID, bool isScriptRunning, UUID newAssetID)
         {
             m_log.Debug(LogHeader + " ScriptEngine_OnUpdateScript");
-            m_scene.SymSync_OnUpdateScript(agentID, itemID, primID, isScriptRunning, newAssetID);
+            ArrayList errors = m_scene.SymSync_OnUpdateScript(agentID, itemID, primID, isScriptRunning, newAssetID);
+
+            //The errors should be sent back to the client's viewer who submitted 
+            //the script update. But for now, let just display it in concole and 
+            //log it.
+            LogScriptErrors(errors);
+        }
+
+        private void LogScriptErrors(ArrayList errors)
+        {
+            string errorString = "";
+            foreach (Object err in errors)
+            {
+                errorString += err + "\n";
+            }
+            if (errorString != String.Empty)
+            {
+                m_log.ErrorFormat("Error in script: {0}", errorString);
+            }
         }
 
         public void ScriptEngine_OnAggregateScriptEvents(SceneObjectPart part)

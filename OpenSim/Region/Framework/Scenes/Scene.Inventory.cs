@@ -371,12 +371,15 @@ namespace OpenSim.Region.Framework.Scenes
         #endregion 
 
         #region DSG SYNC
-        public void SymSync_OnNewScript(UUID avatarID, UUID itemID, SceneObjectPart part)
+        public ArrayList SymSync_OnNewScript(UUID avatarID, UUID itemID, SceneObjectPart part)
         {
             TaskInventoryItem item = part.Inventory.GetInventoryItem(itemID);
 
             part.Inventory.CreateScriptInstance(item, 0, false, DefaultScriptEngine, 0);
             part.ParentGroup.ResumeScripts();
+
+            ArrayList errors = part.Inventory.GetScriptErrors(itemID);
+            return errors;
         }
 
         //only a script engine actor is supposed to call this function

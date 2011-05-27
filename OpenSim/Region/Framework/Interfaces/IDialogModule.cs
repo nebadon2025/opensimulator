@@ -123,9 +123,5 @@ namespace OpenSim.Region.Framework.Interfaces
         /// Send a textbox entry for the client to respond to
         /// </summary>
         void SendTextBoxToUser(UUID avatarid, string message, int chatChannel, string name, UUID objectid, UUID ownerid);
-
-        //DSG added
-        void SendGridDialogViaXMLRPCAsync(UUID avatarID, string objectName, UUID objectID, string ownerFirstName, string ownerLastName,
-            string message, UUID textureID, int ch, string[] buttonlabels, UUID prevRegionID);
     }
 }

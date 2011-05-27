@@ -617,13 +617,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         public virtual void SendDialog(string objectname, UUID objectID, string ownerFirstName, string ownerLastName, string msg, UUID textureID, int ch, string[] buttonlabels)
         {
-            IDialogModule dialogModule = m_scene.RequestModuleInterface<IDialogModule>();
+            IGridDialogModule gridDialogModule = m_scene.RequestModuleInterface<IGridDialogModule>();
 
-            if (dialogModule != null)
+            if (gridDialogModule != null)
             {
-                //Seems that the two places calling DialogModule.SendDialogToUser, which calls current function, is 
-                //pass (new UUID("00000000-0000-2222-3333-100000001000")) as the ownerID, so we copy that.
-                dialogModule.SendGridDialogViaXMLRPCAsync(this.AgentId, objectname, objectID, ownerFirstName, ownerLastName,
+                gridDialogModule.SendGridDialogViaXMLRPCAsync(this.AgentId, objectname, objectID, ownerFirstName, ownerLastName,
                     msg, textureID, ch, buttonlabels, UUID.Zero);
             }
         }

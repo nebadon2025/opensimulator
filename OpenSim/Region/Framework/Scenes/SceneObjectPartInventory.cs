@@ -41,8 +41,8 @@ using OpenSim.Region.Framework.Scenes.Serialization;
 
 namespace OpenSim.Region.Framework.Scenes
 {
-    //public class SceneObjectPartInventory : IEntityInventory
-    public class SceneObjectPartInventoryBase : IEntityInventory
+    public class SceneObjectPartInventory : IEntityInventory
+    //public class SceneObjectPartInventoryBase : IEntityInventory
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -53,8 +53,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <value>
         /// The part to which the inventory belongs.
         /// </value>
-        //private SceneObjectPart m_part;
-        private SceneObjectPartBase m_part;
+        private SceneObjectPart m_part;
+        //private SceneObjectPartBase m_part;
 
         /// <summary>
         /// Serial count for inventory file , used to tell if inventory has changed
@@ -100,8 +100,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="part">
         /// A <see cref="SceneObjectPart"/>
         /// </param>
-        //public SceneObjectPartInventory(SceneObjectPart part)
-        public SceneObjectPartInventoryBase(SceneObjectPartBase part)
+        public SceneObjectPartInventory(SceneObjectPart part)
+        //public SceneObjectPartInventoryBase(SceneObjectPartBase part)
         {
             m_part = part;
         }
@@ -695,7 +695,8 @@ namespace OpenSim.Region.Framework.Scenes
             return UpdateInventoryItem(item, fireScriptEvents, true);
         }
 
-        public bool UpdateInventoryItem(TaskInventoryItem item, bool fireScriptEvents, bool considerChanged)
+        //public bool UpdateInventoryItem(TaskInventoryItem item, bool fireScriptEvents, bool considerChanged)
+        public virtual bool UpdateInventoryItem(TaskInventoryItem item, bool fireScriptEvents, bool considerChanged)
         {
             TaskInventoryItem it = GetInventoryItem(item.ItemID);
             if (it != null)
@@ -1183,6 +1184,7 @@ namespace OpenSim.Region.Framework.Scenes
         #endregion REGION SYNC
     }
 
+    /*
     #region DSG SYNC
     public class SceneObjectPartInventory : SceneObjectPartInventoryBase
     {
@@ -1200,6 +1202,19 @@ namespace OpenSim.Region.Framework.Scenes
                 base.Serial = value;
             }
         }
+
+        public override bool UpdateInventoryItem(TaskInventoryItem item, bool fireScriptEvents, bool considerChanged)
+        {
+            if (base.UpdateInventoryItem(item, fireScriptEvents, considerChanged))
+            {
+                m_part.ScheduleSyncUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.TaskInventory, SceneObjectPartSyncProperties.InventorySerial });
+                return true;
+            }
+            else
+                return false;
+        }
     }
+
     #endregion 
+     * */
 }

@@ -302,8 +302,8 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get { return m_inventory; }
         }
-        //protected SceneObjectPartInventory m_inventory;
-        protected SceneObjectPartInventoryBase m_inventory;
+        protected SceneObjectPartInventory m_inventory;
+        //protected SceneObjectPartInventoryBase m_inventory;
 
         
         public bool Undoing;
@@ -405,7 +405,7 @@ namespace OpenSim.Region.Framework.Scenes
             Rezzed = DateTime.UtcNow;
             
             //m_inventory = new SceneObjectPartInventory(this);
-            m_inventory = new SceneObjectPartInventoryBase(this);
+            //m_inventory = new SceneObjectPartInventoryBase(this);
         }
 
         /// <summary>
@@ -457,7 +457,7 @@ namespace OpenSim.Region.Framework.Scenes
             //m_undo = new UndoStack<UndoState>(ParentGroup.GetSceneMaxUndo());
             
             //m_inventory = new SceneObjectPartInventory(this);
-            m_inventory = new SceneObjectPartInventoryBase(this);
+            //m_inventory = new SceneObjectPartInventoryBase(this);
         }
 
         #endregion Constructors
@@ -5056,6 +5056,7 @@ namespace OpenSim.Region.Framework.Scenes
         public SceneObjectPart()
             : base()
         {
+            m_inventory = new SceneObjectPartInventory(this);
         }
 
         public SceneObjectPart(
@@ -5063,6 +5064,7 @@ namespace OpenSim.Region.Framework.Scenes
     Quaternion rotationOffset, Vector3 offsetPosition)
             : base(ownerID, shape, groupPosition, rotationOffset, offsetPosition)
         {
+            m_inventory = new SceneObjectPartInventory(this);
         }
 
         private static string m_localActorID = "";
@@ -5176,6 +5178,35 @@ namespace OpenSim.Region.Framework.Scenes
 
         #endregion SceneObjectPartSyncProperties categorization
 
+        /*
+        #region overridden SOPBase members
+        public new IEntityInventory Inventory
+        {
+            get { return m_inventory; }
+        }
+        protected new SceneObjectPartInventory m_inventory;
+
+        /// <value>
+        /// Access should be via Inventory directly - this property temporarily remains for xml serialization purposes
+        /// </value>
+        public new uint InventorySerial
+        {
+            get { return m_inventory.Serial; }
+            set { m_inventory.Serial = value; }
+        }
+
+        /// <value>
+        /// Access should be via Inventory directly - this property temporarily remains for xml serialization purposes
+        /// </value>
+        public new TaskInventoryDictionary TaskInventory
+        {
+            get { return m_inventory.Items; }
+            set { m_inventory.Items = value; }
+        }
+
+        #endregion //overridden SOPBase members
+        */
+
         #region overridden SOPBase functions
         //Implementation of ScheduleFullUpdate and ScheduleTerseUpdate for Bucket 
         //based synchronization
@@ -5216,6 +5247,17 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             base.ScheduleTerseUpdate(updatedProperties);
+        }
+
+        public void ScheduleSyncUpdate(List<SceneObjectPartSyncProperties> updatedProperties)
+        {
+            if (updatedProperties != null && updatedProperties.Count > 0)
+            {
+                if (m_parentGroup != null && m_parentGroup.Scene != null && m_parentGroup.Scene.RegionSyncModule != null)
+                {
+                    m_parentGroup.Scene.RegionSyncModule.ProcessAndEnqueuePrimUpdatesByLocal(this, updatedProperties);
+                }
+            }
         }
 
         #endregion overridden SOPBase functions

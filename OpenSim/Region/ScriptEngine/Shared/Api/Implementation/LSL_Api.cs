@@ -5413,6 +5413,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
             m_host.Name = name!=null?name:String.Empty;
+
+            //DSG SYNC
+            m_host.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Name });
         }
 
         public LSL_String llGetDate()

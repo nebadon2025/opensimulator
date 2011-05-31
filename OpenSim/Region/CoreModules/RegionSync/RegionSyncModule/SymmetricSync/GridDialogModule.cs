@@ -198,7 +198,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     msgdata["region_handle"] = 0;
 
                     bool imresult = doDialogSending(reginfo, msgdata);
-                    if (imresult)
+                    if (!imresult)
                     {
                         SendGridDialogViaXMLRPCAsync(avatarID, objectName, objectID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels, prevRegionID);
                     }

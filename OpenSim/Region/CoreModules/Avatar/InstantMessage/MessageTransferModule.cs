@@ -626,6 +626,10 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
             {
                 m_log.ErrorFormat("[GRID INSTANT MESSAGE]: Error sending message to {0} the host didn't respond " + e.ToString(), reginfo.ServerURI.ToString());
             }
+            catch (Exception e)
+            {
+                m_log.ErrorFormat("[GRID INSTANT MESSAGE]: Error doIMSending to {0}, Error Message -- {1} ", reginfo.ServerURI.ToString(), e.ToString());
+            }
 
             return false;
         }

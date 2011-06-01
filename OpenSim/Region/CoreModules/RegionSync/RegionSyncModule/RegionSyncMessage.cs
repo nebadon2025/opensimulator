@@ -66,7 +66,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             ActorConnect,
             AgentAdd,       
             AgentUpdate,
-            AgentSameRegionTeleport,
+            AgentSameRegionTeleport, //from CM to PSA
             AgentRemove,
             AgentRequestSit,
             AgentSit,
@@ -83,6 +83,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             ChatFromClient,
             AvatarTeleportOut, // An LLClientView (real client) was converted to a RegionSyncAvatar
             AvatarTeleportIn,  // A RegionSyncAvatar was converted to an LLClientView (real client)
+            AvatarTeleportSameRegion, //from PSA to PE
             // SIM -> CM
             //Terrain,
             //NewObject,       // objects

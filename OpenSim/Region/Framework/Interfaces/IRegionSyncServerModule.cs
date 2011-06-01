@@ -44,5 +44,6 @@ namespace OpenSim.Region.Framework.Interfaces
         void SendAppearance(UUID agentID);
         void SendAnimations(UUID agentID, UUID[] animations, int[] seqs, UUID sourceAgentId, UUID[] objectIDs);
 
+        void SendTeleportUpdate(ScenePresence presence);
     }
 }

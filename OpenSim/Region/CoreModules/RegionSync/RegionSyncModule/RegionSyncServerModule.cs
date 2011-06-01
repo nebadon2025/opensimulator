@@ -234,6 +234,53 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //m_log.DebugFormat("[REGION SYNC SERVER MODULE] QueuePresenceForUpdate: {0}", presence.UUID.ToString());
         }
 
+        /// <summary>
+        /// Send a teleport message out. This should only be called when teleporting within the same region.
+        /// </summary>
+        /// <param name="presence"></param>
+        public void SendTeleportUpdate(ScenePresence presence)
+        {
+            if (!Active || !Synced)
+                return;
+
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                OSDMap data = new OSDMap(10);
+                data["id"] = OSD.FromUUID(presence.UUID);
+                // Do not include offset for appearance height. That will be handled by RegionSyncClient before sending to viewers
+                if (presence.AbsolutePosition.IsFinite())
+                    data["pos"] = OSD.FromVector3(presence.AbsolutePosition);
+                else
+                    data["pos"] = OSD.FromVector3(Vector3.Zero);
+                /*
+                if (presence.Velocity.IsFinite())
+                    data["vel"] = OSD.FromVector3(presence.Velocity);
+                else
+                    data["vel"] = OSD.FromVector3(Vector3.Zero);
+                if (System.Single.IsNaN(presence.Rotation.X))
+                    data["rot"] = OSD.FromQuaternion(Quaternion.Identity);
+                else
+                    data["rot"] = OSD.FromQuaternion(presence.Rotation);
+                data["fly"] = OSD.FromBoolean(presence.Flying);
+                data["flags"] = OSD.FromUInteger((uint)presence.AgentControlFlags);
+                data["anim"] = OSD.FromString(presence.Animator.CurrentMovementAnimation);
+                // needed for a full update
+                if (presence.ParentID != presence.lastSentParentID)
+                {
+                    data["coll"] = OSD.FromVector4(presence.CollisionPlane);
+                    data["off"] = OSD.FromVector3(presence.OffsetPosition);
+                    data["pID"] = OSD.FromUInteger(presence.ParentID);
+                    presence.lastSentParentID = presence.ParentID;
+                }
+                 * */ 
+
+                RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.AvatarTeleportSameRegion, OSDParser.SerializeJsonString(data));
+
+                m_server.Broadcast(rsm);
+            });
+
+        }
+
         public void SendUpdates()
         {
             if (!Active || !Synced)

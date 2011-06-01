@@ -370,6 +370,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     pa.ChangingActorID = actorID;
                     m_validLocalScene.PhysicsScene.AddPhysicsActorTaint(pa);
+
+                    //m_log.DebugFormat("HandlePhysUpdateAttributes, ChangingActorID = {0}, PA pos = {1}, data.position={2}", pa.ChangingActorID, pa.Position, data["position"].AsVector3().ToString());
                 }
                 else
                 {

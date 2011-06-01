@@ -369,6 +369,62 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         return;
                         
                     }
+                case RegionSyncMessage.MsgType.AvatarTeleportSameRegion:
+                    {
+                        if (PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
+                        {
+                            OSDMap data = DeserializeMessage(msg);
+                            if (data == null)
+                            {
+                                RegionSyncMessage.HandleError(LogHeader(), msg, "Could not deserialize JSON data.");
+                                return;
+                            }
+
+                            // Get the parameters from data and error check
+                            UUID agentID = UUID.Zero;
+                            Vector3 pos = Vector3.Zero;
+
+                            try
+                            {
+                                agentID = data["id"].AsUUID();
+                                pos = data["pos"].AsVector3();
+                            }
+                            catch (Exception e)
+                            {
+                                m_log.ErrorFormat("{0} Caught exception in UpdatedAvatar handler (Decoding JSON): {1}", LogHeader(), e.Message);
+                            }
+
+                            // Find the presence in the scene and error check
+                            ScenePresence presence;
+                            m_scene.TryGetScenePresence(agentID, out presence);
+                            if (presence == null)
+                            {
+                                //RegionSyncMessage.HandleWarning(LogHeader(), msg, String.Format("agentID {0} not found.", agentID.ToString()));
+                                return;
+                            }
+
+                            if (presence.IsBalancing && presence.ControllingClient is RegionSyncAvatar)
+                            {
+                                lock (m_syncRoot)
+                                {
+                                    if (m_localAvatars.ContainsKey(presence.UUID))
+                                    {
+
+                                    }
+                                    else
+                                    {
+                                        m_log.WarnFormat("{0} Received update for balancing avatar not in local avatar list. \"{1}\"", LogHeader(), presence.Name);
+                                        return;
+                                    }
+                                }
+                            }
+
+                            presence.Teleport(pos);
+
+                            //m_log.DebugFormat("Received AvatarTeleportSameRegion: Teleport {0} to pos {1}, now pa.pos = {2}", presence.Name, pos, presence.PhysicsActor.Position);
+                        }
+                        return;
+                    }
                 case RegionSyncMessage.MsgType.UpdatedAvatar:
                     {
                         // Get the data from message and error check
@@ -464,7 +520,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             {
                                 presence.AgentControlFlags = flags;
                                 presence.AbsolutePosition = pos;
-                                m_log.DebugFormat("{0}: UpdateAvatar. Setting vel={1}", LogHeader(), vel);
+                                //m_log.DebugFormat("{0}: UpdateAvatar. Setting vel={1}, AbsolutePosition = {1}", LogHeader(), vel, presence.AbsolutePosition);
                                 presence.Velocity = vel;
                                 presence.Rotation = rot;
                                 // It seems the physics scene can drop an avatar if the avatar makes it angry

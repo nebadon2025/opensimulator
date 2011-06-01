@@ -1099,6 +1099,11 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             SendTerseUpdateToAllClients();
+
+            //This should only happen on PSA and when the teleport is within the same region.
+            //If teleport is to a remote region, CM will handle it and PSA should be 
+            //executing inside this function.
+            SendTeleportUpdate();
         }
 
         public void TeleportWithMomentum(Vector3 pos)
@@ -3976,5 +3981,20 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
         }
+
+        #region REGION SYNC
+        public void SendTeleportUpdate()
+        {
+            // m_log.DebugFormat("[SCENE PRESENCE]: TerseUpdate: UUID={0}, pos={1}", m_physicsActor.UUID.ToString(), m_physicsActor.Position.ToString());
+            // REGION SYNC
+            if (m_scene.IsSyncedServer())
+            {
+                m_scene.RegionSyncServerModule.SendTeleportUpdate(this);
+                // this.PhysicsRequestingTerseUpdate();
+                // m_scene.RegionSyncModule.QueueSceneObjectPartForUpdate(this);
+                return;
+            }
+        }
+        #endregion //REGION SYNC
     }
 }

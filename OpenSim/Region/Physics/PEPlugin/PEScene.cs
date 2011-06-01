@@ -128,6 +128,7 @@ public class PEScene : PhysicsScene
                         if (actor.ChangingActorID == RegionSyncServerModule.ActorID && actor.lastValues.Changed(actor))
                         {
                             SceneToPhysEngineSyncServer.RouteUpdate(actor);
+                            actor.ChangingActorID = "YY";
                         }
                     }
                 }

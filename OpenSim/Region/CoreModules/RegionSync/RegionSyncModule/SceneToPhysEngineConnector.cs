@@ -434,6 +434,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["isColliding"] = OSD.FromBoolean(pa.IsColliding);
             data["isCollidingGround"] = OSD.FromBoolean(pa.CollidingGround);
 
+            //m_log.DebugFormat("SendPhysUpdateAttributes, ChangingActorID = {0}, with PA at pos {1}, data.position={2}", pa.ChangingActorID, pa.Position, data["position"].AsVector3().ToString());
+
             RegionSyncMessage rsm = new RegionSyncMessage(RegionSyncMessage.MsgType.PhysUpdateAttributes, 
                                                                 OSDParser.SerializeJsonString(data));
             Send(rsm);

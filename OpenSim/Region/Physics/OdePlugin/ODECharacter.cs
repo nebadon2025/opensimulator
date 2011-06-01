@@ -208,9 +208,11 @@ namespace OpenSim.Region.Physics.OdePlugin
             if (PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
             {
                 // if the values have changed and it was I who changed them, send an update
-                if (this.lastValues.Changed(this) && ChangingActorID == RegionSyncServerModule.ActorID)
+                // if (this.lastValues.Changed(this) && ChangingActorID == RegionSyncServerModule.ActorID)
+                if (ChangingActorID == RegionSyncServerModule.ActorID)
                 {
                     // m_log.DebugFormat("[ODE CHARACTER]: Sending terse update for {0}", LocalID);
+                    ChangingActorID = "XXX";    // it's been sent. I am not changing it.
                     PhysEngineToSceneConnectorModule.RouteUpdate(this);
                 }
             }
@@ -795,6 +797,12 @@ namespace OpenSim.Region.Physics.OdePlugin
                 {
                     m_pidControllerActive = true;
                     _target_velocity = value;
+                    if (_target_velocity.X == 0 && _target_velocity.Y == 0 && _target_velocity.Z == 0)
+                    {
+                        // if stopping, force real velocity to zero
+                        _velocity = Vector3.Zero;
+                        // m_log.DebugFormat("{0}: Set velocity {1}", "[PHYSICS]", _target_velocity);  // RADEBUG
+                    }
                     base.ChangingActorID = RegionSyncServerModule.ActorID;
                 }
                 else
@@ -983,10 +991,12 @@ namespace OpenSim.Region.Physics.OdePlugin
             if (_target_velocity.X == 0.0f && _target_velocity.Y == 0.0f && _target_velocity.Z == 0.0f && m_iscolliding)
             {
                 //  keep track of where we stopped.  No more slippin' & slidin'
+                // m_log.DebugFormat("[PHYSICS]: Move setting zero. zeroFlag={0}, pidControllerActive={1}", _zeroFlag, m_pidControllerActive); // RADEBUG
                 if (!_zeroFlag)
                 {
                     _zeroFlag = true;
                     _zeroPosition = d.BodyGetPosition(Body);
+                    _velocity = _target_velocity;
                 }
                 if (m_pidControllerActive)
                 {
@@ -1164,13 +1174,15 @@ namespace OpenSim.Region.Physics.OdePlugin
                 _velocity.Y = 0.0f;
                 _velocity.Z = 0.0f;
 
+                /*
                 // Did we send out the 'stopped' message?
                 if (!m_lastUpdateSent)
                 {
                     m_lastUpdateSent = true;
-                    // base.RequestPhysicsterseUpdate();
+                    this.RequestPhysicsterseUpdate();
 
                 }
+                 */
             }
             else
             {
@@ -1208,6 +1220,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             }
             if (!m_lastUpdateSent)
             {
+                m_lastUpdateSent = true;
                 ChangingActorID = RegionSyncServerModule.ActorID;
                 this.RequestPhysicsterseUpdate();
             }

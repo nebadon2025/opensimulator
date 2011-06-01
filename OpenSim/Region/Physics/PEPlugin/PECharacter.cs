@@ -84,6 +84,7 @@ public class PECharacter : PhysicsActor
         _position = pos;
         _size = size;
         _density = density;
+        base.ChangingActorID = RegionSyncServerModule.ActorID;
         return;
     }
 

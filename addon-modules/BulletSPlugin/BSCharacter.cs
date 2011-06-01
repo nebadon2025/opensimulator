@@ -127,7 +127,8 @@ public class BSCharacter : PhysicsActor
         if (PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
         {
             // if the values have changed and it was I who changed them, send an update
-            if (this.lastValues.Changed(this) && ChangingActorID == RegionSyncServerModule.ActorID)
+            // if (this.lastValues.Changed(this) && ChangingActorID == RegionSyncServerModule.ActorID)
+            if (ChangingActorID == RegionSyncServerModule.ActorID)
             {
                 // m_log.DebugFormat("{0}: Sending terse update for {1}", LogHeader, LocalID);
                 PhysEngineToSceneConnectorModule.RouteUpdate(this);
@@ -193,6 +194,7 @@ public class BSCharacter : PhysicsActor
         get { return _force; } 
         set {
             _force = value;
+            base.ChangingActorID = RegionSyncServerModule.ActorID;
             // m_log.DebugFormat("{0}: Force = {1}", LogHeader, _force);
             _scene.TaintedObject(delegate()
             {
@@ -404,6 +406,7 @@ public class BSCharacter : PhysicsActor
         }
         if (changed)
         {
+            base.ChangingActorID = RegionSyncServerModule.ActorID;
             this.RequestPhysicsterseUpdate();
         }
     }

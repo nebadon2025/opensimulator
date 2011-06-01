@@ -2170,7 +2170,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     ScenePresence sp = m_scene.GetScenePresence(collidingUUID);
                     if (sp == null)
                     {
-                        m_log.WarnFormat("Received collision event for SOP {0},{1} with another SOP {2}, but the latter is not found in local Scene",
+                        m_log.WarnFormat("Received collision event for SOP {0},{1} with another SOP/SP {2}, but the latter is not found in local Scene",
                             part.Name, part.UUID, collidingUUID);
                     }
                     else

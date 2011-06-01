@@ -4357,11 +4357,13 @@ namespace OpenSim.Region.Framework.Scenes
 
             int num = m_sceneGraph.GetNumberOfScenePresences();
 
-            if (num >= RegionInfo.RegionSettings.AgentLimit)
+            // TEMP WORKAROUND for DSG DEMO
+            // REGION SYNC
+            /*if (num >= RegionInfo.RegionSettings.AgentLimit)
             {
                 if (!Permissions.IsAdministrator(cAgentData.AgentID))
                     return false;
-            }
+            }*/
 
 
             ScenePresence childAgentUpdate = WaitGetScenePresence(cAgentData.AgentID);
@@ -5729,14 +5731,16 @@ namespace OpenSim.Region.Framework.Scenes
         {
             int num = m_sceneGraph.GetNumberOfScenePresences();
 
-            if (num >= RegionInfo.RegionSettings.AgentLimit)
+            // TEMP WORKAROUND for DSG DEMO
+            // REGION SYNC
+            /*if (num >= RegionInfo.RegionSettings.AgentLimit)
             {
                 if (!Permissions.IsAdministrator(agentID))
                 {
                     reason = "The region is full";
                     return false;
                 }
-            }
+            }*/
 
             reason = String.Empty;
             return true;

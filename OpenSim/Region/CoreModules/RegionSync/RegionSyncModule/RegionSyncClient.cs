@@ -460,21 +460,25 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         */
                         try
                         {
-                            presence.AgentControlFlags = flags;
-                            presence.AbsolutePosition = pos;
-                            presence.Velocity = vel;
-                            presence.Rotation = rot;
-                            // It seems the physics scene can drop an avatar if the avatar makes it angry
-                            if (presence.PhysicsActor != null)
+                            if (!PhysEngineToSceneConnectorModule.IsPhysEngineActorS)
                             {
-                                presence.PhysicsActor.Flying = flying;
-                                presence.PhysicsActor.CollidingGround = !flying;
-                            }
-                            if (doFullUpdate)
-                            {
-                                presence.CollisionPlane = collisionPlane;
-                                presence.OffsetPosition = offsetPosition;
-                                presence.ParentID = parentID;
+                                presence.AgentControlFlags = flags;
+                                presence.AbsolutePosition = pos;
+                                m_log.DebugFormat("{0}: UpdateAvatar. Setting vel={1}", LogHeader(), vel);
+                                presence.Velocity = vel;
+                                presence.Rotation = rot;
+                                // It seems the physics scene can drop an avatar if the avatar makes it angry
+                                if (presence.PhysicsActor != null)
+                                {
+                                    presence.PhysicsActor.Flying = flying;
+                                    presence.PhysicsActor.CollidingGround = !flying;
+                                }
+                                if (doFullUpdate)
+                                {
+                                    presence.CollisionPlane = collisionPlane;
+                                    presence.OffsetPosition = offsetPosition;
+                                    presence.ParentID = parentID;
+                                }
                             }
                         }
                         catch(Exception e)

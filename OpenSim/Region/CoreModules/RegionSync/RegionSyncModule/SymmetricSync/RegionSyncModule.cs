@@ -5899,11 +5899,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //Also may need to cached PhysActor.Position
                     if (part.PhysActor != null)
                     {
-                        if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateValue))
+                        if (!m_propertiesSyncInfo.ContainsKey(SceneObjectPartSyncProperties.Position))
                         {
-                            m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Position);
+                            Object initValue = GetSOPPropertyValue(part, SceneObjectPartSyncProperties.Position);
+                            PropertySyncInfo syncInfo = new PropertySyncInfo(SceneObjectPartSyncProperties.Position, initValue, lastUpdateByLocalTS, syncID);
+                            m_propertiesSyncInfo.Add(SceneObjectPartSyncProperties.Position, syncInfo);
                         }
-            
+                        else
+                        {
+                            if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateValue))
+                            {
+                                m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Position);
+                            }
+                        }
                     }
                     return true;
                 }
@@ -5916,13 +5924,26 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //above, so need to update the cached value of Position here.
                     if (part.PhysActor != null)
                     {
-                        if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateValue))
+                        //Set the timestamp and syncID to be the same with GroupPosition
+                        long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateTimeStamp;
+                        string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateSyncID;
+
+                        if (!m_propertiesSyncInfo.ContainsKey(SceneObjectPartSyncProperties.Position))
                         {
-                            //Set the timestamp and syncID to be the same with GroupPosition
-                            long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateTimeStamp;
-                            string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateSyncID;
-                            m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].UpdateSyncInfoByLocal(lastUpdateTimestamp,
-                                lastUpdateSyncID, (Object)part.PhysActor.Position);
+                            Object initValue = GetSOPPropertyValue(part, SceneObjectPartSyncProperties.Position);
+                            PropertySyncInfo syncInfo = new PropertySyncInfo(SceneObjectPartSyncProperties.Position, initValue, lastUpdateTimestamp, lastUpdateSyncID);
+                            m_propertiesSyncInfo.Add(SceneObjectPartSyncProperties.Position, syncInfo);
+                        }
+                        else
+                        {
+                            if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateValue))
+                            {
+                                //Set the timestamp and syncID to be the same with GroupPosition
+                                //long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateTimeStamp;
+                                //string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateSyncID;
+                                m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].UpdateSyncInfoByLocal(lastUpdateTimestamp,
+                                    lastUpdateSyncID, (Object)part.PhysActor.Position);
+                            }
                         }
                     }
                 }
@@ -5943,10 +5964,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Position);
 
                     //Also may need to update SOP.GroupPosition (especially for root parts)
-                    if (!part.GroupPosition.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue))
+                    if (!m_propertiesSyncInfo.ContainsKey(SceneObjectPartSyncProperties.GroupPosition))
                     {
-                        //Update SOP.GroupPosition
-                        m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.GroupPosition);
+                        Object initValue = GetSOPPropertyValue(part, SceneObjectPartSyncProperties.GroupPosition);
+                        PropertySyncInfo syncInfo = new PropertySyncInfo(SceneObjectPartSyncProperties.GroupPosition, initValue, lastUpdateByLocalTS, syncID);
+                        m_propertiesSyncInfo.Add(SceneObjectPartSyncProperties.Position, syncInfo);
+                    }
+                    else
+                    {
+                        if (!part.GroupPosition.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue))
+                        {
+                            //Update SOP.GroupPosition
+                            m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.GroupPosition);
+                        }
                     }
                     return true;
                 }
@@ -5957,14 +5987,25 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                     //GroupPosition may change due to PhysActor.Position changes,
                     //especially for root parts. Sync the value of GroupPosition.
-                    if (!part.GroupPosition.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue))
+                    long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateTimeStamp;
+                    string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateSyncID;
+                    if (!m_propertiesSyncInfo.ContainsKey(SceneObjectPartSyncProperties.GroupPosition))
                     {
-                        //Need to reset SOP.GroupPosition to the cached value here
-                        //Set the timestamp and syncID to be the same with Position
-                        long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateTimeStamp;
-                        string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateSyncID;
-                        m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].UpdateSyncInfoByLocal(lastUpdateTimestamp,
-                            lastUpdateSyncID, (Object)part.GroupPosition);
+                        Object initValue = GetSOPPropertyValue(part, SceneObjectPartSyncProperties.GroupPosition);
+                        PropertySyncInfo syncInfo = new PropertySyncInfo(SceneObjectPartSyncProperties.GroupPosition, initValue, lastUpdateTimestamp, lastUpdateSyncID);
+                        m_propertiesSyncInfo.Add(SceneObjectPartSyncProperties.Position, syncInfo);
+                    }
+                    else
+                    {
+                        if (!part.GroupPosition.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue))
+                        {
+                            //Need to reset SOP.GroupPosition to the cached value here
+                            //Set the timestamp and syncID to be the same with Position
+                            //long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateTimeStamp;
+                            //string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateSyncID;
+                            m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].UpdateSyncInfoByLocal(lastUpdateTimestamp,
+                                lastUpdateSyncID, (Object)part.GroupPosition);
+                        }
                     }
                 }
             }

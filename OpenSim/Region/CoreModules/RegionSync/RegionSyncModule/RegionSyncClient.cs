@@ -352,17 +352,25 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
 
                         RegionSyncAvatar av = new RegionSyncAvatar(m_scene, agentID, first, last, startPos);
-                        m_remoteAvatars.Add(agentID, av);
-                        //m_scene.AddNewClient(av);
-                        m_scene.AddNewClient2(av, true, false);
-                        m_scene.TryGetScenePresence(agentID, out sp);
-                        if (sp == null)
+                        lock (m_syncRoot)
                         {
-                            m_log.ErrorFormat("{0} Could not get newly added scene presence.", LogHeader());
-                        }
-                        else
-                        {
-                            sp.IsSyncedAvatar = true;
+                            Dictionary<UUID, RegionSyncAvatar> newremotes = new Dictionary<UUID, RegionSyncAvatar>(RemoteAvatars);
+                            // Add to list of remote avatars
+                            newremotes.Add(agentID, av);
+                            m_remoteAvatars = newremotes;
+
+                            //m_remoteAvatars.Add(agentID, av);
+                            //m_scene.AddNewClient(av);
+                            m_scene.AddNewClient2(av, true, false);
+                            m_scene.TryGetScenePresence(agentID, out sp);
+                            if (sp == null)
+                            {
+                                m_log.ErrorFormat("{0} Could not get newly added scene presence.", LogHeader());
+                            }
+                            else
+                            {
+                                sp.IsSyncedAvatar = true;
+                            }
                         }
                         //RegionSyncMessage.HandlerDebug(LogHeader(), msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));
                         RegionSyncMessage.HandleSuccess(LogHeader(), msg, String.Format("Added new remote avatar \"{0}\" ({1})", first + " " + last, agentID));

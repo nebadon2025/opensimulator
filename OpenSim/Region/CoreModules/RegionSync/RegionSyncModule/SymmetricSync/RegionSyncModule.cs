@@ -1551,12 +1551,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 List<SceneObjectPartSyncProperties> propertiesUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoBySync(sop, propertiesSyncInfo);
 
                 //SYNC DEBUG
-                
+                /*
                 if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.AggregateScriptEvents))
                 {
                     m_log.DebugFormat("AggregateScriptEvents updated: " + sop.AggregateScriptEvents); 
                 }
-                /*
                 if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.Shape))
                 {
                     String hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(sop)));
@@ -2170,8 +2169,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     ScenePresence sp = m_scene.GetScenePresence(collidingUUID);
                     if (sp == null)
                     {
-                        m_log.WarnFormat("Received collision event for SOP {0},{1} with another SOP/SP {2}, but the latter is not found in local Scene",
-                            part.Name, part.UUID, collidingUUID);
+                        //m_log.WarnFormat("Received collision event for SOP {0},{1} with another SOP/SP {2}, but the latter is not found in local Scene",
+                        //    part.Name, part.UUID, collidingUUID);
                     }
                     else
                     {
@@ -2607,12 +2606,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //m_log.DebugFormat("{0}: SendPrimPropertyUpdates for {1}, {2}, with updated properties -- {3}", LogHeader, sop.Name, sop.UUID, pString);
 
                 //DSG DEBUG
-
+                /*
                 if (updatedProperties.Contains(SceneObjectPartSyncProperties.AggregateScriptEvents))
                 {
                     m_log.DebugFormat("SendPrimPropertyUpdates -- prim {0}: AggregateScriptEvents: {1} ", sop.Name, sop.AggregateScriptEvents);
                 }
-                /*
+
                 if (updatedProperties.Contains(SceneObjectPartSyncProperties.Position))
                 {
                     m_log.DebugFormat("SendPrimPropertyUpdates -- prim {0}: Position: {1} ", sop.Name, sop.PhysActor.Position);
@@ -2696,7 +2695,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             //DSG DEBUG
-            m_log.DebugFormat("calling AddNewSceneObjectByDecoding for SOG {0}, {1}", group.Name, group.UUID);
+            //m_log.DebugFormat("calling AddNewSceneObjectByDecoding for SOG {0}, {1}", group.Name, group.UUID);
 
             //Add the list of PrimSyncInfo to PrimSyncInfoManager's record.
             m_primSyncInfoManager.InsertMultiPrimSyncInfo(primsSyncInfo);
@@ -4250,7 +4249,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             propertyUpdatedByLocal = true;
 
                             //TEMP DEBUG
-                            DebugLog.DebugFormat("CompareValue_UpdateByLocal -- copy SOP's AggregateScriptEvents {0}", part.AggregateScriptEvents);
+                            //DebugLog.DebugFormat("CompareValue_UpdateByLocal -- copy SOP's AggregateScriptEvents {0}", part.AggregateScriptEvents);
                         }
                         else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
                         {
@@ -5541,7 +5540,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 case SceneObjectPartSyncProperties.AggregateScriptEvents:
                     part.AggregateScriptEvents = (scriptEvents)pSyncInfo.LastUpdateValue;
-                    DebugLog.DebugFormat("set {0} value to be {1}", property.ToString(), part.AggregateScriptEvents);
+                    //DebugLog.DebugFormat("set {0} value to be {1}", property.ToString(), part.AggregateScriptEvents);
                     part.aggregateScriptEventSubscriptions();
 
                     break;
@@ -5753,10 +5752,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SceneObjectPartSyncProperties.VolumeDetectActive:
                     //part.ParentGroup.UpdatePrimFlagsBySync(part.LocalId, part., IsTemporary, IsPhantom, part.VolumeDetectActive);
                     bool isVD = (bool)pSyncInfo.LastUpdateValue;
-                    DebugLog.DebugFormat("VolumeDetectActive updated on SOP {0}, to {1}", part.Name, isVD);
+                    //VD DEBUG
+                    //DebugLog.DebugFormat("VolumeDetectActive updated on SOP {0}, to {1}", part.Name, isVD);
                     if (part.ParentGroup != null)
                     {
-                        DebugLog.DebugFormat("calling ScriptSetVolumeDetectBySync");
+                        //VD DEBUG
+                        //DebugLog.DebugFormat("calling ScriptSetVolumeDetectBySync");
                         part.ParentGroup.ScriptSetVolumeDetectBySync(isVD);
                     }
                     part.VolumeDetectActive = isVD;

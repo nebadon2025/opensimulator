@@ -4417,11 +4417,12 @@ namespace OpenSim.Region.Framework.Scenes
 
             if ((UsePhysics == wasUsingPhysics) && (wasTemporary == IsTemporary) && (wasPhantom == IsPhantom) && (IsVD==wasVD))
             {
-                m_log.DebugFormat("UpdatePrimFlags called on {0}, nothing changed", Name);
+                //m_log.DebugFormat("UpdatePrimFlags called on {0}, nothing changed", Name);
                 return;
             }
 
-            m_log.DebugFormat("UpdatePrimFlags for SOP {0}, with args UsePhysics ={1}, IsTemporary= {2}, IsPhantom= {3}, IsVD = {4}", Name, UsePhysics, IsTemporary, IsPhantom, IsVD);
+            //DSG VD DEBUG
+            //m_log.DebugFormat("UpdatePrimFlags for SOP {0}, with args UsePhysics ={1}, IsTemporary= {2}, IsPhantom= {3}, IsVD = {4}", Name, UsePhysics, IsTemporary, IsPhantom, IsVD);
 
             // Special cases for VD. VD can only be called from a script 
             // and can't be combined with changes to other states. So we can rely
@@ -4430,8 +4431,6 @@ namespace OpenSim.Region.Framework.Scenes
             // ... if one of the others is changed, VD is not.
             if (IsVD) // VD is active, special logic applies
             {
-                m_log.DebugFormat("VolumnDetectActive is set");
-
                 // State machine logic for VolumeDetect
                 // More logic below
                 bool phanReset = (IsPhantom != wasPhantom) && !IsPhantom;
@@ -4505,8 +4504,6 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     // It's not phantom anymore. So make sure the physics engine get's knowledge of it
 
-                    m_log.DebugFormat("Create PhysActor for {0}", Name);
-
                     PhysActor = m_parentGroup.Scene.PhysicsScene.AddPrimShape(
                         LocalId,
                         string.Format("{0}/{1}", Name, UUID),
@@ -4567,8 +4564,6 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (IsVD)
             {
-                m_log.DebugFormat("more logic on VD");
-
                 // If the above logic worked (this is urgent candidate to unit tests!)
                 // we now have a physicsactor.
                 // Defensive programming calls for a check here.
@@ -4576,8 +4571,6 @@ namespace OpenSim.Region.Framework.Scenes
                 // logic should make sure, this Physactor is always here.
                 if (this.PhysActor != null)
                 {
-                    m_log.DebugFormat("PhysActor.SetVolumnDetect");
-
                     PhysActor.SetVolumeDetect(1);
                     AddFlag(PrimFlags.Phantom); // We set this flag also if VD is active
                     this.VolumeDetectActive = true;
@@ -4607,7 +4600,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             ParentGroup.HasGroupChanged = true;
             //ScheduleFullUpdate();
-            ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Flags});
+            ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Flags, SceneObjectPartSyncProperties.VolumeDetectActive});
         }
 
         public void UpdateRotation(Quaternion rot)
@@ -5357,12 +5350,14 @@ namespace OpenSim.Region.Framework.Scenes
                 (CollisionSound != UUID.Zero)
                 )
             {
-                m_log.DebugFormat("Need to Hook up collision events for {0} ", Name);
+                //DSG collision DEBUG
+                //m_log.DebugFormat("Need to Hook up collision events for {0} ", Name);
 
                 // subscribe to physics updates.
                 if (PhysActor != null)
                 {
-                    m_log.DebugFormat("Hook up with PhysicsCollision for {0} ", Name);
+                    //DSG collision DEBUG
+                    //m_log.DebugFormat("Hook up with PhysicsCollision for {0} ", Name);
 
                     PhysActor.OnCollisionUpdate += PhysicsCollision;
                     PhysActor.SubscribeEvents(1000);
@@ -5409,11 +5404,12 @@ namespace OpenSim.Region.Framework.Scenes
             bool wasPhantom = ((Flags & PrimFlags.Phantom) != 0);
             bool wasVD = VolumeDetectActive;
 
-            m_log.DebugFormat("UpdatePrimFlagsBySync called for SOP {0}, UsePhysics ={1}, IsTemporary= {2}, IsPhantom= {3}, IsVD = {4}", Name, UsePhysics, IsTemporary, IsPhantom, IsVD);
+            //DSG VD DEBUG
+            //m_log.DebugFormat("UpdatePrimFlagsBySync called for SOP {0}, UsePhysics ={1}, IsTemporary= {2}, IsPhantom= {3}, IsVD = {4}", Name, UsePhysics, IsTemporary, IsPhantom, IsVD);
 
             if ((UsePhysics == wasUsingPhysics) && (wasTemporary == IsTemporary) && (wasPhantom == IsPhantom) && (IsVD == wasVD))
             {
-                m_log.DebugFormat("no property changed, return");
+                //m_log.DebugFormat("no property changed, return");
                 return;
             }
 
@@ -5424,11 +5420,13 @@ namespace OpenSim.Region.Framework.Scenes
             // ... if one of the others is changed, VD is not.
             if (IsVD) // VD is active, special logic applies
             {
+                /*
                 m_log.DebugFormat("{0}: IsVD", Name);
                 if (PhysActor == null)
                 {
                     m_log.WarnFormat("But {0}'s PhysActor is null", Name);
                 }
+                 */  
 
                 // State machine logic for VolumeDetect
                 // More logic below
@@ -5501,8 +5499,8 @@ namespace OpenSim.Region.Framework.Scenes
                 PhysicsActor pa = PhysActor;
                 if (pa == null)
                 {
-                    //DSG DEBUG
-                    m_log.DebugFormat("Creating PhysActor for SOP {0}, {1}, so far Flags = {2}", Name, UUID, Flags.ToString());
+                    //DSG VD DEBUG
+                    //m_log.DebugFormat("Creating PhysActor for SOP {0}, {1}, so far Flags = {2}", Name, UUID, Flags.ToString());
 
                     // It's not phantom anymore. So make sure the physics engine get's knowledge of it
                     PhysActor = m_parentGroup.Scene.PhysicsScene.AddPrimShape(
@@ -5602,7 +5600,8 @@ namespace OpenSim.Region.Framework.Scenes
             ParentGroup.HasGroupChanged = true;
             //ScheduleFullUpdate();
 
-            m_log.DebugFormat("End of UpdatePrimFlagsBySync for SOP {0}, {1}, so far Flags = {2}", Name, UUID, Flags.ToString());
+            //DSG VD DEBUG
+            //m_log.DebugFormat("End of UpdatePrimFlagsBySync for SOP {0}, {1}, so far Flags = {2}", Name, UUID, Flags.ToString());
 
             //caller will trigger this, See SetSOPFlags()
             //ScheduleFullUpdate(null);

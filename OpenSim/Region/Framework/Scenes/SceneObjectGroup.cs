@@ -3935,7 +3935,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void ScriptSetVolumeDetectBySync(bool SetVD)
         {
-            m_log.DebugFormat("ScriptSetVolumeDetectBySync called for SOG {0}", Name);
+            //m_log.DebugFormat("ScriptSetVolumeDetectBySync called for SOG {0}", Name);
 
             bool UsePhysics = ((RootPart.Flags & PrimFlags.Physics) != 0);
             bool IsTemporary = ((RootPart.Flags & PrimFlags.TemporaryOnRez) != 0);

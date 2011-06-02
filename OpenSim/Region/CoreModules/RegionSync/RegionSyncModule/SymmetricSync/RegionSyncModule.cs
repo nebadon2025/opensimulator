@@ -1522,7 +1522,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             if (sop == null || sop.ParentGroup.IsDeleted)
             {
-                m_log.WarnFormat("{0}: HandleUpdatedPrimProperties -- prim {1} no longer in local SceneGraph", LogHeader, primUUID);
+                m_log.WarnFormat("{0}: HandleUpdatedPrimProperties -- prim {1} no longer in local SceneGraph. SOP == NULL? ({2}), Sender is {3}", 
+                    LogHeader, primUUID, sop == null, senderActorID);
                 return;
             }
 
@@ -2130,59 +2131,89 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.TriggerOnAttachLocally(localID, itemID, avatarID);
         }
 
+        private int spErrCount = 0;
+        private HashSet<UUID> errUUIDs = new HashSet<UUID>(); 
         private void HandleRemoteEvent_PhysicsCollision(string actorID, ulong evSeqNum, OSDMap data)
         {
-            UUID primUUID = data["primUUID"].AsUUID();
-            //OSDArray collisionLocalIDs = (OSDArray)data["collisionLocalIDs"];
-            OSDArray collisionUUIDs = (OSDArray)data["collisionUUIDs"];
-
-            SceneObjectPart part = m_scene.GetSceneObjectPart(primUUID);
-            if (part == null)
+            if (!data.ContainsKey("primUUID") || !data.ContainsKey("collisionUUIDs"))
             {
-                m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no part with UUID {1} found", LogHeader, primUUID);
-                return;
-            }
-            if (collisionUUIDs == null)
-            {
-                m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no collisionLocalIDs", LogHeader);
-                return;
+                m_log.ErrorFormat("RemoteEvent_PhysicsCollision: either primUUID or collisionUUIDs is missing in incoming OSDMap");
             }
 
-            // Build up the collision list. The contact point is ignored so we generate some default.
-            CollisionEventUpdate e = new CollisionEventUpdate();
-            /*
-            foreach (uint collisionID in collisionLocalIDs)
+            try
             {
-                // e.addCollider(collisionID, new ContactPoint());
-                e.addCollider(collisionID, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
-            }
-             * */
-            for(int i=0; i<collisionUUIDs.Count; i++)
-            {
-                OSD arg = collisionUUIDs[i];
-                UUID collidingUUID = arg.AsUUID();
+                UUID primUUID = data["primUUID"].AsUUID();
+                //OSDArray collisionLocalIDs = (OSDArray)data["collisionLocalIDs"];
+                OSDArray collisionUUIDs = (OSDArray)data["collisionUUIDs"];
 
-                SceneObjectPart collidingPart = m_scene.GetSceneObjectPart(collidingUUID);
-                if (collidingPart == null)
+                SceneObjectPart part = m_scene.GetSceneObjectPart(primUUID);
+                if (part == null)
                 {
-                    //collision object is not a prim, check if it's an avatar
-                    ScenePresence sp = m_scene.GetScenePresence(collidingUUID);
-                    if (sp == null)
+                    m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no part with UUID {1} found, event initiator {2}", LogHeader, primUUID, actorID);
+                    return;
+                }
+                if (collisionUUIDs == null)
+                {
+                    m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no collisionLocalIDs", LogHeader);
+                    return;
+                }
+
+                // Build up the collision list. The contact point is ignored so we generate some default.
+                CollisionEventUpdate e = new CollisionEventUpdate();
+                /*
+                foreach (uint collisionID in collisionLocalIDs)
+                {
+                    // e.addCollider(collisionID, new ContactPoint());
+                    e.addCollider(collisionID, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
+                }
+                 * */
+                for (int i = 0; i < collisionUUIDs.Count; i++)
+                {
+                    OSD arg = collisionUUIDs[i];
+                    UUID collidingUUID = arg.AsUUID();
+
+                    SceneObjectPart collidingPart = m_scene.GetSceneObjectPart(collidingUUID);
+                    if (collidingPart == null)
                     {
-                        //m_log.WarnFormat("Received collision event for SOP {0},{1} with another SOP/SP {2}, but the latter is not found in local Scene",
-                        //    part.Name, part.UUID, collidingUUID);
+                        //collision object is not a prim, check if it's an avatar
+                        ScenePresence sp = m_scene.GetScenePresence(collidingUUID);
+                        if (sp == null)
+                        {
+                            //m_log.WarnFormat("Received collision event for SOP {0},{1} with another SOP/SP {2}, but the latter is not found in local Scene",
+                            //    part.Name, part.UUID, collidingUUID);
+                            if (spErrCount == 100)
+                            {
+                                string missedUUIDs = "";
+                                foreach (UUID cUUID in errUUIDs)
+                                {
+                                    missedUUIDs += cUUID.ToString() + ", ";
+                                }
+                                m_log.WarnFormat("Have seen errors of collidingUUID not being found {0} times. {1} collidingUUIDs seen so far: {2}", spErrCount, errUUIDs.Count, missedUUIDs);
+                                spErrCount = 0;
+                                errUUIDs.Clear();
+                            }
+                            else
+                            {
+                                spErrCount++;
+                                errUUIDs.Add(collidingUUID);
+                            }
+                        }
+                        else
+                        {
+                            e.addCollider(sp.LocalId, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
+                        }
                     }
                     else
                     {
-                        e.addCollider(sp.LocalId, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
+                        e.addCollider(collidingPart.LocalId, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
                     }
                 }
-                else
-                {
-                    e.addCollider(collidingPart.LocalId, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
-                }
+                part.PhysicsCollisionLocally(e);
             }
-            part.PhysicsCollisionLocally(e);
+            catch (Exception e)
+            {
+                m_log.WarnFormat("HandleRemoteEvent_PhysicsCollision ERROR: {0}", e.Message);
+            }
         }
 
         /// <summary>
@@ -2304,15 +2335,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SendSceneEvent(SymmetricSyncMessage.MsgType.Attach, data);
         }
 
-        /*
-        private void OnLocalPhysicsCollision(UUID partUUID, OSDArray collisionLocalIDs)
-        {
-            OSDMap data = new OSDMap();
-            data["primUUID"] = OSD.FromUUID(partUUID);
-            data["collisionLocalIDs"] = collisionLocalIDs;
-            SendSceneEvent(SymmetricSyncMessage.MsgType.PhysicsCollision, data);
-        }
-         * */
         private void OnLocalPhysicsCollision(UUID partUUID, OSDArray collisionUUIDs)
         {
             OSDMap data = new OSDMap();

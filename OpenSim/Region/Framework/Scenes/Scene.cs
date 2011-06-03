@@ -483,6 +483,23 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_regionSyncMode = value; }
         }
 
+        private string m_regionSyncActorType = String.Empty;
+        public string RegionSyncActorType
+        {
+            get
+            {
+                if (m_regionSyncActorType == String.Empty)
+                {
+                    IDSGActorSyncModule DSGActorSyncModule = RequestModuleInterface<IDSGActorSyncModule>();
+                    if (DSGActorSyncModule != null)
+                    {
+                        m_regionSyncActorType = DSGActorSyncModule.ActorType.ToString();
+                    }
+                }
+                return m_regionSyncActorType;
+            }
+        }
+
         public bool ToScheduleFullUpdate()
         {
             //Only Scene (SyncServer) or Client Manager (SyncClient) will schedule update to send to its client. Script Engine will not (its update should be sent to Scene).

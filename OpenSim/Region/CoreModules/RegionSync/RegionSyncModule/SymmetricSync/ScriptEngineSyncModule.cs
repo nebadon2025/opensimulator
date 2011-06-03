@@ -150,6 +150,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         #region IDSGActorSyncModule members and functions
 
+        public static string ActorTypeString = DSGActorTypes.ScriptEngine.ToString();
+
         private DSGActorTypes m_actorType = DSGActorTypes.ScriptEngine;
         public DSGActorTypes ActorType
         {

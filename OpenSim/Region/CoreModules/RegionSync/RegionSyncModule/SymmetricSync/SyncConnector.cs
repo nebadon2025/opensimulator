@@ -80,7 +80,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public string OtherSideActorID
         {
             get { return m_syncOtherSideActorID; }
-            set { m_syncOtherSideActorID = value; }
+            //set { m_syncOtherSideActorID = value; }
         }
 
         //The region name of the other side of the connection
@@ -88,6 +88,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public string OtherSideRegionName
         {
             get { return m_syncOtherSideRegionName; }
+        }
+
+        private string m_syncOtherSideActorType;
+        public string OtherSideActorType
+        {
+            get { return m_syncOtherSideActorType; }
+            //set { m_syncOtherSideActorID = value; }
         }
 
         // Check if the client is connected
@@ -320,6 +327,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             Send(outMsg);
                         }
                         m_log.DebugFormat("Syncing to actor \"{0}\"", m_syncOtherSideActorID);
+                        return;
+                    }
+                case SymmetricSyncMessage.MsgType.ActorType:
+                    {
+                        m_syncOtherSideActorType = Encoding.ASCII.GetString(msg.Data, 0, msg.Length);
+                        if (m_regionSyncModule.IsSyncRelay)
+                        {
+                            SymmetricSyncMessage outMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ActorType, m_regionSyncModule.LocalScene.RegionSyncActorType );
+                            Send(outMsg);
+                        }
+                        m_log.DebugFormat("Syncing to actor type \"{0}\"", m_syncOtherSideActorType);
                         return;
                     }
                 default:

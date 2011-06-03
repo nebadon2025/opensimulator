@@ -105,6 +105,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             int syncInfoAgeOutSeconds = m_sysConfig.GetInt("PrimSyncInfoAgeOutSeconds", 300); //unit of seconds
             TimeSpan tSpan = new TimeSpan(0, 0, syncInfoAgeOutSeconds);
             m_primSyncInfoManager = new PrimSyncInfoManager(this, tSpan.Ticks);
+
+            //this is temp solution for reducing collision events for country fair demo
+            m_reportCollisions = m_sysConfig.GetString("ReportCollisions", "All");
         }
 
         //Called after Initialise()
@@ -558,37 +561,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private Dictionary<UUID, HashSet<SceneObjectPartSyncProperties>> m_primPropertyUpdates = new Dictionary<UUID, HashSet<SceneObjectPartSyncProperties>>();
         private int m_sendingPrimPropertyUpdates = 0;
 
-        ///////////////////////////////////////////////////////////////////////
-        // Legacy members for bucket-based sync, 
-        ///////////////////////////////////////////////////////////////////////
+        string m_reportCollisions = "All";
 
-        private Dictionary<string, Object> m_primUpdateLocks = new Dictionary<string, object>();
-        private Dictionary<string, Dictionary<UUID, SceneObjectPart>> m_primUpdates = new Dictionary<string, Dictionary<UUID, SceneObjectPart>>();
-
-        private delegate void PrimUpdatePerBucketSender(string bucketName, List<SceneObjectPart> primUpdates);
-        private Dictionary<string, PrimUpdatePerBucketSender> m_primUpdatesPerBucketSender = new Dictionary<string, PrimUpdatePerBucketSender>();
-
-        private delegate void PrimUpdatePerBucketReceiver(string bucketName, OSDMap data);
-        private Dictionary<string, PrimUpdatePerBucketReceiver> m_primUpdatesPerBucketReceiver = new Dictionary<string, PrimUpdatePerBucketReceiver>();
-
-        //The functions that encode properties in each bucket. For now, 
-        //general bucket works on SOG, physics bucket works on SOP, so we define
-        //the arg to be of type Object to be general in the interface. 
-        //TO DO: redesign the interface once the bucket encoders working on more 
-        //consistent/specific arguments.
-        private delegate OSDMap UpdatePerBucketEncoder(string bucketName, Object arg);
-        private Dictionary<string, UpdatePerBucketEncoder> m_updatePerBucketEncoder = new Dictionary<string, UpdatePerBucketEncoder>();
-
-        //Decoders of properties in each bucket
-        private delegate void UpdatePerBucketDecoder(string bucketName, OSDMap data, out Object outData);
-        private Dictionary<string, UpdatePerBucketDecoder> m_updatePerBucketDecoder = new Dictionary<string, UpdatePerBucketDecoder>();
-
-
-        private object m_updateScenePresenceLock = new object();
-        private Dictionary<UUID, ScenePresence> m_presenceUpdates = new Dictionary<UUID, ScenePresence>();
-        private int m_sendingUpdates = 0;
-
-        private int m_maxNumOfPropertyBuckets;
 
         /////////////////////////////////////////////////////////////////////////////////////////
         // Synchronization related functions, NOT exposed through IRegionSyncModule interface
@@ -754,8 +728,21 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             foreach (SyncConnector connector in syncConnectors)
             {
-                lock (m_stats) m_statEventOut++;
-                connector.Send(rsm);
+                //special fix for demo, need better optimization later
+                if (rsm.Type == SymmetricSyncMessage.MsgType.PhysicsCollision && m_isSyncRelay)
+                {
+                    //for persistence actor, only forward collision events to script engines
+                    if (connector.OtherSideActorType == ScriptEngineSyncModule.ActorTypeString)
+                    {
+                        lock (m_stats) m_statEventOut++;
+                        connector.Send(rsm);
+                    }
+                }
+                else
+                {
+                    lock (m_stats) m_statEventOut++;
+                    connector.Send(rsm);
+                }
             }
         }
 
@@ -867,6 +854,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 }
                 //m_actorType = m_scene.ActorSyncModule.ActorType;
             }
+
+            //m_actorType = m_scene.ActorSyncModule.ActorType.ToString();
 
             //Start symmetric synchronization initialization automatically
             SyncStart(null);
@@ -1315,6 +1304,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_log.WarnFormat("Sending region name: \"{0}\"", m_scene.RegionInfo.RegionName);
 
             SendSyncMessage(SymmetricSyncMessage.MsgType.ActorID, m_actorID);
+            SendSyncMessage(SymmetricSyncMessage.MsgType.ActorType, m_scene.RegionSyncActorType);
 
             SendSyncMessage(SymmetricSyncMessage.MsgType.GetTerrain);
             SendSyncMessage(SymmetricSyncMessage.MsgType.GetObjects);
@@ -2361,6 +2351,30 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void OnLocalPhysicsCollision(UUID partUUID, OSDArray collisionUUIDs)
         {
+            //temp solution for reducing collision events for demo
+            switch (m_reportCollisions)
+            {
+                case "All":
+                    break;
+                case "PrimToAvatarOnly":
+                    SceneObjectPart part = m_scene.GetSceneObjectPart(partUUID);
+                    if (part == null) return;
+                    for (int i = 0; i < collisionUUIDs.Count; i++)
+                    {
+                        OSD arg = collisionUUIDs[i];
+                        UUID collidingUUID = arg.AsUUID();
+                        ScenePresence sp = m_scene.GetScenePresence(collidingUUID);
+                        if (sp == null)
+                        {
+                            //not colliding with an avatar, don't propagate
+                            return;
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+
             OSDMap data = new OSDMap();
             data["primUUID"] = OSD.FromUUID(partUUID);
             data["collisionUUIDs"] = collisionUUIDs;

@@ -3329,7 +3329,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.AddScriptLPS(1);
             m_host.AngularVelocity = new Vector3((float)(axis.x * spinrate), (float)(axis.y * spinrate), (float)(axis.z * spinrate));
             //m_host.ScheduleTerseUpdate();
-            m_host.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.AngularVelocity});
+            m_host.ScheduleSyncUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.AngularVelocity });
             m_host.SendTerseUpdateToAllClients();
             m_host.ParentGroup.HasGroupChanged = true;
         }

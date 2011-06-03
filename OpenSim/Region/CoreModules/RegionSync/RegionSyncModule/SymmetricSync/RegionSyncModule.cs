@@ -1522,7 +1522,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             if (sop == null || sop.ParentGroup.IsDeleted)
             {
-                m_log.WarnFormat("{0}: HandleUpdatedPrimProperties -- prim {1} no longer in local SceneGraph", LogHeader, primUUID);
+                m_log.WarnFormat("{0}: HandleUpdatedPrimProperties -- prim {1} no longer in local SceneGraph. SOP == NULL? ({2}), Sender is {3}", 
+                    LogHeader, primUUID, sop == null, senderActorID);
                 return;
             }
 
@@ -1569,9 +1570,25 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //Enqueue the updated SOP and its properties for sync 
                     ProcessAndEnqueuePrimUpdatesBySync(sop, propertiesUpdated);
 
-                    //Calling SOP.ScheduleFullUpdate(), so that viewers, if any,
+                    //Calling SOP.ScheduleFullUpdate() or ScheduleTerseUpdate(), so that viewers, if any,
                     //will receive updates as well.
-                    sop.ScheduleFullUpdate(null);
+                    bool allTerseUpdates = true;
+                    foreach (SceneObjectPartSyncProperties prop in propertiesUpdated)
+                    {
+                        if (!PrimSyncInfo.TerseUpdateProperties.Contains(prop))
+                        {
+                            allTerseUpdates = false;
+                            break;
+                        }
+                    }
+                    if (allTerseUpdates)
+                    {
+                        sop.ScheduleTerseUpdate(null);
+                    }
+                    else
+                    {
+                        sop.ScheduleFullUpdate(null);
+                    }
                 }
             }
         }
@@ -2130,59 +2147,89 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.TriggerOnAttachLocally(localID, itemID, avatarID);
         }
 
+        private int spErrCount = 0;
+        private HashSet<UUID> errUUIDs = new HashSet<UUID>(); 
         private void HandleRemoteEvent_PhysicsCollision(string actorID, ulong evSeqNum, OSDMap data)
         {
-            UUID primUUID = data["primUUID"].AsUUID();
-            //OSDArray collisionLocalIDs = (OSDArray)data["collisionLocalIDs"];
-            OSDArray collisionUUIDs = (OSDArray)data["collisionUUIDs"];
-
-            SceneObjectPart part = m_scene.GetSceneObjectPart(primUUID);
-            if (part == null)
+            if (!data.ContainsKey("primUUID") || !data.ContainsKey("collisionUUIDs"))
             {
-                m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no part with UUID {1} found", LogHeader, primUUID);
-                return;
-            }
-            if (collisionUUIDs == null)
-            {
-                m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no collisionLocalIDs", LogHeader);
-                return;
+                m_log.ErrorFormat("RemoteEvent_PhysicsCollision: either primUUID or collisionUUIDs is missing in incoming OSDMap");
             }
 
-            // Build up the collision list. The contact point is ignored so we generate some default.
-            CollisionEventUpdate e = new CollisionEventUpdate();
-            /*
-            foreach (uint collisionID in collisionLocalIDs)
+            try
             {
-                // e.addCollider(collisionID, new ContactPoint());
-                e.addCollider(collisionID, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
-            }
-             * */
-            for(int i=0; i<collisionUUIDs.Count; i++)
-            {
-                OSD arg = collisionUUIDs[i];
-                UUID collidingUUID = arg.AsUUID();
+                UUID primUUID = data["primUUID"].AsUUID();
+                //OSDArray collisionLocalIDs = (OSDArray)data["collisionLocalIDs"];
+                OSDArray collisionUUIDs = (OSDArray)data["collisionUUIDs"];
 
-                SceneObjectPart collidingPart = m_scene.GetSceneObjectPart(collidingUUID);
-                if (collidingPart == null)
+                SceneObjectPart part = m_scene.GetSceneObjectPart(primUUID);
+                if (part == null)
                 {
-                    //collision object is not a prim, check if it's an avatar
-                    ScenePresence sp = m_scene.GetScenePresence(collidingUUID);
-                    if (sp == null)
+                    m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no part with UUID {1} found, event initiator {2}", LogHeader, primUUID, actorID);
+                    return;
+                }
+                if (collisionUUIDs == null)
+                {
+                    m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no collisionLocalIDs", LogHeader);
+                    return;
+                }
+
+                // Build up the collision list. The contact point is ignored so we generate some default.
+                CollisionEventUpdate e = new CollisionEventUpdate();
+                /*
+                foreach (uint collisionID in collisionLocalIDs)
+                {
+                    // e.addCollider(collisionID, new ContactPoint());
+                    e.addCollider(collisionID, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
+                }
+                 * */
+                for (int i = 0; i < collisionUUIDs.Count; i++)
+                {
+                    OSD arg = collisionUUIDs[i];
+                    UUID collidingUUID = arg.AsUUID();
+
+                    SceneObjectPart collidingPart = m_scene.GetSceneObjectPart(collidingUUID);
+                    if (collidingPart == null)
                     {
-                        //m_log.WarnFormat("Received collision event for SOP {0},{1} with another SOP/SP {2}, but the latter is not found in local Scene",
-                        //    part.Name, part.UUID, collidingUUID);
+                        //collision object is not a prim, check if it's an avatar
+                        ScenePresence sp = m_scene.GetScenePresence(collidingUUID);
+                        if (sp == null)
+                        {
+                            //m_log.WarnFormat("Received collision event for SOP {0},{1} with another SOP/SP {2}, but the latter is not found in local Scene",
+                            //    part.Name, part.UUID, collidingUUID);
+                            if (spErrCount == 100)
+                            {
+                                string missedUUIDs = "";
+                                foreach (UUID cUUID in errUUIDs)
+                                {
+                                    missedUUIDs += cUUID.ToString() + ", ";
+                                }
+                                m_log.WarnFormat("Have seen errors of collidingUUID not being found {0} times. {1} collidingUUIDs seen so far: {2}", spErrCount, errUUIDs.Count, missedUUIDs);
+                                spErrCount = 0;
+                                errUUIDs.Clear();
+                            }
+                            else
+                            {
+                                spErrCount++;
+                                errUUIDs.Add(collidingUUID);
+                            }
+                        }
+                        else
+                        {
+                            e.addCollider(sp.LocalId, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
+                        }
                     }
                     else
                     {
-                        e.addCollider(sp.LocalId, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
+                        e.addCollider(collidingPart.LocalId, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
                     }
                 }
-                else
-                {
-                    e.addCollider(collidingPart.LocalId, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
-                }
+                part.PhysicsCollisionLocally(e);
             }
-            part.PhysicsCollisionLocally(e);
+            catch (Exception e)
+            {
+                m_log.WarnFormat("HandleRemoteEvent_PhysicsCollision ERROR: {0}", e.Message);
+            }
         }
 
         /// <summary>
@@ -2304,15 +2351,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SendSceneEvent(SymmetricSyncMessage.MsgType.Attach, data);
         }
 
-        /*
-        private void OnLocalPhysicsCollision(UUID partUUID, OSDArray collisionLocalIDs)
-        {
-            OSDMap data = new OSDMap();
-            data["primUUID"] = OSD.FromUUID(partUUID);
-            data["collisionLocalIDs"] = collisionLocalIDs;
-            SendSceneEvent(SymmetricSyncMessage.MsgType.PhysicsCollision, data);
-        }
-         * */
         private void OnLocalPhysicsCollision(UUID partUUID, OSDArray collisionUUIDs)
         {
             OSDMap data = new OSDMap();
@@ -3747,6 +3785,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public static HashSet<SceneObjectPartSyncProperties> PrimPhysActorProperties = SceneObjectPart.GetAllPhysActorProperties();
         public static HashSet<SceneObjectPartSyncProperties> PrimNonPhysActorProperties = SceneObjectPart.GetAllPrimNonPhysActorProperties();
         public static HashSet<SceneObjectPartSyncProperties> GroupProperties = SceneObjectPart.GetGroupProperties();
+        public static HashSet<SceneObjectPartSyncProperties> TerseUpdateProperties = SceneObjectPart.GetTerseUpdateProperties();
 
         private PrimSyncInfoManager m_syncInfoManager;
 
@@ -5877,11 +5916,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //Also may need to cached PhysActor.Position
                     if (part.PhysActor != null)
                     {
-                        if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateValue))
+                        if (!m_propertiesSyncInfo.ContainsKey(SceneObjectPartSyncProperties.Position))
                         {
-                            m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Position);
+                            Object initValue = GetSOPPropertyValue(part, SceneObjectPartSyncProperties.Position);
+                            PropertySyncInfo syncInfo = new PropertySyncInfo(SceneObjectPartSyncProperties.Position, initValue, lastUpdateByLocalTS, syncID);
+                            m_propertiesSyncInfo.Add(SceneObjectPartSyncProperties.Position, syncInfo);
                         }
-            
+                        else
+                        {
+                            if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateValue))
+                            {
+                                m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Position);
+                            }
+                        }
                     }
                     return true;
                 }
@@ -5894,13 +5941,26 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //above, so need to update the cached value of Position here.
                     if (part.PhysActor != null)
                     {
-                        if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateValue))
+                        //Set the timestamp and syncID to be the same with GroupPosition
+                        long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateTimeStamp;
+                        string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateSyncID;
+
+                        if (!m_propertiesSyncInfo.ContainsKey(SceneObjectPartSyncProperties.Position))
                         {
-                            //Set the timestamp and syncID to be the same with GroupPosition
-                            long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateTimeStamp;
-                            string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateSyncID;
-                            m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].UpdateSyncInfoByLocal(lastUpdateTimestamp,
-                                lastUpdateSyncID, (Object)part.PhysActor.Position);
+                            Object initValue = GetSOPPropertyValue(part, SceneObjectPartSyncProperties.Position);
+                            PropertySyncInfo syncInfo = new PropertySyncInfo(SceneObjectPartSyncProperties.Position, initValue, lastUpdateTimestamp, lastUpdateSyncID);
+                            m_propertiesSyncInfo.Add(SceneObjectPartSyncProperties.Position, syncInfo);
+                        }
+                        else
+                        {
+                            if (!part.PhysActor.Position.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateValue))
+                            {
+                                //Set the timestamp and syncID to be the same with GroupPosition
+                                //long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateTimeStamp;
+                                //string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateSyncID;
+                                m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].UpdateSyncInfoByLocal(lastUpdateTimestamp,
+                                    lastUpdateSyncID, (Object)part.PhysActor.Position);
+                            }
                         }
                     }
                 }
@@ -5921,10 +5981,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.PhysActor.Position);
 
                     //Also may need to update SOP.GroupPosition (especially for root parts)
-                    if (!part.GroupPosition.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue))
+                    if (!m_propertiesSyncInfo.ContainsKey(SceneObjectPartSyncProperties.GroupPosition))
                     {
-                        //Update SOP.GroupPosition
-                        m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.GroupPosition);
+                        Object initValue = GetSOPPropertyValue(part, SceneObjectPartSyncProperties.GroupPosition);
+                        PropertySyncInfo syncInfo = new PropertySyncInfo(SceneObjectPartSyncProperties.GroupPosition, initValue, lastUpdateByLocalTS, syncID);
+                        m_propertiesSyncInfo.Add(SceneObjectPartSyncProperties.Position, syncInfo);
+                    }
+                    else
+                    {
+                        if (!part.GroupPosition.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue))
+                        {
+                            //Update SOP.GroupPosition
+                            m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.GroupPosition);
+                        }
                     }
                     return true;
                 }
@@ -5935,14 +6004,25 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                     //GroupPosition may change due to PhysActor.Position changes,
                     //especially for root parts. Sync the value of GroupPosition.
-                    if (!part.GroupPosition.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue))
+                    long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateTimeStamp;
+                    string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateSyncID;
+                    if (!m_propertiesSyncInfo.ContainsKey(SceneObjectPartSyncProperties.GroupPosition))
                     {
-                        //Need to reset SOP.GroupPosition to the cached value here
-                        //Set the timestamp and syncID to be the same with Position
-                        long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateTimeStamp;
-                        string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateSyncID;
-                        m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].UpdateSyncInfoByLocal(lastUpdateTimestamp,
-                            lastUpdateSyncID, (Object)part.GroupPosition);
+                        Object initValue = GetSOPPropertyValue(part, SceneObjectPartSyncProperties.GroupPosition);
+                        PropertySyncInfo syncInfo = new PropertySyncInfo(SceneObjectPartSyncProperties.GroupPosition, initValue, lastUpdateTimestamp, lastUpdateSyncID);
+                        m_propertiesSyncInfo.Add(SceneObjectPartSyncProperties.Position, syncInfo);
+                    }
+                    else
+                    {
+                        if (!part.GroupPosition.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue))
+                        {
+                            //Need to reset SOP.GroupPosition to the cached value here
+                            //Set the timestamp and syncID to be the same with Position
+                            //long lastUpdateTimestamp = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateTimeStamp;
+                            //string lastUpdateSyncID = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position].LastUpdateSyncID;
+                            m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].UpdateSyncInfoByLocal(lastUpdateTimestamp,
+                                lastUpdateSyncID, (Object)part.GroupPosition);
+                        }
                     }
                 }
             }

@@ -5308,6 +5308,14 @@ namespace OpenSim.Region.Framework.Scenes
                 OSDArray collisionUUIDs = new OSDArray();
                 foreach (uint collisionObject in collisionswith.Keys)
                 {
+                    //check if it's land collision first
+                    if (collisionObject == 0)
+                    {
+                        //land_collision, we'll use UUID.ZERO to indicate that
+                        collisionUUIDs.Add(UUID.Zero);
+                        continue;
+                    }
+
                     SceneObjectPart part = m_parentGroup.Scene.GetSceneObjectPart(collisionObject);
                     if (part == null)
                     {

@@ -2188,6 +2188,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     OSD arg = collisionUUIDs[i];
                     UUID collidingUUID = arg.AsUUID();
 
+                    //check if it's land collision first.
+                    if (collidingUUID == UUID.Zero)
+                    {
+                        uint localID = 0;
+                        e.addCollider(localID, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
+                        continue;
+                    }
+
                     SceneObjectPart collidingPart = m_scene.GetSceneObjectPart(collidingUUID);
                     if (collidingPart == null)
                     {

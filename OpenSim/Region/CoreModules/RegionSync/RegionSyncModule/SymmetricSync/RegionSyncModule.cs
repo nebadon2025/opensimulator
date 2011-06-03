@@ -1570,9 +1570,25 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //Enqueue the updated SOP and its properties for sync 
                     ProcessAndEnqueuePrimUpdatesBySync(sop, propertiesUpdated);
 
-                    //Calling SOP.ScheduleFullUpdate(), so that viewers, if any,
+                    //Calling SOP.ScheduleFullUpdate() or ScheduleTerseUpdate(), so that viewers, if any,
                     //will receive updates as well.
-                    sop.ScheduleFullUpdate(null);
+                    bool allTerseUpdates = true;
+                    foreach (SceneObjectPartSyncProperties prop in propertiesUpdated)
+                    {
+                        if (!PrimSyncInfo.TerseUpdateProperties.Contains(prop))
+                        {
+                            allTerseUpdates = false;
+                            break;
+                        }
+                    }
+                    if (allTerseUpdates)
+                    {
+                        sop.ScheduleTerseUpdate(null);
+                    }
+                    else
+                    {
+                        sop.ScheduleFullUpdate(null);
+                    }
                 }
             }
         }
@@ -3769,6 +3785,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         public static HashSet<SceneObjectPartSyncProperties> PrimPhysActorProperties = SceneObjectPart.GetAllPhysActorProperties();
         public static HashSet<SceneObjectPartSyncProperties> PrimNonPhysActorProperties = SceneObjectPart.GetAllPrimNonPhysActorProperties();
         public static HashSet<SceneObjectPartSyncProperties> GroupProperties = SceneObjectPart.GetGroupProperties();
+        public static HashSet<SceneObjectPartSyncProperties> TerseUpdateProperties = SceneObjectPart.GetTerseUpdateProperties();
 
         private PrimSyncInfoManager m_syncInfoManager;
 

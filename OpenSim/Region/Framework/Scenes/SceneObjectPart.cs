@@ -3686,7 +3686,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_parentGroup.stopLookAt();
 
             //m_parentGroup.ScheduleGroupForTerseUpdate();
-            m_parentGroup.ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None});//in stopLookAt(), PhysicsActor shall already take care of tainting which properties have been updated 
+            m_parentGroup.ScheduleGroupForTerseUpdate(null);//in stopLookAt(), PhysicsActor shall already take care of tainting which properties have been updated 
         }
         
         /// <summary>
@@ -3710,7 +3710,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_parentGroup.stopMoveToTarget();
 
             //m_parentGroup.ScheduleGroupForTerseUpdate();
-            m_parentGroup.ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.None}); //in stopMoveToTarget(), PhysicsActor shall already take care of tainting which properties have been updated 
+            m_parentGroup.ScheduleGroupForTerseUpdate(null); //in stopMoveToTarget(), PhysicsActor shall already take care of tainting which properties have been updated 
             //m_parentGroup.ScheduleGroupForFullUpdate();
         }
 
@@ -4271,7 +4271,7 @@ namespace OpenSim.Region.Framework.Scenes
                 Vector3 newPos = new Vector3(pos.X, pos.Y, pos.Z);
                 GroupPosition = newPos;
                 //ScheduleTerseUpdate();
-                ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.GroupPosition});
+                ScheduleTerseUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.GroupPosition });
             }
         }
 
@@ -4304,7 +4304,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                 OffsetPosition = newPos;
                 //ScheduleTerseUpdate();
-                ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.OffsetPosition});
+                ScheduleTerseUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.OffsetPosition });
             }
         }
 
@@ -4613,7 +4613,7 @@ namespace OpenSim.Region.Framework.Scenes
                 RotationOffset = rot;
                 ParentGroup.HasGroupChanged = true;
                 //ScheduleTerseUpdate();
-                ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() {SceneObjectPartSyncProperties.RotationOffset});
+                ScheduleTerseUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.RotationOffset });
             }
         }
 
@@ -5166,6 +5166,22 @@ namespace OpenSim.Region.Framework.Scenes
         public static HashSet<SceneObjectPartSyncProperties> GetGroupProperties()
         {
             HashSet<SceneObjectPartSyncProperties> allProperties = new HashSet<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.IsSelected};
+            return allProperties;
+        }
+
+        public static HashSet<SceneObjectPartSyncProperties> GetTerseUpdateProperties()
+        {
+            HashSet<SceneObjectPartSyncProperties> allProperties = new HashSet<SceneObjectPartSyncProperties>();
+            allProperties.Add(SceneObjectPartSyncProperties.Velocity);
+            allProperties.Add(SceneObjectPartSyncProperties.RotationOffset);
+            allProperties.Add(SceneObjectPartSyncProperties.AngularVelocity);
+            allProperties.Add(SceneObjectPartSyncProperties.OffsetPosition);
+            allProperties.Add(SceneObjectPartSyncProperties.Scale);
+            allProperties.Add(SceneObjectPartSyncProperties.GroupPosition);
+            allProperties.Add(SceneObjectPartSyncProperties.Orientation);
+            allProperties.Add(SceneObjectPartSyncProperties.RotationalVelocity);
+            allProperties.Add(SceneObjectPartSyncProperties.Position);
+
             return allProperties;
         }
 

@@ -4033,7 +4033,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             propertyData.Add(property.ToString(), m_propertiesSyncInfo[property].ToOSDMap());
                         else
                         {
-                            DebugLog.WarnFormat("PrimSyncInfo: property {0} not in sync cache", property);
+                            DebugLog.WarnFormat("PrimSyncInfo.EncodePropertiesSyncInfo: property {0} not in sync cache", property);
                         }
                     }
                 }
@@ -4045,7 +4045,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             propertyData.Add(property.ToString(), m_propertiesSyncInfo[property].ToOSDMap());
                         else
                         {
-                            DebugLog.WarnFormat("PrimSyncInfo: property {0} not in sync cache", property);
+                            DebugLog.WarnFormat("PrimSyncInfo.EncodePropertiesSyncInfo: property {0} not in sync cache", property);
                         }
                     }
                 }
@@ -5557,17 +5557,18 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void SetSOPPropertyValue(SceneObjectPart part, SceneObjectPartSyncProperties property)
         {
             if (part == null) return;
-            if (!m_propertiesSyncInfo.ContainsKey(property)){
+            if (!m_propertiesSyncInfo.ContainsKey(property) && part.PhysActor == null){
                 //DebugLog.WarnFormat("SetSOPPropertyValue: property {0} not in record.", property.ToString());
                 //For phantom prims, they don't have physActor properties, 
                 //so for those properties, simply return
                 return;
             }
 
-            if (!m_propertiesSyncInfo.ContainsKey(property))
+            if (!m_propertiesSyncInfo.ContainsKey(property) && part.PhysActor != null)
             {
-                DebugLog.WarnFormat("PrimSyncInfo: property {0} not in sync cache", property);
+                DebugLog.WarnFormat("PrimSyncInfo.SetSOPPropertyValue: property {0} not in sync cache. ", property);
                 return;
+
             }
             PropertySyncInfo pSyncInfo = m_propertiesSyncInfo[property];
 

@@ -69,6 +69,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             ObjectDeGrab,
             Attach,
             PhysicsCollision,
+            ScriptCollidingStart,
+            ScriptColliding,
+            ScriptCollidingEnd,
             //contorl command
             SyncStateReport,
         }

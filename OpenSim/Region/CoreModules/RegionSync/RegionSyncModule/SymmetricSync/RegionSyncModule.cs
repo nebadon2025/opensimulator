@@ -277,6 +277,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case EventManager.EventNames.PhysicsCollision:
                     OnLocalPhysicsCollision((UUID)evArgs[0], (OSDArray)evArgs[1]);
                     return;
+                case EventManager.EventNames.ScriptCollidingStart:
+                    OnLocalScriptCollidingStart((uint)evArgs[0], (ColliderArgs)evArgs[1]);
+                    return;
                 default:
                     return;
             }
@@ -469,13 +472,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             Command cmdSyncDebug = new Command("debug", CommandIntentions.COMMAND_HAZARDOUS, SyncDebug, "Trigger some debugging functions");
 
             //for sync state comparison, 
+            Command cmdSyncStateDetailReport = new Command("state detail", CommandIntentions.COMMAND_HAZARDOUS, SyncStateDetailReport, "Trigger synchronization state comparision functions");
+            //for sync state comparison, 
             Command cmdSyncStateReport = new Command("state", CommandIntentions.COMMAND_HAZARDOUS, SyncStateReport, "Trigger synchronization state comparision functions");
-
 
             m_commander.RegisterCommand("start", cmdSyncStart);
             m_commander.RegisterCommand("stop", cmdSyncStop);
             m_commander.RegisterCommand("status", cmdSyncStatus);
             m_commander.RegisterCommand("debug", cmdSyncDebug);
+            m_commander.RegisterCommand("state detail", cmdSyncStateDetailReport);
             m_commander.RegisterCommand("state", cmdSyncStateReport);
 
             lock (m_scene)
@@ -729,7 +734,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             foreach (SyncConnector connector in syncConnectors)
             {
                 //special fix for demo, need better optimization later
-                if (rsm.Type == SymmetricSyncMessage.MsgType.PhysicsCollision && m_isSyncRelay)
+                if ((rsm.Type == SymmetricSyncMessage.MsgType.PhysicsCollision || rsm.Type == SymmetricSyncMessage.MsgType.ScriptCollidingStart 
+                    || rsm.Type == SymmetricSyncMessage.MsgType.ScriptCollidingEnd)
+                    && m_isSyncRelay)
                 {
                     //for persistence actor, only forward collision events to script engines
                     if (connector.OtherSideActorType == ScriptEngineSyncModule.ActorTypeString)
@@ -1050,7 +1057,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             });
         }
 
-        private void SyncStateReport(Object[] args)
+        private void SyncStateDetailReport(Object[] args)
         {
             //Preliminary implementation
             EntityBase[] entities = m_scene.GetEntities();
@@ -1121,6 +1128,261 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 });
 
             }
+        }
+
+        private void SyncStateReport(Object[] args)
+        {
+            //Preliminary implementation
+            EntityBase[] entities = m_scene.GetEntities();
+            List<SceneObjectGroup> sogList = new List<SceneObjectGroup>();
+            foreach (EntityBase entity in entities)
+            {
+                if (entity is SceneObjectGroup)
+                {
+                    sogList.Add((SceneObjectGroup)entity);
+                }
+            }
+
+            int primCount = 0;
+            foreach (SceneObjectGroup sog in sogList)
+            {
+                primCount += sog.Parts.Length;
+            }
+
+            m_log.WarnFormat("SyncStateReport {0} -- Object count: {1}, Prim Count {2} ", m_scene.RegionInfo.RegionName, sogList.Count, primCount);
+
+            int estimateBytes = 0;
+            foreach (PrimSyncInfo primSyncInfo in m_primSyncInfoManager.PrimsInSync.Values)
+            {
+                //estimateBytes += primSyncInfo.PropertiesSyncInfo.
+                foreach (KeyValuePair<SceneObjectPartSyncProperties, PropertySyncInfo> valPair in primSyncInfo.PropertiesSyncInfo)
+                {
+                    PropertySyncInfo propertySyncInfo = valPair.Value; 
+                    estimateBytes += 8; //propertySyncInfo.LastSyncUpdateRecvTime bytes, long
+                    estimateBytes += 4; //propertySyncInfo.LastUpdateSource, enum
+                    estimateBytes += propertySyncInfo.LastUpdateSyncID.Length;
+
+                    if (valPair.Key == SceneObjectPartSyncProperties.Shape || valPair.Key == SceneObjectPartSyncProperties.TaskInventory)
+                    {
+                        estimateBytes += ((String)propertySyncInfo.LastUpdateValue).Length;
+                        estimateBytes += ((String)propertySyncInfo.LastUpdateValueHash).Length;
+                    }
+                    else if (propertySyncInfo.LastUpdateValue != null)
+                    {
+                        /*
+                        Type pType = propertySyncInfo.LastUpdateValue.GetType(); 
+                        switch (pType){
+                            case Vector3:
+                                estimateBytes += ((Vector3) propertySyncInfo.LastUpdateValue).GetBytes();
+                                break;
+                            case String:
+                                estimateBytes += ((String) propertySyncInfo.LastUpdateValue).Length;
+                                break;
+                            case Int32:
+                                estimateBytes += 4;
+                                break;
+                            case Quaternion:
+                                estimateBytes += ((Quaternion) propertySyncInfo.LastUpdateValue).GetBytes();
+                                break;
+                            case Quaternion:
+                                estimateBytes += ((Quaternion) propertySyncInfo.LastUpdateValue).GetBytes();
+                                break;
+                            default: 
+                                break;
+                        }
+                         * */
+                        switch (valPair.Key)
+                        {
+
+
+                            ////////////////////////////
+                            //SOP properties, enum types
+                            ////////////////////////////
+                            case SceneObjectPartSyncProperties.AggregateScriptEvents:
+                            case SceneObjectPartSyncProperties.Flags:
+                            case SceneObjectPartSyncProperties.LocalFlags:
+                                estimateBytes += 4;
+                                break;
+                            ////////////////////////////
+                            //SOP properties, bool types
+                            ////////////////////////////
+                            case SceneObjectPartSyncProperties.AllowedDrop:
+                            case SceneObjectPartSyncProperties.IsAttachment:
+                            case SceneObjectPartSyncProperties.PassTouches:
+                            case SceneObjectPartSyncProperties.VolumeDetectActive:
+                                estimateBytes += 1;
+                                break;
+
+                            ////////////////////////////
+                            //SOP properties, Vector3 types
+                            ////////////////////////////
+                            case SceneObjectPartSyncProperties.AngularVelocity:
+                            case SceneObjectPartSyncProperties.AttachedPos:
+                            case SceneObjectPartSyncProperties.GroupPosition:
+                            case SceneObjectPartSyncProperties.OffsetPosition:
+                            case SceneObjectPartSyncProperties.Scale:
+                            case SceneObjectPartSyncProperties.SitTargetPosition:
+                            case SceneObjectPartSyncProperties.SitTargetPositionLL:
+                            case SceneObjectPartSyncProperties.SOP_Acceleration:
+                            case SceneObjectPartSyncProperties.Velocity:
+                                estimateBytes += ((Vector3)propertySyncInfo.LastUpdateValue).GetBytes().Length;
+                                break;
+
+                            ////////////////////////////
+                            //SOP properties, UUID types
+                            ////////////////////////////
+                            case SceneObjectPartSyncProperties.AttachedAvatar:
+                            case SceneObjectPartSyncProperties.CollisionSound:
+                            case SceneObjectPartSyncProperties.CreatorID:
+                            case SceneObjectPartSyncProperties.FolderID:
+                            case SceneObjectPartSyncProperties.GroupID:
+                            case SceneObjectPartSyncProperties.LastOwnerID:
+                            case SceneObjectPartSyncProperties.OwnerID:
+                            case SceneObjectPartSyncProperties.Sound:
+                                estimateBytes += ((UUID)propertySyncInfo.LastUpdateValue).GetBytes().Length;
+                                break;
+
+                            //case SceneObjectPartProperties.AttachedPos:
+                            ////////////////////////////
+                            //SOP properties, uint types
+                            ////////////////////////////
+                            case SceneObjectPartSyncProperties.AttachmentPoint:
+                            case SceneObjectPartSyncProperties.BaseMask:
+                            case SceneObjectPartSyncProperties.Category:
+                            case SceneObjectPartSyncProperties.EveryoneMask:
+                            case SceneObjectPartSyncProperties.GroupMask:
+                            case SceneObjectPartSyncProperties.InventorySerial:
+                            case SceneObjectPartSyncProperties.NextOwnerMask:
+                            case SceneObjectPartSyncProperties.OwnerMask:
+                                estimateBytes += 4;
+                                break;
+
+                            //case SceneObjectPartProperties.BaseMask:
+                            //case SceneObjectPartProperties.Category:
+
+                            ////////////////////////////
+                            //SOP properties, byte types
+                            ////////////////////////////                    
+                            case SceneObjectPartSyncProperties.ClickAction:
+                            case SceneObjectPartSyncProperties.Material:
+                            case SceneObjectPartSyncProperties.ObjectSaleType:
+                            case SceneObjectPartSyncProperties.UpdateFlag:
+                                estimateBytes += 1;
+                                break;
+                            //case SceneObjectPartProperties.CollisionSound:
+
+                            ////////////////////////////
+                            //SOP properties, float types
+                            ////////////////////////////
+                            case SceneObjectPartSyncProperties.CollisionSoundVolume:
+                                estimateBytes += 4;
+                                break;
+
+                            ////////////////////////////
+                            //SOP properties, Color(struct type)
+                            ////////////////////////////
+                            case SceneObjectPartSyncProperties.Color:
+                                estimateBytes += 4;
+                                break;
+
+                            ////////////////////////////
+                            //SOP properties, int types
+                            ////////////////////////////
+                            case SceneObjectPartSyncProperties.CreationDate:
+                            case SceneObjectPartSyncProperties.LinkNum:
+                            case SceneObjectPartSyncProperties.OwnershipCost:
+                            case SceneObjectPartSyncProperties.SalePrice:
+                            case SceneObjectPartSyncProperties.ScriptAccessPin:
+                                estimateBytes += 4;
+                                break;
+
+                            ////////////////////////////
+                            //SOP properties, string types
+                            ////////////////////////////
+                            case SceneObjectPartSyncProperties.CreatorData:
+                            case SceneObjectPartSyncProperties.Description:
+                            case SceneObjectPartSyncProperties.MediaUrl:
+                            case SceneObjectPartSyncProperties.Name:
+                            case SceneObjectPartSyncProperties.SitName:
+                            case SceneObjectPartSyncProperties.Text:
+                            case SceneObjectPartSyncProperties.TouchName:
+                                estimateBytes += ((string)propertySyncInfo.LastUpdateValue).Length;
+                                break;
+                            ////////////////////////////
+                            //SOP properties, byte[]  types
+                            ////////////////////////////
+                            case SceneObjectPartSyncProperties.ParticleSystem:
+                            case SceneObjectPartSyncProperties.TextureAnimation:
+                                estimateBytes += ((byte[])propertySyncInfo.LastUpdateValue).Length;
+                                break;
+
+                            ////////////////////////////
+                            //SOP properties, Quaternion  types
+                            ////////////////////////////
+                            case SceneObjectPartSyncProperties.RotationOffset:
+                            case SceneObjectPartSyncProperties.SitTargetOrientation:
+                            case SceneObjectPartSyncProperties.SitTargetOrientationLL:
+                                //propertyData["Value"] = OSD.FromQuaternion((Quaternion)LastUpdateValue);
+                                estimateBytes += ((Quaternion)propertySyncInfo.LastUpdateValue).GetBytes().Length;
+                                break;
+
+                            ////////////////////////////////////
+                            //PhysActor properties, float type
+                            ////////////////////////////////////
+                            case SceneObjectPartSyncProperties.Buoyancy:
+                                //propertyData["Value"] = OSD.FromReal((float)LastUpdateValue);
+                                estimateBytes += 4;
+                                break;
+
+                            ////////////////////////////////////
+                            //PhysActor properties, bool type
+                            ////////////////////////////////////
+                            case SceneObjectPartSyncProperties.Flying:
+                            case SceneObjectPartSyncProperties.IsColliding:
+                            case SceneObjectPartSyncProperties.CollidingGround:
+                            case SceneObjectPartSyncProperties.IsPhysical:
+                            case SceneObjectPartSyncProperties.Kinematic:
+                                estimateBytes += 1;
+                                break;
+
+                            ////////////////////////////////////
+                            //PhysActor properties, Vector3 type
+                            ////////////////////////////////////
+                            case SceneObjectPartSyncProperties.Force:
+                            case SceneObjectPartSyncProperties.PA_Acceleration:
+                            case SceneObjectPartSyncProperties.Position:
+                            case SceneObjectPartSyncProperties.RotationalVelocity:
+                            case SceneObjectPartSyncProperties.Size:
+                            case SceneObjectPartSyncProperties.Torque:
+                                estimateBytes += ((Vector3)propertySyncInfo.LastUpdateValue).GetBytes().Length;
+                                break;
+
+                            ////////////////////////////////////
+                            //PhysActor properties, Quaternion type
+                            ////////////////////////////////////
+                            case SceneObjectPartSyncProperties.Orientation:
+                                //propertyData["Value"] = OSD.FromQuaternion((Quaternion)LastUpdateValue);
+                                estimateBytes += ((Quaternion)propertySyncInfo.LastUpdateValue).GetBytes().Length;
+                                break;
+
+                            ///////////////////////
+                            //SOG properties
+                            ///////////////////////
+                            case SceneObjectPartSyncProperties.IsSelected:
+                                //propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
+                                estimateBytes += 1;
+                                break;
+
+                            default:
+                                break;
+
+                        }
+
+                    }
+                }
+            }
+
+            m_log.WarnFormat("Estimated bytes for all PropertySyncInfo is {0}", estimateBytes);
         }
 
         private void SyncDebug(Object[] args)
@@ -1435,13 +1697,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.ObjectDeGrab:
                 case SymmetricSyncMessage.MsgType.Attach:
                 case SymmetricSyncMessage.MsgType.PhysicsCollision:
+                case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
                     {
                         HandleRemoteEvent(msg, senderActorID);
                         return;
                     }
                 case SymmetricSyncMessage.MsgType.SyncStateReport:
                     {
-                        SyncStateReport(null);
+                        SyncStateDetailReport(null);
                         return;
                     }
                 default:
@@ -1890,6 +2153,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.PhysicsCollision:
                     HandleRemoteEvent_PhysicsCollision(init_actorID, evSeqNum, data);
                     break;
+                case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
+                    HandleRemoteEvent_ScriptCollidingStart(init_actorID, evSeqNum, data);
+                    break;
             }
 
         }
@@ -1963,7 +2229,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SceneObjectPart part = m_scene.GetSceneObjectPart(primID);
             if (part == null || part.ParentGroup.IsDeleted)
             {
-                m_log.Warn(LogHeader + " part " + primID + " not exist, all is deleted");
+                m_log.Warn(LogHeader + " part " + primID + " not exist, or is deleted");
                 return;
             }
             m_scene.EventManager.TriggerScriptResetLocally(part.LocalId, itemID);
@@ -2136,6 +2402,98 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             uint localID = part.LocalId;
             m_scene.EventManager.TriggerOnAttachLocally(localID, itemID, avatarID);
         }
+
+        private void HandleRemoteEvent_ScriptCollidingStart(string actorID, ulong evSeqNum, OSDMap data)
+        {
+            if (!data.ContainsKey("primUUID") || !data.ContainsKey("collisionUUIDs"))
+            {
+                m_log.ErrorFormat("RemoteEvent_ScriptCollidingStart: either primUUID or collisionUUIDs is missing in incoming OSDMap");
+            }
+
+            ColliderArgs StartCollidingMessage = new ColliderArgs();
+            List<DetectedObject> colliding = new List<DetectedObject>();
+            SceneObjectPart part=null;
+            try
+            {
+                UUID primUUID = data["primUUID"].AsUUID();
+                //OSDArray collisionLocalIDs = (OSDArray)data["collisionLocalIDs"];
+                OSDArray collisionUUIDs = (OSDArray)data["collisionUUIDs"];
+
+                part = m_scene.GetSceneObjectPart(primUUID);
+                if (part == null)
+                {
+                    m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no part with UUID {1} found, event initiator {2}", LogHeader, primUUID, actorID);
+                    return;
+                }
+                if (collisionUUIDs == null)
+                {
+                    m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no collisionLocalIDs", LogHeader);
+                    return;
+                }
+                if(part.ParentGroup.IsDeleted == true)
+                    return;
+
+                m_log.DebugFormat("HandleRemoteEvent_ScriptCollidingStart received for {0}", part.Name);
+
+                for (int i = 0; i < collisionUUIDs.Count; i++)
+                {
+                    OSD arg = collisionUUIDs[i];
+                    UUID collidingUUID = arg.AsUUID();
+
+                    SceneObjectPart obj = m_scene.GetSceneObjectPart(collidingUUID);
+                    if (obj != null)
+                    {
+                        DetectedObject detobj = new DetectedObject();
+                        detobj.keyUUID = obj.UUID;
+                        detobj.nameStr = obj.Name;
+                        detobj.ownerUUID = obj.OwnerID;
+                        detobj.posVector = obj.AbsolutePosition;
+                        detobj.rotQuat = obj.GetWorldRotation();
+                        detobj.velVector = obj.Velocity;
+                        detobj.colliderType = 0;
+                        detobj.groupUUID = obj.GroupID;
+                        colliding.Add(detobj);
+                    }
+                    else
+                    {
+                        //collision object is not a prim, check if it's an avatar
+                        ScenePresence av = m_scene.GetScenePresence(collidingUUID);
+                        if (av != null)
+                        {
+                            DetectedObject detobj = new DetectedObject();
+                            detobj.keyUUID = av.UUID;
+                            detobj.nameStr = av.ControllingClient.Name;
+                            detobj.ownerUUID = av.UUID;
+                            detobj.posVector = av.AbsolutePosition;
+                            detobj.rotQuat = av.Rotation;
+                            detobj.velVector = av.Velocity;
+                            detobj.colliderType = 0;
+                            detobj.groupUUID = av.ControllingClient.ActiveGroupId;
+                            colliding.Add(detobj);
+                        }
+                        else
+                        {
+                            m_log.WarnFormat("HandleRemoteEvent_ScriptCollidingStart for SOP {0},{1} with another SOP/SP {2}, but the latter is not found in local Scene",
+                    part.Name, part.UUID, collidingUUID);
+                        }
+
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                m_log.ErrorFormat("HandleRemoteEvent_ScriptCollidingStart Error: {0}", e.Message);
+            }
+
+            if (colliding.Count > 0)
+            {
+                StartCollidingMessage.Colliders = colliding;
+                // always running this check because if the user deletes the object it would return a null reference.
+                LocalScene.EventManager.TriggerScriptCollidingStartLocally(part.LocalId, StartCollidingMessage);
+            }
+        }
+
+        
 
         private int spErrCount = 0;
         private HashSet<UUID> errUUIDs = new HashSet<UUID>(); 
@@ -2352,6 +2710,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private void OnLocalPhysicsCollision(UUID partUUID, OSDArray collisionUUIDs)
         {
             //temp solution for reducing collision events for demo
+            OSDArray collisionUUIDsArgs = new OSDArray();
             switch (m_reportCollisions)
             {
                 case "All":
@@ -2364,10 +2723,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         OSD arg = collisionUUIDs[i];
                         UUID collidingUUID = arg.AsUUID();
                         ScenePresence sp = m_scene.GetScenePresence(collidingUUID);
-                        if (sp == null)
+                        //if not colliding with an avatar (sp==null), don't propagate
+                        if (sp != null)
                         {
-                            //not colliding with an avatar, don't propagate
-                            return;
+                            collisionUUIDsArgs.Add(arg);
                         }
                     }
                     break;
@@ -2375,10 +2734,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     break;
             }
 
-            OSDMap data = new OSDMap();
-            data["primUUID"] = OSD.FromUUID(partUUID);
-            data["collisionUUIDs"] = collisionUUIDs;
-            SendSceneEvent(SymmetricSyncMessage.MsgType.PhysicsCollision, data);
+            if(collisionUUIDsArgs.Count>0){
+                OSDMap data = new OSDMap();
+                data["primUUID"] = OSD.FromUUID(partUUID);
+                data["collisionUUIDs"] = collisionUUIDs;
+                SendSceneEvent(SymmetricSyncMessage.MsgType.PhysicsCollision, data);
+            }
         }
 
         private void OnLocalGrabObject(uint localID, uint originalID, Vector3 offsetPos, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
@@ -2443,12 +2804,30 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return data;
         }
 
-
-        private void OnLocalDeGrabObject(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
+         private void OnLocalDeGrabObject(uint localID, uint originalID, IClientAPI remoteClient, SurfaceTouchEventArgs surfaceArgs)
         {
 
         }
 
+         private void OnLocalScriptCollidingStart(uint localID, ColliderArgs colliders)
+         {
+             SceneObjectPart part = LocalScene.GetSceneObjectPart(localID);
+             if (part == null)
+                 return;
+             OSDArray collisionUUIDs = new OSDArray();
+             foreach (DetectedObject detObj in colliders.Colliders)
+             {
+                 collisionUUIDs.Add(OSD.FromUUID(detObj.keyUUID));
+             }
+
+             OSDMap data = new OSDMap();
+             data["primUUID"] = OSD.FromUUID(part.UUID);
+             data["collisionUUIDs"] = collisionUUIDs;
+             SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptCollidingStart, data);
+         }
+
+
+        //private void OnLocalScriptCollidingStart(uint localID, ColliderArgs OSDArray collisionUUIDs);
 
 
         private void SendSceneEvent(SymmetricSyncMessage.MsgType msgType, OSDMap data)

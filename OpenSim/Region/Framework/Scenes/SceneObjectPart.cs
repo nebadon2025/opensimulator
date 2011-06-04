@@ -5294,17 +5294,12 @@ namespace OpenSim.Region.Framework.Scenes
 
         public override void PhysicsCollision(EventArgs e)
         {
+            /*
             if (m_parentGroup.Scene.RegionSyncModule != null)
             {
                 CollisionEventUpdate a = (CollisionEventUpdate)e;
                 Dictionary<uint, ContactPoint> collisionswith = a.m_objCollisionList;
-                /*
-                OSDArray collisionLocalIDs = new OSDArray();
-                foreach (uint collisionObject in collisionswith.Keys)
-                {
-                    collisionLocalIDs.Add(collisionObject);
-                }
-                 * */
+
                 OSDArray collisionUUIDs = new OSDArray();
                 foreach (uint collisionObject in collisionswith.Keys)
                 {
@@ -5343,6 +5338,7 @@ namespace OpenSim.Region.Framework.Scenes
                 eventArgs[1] = collisionUUIDs;
                 m_parentGroup.Scene.RegionSyncModule.PublishSceneEvent(EventManager.EventNames.PhysicsCollision, eventArgs);
             }
+             * */
             PhysicsCollisionLocally(e);
         }
 

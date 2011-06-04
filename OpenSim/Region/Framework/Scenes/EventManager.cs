@@ -61,6 +61,9 @@ namespace OpenSim.Region.Framework.Scenes
             ObjectDeGrab,
             Attach, //attaching object to avatar
             PhysicsCollision,
+            ScriptCollidingStart,
+            ScriptColliding,
+            ScriptCollidingEnd
         }
 
         public EventManager(Scene scene)
@@ -276,6 +279,25 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         #endregion //GrabObject
+
+#region collisions
+        public override void TriggerScriptCollidingStart(uint localId, ColliderArgs colliders)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[4];
+                eventArgs[0] = (Object)localId;
+                eventArgs[1] = (Object)colliders;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ScriptCollidingStart, eventArgs);
+            }
+            TriggerScriptCollidingStartLocally(localId, colliders);
+        }
+
+        public void TriggerScriptCollidingStartLocally(uint localId, ColliderArgs colliders)
+        {
+            base.TriggerScriptCollidingStart(localId, colliders);
+        }
+#endregion
     }
 
     /// <summary>
@@ -2194,7 +2216,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerScriptCollidingStart(uint localId, ColliderArgs colliders)
+        //public void TriggerScriptCollidingStart(uint localId, ColliderArgs colliders)
+        public virtual void TriggerScriptCollidingStart(uint localId, ColliderArgs colliders)
         {
             ScriptColliding handlerCollidingStart = OnScriptColliderStart;
             if (handlerCollidingStart != null)

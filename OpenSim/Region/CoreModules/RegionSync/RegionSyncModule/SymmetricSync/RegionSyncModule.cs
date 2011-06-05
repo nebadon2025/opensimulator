@@ -479,7 +479,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             Command cmdSyncDebug = new Command("debug", CommandIntentions.COMMAND_HAZARDOUS, SyncDebug, "Trigger some debugging functions");
 
             //for sync state comparison, 
-            Command cmdSyncStateDetailReport = new Command("state detail", CommandIntentions.COMMAND_HAZARDOUS, SyncStateDetailReport, "Trigger synchronization state comparision functions");
+            Command cmdSyncStateDetailReport = new Command("state_detail", CommandIntentions.COMMAND_HAZARDOUS, SyncStateDetailReport, "Trigger synchronization state comparision functions");
             //for sync state comparison, 
             Command cmdSyncStateReport = new Command("state", CommandIntentions.COMMAND_HAZARDOUS, SyncStateReport, "Trigger synchronization state comparision functions");
 
@@ -487,7 +487,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_commander.RegisterCommand("stop", cmdSyncStop);
             m_commander.RegisterCommand("status", cmdSyncStatus);
             m_commander.RegisterCommand("debug", cmdSyncDebug);
-            m_commander.RegisterCommand("state detail", cmdSyncStateDetailReport);
+            m_commander.RegisterCommand("state_detail", cmdSyncStateDetailReport);
             m_commander.RegisterCommand("state", cmdSyncStateReport);
 
             lock (m_scene)
@@ -1394,6 +1394,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void SyncDebug(Object[] args)
         {
+            /*
             if (m_scene != null)
             {
                 EntityBase[] entities = m_scene.GetEntities();
@@ -1410,6 +1411,48 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                 }
             }
+             * */
+            //Test HandleRemoteEvent_ScriptCollidingStart
+
+            if (m_scene != null)
+            {
+                EntityBase[] entities = m_scene.GetEntities();
+                SceneObjectGroup sog = null;
+
+                foreach (EntityBase entity in entities)
+                {
+                    if (entity is SceneObjectGroup)
+                    {
+
+                        sog = (SceneObjectGroup)entity;
+                        break;
+                    }
+                }
+
+                if (sog != null)
+                {
+                    SceneObjectPart part = sog.RootPart;
+
+                    OSDArray collisionUUIDs = new OSDArray();
+
+                    UUID collider = UUID.Random();
+                    collisionUUIDs.Add(OSD.FromUUID(collider));
+
+
+                    OSDMap data = new OSDMap();
+                    data["primUUID"] = OSD.FromUUID(part.UUID);
+                    data["collisionUUIDs"] = collisionUUIDs;
+                    //SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptCollidingStart, data);
+
+                    ulong evSeq = GetNextEventSeq();
+                    data["actorID"] = OSD.FromString(m_actorID);
+                    data["seqNum"] = OSD.FromULong(evSeq);
+                    SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptCollidingStart, OSDParser.SerializeJsonString(data));
+
+                    HandleRemoteEvent_ScriptCollidingStart(m_actorID, evSeq, data, DateTime.Now.Ticks);
+                }
+            }
+
         }
 
         private void PrimSyncSerializationDebug()
@@ -2498,21 +2541,36 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             if (collidersNotFound.Count > 0)
             {
+                TimeSpan msgExpireTime = new TimeSpan(0, 1, 0);
+                TimeSpan msgSavedTime = new TimeSpan(DateTime.Now.Ticks - recvTime);
 
-                OSDMap newdata = new OSDMap();
-                newdata["primUUID"] = OSD.FromUUID(part.UUID);
-                newdata["collisionUUIDs"] = collidersNotFound;
-
-                newdata["actorID"] = OSD.FromString(actorID);
-                newdata["seqNum"] = OSD.FromULong(evSeqNum);
-                SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptCollidingStart, OSDParser.SerializeJsonString(newdata));
-
-                SyncMessageRecord syncMsgToSave = new SyncMessageRecord();
-                syncMsgToSave.ReceivedTime = recvTime;
-                syncMsgToSave.SyncMessage = rsm;
-                lock (m_savedSyncMessage)
+                if (msgSavedTime < msgExpireTime)
                 {
-                    m_savedSyncMessage.Add(syncMsgToSave);
+                    //for testing only, need to remove after testing
+                    /*
+                    TimeSpan testTime = new TimeSpan(0, 0, 10);
+                    if (msgSavedTime > testTime)
+                    {
+                        collidersNotFound.Clear();
+                        collidersNotFound.Add(OSD.FromUUID(new UUID("fe3bc3cc-3ec5-423d-bd2b-d19386210368")));
+                    }
+                     * */
+
+                    OSDMap newdata = new OSDMap();
+                    newdata["primUUID"] = OSD.FromUUID(part.UUID);
+                    newdata["collisionUUIDs"] = collidersNotFound;
+
+                    newdata["actorID"] = OSD.FromString(actorID);
+                    newdata["seqNum"] = OSD.FromULong(evSeqNum);
+                    SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptCollidingStart, OSDParser.SerializeJsonString(newdata));
+
+                    SyncMessageRecord syncMsgToSave = new SyncMessageRecord();
+                    syncMsgToSave.ReceivedTime = recvTime;
+                    syncMsgToSave.SyncMessage = rsm;
+                    lock (m_savedSyncMessage)
+                    {
+                        m_savedSyncMessage.Add(syncMsgToSave);
+                    }
                 }
             }
 
@@ -3003,7 +3061,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                     OSDMap data = DeserializeMessage(msg);
                                     string init_actorID = data["actorID"].AsString();
                                     ulong evSeqNum = data["seqNum"].AsULong();
-                                    bool savedForLater = false;
                                     HandleRemoteEvent_ScriptCollidingStart(init_actorID, evSeqNum, data, syncMsgSaved.ReceivedTime);
                                     break;
                                 }

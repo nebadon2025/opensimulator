@@ -199,6 +199,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_isSyncRelay; }
         }
 
+        public class SyncMessageRecord
+        {
+            public SymmetricSyncMessage SyncMessage;
+            public long ReceivedTime;
+        }
+        private List<SyncMessageRecord> m_savedSyncMessage = new List<SyncMessageRecord>();
+
         //The following Sendxxx calls,send out a message immediately, w/o putting it in the SyncConnector's outgoing queue.
         //May need some optimization there on the priorities.
 
@@ -2154,7 +2161,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     HandleRemoteEvent_PhysicsCollision(init_actorID, evSeqNum, data);
                     break;
                 case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
-                    HandleRemoteEvent_ScriptCollidingStart(init_actorID, evSeqNum, data);
+                    HandleRemoteEvent_ScriptCollidingStart(init_actorID, evSeqNum, data, DateTime.Now.Ticks);
                     break;
             }
 
@@ -2403,16 +2410,19 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.TriggerOnAttachLocally(localID, itemID, avatarID);
         }
 
-        private void HandleRemoteEvent_ScriptCollidingStart(string actorID, ulong evSeqNum, OSDMap data)
+        private void HandleRemoteEvent_ScriptCollidingStart(string actorID, ulong evSeqNum, OSDMap data, long recvTime)
         {
             if (!data.ContainsKey("primUUID") || !data.ContainsKey("collisionUUIDs"))
             {
                 m_log.ErrorFormat("RemoteEvent_ScriptCollidingStart: either primUUID or collisionUUIDs is missing in incoming OSDMap");
+                return;
             }
 
             ColliderArgs StartCollidingMessage = new ColliderArgs();
             List<DetectedObject> colliding = new List<DetectedObject>();
-            SceneObjectPart part=null;
+            SceneObjectPart part = null;
+            OSDArray collidersNotFound = new OSDArray();
+
             try
             {
                 UUID primUUID = data["primUUID"].AsUUID();
@@ -2430,7 +2440,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no collisionLocalIDs", LogHeader);
                     return;
                 }
-                if(part.ParentGroup.IsDeleted == true)
+                if (part.ParentGroup.IsDeleted == true)
                     return;
 
                 m_log.DebugFormat("HandleRemoteEvent_ScriptCollidingStart received for {0}", part.Name);
@@ -2473,8 +2483,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         else
                         {
-                            m_log.WarnFormat("HandleRemoteEvent_ScriptCollidingStart for SOP {0},{1} with another SOP/SP {2}, but the latter is not found in local Scene",
+                            m_log.WarnFormat("HandleRemoteEvent_ScriptCollidingStart for SOP {0},{1} with SOP/SP {2}, but the latter is not found in local Scene. Saved for later processing",
                     part.Name, part.UUID, collidingUUID);
+                            collidersNotFound.Add(OSD.FromUUID(collidingUUID));
                         }
 
                     }
@@ -2484,6 +2495,27 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 m_log.ErrorFormat("HandleRemoteEvent_ScriptCollidingStart Error: {0}", e.Message);
             }
+
+            if (collidersNotFound.Count > 0)
+            {
+
+                OSDMap newdata = new OSDMap();
+                newdata["primUUID"] = OSD.FromUUID(part.UUID);
+                newdata["collisionUUIDs"] = collidersNotFound;
+
+                newdata["actorID"] = OSD.FromString(actorID);
+                newdata["seqNum"] = OSD.FromULong(evSeqNum);
+                SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptCollidingStart, OSDParser.SerializeJsonString(newdata));
+
+                SyncMessageRecord syncMsgToSave = new SyncMessageRecord();
+                syncMsgToSave.ReceivedTime = recvTime;
+                syncMsgToSave.SyncMessage = rsm;
+                lock (m_savedSyncMessage)
+                {
+                    m_savedSyncMessage.Add(syncMsgToSave);
+                }
+            }
+
 
             if (colliding.Count > 0)
             {
@@ -2502,6 +2534,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (!data.ContainsKey("primUUID") || !data.ContainsKey("collisionUUIDs"))
             {
                 m_log.ErrorFormat("RemoteEvent_PhysicsCollision: either primUUID or collisionUUIDs is missing in incoming OSDMap");
+                return;
             }
 
             try
@@ -2524,13 +2557,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                 // Build up the collision list. The contact point is ignored so we generate some default.
                 CollisionEventUpdate e = new CollisionEventUpdate();
-                /*
-                foreach (uint collisionID in collisionLocalIDs)
-                {
-                    // e.addCollider(collisionID, new ContactPoint());
-                    e.addCollider(collisionID, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
-                }
-                 * */
+
                 for (int i = 0; i < collisionUUIDs.Count; i++)
                 {
                     OSD arg = collisionUUIDs[i];
@@ -2955,6 +2982,39 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// </summary>
         public void SyncOutPrimUpdates()
         {
+            //we are riding on this periodic events to check if there are un-handled sync event messages
+            if (m_savedSyncMessage.Count > 0)
+            {
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                {
+                    List<SyncMessageRecord> savedSyncMessage;
+                    lock (m_savedSyncMessage)
+                    {
+                        savedSyncMessage = new List<SyncMessageRecord>(m_savedSyncMessage);
+                        m_savedSyncMessage.Clear();
+                    }
+                    foreach (SyncMessageRecord syncMsgSaved in savedSyncMessage)
+                    {
+                        SymmetricSyncMessage msg = syncMsgSaved.SyncMessage;
+                        switch (msg.Type)
+                        {
+                            case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
+                                {
+                                    OSDMap data = DeserializeMessage(msg);
+                                    string init_actorID = data["actorID"].AsString();
+                                    ulong evSeqNum = data["seqNum"].AsULong();
+                                    bool savedForLater = false;
+                                    HandleRemoteEvent_ScriptCollidingStart(init_actorID, evSeqNum, data, syncMsgSaved.ReceivedTime);
+                                    break;
+                                }
+                            default:
+                                break;
+                        }
+                    
+                    }
+                });
+            }
+
             if (!IsSyncingWithOtherSyncNodes())
             {
                 //no SyncConnector connected. clear update queues and return.

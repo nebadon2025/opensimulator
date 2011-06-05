@@ -200,7 +200,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     bool imresult = doDialogSending(reginfo, msgdata);
                     if (!imresult)
                     {
-                        SendGridDialogViaXMLRPCAsync(avatarID, objectName, objectID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels, prevRegionID);
+                        //SendGridDialogViaXMLRPCAsync(avatarID, objectName, objectID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels, prevRegionID);
+                        m_log.WarnFormat("Couldn't deliver dialog to {0}" + avatarID);
+                        return;
                     }
                 }
             }

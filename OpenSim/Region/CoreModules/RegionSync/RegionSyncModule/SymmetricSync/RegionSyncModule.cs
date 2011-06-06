@@ -4603,6 +4603,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 //UpdateSOPProperty(part, m_propertiesSyncInfo[property]);
                                 SetSOPPropertyValue(part, property);
                                 propertiesUpdated.Add(property);
+
+                                if (property == SceneObjectPartSyncProperties.TaskInventory)
+                                {
+                                    //Mark the inventory as has changed, for proper backup
+                                    part.Inventory.ForceInventoryPersistence();
+                                }
+
+                                part.ParentGroup.HasGroupChanged = true;
                             }
                         }
                         catch (Exception e)

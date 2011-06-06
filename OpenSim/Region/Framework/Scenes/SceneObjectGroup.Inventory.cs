@@ -398,5 +398,33 @@ namespace OpenSim.Region.Framework.Scenes
                 parts[i].Inventory.SuspendScripts();
         }
         #endregion REGION SYNC
+
+        #region DSG SYNC
+        /// <summary>
+        /// Update an existing inventory item.
+        /// </summary>
+        /// <param name="item">The updated item.  An item with the same id must already exist
+        /// in this prim's inventory</param>
+        /// <returns>false if the item did not exist, true if the update occurred succesfully</returns>
+        public bool UpdateInventoryItemBySync(TaskInventoryItem item)
+        {
+            SceneObjectPart part = GetChildPart(item.ParentPartID);
+            if (part != null)
+            {
+                part.Inventory.UpdateInventoryItemBySync(item);
+
+                return true;
+            }
+            else
+            {
+                m_log.ErrorFormat(
+                    "[PRIM INVENTORY]: " +
+                    "Couldn't find prim ID {0} to update item {1}, {2}",
+                    item.ParentPartID, item.Name, item.ItemID);
+            }
+
+            return false;
+        }
+        #endregion 
     }
 }

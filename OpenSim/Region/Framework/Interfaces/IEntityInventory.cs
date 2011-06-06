@@ -233,5 +233,8 @@ namespace OpenSim.Region.Framework.Interfaces
         /// A <see cref="Dictionary`2"/>
         /// </returns>
         Dictionary<UUID, string> GetScriptStates();
+
+        //DSG
+        bool UpdateInventoryItemBySync(TaskInventoryItem item);
     }
 }

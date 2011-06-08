@@ -93,6 +93,7 @@ public class BSCharacter : PhysicsActor
         _size = size;
         _orientation = Quaternion.Identity;
         _velocity = Vector3.Zero;
+        _buoyancy = 0f; // characters return a buoyancy of zero
         _scale = new Vector3(1f, 1f, 1f);
         float AVvolume = (float) (Math.PI*Math.Pow(CAPSULE_RADIUS, 2)*CAPSULE_LENGTH);
         _mass = _density*AVvolume;
@@ -105,8 +106,8 @@ public class BSCharacter : PhysicsActor
         shapeData.Velocity = _velocity;
         shapeData.Scale = _scale;
         shapeData.Mass = _mass;
-        shapeData.Flying = isFlying ? ShapeData.numericTrue : ShapeData.numericFalse;
-        shapeData.Dynamic = ShapeData.numericFalse;
+        shapeData.Buoyancy = isFlying ? 0f : 1f;
+        shapeData.Static = ShapeData.numericFalse;
 
         BulletSimAPI.CreateObject(parent_scene.WorldID, shapeData);
             
@@ -268,7 +269,8 @@ public class BSCharacter : PhysicsActor
             _flying = value;
             _scene.TaintedObject(delegate()
             {
-                BulletSimAPI.SetObjectFlying(_scene.WorldID, LocalID, _flying);
+                // simulate flying by changing the effect of gravity
+                BulletSimAPI.SetObjectBuoyancy(_scene.WorldID, LocalID, _flying ? 0f : 1f);
             });
         } 
     }
@@ -415,7 +417,7 @@ public class BSCharacter : PhysicsActor
     {
         // m_log.DebugFormat("{0}: Collide: ms={1}, id={2}, with={3}", LogHeader, _subscribedEventsMs, LocalID, collidingWith);
 
-        // The following says we're colliding this simulation step
+        // The following makes IsColliding() and IsCollidingGround() work
         _collidingStep = _scene.SimulationStep;
         if (collidingWith == BSScene.TERRAIN_ID || collidingWith == BSScene.GROUNDPLANE_ID)
         {

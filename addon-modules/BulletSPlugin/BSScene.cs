@@ -35,23 +35,24 @@ using OpenSim.Region.Physics.Manager;
 using OpenMetaverse;
 using OpenSim.Region.Framework;
 
-// TODOs for BulletSim (both BSScene and BSPrim)
+// TODOs for BulletSim (for BSScene, BSPrim, BSCharacter and BulletSim)
 // Does NeedsMeshing() really need to exclude all the different shapes?
 // Based on material, set density and friction
 // More efficient memory usage in passing hull information from BSPrim to BulletSim
 // Four states of prim: Physical, regular, phantom and selected. Are we modeling these correctly?
 //     In SL one can set both physical and phantom (gravity, does not effect others, makes collisions with ground)
+//     At the moment, physical and phantom causes object to drop through the terrain
 // LinkSets
 //     Freeing of memory of linksets in BulletSim::DestroyObject
 //     Set child prims phantom since the physicality is handled by the parent prim
 //     Linked children need rotation relative to parent (passed as world rotation)
 // Should prim.link() and prim.delink() membership checking happen at taint time?
-// Pass collision enable flags to BulletSim code so collisions are not reported up unless they are really needed
-// Set bouyancy(). Maybe generalize SetFlying() to SetBouyancy() and use the factor to change the gravity effect
 // Test sculpties
 // Mesh sharing. Use meshHash to tell if we already have a hull of that shape and only create once
 // Do attachments need to be handled separately? Need collision events. Do not collide with VolumeDetect
 // Parameterize BulletSim. Pass a structure of parameters to the C++ code. Capsule size, friction, ...
+// Use event subscription times to reduce the number of events passed up (_subscribedEventMS)
+// Implement the genCollisions feature in BulletSim::SetObjectProperties (don't pass up unneeded collisions)
 // 
 namespace OpenSim.Region.Physics.BulletSPlugin
 {

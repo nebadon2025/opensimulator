@@ -59,11 +59,11 @@ public struct ShapeData
     public Vector3 Velocity;
     public Vector3 Scale;
     public float Mass;
+    public float Buoyancy;
     public System.UInt64 MeshKey;
     public int Collidable;
-    public int Flying;
     public float Friction;
-    public int Dynamic;
+    public int Static;  // true if a static object. Otherwise gravity, etc.
     // note that bools are passed as ints since bool size changes by language
 }
 public struct SweepHit 
@@ -148,7 +148,10 @@ public static extern bool SetObjectDynamic(uint worldID, uint id, bool isDynamic
 public static extern bool SetObjectGhost(uint worldID, uint id, bool ghostly);
 
 [DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
-public static extern bool SetObjectFlying(uint worldID, uint id, bool flying);
+public static extern bool SetObjectProperties(uint worldID, uint id, bool isStatic, bool isSolid, bool genCollisions, float mass);
+
+[DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
+public static extern bool SetObjectBuoyancy(uint worldID, uint id, float buoyancy);
 
 [DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
 public static extern bool HasObject(uint worldID, uint id);

@@ -132,6 +132,7 @@ public class BSCharacter : PhysicsActor
             if (ChangingActorID == RegionSyncServerModule.ActorID)
             {
                 // m_log.DebugFormat("{0}: Sending terse update for {1}", LogHeader, LocalID);
+                ChangingActorID = "XX";     // undo our mark on the changes so this won't get sent over and over
                 PhysEngineToSceneConnectorModule.RouteUpdate(this);
             }
         }

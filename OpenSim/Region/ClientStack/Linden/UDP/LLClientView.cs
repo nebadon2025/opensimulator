@@ -428,6 +428,11 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         #endregion Properties
 
+//        ~LLClientView()
+//        {
+//            m_log.DebugFormat("[LLCLIENTVIEW]: Destructor called for {0}, circuit code {1}", Name, CircuitCode);
+//        }
+
         /// <summary>
         /// Constructor
         /// </summary>
@@ -1469,6 +1474,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             money.MoneyData.TransactionSuccess = success;
             money.MoneyData.Description = description;
             money.MoneyData.MoneyBalance = balance;
+            money.TransactionInfo.ItemDescription = Util.StringToBytes256("NONE");
             OutPacket(money, ThrottleOutPacketType.Task);
         }
 
@@ -2213,7 +2219,9 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             OutPacket(loadURL, ThrottleOutPacketType.Task);
         }
 
-        public void SendDialog(string objectname, UUID objectID, string ownerFirstName, string ownerLastName, string msg, UUID textureID, int ch, string[] buttonlabels)
+        public void SendDialog(
+            string objectname, UUID objectID, UUID ownerID, string ownerFirstName, string ownerLastName, string msg,
+            UUID textureID, int ch, string[] buttonlabels)
         {
             ScriptDialogPacket dialog = (ScriptDialogPacket)PacketPool.Instance.GetPacket(PacketType.ScriptDialog);
             dialog.Data.ObjectID = objectID;
@@ -2231,6 +2239,11 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 buttons[i].ButtonLabel = Util.StringToBytes256(buttonlabels[i]);
             }
             dialog.Buttons = buttons;
+
+            dialog.OwnerData = new ScriptDialogPacket.OwnerDataBlock[1];
+            dialog.OwnerData[0] = new ScriptDialogPacket.OwnerDataBlock();
+            dialog.OwnerData[0].OwnerID = ownerID;
+
             OutPacket(dialog, ThrottleOutPacketType.Task);
         }
 
@@ -2292,8 +2305,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             {
                 OrbitalPosition = (OrbitalPosition - m_sunPainDaHalfOrbitalCutoff) * 0.6666666667f + m_sunPainDaHalfOrbitalCutoff;
             }
-
-
 
             SimulatorViewerTimeMessagePacket viewertime = (SimulatorViewerTimeMessagePacket)PacketPool.Instance.GetPacket(PacketType.SimulatorViewerTimeMessage);
             viewertime.TimeInfo.SunDirection = Position;
@@ -8295,16 +8306,25 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             AssetLandmark lm;
             if (lmid != UUID.Zero)
             {
+
                 //AssetBase lma = m_assetCache.GetAsset(lmid, false);
                 AssetBase lma = m_assetService.Get(lmid.ToString());
 
                 if (lma == null)
                 {
                     // Failed to find landmark
-                    TeleportCancelPacket tpCancel = (TeleportCancelPacket)PacketPool.Instance.GetPacket(PacketType.TeleportCancel);
-                    tpCancel.Info.SessionID = tpReq.Info.SessionID;
-                    tpCancel.Info.AgentID = tpReq.Info.AgentID;
-                    OutPacket(tpCancel, ThrottleOutPacketType.Task);
+
+                    // Let's try to search in the user's home asset server
+                    lma = FindAssetInUserAssetServer(lmid.ToString());
+
+                    if (lma == null)
+                    {
+                        // Really doesn't exist
+                        TeleportCancelPacket tpCancel = (TeleportCancelPacket)PacketPool.Instance.GetPacket(PacketType.TeleportCancel);
+                        tpCancel.Info.SessionID = tpReq.Info.SessionID;
+                        tpCancel.Info.AgentID = tpReq.Info.AgentID;
+                        OutPacket(tpCancel, ThrottleOutPacketType.Task);
+                    }
                 }
 
                 try
@@ -8335,13 +8355,11 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             TeleportLandmarkRequest handlerTeleportLandmarkRequest = OnTeleportLandmarkRequest;
             if (handlerTeleportLandmarkRequest != null)
             {
-                handlerTeleportLandmarkRequest(this, lm.RegionID, lm.Position);
+                handlerTeleportLandmarkRequest(this, lm);
             }
             else
             {
                 //no event handler so cancel request
-
-
                 TeleportCancelPacket tpCancel = (TeleportCancelPacket)PacketPool.Instance.GetPacket(PacketType.TeleportCancel);
                 tpCancel.Info.AgentID = tpReq.Info.AgentID;
                 tpCancel.Info.SessionID = tpReq.Info.SessionID;
@@ -8349,6 +8367,18 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
             }
             return true;
+        }
+
+        private AssetBase FindAssetInUserAssetServer(string id)
+        {
+            AgentCircuitData aCircuit = ((Scene)Scene).AuthenticateHandler.GetAgentCircuitData(CircuitCode);
+            if (aCircuit != null && aCircuit.ServiceURLs != null && aCircuit.ServiceURLs.ContainsKey("AssetServerURI"))
+            {
+                string assetServer = aCircuit.ServiceURLs["AssetServerURI"].ToString();
+                return ((Scene)Scene).AssetService.Get(assetServer + "/" + id);
+            }
+
+            return null;
         }
 
         private bool HandleTeleportLocationRequest(IClientAPI sender, Packet Pack)

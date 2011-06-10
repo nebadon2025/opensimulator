@@ -87,6 +87,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
         protected override void OnNewClient(IClientAPI client)
         {
             client.OnTeleportHomeRequest += TeleportHome;
+            client.OnTeleportLandmarkRequest += RequestTeleportLandmark;
             client.OnConnectionClosed += new Action<IClientAPI>(OnConnectionClosed);
         }
 
@@ -146,8 +147,13 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
         {
             base.AgentHasMovedAway(sp, logout);
             if (logout)
+            {
+                // Reset the map
+                ResetMap(sp);
+
                 // Log them out of this grid
                 m_aScene.PresenceService.LogoutAgent(sp.ControllingClient.SessionId);
+            }
         }
 
         protected override bool CreateAgent(ScenePresence sp, GridRegion reg, GridRegion finalDestination, AgentCircuitData agentCircuit, uint teleportFlags, out string reason, out bool logout)
@@ -228,6 +234,79 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
 
             DoTeleport(sp, homeGatekeeper, finalDestination, position, lookAt, (uint)(Constants.TeleportFlags.SetLastToTarget | Constants.TeleportFlags.ViaHome), eq);
         }
+
+        /// <summary>
+        /// Tries to teleport agent to landmark.
+        /// </summary>
+        /// <param name="remoteClient"></param>
+        /// <param name="regionHandle"></param>
+        /// <param name="position"></param>
+        public override void RequestTeleportLandmark(IClientAPI remoteClient, AssetLandmark lm)
+        {
+            m_log.DebugFormat("[HG ENTITY TRANSFER MODULE]: Teleporting agent via landmark to {0} region {1} position {2}", 
+                (lm.Gatekeeper == string.Empty) ? "local" : lm.Gatekeeper, lm.RegionID, lm.Position);
+            if (lm.Gatekeeper == string.Empty)
+            {
+                base.RequestTeleportLandmark(remoteClient, lm);
+                return;
+            }
+
+            GridRegion info = m_aScene.GridService.GetRegionByUUID(UUID.Zero, lm.RegionID);
+
+            // Local region?
+            if (info != null)
+            {
+                ((Scene)(remoteClient.Scene)).RequestTeleportLocation(remoteClient, info.RegionHandle, lm.Position,
+                    Vector3.Zero, (uint)(Constants.TeleportFlags.SetLastToTarget | Constants.TeleportFlags.ViaLandmark));
+                return;
+            }
+            else 
+            {
+                // Foreign region
+                Scene scene = (Scene)(remoteClient.Scene);
+                GatekeeperServiceConnector gConn = new GatekeeperServiceConnector();
+                GridRegion gatekeeper = new GridRegion();
+                gatekeeper.ServerURI = lm.Gatekeeper;
+                GridRegion finalDestination = gConn.GetHyperlinkRegion(gatekeeper, new UUID(lm.RegionID));
+                if (finalDestination != null)
+                {
+                    ScenePresence sp = scene.GetScenePresence(remoteClient.AgentId);
+                    IEntityTransferModule transferMod = scene.RequestModuleInterface<IEntityTransferModule>();
+                    IEventQueue eq = sp.Scene.RequestModuleInterface<IEventQueue>();
+                    if (transferMod != null && sp != null && eq != null)
+                        transferMod.DoTeleport(sp, gatekeeper, finalDestination, lm.Position,
+                            Vector3.UnitX, (uint)(Constants.TeleportFlags.SetLastToTarget | Constants.TeleportFlags.ViaLandmark), eq);
+                }
+
+            }
+
+            // can't find the region: Tell viewer and abort
+            remoteClient.SendTeleportFailed("The teleport destination could not be found.");
+
+        }
+
+        protected void ResetMap(ScenePresence sp)
+        {
+            List<GridRegion> regions = m_Scenes[0].GridService.GetRegionRange(m_Scenes[0].RegionInfo.ScopeID, 0, 17000 * (int)Constants.RegionSize, 0, 17000 * (int)Constants.RegionSize);
+            m_log.DebugFormat("[HG ENTITY TRANSFER MODULE]: Resetting {0} tiles on the map", regions.Count);
+            if (regions != null)
+            {
+                List<MapBlockData> mapBlocks = new List<MapBlockData>();
+                foreach (GridRegion r in regions)
+                {
+                    MapBlockData mblock = new MapBlockData();
+                    mblock.X = (ushort)(r.RegionLocX / Constants.RegionSize);
+                    mblock.Y = (ushort)(r.RegionLocY / Constants.RegionSize);
+                    mblock.Name = "";
+                    mblock.Access = 254; // means 'simulator is offline'. We need this because the viewer ignores 255's
+                    mblock.MapImageId = UUID.Zero;
+                    mapBlocks.Add(mblock);
+                }
+                sp.ControllingClient.SendMapBlock(mapBlocks, 0);
+            }
+
+        }
+
         #endregion
 
         #region IUserAgentVerificationModule

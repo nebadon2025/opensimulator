@@ -63,7 +63,10 @@ namespace OpenSim.Region.Framework.Scenes
             PhysicsCollision,
             ScriptCollidingStart,
             ScriptColliding,
-            ScriptCollidingEnd
+            ScriptCollidingEnd, 
+            ScriptLandCollidingStart,
+            ScriptLandColliding,
+            ScriptLandCollidingEnd
         }
 
         public EventManager(Scene scene)
@@ -330,6 +333,57 @@ namespace OpenSim.Region.Framework.Scenes
         public void TriggerScriptCollidingEndLocally(uint localId, ColliderArgs colliders)
         {
             base.TriggerScriptCollidingEnd(localId, colliders);
+        }
+
+        public override void TriggerScriptLandCollidingStart(uint localId, ColliderArgs colliders)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[4];
+                eventArgs[0] = (Object)localId;
+                eventArgs[1] = (Object)colliders;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ScriptLandCollidingStart, eventArgs);
+            }
+            TriggerScriptLandCollidingStartLocally(localId, colliders);
+        }
+
+        public void TriggerScriptLandCollidingStartLocally(uint localId, ColliderArgs colliders)
+        {
+            base.TriggerScriptLandCollidingStart(localId, colliders);
+        }
+
+        public override void TriggerScriptLandColliding(uint localId, ColliderArgs colliders)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[4];
+                eventArgs[0] = (Object)localId;
+                eventArgs[1] = (Object)colliders;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ScriptLandColliding, eventArgs);
+            }
+            TriggerScriptLandCollidingLocally(localId, colliders);
+        }
+
+        public void TriggerScriptLandCollidingLocally(uint localId, ColliderArgs colliders)
+        {
+            base.TriggerScriptLandColliding(localId, colliders);
+        }
+
+        public override void TriggerScriptLandCollidingEnd(uint localId, ColliderArgs colliders)
+        {
+            if (m_scene.RegionSyncModule != null)
+            {
+                Object[] eventArgs = new Object[4];
+                eventArgs[0] = (Object)localId;
+                eventArgs[1] = (Object)colliders;
+                m_scene.RegionSyncModule.PublishSceneEvent(EventNames.ScriptLandCollidingEnd, eventArgs);
+            }
+            TriggerScriptLandCollidingEndLocally(localId, colliders);
+        }
+
+        public void TriggerScriptLandCollidingEndLocally(uint localId, ColliderArgs colliders)
+        {
+            base.TriggerScriptLandCollidingEnd(localId, colliders);
         }
 
         #endregion
@@ -2317,7 +2371,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerScriptLandCollidingStart(uint localId, ColliderArgs colliders)
+        //public void TriggerScriptLandCollidingStart(uint localId, ColliderArgs colliders)
+        public virtual void TriggerScriptLandCollidingStart(uint localId, ColliderArgs colliders)
         {
             ScriptColliding handlerLandCollidingStart = OnScriptLandColliderStart;
             if (handlerLandCollidingStart != null)
@@ -2338,7 +2393,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerScriptLandColliding(uint localId, ColliderArgs colliders)
+        //public void TriggerScriptLandColliding(uint localId, ColliderArgs colliders)
+        public virtual void TriggerScriptLandColliding(uint localId, ColliderArgs colliders)
         {
             ScriptColliding handlerLandColliding = OnScriptLandColliding;
             if (handlerLandColliding != null)
@@ -2359,7 +2415,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerScriptLandCollidingEnd(uint localId, ColliderArgs colliders)
+        //public void TriggerScriptLandCollidingEnd(uint localId, ColliderArgs colliders)
+        public virtual void TriggerScriptLandCollidingEnd(uint localId, ColliderArgs colliders)
         {
             ScriptColliding handlerLandCollidingEnd = OnScriptLandColliderEnd;
             if (handlerLandCollidingEnd != null)

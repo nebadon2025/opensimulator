@@ -287,6 +287,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case EventManager.EventNames.ScriptCollidingStart:
                 case EventManager.EventNames.ScriptColliding:
                 case EventManager.EventNames.ScriptCollidingEnd:
+                case EventManager.EventNames.ScriptLandCollidingStart:
+                case EventManager.EventNames.ScriptLandColliding:
+                case EventManager.EventNames.ScriptLandCollidingEnd:
                     if (evArgs.Length < 2)
                     {
                         m_log.Error(LogHeader + " not enough event args for ScriptCollidingEvents");
@@ -294,16 +297,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     OnLocalScriptCollidingEvents(ev, (uint)evArgs[0], (ColliderArgs)evArgs[1]);
                     return;
-                    /*
-                    OnLocalScriptCollidingStart((uint)evArgs[0], (ColliderArgs)evArgs[1]);
-                    return;
-                case EventManager.EventNames.ScriptColliding:
-                    OnLocalScriptColliding((uint)evArgs[0], (ColliderArgs)evArgs[1]);
-                    return;
-                case EventManager.EventNames.ScriptCollidingEnd:
-                    OnLocalScriptCollidingEnd((uint)evArgs[0], (ColliderArgs)evArgs[1]);
-                    return;
-                     * */ 
                 default:
                     return;
             }
@@ -759,7 +752,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 //special fix for R@I demo, need better optimization later
                 if ((rsm.Type == SymmetricSyncMessage.MsgType.PhysicsCollision || rsm.Type == SymmetricSyncMessage.MsgType.ScriptCollidingStart
-                    || rsm.Type == SymmetricSyncMessage.MsgType.ScriptColliding || rsm.Type == SymmetricSyncMessage.MsgType.ScriptCollidingEnd)
+                    || rsm.Type == SymmetricSyncMessage.MsgType.ScriptColliding || rsm.Type == SymmetricSyncMessage.MsgType.ScriptCollidingEnd
+                    || rsm.Type == SymmetricSyncMessage.MsgType.ScriptLandCollidingStart
+                    || rsm.Type == SymmetricSyncMessage.MsgType.ScriptLandColliding || rsm.Type == SymmetricSyncMessage.MsgType.ScriptLandCollidingEnd)
                     && m_isSyncRelay)
                 {
                     //for persistence actor, only forward collision events to script engines
@@ -1771,6 +1766,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
                 case SymmetricSyncMessage.MsgType.ScriptColliding:
                 case SymmetricSyncMessage.MsgType.ScriptCollidingEnd:
+                case SymmetricSyncMessage.MsgType.ScriptLandCollidingStart:
+                case SymmetricSyncMessage.MsgType.ScriptLandColliding:
+                case SymmetricSyncMessage.MsgType.ScriptLandCollidingEnd:
                     {
                         HandleRemoteEvent(msg, senderActorID);
                         return;
@@ -2241,6 +2239,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
                 case SymmetricSyncMessage.MsgType.ScriptColliding:
                 case SymmetricSyncMessage.MsgType.ScriptCollidingEnd:
+                case SymmetricSyncMessage.MsgType.ScriptLandCollidingStart:
+                case SymmetricSyncMessage.MsgType.ScriptLandColliding:
+                case SymmetricSyncMessage.MsgType.ScriptLandCollidingEnd:
                     //HandleRemoteEvent_ScriptCollidingStart(init_actorID, evSeqNum, data, DateTime.Now.Ticks);
                     HandleRemoteEvent_ScriptCollidingEvents(msg.Type, init_actorID, evSeqNum, data, DateTime.Now.Ticks);
                     break;
@@ -2502,7 +2503,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             ColliderArgs StartCollidingMessage = new ColliderArgs();
             List<DetectedObject> colliding = new List<DetectedObject>();
-            SceneObjectPart part = null;
+            SceneObjectPart collisionPart = null;
             OSDArray collidersNotFound = new OSDArray();
 
             try
@@ -2511,8 +2512,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //OSDArray collisionLocalIDs = (OSDArray)data["collisionLocalIDs"];
                 OSDArray collisionUUIDs = (OSDArray)data["collisionUUIDs"];
 
-                part = m_scene.GetSceneObjectPart(primUUID);
-                if (part == null)
+                collisionPart = m_scene.GetSceneObjectPart(primUUID);
+                if (collisionPart == null)
                 {
                     m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no part with UUID {1} found, event initiator {2}", LogHeader, primUUID, actorID);
                     return;
@@ -2522,54 +2523,125 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no collisionLocalIDs", LogHeader);
                     return;
                 }
-                if (part.ParentGroup.IsDeleted == true)
+                if (collisionPart.ParentGroup.IsDeleted == true)
                     return;
 
-
-                for (int i = 0; i < collisionUUIDs.Count; i++)
+                switch (msgType)
                 {
-                    OSD arg = collisionUUIDs[i];
-                    UUID collidingUUID = arg.AsUUID();
-
-                    SceneObjectPart obj = m_scene.GetSceneObjectPart(collidingUUID);
-                    if (obj != null)
-                    {
-                        DetectedObject detobj = new DetectedObject();
-                        detobj.keyUUID = obj.UUID;
-                        detobj.nameStr = obj.Name;
-                        detobj.ownerUUID = obj.OwnerID;
-                        detobj.posVector = obj.AbsolutePosition;
-                        detobj.rotQuat = obj.GetWorldRotation();
-                        detobj.velVector = obj.Velocity;
-                        detobj.colliderType = 0;
-                        detobj.groupUUID = obj.GroupID;
-                        colliding.Add(detobj);
-                    }
-                    else
-                    {
-                        //collision object is not a prim, check if it's an avatar
-                        ScenePresence av = m_scene.GetScenePresence(collidingUUID);
-                        if (av != null)
+                    case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
+                    case SymmetricSyncMessage.MsgType.ScriptColliding:
+                    case SymmetricSyncMessage.MsgType.ScriptCollidingEnd:
                         {
-                            DetectedObject detobj = new DetectedObject();
-                            detobj.keyUUID = av.UUID;
-                            detobj.nameStr = av.ControllingClient.Name;
-                            detobj.ownerUUID = av.UUID;
-                            detobj.posVector = av.AbsolutePosition;
-                            detobj.rotQuat = av.Rotation;
-                            detobj.velVector = av.Velocity;
-                            detobj.colliderType = 0;
-                            detobj.groupUUID = av.ControllingClient.ActiveGroupId;
-                            colliding.Add(detobj);
-                        }
-                        else
-                        {
-                            m_log.WarnFormat("HandleRemoteEvent_ScriptCollidingStart for SOP {0},{1} with SOP/SP {2}, but the latter is not found in local Scene. Saved for later processing",
-                    part.Name, part.UUID, collidingUUID);
-                            collidersNotFound.Add(OSD.FromUUID(collidingUUID));
-                        }
+                            for (int i = 0; i < collisionUUIDs.Count; i++)
+                            {
+                                OSD arg = collisionUUIDs[i];
+                                UUID collidingUUID = arg.AsUUID();
 
-                    }
+                                SceneObjectPart obj = m_scene.GetSceneObjectPart(collidingUUID);
+                                if (obj != null)
+                                {
+                                    DetectedObject detobj = new DetectedObject();
+                                    detobj.keyUUID = obj.UUID;
+                                    detobj.nameStr = obj.Name;
+                                    detobj.ownerUUID = obj.OwnerID;
+                                    detobj.posVector = obj.AbsolutePosition;
+                                    detobj.rotQuat = obj.GetWorldRotation();
+                                    detobj.velVector = obj.Velocity;
+                                    detobj.colliderType = 0;
+                                    detobj.groupUUID = obj.GroupID;
+                                    colliding.Add(detobj);
+                                }
+                                else
+                                {
+                                    //collision object is not a prim, check if it's an avatar
+                                    ScenePresence av = m_scene.GetScenePresence(collidingUUID);
+                                    if (av != null)
+                                    {
+                                        DetectedObject detobj = new DetectedObject();
+                                        detobj.keyUUID = av.UUID;
+                                        detobj.nameStr = av.ControllingClient.Name;
+                                        detobj.ownerUUID = av.UUID;
+                                        detobj.posVector = av.AbsolutePosition;
+                                        detobj.rotQuat = av.Rotation;
+                                        detobj.velVector = av.Velocity;
+                                        detobj.colliderType = 0;
+                                        detobj.groupUUID = av.ControllingClient.ActiveGroupId;
+                                        colliding.Add(detobj);
+                                    }
+                                    else
+                                    {
+                                        m_log.WarnFormat("HandleRemoteEvent_ScriptCollidingStart for SOP {0},{1} with SOP/SP {2}, but the latter is not found in local Scene. Saved for later processing",
+                                collisionPart.Name, collisionPart.UUID, collidingUUID);
+                                        collidersNotFound.Add(OSD.FromUUID(collidingUUID));
+                                    }
+                                }
+                            }
+
+                            if (collidersNotFound.Count > 0)
+                            {
+                                //hard-coded expiration time to be one minute
+                                TimeSpan msgExpireTime = new TimeSpan(0, 1, 0);
+                                TimeSpan msgSavedTime = new TimeSpan(DateTime.Now.Ticks - recvTime);
+
+                                if (msgSavedTime < msgExpireTime)
+                                {
+
+                                    OSDMap newdata = new OSDMap();
+                                    newdata["primUUID"] = OSD.FromUUID(collisionPart.UUID);
+                                    newdata["collisionUUIDs"] = collidersNotFound;
+
+                                    newdata["actorID"] = OSD.FromString(actorID);
+                                    newdata["seqNum"] = OSD.FromULong(evSeqNum);
+
+                                    SymmetricSyncMessage rsm = null;
+                                    switch (msgType)
+                                    {
+                                        case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
+                                            rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptCollidingStart, OSDParser.SerializeJsonString(newdata));
+                                            break;
+                                        case SymmetricSyncMessage.MsgType.ScriptColliding:
+                                            rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptColliding, OSDParser.SerializeJsonString(newdata));
+                                            break;
+                                        case SymmetricSyncMessage.MsgType.ScriptCollidingEnd:
+                                            rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptCollidingEnd, OSDParser.SerializeJsonString(newdata));
+                                            break;
+                                    }
+                                    SyncMessageRecord syncMsgToSave = new SyncMessageRecord();
+                                    syncMsgToSave.ReceivedTime = recvTime;
+                                    syncMsgToSave.SyncMessage = rsm;
+                                    lock (m_savedSyncMessage)
+                                    {
+                                        m_savedSyncMessage.Add(syncMsgToSave);
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    case SymmetricSyncMessage.MsgType.ScriptLandCollidingStart:
+                    case SymmetricSyncMessage.MsgType.ScriptLandColliding:
+                    case SymmetricSyncMessage.MsgType.ScriptLandCollidingEnd:
+                        {
+                            for (int i = 0; i < collisionUUIDs.Count; i++)
+                            {
+                                OSD arg = collisionUUIDs[i];
+                                UUID collidingUUID = arg.AsUUID();
+                                if (collidingUUID.Equals(UUID.Zero))
+                                {
+                                    //Hope that all is left is ground!
+                                    DetectedObject detobj = new DetectedObject();
+                                    detobj.keyUUID = UUID.Zero;
+                                    detobj.nameStr = "";
+                                    detobj.ownerUUID = UUID.Zero;
+                                    detobj.posVector = collisionPart.ParentGroup.RootPart.AbsolutePosition;
+                                    detobj.rotQuat = Quaternion.Identity;
+                                    detobj.velVector = Vector3.Zero;
+                                    detobj.colliderType = 0;
+                                    detobj.groupUUID = UUID.Zero;
+                                    colliding.Add(detobj);
+                                }
+                            }
+                        }
+                        break;
                 }
             }
             catch (Exception e)
@@ -2577,55 +2649,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.ErrorFormat("HandleRemoteEvent_ScriptCollidingStart Error: {0}", e.Message);
             }
 
-            if (collidersNotFound.Count > 0)
-            {
-                //hard-coded expiration time to be one minute
-                TimeSpan msgExpireTime = new TimeSpan(0, 1, 0);
-                TimeSpan msgSavedTime = new TimeSpan(DateTime.Now.Ticks - recvTime);
-
-                if (msgSavedTime < msgExpireTime)
-                {
-                    //for testing only, need to remove after testing
-                    /*
-                    TimeSpan testTime = new TimeSpan(0, 0, 5);
-                    if (msgSavedTime > testTime)
-                    {
-                        collidersNotFound.Clear();
-                        collidersNotFound.Add(OSD.FromUUID(new UUID("fe3bc3cc-3ec5-423d-bd2b-d19386210368")));
-                    }
-                     */ 
-
-                    OSDMap newdata = new OSDMap();
-                    newdata["primUUID"] = OSD.FromUUID(part.UUID);
-                    newdata["collisionUUIDs"] = collidersNotFound;
-
-                    newdata["actorID"] = OSD.FromString(actorID);
-                    newdata["seqNum"] = OSD.FromULong(evSeqNum);
-
-                    SymmetricSyncMessage rsm = null;
-                    switch (msgType)
-                    {
-                        case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
-                            rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptCollidingStart, OSDParser.SerializeJsonString(newdata));
-                            break;
-                        case SymmetricSyncMessage.MsgType.ScriptColliding:
-                            rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptColliding, OSDParser.SerializeJsonString(newdata));
-                            break;
-                        case SymmetricSyncMessage.MsgType.ScriptCollidingEnd:
-                            rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptCollidingEnd, OSDParser.SerializeJsonString(newdata));
-                            break;
-                    }
-                    SyncMessageRecord syncMsgToSave = new SyncMessageRecord();
-                    syncMsgToSave.ReceivedTime = recvTime;
-                    syncMsgToSave.SyncMessage = rsm;
-                    lock (m_savedSyncMessage)
-                    {
-                        m_savedSyncMessage.Add(syncMsgToSave);
-                    }
-                }
-            }
-
-
+           
             if (colliding.Count > 0)
             {
                 StartCollidingMessage.Colliders = colliding;
@@ -2634,16 +2658,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 switch (msgType)
                 {
                     case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
-                        m_log.DebugFormat("ScriptCollidingStart received for {0}", part.Name);
-                        LocalScene.EventManager.TriggerScriptCollidingStartLocally(part.LocalId, StartCollidingMessage);
+                        m_log.DebugFormat("ScriptCollidingStart received for {0}", collisionPart.Name);
+                        LocalScene.EventManager.TriggerScriptCollidingStartLocally(collisionPart.LocalId, StartCollidingMessage);
                         break;
                     case SymmetricSyncMessage.MsgType.ScriptColliding:
-                        m_log.DebugFormat("ScriptColliding received for {0}", part.Name);
-                        LocalScene.EventManager.TriggerScriptCollidingLocally(part.LocalId, StartCollidingMessage);
+                        m_log.DebugFormat("ScriptColliding received for {0}", collisionPart.Name);
+                        LocalScene.EventManager.TriggerScriptCollidingLocally(collisionPart.LocalId, StartCollidingMessage);
                         break;
                     case SymmetricSyncMessage.MsgType.ScriptCollidingEnd:
-                        m_log.DebugFormat("ScriptCollidingEnd received for {0}", part.Name);
-                        LocalScene.EventManager.TriggerScriptCollidingEndLocally(part.LocalId, StartCollidingMessage);
+                        m_log.DebugFormat("ScriptCollidingEnd received for {0}", collisionPart.Name);
+                        LocalScene.EventManager.TriggerScriptCollidingEndLocally(collisionPart.LocalId, StartCollidingMessage);
+                        break;
+                    case SymmetricSyncMessage.MsgType.ScriptLandCollidingStart:
+                        m_log.DebugFormat("ScriptLandCollidingStart received for {0}", collisionPart.Name);
+                        LocalScene.EventManager.TriggerScriptLandCollidingStartLocally(collisionPart.LocalId, StartCollidingMessage);
+                        break;
+                    case SymmetricSyncMessage.MsgType.ScriptLandColliding:
+                        m_log.DebugFormat("ScriptLandColliding received for {0}", collisionPart.Name);
+                        LocalScene.EventManager.TriggerScriptLandCollidingLocally(collisionPart.LocalId, StartCollidingMessage);
+                        break;
+                    case SymmetricSyncMessage.MsgType.ScriptLandCollidingEnd:
+                        m_log.DebugFormat("ScriptLandCollidingEnd received for {0}", collisionPart.Name);
+                        LocalScene.EventManager.TriggerScriptLandCollidingEndLocally(collisionPart.LocalId, StartCollidingMessage);
                         break;
                 }
             }
@@ -2981,7 +3017,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                      break;
                  case EventManager.EventNames.ScriptCollidingEnd:
                      SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptCollidingEnd, data);
-                     break; 
+                     break;
+                 case EventManager.EventNames.ScriptLandCollidingStart:
+                     SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptLandCollidingStart, data);
+                     break;
+                 case EventManager.EventNames.ScriptLandColliding:
+                     SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptLandColliding, data);
+                     break;
+                 case EventManager.EventNames.ScriptLandCollidingEnd:
+                     SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptLandCollidingEnd, data);
+                     break;
+                     
              }
          }
 

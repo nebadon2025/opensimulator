@@ -983,7 +983,8 @@ namespace OpenSim.Region.Framework.Scenes
             AttachToBackup();
             m_scene.EventManager.TriggerParcelPrimCountTainted();
             //m_rootPart.ScheduleFullUpdate();
-            m_rootPart.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.GroupPosition, SceneObjectPartSyncProperties.AttachmentPoint,
+            //m_rootPart.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.GroupPosition, SceneObjectPartSyncProperties.AttachmentPoint,
+            m_rootPart.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.AbsolutePosition, SceneObjectPartSyncProperties.AttachmentPoint,
                 SceneObjectPartSyncProperties.AttachedAvatar, SceneObjectPartSyncProperties.Flags}); //Physics properties, such as Position, OffsetPosition, etc, should be tainted in ApplyPhysics()
             m_rootPart.ClearUndoState();
         }
@@ -1011,6 +1012,10 @@ namespace OpenSim.Region.Framework.Scenes
             //m_rootPart.ApplyPhysics(m_rootPart.GetEffectiveObjectFlags(), m_scene.m_physicalPrim);
             //AttachToBackup();
             //m_rootPart.ScheduleFullUpdate();
+
+            //m_rootPart.ScheduleSyncUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.GroupPosition, SceneObjectPartSyncProperties.AttachmentPoint,
+            m_rootPart.ScheduleSyncUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.AbsolutePosition, SceneObjectPartSyncProperties.AttachmentPoint,
+                SceneObjectPartSyncProperties.AttachedAvatar, SceneObjectPartSyncProperties.Flags});
         }
 
         /// <summary>
@@ -2903,7 +2908,8 @@ namespace OpenSim.Region.Framework.Scenes
             //we need to do a terse update even if the move wasn't allowed
             // so that the position is reset in the client (the object snaps back)
             //ScheduleGroupForTerseUpdate();
-            List<SceneObjectPartSyncProperties> updatedProperties = new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.GroupPosition };
+            //List<SceneObjectPartSyncProperties> updatedProperties = new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.GroupPosition };
+            List<SceneObjectPartSyncProperties> updatedProperties = new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.AbsolutePosition };
             if (IsAttachment)
             {
                 updatedProperties.Add(SceneObjectPartSyncProperties.AttachedPos);
@@ -2972,7 +2978,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             HasGroupChanged = true;
             //ScheduleGroupForTerseUpdate();
-            ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Position, SceneObjectPartSyncProperties.OffsetPosition});
+            //ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.Position, SceneObjectPartSyncProperties.OffsetPosition});
+            ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.AbsolutePosition, SceneObjectPartSyncProperties.OffsetPosition });
         }
 
         public void OffsetForNewRegion(Vector3 offset)
@@ -3046,11 +3053,13 @@ namespace OpenSim.Region.Framework.Scenes
             if (actor != null)
             {
                 //RotationOffset is only updated for m_rootPart, and m_rootPart.UpdateRotation should already taint RotationOffset as updated
-                ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Position, SceneObjectPartSyncProperties.Orientation });
+                //ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Position, SceneObjectPartSyncProperties.Orientation });
+                ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.AbsolutePosition, SceneObjectPartSyncProperties.Orientation });
             }
             else
             {
-                ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Position });
+                //ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.Position });
+                ScheduleGroupForTerseUpdate(new List<SceneObjectPartSyncProperties>() { SceneObjectPartSyncProperties.AbsolutePosition}); 
             }
         }
 

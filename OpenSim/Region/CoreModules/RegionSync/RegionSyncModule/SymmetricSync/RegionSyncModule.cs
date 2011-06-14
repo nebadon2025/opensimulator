@@ -1392,6 +1392,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             ///////////////////////
                             //SOG properties
                             ///////////////////////
+                            case SceneObjectPartSyncProperties.AbsolutePosition:
+                                estimateBytes += ((Vector3)propertySyncInfo.LastUpdateValue).GetBytes().Length;
+                                break;
                             case SceneObjectPartSyncProperties.IsSelected:
                                 //propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
                                 estimateBytes += 1;
@@ -1865,12 +1868,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         PrimitiveBaseShape shape = PropertySerializer.DeSerializeShape((String)p.LastUpdateValue);
                         m_log.DebugFormat("Shape to be changed on SOP {0}, {1} to ProfileShape {2}", sop.Name, sop.UUID, shape.ProfileShape);
                     }
-                }
-                 * */ 
+                } 
                  
-                 
-                //m_log.DebugFormat("ms {0}: HandleUpdatedPrimProperties, for prim {1},{2} with updated properties -- {3}", DateTime.Now.Millisecond, sop.Name, sop.UUID, pString);
+                m_log.DebugFormat("ms {0}: HandleUpdatedPrimProperties, for prim {1},{2} with updated properties -- {3}", DateTime.Now.Millisecond, sop.Name, sop.UUID, pString);
 
+                 * */ 
 
                 List<SceneObjectPartSyncProperties> propertiesUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoBySync(sop, propertiesSyncInfo);
 
@@ -1904,13 +1906,26 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             break;
                         }
                     }
-                    if (allTerseUpdates)
+
+                    bool hasGroupUpdates = false;
+                    if (PrimSyncInfo.GroupProperties.Overlaps(propertiesUpdated))
                     {
-                        sop.ScheduleTerseUpdate(null);
+                        hasGroupUpdates = true;
+                    }
+
+                    if (!hasGroupUpdates || sop.ParentGroup == null)
+                    {
+                        if (allTerseUpdates)
+                            sop.ScheduleTerseUpdate(null);
+                        else
+                            sop.ScheduleFullUpdate(null);
                     }
                     else
                     {
-                        sop.ScheduleFullUpdate(null);
+                        if (allTerseUpdates)
+                            sop.ParentGroup.ScheduleGroupForTerseUpdate(null);
+                        else
+                            sop.ParentGroup.ScheduleGroupForFullUpdate(null);
                     }
                 }
             }
@@ -3084,6 +3099,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //Enqueue the prim with the set of updated properties, excluding the group properties
             if (propertiesWithSyncInfoUpdated.Count > 0)
             {
+                /*
                 lock (m_primPropertyUpdateLock)
                 {
                     if (m_primPropertyUpdates.ContainsKey(part.UUID))
@@ -3093,13 +3109,61 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             //Include the "property" into the list of updated properties.
                             //HashSet's Add function should handle it correctly whether the property
                             //is or is not in the set.
-                            m_primPropertyUpdates[part.UUID].Add(property);
+
+                            //If it's a group property, only add it to the RootPart's 
+                            //updated property queue, to avoid too many prim updates.
+                            //For all non-group properties, simply add it to the prim's
+                            //updated property queue.
+                            if (!PrimSyncInfo.GroupProperties.Contains(property) ||
+                                (PrimSyncInfo.GroupProperties.Contains(property) && part.UUID.Equals(part.ParentGroup.RootPart.UUID)))
+                            {
+                                m_primPropertyUpdates[part.UUID].Add(property);
+                            }
                         }
                     }
                     else
                     {
                         m_primPropertyUpdates.Add(part.UUID, propertiesWithSyncInfoUpdated);
                     }
+                }
+                 * */
+                EnqueueUpdatedProperty(part, propertiesWithSyncInfoUpdated);
+            }
+        }
+
+        private void EnqueueUpdatedProperty(SceneObjectPart part, HashSet<SceneObjectPartSyncProperties> propertiesWithSyncInfoUpdated)
+        {
+            lock (m_primPropertyUpdateLock)
+            {
+                if (m_primPropertyUpdates.ContainsKey(part.UUID))
+                {
+                    foreach (SceneObjectPartSyncProperties property in propertiesWithSyncInfoUpdated)
+                    {
+                        //Include the "property" into the list of updated properties.
+                        //HashSet's Add function should handle it correctly whether the property
+                        //is or is not in the set.
+
+                        //If it's a group property, only add it to the RootPart's 
+                        //updated property queue, to avoid too many prim updates.
+                        //For all non-group properties, simply add it to the prim's
+                        //updated property queue.
+                        if (!PrimSyncInfo.GroupProperties.Contains(property) ||
+                            (PrimSyncInfo.GroupProperties.Contains(property) && part.UUID.Equals(part.ParentGroup.RootPart.UUID)))
+                        {
+                            m_primPropertyUpdates[part.UUID].Add(property);
+                        }
+                    }
+                }
+                else
+                {
+                    //If it's a group property and the part is not the RootPart, 
+                    //do not enlist the property.
+                    if (!part.UUID.Equals(part.ParentGroup.RootPart.UUID))
+                    {
+                        propertiesWithSyncInfoUpdated.ExceptWith(PrimSyncInfo.GroupProperties);
+                    }
+
+                    m_primPropertyUpdates.Add(part.UUID, propertiesWithSyncInfoUpdated);
                 }
             }
         }
@@ -3126,6 +3190,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //Enqueue the prim with the set of updated properties
             if (propertiesToSync.Count > 0)
             {
+                /*
                 lock (m_primPropertyUpdateLock)
                 {
                     if (m_primPropertyUpdates.ContainsKey(part.UUID))
@@ -3135,7 +3200,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             //Include the "property" into the list of updated properties.
                             //HashSet's Add function should handle it correctly whether the property
                             //is or is not in the set.
-                            m_primPropertyUpdates[part.UUID].Add(property);
+
+                            if (!PrimSyncInfo.GroupProperties.Contains(property) ||
+                               (PrimSyncInfo.GroupProperties.Contains(property) && part.UUID.Equals(part.ParentGroup.RootPart.UUID)))
+                            {
+                                m_primPropertyUpdates[part.UUID].Add(property);
+                            }
                         }
                     }
                     else
@@ -3143,6 +3213,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         m_primPropertyUpdates.Add(part.UUID, propertiesToSync);
                     }
                 }
+                 * */
+                EnqueueUpdatedProperty(part, propertiesToSync);
             }
         }
 
@@ -4006,6 +4078,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 //SOG properties
                 ///////////////////////
+                case SceneObjectPartSyncProperties.AbsolutePosition:
+                    propertyData["Value"] = OSD.FromVector3((Vector3)LastUpdateValue);
+                    break;
                 case SceneObjectPartSyncProperties.IsSelected:
                     propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
                     break;
@@ -4253,6 +4328,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 //SOG properties
                 ///////////////////////
+                case SceneObjectPartSyncProperties.AbsolutePosition:
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsVector3());
+                    break;
                 case SceneObjectPartSyncProperties.IsSelected:
                     //propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
                     m_lastUpdateValue = (Object)(propertyData["Value"].AsBoolean());
@@ -4746,6 +4824,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             foreach (SceneObjectPartSyncProperties property in GroupProperties)
             {
                 SetSOPPropertyValue(sop, property);
+                if (property == SceneObjectPartSyncProperties.AbsolutePosition)
+                {
+
+                }
             }
         }
 
@@ -5240,7 +5322,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     break;
                 case SceneObjectPartSyncProperties.GroupPosition:
-                    propertyUpdatedByLocal = CompareAndUpdateSOPGroupPosition(part, lastUpdateByLocalTS, syncID);
+                    propertyUpdatedByLocal = CompareAndUpdateSOPGroupPositionByLocal(part, lastUpdateByLocalTS, syncID);
                     break;
                 case SceneObjectPartSyncProperties.InventorySerial:
                     if (!part.InventorySerial.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
@@ -5886,7 +5968,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     break;
                 case SceneObjectPartSyncProperties.Position:
-                    propertyUpdatedByLocal = CompareAndUpdateSOPPosition(part, lastUpdateByLocalTS, syncID);
+                    propertyUpdatedByLocal = CompareAndUpdateSOPPositionByLocal(part, lastUpdateByLocalTS, syncID);
                     break;
                 case SceneObjectPartSyncProperties.RotationalVelocity:
                     if (!part.PhysActor.RotationalVelocity.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
@@ -5937,6 +6019,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 //SOG properties
                 ///////////////////////
+                case SceneObjectPartSyncProperties.AbsolutePosition:
+                    /*
+                    if (!part.ParentGroup.AbsolutePosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.ParentGroup.AbsolutePosition);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOG's data
+                            part.ParentGroup.AbsolutePosition = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                     * */
+                    propertyUpdatedByLocal = CompareAndUpdateSOPAbsolutePositionByLocal(part, lastUpdateByLocalTS, syncID);
+                    break;
                 case SceneObjectPartSyncProperties.IsSelected:
                     if (!part.ParentGroup.IsSelected.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
                     {
@@ -5947,7 +6047,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
                         {
-                            //overwrite PhysActor's data
+                            //overwrite SOG's data
                             part.ParentGroup.IsSelected = (bool)m_propertiesSyncInfo[property].LastUpdateValue;
                         }
                     }
@@ -6160,6 +6260,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 //SOG properties
                 ///////////////////////
+                case SceneObjectPartSyncProperties.AbsolutePosition:
+                    return (Object)part.ParentGroup.AbsolutePosition;
                 case SceneObjectPartSyncProperties.IsSelected:
                     return (Object)part.ParentGroup.IsSelected;
             }
@@ -6169,21 +6271,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         /// <summary>
         /// Set the property's value based on the value maintained in PrimSyncInfoManager.
-        /// Assumption: caller will call ScheduleFullUpdate to enqueue updates properly.
+        /// Assumption: caller will call ScheduleFullUpdate to enqueue updates properly to
+        /// update viewers.
+        /// This function should only be triggered when a prim update is received (i.e. 
+        /// triggered by remote update instead of local update).
         /// </summary>
         /// <param name="part"></param>
         /// <param name="property"></param>
         private void SetSOPPropertyValue(SceneObjectPart part, SceneObjectPartSyncProperties property)
         {
             if (part == null) return;
-            if (!m_propertiesSyncInfo.ContainsKey(property) && part.PhysActor == null){
+            if (PrimPhysActorProperties.Contains(property) && !m_propertiesSyncInfo.ContainsKey(property) && part.PhysActor == null){
                 //DebugLog.WarnFormat("SetSOPPropertyValue: property {0} not in record.", property.ToString());
                 //For phantom prims, they don't have physActor properties, 
                 //so for those properties, simply return
                 return;
             }
 
-            if (!m_propertiesSyncInfo.ContainsKey(property) && part.PhysActor != null)
+            if (!m_propertiesSyncInfo.ContainsKey(property))
             {
                 DebugLog.WarnFormat("PrimSyncInfo.SetSOPPropertyValue: property {0} not in sync cache. ", property);
                 return;
@@ -6504,6 +6609,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 //SOG properties
                 ///////////////////////
+                case SceneObjectPartSyncProperties.AbsolutePosition:
+                    SetSOPAbsolutePosition(part, pSyncInfo);
+                    break;
                 case SceneObjectPartSyncProperties.IsSelected:
                     if (part.ParentGroup != null)
                         part.ParentGroup.IsSelected = (bool)pSyncInfo.LastUpdateValue;
@@ -6512,6 +6620,45 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Calling ScheduleFullUpdate to trigger enqueuing updates for sync'ing (relay sync nodes need to do so)
             //part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { property }); 
+        }
+
+        private void SetSOPAbsolutePosition(SceneObjectPart part, PropertySyncInfo pSyncInfo)
+        {
+            if (part.ParentGroup != null)
+            {
+                part.ParentGroup.AbsolutePosition = (Vector3)pSyncInfo.LastUpdateValue;
+
+                PropertySyncInfo gPosSyncInfo;
+                if (m_propertiesSyncInfo.ContainsKey(SceneObjectPartSyncProperties.GroupPosition))
+                {
+                    gPosSyncInfo = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition];
+                    gPosSyncInfo.UpdateSyncInfoBySync(pSyncInfo.LastUpdateTimeStamp, pSyncInfo.LastUpdateSyncID, part.GroupPosition, pSyncInfo.LastSyncUpdateRecvTime);
+                }
+                else
+                {
+                    gPosSyncInfo = new PropertySyncInfo(SceneObjectPartSyncProperties.GroupPosition,
+                        part.GroupPosition, pSyncInfo.LastUpdateTimeStamp, pSyncInfo.LastUpdateSyncID);
+                    m_propertiesSyncInfo.Add(SceneObjectPartSyncProperties.GroupPosition, gPosSyncInfo);
+                }
+
+                if (part.PhysActor != null)
+                {
+                    PropertySyncInfo posSyncInfo;
+                    if (m_propertiesSyncInfo.ContainsKey(SceneObjectPartSyncProperties.Position))
+                    {
+                        posSyncInfo = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position];
+                        posSyncInfo.UpdateSyncInfoBySync(pSyncInfo.LastUpdateTimeStamp, pSyncInfo.LastUpdateSyncID, part.PhysActor.Position, pSyncInfo.LastSyncUpdateRecvTime);
+                    }
+                    else
+                    {
+                        posSyncInfo = new PropertySyncInfo(SceneObjectPartSyncProperties.Position,
+                            part.PhysActor.Position, pSyncInfo.LastUpdateTimeStamp, pSyncInfo.LastUpdateSyncID);
+                        m_propertiesSyncInfo.Add(SceneObjectPartSyncProperties.Position, posSyncInfo);
+                    }
+                }
+                //the above operation may change GroupPosition and PhysActor.Postiion
+                //as well. so update their values
+            }
         }
 
         //Do not call "part.CollisionSound =" to go through its set function.
@@ -6544,9 +6691,36 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             part.ScheduleFullUpdate(null);
         }
 
+        private bool CompareAndUpdateSOPAbsolutePositionByLocal(SceneObjectPart part, long lastUpdateByLocalTS, string syncID)
+        {
+            SceneObjectPartSyncProperties property = SceneObjectPartSyncProperties.AbsolutePosition;
+
+            bool propertyUpdatedByLocal = false;
+            if (!part.ParentGroup.AbsolutePosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+            {
+                if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                {
+                    m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.ParentGroup.AbsolutePosition);
+                    propertyUpdatedByLocal = true;
+                }
+                else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                {
+                    //overwrite SOG's data
+                    part.ParentGroup.AbsolutePosition = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                }
+            }
+
+            //Since writing to AbsolutePosition also changes values of GroupPosition 
+            //and PhysActor.Postiion (these properties are different representations
+            //of the same prim property), we also need to update the latter two.
+            CompareAndUpdateSOPGroupPositionByLocal(part, lastUpdateByLocalTS, syncID);
+
+            return propertyUpdatedByLocal;
+        }
+
         //In SOP's implementation, GroupPosition and SOP.PhysActor.Position are 
         //correlated. We need to make sure that they are both properly synced.
-        private bool CompareAndUpdateSOPGroupPosition(SceneObjectPart part, long lastUpdateByLocalTS, string syncID)
+        private bool CompareAndUpdateSOPGroupPositionByLocal(SceneObjectPart part, long lastUpdateByLocalTS, string syncID)
         {
             if (!part.GroupPosition.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue))
             {
@@ -6610,7 +6784,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return false;
         }
 
-        private bool CompareAndUpdateSOPPosition(SceneObjectPart part, long lastUpdateByLocalTS, string syncID)
+        private bool CompareAndUpdateSOPPositionByLocal(SceneObjectPart part, long lastUpdateByLocalTS, string syncID)
         {
             if (part.PhysActor == null)
                 return false;

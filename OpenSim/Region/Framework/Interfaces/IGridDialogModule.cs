@@ -35,7 +35,7 @@ namespace OpenSim.Region.Framework.Interfaces
 {
     public interface IGridDialogModule
     {
-        void SendGridDialogViaXMLRPC(UUID avatarID, string objectName, UUID objectID, string ownerFirstName, string ownerLastName,
+        void SendGridDialogViaXMLRPC(UUID avatarID, string objectName, UUID objectID, UUID ownerID, string ownerFirstName, string ownerLastName,
             string message, UUID textureID, int ch, string[] buttonlabels, UUID prevRegionID);
     }
 }

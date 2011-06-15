@@ -621,7 +621,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             if (gridDialogModule != null)
             {
-                gridDialogModule.SendGridDialogViaXMLRPC(this.AgentId, objectname, objectID, ownerFirstName, ownerLastName,
+                gridDialogModule.SendGridDialogViaXMLRPC(this.AgentId, objectname, objectID, ownerID, ownerFirstName, ownerLastName,
                     msg, textureID, ch, buttonlabels, UUID.Zero);
             }
         }

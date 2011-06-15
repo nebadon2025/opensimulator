@@ -4070,7 +4070,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             PrimitiveBaseShape shapeValue;
             try
             {
-                shapeValue = SceneObjectSerializer.ReadShape(reader, "Shape");
+                bool errors = false;
+                shapeValue = SceneObjectSerializer.ReadShape(reader, "Shape", out errors);
             }
             catch (Exception e)
             {

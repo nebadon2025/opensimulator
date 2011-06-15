@@ -157,11 +157,10 @@ namespace OpenSim.Region.Framework.Scenes
         
         public Vector3 StatusSandboxPos;
 
-        // TODO: This needs to be persisted in next XML version update!
-        
-        public readonly int[] PayPrice = {-2,-2,-2,-2,-2};
-        
-        
+        [XmlIgnore]
+        public int[] PayPrice = {-2,-2,-2,-2,-2};
+
+        [XmlIgnore]
         public PhysicsActor PhysActor
         {
             get { return m_physActor; }
@@ -390,6 +389,13 @@ namespace OpenSim.Region.Framework.Scenes
         private float m_collisionSoundVolume;
 
         #endregion Fields
+
+//        ~SceneObjectPart()
+//        {
+//            m_log.DebugFormat(
+//                "[SCENE OBJECT PART]: Destructor called for {0}, local id {1}, parent {2} {3}",
+//                Name, LocalId, ParentGroup.Name, ParentGroup.LocalId);
+//        }
 
         #region Constructors
 

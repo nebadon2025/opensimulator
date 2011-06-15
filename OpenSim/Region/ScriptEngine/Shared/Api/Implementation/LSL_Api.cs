@@ -3340,12 +3340,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             return m_ScriptEngine.GetStartParameter(m_itemID);
         }
 
-        public void llGodLikeRezObject(string inventory, LSL_Vector pos)
-        {
-            m_host.AddScriptLPS(1);
-            NotImplemented("llGodLikeRezObject");
-        }
-
         public void llRequestPermissions(string agent, int perm)
         {
             UUID agentID = new UUID();
@@ -3966,9 +3960,29 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 throw new Exception(String.Format("The inventory object '{0}' could not be found", inventory));
             }
 
-            // check if destination is an avatar
-            if (World.GetScenePresence(destId) != null)
+            // check if destination is an object
+            if (World.GetSceneObjectPart(destId) != null)
             {
+                // destination is an object
+                World.MoveTaskInventoryItem(destId, m_host, objId);
+            }
+            else
+            {
+                ScenePresence presence = World.GetScenePresence(destId);
+
+                if (presence == null)
+                {
+                    UserAccount account =
+                            World.UserAccountService.GetUserAccount(
+                            World.RegionInfo.ScopeID,
+                            destId);
+
+                    if (account == null)
+                    {
+                        llSay(0, "Can't find destination "+destId.ToString());
+                        return;
+                    }
+                }
                 // destination is an avatar
                 InventoryItemBase agentItem = World.MoveTaskInventoryItem(destId, UUID.Zero, m_host, objId);
 
@@ -3989,16 +4003,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         m_host.AbsolutePosition.ToString(),
                         agentItem.ID, true, m_host.AbsolutePosition,
                         bucket);
-
                 if (m_TransferModule != null)
                     m_TransferModule.SendInstantMessage(msg, delegate(bool success) {});
+                ScriptSleep(3000);
             }
-            else
-            {
-                // destination is an object
-                World.MoveTaskInventoryItem(destId, m_host, objId);
-            }
-            ScriptSleep(3000);
         }
 
         public void llRemoveInventory(string name)
@@ -4286,12 +4294,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.CollisionSoundVolume = (float)impact_volume;
         }
 
-        public void llCollisionSprite(string impact_sprite)
-        {
-            m_host.AddScriptLPS(1);
-            NotImplemented("llCollisionSprite");
-        }
-
         public LSL_String llGetAnimation(string id)
         {
             // This should only return a value if the avatar is in the same region
@@ -4553,6 +4555,22 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
 
             return result;
+        }
+
+        public LSL_Integer llGetLinkNumberOfSides(int link)
+        {
+            m_host.AddScriptLPS(1);
+
+            SceneObjectPart linkedPart;
+
+            if (link == ScriptBaseClass.LINK_ROOT)
+                linkedPart = m_host.ParentGroup.RootPart;
+            else if (link == ScriptBaseClass.LINK_THIS)
+                linkedPart = m_host;
+            else
+                linkedPart = m_host.ParentGroup.GetLinkNumPart(link);
+
+            return GetNumberOfSides(linkedPart);
         }
 
         public LSL_Integer llGetNumberOfSides()
@@ -5609,12 +5627,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.AddScriptLPS(1);
             m_host.AdjustSoundGain(volume);
             ScriptSleep(100);
-        }
-
-        public void llSetSoundQueueing(int queue)
-        {
-            m_host.AddScriptLPS(1);
-            NotImplemented("llSetSoundQueueing");
         }
 
         public void llSetSoundRadius(double radius)
@@ -10017,31 +10029,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_Integer llGetParcelMaxPrims(LSL_Vector pos, int sim_wide)
         {
             m_host.AddScriptLPS(1);
-            // Alondria: This currently just is utilizing the normal grid's 0.22 prims/m2 calculation
-            // Which probably will be irrelevent in OpenSim....
-            LandData land = World.GetLandData((float)pos.x, (float)pos.y);
 
-            float bonusfactor = (float)World.RegionInfo.RegionSettings.ObjectBonus;
+            ILandObject lo = World.LandChannel.GetLandObject((float)pos.x, (float)pos.y);
 
-            if (land == null)
-            {
+            if (lo == null)
                 return 0;
-            }
 
             if (sim_wide != 0)
-            {
-                decimal v = land.SimwideArea * (decimal)(0.22) * (decimal)bonusfactor;
-
-                return (int)v;
-            }
-
+                return lo.GetSimulatorMaxPrimCount();
             else
-            {
-                decimal v = land.Area * (decimal)(0.22) * (decimal)bonusfactor;
-
-                return (int)v;
-            }
-
+                return lo.GetParcelMaxPrimCount();
         }
 
         public LSL_List llGetParcelDetails(LSL_Vector pos, LSL_List param)
@@ -10420,6 +10417,73 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             return rq.ToString();
         }
+
+        #region Not Implemented
+        //
+        // Listing the unimplemented lsl functions here, please move
+        // them from this region as they are completed
+        //
+        public void llCastRay(LSL_Vector start, LSL_Vector end, LSL_List options)
+        {
+            m_host.AddScriptLPS(1);
+            NotImplemented("llCastRay");
+
+        }
+
+        public void llGetEnv(LSL_String name)
+        {
+            m_host.AddScriptLPS(1);
+            NotImplemented("llGetEnv");
+
+        }
+
+        public void llGetSPMaxMemory()
+        {
+            m_host.AddScriptLPS(1);
+            NotImplemented("llGetSPMaxMemory");
+
+        }
+
+        public void llGetUsedMemory()
+        {
+            m_host.AddScriptLPS(1);
+            NotImplemented("llGetUsedMemory");
+
+        }
+
+        public void  llRegionSayTo( LSL_Key target, LSL_Integer channel, LSL_String msg )
+        {
+            m_host.AddScriptLPS(1);
+            NotImplemented("llRegionSayTo");
+
+        }
+
+        public void llScriptProfiler( LSL_Integer flags )
+        {
+            m_host.AddScriptLPS(1);
+            NotImplemented("llScriptProfiler");
+
+        }
+
+        public void llSetSoundQueueing(int queue)
+        {
+            m_host.AddScriptLPS(1);
+            NotImplemented("llSetSoundQueueing");
+        }
+
+        public void llCollisionSprite(string impact_sprite)
+        {
+            m_host.AddScriptLPS(1);
+            NotImplemented("llCollisionSprite");
+        }
+
+        public void llGodLikeRezObject(string inventory, LSL_Vector pos)
+        {
+            m_host.AddScriptLPS(1);
+            NotImplemented("llGodLikeRezObject");
+        }
+
+        #endregion
     }
 
     public class NotecardCache

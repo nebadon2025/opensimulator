@@ -397,11 +397,8 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             return 0;
         }
 
-        public object DoMaintenance(object p)
+        public void SaveAllState()
         {
-            object[] parms = (object[])p;
-            int sleepTime = (int)parms[0];
-
             foreach (IScriptInstance inst in m_Scripts.Values)
             {
                 if (inst.EventTime() > m_EventLimit)
@@ -411,6 +408,14 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                         inst.Start();
                 }
             }
+        }
+
+        public object DoMaintenance(object p)
+        {
+            object[] parms = (object[])p;
+            int sleepTime = (int)parms[0];
+
+            SaveAllState();
 
             System.Threading.Thread.Sleep(sleepTime);
 

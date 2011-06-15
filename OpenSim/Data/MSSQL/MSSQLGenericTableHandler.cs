@@ -168,14 +168,13 @@ namespace OpenSim.Data.MSSQL
 
         protected T[] DoQuery(SqlCommand cmd)
         {
+            List<T> result = new List<T>();
             using (SqlDataReader reader = cmd.ExecuteReader())
             {
                 if (reader == null)
                     return new T[0];
 
-                CheckColumnNames(reader);
-
-                List<T> result = new List<T>();
+                CheckColumnNames(reader);                
 
                 while (reader.Read())
                 {
@@ -262,6 +261,15 @@ namespace OpenSim.Data.MSSQL
                 {
                     names.Add(fi.Name);
                     values.Add("@" + fi.Name);
+                    // Temporarily return more information about what field is unexpectedly null for
+                    // http://opensimulator.org/mantis/view.php?id=5403.  This might be due to a bug in the 
+                    // InventoryTransferModule or we may be required to substitute a DBNull here.
+                    if (fi.GetValue(row) == null)
+                        throw new NullReferenceException(
+                            string.Format(
+                                "[MSSQL GENERIC TABLE HANDLER]: Trying to store field {0} for {1} which is unexpectedly null",
+                                fi.Name, row));
+
                     if (constraintFields.Count > 0 && constraintFields.Contains(fi.Name))
                     {
                         constraints.Add(new KeyValuePair<string, string>(fi.Name, fi.GetValue(row).ToString()));
@@ -335,16 +343,33 @@ namespace OpenSim.Data.MSSQL
             }
         }
 
-        public virtual bool Delete(string field, string val)
+        public virtual bool Delete(string field, string key)
         {
+            return Delete(new string[] { field }, new string[] { key });
+        }
+
+        public virtual bool Delete(string[] fields, string[] keys)
+        {
+            if (fields.Length != keys.Length)
+                return false;
+
+            List<string> terms = new List<string>();
+
             using (SqlConnection conn = new SqlConnection(m_ConnectionString))
             using (SqlCommand cmd = new SqlCommand())
             {
-                string deleteCommand = String.Format("DELETE FROM {0} WHERE [{1}] = @{1}", m_Realm, field);
-                cmd.CommandText = deleteCommand;
-                
-                cmd.Parameters.Add(m_database.CreateParameter(field, val));
+                for (int i = 0; i < fields.Length; i++)
+                {
+                    cmd.Parameters.Add(m_database.CreateParameter(fields[i], keys[i]));
+                    terms.Add("[" + fields[i] + "] = @" + fields[i]);
+                }
+
+                string where = String.Join(" AND ", terms.ToArray());
+
+                string query = String.Format("DELETE FROM {0} WHERE {1}", m_Realm, where);
+
                 cmd.Connection = conn;
+                cmd.CommandText = query;
                 conn.Open();
 
                 if (cmd.ExecuteNonQuery() > 0)

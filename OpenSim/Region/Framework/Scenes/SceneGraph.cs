@@ -321,23 +321,26 @@ namespace OpenSim.Region.Framework.Scenes
         /// This method does not send updates to the client - callers need to handle this themselves.
         /// <param name="sceneObject"></param>
         /// <param name="attachToBackup"></param>
-        /// <param name="pos">Position of the object</param>
-        /// <param name="rot">Rotation of the object</param>
+        /// <param name="pos">Position of the object.  If null then the position stored in the object is used.</param>
+        /// <param name="rot">Rotation of the object.  If null then the rotation stored in the object is used.</param>
         /// <param name="vel">Velocity of the object.  This parameter only has an effect if the object is physical</param>
         /// <returns></returns>
         public bool AddNewSceneObject(
-            SceneObjectGroup sceneObject, bool attachToBackup, Vector3 pos, Quaternion rot, Vector3 vel)
+            SceneObjectGroup sceneObject, bool attachToBackup, Vector3? pos, Quaternion? rot, Vector3 vel)
         {
-            // we set it's position in world.
-            sceneObject.AbsolutePosition = pos;
+            AddNewSceneObject(sceneObject, true, false);
+
+            if (pos != null)
+                sceneObject.AbsolutePosition = (Vector3)pos;
 
             if (sceneObject.RootPart.Shape.PCode == (byte)PCode.Prim)
             {
                 sceneObject.ClearPartAttachmentData();
             }
-            
-            sceneObject.UpdateGroupRotationR(rot);
-            
+
+            if (rot != null)
+                sceneObject.UpdateGroupRotationR((Quaternion)rot);
+
             //group.ApplyPhysics(m_physicalPrim);
             if (sceneObject.RootPart.PhysActor != null && sceneObject.RootPart.PhysActor.IsPhysical && vel != Vector3.Zero)
             {
@@ -357,6 +360,9 @@ namespace OpenSim.Region.Framework.Scenes
         /// Add an object to the scene.  This will both update the scene, and send information about the
         /// new object to all clients interested in the scene.
         /// </summary>
+        /// <remarks>
+        /// The object's stored position, rotation and velocity are used.
+        /// </remarks>
         /// <param name="sceneObject"></param>
         /// <param name="attachToBackup">
         /// If true, the object is made persistent into the scene.
@@ -1006,6 +1012,51 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
+        /// Get a group in the scene
+        /// </summary>
+        /// <param name="fullID">UUID of the group</param>
+        /// <returns>null if no such group was found</returns>
+        protected internal SceneObjectGroup GetSceneObjectGroup(UUID fullID)
+        {
+            lock (SceneObjectGroupsByFullID)
+            {
+                if (SceneObjectGroupsByFullID.ContainsKey(fullID))
+                    return SceneObjectGroupsByFullID[fullID];
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Get a group by name from the scene (will return the first
+        /// found, if there are more than one prim with the same name)
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns>null if the part was not found</returns>
+        protected internal SceneObjectGroup GetSceneObjectGroup(string name)
+        {
+            SceneObjectGroup so = null;
+
+            Entities.Find(
+                delegate(EntityBase entity)
+                {
+                    if (entity is SceneObjectGroup)
+                    {
+                        if (entity.Name == name)
+                        {
+                            so = (SceneObjectGroup)entity;
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
+            );
+
+            return so;
+        }
+
+        /// <summary>
         /// Get a part contained in this scene.
         /// </summary>
         /// <param name="localID"></param>
@@ -1019,7 +1070,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
         
         /// <summary>
-        /// Get a named prim contained in this scene (will return the first 
+        /// Get a prim by name from the scene (will return the first
         /// found, if there are more than one prim with the same name)
         /// </summary>
         /// <param name="name"></param>
@@ -1488,7 +1539,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        ///
+        /// Handle a prim description set request from a viewer.
         /// </summary>
         /// <param name="primLocalID"></param>
         /// <param name="description"></param>
@@ -1505,8 +1556,17 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        /// <summary>
+        /// Set a click action for the prim.
+        /// </summary>
+        /// <param name="remoteClient"></param>
+        /// <param name="primLocalID"></param>
+        /// <param name="clickAction"></param>
         protected internal void PrimClickAction(IClientAPI remoteClient, uint primLocalID, string clickAction)
         {
+//            m_log.DebugFormat(
+//                "[SCENEGRAPH]: User {0} set click action for {1} to {2}", remoteClient.Name, primLocalID, clickAction);
+
             SceneObjectGroup group = GetGroupByPrim(primLocalID);
             if (group != null)
             {

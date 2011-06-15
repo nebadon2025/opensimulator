@@ -1646,7 +1646,6 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         PhysActor.SOPName = this.Name; // save object name and desc into the PhysActor so ODE internals know the joint/body info
                         PhysActor.SOPDescription = this.Description;
-                        PhysActor.LocalID = LocalId;
                         PhysActor.UUID = UUID;
                         DoPhysicsPropertyUpdate(RigidBody, true);
                         PhysActor.SetVolumeDetect(VolumeDetectActive ? 1 : 0);
@@ -4522,7 +4521,6 @@ namespace OpenSim.Region.Framework.Scenes
                     pa = PhysActor;
                     if (pa != null)
                     {
-                        pa.LocalID = LocalId;
                         pa.UUID = this.UUID;
                         DoPhysicsPropertyUpdate(UsePhysics, true);
                         if (m_parentGroup != null)

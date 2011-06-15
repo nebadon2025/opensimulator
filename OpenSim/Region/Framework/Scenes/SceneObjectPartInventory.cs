@@ -727,6 +727,9 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     HasInventoryChanged = true;
                     m_part.ParentGroup.HasGroupChanged = true;
+
+                    //DSG
+                    m_part.ScheduleSyncUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.TaskInventory});
                 }
                 
                 return true;
@@ -1182,6 +1185,68 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
         #endregion REGION SYNC
+
+        #region DSG SYNC
+        /// <summary>
+        /// Update an existing inventory item.
+        /// </summary>
+        /// <param name="item">The updated item.  An item with the same id must already exist
+        /// in this prim's inventory.</param>
+        /// <returns>false if the item did not exist, true if the update occurred successfully</returns>
+        public bool UpdateInventoryItemBySync(TaskInventoryItem item)
+        {
+            return UpdateInventoryItemBySync(item, true, true);
+        }
+
+        //Similar to UpdateInventoryItem except that ScheduleSyncUpdate is not triggered
+        private bool UpdateInventoryItemBySync(TaskInventoryItem item, bool fireScriptEvents, bool considerChanged)
+        {
+            TaskInventoryItem it = GetInventoryItem(item.ItemID);
+            if (it != null)
+            {
+//                m_log.DebugFormat("[PRIM INVENTORY]: Updating item {0} in {1}", item.Name, m_part.Name);
+                
+                item.ParentID = m_part.UUID;
+                item.ParentPartID = m_part.UUID;
+
+                // If group permissions have been set on, check that the groupID is up to date in case it has
+                // changed since permissions were last set.
+                if (item.GroupPermissions != (uint)PermissionMask.None)
+                    item.GroupID = m_part.GroupID;
+
+                if (item.AssetID == UUID.Zero)
+                    item.AssetID = it.AssetID;
+
+                lock (m_items)
+                {
+                    m_items[item.ItemID] = item;
+                    m_inventorySerial++;
+                }
+                
+                if (fireScriptEvents)
+                    m_part.TriggerScriptChangedEvent(Changed.INVENTORY);
+                
+                if (considerChanged)
+                {
+                    HasInventoryChanged = true;
+                    m_part.ParentGroup.HasGroupChanged = true;
+                }
+                
+                return true;
+            }
+            else
+            {
+                m_log.ErrorFormat(
+                    "[PRIM INVENTORY]: " +
+                    "Tried to retrieve item ID {0} from prim {1}, {2} at {3} in {4} but the item does not exist in this inventory",
+                    item.ItemID, m_part.Name, m_part.UUID, 
+                    m_part.AbsolutePosition, m_part.ParentGroup.Scene.RegionInfo.RegionName);
+            }
+            return false;
+
+        }
+
+        #endregion DSG SYNC
     }
 
     /*

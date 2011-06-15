@@ -2804,7 +2804,8 @@ namespace OpenSim.Region.Framework.Scenes
                 SceneObjectPartSyncProperties.Position,
                 SceneObjectPartSyncProperties.Orientation,
                 SceneObjectPartSyncProperties.Velocity,
-                SceneObjectPartSyncProperties.RotationalVelocity
+                SceneObjectPartSyncProperties.RotationalVelocity,
+                SceneObjectPartSyncProperties.PA_Acceleration
             });
 
             //SendTerseUpdateToAllClients();
@@ -5041,6 +5042,7 @@ namespace OpenSim.Region.Framework.Scenes
         VolumeDetectActive, 
 
         //Group properties
+        AbsolutePosition,
         IsSelected,
         //Client Manager may want to add some property here that viewers care about and should be synchronized across actors
 
@@ -5169,8 +5171,10 @@ namespace OpenSim.Region.Framework.Scenes
 
         public static HashSet<SceneObjectPartSyncProperties> GetGroupProperties()
         {
-            HashSet<SceneObjectPartSyncProperties> allProperties = new HashSet<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.IsSelected};
-            return allProperties;
+            HashSet<SceneObjectPartSyncProperties> groupProperties = new HashSet<SceneObjectPartSyncProperties>();
+            groupProperties.Add(SceneObjectPartSyncProperties.IsSelected);
+            groupProperties.Add(SceneObjectPartSyncProperties.AbsolutePosition);
+            return groupProperties;
         }
 
         public static HashSet<SceneObjectPartSyncProperties> GetTerseUpdateProperties()
@@ -5185,40 +5189,12 @@ namespace OpenSim.Region.Framework.Scenes
             allProperties.Add(SceneObjectPartSyncProperties.Orientation);
             allProperties.Add(SceneObjectPartSyncProperties.RotationalVelocity);
             allProperties.Add(SceneObjectPartSyncProperties.Position);
+            allProperties.Add(SceneObjectPartSyncProperties.AbsolutePosition);
 
             return allProperties;
         }
 
         #endregion SceneObjectPartSyncProperties categorization
-
-        /*
-        #region overridden SOPBase members
-        public new IEntityInventory Inventory
-        {
-            get { return m_inventory; }
-        }
-        protected new SceneObjectPartInventory m_inventory;
-
-        /// <value>
-        /// Access should be via Inventory directly - this property temporarily remains for xml serialization purposes
-        /// </value>
-        public new uint InventorySerial
-        {
-            get { return m_inventory.Serial; }
-            set { m_inventory.Serial = value; }
-        }
-
-        /// <value>
-        /// Access should be via Inventory directly - this property temporarily remains for xml serialization purposes
-        /// </value>
-        public new TaskInventoryDictionary TaskInventory
-        {
-            get { return m_inventory.Items; }
-            set { m_inventory.Items = value; }
-        }
-
-        #endregion //overridden SOPBase members
-        */
 
         #region overridden SOPBase functions
         //Implementation of ScheduleFullUpdate and ScheduleTerseUpdate for Bucket 

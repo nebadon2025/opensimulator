@@ -72,6 +72,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             ScriptCollidingStart,
             ScriptColliding,
             ScriptCollidingEnd,
+            ScriptLandCollidingStart,
+            ScriptLandColliding,
+            ScriptLandCollidingEnd,
             //contorl command
             SyncStateReport,
         }

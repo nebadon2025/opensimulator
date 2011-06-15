@@ -106,6 +106,7 @@ public sealed class BSPrim : PhysicsActor
         _size = size;
         _scale = new OMV.Vector3(1f, 1f, 1f);   // the scale will be set by CreateGeom depending on object type
         _orientation = rotation;
+        _buoyancy = 1f;
         _mesh = mesh;
         _hullKey = 0;
         _pbs = pbs;
@@ -181,7 +182,6 @@ public sealed class BSPrim : PhysicsActor
             _isSelected = value;
             _scene.TaintedObject(delegate()
             {
-                m_log.DebugFormat("{0}: Selected={1}, localID={2}", LogHeader, _isSelected, _localID);
                 SetObjectDynamic();
                 // SyncUpdated = true;
             });
@@ -287,6 +287,7 @@ public sealed class BSPrim : PhysicsActor
 
     public override OMV.Vector3 Position { 
         get { 
+            // don't do the following GetObjectPosition because this function is called a zillion times
             // _position = BulletSimAPI.GetObjectPosition(_scene.WorldID, _localID);
             return _position; 
         } 
@@ -332,10 +333,7 @@ public sealed class BSPrim : PhysicsActor
             _isVolumeDetect = newValue;
             _scene.TaintedObject(delegate()
             {
-                // make the object ghostly or not (walk throughable)
-                BulletSimAPI.SetObjectGhost(_scene.WorldID, LocalID, _isVolumeDetect);
-                // set whether we hear about collisions
-                BulletSimAPI.SetObjectCollidable(_scene.WorldID, LocalID, !IsPhantom);
+                SetObjectDynamic();
             });
         }
         return; 
@@ -390,40 +388,39 @@ public sealed class BSPrim : PhysicsActor
             _scene.TaintedObject(delegate()
             {
                 SetObjectDynamic();
-                m_log.DebugFormat("{0}: ID={1}, IsPhysical={2}, IsSelected={3}, mass={4}", LogHeader, _localID, _isPhysical, _isSelected, _mass);
                 // SyncUpdated = true;
             });
         } 
     }
+
+    // An object is static (does not move) if selected or not physical
+    private bool IsStatic
+    {
+        get { return _isSelected || !IsPhysical; }
+    }
+
+    // An object is solid if it's not phantom and if it's not doing VolumeDetect
+    private bool IsSolid
+    {
+        get { return !IsPhantom && !_isVolumeDetect; }
+    }
+
     // make gravity work if the object is physical and not selected
     // no locking here because only called when it is safe
     private void SetObjectDynamic()
     {
-        // a selected object is not physical
-        if (_isSelected || !_isPhysical)
-        {
-            _mass = 0f;  // non-physical things work best with a mass of zero
-            BulletSimAPI.SetObjectDynamic(_scene.WorldID, _localID, false, _mass);
-        }
-        else
-        {
-            _mass = CalculateMass();
-            BulletSimAPI.SetObjectDynamic(_scene.WorldID, _localID, true, _mass);
-        }
+        // non-physical things work best with a mass of zero
+        _mass = IsStatic ? 0f : CalculateMass();
+        BulletSimAPI.SetObjectProperties(_scene.WorldID, LocalID, IsStatic, IsSolid, SubscribedEvents(), _mass);
+        // m_log.DebugFormat("{0}: ID={1}, SetObjectDynamic: IsStatic={2}, IsSolid={3}, mass={4}", LogHeader, _localID, IsStatic, IsSolid, _mass);
     }
+
+    // prims don't fly
     public override bool Flying { 
         get { return _flying; } 
-        set {
-            _flying = value;
-            _scene.TaintedObject(delegate()
-            {
-                BulletSimAPI.SetObjectFlying(_scene.WorldID, LocalID, _flying);
-                // SyncUpdated = true;
-            });
-        } 
+        set { _flying = value; } 
     }
-    public override bool 
-        SetAlwaysRun { 
+    public override bool SetAlwaysRun { 
         get { return _setAlwaysRun; } 
         set { _setAlwaysRun = value; } 
     }
@@ -431,12 +428,12 @@ public sealed class BSPrim : PhysicsActor
         get { return _throttleUpdates; } 
         set { _throttleUpdates = value; } 
     }
-    public override bool IsColliding { 
-        get { return _isColliding; } 
+    public override bool IsColliding {
+        get { return (_collidingStep == _scene.SimulationStep); } 
         set { _isColliding = value; } 
     }
-    public override bool CollidingGround { 
-        get { return _collidingGround; } 
+    public override bool CollidingGround {
+        get { return (_collidingGroundStep == _scene.SimulationStep); } 
         set { _collidingGround = value; } 
     }
     public override bool CollidingObj { 
@@ -468,7 +465,12 @@ public sealed class BSPrim : PhysicsActor
     }
     public override float Buoyancy { 
         get { return _buoyancy; } 
-        set { _buoyancy = value; } 
+        set { _buoyancy = value;
+        _scene.TaintedObject(delegate()
+        {
+            BulletSimAPI.SetObjectBuoyancy(_scene.WorldID, _localID, _buoyancy);
+        });
+        } 
     }
 
     // Used for MoveTo
@@ -1003,11 +1005,11 @@ public sealed class BSPrim : PhysicsActor
         shape.Velocity = _velocity;
         shape.Scale = _scale;
         shape.Mass = _isPhysical ? _mass : 0f;
+        shape.Buoyancy = _buoyancy;
         shape.MeshKey = _hullKey;
         shape.Collidable = (!IsPhantom) ? ShapeData.numericTrue : ShapeData.numericFalse;
-        shape.Flying = _flying ? ShapeData.numericTrue : ShapeData.numericFalse; 
         shape.Friction = _friction;
-        shape.Dynamic = _isPhysical ? ShapeData.numericTrue : ShapeData.numericFalse;
+        shape.Static = _isPhysical ? ShapeData.numericFalse : ShapeData.numericTrue;
     }
 
     // Rebuild the geometry and object.
@@ -1044,7 +1046,7 @@ public sealed class BSPrim : PhysicsActor
     public void UpdateProperties(EntityProperties entprop)
     {
         bool changed = false;
-        // we assign to the local variables so the normal set action does not happen
+        // assign to the local variables so the normal set action does not happen
         if (_position != entprop.Position)
         {
             _position = entprop.Position;

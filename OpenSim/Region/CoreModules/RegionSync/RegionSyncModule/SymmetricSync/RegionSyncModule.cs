@@ -199,6 +199,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             get { return m_isSyncRelay; }
         }
 
+        public class SyncMessageRecord
+        {
+            public SymmetricSyncMessage SyncMessage;
+            public long ReceivedTime;
+        }
+        private List<SyncMessageRecord> m_savedSyncMessage = new List<SyncMessageRecord>();
+
         //The following Sendxxx calls,send out a message immediately, w/o putting it in the SyncConnector's outgoing queue.
         //May need some optimization there on the priorities.
 
@@ -256,7 +263,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case EventManager.EventNames.ChatBroadcast:
                     if (evArgs.Length < 2)
                     {
-                        m_log.Error(LogHeader + " not enough event args for ChatFromWorld");
+                        m_log.Error(LogHeader + " not enough event args for ChatEvents");
                         return;
                     }
                     //OnLocalChatBroadcast(evArgs[0], (OSChatMessage)evArgs[1]);
@@ -278,7 +285,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     OnLocalPhysicsCollision((UUID)evArgs[0], (OSDArray)evArgs[1]);
                     return;
                 case EventManager.EventNames.ScriptCollidingStart:
-                    OnLocalScriptCollidingStart((uint)evArgs[0], (ColliderArgs)evArgs[1]);
+                case EventManager.EventNames.ScriptColliding:
+                case EventManager.EventNames.ScriptCollidingEnd:
+                case EventManager.EventNames.ScriptLandCollidingStart:
+                case EventManager.EventNames.ScriptLandColliding:
+                case EventManager.EventNames.ScriptLandCollidingEnd:
+                    if (evArgs.Length < 2)
+                    {
+                        m_log.Error(LogHeader + " not enough event args for ScriptCollidingEvents");
+                        return;
+                    }
+                    OnLocalScriptCollidingEvents(ev, (uint)evArgs[0], (ColliderArgs)evArgs[1]);
                     return;
                 default:
                     return;
@@ -472,7 +489,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             Command cmdSyncDebug = new Command("debug", CommandIntentions.COMMAND_HAZARDOUS, SyncDebug, "Trigger some debugging functions");
 
             //for sync state comparison, 
-            Command cmdSyncStateDetailReport = new Command("state detail", CommandIntentions.COMMAND_HAZARDOUS, SyncStateDetailReport, "Trigger synchronization state comparision functions");
+            Command cmdSyncStateDetailReport = new Command("state_detail", CommandIntentions.COMMAND_HAZARDOUS, SyncStateDetailReport, "Trigger synchronization state comparision functions");
             //for sync state comparison, 
             Command cmdSyncStateReport = new Command("state", CommandIntentions.COMMAND_HAZARDOUS, SyncStateReport, "Trigger synchronization state comparision functions");
 
@@ -480,7 +497,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_commander.RegisterCommand("stop", cmdSyncStop);
             m_commander.RegisterCommand("status", cmdSyncStatus);
             m_commander.RegisterCommand("debug", cmdSyncDebug);
-            m_commander.RegisterCommand("state detail", cmdSyncStateDetailReport);
+            m_commander.RegisterCommand("state_detail", cmdSyncStateDetailReport);
             m_commander.RegisterCommand("state", cmdSyncStateReport);
 
             lock (m_scene)
@@ -733,9 +750,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             foreach (SyncConnector connector in syncConnectors)
             {
-                //special fix for demo, need better optimization later
-                if ((rsm.Type == SymmetricSyncMessage.MsgType.PhysicsCollision || rsm.Type == SymmetricSyncMessage.MsgType.ScriptCollidingStart 
-                    || rsm.Type == SymmetricSyncMessage.MsgType.ScriptCollidingEnd)
+                //special fix for R@I demo, need better optimization later
+                if ((rsm.Type == SymmetricSyncMessage.MsgType.PhysicsCollision || rsm.Type == SymmetricSyncMessage.MsgType.ScriptCollidingStart
+                    || rsm.Type == SymmetricSyncMessage.MsgType.ScriptColliding || rsm.Type == SymmetricSyncMessage.MsgType.ScriptCollidingEnd
+                    || rsm.Type == SymmetricSyncMessage.MsgType.ScriptLandCollidingStart
+                    || rsm.Type == SymmetricSyncMessage.MsgType.ScriptLandColliding || rsm.Type == SymmetricSyncMessage.MsgType.ScriptLandCollidingEnd)
                     && m_isSyncRelay)
                 {
                     //for persistence actor, only forward collision events to script engines
@@ -1368,6 +1387,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             ///////////////////////
                             //SOG properties
                             ///////////////////////
+                            case SceneObjectPartSyncProperties.AbsolutePosition:
+                                estimateBytes += ((Vector3)propertySyncInfo.LastUpdateValue).GetBytes().Length;
+                                break;
                             case SceneObjectPartSyncProperties.IsSelected:
                                 //propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
                                 estimateBytes += 1;
@@ -1387,6 +1409,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void SyncDebug(Object[] args)
         {
+            /*
             if (m_scene != null)
             {
                 EntityBase[] entities = m_scene.GetEntities();
@@ -1403,6 +1426,49 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                 }
             }
+             * */
+            //Test HandleRemoteEvent_ScriptCollidingStart
+
+            if (m_scene != null)
+            {
+                EntityBase[] entities = m_scene.GetEntities();
+                SceneObjectGroup sog = null;
+
+                foreach (EntityBase entity in entities)
+                {
+                    if (entity is SceneObjectGroup)
+                    {
+
+                        sog = (SceneObjectGroup)entity;
+                        break;
+                    }
+                }
+
+                if (sog != null)
+                {
+                    SceneObjectPart part = sog.RootPart;
+
+                    OSDArray collisionUUIDs = new OSDArray();
+
+                    UUID collider = UUID.Random();
+                    collisionUUIDs.Add(OSD.FromUUID(collider));
+
+
+                    OSDMap data = new OSDMap();
+                    data["primUUID"] = OSD.FromUUID(part.UUID);
+                    data["collisionUUIDs"] = collisionUUIDs;
+                    //SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptCollidingStart, data);
+
+                    ulong evSeq = GetNextEventSeq();
+                    data["actorID"] = OSD.FromString(m_actorID);
+                    data["seqNum"] = OSD.FromULong(evSeq);
+                    SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptCollidingStart, OSDParser.SerializeJsonString(data));
+
+                    //HandleRemoteEvent_ScriptCollidingStart(m_actorID, evSeq, data, DateTime.Now.Ticks);
+                    HandleRemoteEvent_ScriptCollidingEvents(SymmetricSyncMessage.MsgType.ScriptCollidingStart, m_actorID, evSeq, data, DateTime.Now.Ticks);
+                }
+            }
+
         }
 
         private void PrimSyncSerializationDebug()
@@ -1698,6 +1764,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 case SymmetricSyncMessage.MsgType.Attach:
                 case SymmetricSyncMessage.MsgType.PhysicsCollision:
                 case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
+                case SymmetricSyncMessage.MsgType.ScriptColliding:
+                case SymmetricSyncMessage.MsgType.ScriptCollidingEnd:
+                case SymmetricSyncMessage.MsgType.ScriptLandCollidingStart:
+                case SymmetricSyncMessage.MsgType.ScriptLandColliding:
+                case SymmetricSyncMessage.MsgType.ScriptLandCollidingEnd:
                     {
                         HandleRemoteEvent(msg, senderActorID);
                         return;
@@ -1795,12 +1866,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         PrimitiveBaseShape shape = PropertySerializer.DeSerializeShape((String)p.LastUpdateValue);
                         m_log.DebugFormat("Shape to be changed on SOP {0}, {1} to ProfileShape {2}", sop.Name, sop.UUID, shape.ProfileShape);
                     }
-                }
-                 * */ 
+                } 
                  
-                 
-                //m_log.DebugFormat("ms {0}: HandleUpdatedPrimProperties, for prim {1},{2} with updated properties -- {3}", DateTime.Now.Millisecond, sop.Name, sop.UUID, pString);
+                m_log.DebugFormat("ms {0}: HandleUpdatedPrimProperties, for prim {1},{2} with updated properties -- {3}", DateTime.Now.Millisecond, sop.Name, sop.UUID, pString);
 
+                 * */ 
 
                 List<SceneObjectPartSyncProperties> propertiesUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoBySync(sop, propertiesSyncInfo);
 
@@ -1834,13 +1904,26 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             break;
                         }
                     }
-                    if (allTerseUpdates)
+
+                    bool hasGroupUpdates = false;
+                    if (PrimSyncInfo.GroupProperties.Overlaps(propertiesUpdated))
                     {
-                        sop.ScheduleTerseUpdate(null);
+                        hasGroupUpdates = true;
+                    }
+
+                    if (!hasGroupUpdates || sop.ParentGroup == null)
+                    {
+                        if (allTerseUpdates)
+                            sop.ScheduleTerseUpdate(null);
+                        else
+                            sop.ScheduleFullUpdate(null);
                     }
                     else
                     {
-                        sop.ScheduleFullUpdate(null);
+                        if (allTerseUpdates)
+                            sop.ParentGroup.ScheduleGroupForTerseUpdate(null);
+                        else
+                            sop.ParentGroup.ScheduleGroupForFullUpdate(null);
                     }
                 }
             }
@@ -2154,7 +2237,13 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     HandleRemoteEvent_PhysicsCollision(init_actorID, evSeqNum, data);
                     break;
                 case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
-                    HandleRemoteEvent_ScriptCollidingStart(init_actorID, evSeqNum, data);
+                case SymmetricSyncMessage.MsgType.ScriptColliding:
+                case SymmetricSyncMessage.MsgType.ScriptCollidingEnd:
+                case SymmetricSyncMessage.MsgType.ScriptLandCollidingStart:
+                case SymmetricSyncMessage.MsgType.ScriptLandColliding:
+                case SymmetricSyncMessage.MsgType.ScriptLandCollidingEnd:
+                    //HandleRemoteEvent_ScriptCollidingStart(init_actorID, evSeqNum, data, DateTime.Now.Ticks);
+                    HandleRemoteEvent_ScriptCollidingEvents(msg.Type, init_actorID, evSeqNum, data, DateTime.Now.Ticks);
                     break;
             }
 
@@ -2403,24 +2492,28 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_scene.EventManager.TriggerOnAttachLocally(localID, itemID, avatarID);
         }
 
-        private void HandleRemoteEvent_ScriptCollidingStart(string actorID, ulong evSeqNum, OSDMap data)
+        //private void HandleRemoteEvent_ScriptCollidingStart(string actorID, ulong evSeqNum, OSDMap data, long recvTime)
+        private void HandleRemoteEvent_ScriptCollidingEvents(SymmetricSyncMessage.MsgType msgType, string actorID, ulong evSeqNum, OSDMap data, long recvTime)
         {
             if (!data.ContainsKey("primUUID") || !data.ContainsKey("collisionUUIDs"))
             {
                 m_log.ErrorFormat("RemoteEvent_ScriptCollidingStart: either primUUID or collisionUUIDs is missing in incoming OSDMap");
+                return;
             }
 
             ColliderArgs StartCollidingMessage = new ColliderArgs();
             List<DetectedObject> colliding = new List<DetectedObject>();
-            SceneObjectPart part=null;
+            SceneObjectPart collisionPart = null;
+            OSDArray collidersNotFound = new OSDArray();
+
             try
             {
                 UUID primUUID = data["primUUID"].AsUUID();
                 //OSDArray collisionLocalIDs = (OSDArray)data["collisionLocalIDs"];
                 OSDArray collisionUUIDs = (OSDArray)data["collisionUUIDs"];
 
-                part = m_scene.GetSceneObjectPart(primUUID);
-                if (part == null)
+                collisionPart = m_scene.GetSceneObjectPart(primUUID);
+                if (collisionPart == null)
                 {
                     m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no part with UUID {1} found, event initiator {2}", LogHeader, primUUID, actorID);
                     return;
@@ -2430,54 +2523,125 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_log.WarnFormat("{0}: HandleRemoteEvent_PhysicsCollision: no collisionLocalIDs", LogHeader);
                     return;
                 }
-                if(part.ParentGroup.IsDeleted == true)
+                if (collisionPart.ParentGroup.IsDeleted == true)
                     return;
 
-                m_log.DebugFormat("HandleRemoteEvent_ScriptCollidingStart received for {0}", part.Name);
-
-                for (int i = 0; i < collisionUUIDs.Count; i++)
+                switch (msgType)
                 {
-                    OSD arg = collisionUUIDs[i];
-                    UUID collidingUUID = arg.AsUUID();
-
-                    SceneObjectPart obj = m_scene.GetSceneObjectPart(collidingUUID);
-                    if (obj != null)
-                    {
-                        DetectedObject detobj = new DetectedObject();
-                        detobj.keyUUID = obj.UUID;
-                        detobj.nameStr = obj.Name;
-                        detobj.ownerUUID = obj.OwnerID;
-                        detobj.posVector = obj.AbsolutePosition;
-                        detobj.rotQuat = obj.GetWorldRotation();
-                        detobj.velVector = obj.Velocity;
-                        detobj.colliderType = 0;
-                        detobj.groupUUID = obj.GroupID;
-                        colliding.Add(detobj);
-                    }
-                    else
-                    {
-                        //collision object is not a prim, check if it's an avatar
-                        ScenePresence av = m_scene.GetScenePresence(collidingUUID);
-                        if (av != null)
+                    case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
+                    case SymmetricSyncMessage.MsgType.ScriptColliding:
+                    case SymmetricSyncMessage.MsgType.ScriptCollidingEnd:
                         {
-                            DetectedObject detobj = new DetectedObject();
-                            detobj.keyUUID = av.UUID;
-                            detobj.nameStr = av.ControllingClient.Name;
-                            detobj.ownerUUID = av.UUID;
-                            detobj.posVector = av.AbsolutePosition;
-                            detobj.rotQuat = av.Rotation;
-                            detobj.velVector = av.Velocity;
-                            detobj.colliderType = 0;
-                            detobj.groupUUID = av.ControllingClient.ActiveGroupId;
-                            colliding.Add(detobj);
-                        }
-                        else
-                        {
-                            m_log.WarnFormat("HandleRemoteEvent_ScriptCollidingStart for SOP {0},{1} with another SOP/SP {2}, but the latter is not found in local Scene",
-                    part.Name, part.UUID, collidingUUID);
-                        }
+                            for (int i = 0; i < collisionUUIDs.Count; i++)
+                            {
+                                OSD arg = collisionUUIDs[i];
+                                UUID collidingUUID = arg.AsUUID();
 
-                    }
+                                SceneObjectPart obj = m_scene.GetSceneObjectPart(collidingUUID);
+                                if (obj != null)
+                                {
+                                    DetectedObject detobj = new DetectedObject();
+                                    detobj.keyUUID = obj.UUID;
+                                    detobj.nameStr = obj.Name;
+                                    detobj.ownerUUID = obj.OwnerID;
+                                    detobj.posVector = obj.AbsolutePosition;
+                                    detobj.rotQuat = obj.GetWorldRotation();
+                                    detobj.velVector = obj.Velocity;
+                                    detobj.colliderType = 0;
+                                    detobj.groupUUID = obj.GroupID;
+                                    colliding.Add(detobj);
+                                }
+                                else
+                                {
+                                    //collision object is not a prim, check if it's an avatar
+                                    ScenePresence av = m_scene.GetScenePresence(collidingUUID);
+                                    if (av != null)
+                                    {
+                                        DetectedObject detobj = new DetectedObject();
+                                        detobj.keyUUID = av.UUID;
+                                        detobj.nameStr = av.ControllingClient.Name;
+                                        detobj.ownerUUID = av.UUID;
+                                        detobj.posVector = av.AbsolutePosition;
+                                        detobj.rotQuat = av.Rotation;
+                                        detobj.velVector = av.Velocity;
+                                        detobj.colliderType = 0;
+                                        detobj.groupUUID = av.ControllingClient.ActiveGroupId;
+                                        colliding.Add(detobj);
+                                    }
+                                    else
+                                    {
+                                        m_log.WarnFormat("HandleRemoteEvent_ScriptCollidingStart for SOP {0},{1} with SOP/SP {2}, but the latter is not found in local Scene. Saved for later processing",
+                                collisionPart.Name, collisionPart.UUID, collidingUUID);
+                                        collidersNotFound.Add(OSD.FromUUID(collidingUUID));
+                                    }
+                                }
+                            }
+
+                            if (collidersNotFound.Count > 0)
+                            {
+                                //hard-coded expiration time to be one minute
+                                TimeSpan msgExpireTime = new TimeSpan(0, 1, 0);
+                                TimeSpan msgSavedTime = new TimeSpan(DateTime.Now.Ticks - recvTime);
+
+                                if (msgSavedTime < msgExpireTime)
+                                {
+
+                                    OSDMap newdata = new OSDMap();
+                                    newdata["primUUID"] = OSD.FromUUID(collisionPart.UUID);
+                                    newdata["collisionUUIDs"] = collidersNotFound;
+
+                                    newdata["actorID"] = OSD.FromString(actorID);
+                                    newdata["seqNum"] = OSD.FromULong(evSeqNum);
+
+                                    SymmetricSyncMessage rsm = null;
+                                    switch (msgType)
+                                    {
+                                        case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
+                                            rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptCollidingStart, OSDParser.SerializeJsonString(newdata));
+                                            break;
+                                        case SymmetricSyncMessage.MsgType.ScriptColliding:
+                                            rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptColliding, OSDParser.SerializeJsonString(newdata));
+                                            break;
+                                        case SymmetricSyncMessage.MsgType.ScriptCollidingEnd:
+                                            rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.ScriptCollidingEnd, OSDParser.SerializeJsonString(newdata));
+                                            break;
+                                    }
+                                    SyncMessageRecord syncMsgToSave = new SyncMessageRecord();
+                                    syncMsgToSave.ReceivedTime = recvTime;
+                                    syncMsgToSave.SyncMessage = rsm;
+                                    lock (m_savedSyncMessage)
+                                    {
+                                        m_savedSyncMessage.Add(syncMsgToSave);
+                                    }
+                                }
+                            }
+                        }
+                        break;
+                    case SymmetricSyncMessage.MsgType.ScriptLandCollidingStart:
+                    case SymmetricSyncMessage.MsgType.ScriptLandColliding:
+                    case SymmetricSyncMessage.MsgType.ScriptLandCollidingEnd:
+                        {
+                            for (int i = 0; i < collisionUUIDs.Count; i++)
+                            {
+                                OSD arg = collisionUUIDs[i];
+                                UUID collidingUUID = arg.AsUUID();
+                                if (collidingUUID.Equals(UUID.Zero))
+                                {
+                                    //Hope that all is left is ground!
+                                    DetectedObject detobj = new DetectedObject();
+                                    detobj.keyUUID = UUID.Zero;
+                                    detobj.nameStr = "";
+                                    detobj.ownerUUID = UUID.Zero;
+                                    detobj.posVector = collisionPart.ParentGroup.RootPart.AbsolutePosition;
+                                    detobj.rotQuat = Quaternion.Identity;
+                                    detobj.velVector = Vector3.Zero;
+                                    detobj.colliderType = 0;
+                                    detobj.groupUUID = UUID.Zero;
+                                    colliding.Add(detobj);
+                                }
+                            }
+                        }
+                        break;
                 }
             }
             catch (Exception e)
@@ -2485,11 +2649,39 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 m_log.ErrorFormat("HandleRemoteEvent_ScriptCollidingStart Error: {0}", e.Message);
             }
 
+           
             if (colliding.Count > 0)
             {
                 StartCollidingMessage.Colliders = colliding;
                 // always running this check because if the user deletes the object it would return a null reference.
-                LocalScene.EventManager.TriggerScriptCollidingStartLocally(part.LocalId, StartCollidingMessage);
+                //LocalScene.EventManager.TriggerScriptCollidingStartLocally(part.LocalId, StartCollidingMessage);
+                switch (msgType)
+                {
+                    case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
+                        m_log.DebugFormat("ScriptCollidingStart received for {0}", collisionPart.Name);
+                        LocalScene.EventManager.TriggerScriptCollidingStartLocally(collisionPart.LocalId, StartCollidingMessage);
+                        break;
+                    case SymmetricSyncMessage.MsgType.ScriptColliding:
+                        m_log.DebugFormat("ScriptColliding received for {0}", collisionPart.Name);
+                        LocalScene.EventManager.TriggerScriptCollidingLocally(collisionPart.LocalId, StartCollidingMessage);
+                        break;
+                    case SymmetricSyncMessage.MsgType.ScriptCollidingEnd:
+                        m_log.DebugFormat("ScriptCollidingEnd received for {0}", collisionPart.Name);
+                        LocalScene.EventManager.TriggerScriptCollidingEndLocally(collisionPart.LocalId, StartCollidingMessage);
+                        break;
+                    case SymmetricSyncMessage.MsgType.ScriptLandCollidingStart:
+                        m_log.DebugFormat("ScriptLandCollidingStart received for {0}", collisionPart.Name);
+                        LocalScene.EventManager.TriggerScriptLandCollidingStartLocally(collisionPart.LocalId, StartCollidingMessage);
+                        break;
+                    case SymmetricSyncMessage.MsgType.ScriptLandColliding:
+                        m_log.DebugFormat("ScriptLandColliding received for {0}", collisionPart.Name);
+                        LocalScene.EventManager.TriggerScriptLandCollidingLocally(collisionPart.LocalId, StartCollidingMessage);
+                        break;
+                    case SymmetricSyncMessage.MsgType.ScriptLandCollidingEnd:
+                        m_log.DebugFormat("ScriptLandCollidingEnd received for {0}", collisionPart.Name);
+                        LocalScene.EventManager.TriggerScriptLandCollidingEndLocally(collisionPart.LocalId, StartCollidingMessage);
+                        break;
+                }
             }
         }
 
@@ -2502,6 +2694,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (!data.ContainsKey("primUUID") || !data.ContainsKey("collisionUUIDs"))
             {
                 m_log.ErrorFormat("RemoteEvent_PhysicsCollision: either primUUID or collisionUUIDs is missing in incoming OSDMap");
+                return;
             }
 
             try
@@ -2524,13 +2717,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                 // Build up the collision list. The contact point is ignored so we generate some default.
                 CollisionEventUpdate e = new CollisionEventUpdate();
-                /*
-                foreach (uint collisionID in collisionLocalIDs)
-                {
-                    // e.addCollider(collisionID, new ContactPoint());
-                    e.addCollider(collisionID, new ContactPoint(Vector3.Zero, Vector3.UnitX, 0.03f));
-                }
-                 * */
+
                 for (int i = 0; i < collisionUUIDs.Count; i++)
                 {
                     OSD arg = collisionUUIDs[i];
@@ -2809,11 +2996,47 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         }
 
+         private void OnLocalScriptCollidingEvents(EventManager.EventNames evType, uint localID, ColliderArgs colliders)
+         {
+             SceneObjectPart part = LocalScene.GetSceneObjectPart(localID);
+             if (part == null)
+                 return;
+
+             OSDMap data = PrepareCollisionArgs(localID, colliders);
+
+             if (data.Count == 0)
+                 return;
+
+             switch (evType)
+             {
+                 case EventManager.EventNames.ScriptCollidingStart:
+                     SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptCollidingStart, data);
+                     break;
+                 case EventManager.EventNames.ScriptColliding:
+                     SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptColliding, data);
+                     break;
+                 case EventManager.EventNames.ScriptCollidingEnd:
+                     SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptCollidingEnd, data);
+                     break;
+                 case EventManager.EventNames.ScriptLandCollidingStart:
+                     SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptLandCollidingStart, data);
+                     break;
+                 case EventManager.EventNames.ScriptLandColliding:
+                     SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptLandColliding, data);
+                     break;
+                 case EventManager.EventNames.ScriptLandCollidingEnd:
+                     SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptLandCollidingEnd, data);
+                     break;
+                     
+             }
+         }
+
          private void OnLocalScriptCollidingStart(uint localID, ColliderArgs colliders)
          {
              SceneObjectPart part = LocalScene.GetSceneObjectPart(localID);
              if (part == null)
                  return;
+             /*
              OSDArray collisionUUIDs = new OSDArray();
              foreach (DetectedObject detObj in colliders.Colliders)
              {
@@ -2823,9 +3046,45 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
              OSDMap data = new OSDMap();
              data["primUUID"] = OSD.FromUUID(part.UUID);
              data["collisionUUIDs"] = collisionUUIDs;
+              * */
+             OSDMap data = PrepareCollisionArgs(localID, colliders);
              SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptCollidingStart, data);
          }
 
+         private void OnLocalScriptColliding(uint localID, ColliderArgs colliders)
+         {
+             SceneObjectPart part = LocalScene.GetSceneObjectPart(localID);
+             if (part == null)
+                 return;
+             OSDMap data = PrepareCollisionArgs(localID, colliders);
+             SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptColliding, data);
+         }
+
+         private void OnLocalScriptCollidingEnd(uint localID, ColliderArgs colliders)
+         {
+             SceneObjectPart part = LocalScene.GetSceneObjectPart(localID);
+             if (part == null)
+                 return;
+             OSDMap data = PrepareCollisionArgs(localID, colliders);
+             SendSceneEvent(SymmetricSyncMessage.MsgType.ScriptCollidingEnd, data);
+         }
+
+         private OSDMap PrepareCollisionArgs(uint localID, ColliderArgs colliders)
+         {
+             OSDMap data = new OSDMap();
+             SceneObjectPart part = LocalScene.GetSceneObjectPart(localID);
+             if (part == null)
+                 return data;
+             OSDArray collisionUUIDs = new OSDArray();
+             foreach (DetectedObject detObj in colliders.Colliders)
+             {
+                 collisionUUIDs.Add(OSD.FromUUID(detObj.keyUUID));
+             }
+
+             data["primUUID"] = OSD.FromUUID(part.UUID);
+             data["collisionUUIDs"] = collisionUUIDs;
+             return data;
+         }
 
         //private void OnLocalScriptCollidingStart(uint localID, ColliderArgs OSDArray collisionUUIDs);
 
@@ -2886,6 +3145,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //Enqueue the prim with the set of updated properties, excluding the group properties
             if (propertiesWithSyncInfoUpdated.Count > 0)
             {
+                /*
                 lock (m_primPropertyUpdateLock)
                 {
                     if (m_primPropertyUpdates.ContainsKey(part.UUID))
@@ -2895,13 +3155,61 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             //Include the "property" into the list of updated properties.
                             //HashSet's Add function should handle it correctly whether the property
                             //is or is not in the set.
-                            m_primPropertyUpdates[part.UUID].Add(property);
+
+                            //If it's a group property, only add it to the RootPart's 
+                            //updated property queue, to avoid too many prim updates.
+                            //For all non-group properties, simply add it to the prim's
+                            //updated property queue.
+                            if (!PrimSyncInfo.GroupProperties.Contains(property) ||
+                                (PrimSyncInfo.GroupProperties.Contains(property) && part.UUID.Equals(part.ParentGroup.RootPart.UUID)))
+                            {
+                                m_primPropertyUpdates[part.UUID].Add(property);
+                            }
                         }
                     }
                     else
                     {
                         m_primPropertyUpdates.Add(part.UUID, propertiesWithSyncInfoUpdated);
                     }
+                }
+                 * */
+                EnqueueUpdatedProperty(part, propertiesWithSyncInfoUpdated);
+            }
+        }
+
+        private void EnqueueUpdatedProperty(SceneObjectPart part, HashSet<SceneObjectPartSyncProperties> propertiesWithSyncInfoUpdated)
+        {
+            lock (m_primPropertyUpdateLock)
+            {
+                if (m_primPropertyUpdates.ContainsKey(part.UUID))
+                {
+                    foreach (SceneObjectPartSyncProperties property in propertiesWithSyncInfoUpdated)
+                    {
+                        //Include the "property" into the list of updated properties.
+                        //HashSet's Add function should handle it correctly whether the property
+                        //is or is not in the set.
+
+                        //If it's a group property, only add it to the RootPart's 
+                        //updated property queue, to avoid too many prim updates.
+                        //For all non-group properties, simply add it to the prim's
+                        //updated property queue.
+                        if (!PrimSyncInfo.GroupProperties.Contains(property) ||
+                            (PrimSyncInfo.GroupProperties.Contains(property) && part.UUID.Equals(part.ParentGroup.RootPart.UUID)))
+                        {
+                            m_primPropertyUpdates[part.UUID].Add(property);
+                        }
+                    }
+                }
+                else
+                {
+                    //If it's a group property and the part is not the RootPart, 
+                    //do not enlist the property.
+                    if (!part.UUID.Equals(part.ParentGroup.RootPart.UUID))
+                    {
+                        propertiesWithSyncInfoUpdated.ExceptWith(PrimSyncInfo.GroupProperties);
+                    }
+
+                    m_primPropertyUpdates.Add(part.UUID, propertiesWithSyncInfoUpdated);
                 }
             }
         }
@@ -2928,6 +3236,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //Enqueue the prim with the set of updated properties
             if (propertiesToSync.Count > 0)
             {
+                /*
                 lock (m_primPropertyUpdateLock)
                 {
                     if (m_primPropertyUpdates.ContainsKey(part.UUID))
@@ -2937,7 +3246,12 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             //Include the "property" into the list of updated properties.
                             //HashSet's Add function should handle it correctly whether the property
                             //is or is not in the set.
-                            m_primPropertyUpdates[part.UUID].Add(property);
+
+                            if (!PrimSyncInfo.GroupProperties.Contains(property) ||
+                               (PrimSyncInfo.GroupProperties.Contains(property) && part.UUID.Equals(part.ParentGroup.RootPart.UUID)))
+                            {
+                                m_primPropertyUpdates[part.UUID].Add(property);
+                            }
                         }
                     }
                     else
@@ -2945,6 +3259,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         m_primPropertyUpdates.Add(part.UUID, propertiesToSync);
                     }
                 }
+                 * */
+                EnqueueUpdatedProperty(part, propertiesToSync);
             }
         }
 
@@ -2955,6 +3271,40 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// </summary>
         public void SyncOutPrimUpdates()
         {
+            //we are riding on this periodic events to check if there are un-handled sync event messages
+            if (m_savedSyncMessage.Count > 0)
+            {
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                {
+                    List<SyncMessageRecord> savedSyncMessage;
+                    lock (m_savedSyncMessage)
+                    {
+                        savedSyncMessage = new List<SyncMessageRecord>(m_savedSyncMessage);
+                        m_savedSyncMessage.Clear();
+                    }
+                    foreach (SyncMessageRecord syncMsgSaved in savedSyncMessage)
+                    {
+                        SymmetricSyncMessage msg = syncMsgSaved.SyncMessage;
+                        switch (msg.Type)
+                        {
+                            case SymmetricSyncMessage.MsgType.ScriptCollidingStart:
+                            case SymmetricSyncMessage.MsgType.ScriptColliding:
+                            case SymmetricSyncMessage.MsgType.ScriptCollidingEnd:
+                                {
+                                    OSDMap data = DeserializeMessage(msg);
+                                    string init_actorID = data["actorID"].AsString();
+                                    ulong evSeqNum = data["seqNum"].AsULong();
+                                    HandleRemoteEvent_ScriptCollidingEvents(msg.Type, init_actorID, evSeqNum, data, syncMsgSaved.ReceivedTime);
+                                    break;
+                                }
+                            default:
+                                break;
+                        }
+                    
+                    }
+                });
+            }
+
             if (!IsSyncingWithOtherSyncNodes())
             {
                 //no SyncConnector connected. clear update queues and return.
@@ -3774,6 +4124,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 //SOG properties
                 ///////////////////////
+                case SceneObjectPartSyncProperties.AbsolutePosition:
+                    propertyData["Value"] = OSD.FromVector3((Vector3)LastUpdateValue);
+                    break;
                 case SceneObjectPartSyncProperties.IsSelected:
                     propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
                     break;
@@ -4021,6 +4374,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 //SOG properties
                 ///////////////////////
+                case SceneObjectPartSyncProperties.AbsolutePosition:
+                    m_lastUpdateValue = (Object)(propertyData["Value"].AsVector3());
+                    break;
                 case SceneObjectPartSyncProperties.IsSelected:
                     //propertyData["Value"] = OSD.FromBoolean((bool)LastUpdateValue);
                     m_lastUpdateValue = (Object)(propertyData["Value"].AsBoolean());
@@ -4372,6 +4728,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                                 //UpdateSOPProperty(part, m_propertiesSyncInfo[property]);
                                 SetSOPPropertyValue(part, property);
                                 propertiesUpdated.Add(property);
+
+                                if (property == SceneObjectPartSyncProperties.TaskInventory)
+                                {
+                                    //Mark the inventory as has changed, for proper backup
+                                    part.Inventory.ForceInventoryPersistence();
+                                }
+
+                                part.ParentGroup.HasGroupChanged = true;
                             }
                         }
                         catch (Exception e)
@@ -4507,6 +4871,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             foreach (SceneObjectPartSyncProperties property in GroupProperties)
             {
                 SetSOPPropertyValue(sop, property);
+                if (property == SceneObjectPartSyncProperties.AbsolutePosition)
+                {
+
+                }
             }
         }
 
@@ -5001,7 +5369,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     break;
                 case SceneObjectPartSyncProperties.GroupPosition:
-                    propertyUpdatedByLocal = CompareAndUpdateSOPGroupPosition(part, lastUpdateByLocalTS, syncID);
+                    propertyUpdatedByLocal = CompareAndUpdateSOPGroupPositionByLocal(part, lastUpdateByLocalTS, syncID);
                     break;
                 case SceneObjectPartSyncProperties.InventorySerial:
                     if (!part.InventorySerial.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
@@ -5647,7 +6015,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     }
                     break;
                 case SceneObjectPartSyncProperties.Position:
-                    propertyUpdatedByLocal = CompareAndUpdateSOPPosition(part, lastUpdateByLocalTS, syncID);
+                    propertyUpdatedByLocal = CompareAndUpdateSOPPositionByLocal(part, lastUpdateByLocalTS, syncID);
                     break;
                 case SceneObjectPartSyncProperties.RotationalVelocity:
                     if (!part.PhysActor.RotationalVelocity.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
@@ -5698,6 +6066,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 //SOG properties
                 ///////////////////////
+                case SceneObjectPartSyncProperties.AbsolutePosition:
+                    /*
+                    if (!part.ParentGroup.AbsolutePosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+                    {
+                        if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.ParentGroup.AbsolutePosition);
+                            propertyUpdatedByLocal = true;
+                        }
+                        else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                        {
+                            //overwrite SOG's data
+                            part.ParentGroup.AbsolutePosition = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                        }
+                    }
+                     * */
+                    propertyUpdatedByLocal = CompareAndUpdateSOPAbsolutePositionByLocal(part, lastUpdateByLocalTS, syncID);
+                    break;
                 case SceneObjectPartSyncProperties.IsSelected:
                     if (!part.ParentGroup.IsSelected.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
                     {
@@ -5708,7 +6094,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         }
                         else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
                         {
-                            //overwrite PhysActor's data
+                            //overwrite SOG's data
                             part.ParentGroup.IsSelected = (bool)m_propertiesSyncInfo[property].LastUpdateValue;
                         }
                     }
@@ -5921,6 +6307,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 //SOG properties
                 ///////////////////////
+                case SceneObjectPartSyncProperties.AbsolutePosition:
+                    return (Object)part.ParentGroup.AbsolutePosition;
                 case SceneObjectPartSyncProperties.IsSelected:
                     return (Object)part.ParentGroup.IsSelected;
             }
@@ -5930,21 +6318,24 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         /// <summary>
         /// Set the property's value based on the value maintained in PrimSyncInfoManager.
-        /// Assumption: caller will call ScheduleFullUpdate to enqueue updates properly.
+        /// Assumption: caller will call ScheduleFullUpdate to enqueue updates properly to
+        /// update viewers.
+        /// This function should only be triggered when a prim update is received (i.e. 
+        /// triggered by remote update instead of local update).
         /// </summary>
         /// <param name="part"></param>
         /// <param name="property"></param>
         private void SetSOPPropertyValue(SceneObjectPart part, SceneObjectPartSyncProperties property)
         {
             if (part == null) return;
-            if (!m_propertiesSyncInfo.ContainsKey(property) && part.PhysActor == null){
+            if (PrimPhysActorProperties.Contains(property) && !m_propertiesSyncInfo.ContainsKey(property) && part.PhysActor == null){
                 //DebugLog.WarnFormat("SetSOPPropertyValue: property {0} not in record.", property.ToString());
                 //For phantom prims, they don't have physActor properties, 
                 //so for those properties, simply return
                 return;
             }
 
-            if (!m_propertiesSyncInfo.ContainsKey(property) && part.PhysActor != null)
+            if (!m_propertiesSyncInfo.ContainsKey(property))
             {
                 DebugLog.WarnFormat("PrimSyncInfo.SetSOPPropertyValue: property {0} not in sync cache. ", property);
                 return;
@@ -6265,6 +6656,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 ///////////////////////
                 //SOG properties
                 ///////////////////////
+                case SceneObjectPartSyncProperties.AbsolutePosition:
+                    SetSOPAbsolutePosition(part, pSyncInfo);
+                    break;
                 case SceneObjectPartSyncProperties.IsSelected:
                     if (part.ParentGroup != null)
                         part.ParentGroup.IsSelected = (bool)pSyncInfo.LastUpdateValue;
@@ -6273,6 +6667,45 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Calling ScheduleFullUpdate to trigger enqueuing updates for sync'ing (relay sync nodes need to do so)
             //part.ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() { property }); 
+        }
+
+        private void SetSOPAbsolutePosition(SceneObjectPart part, PropertySyncInfo pSyncInfo)
+        {
+            if (part.ParentGroup != null)
+            {
+                part.ParentGroup.AbsolutePosition = (Vector3)pSyncInfo.LastUpdateValue;
+
+                PropertySyncInfo gPosSyncInfo;
+                if (m_propertiesSyncInfo.ContainsKey(SceneObjectPartSyncProperties.GroupPosition))
+                {
+                    gPosSyncInfo = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition];
+                    gPosSyncInfo.UpdateSyncInfoBySync(pSyncInfo.LastUpdateTimeStamp, pSyncInfo.LastUpdateSyncID, part.GroupPosition, pSyncInfo.LastSyncUpdateRecvTime);
+                }
+                else
+                {
+                    gPosSyncInfo = new PropertySyncInfo(SceneObjectPartSyncProperties.GroupPosition,
+                        part.GroupPosition, pSyncInfo.LastUpdateTimeStamp, pSyncInfo.LastUpdateSyncID);
+                    m_propertiesSyncInfo.Add(SceneObjectPartSyncProperties.GroupPosition, gPosSyncInfo);
+                }
+
+                if (part.PhysActor != null)
+                {
+                    PropertySyncInfo posSyncInfo;
+                    if (m_propertiesSyncInfo.ContainsKey(SceneObjectPartSyncProperties.Position))
+                    {
+                        posSyncInfo = m_propertiesSyncInfo[SceneObjectPartSyncProperties.Position];
+                        posSyncInfo.UpdateSyncInfoBySync(pSyncInfo.LastUpdateTimeStamp, pSyncInfo.LastUpdateSyncID, part.PhysActor.Position, pSyncInfo.LastSyncUpdateRecvTime);
+                    }
+                    else
+                    {
+                        posSyncInfo = new PropertySyncInfo(SceneObjectPartSyncProperties.Position,
+                            part.PhysActor.Position, pSyncInfo.LastUpdateTimeStamp, pSyncInfo.LastUpdateSyncID);
+                        m_propertiesSyncInfo.Add(SceneObjectPartSyncProperties.Position, posSyncInfo);
+                    }
+                }
+                //the above operation may change GroupPosition and PhysActor.Postiion
+                //as well. so update their values
+            }
         }
 
         //Do not call "part.CollisionSound =" to go through its set function.
@@ -6305,9 +6738,36 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             part.ScheduleFullUpdate(null);
         }
 
+        private bool CompareAndUpdateSOPAbsolutePositionByLocal(SceneObjectPart part, long lastUpdateByLocalTS, string syncID)
+        {
+            SceneObjectPartSyncProperties property = SceneObjectPartSyncProperties.AbsolutePosition;
+
+            bool propertyUpdatedByLocal = false;
+            if (!part.ParentGroup.AbsolutePosition.Equals(m_propertiesSyncInfo[property].LastUpdateValue))
+            {
+                if (lastUpdateByLocalTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                {
+                    m_propertiesSyncInfo[property].UpdateSyncInfoByLocal(lastUpdateByLocalTS, syncID, (Object)part.ParentGroup.AbsolutePosition);
+                    propertyUpdatedByLocal = true;
+                }
+                else if (lastUpdateByLocalTS < m_propertiesSyncInfo[property].LastUpdateTimeStamp)
+                {
+                    //overwrite SOG's data
+                    part.ParentGroup.AbsolutePosition = (Vector3)m_propertiesSyncInfo[property].LastUpdateValue;
+                }
+            }
+
+            //Since writing to AbsolutePosition also changes values of GroupPosition 
+            //and PhysActor.Postiion (these properties are different representations
+            //of the same prim property), we also need to update the latter two.
+            CompareAndUpdateSOPGroupPositionByLocal(part, lastUpdateByLocalTS, syncID);
+
+            return propertyUpdatedByLocal;
+        }
+
         //In SOP's implementation, GroupPosition and SOP.PhysActor.Position are 
         //correlated. We need to make sure that they are both properly synced.
-        private bool CompareAndUpdateSOPGroupPosition(SceneObjectPart part, long lastUpdateByLocalTS, string syncID)
+        private bool CompareAndUpdateSOPGroupPositionByLocal(SceneObjectPart part, long lastUpdateByLocalTS, string syncID)
         {
             if (!part.GroupPosition.Equals(m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition].LastUpdateValue))
             {
@@ -6371,7 +6831,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             return false;
         }
 
-        private bool CompareAndUpdateSOPPosition(SceneObjectPart part, long lastUpdateByLocalTS, string syncID)
+        private bool CompareAndUpdateSOPPositionByLocal(SceneObjectPart part, long lastUpdateByLocalTS, string syncID)
         {
             if (part.PhysActor == null)
                 return false;

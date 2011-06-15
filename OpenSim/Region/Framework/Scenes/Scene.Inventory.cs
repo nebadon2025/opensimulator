@@ -327,7 +327,7 @@ namespace OpenSim.Region.Framework.Scenes
         //Scene does permission checking, asset creation and storing, then informs Script Engine to 
         //update the script.
         ////////////////////////////////////////////////////////////////////////////////////////////////
-        //Only should be called when this is the cached Scene of script engine 
+        //Only should be called when this is the local Scene of script engine 
         public ArrayList OnUpdateScript(UUID avatarID, UUID itemID, UUID primID, bool isScriptRunning, UUID newAssetID)
         {
             ArrayList errors = new ArrayList();
@@ -353,7 +353,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             // Update item with new asset
             item.AssetID = newAssetID;
-            group.UpdateInventoryItem(item);
+            group.UpdateInventoryItemBySync(item);
             m_log.Debug("UpdateInventoryItem on object "+group.UUID);
 
             if (isScriptRunning)
@@ -419,9 +419,14 @@ namespace OpenSim.Region.Framework.Scenes
                 return new ArrayList();
             }
 
-            // Update item with new asset
+            // Update item with new asset.
+            // The actor that initiate the UpdateScript event should also send out
+            // a sync message for the updated task inventory. In case that sync message is 
+            // not here year, we retrieve and update the task item -- w/o marking that
+            // the taskinventory is modified here, so that when the sync message is here,
+            // the actor and timestamp info will be copied.
             item.AssetID = newAssetID;
-            group.UpdateInventoryItem(item);
+            group.UpdateInventoryItemBySync(item);
             m_log.Debug("UpdateInventoryItem on object "+group.UUID);
 
             if (isScriptRunning)

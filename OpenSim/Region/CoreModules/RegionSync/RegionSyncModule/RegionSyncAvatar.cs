@@ -615,7 +615,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_log.Debug("[REGION SYNC AVATAR] AttachObject");
         }
 
-        public virtual void SendDialog(string objectname, UUID objectID, string ownerFirstName, string ownerLastName, string msg, UUID textureID, int ch, string[] buttonlabels)
+        public virtual void SendDialog(string objectname, UUID objectID, UUID ownerID, string ownerFirstName, string ownerLastName, string msg, UUID textureID, int ch, string[] buttonlabels)
         {
             IGridDialogModule gridDialogModule = m_scene.RequestModuleInterface<IGridDialogModule>();
 

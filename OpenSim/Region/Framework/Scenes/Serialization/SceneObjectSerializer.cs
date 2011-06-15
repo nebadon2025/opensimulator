@@ -1558,7 +1558,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         /// <returns>The shape parsed</returns>
         //DSG SYNC: make it public to be called outside
         //static PrimitiveBaseShape ReadShape(XmlTextReader reader, string name, out bool errors)
-        public PrimitiveBaseShape ReadShape(XmlTextReader reader, string name, out bool errors)
+        public static PrimitiveBaseShape ReadShape(XmlTextReader reader, string name, out bool errors)
         {
             errors = false;
 

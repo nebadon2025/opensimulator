@@ -224,6 +224,12 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
             return;
         }
 
+        //DSG: make this function public, so that we can call from outside to 
+        //use the Grid Service to send the instant message.
+        public virtual void SendGridInstantMessageViaXMLRPC(GridInstantMessage im, MessageResultNotification result)
+        {
+        }
+
         protected bool SendIMToScene(GridInstantMessage gim, UUID toAgentID)
         {
             bool successful = false;

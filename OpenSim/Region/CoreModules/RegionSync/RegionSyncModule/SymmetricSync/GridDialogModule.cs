@@ -126,7 +126,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         #region GridCommunication
 
-        public delegate void GridDialogDelegate(UUID avatarID, string objectName, UUID objectID, string ownerFirstName,
+        public delegate void GridDialogDelegate(UUID avatarID, string objectName, UUID objectID, UUID ownerID, string ownerFirstName,
             string ownerLastName, string message, UUID textureID, int ch, string[] buttonlabels, UUID prevRegionID);
 
         protected virtual void GridDialogCompleted(IAsyncResult iar)
@@ -136,17 +136,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             icon.EndInvoke(iar);
         }
 
-        public void SendGridDialogViaXMLRPC(UUID avatarID, string objectName, UUID objectID, string ownerFirstName,
+        public void SendGridDialogViaXMLRPC(UUID avatarID, string objectName, UUID objectID, UUID ownerID, string ownerFirstName,
             string ownerLastName, string message, UUID textureID, int ch, string[] buttonlabels, UUID prevRegionID)
         {
             GridDialogDelegate d = SendGridDialogViaXMLRPCAsync;
 
-            d.BeginInvoke(avatarID, objectName, objectID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels, prevRegionID,
+            d.BeginInvoke(avatarID, objectName, objectID, ownerID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels, prevRegionID,
                 GridDialogCompleted, d);
         }
 
 
-        private void SendGridDialogViaXMLRPCAsync(UUID avatarID, string objectName, UUID objectID, string ownerFirstName,
+        private void SendGridDialogViaXMLRPCAsync(UUID avatarID, string objectName, UUID objectID, UUID ownerID, string ownerFirstName,
             string ownerLastName, string message, UUID textureID, int ch, string[] buttonlabels, UUID prevRegionID)
         {
             PresenceInfo upd = null;
@@ -190,7 +190,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     upd.RegionID);
                 if (reginfo != null)
                 {
-                    Hashtable msgdata = ConvertGridDialogToXMLRPC(avatarID, objectName, objectID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels);
+                    Hashtable msgdata = ConvertGridDialogToXMLRPC(avatarID, objectName, objectID, ownerID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels);
                     //= ConvertGridInstantMessageToXMLRPC(im);
                     // Not actually used anymore, left in for compatibility
                     // Remove at next interface change
@@ -200,7 +200,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     bool imresult = doDialogSending(reginfo, msgdata);
                     if (!imresult)
                     {
-                        //SendGridDialogViaXMLRPCAsync(avatarID, objectName, objectID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels, prevRegionID);
+                        SendGridDialogViaXMLRPCAsync(avatarID, objectName, objectID, ownerID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels, prevRegionID);
                         m_log.WarnFormat("Couldn't deliver dialog to {0}" + avatarID);
                         return;
                     }
@@ -208,13 +208,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
-        private Hashtable ConvertGridDialogToXMLRPC(UUID avatarID, string objectName, UUID objectID, string ownerFirstName, string ownerLastName,
+        private Hashtable ConvertGridDialogToXMLRPC(UUID avatarID, string objectName, UUID objectID, UUID ownerID, string ownerFirstName, string ownerLastName,
             string message, UUID textureID, int ch, string[] buttonlabels)
         {
             Hashtable msgdata = new Hashtable();
             msgdata["avatarID"] = avatarID.ToString();
             msgdata["objectName"] = objectName;
             msgdata["objectID"] = objectID.ToString();
+            msgdata["ownerID"] = ownerID.ToString();
             msgdata["ownerFirstName"] = ownerFirstName;
             msgdata["ownerLastName"] = ownerLastName;
             msgdata["message"] = message;
@@ -287,6 +288,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             UUID avatarID = UUID.Zero;
             UUID objectID = UUID.Zero;
             UUID textureID = UUID.Zero;
+            UUID ownerID = UUID.Zero;
             string objectName="", ownerFirstName="", ownerLastName="";
             string message="";
             int ch=0;
@@ -297,6 +299,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                             // Check if it's got all the data
             if (requestData.ContainsKey("avatarID")
                     && requestData.ContainsKey("objectName") && requestData.ContainsKey("objectID")
+                    && requestData.ContainsKey("ownerID")
                     && requestData.ContainsKey("ownerFirstName") && requestData.ContainsKey("ownerLastName")
                     && requestData.ContainsKey("message") && requestData.ContainsKey("textureID")
                     && requestData.ContainsKey("ch")
@@ -308,6 +311,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     UUID.TryParse((string)requestData["avatarID"], out avatarID);
                     UUID.TryParse((string)requestData["objectID"], out objectID);
                     UUID.TryParse((string)requestData["textureID"], out textureID);
+                    UUID.TryParse((string)requestData["ownerID"], out ownerID);
 
                     objectName = (string)requestData["objectName"];
                     ownerFirstName = (string)requestData["ownerFirstName"];
@@ -351,7 +355,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                             if (!user.IsChildAgent)
                             {
-                                user.ControllingClient.SendDialog(objectName, objectID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels);
+                                user.ControllingClient.SendDialog(objectName, objectID, ownerID, ownerFirstName, ownerLastName, message, textureID, ch, buttonlabels);
                                 deliverSuccessful = true;
                             }
                         }

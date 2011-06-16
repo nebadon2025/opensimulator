@@ -121,7 +121,6 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             }
         }
 
-
         /// <summary>
         /// Serialize a scene object to the original xml format
         /// </summary>
@@ -341,6 +340,11 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             m_SOPXmlProcessors.Add("MediaUrl", ProcessMediaUrl);
             m_SOPXmlProcessors.Add("TextureAnimation", ProcessTextureAnimation);
             m_SOPXmlProcessors.Add("ParticleSystem", ProcessParticleSystem);
+            m_SOPXmlProcessors.Add("PayPrice0", ProcessPayPrice0);
+            m_SOPXmlProcessors.Add("PayPrice1", ProcessPayPrice1);
+            m_SOPXmlProcessors.Add("PayPrice2", ProcessPayPrice2);
+            m_SOPXmlProcessors.Add("PayPrice3", ProcessPayPrice3);
+            m_SOPXmlProcessors.Add("PayPrice4", ProcessPayPrice4);
             #endregion
 
             #region TaskInventoryXmlProcessors initialization
@@ -570,7 +574,13 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
         private static void ProcessShape(SceneObjectPart obj, XmlTextReader reader)
         {
-            obj.Shape = ReadShape(reader, "Shape");
+            bool errors = false;
+            obj.Shape = ReadShape(reader, "Shape", out errors);
+
+            if (errors)
+                m_log.DebugFormat(
+                    "[SceneObjectSerializer]: Parsing PrimitiveBaseShape for object part {0} {1} encountered errors.  Please see earlier log entries.",
+                    obj.Name, obj.UUID);
         }
 
         private static void ProcessScale(SceneObjectPart obj, XmlTextReader reader)
@@ -702,6 +712,31 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         private static void ProcessParticleSystem(SceneObjectPart obj, XmlTextReader reader)
         {
             obj.ParticleSystem = Convert.FromBase64String(reader.ReadElementContentAsString("ParticleSystem", String.Empty));
+        }
+
+        private static void ProcessPayPrice0(SceneObjectPart obj, XmlTextReader reader)
+        {
+            obj.PayPrice[0] = (int)reader.ReadElementContentAsInt("PayPrice0", String.Empty);
+        }
+
+        private static void ProcessPayPrice1(SceneObjectPart obj, XmlTextReader reader)
+        {
+            obj.PayPrice[1] = (int)reader.ReadElementContentAsInt("PayPrice1", String.Empty);
+        }
+
+        private static void ProcessPayPrice2(SceneObjectPart obj, XmlTextReader reader)
+        {
+            obj.PayPrice[2] = (int)reader.ReadElementContentAsInt("PayPrice2", String.Empty);
+        }
+
+        private static void ProcessPayPrice3(SceneObjectPart obj, XmlTextReader reader)
+        {
+            obj.PayPrice[3] = (int)reader.ReadElementContentAsInt("PayPrice3", String.Empty);
+        }
+
+        private static void ProcessPayPrice4(SceneObjectPart obj, XmlTextReader reader)
+        {
+            obj.PayPrice[4] = (int)reader.ReadElementContentAsInt("PayPrice4", String.Empty);
         }
 
         #endregion
@@ -1075,7 +1110,6 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             shp.Media = PrimitiveBaseShape.MediaList.FromXml(value);
         }
 
-
         #endregion
 
         ////////// Write /////////
@@ -1142,7 +1176,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             writer.WriteElementString("R", sop.Color.R.ToString(Utils.EnUsCulture));
             writer.WriteElementString("G", sop.Color.G.ToString(Utils.EnUsCulture));
             writer.WriteElementString("B", sop.Color.B.ToString(Utils.EnUsCulture));
-            writer.WriteElementString("A", sop.Color.G.ToString(Utils.EnUsCulture));
+            writer.WriteElementString("A", sop.Color.A.ToString(Utils.EnUsCulture));
             writer.WriteEndElement();
 
             writer.WriteElementString("Text", sop.Text);
@@ -1181,6 +1215,11 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 writer.WriteElementString("MediaUrl", sop.MediaUrl.ToString());
             WriteBytes(writer, "TextureAnimation", sop.TextureAnimation);
             WriteBytes(writer, "ParticleSystem", sop.ParticleSystem);
+            writer.WriteElementString("PayPrice0", sop.PayPrice[0].ToString());
+            writer.WriteElementString("PayPrice1", sop.PayPrice[1].ToString());
+            writer.WriteElementString("PayPrice2", sop.PayPrice[2].ToString());
+            writer.WriteElementString("PayPrice3", sop.PayPrice[3].ToString());
+            writer.WriteElementString("PayPrice4", sop.PayPrice[4].ToString());
 
             writer.WriteEndElement();
         }
@@ -1448,7 +1487,9 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                     }
                     catch (Exception e)
                     {
-                        m_log.DebugFormat("[SceneObjectSerializer]: exception while parsing {0}: {1}", nodeName, e);
+                        m_log.DebugFormat(
+                            "[SceneObjectSerializer]: exception while parsing {0} in object {1} {2}: {3}{4}",
+                            obj.Name, obj.UUID, nodeName, e.Message, e.StackTrace);
                         if (reader.NodeType == XmlNodeType.EndElement)
                             reader.Read();
                     }
@@ -1508,10 +1549,19 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             return tinv;
         }
 
+        /// <summary>
+        /// Read a shape from xml input
+        /// </summary>
+        /// <param name="reader"></param>
+        /// <param name="name">The name of the xml element containing the shape</param>
+        /// <param name="errors">true if any errors were encountered during parsing, false otherwise</param>
+        /// <returns>The shape parsed</returns>
         //DSG SYNC: make it public to be called outside
-        //static PrimitiveBaseShape ReadShape(XmlTextReader reader, string name)
-        public static PrimitiveBaseShape ReadShape(XmlTextReader reader, string name)
+        //static PrimitiveBaseShape ReadShape(XmlTextReader reader, string name, out bool errors)
+        public static PrimitiveBaseShape ReadShape(XmlTextReader reader, string name, out bool errors)
         {
+            errors = false;
+
             PrimitiveBaseShape shape = new PrimitiveBaseShape();
 
             if (reader.IsEmptyElement)
@@ -1536,7 +1586,11 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                     }
                     catch (Exception e)
                     {
-                        m_log.DebugFormat("[SceneObjectSerializer]: exception while parsing Shape {0}: {1}", nodeName, e);
+                        errors = true;
+                        m_log.DebugFormat(
+                            "[SceneObjectSerializer]: exception while parsing Shape property {0}: {1}{2}",
+                            nodeName, e.Message, e.StackTrace);
+
                         if (reader.NodeType == XmlNodeType.EndElement)
                             reader.Read();
                     }

@@ -49,7 +49,6 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
         private bool m_Enabled = false;
         protected List<Scene> m_Scenes = new List<Scene>();
         protected Dictionary<UUID, UUID> m_UserRegionMap = new Dictionary<UUID, UUID>();
-        protected Dictionary<UUID, GridRegion> m_RegionInfoMap = new Dictionary<UUID, GridRegion>();
 
         public event UndeliveredMessage OnUndeliveredMessage;
 
@@ -537,19 +536,7 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
 
             if (upd != null)
             {
-                GridRegion reginfo = null;
-                // Try to pull reginfo from our cache
-                lock (m_RegionInfoMap)
-                {
-                    if (!m_RegionInfoMap.TryGetValue(upd.RegionID, out reginfo))
-                        reginfo = null;
-                }
-
-                // If it wasn't there, then look it up from grid.
-                if (reginfo == null)
-                {
-                    reginfo = m_Scenes[0].GridService.GetRegionByUUID(m_Scenes[0].RegionInfo.ScopeID, upd.RegionID);
-                }
+                GridRegion reginfo = m_Scenes[0].GridService.GetRegionByUUID(m_Scenes[0].RegionInfo.ScopeID, upd.RegionID);
 
                 // If we found the reginfo, send the IM to the region
                 if (reginfo != null)
@@ -573,13 +560,6 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
                             {
                                 m_UserRegionMap.Add(toAgentID, upd.RegionID);
                             }
-                        }
-                        lock (m_RegionInfoMap)
-                        {
-                            // Since we never look it up again, we don't need to update it
-                            // but if it's not in the map yet, add it now.
-                            if (!m_RegionInfoMap.ContainsKey(upd.RegionID))
-                                m_RegionInfoMap.Add(upd.RegionID, reginfo);
                         }
                         result(true);
                     }

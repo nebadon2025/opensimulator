@@ -347,12 +347,15 @@ namespace OpenSim.Region.CoreModules.World.Archiver
                 
                 landData.Add(parcel);
             }
-            
-            if (!m_merge)                
-                m_scene.LandChannel.Clear(false);
+
+            if (!m_merge)
+            {
+                bool setupDefaultParcel = (landData.Count == 0);
+                m_scene.LandChannel.Clear(setupDefaultParcel);
+            }
             
             m_scene.EventManager.TriggerIncomingLandDataFromStorage(landData);
-            m_log.InfoFormat("[ARCHIVER]: Restored {0} parcels.", landData.Count);            
+            m_log.InfoFormat("[ARCHIVER]: Restored {0} parcels.", landData.Count);
         }
 
         /// <summary>
@@ -485,6 +488,7 @@ namespace OpenSim.Region.CoreModules.World.Archiver
             currentRegionSettings.Elevation2SE = loadedRegionSettings.Elevation2SE;
             currentRegionSettings.Elevation2SW = loadedRegionSettings.Elevation2SW;
             currentRegionSettings.FixedSun = loadedRegionSettings.FixedSun;
+            currentRegionSettings.SunPosition = loadedRegionSettings.SunPosition;
             currentRegionSettings.ObjectBonus = loadedRegionSettings.ObjectBonus;
             currentRegionSettings.RestrictPushing = loadedRegionSettings.RestrictPushing;
             currentRegionSettings.TerrainLowerLimit = loadedRegionSettings.TerrainLowerLimit;
@@ -497,6 +501,8 @@ namespace OpenSim.Region.CoreModules.World.Archiver
             currentRegionSettings.WaterHeight = loadedRegionSettings.WaterHeight;
 
             currentRegionSettings.Save();
+
+            m_scene.TriggerEstateSunUpdate();
             
             IEstateModule estateModule = m_scene.RequestModuleInterface<IEstateModule>();
 

@@ -10,7 +10,7 @@ people that make the day to day of OpenSim happen.
 * dahlia
 * Melanie Thielker
 * Diva (Crista Lopes, University of California, Irvine)
-* Dan Lake (Intel)
+* dslake (Dan Lake, Intel)
 * Marck
 * Mic Bowman (Intel)
 * BlueWall (James Hughes)
@@ -75,7 +75,7 @@ what it is today.
 * daTwitch 
 * devalnor-#708
 * dmiles (Daxtron Labs)
-* dslake (Intel)
+* dslake (Dan Lake, Intel)
 * FredoChaplin
 * Gerhard
 * Godfrey
@@ -182,6 +182,10 @@ This software uses components from the following developers:
 Some plugins are based on Cable Beach
 Cable Beach is Copyright (c) 2008 Intel Corporation
 see http://forge.opensimulator.org/gf/project/assetserver/
+
+Some plugins are based on Distributed Scene Graph (DSG)
+Distributed Scene Graph is Copyright (c) 2011 Intel Corporation
+
 
 In addition, we would like to thank:
 * The Mono Project

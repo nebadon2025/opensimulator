@@ -3177,7 +3177,6 @@ namespace OpenSim.Region.Framework.Scenes
         //public void AddNewClient2(IClientAPI client, bool managed)
         public void AddNewClient2(IClientAPI client, bool isSyncedAvatar, bool rezAttachment)
         {
-
             AgentCircuitData aCircuit = m_authenticateHandler.GetAgentCircuitData(client.CircuitCode);
             bool vialogin = false;
 
@@ -3190,17 +3189,15 @@ namespace OpenSim.Region.Framework.Scenes
                 vialogin = (aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaHGLogin) != 0 ||
                            (aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaLogin) != 0;
             }
-
             CheckHeartbeat();
-
-            if (GetScenePresence(client.AgentId) == null) // ensure there is no SP here
+            ScenePresence sp = GetScenePresence(client.AgentId);
+            if ( sp == null) // ensure there is no SP here
             {
                 m_log.DebugFormat("[SCENE ({0})]: Restoring agent {1} ({2})", m_regionName, client.Name, client.AgentId);
 
                 m_clientManager.Add(client);
                 SubscribeToClientEvents(client);
-
-                ScenePresence sp = m_sceneGraph.CreateAndAddChildScenePresence(client, aCircuit == null ? null : aCircuit.Appearance);
+                sp = m_sceneGraph.CreateAndAddChildScenePresence(client, aCircuit == null ? null : aCircuit.Appearance);
                 sp.IsSyncedAvatar = isSyncedAvatar;
                 m_eventManager.TriggerOnNewPresence(sp);
 
@@ -3219,14 +3216,17 @@ namespace OpenSim.Region.Framework.Scenes
                         Util.FireAndForget(delegate(object o) { sp.RezAttachments(); });
                 }
             }
-
-            if (GetScenePresence(client.AgentId) != null)
+            sp = GetScenePresence(client.AgentId);
+            if (sp!= null)
             {
                 m_LastLogin = Util.EnvironmentTickCount();
 
                 // Cache the user's name
-                CacheUserName(aCircuit);
 
+                if (aCircuit == null)
+                    CacheUserName(sp.Firstname, sp.Lastname, sp.UUID, string.Empty);
+                else
+                    CacheUserName(aCircuit);
                 EventManager.TriggerOnNewClient(client);
                 if (vialogin)
                     EventManager.TriggerOnClientLogin(client);
@@ -3235,23 +3235,30 @@ namespace OpenSim.Region.Framework.Scenes
 
         private void CacheUserName(AgentCircuitData aCircuit)
         {
+            string homeURL = string.Empty;
+            string first = aCircuit.firstname, last = aCircuit.lastname;
+            UUID agentID = aCircuit.AgentID;
+
+            if (aCircuit.ServiceURLs.ContainsKey("HomeURI"))
+                homeURL = aCircuit.ServiceURLs["HomeURI"].ToString();
+            CacheUserName(first, last, agentID, homeURL);
+        }
+
+        private void CacheUserName(string first, string last, UUID agentID, string homeURL)
+        {
             IUserManagement uMan = RequestModuleInterface<IUserManagement>();
             if (uMan != null)
             {
-                string homeURL = string.Empty;
-                string first = aCircuit.firstname, last = aCircuit.lastname;
-                if (aCircuit.ServiceURLs.ContainsKey("HomeURI"))
-                    homeURL = aCircuit.ServiceURLs["HomeURI"].ToString();
-                if (aCircuit.lastname.StartsWith("@"))
+                if (last.StartsWith("@"))
                 {
-                    string[] parts = aCircuit.firstname.Split('.');
+                    string[] parts = first.Split('.');
                     if (parts.Length >= 2)
                     {
                         first = parts[0];
                         last = parts[1];
                     }
                 }
-                uMan.AddUser(aCircuit.AgentID, first, last, homeURL);
+                uMan.AddUser(agentID, first, last, homeURL);
             }
         }
 

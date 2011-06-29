@@ -391,6 +391,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             data["partCount"] = OSD.FromInteger(children.Count);
             data["actorID"] = OSD.FromString(m_actorID);
             int partNum = 0;
+
+            string debugString = "";
             foreach (SceneObjectPart part in children)
             {
                 string partTempID = "part" + partNum;
@@ -398,7 +400,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 partNum++;
 
                 //m_log.DebugFormat("{0}: SendLinkObject to link {1},{2} with {3}, {4}", part.Name, part.UUID, root.Name, root.UUID);
+                debugString += part.UUID + ", ";
             }
+
+            m_log.DebugFormat("SyncLinkObject: SendLinkObject to link parts {0} with {1}, {2}", debugString, root.Name, root.UUID);
 
             SymmetricSyncMessage rsm = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.LinkObject, OSDParser.SerializeJsonString(data));
             SendSpecialObjectUpdateToRelevantSyncConnectors(m_actorID, linkedGroup, rsm);
@@ -1102,7 +1107,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             m_log.WarnFormat("SyncStateReport {0} -- Object count: {1}, Prim Count {2} ", m_scene.RegionInfo.RegionName, sogList.Count, primCount);
             foreach (SceneObjectGroup sog in sogList)
             {
-                m_log.WarnFormat("SyncStateReport -- SOG: name {0}, UUID {1}, position {2}", sog.Name, sog.UUID, sog.AbsolutePosition);
+                m_log.WarnFormat("\n\n SyncStateReport -- SOG: name {0}, UUID {1}, position {2}", sog.Name, sog.UUID, sog.AbsolutePosition);
                 foreach (SceneObjectPart part in sog.Parts)
                 {
                     Vector3 pos = Vector3.Zero;
@@ -1110,7 +1115,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     {
                         pos = part.PhysActor.Position;
                     }
-                    string debugMsg = "Part " + part.Name + "," + part.UUID+", LocalID "+part.LocalId;
+                    string debugMsg = "\nPart " + part.Name + "," + part.UUID+", LocalID "+part.LocalId + "ProfileShape "+part.Shape.ProfileShape;
                     if (part.ParentGroup.RootPart.UUID == part.UUID)
                     {
                         debugMsg += ", RootPart, ";
@@ -1137,8 +1142,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         {
                             debugMsg += ", attached avatar's localID = "+sp.LocalId;
                         }
-                        m_log.WarnFormat(debugMsg);
+                        
                     }
+                    m_log.WarnFormat(debugMsg);
                 }
             }
 
@@ -1848,19 +1854,29 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             primUUID = data["primUUID"].AsUUID();
             SceneObjectPart sop = m_scene.GetSceneObjectPart(primUUID);
 
+            propertiesSyncInfo = m_primSyncInfoManager.DecodePrimProperties(data);
+
             if (sop == null || sop.ParentGroup.IsDeleted)
             {
-                m_log.WarnFormat("{0}: HandleUpdatedPrimProperties -- prim {1} no longer in local SceneGraph. SOP == NULL? ({2}), Sender is {3}", 
-                    LogHeader, primUUID, sop == null, senderActorID);
+                bool shape = false;
+                foreach (PropertySyncInfo p in propertiesSyncInfo)
+                {
+                   // pString += p.Property.ToString() + " ";
+                    if (p.Property == SceneObjectPartSyncProperties.Shape){
+                        shape = true;
+                    }
+                }
+                m_log.WarnFormat("{0}: HandleUpdatedPrimProperties -- prim {1} not in local SceneGraph. SOP == NULL? ({2}), Sender is {3}, property == Shape? {4}", 
+                    LogHeader, primUUID, sop == null, senderActorID, shape);
                 return;
             }
 
-            propertiesSyncInfo = m_primSyncInfoManager.DecodePrimProperties(data);
+            //propertiesSyncInfo = m_primSyncInfoManager.DecodePrimProperties(data);
 
             if (propertiesSyncInfo.Count>0)
             {
                 //SYNC DEBUG
-                /*
+                
                 string pString = "";
                 foreach (PropertySyncInfo p in propertiesSyncInfo)
                 {
@@ -1874,7 +1890,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                  
                 m_log.DebugFormat("ms {0}: HandleUpdatedPrimProperties, for prim {1},{2} with updated properties -- {3}", DateTime.Now.Millisecond, sop.Name, sop.UUID, pString);
 
-                 * */ 
+                 
 
                 List<SceneObjectPartSyncProperties> propertiesUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoBySync(sop, propertiesSyncInfo);
 
@@ -1884,13 +1900,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     m_log.DebugFormat("AggregateScriptEvents updated: " + sop.AggregateScriptEvents); 
                 }
+                 * */
+
                 if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.Shape))
                 {
                     String hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(sop)));
                     m_log.DebugFormat("HandleUpdatedPrimProperties -- SOP {0},{1}, Shape updated, ProfileShape {2}, hashed value in SOP:{3}, in PrinSyncInfoManager: {4}",
                         sop.Name, sop.UUID, sop.Shape.ProfileShape, hashedShape, m_primSyncInfoManager.GetPrimSyncInfo(sop.UUID).PropertiesSyncInfo[SceneObjectPartSyncProperties.Shape].LastUpdateValueHash);
                 }
-                 * */  
+                 
 
                 if (propertiesUpdated.Count > 0)
                 {
@@ -2223,7 +2241,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //break;
                 case SymmetricSyncMessage.MsgType.ChatBroadcast:
                     //HandleRemoteEvent_OnChatBroadcast(init_actorID, evSeqNum, data);
-                    HandleRemoveEvent_OnChatEvents(msg.Type, init_actorID, evSeqNum, data);
+                    HandleRemoteEvent_OnChatEvents(msg.Type, init_actorID, evSeqNum, data);
                     break;
                 case SymmetricSyncMessage.MsgType.ObjectGrab:
                     HandleRemoteEvent_OnObjectGrab(init_actorID, evSeqNum, data);
@@ -2335,7 +2353,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         /// <param name="actorID"></param>
         /// <param name="evSeqNum"></param>
         /// <param name="data">The args of the event</param>
-        private void HandleRemoveEvent_OnChatEvents(SymmetricSyncMessage.MsgType msgType, string actorID, ulong evSeqNum, OSDMap data)
+        private void HandleRemoteEvent_OnChatEvents(SymmetricSyncMessage.MsgType msgType, string actorID, ulong evSeqNum, OSDMap data)
         {
             OSChatMessage args = new OSChatMessage();
             args.Channel = data["channel"].AsInteger();
@@ -3409,7 +3427,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     m_log.DebugFormat("SendPrimPropertyUpdates -- prim {0}: Position: {1} ", sop.Name, sop.PhysActor.Position);
                 }
-                 * */ 
+                 * */
+
+                if (updatedProperties.Contains(SceneObjectPartSyncProperties.Shape))
+                {
+                    String hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(sop)));
+                    m_log.DebugFormat("SendPrimPropertyUpdates -- SOP {0},{1}, Shape updated, ProfileShape {2}, hashed value in SOP:{3}, in PrinSyncInfoManager: {4}",
+                        sop.Name, sop.UUID, sop.Shape.ProfileShape, hashedShape, m_primSyncInfoManager.GetPrimSyncInfo(sop.UUID).PropertiesSyncInfo[SceneObjectPartSyncProperties.Shape].LastUpdateValueHash);
+                }
 
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedPrimProperties, OSDParser.SerializeJsonString(syncData));
                 SendPrimUpdateToRelevantSyncConnectors(sop.UUID, syncMsg);
@@ -3488,7 +3513,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
 
             //DSG DEBUG
-            //m_log.DebugFormat("calling AddNewSceneObjectByDecoding for SOG {0}, {1}", group.Name, group.UUID);
+            m_log.DebugFormat("calling AddNewSceneObjectByDecoding for SOG {0}, {1}", group.Name, group.UUID);
 
             //Add the list of PrimSyncInfo to PrimSyncInfoManager's record.
             m_primSyncInfoManager.InsertMultiPrimSyncInfo(primsSyncInfo);

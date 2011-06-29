@@ -1108,6 +1108,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             foreach (SceneObjectGroup sog in sogList)
             {
                 m_log.WarnFormat("\n\n SyncStateReport -- SOG: name {0}, UUID {1}, position {2}", sog.Name, sog.UUID, sog.AbsolutePosition);
+
                 foreach (SceneObjectPart part in sog.Parts)
                 {
                     Vector3 pos = Vector3.Zero;
@@ -1116,6 +1117,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         pos = part.PhysActor.Position;
                     }
                     string debugMsg = "\nPart " + part.Name + "," + part.UUID+", LocalID "+part.LocalId + "ProfileShape "+part.Shape.ProfileShape;
+                    if (part.TaskInventory.Count > 0)
+                    {
+                        debugMsg += ", has " + part.TaskInventory.Count + " inventory items";
+                    }
                     if (part.ParentGroup.RootPart.UUID == part.UUID)
                     {
                         debugMsg += ", RootPart, ";
@@ -1191,7 +1196,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     estimateBytes += 4; //propertySyncInfo.LastUpdateSource, enum
                     estimateBytes += propertySyncInfo.LastUpdateSyncID.Length;
 
-                    if (valPair.Key == SceneObjectPartSyncProperties.Shape || valPair.Key == SceneObjectPartSyncProperties.TaskInventory)
+                    if (valPair.Key == SceneObjectPartSyncProperties.Shape)
+                    {
+                        //The value is only a reference to SOP.Shape, shouldn't use too many bytes in memory
+
+                        //estimateBytes += propertySyncInfo.LastUpdateValue
+                        estimateBytes += ((String)propertySyncInfo.LastUpdateValueHash).Length;
+                    }
+                    else if (valPair.Key == SceneObjectPartSyncProperties.TaskInventory)
                     {
                         estimateBytes += ((String)propertySyncInfo.LastUpdateValue).Length;
                         estimateBytes += ((String)propertySyncInfo.LastUpdateValueHash).Length;
@@ -1557,6 +1569,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 return false;
             }
 
+            bool connected = false;
             foreach (RegionSyncListenerInfo remoteListener in m_remoteSyncListeners)
             {
                 SyncConnector syncConnector = new SyncConnector(m_syncConnectorNum++, remoteListener, this);
@@ -1565,10 +1578,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     syncConnector.StartCommThreads();
                     AddSyncConnector(syncConnector);
                     m_synced = true;
+                    connected = true;
                 }
             }
 
-            return true;
+            return connected;
         }
 
         //To be called when a SyncConnector needs to be created by that the local listener receives a connection request
@@ -1876,7 +1890,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (propertiesSyncInfo.Count>0)
             {
                 //SYNC DEBUG
-                
+                /*
                 string pString = "";
                 foreach (PropertySyncInfo p in propertiesSyncInfo)
                 {
@@ -1888,10 +1902,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         m_log.DebugFormat("Shape to be changed on SOP {0}, {1} to ProfileShape {2}", sop.Name, sop.UUID, shape.ProfileShape);
                     }
                 } 
+                * */  
                  
-                m_log.DebugFormat("ms {0}: HandleUpdatedPrimProperties, for prim {1},{2} with updated properties -- {3}", DateTime.Now.Millisecond, sop.Name, sop.UUID, pString);
-
-                 
+                //m_log.DebugFormat("ms {0}: HandleUpdatedPrimProperties, for prim {1},{2} with updated properties -- {3}", DateTime.Now.Millisecond, sop.Name, sop.UUID, pString);
 
                 List<SceneObjectPartSyncProperties> propertiesUpdated = m_primSyncInfoManager.UpdatePrimSyncInfoBySync(sop, propertiesSyncInfo);
 
@@ -1901,7 +1914,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     m_log.DebugFormat("AggregateScriptEvents updated: " + sop.AggregateScriptEvents); 
                 }
-                 * */
+                 
 
                 if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.Shape))
                 {
@@ -1910,6 +1923,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         sop.Name, sop.UUID, sop.Shape.ProfileShape, sopHashedShape, 
                         m_primSyncInfoManager.GetPrimSyncInfo(sop.UUID).PropertiesSyncInfo[SceneObjectPartSyncProperties.Shape].LastUpdateValueHash);
                 }
+                 * */ 
                  
 
                 if (propertiesUpdated.Count > 0)
@@ -3439,7 +3453,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 {
                     m_log.DebugFormat("SendPrimPropertyUpdates -- prim {0}: Position: {1} ", sop.Name, sop.PhysActor.Position);
                 }
-                 * */
+                
 
                 if (updatedProperties.Contains(SceneObjectPartSyncProperties.Shape))
                 {
@@ -3447,6 +3461,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     m_log.DebugFormat("SendPrimPropertyUpdates -- SOP {0},{1}, Shape updated, ProfileShape {2}, hashed value in SOP:{3}, in PrinSyncInfoManager: {4}",
                         sop.Name, sop.UUID, sop.Shape.ProfileShape, hashedShape, m_primSyncInfoManager.GetPrimSyncInfo(sop.UUID).PropertiesSyncInfo[SceneObjectPartSyncProperties.Shape].LastUpdateValueHash);
                 }
+                 * */
 
                 SymmetricSyncMessage syncMsg = new SymmetricSyncMessage(SymmetricSyncMessage.MsgType.UpdatedPrimProperties, OSDParser.SerializeJsonString(syncData));
                 SendPrimUpdateToRelevantSyncConnectors(sop.UUID, syncMsg);

@@ -595,7 +595,7 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             SceneObjectPart part = m_Scene.GetSceneObjectPart(localID);
             if (part == null)
             {
-                m_log.Error("[Script] SceneObjectPart unavailable. Script NOT started.");
+                m_log.Error("[Script] SceneObjectPart unavailable. Script NOT started."+" localID = "+localID);
                 m_ScriptErrorMessage += "SceneObjectPart unavailable. Script NOT started.\n";
                 m_ScriptFailCount++;
                 return false;

@@ -1883,7 +1883,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     pString += p.Property.ToString() + " ";
                     if (p.Property == SceneObjectPartSyncProperties.Shape)
                     {
-                        PrimitiveBaseShape shape = PropertySerializer.DeSerializeShape((String)p.LastUpdateValue);
+                        //PrimitiveBaseShape shape = PropertySerializer.DeSerializeShape((String)p.LastUpdateValue);
+                        PrimitiveBaseShape shape = (PrimitiveBaseShape)p.LastUpdateValue;
                         m_log.DebugFormat("Shape to be changed on SOP {0}, {1} to ProfileShape {2}", sop.Name, sop.UUID, shape.ProfileShape);
                     }
                 } 
@@ -1904,9 +1905,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
                 if (propertiesUpdated.Contains(SceneObjectPartSyncProperties.Shape))
                 {
-                    String hashedShape = Util.Md5Hash((PropertySerializer.SerializeShape(sop)));
-                    m_log.DebugFormat("HandleUpdatedPrimProperties -- SOP {0},{1}, Shape updated, ProfileShape {2}, hashed value in SOP:{3}, in PrinSyncInfoManager: {4}",
-                        sop.Name, sop.UUID, sop.Shape.ProfileShape, hashedShape, m_primSyncInfoManager.GetPrimSyncInfo(sop.UUID).PropertiesSyncInfo[SceneObjectPartSyncProperties.Shape].LastUpdateValueHash);
+                    string sopHashedShape = PropertySerializer.GetPropertyHashValue(PropertySerializer.SerializeShape(sop));
+                    m_log.DebugFormat("HandleUpdatedPrimProperties -- SOP {0},{1}, Shape updated, ProfileShape {2}, hashed value for SOP.Shape:{3}, hashed value in PrinSyncInfoManager: {4}",
+                        sop.Name, sop.UUID, sop.Shape.ProfileShape, sopHashedShape, 
+                        m_primSyncInfoManager.GetPrimSyncInfo(sop.UUID).PropertiesSyncInfo[SceneObjectPartSyncProperties.Shape].LastUpdateValueHash);
                 }
                  
 
@@ -3403,7 +3405,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
         private void SendPrimPropertyUpdates(SceneObjectPart sop, HashSet<SceneObjectPartSyncProperties> updatedProperties)
         {
-            OSDMap syncData = m_primSyncInfoManager.EncodePrimProperties(sop, updatedProperties);
+            OSDMap syncData;
+            try
+            {
+                syncData = m_primSyncInfoManager.EncodePrimProperties(sop, updatedProperties);
+            }
+            catch (Exception e)
+            {
+                m_log.ErrorFormat("Error in EncodePrimProperties for SOP {0}, {1}, ErrorMessage -- {2}", sop.Name, sop.UUID, e.Message);
+                return;
+            }
+
 
             if (syncData.Count > 0)
             {
@@ -3821,8 +3833,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             switch (m_property)
             {
                 case SceneObjectPartSyncProperties.Shape:
+                    string shapeString = PropertySerializer.SerializeShape((PrimitiveBaseShape)pSyncInfo.LastUpdateValue);
+                    m_lastUpdateValueHash = PropertySerializer.GetPropertyHashValue(shapeString);
+                    break;
                 case SceneObjectPartSyncProperties.TaskInventory:
-                    m_lastUpdateValueHash = GetPropertyHashValue((string)pSyncInfo.LastUpdateValue);
+                    m_lastUpdateValueHash = PropertySerializer.GetPropertyHashValue((string)pSyncInfo.LastUpdateValue);
                     break;
             }
         }
@@ -3838,8 +3853,11 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             switch (property)
             {
                 case SceneObjectPartSyncProperties.Shape:
+                    string shapeString = PropertySerializer.SerializeShape((PrimitiveBaseShape)initValue);
+                    m_lastUpdateValueHash = PropertySerializer.GetPropertyHashValue(shapeString);
+                    break;
                 case SceneObjectPartSyncProperties.TaskInventory:
-                    m_lastUpdateValueHash = GetPropertyHashValue((string)initValue);
+                    m_lastUpdateValueHash = PropertySerializer.GetPropertyHashValue((string)initValue);
                     break;
             }
         }
@@ -3943,12 +3961,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 switch (m_property)
                 {
                     case SceneObjectPartSyncProperties.Shape:
+                        string shapeString = PropertySerializer.SerializeShape((PrimitiveBaseShape)m_lastUpdateValue);
+                        m_lastUpdateValueHash = PropertySerializer.GetPropertyHashValue(shapeString);
+                        break;
                     case SceneObjectPartSyncProperties.TaskInventory:
-                        m_lastUpdateValueHash = GetPropertyHashValue((string)m_lastUpdateValue);
+                        m_lastUpdateValueHash = PropertySerializer.GetPropertyHashValue((string)m_lastUpdateValue);
                         break;
                 }
             }
         }
+
 
         public bool IsHashValueEqual(string hashValue)
         {
@@ -3979,6 +4001,9 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     //SOP properties with complex structure
                     ///////////////////////////////////////
                     case SceneObjectPartSyncProperties.Shape:
+                        string shapeString = PropertySerializer.SerializeShape((PrimitiveBaseShape)LastUpdateValue);
+                        propertyData["Value"] = OSD.FromString(shapeString);
+                        break;
                     case SceneObjectPartSyncProperties.TaskInventory:
                         propertyData["Value"] = OSD.FromString((string)LastUpdateValue);
                         break;
@@ -4206,9 +4231,14 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 //SOP properties with complex structure
                 ///////////////////////////////////////
                 case SceneObjectPartSyncProperties.Shape:
+                    string shapeString = propertyData["Value"].AsString();
+                    PrimitiveBaseShape shape = PropertySerializer.DeSerializeShape(shapeString);
+                    m_lastUpdateValue = (Object)shape;
+                    m_lastUpdateValueHash = PropertySerializer.GetPropertyHashValue(shapeString);
+                    break;
                 case SceneObjectPartSyncProperties.TaskInventory:
                     m_lastUpdateValue = (Object)propertyData["Value"].AsString();
-                    m_lastUpdateValueHash = Util.Md5Hash((string)m_lastUpdateValue);
+                    m_lastUpdateValueHash = PropertySerializer.GetPropertyHashValue((string)m_lastUpdateValue);
                     break;
 
                 ////////////////////////////
@@ -4421,17 +4451,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             }
         }
 
-        private string GetPropertyHashValue(string initValue)
-        {
-            return Util.Md5Hash(initValue);
-        }
-
     }
 
     public class PropertySerializer
     {
         //TO BE TESTED
-
+        public static string GetPropertyHashValue(string initValue)
+        {
+            return Util.Md5Hash(initValue);
+        }
 
         public static string SerializeShape(SceneObjectPart part)
         {
@@ -4441,6 +4469,20 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 using (XmlTextWriter writer = new XmlTextWriter(sw))
                 {
                     SceneObjectSerializer.WriteShape(writer, part.Shape, new Dictionary<string, object>());
+                }
+                serializedShape = sw.ToString();
+            }
+            return serializedShape;
+        }
+
+        public static string SerializeShape(PrimitiveBaseShape shape)
+        {
+            string serializedShape;
+            using (StringWriter sw = new StringWriter())
+            {
+                using (XmlTextWriter writer = new XmlTextWriter(sw))
+                {
+                    SceneObjectSerializer.WriteShape(writer, shape, new Dictionary<string, object>());
                 }
                 serializedShape = sw.ToString();
             }
@@ -4983,7 +5025,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             {
                 case SceneObjectPartSyncProperties.Shape:
                     string primShapeString = PropertySerializer.SerializeShape(part);
-                    string primShapeStringHash = Util.Md5Hash(primShapeString);
+                    string primShapeStringHash = PropertySerializer.GetPropertyHashValue(primShapeString);
                     
                     if (!m_propertiesSyncInfo[property].IsHashValueEqual(primShapeStringHash))
                     {
@@ -4992,7 +5034,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         //value by copying that from PrimSyncInfoManager
                         if (lastUpdateTS > m_propertiesSyncInfo[property].LastUpdateTimeStamp)
                         {
-                            UpdatePropertyWithHashByLocal(property, lastUpdateTS, syncID, (Object)primShapeString, primShapeStringHash);
+                            //UpdatePropertyWithHashByLocal(property, lastUpdateTS, syncID, (Object)primShapeString, primShapeStringHash);
+                            UpdatePropertyWithHashByLocal(property, lastUpdateTS, syncID, part.Shape, primShapeStringHash);
 
                             //DSG DEBUG
                             //DebugLog.DebugFormat("CompareHashedValue_UpdateByLocal - Shape of {0}, {1} updated to ProfileShape {2}: SOP hashed shape: {3}, cached hash {4}",
@@ -6157,7 +6200,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             switch (property)
             {
                 case SceneObjectPartSyncProperties.Shape:
-                    return (Object)PropertySerializer.SerializeShape(part);
+                    //return (Object)PropertySerializer.SerializeShape(part);
+                    return (Object)part.Shape;
                 case SceneObjectPartSyncProperties.TaskInventory:
                     return (Object)PropertySerializer.SerializeTaskInventory(part);
 
@@ -6378,7 +6422,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             switch (property)
             {
                 case SceneObjectPartSyncProperties.Shape:
-                    PrimitiveBaseShape shapeVal = PropertySerializer.DeSerializeShape((string)pSyncInfo.LastUpdateValue);
+                    //PrimitiveBaseShape shapeVal = PropertySerializer.DeSerializeShape((string)pSyncInfo.LastUpdateValue);
+                    PrimitiveBaseShape shapeVal = (PrimitiveBaseShape)pSyncInfo.LastUpdateValue;
                     if (shapeVal != null)
                     {
                         part.Shape = shapeVal;

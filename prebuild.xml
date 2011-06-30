@@ -592,14 +592,14 @@
       <Reference name="System"/>
       <Reference name="System.Core"/>
       <Reference name="System.Xml"/>
-      <Reference name="OpenMetaverseTypes.dll"/>
-      <Reference name="Nini.dll" />
+      <Reference name="OpenMetaverseTypes" path="../../../../bin/" />
+      <Reference name="Nini" path="../../../../bin/" />
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Region.Framework"/>
       <Reference name="OpenSim.Region.CoreModules"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Region.Physics.Manager"/>
-      <Reference name="log4net.dll"/>
+      <Reference name="log4net" path="../../../../bin/" />
 
       <Files>
         <Match pattern="*.cs" recurse="true">

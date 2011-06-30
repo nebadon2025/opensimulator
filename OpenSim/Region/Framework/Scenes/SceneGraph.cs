@@ -2166,12 +2166,14 @@ namespace OpenSim.Region.Framework.Scenes
             if (OnObjectCreateBySync != null)
                 OnObjectCreateBySync(sceneObject);
 
-
             lock (SceneObjectGroupsByFullID)
-            {
                 SceneObjectGroupsByFullID[sceneObject.UUID] = sceneObject;
+
+            lock (SceneObjectGroupsByFullPartID)
+            {
+                SceneObjectGroupsByFullPartID[sceneObject.UUID] = sceneObject;
                 foreach (SceneObjectPart part in children)
-                    SceneObjectGroupsByFullID[part.UUID] = sceneObject;
+                    SceneObjectGroupsByFullPartID[part.UUID] = sceneObject;
             }
 
             lock (SceneObjectGroupsByLocalPartID)

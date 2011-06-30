@@ -702,16 +702,20 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         SceneObjectGroup sog = (SceneObjectGroup)e;
                         if (!sog.IsAttachment)
-                            DeleteSceneObjectBySynchronization((SceneObjectGroup)e);
+                            DeleteSceneObjectBySync((SceneObjectGroup)e);
                     }
                 }
             }
         }
 
         //Similar to DeleteSceneObject, except that this does not trigger SyncDeleteObject
-        public void DeleteSceneObjectBySynchronization(SceneObjectGroup group)
+        public void DeleteSceneObjectBySync(SceneObjectGroup group)
         {
+            bool silent = false;
+            bool syncDelete = false;
+            DeleteSceneObject(group, silent, syncDelete);
 
+            /*
             // Serialise calls to RemoveScriptInstances to avoid
             // deadlocking on m_parts inside SceneObjectGroup
             lock (m_deleting_scene_object)
@@ -743,6 +747,7 @@ namespace OpenSim.Region.Framework.Scenes
             bool silent = false; //do not suppress broadcasting changes to other clients, for debugging with viewers
             group.DeleteGroupFromScene(silent);
 
+             * */
         }
 
         public void AddNewSceneObjectPartBySync(SceneObjectPart newPart, SceneObjectGroup parentGroup)
@@ -752,6 +757,7 @@ namespace OpenSim.Region.Framework.Scenes
             //add it to SceneGraph's record.
             m_sceneGraph.AddNewSceneObjectPart(newPart, parentGroup);
         }
+
 
         public ObjectUpdateResult AddNewSceneObjectBySync(SceneObjectGroup sceneObject)
         {
@@ -790,7 +796,10 @@ namespace OpenSim.Region.Framework.Scenes
             }
             else
             {
-                return m_sceneGraph.AddNewSceneObjectBySync(sceneObject);
+                if (m_sceneGraph.AddNewSceneObjectBySync(sceneObject))
+                    return Scene.ObjectUpdateResult.New;
+                else
+                    return Scene.ObjectUpdateResult.Error;
             }
 
             //return m_sceneGraph.AddNewSceneObjectBySync(group);
@@ -2669,11 +2678,24 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
+        /// Synchronously delete the given object from the scene. This should be called by
+        /// deletion that is initiated locally.
+        /// </summary>
+        /// <param name="group"></param>
+        /// <param name="silent"></param>
+        public void DeleteSceneObject(SceneObjectGroup group, bool silent)
+        {
+            DeleteSceneObject(group, silent, true);
+        }
+
+        /// <summary>
         /// Synchronously delete the given object from the scene.
         /// </summary>
         /// <param name="group">Object Id</param>
         /// <param name="silent">Suppress broadcasting changes to other clients.</param>
-        public void DeleteSceneObject(SceneObjectGroup group, bool silent)
+        /// <param name="syncDelete">"false" if this function is called by 
+        /// receiving SymmetricSyncMessage.MsgType.RemovedObject, "true" otherwise.</param>
+        public void DeleteSceneObject(SceneObjectGroup group, bool silent, bool syncDelete)
         {            
 //            m_log.DebugFormat("[SCENE]: Deleting scene object {0} {1}", group.Name, group.UUID);
             
@@ -2715,7 +2737,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             //DSG SYNC
             //Propagate the RemovedObject message
-            if (RegionSyncModule != null)
+            if (RegionSyncModule != null && syncDelete)
             {
                 //RegionSyncModule.SendDeleteObject(group, false);
                 RegionSyncModule.SyncDeleteObject(group, false);

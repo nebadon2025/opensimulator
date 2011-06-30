@@ -1880,8 +1880,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                         shape = true;
                     }
                 }
-                m_log.WarnFormat("{0}: HandleUpdatedPrimProperties -- prim {1} not in local SceneGraph. SOP == NULL? ({2}), Sender is {3}, property == Shape? {4}", 
-                    LogHeader, primUUID, sop == null, senderActorID, shape);
+                //m_log.WarnFormat("{0}: HandleUpdatedPrimProperties -- prim {1} not in local SceneGraph. SOP == NULL? ({2}), Sender is {3}, property == Shape? {4}", 
+                 //   LogHeader, primUUID, sop == null, senderActorID, shape);
                 return;
             }
 
@@ -2198,7 +2198,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                     {
                         m_primSyncInfoManager.RemovePrimSyncInfo(part);
                     }
-                    m_scene.DeleteSceneObjectBySynchronization(sog);
+                    m_scene.DeleteSceneObjectBySync(sog);
                 }
                 else
                 {
@@ -3531,6 +3531,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             SceneObjectGroup group;
             Dictionary<UUID, PrimSyncInfo> primsSyncInfo;
 
+
             SceneObjectDecoder(data, out group, out primsSyncInfo);
 
             if (group == null)
@@ -3585,7 +3586,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             OSDMap rootData = (OSDMap)data["RootPart"];
             //Decode and copy to the list of PrimSyncInfo
-            PrimSyncInfo primSyncInfo = m_primSyncInfoManager.DecodeFullSetPrimProperties(rootData);
+            PrimSyncInfo primSyncInfo = null;
+            try
+            {
+                primSyncInfo = m_primSyncInfoManager.DecodeFullSetPrimProperties(rootData);
+            }
+            catch (Exception e)
+            {
+                m_log.ErrorFormat("SceneObjectDecoder: {0}", e.Message);
+                return;
+            }
             SceneObjectPart root= primSyncInfo.PrimSyncInfoToSOP();
 
             if (root != null)
@@ -6768,6 +6778,10 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
                 part.ParentGroup.AbsolutePosition = (Vector3)pSyncInfo.LastUpdateValue;
 
                 PropertySyncInfo gPosSyncInfo;
+
+                if (part.IsAttachment)
+                    return;
+
                 if (m_propertiesSyncInfo.ContainsKey(SceneObjectPartSyncProperties.GroupPosition))
                 {
                     gPosSyncInfo = m_propertiesSyncInfo[SceneObjectPartSyncProperties.GroupPosition];

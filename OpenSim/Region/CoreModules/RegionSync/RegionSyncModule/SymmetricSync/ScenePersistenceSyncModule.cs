@@ -113,7 +113,7 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Register for Scene/SceneGraph events
             m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(ScenePersistence_OnObjectCreate);
-            m_scene.SceneGraph.OnObjectCreateBySync += new ObjectCreateBySyncDelegate(ScenePersistence_OnObjectCreateBySync);
+            //m_scene.SceneGraph.OnObjectCreateBySync += new ObjectCreateBySyncDelegate(ScenePersistence_OnObjectCreateBySync);
         }
 
         //Called after AddRegion() has been called for all region modules of the scene.
@@ -124,7 +124,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             if (!m_active)
                 return;
             m_log.Warn(LogHeader + " RegionLoaded() called");
-
         }
 
         public void RemoveRegion(Scene scene)

@@ -702,16 +702,20 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         SceneObjectGroup sog = (SceneObjectGroup)e;
                         if (!sog.IsAttachment)
-                            DeleteSceneObjectBySynchronization((SceneObjectGroup)e);
+                            DeleteSceneObjectBySync((SceneObjectGroup)e);
                     }
                 }
             }
         }
 
         //Similar to DeleteSceneObject, except that this does not trigger SyncDeleteObject
-        public void DeleteSceneObjectBySynchronization(SceneObjectGroup group)
+        public void DeleteSceneObjectBySync(SceneObjectGroup group)
         {
+            bool silent = false;
+            bool syncDelete = false;
+            DeleteSceneObject(group, silent, syncDelete);
 
+            /*
             // Serialise calls to RemoveScriptInstances to avoid
             // deadlocking on m_parts inside SceneObjectGroup
             lock (m_deleting_scene_object)
@@ -743,6 +747,7 @@ namespace OpenSim.Region.Framework.Scenes
             bool silent = false; //do not suppress broadcasting changes to other clients, for debugging with viewers
             group.DeleteGroupFromScene(silent);
 
+             * */
         }
 
         public void AddNewSceneObjectPartBySync(SceneObjectPart newPart, SceneObjectGroup parentGroup)
@@ -752,6 +757,7 @@ namespace OpenSim.Region.Framework.Scenes
             //add it to SceneGraph's record.
             m_sceneGraph.AddNewSceneObjectPart(newPart, parentGroup);
         }
+
 
         public ObjectUpdateResult AddNewSceneObjectBySync(SceneObjectGroup sceneObject)
         {
@@ -790,7 +796,10 @@ namespace OpenSim.Region.Framework.Scenes
             }
             else
             {
-                return m_sceneGraph.AddNewSceneObjectBySync(sceneObject);
+                if (m_sceneGraph.AddNewSceneObjectBySync(sceneObject))
+                    return Scene.ObjectUpdateResult.New;
+                else
+                    return Scene.ObjectUpdateResult.Error;
             }
 
             //return m_sceneGraph.AddNewSceneObjectBySync(group);
@@ -2669,11 +2678,24 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
+        /// Synchronously delete the given object from the scene. This should be called by
+        /// deletion that is initiated locally.
+        /// </summary>
+        /// <param name="group"></param>
+        /// <param name="silent"></param>
+        public void DeleteSceneObject(SceneObjectGroup group, bool silent)
+        {
+            DeleteSceneObject(group, silent, true);
+        }
+
+        /// <summary>
         /// Synchronously delete the given object from the scene.
         /// </summary>
         /// <param name="group">Object Id</param>
         /// <param name="silent">Suppress broadcasting changes to other clients.</param>
-        public void DeleteSceneObject(SceneObjectGroup group, bool silent)
+        /// <param name="syncDelete">"false" if this function is called by 
+        /// receiving SymmetricSyncMessage.MsgType.RemovedObject, "true" otherwise.</param>
+        public void DeleteSceneObject(SceneObjectGroup group, bool silent, bool syncDelete)
         {            
 //            m_log.DebugFormat("[SCENE]: Deleting scene object {0} {1}", group.Name, group.UUID);
             
@@ -2715,7 +2737,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             //DSG SYNC
             //Propagate the RemovedObject message
-            if (RegionSyncModule != null)
+            if (RegionSyncModule != null && syncDelete)
             {
                 //RegionSyncModule.SendDeleteObject(group, false);
                 RegionSyncModule.SyncDeleteObject(group, false);
@@ -3177,7 +3199,6 @@ namespace OpenSim.Region.Framework.Scenes
         //public void AddNewClient2(IClientAPI client, bool managed)
         public void AddNewClient2(IClientAPI client, bool isSyncedAvatar, bool rezAttachment)
         {
-
             AgentCircuitData aCircuit = m_authenticateHandler.GetAgentCircuitData(client.CircuitCode);
             bool vialogin = false;
 
@@ -3190,17 +3211,15 @@ namespace OpenSim.Region.Framework.Scenes
                 vialogin = (aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaHGLogin) != 0 ||
                            (aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaLogin) != 0;
             }
-
             CheckHeartbeat();
-
-            if (GetScenePresence(client.AgentId) == null) // ensure there is no SP here
+            ScenePresence sp = GetScenePresence(client.AgentId);
+            if ( sp == null) // ensure there is no SP here
             {
                 m_log.DebugFormat("[SCENE ({0})]: Restoring agent {1} ({2})", m_regionName, client.Name, client.AgentId);
 
                 m_clientManager.Add(client);
                 SubscribeToClientEvents(client);
-
-                ScenePresence sp = m_sceneGraph.CreateAndAddChildScenePresence(client, aCircuit == null ? null : aCircuit.Appearance);
+                sp = m_sceneGraph.CreateAndAddChildScenePresence(client, aCircuit == null ? null : aCircuit.Appearance);
                 sp.IsSyncedAvatar = isSyncedAvatar;
                 m_eventManager.TriggerOnNewPresence(sp);
 
@@ -3219,14 +3238,17 @@ namespace OpenSim.Region.Framework.Scenes
                         Util.FireAndForget(delegate(object o) { sp.RezAttachments(); });
                 }
             }
-
-            if (GetScenePresence(client.AgentId) != null)
+            sp = GetScenePresence(client.AgentId);
+            if (sp!= null)
             {
                 m_LastLogin = Util.EnvironmentTickCount();
 
                 // Cache the user's name
-                CacheUserName(aCircuit);
 
+                if (aCircuit == null)
+                    CacheUserName(sp.Firstname, sp.Lastname, sp.UUID, string.Empty);
+                else
+                    CacheUserName(aCircuit);
                 EventManager.TriggerOnNewClient(client);
                 if (vialogin)
                     EventManager.TriggerOnClientLogin(client);
@@ -3235,23 +3257,30 @@ namespace OpenSim.Region.Framework.Scenes
 
         private void CacheUserName(AgentCircuitData aCircuit)
         {
+            string homeURL = string.Empty;
+            string first = aCircuit.firstname, last = aCircuit.lastname;
+            UUID agentID = aCircuit.AgentID;
+
+            if (aCircuit.ServiceURLs.ContainsKey("HomeURI"))
+                homeURL = aCircuit.ServiceURLs["HomeURI"].ToString();
+            CacheUserName(first, last, agentID, homeURL);
+        }
+
+        private void CacheUserName(string first, string last, UUID agentID, string homeURL)
+        {
             IUserManagement uMan = RequestModuleInterface<IUserManagement>();
             if (uMan != null)
             {
-                string homeURL = string.Empty;
-                string first = aCircuit.firstname, last = aCircuit.lastname;
-                if (aCircuit.ServiceURLs.ContainsKey("HomeURI"))
-                    homeURL = aCircuit.ServiceURLs["HomeURI"].ToString();
-                if (aCircuit.lastname.StartsWith("@"))
+                if (last.StartsWith("@"))
                 {
-                    string[] parts = aCircuit.firstname.Split('.');
+                    string[] parts = first.Split('.');
                     if (parts.Length >= 2)
                     {
                         first = parts[0];
                         last = parts[1];
                     }
                 }
-                uMan.AddUser(aCircuit.AgentID, first, last, homeURL);
+                uMan.AddUser(agentID, first, last, homeURL);
             }
         }
 

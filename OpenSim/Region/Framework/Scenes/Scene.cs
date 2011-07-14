@@ -583,6 +583,8 @@ namespace OpenSim.Region.Framework.Scenes
             m_asyncSceneObjectDeleter = new AsyncSceneObjectGroupDeleter(this);
             m_asyncSceneObjectDeleter.Enabled = true;
 
+            m_asyncInventorySender = new AsyncInventorySender(this);
+
             #region Region Settings
 
             // Load region settings
@@ -1724,6 +1726,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Loads the World's objects
         /// </summary>
+        /// <param name="regionID"></param>
         public virtual void LoadPrimsFromStorage(UUID regionID)
         {
             LoadingPrims = true;
@@ -1748,8 +1751,9 @@ namespace OpenSim.Region.Framework.Scenes
                 SceneObjectPart rootPart = group.GetChildPart(group.UUID);
                 rootPart.Flags &= ~PrimFlags.Scripted;
                 rootPart.TrimPermissions();
-                group.CheckSculptAndLoad();
-                //rootPart.DoPhysicsPropertyUpdate(UsePhysics, true);
+
+                // Don't do this here - it will get done later on when sculpt data is loaded.
+//                group.CheckSculptAndLoad();
             }
 
             m_log.Info("[SCENE]: Loaded " + PrimsFromDB.Count.ToString() + " SceneObject(s)");
@@ -2593,8 +2597,10 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 string homeURL = string.Empty;
                 string first = aCircuit.firstname, last = aCircuit.lastname;
+
                 if (aCircuit.ServiceURLs.ContainsKey("HomeURI"))
                     homeURL = aCircuit.ServiceURLs["HomeURI"].ToString();
+
                 if (aCircuit.lastname.StartsWith("@"))
                 {
                     string[] parts = aCircuit.firstname.Split('.');
@@ -2604,6 +2610,7 @@ namespace OpenSim.Region.Framework.Scenes
                         last = parts[1];
                     }
                 }
+
                 uMan.AddUser(aCircuit.AgentID, first, last, homeURL);
             }
         }
@@ -2757,14 +2764,13 @@ namespace OpenSim.Region.Framework.Scenes
 
         public virtual void SubscribeToClientInventoryEvents(IClientAPI client)
         {
-            
             client.OnLinkInventoryItem += HandleLinkInventoryItem;
             client.OnCreateNewInventoryFolder += HandleCreateInventoryFolder;
             client.OnUpdateInventoryFolder += HandleUpdateInventoryFolder;
             client.OnMoveInventoryFolder += HandleMoveInventoryFolder; // 2; //!!
             client.OnFetchInventoryDescendents += HandleFetchInventoryDescendents;
             client.OnPurgeInventoryDescendents += HandlePurgeInventoryDescendents; // 2; //!!
-            client.OnFetchInventory += HandleFetchInventory;
+            client.OnFetchInventory += m_asyncInventorySender.HandleFetchInventory;
             client.OnUpdateInventoryItem += UpdateInventoryItemAsset;
             client.OnCopyInventoryItem += CopyInventoryItem;
             client.OnMoveInventoryItem += MoveInventoryItem;
@@ -2883,13 +2889,12 @@ namespace OpenSim.Region.Framework.Scenes
 
         public virtual void UnSubscribeToClientInventoryEvents(IClientAPI client)
         {
-            
             client.OnCreateNewInventoryFolder -= HandleCreateInventoryFolder;
             client.OnUpdateInventoryFolder -= HandleUpdateInventoryFolder;
             client.OnMoveInventoryFolder -= HandleMoveInventoryFolder; // 2; //!!
             client.OnFetchInventoryDescendents -= HandleFetchInventoryDescendents;
             client.OnPurgeInventoryDescendents -= HandlePurgeInventoryDescendents; // 2; //!!
-            client.OnFetchInventory -= HandleFetchInventory;
+            client.OnFetchInventory -= m_asyncInventorySender.HandleFetchInventory;
             client.OnUpdateInventoryItem -= UpdateInventoryItemAsset;
             client.OnCopyInventoryItem -= CopyInventoryItem;
             client.OnMoveInventoryItem -= MoveInventoryItem;
@@ -3388,7 +3393,6 @@ namespace OpenSim.Region.Framework.Scenes
                         CapsModule.SetAgentCapsSeeds(agent);
                 }
             }
-
 
             // In all cases, add or update the circuit data with the new agent circuit data and teleport flags
             agent.teleportFlags = teleportFlags;

@@ -394,15 +394,15 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         // Find the physics actor whether it is an object or a scene presence
         private PhysicsActor FindPhysicsActor(UUID uuid)
         {
-            SceneObjectPart sop = m_validLocalScene.GetSceneObjectPart(uuid);
-            if (sop != null)
-            {
-                return sop.PhysActor;
-            }
             ScenePresence sp = m_validLocalScene.GetScenePresence(uuid);
             if (sp != null)
             {
                 return sp.PhysicsActor;
+            }
+            SceneObjectPart sop = m_validLocalScene.GetSceneObjectPart(uuid);
+            if (sop != null)
+            {
+                return sop.PhysActor;
             }
             return null;
         }

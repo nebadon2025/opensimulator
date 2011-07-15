@@ -109,6 +109,8 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
 
             //Register for Scene/SceneGraph events
             //m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(ScriptEngine_OnObjectCreate);
+
+            //Don't subscribe to OnObjectCreate, only subscribe OnObjectCreateBySync.
             m_scene.SceneGraph.OnObjectCreateBySync += new ObjectCreateBySyncDelegate(ScriptEngine_OnObjectCreateBySync);
             m_scene.EventManager.OnSymmetricSyncStop += ScriptEngine_OnSymmetricSyncStop;
 

@@ -1436,21 +1436,26 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        ///
+        /// Update the flags on a scene object.  This covers properties such as phantom, physics and temporary.
         /// </summary>
+        /// <remarks>
+        /// This is currently handling the incoming call from the client stack (e.g. LLClientView).
+        /// </remarks>
         /// <param name="localID"></param>
-        /// <param name="packet"></param>
+        /// <param name="UsePhysics"></param>
+        /// <param name="SetTemporary"></param>
+        /// <param name="SetPhantom"></param>
         /// <param name="remoteClient"></param>
-        /// This routine seems to get called when a user changes object settings in the viewer.
-        /// If some one can confirm that, please change the comment according.
-        protected internal void UpdatePrimFlags(uint localID, bool UsePhysics, bool IsTemporary, bool IsPhantom, IClientAPI remoteClient)
+        protected internal void UpdatePrimFlags(
+            uint localID, bool UsePhysics, bool SetTemporary, bool SetPhantom, IClientAPI remoteClient)
         {
             SceneObjectGroup group = GetGroupByPrim(localID);
             if (group != null)
             {
                 if (m_parentScene.Permissions.CanEditObject(group.UUID, remoteClient.AgentId))
                 {
-                    group.UpdatePrimFlags(localID, UsePhysics, IsTemporary, IsPhantom, false); // VolumeDetect can't be set via UI and will always be off when a change is made there
+                    // VolumeDetect can't be set via UI and will always be off when a change is made there
+                    group.UpdatePrimFlags(localID, UsePhysics, SetTemporary, SetPhantom, false);
                 }
             }
         }
@@ -2096,6 +2101,7 @@ namespace OpenSim.Region.Framework.Scenes
         */ 
         //This is called when an object is added due to receiving a state synchronization message from Scene or an actor. Do similar things as the original AddSceneObject(),
         //but call ScheduleGroupForFullUpdate_TimeStampUnchanged() instead, so as not to modify the timestamp or actorID, since the object was not created locally.
+        /*
         public Scene.ObjectUpdateResult AddNewSceneObjectBySync(SceneObjectGroup sceneObject)
         {
             Scene.ObjectUpdateResult updateResult = Scene.ObjectUpdateResult.New;
@@ -2185,6 +2191,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             return updateResult;
         }
+         * */
 
         public void AddNewSceneObjectPart(SceneObjectPart newPart, SceneObjectGroup parentGroup)
         {
@@ -2532,6 +2539,38 @@ namespace OpenSim.Region.Framework.Scenes
                 sceneObject.HasGroupChanged = true;
 
             return AddSceneObject(sceneObject, attachToBackup, sendClientUpdates, triggerSyncNewObject);
+        }
+
+        protected internal bool AddNewSceneObjectBySync(SceneObjectGroup sceneObject)
+        {
+            sceneObject.HasGroupChanged = true;
+            bool triggerSyncNewObject = false;
+            if (AddSceneObject(sceneObject, true, true, triggerSyncNewObject))
+            {
+                //Take some special care of the case of this object being an attachment, 
+                //since localID of attachedAvatar is different in different sync node's 
+                //Scene copies.
+                sceneObject.RootPart.SetAttachmentPoint(sceneObject.RootPart.AttachmentPoint);
+                if (sceneObject.IsAttachment)
+                {
+                    ScenePresence avatar = m_parentScene.GetScenePresence(sceneObject.RootPart.AttachedAvatar);
+                    //It is possible that the avatar has not been fully 
+                    //created locally when attachment objects are sync'ed.
+                    //So we need to check if the avatar already exists.
+                    //If not, handling of NewAvatar will evetually trigger
+                    //calling of SetParentLocalId.
+                    if (avatar != null)
+                        sceneObject.RootPart.SetParentLocalId(avatar.LocalId);
+                }
+
+                sceneObject.HasGroupChanged = true;
+                sceneObject.ScheduleGroupForFullUpdate(null);
+
+                if (OnObjectCreateBySync != null)
+                    OnObjectCreateBySync(sceneObject);
+                return true;
+            }
+            return false;
         }
 
         #endregion //DSG SYNC

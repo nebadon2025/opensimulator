@@ -108,8 +108,6 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             //m_scene.EventManager.OnPostSceneCreation += OnPostSceneCreation;
 
             //Register for Scene/SceneGraph events
-            //m_scene.SceneGraph.OnObjectCreate += new ObjectCreateDelegate(ClientManager_OnObjectCreate);
-            m_scene.SceneGraph.OnObjectCreateBySync += new ObjectCreateBySyncDelegate(ClientManager_OnObjectCreateBySync);
             m_scene.EventManager.OnSymmetricSyncStop += ClientManager_OnSymmetricSyncStop;
         }
 
@@ -173,19 +171,16 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
         private string LogHeader = "[ClientManagerSyncModule]";
 
         /// <summary>
-        /// Script Engine's action upon an object is added to the local scene
+        /// Client Manager's action upon an object is added to the local scene
         /// </summary>
         private void ClientManager_OnObjectCreateBySync(EntityBase entity)
         {
-            if (entity is SceneObjectGroup)
-            {
-            }
         }
 
         public void ClientManager_OnSymmetricSyncStop()
         {
             //remove all objects
-            m_scene.DeleteAllSceneObjects();
+            //m_scene.DeleteAllSceneObjects();
         }
 
         #endregion //ScriptEngineSyncModule

@@ -2214,7 +2214,20 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_Vector llGetVel()
         {
             m_host.AddScriptLPS(1);
-            return new LSL_Vector(m_host.Velocity.X, m_host.Velocity.Y, m_host.Velocity.Z);
+
+            Vector3 vel;
+
+            if (m_host.IsAttachment)
+            {
+                ScenePresence avatar = m_host.ParentGroup.Scene.GetScenePresence(m_host.AttachedAvatar);
+                vel = avatar.Velocity;
+            }
+            else
+            {
+                vel = m_host.Velocity;
+            }
+
+            return new LSL_Vector(vel.X, vel.Y, vel.Z);
         }
 
         public LSL_Vector llGetAccel()
@@ -2510,10 +2523,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         /// negative (indicating end-relative) and may be inverted,
         /// i.e. end < start.
         /// </summary>
-
         public LSL_String llDeleteSubString(string src, int start, int end)
         {
-
             m_host.AddScriptLPS(1);
 
             // Normalize indices (if negative).
@@ -2593,10 +2604,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         /// which case it is end-relative. The index may exceed either
         /// string bound, with the result being a concatenation.
         /// </summary>
-
         public LSL_String llInsertString(string dest, int index, string src)
         {
-
             m_host.AddScriptLPS(1);
 
             // Normalize indices (if negative).
@@ -9983,6 +9992,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_List llGetObjectDetails(string id, LSL_List args)
         {
             m_host.AddScriptLPS(1);
+
             LSL_List ret = new LSL_List();
             UUID key = new UUID();
             if (UUID.TryParse(id, out key))
@@ -9993,72 +10003,76 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 {
                     foreach (object o in args.Data)
                     {
-                        switch (o.ToString())
+                        switch (int.Parse(o.ToString()))
                         {
-                            case "1":
+                            case ScriptBaseClass.OBJECT_NAME:
                                 ret.Add(new LSL_String(av.Firstname + " " + av.Lastname));
                                 break;
-                            case "2":
+                            case ScriptBaseClass.OBJECT_DESC:
                                 ret.Add(new LSL_String(""));
                                 break;
-                            case "3":
+                            case ScriptBaseClass.OBJECT_POS:
                                 ret.Add(new LSL_Vector((double)av.AbsolutePosition.X, (double)av.AbsolutePosition.Y, (double)av.AbsolutePosition.Z));
                                 break;
-                            case "4":
+                            case ScriptBaseClass.OBJECT_ROT:
                                 ret.Add(new LSL_Rotation((double)av.Rotation.X, (double)av.Rotation.Y, (double)av.Rotation.Z, (double)av.Rotation.W));
                                 break;
-                            case "5":
+                            case ScriptBaseClass.OBJECT_VELOCITY:
                                 ret.Add(new LSL_Vector(av.Velocity.X, av.Velocity.Y, av.Velocity.Z));
                                 break;
-                            case "6":
+                            case ScriptBaseClass.OBJECT_OWNER:
                                 ret.Add(new LSL_String(id));
                                 break;
-                            case "7":
+                            case ScriptBaseClass.OBJECT_GROUP:
                                 ret.Add(new LSL_String(UUID.Zero.ToString()));
                                 break;
-                            case "8":
+                            case ScriptBaseClass.OBJECT_CREATOR:
                                 ret.Add(new LSL_String(UUID.Zero.ToString()));
                                 break;
                         }
                     }
+
                     return ret;
                 }
+
                 SceneObjectPart obj = World.GetSceneObjectPart(key);
                 if (obj != null)
                 {
                     foreach (object o in args.Data)
                     {
-                        switch (o.ToString())
+                        switch (int.Parse(o.ToString()))
                         {
-                            case "1":
+                            case ScriptBaseClass.OBJECT_NAME:
                                 ret.Add(new LSL_String(obj.Name));
                                 break;
-                            case "2":
+                            case ScriptBaseClass.OBJECT_DESC:
                                 ret.Add(new LSL_String(obj.Description));
                                 break;
-                            case "3":
+                            case ScriptBaseClass.OBJECT_POS:
                                 ret.Add(new LSL_Vector(obj.AbsolutePosition.X, obj.AbsolutePosition.Y, obj.AbsolutePosition.Z));
                                 break;
-                            case "4":
+                            case ScriptBaseClass.OBJECT_ROT:
                                 ret.Add(new LSL_Rotation(obj.RotationOffset.X, obj.RotationOffset.Y, obj.RotationOffset.Z, obj.RotationOffset.W));
                                 break;
-                            case "5":
+                            case ScriptBaseClass.OBJECT_VELOCITY:
                                 ret.Add(new LSL_Vector(obj.Velocity.X, obj.Velocity.Y, obj.Velocity.Z));
                                 break;
-                            case "6":
+                            case ScriptBaseClass.OBJECT_OWNER:
                                 ret.Add(new LSL_String(obj.OwnerID.ToString()));
                                 break;
-                            case "7":
+                            case ScriptBaseClass.OBJECT_GROUP:
                                 ret.Add(new LSL_String(obj.GroupID.ToString()));
                                 break;
-                            case "8":
+                            case ScriptBaseClass.OBJECT_CREATOR:
                                 ret.Add(new LSL_String(obj.CreatorID.ToString()));
                                 break;
                         }
                     }
+
                     return ret;
                 }
             }
+            
             return new LSL_List();
         }
 

@@ -2289,6 +2289,7 @@ Console.WriteLine("changeshape not need meshing");
                 if (value.IsFinite())
                 {
                     _size = value;
+//                    m_log.DebugFormat("[PHYSICS]: Set size on {0} to {1}", Name, value);
                 }
                 else
                 {

@@ -329,8 +329,8 @@ namespace OpenSim.Region.Framework.Scenes
         private string m_sitAnimation = "SIT";
         private string m_text = String.Empty;
         private string m_touchName = String.Empty;
-        private readonly UndoStack<UndoState> m_undo = new UndoStack<UndoState>(5);
-        private readonly UndoStack<UndoState> m_redo = new UndoStack<UndoState>(5);
+        private readonly Stack<UndoState> m_undo = new Stack<UndoState>(5);
+        private readonly Stack<UndoState> m_redo = new Stack<UndoState>(5);
         private UUID _creatorID;
 
         private bool m_passTouches;
@@ -461,7 +461,6 @@ namespace OpenSim.Region.Framework.Scenes
             CreateSelected = true;
 
             TrimPermissions();
-            //m_undo = new UndoStack<UndoState>(ParentGroup.GetSceneMaxUndo());
             
             //m_inventory = new SceneObjectPartInventory(this);
             //m_inventory = new SceneObjectPartInventoryBase(this);
@@ -840,7 +839,7 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_offsetPosition; }
             set
             {
-                StoreUndoState();
+//                StoreUndoState();
                 m_offsetPosition = value;
 
                 if (ParentGroup != null && !ParentGroup.IsDeleted)
@@ -1066,15 +1065,19 @@ namespace OpenSim.Region.Framework.Scenes
             get { return m_shape; }
             set { m_shape = value; }
         }
-        
+
+        /// <summary>
+        /// Change the scale of this part.
+        /// </summary>
         public Vector3 Scale
         {
             get { return m_shape.Scale; }
             set
             {
-                StoreUndoState();
                 if (m_shape != null)
                 {
+                    StoreUndoState();
+
                     m_shape.Scale = value;
 
                     PhysicsActor actor = PhysActor;
@@ -1085,11 +1088,16 @@ namespace OpenSim.Region.Framework.Scenes
                             if (m_parentGroup.Scene.PhysicsScene != null)
                             {
                                 actor.Size = m_shape.Scale;
-                                m_parentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(actor);
+
+                                if (((OpenMetaverse.SculptType)Shape.SculptType) == SculptType.Mesh)
+                                    CheckSculptAndLoad();
+                                else
+                                    ParentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(PhysActor);
                             }
                         }
                     }
                 }
+
                 TriggerScriptChangedEvent(Changed.SCALE);
             }
         }
@@ -1639,17 +1647,23 @@ namespace OpenSim.Region.Framework.Scenes
                 // or flexible
                 if (!isPhantom && !IsAttachment && !(Shape.PathCurve == (byte) Extrusion.Flexible))
                 {
-//                    m_log.DebugFormat("[SCENE OBJECT PART]: Creating PhysActor for {0} {1} {2}", Name, LocalId, UUID);
-
-                    PhysActor = m_parentGroup.Scene.PhysicsScene.AddPrimShape(
-                        LocalId,
-                        string.Format("{0}/{1}", Name, UUID),
-                        Shape,
-                        AbsolutePosition,
-                        Scale,
-                        RotationOffset,
-                        RigidBody);
-
+                    try
+                    {
+                        PhysActor = m_parentGroup.Scene.PhysicsScene.AddPrimShape(
+                                string.Format("{0}/{1}", Name, UUID),
+                                Shape,
+                                AbsolutePosition,
+                                Scale,
+                                RotationOffset,
+                                RigidBody,
+                                m_localId);
+                        PhysActor.SetMaterial(Material);
+                    }
+                    catch
+                    {
+                        m_log.ErrorFormat("[SCENE]: caught exception meshing object {0}. Object set to phantom.", m_uuid);
+                        PhysActor = null;
+                    }
                     // Basic Physics returns null..  joy joy joy.
                     if (PhysActor != null)
                     {
@@ -1665,19 +1679,6 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                 }
             }
-        }
-
-        public void ClearUndoState()
-        {
-            lock (m_undo)
-            {
-                m_undo.Clear();
-            }
-            lock (m_redo)
-            {
-                m_redo.Clear();
-            }
-            StoreUndoState();
         }
 
         public byte ConvertScriptUintToByte(uint indata)
@@ -1757,7 +1758,8 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (dupe.m_shape.SculptEntry && dupe.m_shape.SculptTexture != UUID.Zero)
                 {
-                    m_parentGroup.Scene.AssetService.Get(dupe.m_shape.SculptTexture.ToString(), dupe, AssetReceived); 
+                    ParentGroup.Scene.AssetService.Get(
+                        dupe.m_shape.SculptTexture.ToString(), dupe, dupe.AssetReceived);
                 }
                 
                 bool UsePhysics = ((dupe.Flags & PrimFlags.Physics) != 0);
@@ -1771,14 +1773,20 @@ namespace OpenSim.Region.Framework.Scenes
             return dupe;
         }
 
+        /// <summary>
+        /// Called back by asynchronous asset fetch.
+        /// </summary>
+        /// <param name="id">ID of asset received</param>
+        /// <param name="sender">Register</param>
+        /// <param name="asset"></param>
         protected void AssetReceived(string id, Object sender, AssetBase asset)
         {
             if (asset != null)
-            {
-                SceneObjectPart sop = (SceneObjectPart)sender;
-                if (sop != null)
-                    sop.SculptTextureCallback(asset.FullID, asset);
-            }
+                SculptTextureCallback(asset);
+            else
+                m_log.WarnFormat(
+                    "[SCENE OBJECT PART]: Part {0} {1} requested mesh/sculpt data for asset id {2} from asset service but received no data",
+                    Name, LocalId, id);
         }
 
         public static SceneObjectPart Create()
@@ -2900,19 +2908,29 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Resize this part.
+        /// Set the scale of this part.
         /// </summary>
+        /// <remarks>
+        /// Unlike the scale property, this checks the new size against scene limits and schedules a full property
+        /// update to viewers.
+        /// </remarks>
         /// <param name="scale"></param>
         public void Resize(Vector3 scale)
         {
-            StoreUndoState();
-            m_shape.Scale = scale;
+            scale.X = Math.Min(scale.X, ParentGroup.Scene.m_maxNonphys);
+            scale.Y = Math.Min(scale.Y, ParentGroup.Scene.m_maxNonphys);
+            scale.Z = Math.Min(scale.Z, ParentGroup.Scene.m_maxNonphys);
 
-            // If we're a mesh/sculpt, then we need to tell the physics engine about our new size.  To do this, we
-            // need to reinsert the sculpt data into the shape, since the physics engine deletes it when done to
-            // save memory
-            if (PhysActor != null)
-                CheckSculptAndLoad();
+            if (PhysActor != null && PhysActor.IsPhysical)
+            {
+                scale.X = Math.Min(scale.X, ParentGroup.Scene.m_maxPhys);
+                scale.Y = Math.Min(scale.Y, ParentGroup.Scene.m_maxPhys);
+                scale.Z = Math.Min(scale.Z, ParentGroup.Scene.m_maxPhys);
+            }
+
+//            m_log.DebugFormat("[SCENE OBJECT PART]: Resizing {0} {1} to {2}", Name, LocalId, scale);
+
+            Scale = scale;
 
             ParentGroup.HasGroupChanged = true;
             //ScheduleFullUpdate();
@@ -3048,7 +3066,11 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void SculptTextureCallback(UUID textureID, AssetBase texture)
+        /// <summary>
+        /// Set sculpt and mesh data, and tell the physics engine to process the change.
+        /// </summary>
+        /// <param name="texture">The mesh itself.</param>
+        public void SculptTextureCallback(AssetBase texture)
         {
             if (m_shape.SculptEntry)
             {
@@ -3073,16 +3095,6 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
         }
-
-//        /// <summary>
-//        ///
-//        /// </summary>
-//        /// <param name="remoteClient"></param>
-//        public void SendFullUpdate(IClientAPI remoteClient, uint clientFlags)
-//        {
-//            m_parentGroup.SendPartFullUpdate(remoteClient, this, clientFlags);
-//        }
-
 
         /// <summary>
         /// Send a full update to the client for the given part
@@ -3746,6 +3758,11 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void StoreUndoState()
         {
+            StoreUndoState(false);
+        }
+
+        public void StoreUndoState(bool forGroup)
+        {
             if (!Undoing)
             {
                 if (!IgnoreUndoUpdate)
@@ -3760,20 +3777,136 @@ namespace OpenSim.Region.Framework.Scenes
                                 if (last != null)
                                 {
                                     if (last.Compare((SceneObjectPart)this))
+                                    // TODO: May need to fix for group comparison
+                                    //if (last.Compare(this))
+                                    {
+//                                        m_log.DebugFormat(
+//                                            "[SCENE OBJECT PART]: Not storing undo for {0} {1} since current state is same as last undo state, initial stack size {2}",
+//                                            Name, LocalId, m_undo.Count);
+
                                         return;
+                                    }
                                 }
                             }
 
+//                            m_log.DebugFormat(
+//                                "[SCENE OBJECT PART]: Storing undo state for {0} {1}, forGroup {2}, initial stack size {3}",
+//                                Name, LocalId, forGroup, m_undo.Count);
+
                             if (m_parentGroup.GetSceneMaxUndo() > 0)
                             {
-                                UndoState nUndo = new UndoState((SceneObjectPart)this);
+                                UndoState nUndo = new UndoState((SceneObjectPart)this, forGroup);
+                                //UndoState nUndo = new UndoState(this, forGroup);
 
                                 m_undo.Push(nUndo);
-                            }
 
+                                if (m_redo.Count > 0)
+                                    m_redo.Clear();
+
+//                                m_log.DebugFormat(
+//                                    "[SCENE OBJECT PART]: Stored undo state for {0} {1}, forGroup {2}, stack size now {3}",
+//                                    Name, LocalId, forGroup, m_undo.Count);
+                            }
                         }
                     }
                 }
+//                else
+//                {
+//                    m_log.DebugFormat("[SCENE OBJECT PART]: Ignoring undo store for {0} {1}", Name, LocalId);
+//                }
+            }
+//            else
+//            {
+//                m_log.DebugFormat(
+//                    "[SCENE OBJECT PART]: Ignoring undo store for {0} {1} since already undoing", Name, LocalId);
+//            }
+        }
+
+        /// <summary>
+        /// Return number of undos on the stack.  Here temporarily pending a refactor.
+        /// </summary>
+        public int UndoCount
+        {
+            get
+            {
+                lock (m_undo)
+                    return m_undo.Count;
+            }
+        }
+
+        public void Undo()
+        {
+            lock (m_undo)
+            {
+//                m_log.DebugFormat(
+//                    "[SCENE OBJECT PART]: Handling undo request for {0} {1}, stack size {2}",
+//                    Name, LocalId, m_undo.Count);
+
+                if (m_undo.Count > 0)
+                {
+                    UndoState goback = m_undo.Pop();
+
+                    if (goback != null)
+                    {
+                        UndoState nUndo = null;
+        
+                        if (m_parentGroup.GetSceneMaxUndo() > 0)
+                        {
+                            nUndo = new UndoState((SceneObjectPart)this, goback.ForGroup);
+                        }
+
+                        goback.PlaybackState((SceneObjectPart)this);
+
+                        if (nUndo != null)
+                            m_redo.Push(nUndo);
+                    }
+                }
+
+//                m_log.DebugFormat(
+//                    "[SCENE OBJECT PART]: Handled undo request for {0} {1}, stack size now {2}",
+//                    Name, LocalId, m_undo.Count);
+            }
+        }
+
+        public void Redo()
+        {
+            lock (m_undo)
+            {
+//                m_log.DebugFormat(
+//                    "[SCENE OBJECT PART]: Handling redo request for {0} {1}, stack size {2}",
+//                    Name, LocalId, m_redo.Count);
+
+                if (m_redo.Count > 0)
+                {
+                    UndoState gofwd = m_redo.Pop();
+    
+                    if (gofwd != null)
+                    {
+                        if (m_parentGroup.GetSceneMaxUndo() > 0)
+                        {
+                            UndoState nUndo = new UndoState((SceneObjectPart)this, gofwd.ForGroup);
+    
+                            m_undo.Push(nUndo);
+                        }
+    
+                        gofwd.PlayfwdState((SceneObjectPart)this);
+                    }
+
+//                m_log.DebugFormat(
+//                    "[SCENE OBJECT PART]: Handled redo request for {0} {1}, stack size now {2}",
+//                    Name, LocalId, m_redo.Count);
+                }
+            }
+        }
+
+        public void ClearUndoState()
+        {
+//            m_log.DebugFormat("[SCENE OBJECT PART]: Clearing undo and redo stacks in {0} {1}", Name, LocalId);
+
+            lock (m_undo)
+            {
+                m_undo.Clear();
+                m_redo.Clear();
             }
         }
 
@@ -4237,44 +4370,6 @@ namespace OpenSim.Region.Framework.Scenes
             _nextOwnerMask &= (uint)PermissionMask.All;
         }
 
-        public void Undo()
-        {
-            lock (m_undo)
-            {
-                if (m_undo.Count > 0)
-                {
-                    UndoState nUndo = null;
-                    if (m_parentGroup.GetSceneMaxUndo() > 0)
-                    {
-                        nUndo = new UndoState((SceneObjectPart)this);
-                    }
-                    UndoState goback = m_undo.Pop();
-                    if (goback != null)
-                    {
-                        goback.PlaybackState((SceneObjectPart)this);
-                        if (nUndo != null)
-                            m_redo.Push(nUndo);
-                    }
-                }
-            }
-        }
-
-        public void Redo()
-        {
-            lock (m_redo)
-            {
-                if (m_parentGroup.GetSceneMaxUndo() > 0)
-                {
-                    UndoState nUndo = new UndoState((SceneObjectPart)this);
-
-                    m_undo.Push(nUndo);
-                }
-                UndoState gofwd = m_redo.Pop();
-                if (gofwd != null)
-                    gofwd.PlayfwdState((SceneObjectPart)this);
-            }
-        }
-
         public void UpdateExtraParam(ushort type, bool inUse, byte[] data)
         {
             m_shape.ReadInUpdateExtraParam(type, inUse, data);
@@ -4454,12 +4549,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             if ((UsePhysics == wasUsingPhysics) && (wasTemporary == SetTemporary) && (wasPhantom == SetPhantom) && (SetVD == wasVD))
             {
-                //m_log.DebugFormat("UpdatePrimFlags called on {0}, nothing changed", Name);
                 return;
             }
-
-            //DSG VD DEBUG
-            //m_log.DebugFormat("UpdatePrimFlags for SOP {0}, with args UsePhysics ={1}, IsTemporary= {2}, IsPhantom= {3}, IsVD = {4}", Name, UsePhysics, IsTemporary, IsPhantom, IsVD);
 
             // Special cases for VD. VD can only be called from a script 
             // and can't be combined with changes to other states. So we can rely
@@ -4539,15 +4630,15 @@ namespace OpenSim.Region.Framework.Scenes
                 if (pa == null)
                 {
                     // It's not phantom anymore. So make sure the physics engine get's knowledge of it
-
                     PhysActor = m_parentGroup.Scene.PhysicsScene.AddPrimShape(
-                        LocalId,
                         string.Format("{0}/{1}", Name, UUID),
                         Shape,
                         AbsolutePosition,
                         Scale,
                         RotationOffset,
-                        UsePhysics);
+                        UsePhysics,
+                        m_localId);
+                    PhysActor.SetMaterial(Material);
 
                     pa = PhysActor;
                     if (pa != null)
@@ -4698,10 +4789,6 @@ namespace OpenSim.Region.Framework.Scenes
             ParentGroup.HasGroupChanged = true;
             TriggerScriptChangedEvent(Changed.SHAPE);
             //ScheduleFullUpdate();
-
-            //DSG DEBUG
-            //m_log.DebugFormat("{0}, {1}: shaped updated to {2}, calling ScheduleFullUpdate.", Name, UUID, Shape.ProfileShape);
-
             ScheduleFullUpdate(new List<SceneObjectPartSyncProperties>() {SceneObjectPartSyncProperties.Shape});
         }
 
@@ -4714,7 +4801,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </remarks>
         public void CheckSculptAndLoad()
         {
-//            m_log.Debug("Processing CheckSculptAndLoad for {0} {1}", Name, LocalId);
+//            m_log.DebugFormat("Processing CheckSculptAndLoad for {0} {1}", Name, LocalId);
 
             if (ParentGroup.IsDeleted)
                 return;
@@ -4725,9 +4812,11 @@ namespace OpenSim.Region.Framework.Scenes
             if (Shape.SculptEntry && Shape.SculptTexture != UUID.Zero)
             {
                 // check if a previously decoded sculpt map has been cached
+                // We don't read the file here - the meshmerizer will do that later.
+                // TODO: Could we simplify the meshmerizer code by reading and setting the data here?
                 if (File.Exists(System.IO.Path.Combine("j2kDecodeCache", "smap_" + Shape.SculptTexture.ToString())))
                 {
-                    SculptTextureCallback(Shape.SculptTexture, null);
+                    SculptTextureCallback(null);
                 }
                 else
                 {
@@ -5572,13 +5661,13 @@ namespace OpenSim.Region.Framework.Scenes
 
                     // It's not phantom anymore. So make sure the physics engine get's knowledge of it
                     PhysActor = m_parentGroup.Scene.PhysicsScene.AddPrimShape(
-                        LocalId,
                         string.Format("{0}/{1}", Name, UUID),
                         Shape,
                         AbsolutePosition,
                         Scale,
                         RotationOffset,
-                        UsePhysics);
+                        UsePhysics,
+                        LocalId);
 
                     pa = PhysActor;
                     if (pa != null)

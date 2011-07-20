@@ -599,11 +599,13 @@ namespace OpenSim.Region.Framework.Scenes
                     part.Undo();
             }
         }
+
         protected internal void HandleRedo(IClientAPI remoteClient, UUID primId)
         {
             if (primId != UUID.Zero)
             {
                 SceneObjectPart part = m_parentScene.GetSceneObjectPart(primId);
+
                 if (part != null)
                     part.Redo();
             }
@@ -1245,19 +1247,20 @@ namespace OpenSim.Region.Framework.Scenes
         #region Client Event handlers
 
         /// <summary>
-        ///
+        /// Update the scale of an individual prim.
         /// </summary>
         /// <param name="localID"></param>
         /// <param name="scale"></param>
         /// <param name="remoteClient"></param>
         protected internal void UpdatePrimScale(uint localID, Vector3 scale, IClientAPI remoteClient)
         {
-            SceneObjectGroup group = GetGroupByPrim(localID);
-            if (group != null)
+            SceneObjectPart part = GetSceneObjectPart(localID);
+
+            if (part != null)
             {
-                if (m_parentScene.Permissions.CanEditObject(group.UUID, remoteClient.AgentId))
+                if (m_parentScene.Permissions.CanEditObject(part.ParentGroup.UUID, remoteClient.AgentId))
                 {
-                    group.Resize(scale, localID);
+                    part.Resize(scale);
                 }
             }
         }
@@ -1269,7 +1272,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (m_parentScene.Permissions.CanEditObject(group.UUID, remoteClient.AgentId))
                 {
-                    group.GroupResize(scale, localID);
+                    group.GroupResize(scale);
                 }
             }
         }
@@ -1323,19 +1326,18 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (m_parentScene.Permissions.CanMoveObject(group.UUID, remoteClient.AgentId))
                 {
-                    group.UpdateSingleRotation(rot,pos, localID);
+                    group.UpdateSingleRotation(rot, pos, localID);
                 }
             }
         }
 
-
         /// <summary>
-        ///
+        /// Update the rotation of a whole group.
         /// </summary>
         /// <param name="localID"></param>
         /// <param name="rot"></param>
         /// <param name="remoteClient"></param>
-        protected internal void UpdatePrimRotation(uint localID, Quaternion rot, IClientAPI remoteClient)
+        protected internal void UpdatePrimGroupRotation(uint localID, Quaternion rot, IClientAPI remoteClient)
         {
             SceneObjectGroup group = GetGroupByPrim(localID);
             if (group != null)
@@ -1354,7 +1356,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="pos"></param>
         /// <param name="rot"></param>
         /// <param name="remoteClient"></param>
-        protected internal void UpdatePrimRotation(uint localID, Vector3 pos, Quaternion rot, IClientAPI remoteClient)
+        protected internal void UpdatePrimGroupRotation(uint localID, Vector3 pos, Quaternion rot, IClientAPI remoteClient)
         {
             SceneObjectGroup group = GetGroupByPrim(localID);
             if (group != null)
@@ -1385,12 +1387,12 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Update the position of the given part
+        /// Update the position of the given group.
         /// </summary>
         /// <param name="localID"></param>
         /// <param name="pos"></param>
         /// <param name="remoteClient"></param>
-        public void UpdatePrimPosition(uint localID, Vector3 pos, IClientAPI remoteClient)
+        public void UpdatePrimGroupPosition(uint localID, Vector3 pos, IClientAPI remoteClient)
         {
             SceneObjectGroup group = GetGroupByPrim(localID);
             

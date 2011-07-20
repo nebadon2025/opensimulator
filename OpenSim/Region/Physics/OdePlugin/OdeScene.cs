@@ -1677,7 +1677,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         }
 
         private PhysicsActor AddPrim(String name, Vector3 position, Vector3 size, Quaternion rotation,
-                                     IMesh mesh, PrimitiveBaseShape pbs, bool isphysical)
+                                     IMesh mesh, PrimitiveBaseShape pbs, bool isphysical, uint localID)
         {
             Vector3 pos = position;
             Vector3 siz = size;
@@ -1691,7 +1691,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                 lock (_prims)
                     _prims.Add(newPrim);
             }
-
+            newPrim.LocalID = localID;
             return newPrim;
         }
 
@@ -1708,13 +1708,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         }
 
         public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, Vector3 position,
-                                                  Vector3 size, Quaternion rotation) //To be removed
-        {
-            return AddPrimShape(primName, pbs, position, size, rotation, false);
-        }
-
-        public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, Vector3 position,
-                                                  Vector3 size, Quaternion rotation, bool isPhysical)
+                                                  Vector3 size, Quaternion rotation, bool isPhysical, uint localid)
         {
 #if SPAM
             m_log.DebugFormat("[PHYSICS]: Adding physics actor to {0}", primName);
@@ -1739,7 +1733,7 @@ namespace OpenSim.Region.Physics.OdePlugin
 //                }
 //            }
 
-            result = AddPrim(primName, position, size, rotation, mesh, pbs, isPhysical);
+            result = AddPrim(primName, position, size, rotation, mesh, pbs, isPhysical, localid);
 
             return result;
         }

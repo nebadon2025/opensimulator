@@ -130,7 +130,7 @@ namespace OpenSim.Region.ClientStack.Linden
 
 
         /// <summary>
-        /// Parses ad request
+        /// Parses add request
         /// </summary>
         /// <param name="request"></param>
         /// <param name="AgentId"></param>
@@ -313,11 +313,11 @@ namespace OpenSim.Region.ClientStack.Linden
                     primFace.RepeatV = face.ScaleT;
                     primFace.TexMapType = (MappingType) (face.MediaFlags & 6);
                 }
+
                 pbs.TextureEntry = tmp.GetBytes();
                 prim.Shape = pbs;
                 prim.Scale = obj.Scale;
                 
-
                 SceneObjectGroup grp = new SceneObjectGroup();
 
                 grp.SetRootPart(prim);
@@ -340,8 +340,8 @@ namespace OpenSim.Region.ClientStack.Linden
                     m_scene.AddSceneObject(grp);
                     grp.AbsolutePosition = obj.Position;
                 }
+
                 allparts[i] = grp;
-                
             }
 
             for (int j = 1; j < allparts.Length; j++)
@@ -353,7 +353,9 @@ namespace OpenSim.Region.ClientStack.Linden
 
             //rootGroup.ScheduleGroupForFullUpdate();
             rootGroup.ScheduleGroupForFullUpdate(new List<SceneObjectPartSyncProperties>(){SceneObjectPartSyncProperties.FullUpdate}); //seems like new object
-            pos = m_scene.GetNewRezLocation(Vector3.Zero, rootpos, UUID.Zero, rot, (byte)1, 1, true, allparts[0].GroupScale(), false);
+            pos
+                = m_scene.GetNewRezLocation(
+                    Vector3.Zero, rootpos, UUID.Zero, rot, (byte)1, 1, true, allparts[0].GroupScale, false);
            
             responsedata["int_response_code"] = 200; //501; //410; //404;
             responsedata["content_type"] = "text/plain";

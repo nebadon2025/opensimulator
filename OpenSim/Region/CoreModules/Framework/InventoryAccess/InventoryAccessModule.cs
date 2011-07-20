@@ -810,6 +810,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                         //
                         if (((item.CurrentPermissions & (uint)PermissionMask.Copy) == 0) && (!attachment))
                             remoteClient.SendBulkUpdateInventory(item);
+
                         return null;
                     }
 
@@ -817,11 +818,12 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                     {
                         group = objlist[i];
 
-                        Vector3 storedPosition = group.AbsolutePosition;
+//                        Vector3 storedPosition = group.AbsolutePosition;
                         if (group.UUID == UUID.Zero)
                         {
                             m_log.Debug("[InventoryAccessModule]: Inventory object has UUID.Zero! Position 3");
                         }
+
                         group.RootPart.FromFolderID = item.Folder;
 
                         // If it's rezzed in world, select it. Much easier to 
@@ -833,6 +835,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                             foreach (SceneObjectPart child in group.Parts)
                                 child.CreateSelected = true;
                         }
+
                         group.ResetIDs();
 
                         if (attachment)

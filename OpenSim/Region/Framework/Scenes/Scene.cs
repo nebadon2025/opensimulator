@@ -3389,12 +3389,14 @@ namespace OpenSim.Region.Framework.Scenes
         
         public virtual void SubscribeToClientPrimEvents(IClientAPI client)
         {
-            client.OnUpdatePrimGroupPosition += m_sceneGraph.UpdatePrimPosition;
+            client.OnUpdatePrimGroupPosition += m_sceneGraph.UpdatePrimGroupPosition;
             client.OnUpdatePrimSinglePosition += m_sceneGraph.UpdatePrimSinglePosition;
-            client.OnUpdatePrimGroupRotation += m_sceneGraph.UpdatePrimRotation;
-            client.OnUpdatePrimGroupMouseRotation += m_sceneGraph.UpdatePrimRotation;
+
+            client.OnUpdatePrimGroupRotation += m_sceneGraph.UpdatePrimGroupRotation;
+            client.OnUpdatePrimGroupMouseRotation += m_sceneGraph.UpdatePrimGroupRotation;
             client.OnUpdatePrimSingleRotation += m_sceneGraph.UpdatePrimSingleRotation;
             client.OnUpdatePrimSingleRotationPosition += m_sceneGraph.UpdatePrimSingleRotationPosition;
+            
             client.OnUpdatePrimScale += m_sceneGraph.UpdatePrimScale;
             client.OnUpdatePrimGroupScale += m_sceneGraph.UpdatePrimGroupScale;
             client.OnUpdateExtraParams += m_sceneGraph.UpdateExtraParam;
@@ -3520,12 +3522,14 @@ namespace OpenSim.Region.Framework.Scenes
 
         public virtual void UnSubscribeToClientPrimEvents(IClientAPI client)
         {
-            client.OnUpdatePrimGroupPosition -= m_sceneGraph.UpdatePrimPosition;
+            client.OnUpdatePrimGroupPosition -= m_sceneGraph.UpdatePrimGroupPosition;
             client.OnUpdatePrimSinglePosition -= m_sceneGraph.UpdatePrimSinglePosition;
-            client.OnUpdatePrimGroupRotation -= m_sceneGraph.UpdatePrimRotation;
-            client.OnUpdatePrimGroupMouseRotation -= m_sceneGraph.UpdatePrimRotation;
+
+            client.OnUpdatePrimGroupRotation -= m_sceneGraph.UpdatePrimGroupRotation;
+            client.OnUpdatePrimGroupMouseRotation -= m_sceneGraph.UpdatePrimGroupRotation;
             client.OnUpdatePrimSingleRotation -= m_sceneGraph.UpdatePrimSingleRotation;
             client.OnUpdatePrimSingleRotationPosition -= m_sceneGraph.UpdatePrimSingleRotationPosition;
+
             client.OnUpdatePrimScale -= m_sceneGraph.UpdatePrimScale;
             client.OnUpdatePrimGroupScale -= m_sceneGraph.UpdatePrimGroupScale;
             client.OnUpdateExtraParams -= m_sceneGraph.UpdateExtraParam;

@@ -89,6 +89,7 @@ public class PEScene : PhysicsScene
                                               Vector3 size, Quaternion rotation, bool isPhysical, uint localID)
     {
         PEPrim prim = new PEPrim(primName, this, position, size, rotation, null, pbs, isPhysical, null);
+        prim.LocalID = localID;
         lock (m_prims) m_prims.Add(prim);
         return prim;
     }

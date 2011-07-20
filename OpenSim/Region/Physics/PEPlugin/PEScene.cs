@@ -86,12 +86,7 @@ public class PEScene : PhysicsScene
     }
 
     public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, Vector3 position,
-                                              Vector3 size, Quaternion rotation)  // deprecated
-    {
-        return null;
-    }
-    public override PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, Vector3 position,
-                                              Vector3 size, Quaternion rotation, bool isPhysical)
+                                              Vector3 size, Quaternion rotation, bool isPhysical, uint localID)
     {
         PEPrim prim = new PEPrim(primName, this, position, size, rotation, null, pbs, isPhysical, null);
         lock (m_prims) m_prims.Add(prim);

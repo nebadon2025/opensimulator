@@ -5341,12 +5341,13 @@ namespace OpenSim.Region.Framework.Scenes
             allProperties.Add(SceneObjectPartSyncProperties.RotationOffset);
             allProperties.Add(SceneObjectPartSyncProperties.AngularVelocity);
             allProperties.Add(SceneObjectPartSyncProperties.OffsetPosition);
-            allProperties.Add(SceneObjectPartSyncProperties.Scale);
+            //allProperties.Add(SceneObjectPartSyncProperties.Scale);
             allProperties.Add(SceneObjectPartSyncProperties.GroupPosition);
             allProperties.Add(SceneObjectPartSyncProperties.Orientation);
             allProperties.Add(SceneObjectPartSyncProperties.RotationalVelocity);
             allProperties.Add(SceneObjectPartSyncProperties.Position);
             allProperties.Add(SceneObjectPartSyncProperties.AbsolutePosition);
+            allProperties.Add(SceneObjectPartSyncProperties.PA_Acceleration);
 
             return allProperties;
         }

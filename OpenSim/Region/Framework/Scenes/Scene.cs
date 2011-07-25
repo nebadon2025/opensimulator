@@ -2301,20 +2301,20 @@ namespace OpenSim.Region.Framework.Scenes
 
             m_sceneGridService.SetScene(this);
 
-            // If we generate maptiles internally at all, the maptile generator
-            // will register the region. If not, do it here
+            GridRegion region = new GridRegion(RegionInfo);
+            string error = GridService.RegisterRegion(RegionInfo.ScopeID, region);
+            if (error != String.Empty)
+            {
+                throw new Exception(error);
+            }
+
+            // Generate the maptile asynchronously, because sometimes it can be very slow and we
+            // don't want this to delay starting the region.
             if (m_generateMaptiles)
             {
-                RegenerateMaptile(null, null);
-            }
-            else
-            {
-                GridRegion region = new GridRegion(RegionInfo);
-                string error = GridService.RegisterRegion(RegionInfo.ScopeID, region);
-                if (error != String.Empty)
-                {
-                    throw new Exception(error);
-                }
+                Util.FireAndForget(delegate {
+                    RegenerateMaptile(null, null);
+                });
             }
         }
 
@@ -4259,11 +4259,12 @@ namespace OpenSim.Region.Framework.Scenes
                       
             if (AuthorizationService != null)
             {
-                if (!AuthorizationService.IsAuthorizedForRegion(agent.AgentID.ToString(), RegionInfo.RegionID.ToString(),out reason))
+                if (!AuthorizationService.IsAuthorizedForRegion(
+                    agent.AgentID.ToString(), agent.firstname, agent.lastname, RegionInfo.RegionID.ToString(), out reason))
                 {
                     m_log.WarnFormat("[CONNECTION BEGIN]: Denied access to: {0} ({1} {2}) at {3} because the user does not have access to the region",
                                      agent.AgentID, agent.firstname, agent.lastname, RegionInfo.RegionName);
-                    //reason = String.Format("You are not currently on the access list for {0}",RegionInfo.RegionName);
+                    
                     return false;
                 }
             }

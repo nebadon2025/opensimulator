@@ -2703,7 +2703,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
                             {
                                 foreach (OdeCharacter character in _taintedActors)
                                 {
-                                    character.ProcessTaints(timeStep);
+                                    character.ProcessTaints();
 
                                     processedtaints = true;
                                     //character.m_collisionscore = 0;

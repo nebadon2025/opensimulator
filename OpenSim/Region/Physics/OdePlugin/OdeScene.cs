@@ -193,9 +193,30 @@ namespace OpenSim.Region.Physics.OdePlugin
         private readonly HashSet<OdeCharacter> _characters = new HashSet<OdeCharacter>();
         private readonly HashSet<OdePrim> _prims = new HashSet<OdePrim>();
         private readonly HashSet<OdePrim> _activeprims = new HashSet<OdePrim>();
-        private readonly HashSet<OdePrim> _taintedPrimH = new HashSet<OdePrim>();
+
+        /// <summary>
+        /// Used to lock on manipulation of _taintedPrimL and _taintedPrimH
+        /// </summary>
         private readonly Object _taintedPrimLock = new Object();
+
+        /// <summary>
+        /// List of tainted prims.
+        /// </summary>
+        /// <remarks>
+        /// A tainted prim is one that has taints to process before performing any other operations.  The list is
+        /// cleared after processing.
+        /// </remarks>
         private readonly List<OdePrim> _taintedPrimL = new List<OdePrim>();
+
+        /// <summary>
+        /// HashSet of tainted prims.
+        /// </summary>
+        /// <remarks>
+        /// A tainted prim is one that has taints to process before performing any other operations.  The hashset is
+        /// cleared after processing.
+        /// </remarks>
+        private readonly HashSet<OdePrim> _taintedPrimH = new HashSet<OdePrim>();
+
         private readonly HashSet<OdeCharacter> _taintedActors = new HashSet<OdeCharacter>();
         private readonly List<d.ContactGeom> _perloopContact = new List<d.ContactGeom>();
 
@@ -257,6 +278,9 @@ namespace OpenSim.Region.Physics.OdePlugin
         // split static geometry collision handling into spaces of 30 meters
         public IntPtr[,] staticPrimspace;
 
+        /// <summary>
+        /// Used to lock the entire physics scene.  Locked during the main part of Simulate()
+        /// </summary>
         public Object OdeLock;
 
         public IMesher mesher;
@@ -643,15 +667,15 @@ namespace OpenSim.Region.Physics.OdePlugin
                 //while (d.SpaceLockQuery(space)) { } // Wait and do nothing
         }
 
-        /// <summary>
-        /// Debug space message for printing the space that a prim/avatar is in.
-        /// </summary>
-        /// <param name="pos"></param>
-        /// <returns>Returns which split up space the given position is in.</returns>
-        public string whichspaceamIin(Vector3 pos)
-        {
-            return calculateSpaceForGeom(pos).ToString();
-        }
+//        /// <summary>
+//        /// Debug space message for printing the space that a prim/avatar is in.
+//        /// </summary>
+//        /// <param name="pos"></param>
+//        /// <returns>Returns which split up space the given position is in.</returns>
+//        public string whichspaceamIin(Vector3 pos)
+//        {
+//            return calculateSpaceForGeom(pos).ToString();
+//        }
 
         #region Collision Detection
 
@@ -1402,7 +1426,7 @@ namespace OpenSim.Region.Physics.OdePlugin
            // }
         }
 
-        public int TriArrayCallback(IntPtr trimesh, IntPtr refObject, int[] triangleIndex, int triCount)
+        private int TriArrayCallback(IntPtr trimesh, IntPtr refObject, int[] triangleIndex, int triCount)
         {
             /*            String name1 = null;
                         String name2 = null;
@@ -1421,7 +1445,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             return 1;
         }
 
-        public int TriCallback(IntPtr trimesh, IntPtr refObject, int triangleIndex)
+        private int TriCallback(IntPtr trimesh, IntPtr refObject, int triangleIndex)
         {
 //            String name1 = null;
 //            String name2 = null;
@@ -1551,7 +1575,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         }
 
         // Recovered for use by fly height. Kitto Flora
-        public float GetTerrainHeightAtXY(float x, float y)
+        internal float GetTerrainHeightAtXY(float x, float y)
         {
             int offsetX = ((int)(x / (int)Constants.RegionSize)) * (int)Constants.RegionSize;
             int offsetY = ((int)(y / (int)Constants.RegionSize)) * (int)Constants.RegionSize;
@@ -1609,7 +1633,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         /// Add actor to the list that should receive collision events in the simulate loop.
         /// </summary>
         /// <param name="obj"></param>
-        public void AddCollisionEventReporting(PhysicsActor obj)
+        internal void AddCollisionEventReporting(PhysicsActor obj)
         {
             lock (_collisionEventPrim)
             {
@@ -1622,7 +1646,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         /// Remove actor from the list that should receive collision events in the simulate loop.
         /// </summary>
         /// <param name="obj"></param>
-        public void RemoveCollisionEventReporting(PhysicsActor obj)
+        internal void RemoveCollisionEventReporting(PhysicsActor obj)
         {
             lock (_collisionEventPrim)
             {
@@ -1646,7 +1670,13 @@ namespace OpenSim.Region.Physics.OdePlugin
             return newAv;
         }
 
-        public void AddCharacter(OdeCharacter chr)
+        public override void RemoveAvatar(PhysicsActor actor)
+        {
+            //m_log.Debug("[PHYSICS]:ODELOCK");
+            ((OdeCharacter) actor).Destroy();
+        }
+
+        internal void AddCharacter(OdeCharacter chr)
         {
             lock (_characters)
             {
@@ -1659,7 +1689,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             }
         }
 
-        public void RemoveCharacter(OdeCharacter chr)
+        internal void RemoveCharacter(OdeCharacter chr)
         {
             lock (_characters)
             {
@@ -1670,19 +1700,13 @@ namespace OpenSim.Region.Physics.OdePlugin
             }
         }
 
-        public void BadCharacter(OdeCharacter chr)
+        internal void BadCharacter(OdeCharacter chr)
         {
             lock (_badCharacter)
             {
                 if (!_badCharacter.Contains(chr))
                     _badCharacter.Add(chr);
             }
-        }
-
-        public override void RemoveAvatar(PhysicsActor actor)
-        {
-            //m_log.Debug("[PHYSICS]:ODELOCK");
-            ((OdeCharacter) actor).Destroy();
         }
 
         private PhysicsActor AddPrim(String name, Vector3 position, Vector3 size, Quaternion rotation,
@@ -1704,13 +1728,17 @@ namespace OpenSim.Region.Physics.OdePlugin
             return newPrim;
         }
 
-        public void addActivePrim(OdePrim activatePrim)
+        /// <summary>
+        /// Make this prim subject to physics.
+        /// </summary>
+        /// <param name="prim"></param>
+        internal void ActivatePrim(OdePrim prim)
         {
             // adds active prim..   (ones that should be iterated over in collisions_optimized
             lock (_activeprims)
             {
-                if (!_activeprims.Contains(activatePrim))
-                    _activeprims.Add(activatePrim);
+                if (!_activeprims.Contains(prim))
+                    _activeprims.Add(prim);
                 //else
                   //  m_log.Warn("[PHYSICS]: Double Entry in _activeprims detected, potential crash immenent");
             }
@@ -2083,12 +2111,14 @@ namespace OpenSim.Region.Physics.OdePlugin
             return new Vector3(axis.X, axis.Y, axis.Z);
         }
 
-        public void remActivePrim(OdePrim deactivatePrim)
+        /// <summary>
+        /// Stop this prim being subject to physics
+        /// </summary>
+        /// <param name="prim"></param>
+        internal void DeactivatePrim(OdePrim prim)
         {
             lock (_activeprims)
-            {
-                _activeprims.Remove(deactivatePrim);
-            }
+                _activeprims.Remove(prim);
         }
 
         public override void RemovePrim(PhysicsActor prim)
@@ -2120,7 +2150,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         /// that the space was using.
         /// </summary>
         /// <param name="prim"></param>
-        public void RemovePrimThreadLocked(OdePrim prim)
+        internal void RemovePrimThreadLocked(OdePrim prim)
         {
 //Console.WriteLine("RemovePrimThreadLocked " +  prim.m_primName);
             lock (prim)
@@ -2216,7 +2246,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         /// Takes a space pointer and zeros out the array we're using to hold the spaces
         /// </summary>
         /// <param name="pSpace"></param>
-        public void resetSpaceArrayItemToZero(IntPtr pSpace)
+        private void resetSpaceArrayItemToZero(IntPtr pSpace)
         {
             for (int x = 0; x < staticPrimspace.GetLength(0); x++)
             {
@@ -2228,10 +2258,10 @@ namespace OpenSim.Region.Physics.OdePlugin
             }
         }
 
-        public void resetSpaceArrayItemToZero(int arrayitemX, int arrayitemY)
-        {
-            staticPrimspace[arrayitemX, arrayitemY] = IntPtr.Zero;
-        }
+//        private void resetSpaceArrayItemToZero(int arrayitemX, int arrayitemY)
+//        {
+//            staticPrimspace[arrayitemX, arrayitemY] = IntPtr.Zero;
+//        }
 
         /// <summary>
         /// Called when a static prim moves.  Allocates a space for the prim based on its position
@@ -2240,7 +2270,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         /// <param name="pos">the position that the geom moved to</param>
         /// <param name="currentspace">a pointer to the space it was in before it was moved.</param>
         /// <returns>a pointer to the new space it's in</returns>
-        public IntPtr recalculateSpaceForGeom(IntPtr geom, Vector3 pos, IntPtr currentspace)
+        internal IntPtr recalculateSpaceForGeom(IntPtr geom, Vector3 pos, IntPtr currentspace)
         {
             // Called from setting the Position and Size of an ODEPrim so
             // it's already in locked space.
@@ -2371,7 +2401,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         /// <param name="iprimspaceArrItemX"></param>
         /// <param name="iprimspaceArrItemY"></param>
         /// <returns>A pointer to the created space</returns>
-        public IntPtr createprimspace(int iprimspaceArrItemX, int iprimspaceArrItemY)
+        internal IntPtr createprimspace(int iprimspaceArrItemX, int iprimspaceArrItemY)
         {
             // creating a new space for prim and inserting it into main space.
             staticPrimspace[iprimspaceArrItemX, iprimspaceArrItemY] = d.HashSpaceCreate(IntPtr.Zero);
@@ -2387,7 +2417,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         /// </summary>
         /// <param name="pos"></param>
         /// <returns>a pointer to the space. This could be a new space or reused space.</returns>
-        public IntPtr calculateSpaceForGeom(Vector3 pos)
+        internal IntPtr calculateSpaceForGeom(Vector3 pos)
         {
             int[] xyspace = calculateSpaceArrayItemFromPos(pos);
             //m_log.Info("[Physics]: Attempting to use arrayItem: " + xyspace[0].ToString() + "," + xyspace[1].ToString());
@@ -2399,7 +2429,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         /// </summary>
         /// <param name="pos"></param>
         /// <returns>an array item based on the position</returns>
-        public int[] calculateSpaceArrayItemFromPos(Vector3 pos)
+        internal int[] calculateSpaceArrayItemFromPos(Vector3 pos)
         {
             int[] returnint = new int[2];
 
@@ -2426,7 +2456,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         /// </summary>
         /// <param name="pbs"></param>
         /// <returns></returns>
-        public bool needsMeshing(PrimitiveBaseShape pbs)
+        internal bool needsMeshing(PrimitiveBaseShape pbs)
         {
             // most of this is redundant now as the mesher will return null if it cant mesh a prim
             // but we still need to check for sculptie meshing being enabled so this is the most
@@ -2699,7 +2729,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
                                 else
                                 {
 //                                    Console.WriteLine("Simulate calls ProcessTaints for {0}", prim.Name);
-                                    prim.ProcessTaints(timeStep);
+                                    prim.ProcessTaints();
                                 }
 
                                 processedtaints = true;
@@ -2893,7 +2923,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
         /// <remarks>
         /// Called by the main Simulate() loop if NINJA joints are active.  Should not be called from anywhere else.
         /// </remarks>
-        protected void SimulatePendingNINJAJoints()
+        private void SimulatePendingNINJAJoints()
         {
             // Create pending joints, if possible
 
@@ -3084,7 +3114,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
         /// Called as part of the Simulate() loop if NINJA physics is active.  Must only be called from there.
         /// </remarks>
         /// <param name="actor"></param>
-        protected void SimulateActorPendingJoints(OdePrim actor)
+        private void SimulateActorPendingJoints(OdePrim actor)
         {
             // If an actor moved, move its joint proxy objects as well.
             // There seems to be an event PhysicsActor.OnPositionUpdate that could be used
@@ -3121,7 +3151,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
         }
 
         #region ODE Specific Terrain Fixes
-        public float[] ResizeTerrain512NearestNeighbour(float[] heightMap)
+        private float[] ResizeTerrain512NearestNeighbour(float[] heightMap)
         {
             float[] returnarr = new float[262144];
             float[,] resultarr = new float[(int)WorldExtents.X, (int)WorldExtents.Y];
@@ -3234,7 +3264,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
             return returnarr;
         }
 
-        public float[] ResizeTerrain512Interpolation(float[] heightMap)
+        private float[] ResizeTerrain512Interpolation(float[] heightMap)
         {
             float[] returnarr = new float[262144];
             float[,] resultarr = new float[512,512];
@@ -3402,7 +3432,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
             }
         }
 
-        public void SetTerrain(float[] heightMap, Vector3 pOffset)
+        private void SetTerrain(float[] heightMap, Vector3 pOffset)
         {
             // this._heightmap[i] = (double)heightMap[i];
             // dbm (danx0r) -- creating a buffer zone of one extra sample all around
@@ -3531,7 +3561,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
         {
         }
 
-        public float GetWaterLevel()
+        internal float GetWaterLevel()
         {
             return waterlevel;
         }
@@ -3606,7 +3636,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
             randomizeWater(waterlevel);
         }
 
-        public void randomizeWater(float baseheight)
+        private void randomizeWater(float baseheight)
         {
             const uint heightmapWidth = m_regionWidth + 2;
             const uint heightmapHeight = m_regionHeight + 2;
@@ -3658,9 +3688,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
                 d.RFromAxisAndAngle(out R, v3.X, v3.Y, v3.Z, angle);
                 d.GeomSetRotation(WaterGeom, ref R);
                 d.GeomSetPosition(WaterGeom, 128, 128, 0);
-                
             }
-
         }
 
         public override void Dispose()
@@ -3707,6 +3735,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
                     }
                 }
             }
+
             return returncolliders;
         }
 

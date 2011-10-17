@@ -609,13 +609,13 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_isChildAgent = value; }
         }
 
-        private uint m_parentID;
-
         public uint ParentID
         {
             get { return m_parentID; }
             set { m_parentID = value; }
         }
+        private uint m_parentID;
+
         public float Health
         {
             get { return m_health; }
@@ -1936,6 +1936,8 @@ namespace OpenSim.Region.Framework.Scenes
                        )
                        ));
 
+//                m_log.DebugFormat("[SCENE PRESENCE]: {0} {1}", SitTargetisSet, SitTargetUnOccupied);
+
                 if (SitTargetisSet && SitTargetUnOccupied)
                 {
                     part.SitTargetAvatar = UUID;
@@ -2229,7 +2231,6 @@ namespace OpenSim.Region.Framework.Scenes
             SendSitResponse(ControllingClient, m_requestedSitTargetUUID, collisionPoint - m_requestedSitOffset, Quaternion.Identity);
         }
         */
-
 
         public void HandleAgentSit(IClientAPI remoteClient, UUID agentID)
         {

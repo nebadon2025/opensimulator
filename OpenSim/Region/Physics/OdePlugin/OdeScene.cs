@@ -1451,8 +1451,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         /// <summary>
         /// This is our collision testing routine in ODE
         /// </summary>
-        /// <param name="timeStep"></param>
-        private void collision_optimized(float timeStep)
+        private void collision_optimized()
         {
             _perloopContact.Clear();
 
@@ -2664,12 +2663,6 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
 
                 while (step_time > 0.0f)
                 {
-                    //lock (ode)
-                    //{
-                        //if (!ode.lockquery())
-                        //{
-                           // ode.dlock(world);
-
                     try
                     {
                         // Insert, remove Characters
@@ -2738,7 +2731,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
                             foreach (OdeCharacter actor in _characters)
                             {
                                 if (actor != null)
-                                    actor.Move(timeStep, defects);
+                                    actor.Move(defects);
                             }
                             if (0 != defects.Count)
                             {
@@ -2765,7 +2758,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
                         //int RayCastTimeMS = m_rayCastManager.ProcessQueuedRequests();
                         m_rayCastManager.ProcessQueuedRequests();
 
-                        collision_optimized(timeStep);
+                        collision_optimized();
 
                         lock (_collisionEventPrim)
                         {

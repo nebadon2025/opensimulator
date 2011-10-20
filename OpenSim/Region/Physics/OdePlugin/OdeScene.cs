@@ -2610,24 +2610,27 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
             framecount++;
 
             float fps = 0;
-            //m_log.Info(timeStep.ToString());
-            step_time += timeStep;
-            
-            // If We're loaded down by something else,
-            // or debugging with the Visual Studio project on pause
-            // skip a few frames to catch up gracefully.
-            // without shooting the physicsactors all over the place
 
-            if (step_time >= m_SkipFramesAtms)
-            {
-                // Instead of trying to catch up, it'll do 5 physics frames only
-                step_time = ODE_STEPSIZE;
-                m_physicsiterations = 5;
-            }
-            else
-            {
-                m_physicsiterations = 10;
-            }
+            float timeLeft = timeStep;
+
+            //m_log.Info(timeStep.ToString());
+//            step_time += timeStep;
+//            
+//            // If We're loaded down by something else,
+//            // or debugging with the Visual Studio project on pause
+//            // skip a few frames to catch up gracefully.
+//            // without shooting the physicsactors all over the place
+//
+//            if (step_time >= m_SkipFramesAtms)
+//            {
+//                // Instead of trying to catch up, it'll do 5 physics frames only
+//                step_time = ODE_STEPSIZE;
+//                m_physicsiterations = 5;
+//            }
+//            else
+//            {
+//                m_physicsiterations = 10;
+//            }
 
             if (SupportsNINJAJoints)
             {
@@ -2650,18 +2653,14 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
                     //base.TriggerPhysicsBasedRestart();
                 //}
 
-                int i = 0;
-
                 // Figure out the Frames Per Second we're going at.
                 //(step_time == 0.004f, there's 250 of those per second.   Times the step time/step size
 
-                fps = (step_time / ODE_STEPSIZE) * 1000;
+                fps = (timeStep / ODE_STEPSIZE) * 1000;
                 // HACK: Using a time dilation of 1.0 to debug rubberbanding issues
                 //m_timeDilation = Math.Min((step_time / ODE_STEPSIZE) / (0.09375f / ODE_STEPSIZE), 1.0f);
 
-                step_time = 0.089f;
-
-                while (step_time > 0.0f)
+                while (timeLeft > 0.0f)
                 {
                     try
                     {
@@ -2802,14 +2801,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
                         ode.dunlock(world);
                     }
 
-                    step_time -= ODE_STEPSIZE;
-                    i++;
-                        //}
-                        //else
-                        //{
-                            //fps = 0;
-                        //}
-                    //}
+                    timeLeft -= ODE_STEPSIZE;
                 }
 
                 lock (_characters)

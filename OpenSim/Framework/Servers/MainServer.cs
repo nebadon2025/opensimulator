@@ -25,55 +25,57 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Net;
-using log4net.Config;
-using Nini.Config;
-using NUnit.Framework;
-using OpenMetaverse;
-using OpenMetaverse.Packets;
-using OpenSim.Framework;
-using OpenSim.Framework.Servers;
+using log4net;
 using OpenSim.Framework.Servers.HttpServer;
-using OpenSim.Region.ClientStack.Linden;
-using OpenSim.Region.CoreModules.Framework;
-using OpenSim.Tests.Common;
-using OpenSim.Tests.Common.Mock;
 
-namespace OpenSim.Region.ClientStack.Linden.Tests
+namespace OpenSim.Framework.Servers
 {
-    [TestFixture]
-    public class EventQueueTests
+    public class MainServer
     {
-        private TestScene m_scene;
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        [SetUp]
-        public void SetUp()
+        private static BaseHttpServer instance = null;
+        private static Dictionary<uint, BaseHttpServer> m_Servers =
+                new Dictionary<uint, BaseHttpServer>();
+
+        public static BaseHttpServer Instance
         {
-            MainServer.Instance = new BaseHttpServer(9999, false, 9998, "");
-
-            IConfigSource config = new IniConfigSource();
-            config.AddConfig("Startup");
-            config.Configs["Startup"].Set("EventQueue", "true");
-
-            CapabilitiesModule capsModule = new CapabilitiesModule();
-            EventQueueGetModule eqgModule = new EventQueueGetModule();
-
-            m_scene = SceneHelpers.SetupScene();
-            SceneHelpers.SetupSceneModules(m_scene, config, capsModule, eqgModule);
+            get { return instance; }
+            set { instance = value; }
         }
 
-        [Test]
-        public void AddForClient()
+        public static IHttpServer GetHttpServer(uint port)
         {
-            TestHelpers.InMethod();
-//            log4net.Config.XmlConfigurator.Configure();
+            return GetHttpServer(port,null);
+        }
 
-            SceneHelpers.AddScenePresence(m_scene, TestHelpers.ParseTail(0x1));
+        public static void AddHttpServer(BaseHttpServer server)
+        {
+            m_Servers.Add(server.Port, server);
+        }
 
-            // TODO: Add more assertions for the other aspects of event queues
-            Assert.That(MainServer.Instance.GetPollServiceHandlerKeys().Count, Is.EqualTo(1));
+        public static IHttpServer GetHttpServer(uint port, IPAddress ipaddr)
+        {
+            if (port == 0)
+                return Instance;
+            if (instance != null && port == Instance.Port)
+                return Instance;
+
+            if (m_Servers.ContainsKey(port))
+                return m_Servers[port];
+
+            m_Servers[port] = new BaseHttpServer(port);
+
+            if (ipaddr != null)
+                m_Servers[port].ListenIPAddress = ipaddr;
+
+            m_log.InfoFormat("[MAIN HTTP SERVER]: Starting main http server on port {0}", port);
+            m_Servers[port].Start();
+
+            return m_Servers[port];
         }
     }
 }

@@ -2580,19 +2580,15 @@ namespace OpenSim.Region.Framework.Scenes
         public void SendOtherAgentsAvatarDataToMe()
         {
             int count = 0;
-            m_scene.ForEachScenePresence(delegate(ScenePresence scenePresence)
-                                         {
-                                             // only send information about root agents
-                                             if (scenePresence.IsChildAgent)
-                                                 return;
+            m_scene.ForEachRootScenePresence(delegate(ScenePresence scenePresence)
+                        {
+                            // only send information about other root agents
+                            if (scenePresence.UUID == UUID)
+                                return;
                                              
-                                             // only send information about other root agents
-                                             if (scenePresence.UUID == UUID)
-                                                 return;
-                                             
-                                             scenePresence.SendAvatarDataToAgent(this);
-                                             count++;
-                                         });
+                            scenePresence.SendAvatarDataToAgent(this);
+                            count++;
+                        });
 
             m_scene.StatsReporter.AddAgentUpdates(count);
         }
@@ -2626,13 +2622,14 @@ namespace OpenSim.Region.Framework.Scenes
 
             int count = 0;
             m_scene.ForEachScenePresence(delegate(ScenePresence scenePresence)
-                                         {
-                                             if (scenePresence.UUID == UUID)
-                                                 return;
+                        {
+                            // only send information to other root agents
+                            if (scenePresence.UUID == UUID)
+                                return;
 
-                                             SendAppearanceToAgent(scenePresence);
-                                             count++;
-                                         });
+                            SendAppearanceToAgent(scenePresence);
+                            count++;
+                        });
 
             m_scene.StatsReporter.AddAgentUpdates(count);
         }
@@ -2646,19 +2643,15 @@ namespace OpenSim.Region.Framework.Scenes
             //m_log.DebugFormat("[SCENE PRESENCE] SendOtherAgentsAppearanceToMe: {0} ({1})", Name, UUID);
 
             int count = 0;
-            m_scene.ForEachScenePresence(delegate(ScenePresence scenePresence)
-                                         {
-                                             // only send information about root agents
-                                             if (scenePresence.IsChildAgent)
-                                                 return;
+            m_scene.ForEachRootScenePresence(delegate(ScenePresence scenePresence)
+                        {
+                            // only send information about other root agents
+                            if (scenePresence.UUID == UUID)
+                                return;
                                              
-                                             // only send information about other root agents
-                                             if (scenePresence.UUID == UUID)
-                                                 return;
-                                             
-                                             scenePresence.SendAppearanceToAgent(this);
-                                             count++;
-                                         });
+                            scenePresence.SendAppearanceToAgent(this);
+                            count++;
+                        });
 
             m_scene.StatsReporter.AddAgentUpdates(count);
         }

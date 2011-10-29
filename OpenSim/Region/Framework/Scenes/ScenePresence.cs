@@ -515,8 +515,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     try
                     {
-                        lock (m_scene.SyncRoot)
-                            m_physicsActor.Position = value;
+                        m_physicsActor.Position = value;
                     }
                     catch (Exception e)
                     {
@@ -568,8 +567,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     try
                     {
-                        lock (m_scene.SyncRoot)
-                            actor.Velocity = value;
+                        actor.Velocity = value;
                     }
                     catch (Exception e)
                     {

@@ -186,7 +186,6 @@ namespace OpenSim.Region.Physics.OdePlugin
         private bool m_lastUpdateSent;
 
         public IntPtr Body = IntPtr.Zero;
-        public String Name { get; private set; }
         private Vector3 _target_velocity;
         private d.Mass pMass;
 

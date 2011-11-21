@@ -654,6 +654,9 @@ namespace OpenSim.Region.Physics.OdePlugin
             //
             //m_log.Info("[PHYSICSAV]: Rotation: " + bodyrotation.M00 + " : " + bodyrotation.M01 + " : " + bodyrotation.M02 + " : " + bodyrotation.M10 + " : " + bodyrotation.M11 + " : " + bodyrotation.M12 + " : " + bodyrotation.M20 + " : " + bodyrotation.M21 + " : " + bodyrotation.M22);
             //standupStraight();
+
+            _parent_scene.geom_name_map[Shell] = Name;
+            _parent_scene.actor_name_map[Shell] = this;
         }
 
         /// <summary>
@@ -892,7 +895,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             
             if (!localPos.IsFinite())
             {
-                m_log.Warn("[PHYSICS]: Avatar Position is non-finite!");
+                m_log.WarnFormat("[PHYSICS]: Avatar Position of {0} is non-finite!", Name);
 
                 defects.Add(this);
                 // _parent_scene.RemoveCharacter(this);
@@ -1055,9 +1058,10 @@ namespace OpenSim.Region.Physics.OdePlugin
             {
                 bad = true;
                 _parent_scene.BadCharacter(this);
+                DestroyOdeStructures();
                 newPos = new d.Vector3(_position.X, _position.Y, _position.Z);
                 base.RaiseOutOfBounds(_position); // Tells ScenePresence that there's a problem!
-                m_log.WarnFormat("[ODEPLUGIN]: Avatar Null reference for Avatar {0}, physical actor {1}", Name, m_uuid);
+                m_log.WarnFormat("[ODE CHARACTER]: Avatar Null reference for Avatar {0}, physical actor {1}", Name, m_uuid);
             }
 
             //  kluge to keep things in bounds.  ODE lets dead avatars drift away (they should be removed!)
@@ -1160,6 +1164,9 @@ namespace OpenSim.Region.Physics.OdePlugin
             if (Shell != IntPtr.Zero)
             {
                 d.GeomDestroy(Shell);
+                _parent_scene.geom_name_map.Remove(Shell);
+                _parent_scene.actor_name_map.Remove(Shell);
+
                 Shell = IntPtr.Zero;
             }
         }
@@ -1279,9 +1286,6 @@ namespace OpenSim.Region.Physics.OdePlugin
                     
                     m_pidControllerActive = true;
 
-                    _parent_scene.geom_name_map.Remove(Shell);
-                    _parent_scene.actor_name_map.Remove(Shell);
-
                     // no lock needed on _parent_scene.OdeLock because we are called from within the thread lock in OdePlugin's simulate()
                     DestroyOdeStructures();
 
@@ -1296,9 +1300,6 @@ namespace OpenSim.Region.Physics.OdePlugin
                     // As with Size, we reset velocity.  However, this isn't strictly necessary since it doesn't
                     // appear to stall initial region crossings when done here.  Being done for consistency.
 //                    Velocity = Vector3.Zero;
-
-                    _parent_scene.geom_name_map[Shell] = Name;
-                    _parent_scene.actor_name_map[Shell] = this;
                 }
                 else
                 {

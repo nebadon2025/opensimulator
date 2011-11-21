@@ -598,12 +598,10 @@ namespace OpenSim.Region.Physics.OdePlugin
                 d.RFromAxisAndAngle(out m_caprot, 0, 0, 1, (float)(Math.PI / 2));
             }
 
-
             d.GeomSetRotation(Shell, ref m_caprot);
             d.BodySetRotation(Body, ref m_caprot);
 
             d.GeomSetBody(Shell, Body);
-
 
             // The purpose of the AMotor here is to keep the avatar's physical
             // surrogate from rotating while moving
@@ -659,7 +657,6 @@ namespace OpenSim.Region.Physics.OdePlugin
             //standupStraight();
         }
 
-        //
         /// <summary>
         /// Uses the capped cyllinder volume formula to calculate the avatar's mass.
         /// This may be used in calculations in the scene/scenepresence
@@ -1158,14 +1155,12 @@ namespace OpenSim.Region.Physics.OdePlugin
             {
                 //kill the body
                 d.BodyDestroy(Body);
-
                 Body = IntPtr.Zero;
             }
 
             if (Shell != IntPtr.Zero)
             {
                 d.GeomDestroy(Shell);
-                _parent_scene.geom_name_map.Remove(Shell);
                 Shell = IntPtr.Zero;
             }
         }
@@ -1262,10 +1257,8 @@ namespace OpenSim.Region.Physics.OdePlugin
                             + (Body!=IntPtr.Zero ? "Body ":"")
                             + (Amotor!=IntPtr.Zero ? "Amotor ":""));
                     }
+
                     AvatarGeomAndBodyCreation(_position.X, _position.Y, _position.Z, m_tensor);
-                    
-                    _parent_scene.geom_name_map[Shell] = Name;
-                    _parent_scene.actor_name_map[Shell] = this;
                     _parent_scene.AddCharacter(this);
                 }
                 else
@@ -1301,7 +1294,7 @@ namespace OpenSim.Region.Physics.OdePlugin
 //                    Velocity = Vector3.Zero;
 
                     _parent_scene.geom_name_map[Shell] = Name;
-                    _parent_scene.actor_name_map[Shell] = (PhysicsActor)this;
+                    _parent_scene.actor_name_map[Shell] = this;
                 }
                 else
                 {

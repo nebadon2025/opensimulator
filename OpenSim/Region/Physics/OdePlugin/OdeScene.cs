@@ -1535,12 +1535,6 @@ namespace OpenSim.Region.Physics.OdePlugin
             {
                 // Reset the collision values to false
                 // since we don't know if we're colliding yet
-                
-                // For some reason this can happen. Don't ask...
-                //
-                if (chr == null)
-                    continue;
-                
                 if (chr.Shell == IntPtr.Zero || chr.Body == IntPtr.Zero)
                     continue;
                 
@@ -2058,7 +2052,6 @@ namespace OpenSim.Region.Physics.OdePlugin
             //m_log.Debug("RemoveAllJointsConnectedToActor: start");
             if (actor.SOPName != null && joints_connecting_actor.ContainsKey(actor.SOPName) && joints_connecting_actor[actor.SOPName] != null)
             {
-
                 List<PhysicsJoint> jointsToRemove = new List<PhysicsJoint>();
                 //TODO: merge these 2 loops (originally it was needed to avoid altering a list being iterated over, but it is no longer needed due to the joint request queue mechanism)
                 foreach (PhysicsJoint j in joints_connecting_actor[actor.SOPName])
@@ -2787,10 +2780,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
 
                         // Move characters
                         foreach (OdeCharacter actor in _characters)
-                        {
-                            if (actor != null)
-                                actor.Move(defects);
-                        }
+                            actor.Move(defects);
 
                         if (defects.Count != 0)
                         {
@@ -2859,13 +2849,10 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
 
                 foreach (OdeCharacter actor in _characters)
                 {
-                    if (actor != null)
-                    {
-                        if (actor.bad)
-                            m_log.WarnFormat("[PHYSICS]: BAD Actor {0} in _characters list was not removed?", actor.m_uuid);
+                    if (actor.bad)
+                        m_log.WarnFormat("[PHYSICS]: BAD Actor {0} in _characters list was not removed?", actor.m_uuid);
 
-                        actor.UpdatePositionAndVelocity(defects);
-                    }
+                    actor.UpdatePositionAndVelocity(defects);
                 }
 
                 if (defects.Count != 0)

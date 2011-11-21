@@ -676,11 +676,11 @@ namespace OpenSim.Region.Physics.OdePlugin
             }
         }
 
-        internal void waitForSpaceUnlock(IntPtr space)
-        {
-            //if (space != IntPtr.Zero)
-                //while (d.SpaceLockQuery(space)) { } // Wait and do nothing
-        }
+//        internal void waitForSpaceUnlock(IntPtr space)
+//        {
+//            //if (space != IntPtr.Zero)
+//                //while (d.SpaceLockQuery(space)) { } // Wait and do nothing
+//        }
 
 //        /// <summary>
 //        /// Debug space message for printing the space that a prim/avatar is in.
@@ -2305,7 +2305,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                 {
                     if (d.GeomIsSpace(currentspace))
                     {
-                        waitForSpaceUnlock(currentspace);
+//                        waitForSpaceUnlock(currentspace);
                         d.SpaceRemove(currentspace, geom);
                     }
                     else
@@ -2321,7 +2321,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                     {
                         if (d.GeomIsSpace(currentspace))
                         {
-                            waitForSpaceUnlock(sGeomIsIn);
+//                            waitForSpaceUnlock(sGeomIsIn);
                             d.SpaceRemove(sGeomIsIn, geom);
                         }
                         else
@@ -2339,8 +2339,8 @@ namespace OpenSim.Region.Physics.OdePlugin
                     {
                         if (d.GeomIsSpace(currentspace))
                         {
-                            waitForSpaceUnlock(currentspace);
-                            waitForSpaceUnlock(space);
+//                            waitForSpaceUnlock(currentspace);
+//                            waitForSpaceUnlock(space);
                             d.SpaceRemove(space, currentspace);
                             // free up memory used by the space.
 
@@ -2364,7 +2364,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                     {
                         if (d.GeomIsSpace(currentspace))
                         {
-                            waitForSpaceUnlock(currentspace);
+//                            waitForSpaceUnlock(currentspace);
                             d.SpaceRemove(currentspace, geom);
                         }
                         else
@@ -2380,7 +2380,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                         {
                             if (d.GeomIsSpace(sGeomIsIn))
                             {
-                                waitForSpaceUnlock(sGeomIsIn);
+//                                waitForSpaceUnlock(sGeomIsIn);
                                 d.SpaceRemove(sGeomIsIn, geom);
                             }
                             else
@@ -2419,9 +2419,10 @@ namespace OpenSim.Region.Physics.OdePlugin
             // creating a new space for prim and inserting it into main space.
             staticPrimspace[iprimspaceArrItemX, iprimspaceArrItemY] = d.HashSpaceCreate(IntPtr.Zero);
             d.GeomSetCategoryBits(staticPrimspace[iprimspaceArrItemX, iprimspaceArrItemY], (int)CollisionCategories.Space);
-            waitForSpaceUnlock(space);
+//            waitForSpaceUnlock(space);
             d.SpaceSetSublevel(space, 1);
             d.SpaceAdd(space, staticPrimspace[iprimspaceArrItemX, iprimspaceArrItemY]);
+            
             return staticPrimspace[iprimspaceArrItemX, iprimspaceArrItemY];
         }
 

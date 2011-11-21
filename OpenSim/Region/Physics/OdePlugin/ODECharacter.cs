@@ -70,7 +70,6 @@ namespace OpenSim.Region.Physics.OdePlugin
 
         private Vector3 _position;
         private d.Vector3 _zeroPosition;
-        // private d.Matrix3 m_StandUpRotation;
         private bool _zeroFlag = false;
         private bool m_lastUpdateSent = false;
         private Vector3 _velocity;
@@ -100,7 +99,14 @@ namespace OpenSim.Region.Physics.OdePlugin
         private bool m_hackSentFall = false;
         private bool m_hackSentFly = false;
         private int m_requestedUpdateFrequency = 0;
-        private Vector3 m_taintPosition = Vector3.Zero;
+        private Vector3 m_taintPosition;
+
+        /// <summary>
+        /// Hold set forces so we can process them outside physics calculations.  This prevents race conditions if we set force
+        /// while calculatios are going on
+        /// </summary>
+        private Vector3 m_taintForce;
+
         internal uint m_localID = 0;
         // taints and their non-tainted counterparts
         private bool m_isPhysical = false; // the current physical status
@@ -553,8 +559,6 @@ namespace OpenSim.Region.Physics.OdePlugin
         // place that is safe to call this routine AvatarGeomAndBodyCreation.
         private void AvatarGeomAndBodyCreation(float npositionX, float npositionY, float npositionZ, float tensor)
         {
-            //CAPSULE_LENGTH = -5;
-            //CAPSULE_RADIUS = -5;
             int dAMotorEuler = 1;
 //            _parent_scene.waitForSpaceUnlock(_parent_scene.space);
             if (CAPSULE_LENGTH <= 0)
@@ -827,7 +831,9 @@ namespace OpenSim.Region.Physics.OdePlugin
                 {
                     m_pidControllerActive = false;
                     force *= 100f;
-                    doForce(force);
+                    m_taintForce += force;
+                    _parent_scene.AddPhysicsActorTaint(this);
+
                     // If uncommented, things get pushed off world
                     //
                     // m_log.Debug("Push!");
@@ -850,15 +856,6 @@ namespace OpenSim.Region.Physics.OdePlugin
 
         public override void AddAngularForce(Vector3 force, bool pushforce)
         {
-        }
-
-        /// <summary>
-        /// After all of the forces add up with 'add force' we apply them with doForce
-        /// </summary>
-        /// <param name="force"></param>
-        public void doForce(Vector3 force)
-        {
-            d.BodyAddForce(Body, force.X, force.Y, force.Z);
         }
 
         public override void SetMomentum(Vector3 momentum)
@@ -1026,7 +1023,8 @@ namespace OpenSim.Region.Physics.OdePlugin
 
             if (vec.IsFinite())
             {
-                doForce(vec);
+                // Apply the total force acting on this avatar
+                d.BodyAddForce(Body, vec.X, vec.Y, vec.Z);
 
                 if (!_zeroFlag)
                     AlignAvatarTiltWithCurrentDirectionOfMovement(vec);
@@ -1245,6 +1243,19 @@ namespace OpenSim.Region.Physics.OdePlugin
                     d.BodySetPosition(Body, m_taintPosition.X, m_taintPosition.Y, m_taintPosition.Z);
                     _position = m_taintPosition;
                 }
+            }
+
+            if (m_taintForce != Vector3.Zero)
+            {
+                if (Body != IntPtr.Zero)
+                {
+                    // FIXME: This is not a good solution since it's subject to a race condition if a force is another
+                    // thread sets a new force while we're in this loop (since it could be obliterated by
+                    // m_taintForce = Vector3.Zero.  Need to lock ProcessTaints() when we set a new tainted force.
+                    d.BodyAddForce(Body, m_taintForce.X, m_taintForce.Y, m_taintForce.Z);
+                }
+
+                m_taintForce = Vector3.Zero;
             }
 
             if (m_taintTargetVelocity != _target_velocity)

@@ -2162,7 +2162,6 @@ namespace OpenSim.Region.Physics.OdePlugin
 
                     p.setPrimForRemoval();
                     AddPhysicsActorTaint(prim);
-                    //RemovePrimThreadLocked(p);
                 }
             }
         }
@@ -2609,15 +2608,17 @@ namespace OpenSim.Region.Physics.OdePlugin
 
         /// <summary>
         /// Called after our prim properties are set Scale, position etc.
+        /// </summary>
+        /// <remarks>
         /// We use this event queue like method to keep changes to the physical scene occuring in the threadlocked mutex
         /// This assures us that we have no race conditions
-        /// </summary>
-        /// <param name="prim"></param>
-        public override void AddPhysicsActorTaint(PhysicsActor prim)
+        /// </remarks>
+        /// <param name="actor"></param>
+        public override void AddPhysicsActorTaint(PhysicsActor actor)
         {
-            if (prim is OdePrim)
+            if (actor is OdePrim)
             {
-                OdePrim taintedprim = ((OdePrim) prim);
+                OdePrim taintedprim = ((OdePrim)actor);
                 lock (_taintedPrimLock)
                 {
                     if (!(_taintedPrimH.Contains(taintedprim))) 
@@ -2629,11 +2630,10 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
                         _taintedPrimL.Add(taintedprim);                    // List for ordered readout
                     }
                 }
-                return;
             }
-            else if (prim is OdeCharacter)
+            else if (actor is OdeCharacter)
             {
-                OdeCharacter taintedchar = ((OdeCharacter)prim);
+                OdeCharacter taintedchar = ((OdeCharacter)actor);
                 lock (_taintedActors)
                 {
                     if (!(_taintedActors.Contains(taintedchar)))
@@ -2720,28 +2720,17 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
                 {
                     try
                     {
-                        // Insert, remove Characters
-                        bool processedtaints = false;
-
                         lock (_taintedActors)
                         {
                             if (_taintedActors.Count > 0)
                             {
                                 foreach (OdeCharacter character in _taintedActors)
-                                {
                                     character.ProcessTaints();
 
-                                    processedtaints = true;
-                                    //character.m_collisionscore = 0;
-                                }
-
-                                if (processedtaints)
+                                if (_taintedActors.Count > 0)
                                     _taintedActors.Clear();
                             }
                         }
-
-                        // Modify other objects in the scene.
-                        processedtaints = false;
 
                         lock (_taintedPrimLock)
                         {
@@ -2758,7 +2747,6 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
                                     prim.ProcessTaints();
                                 }
 
-                                processedtaints = true;
                                 prim.m_collisionscore = 0;
 
                                 // This loop can block up the Heartbeat for a very long time on large regions.
@@ -2771,7 +2759,7 @@ Console.WriteLine("AddPhysicsActorTaint to " + taintedprim.Name);
                             if (SupportsNINJAJoints)
                                 SimulatePendingNINJAJoints();
 
-                            if (processedtaints)
+                            if (_taintedPrimL.Count > 0)
                             {
 //Console.WriteLine("Simulate calls Clear of _taintedPrim list");
                                 _taintedPrimH.Clear();

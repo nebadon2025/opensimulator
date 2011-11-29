@@ -865,6 +865,8 @@ namespace OpenSim
                         if (int.TryParse(args[2], out newDebug))
                         {
                             m_sceneManager.SetDebugPacketLevelOnCurrentScene(newDebug, name);
+                            // We provide user information elsewhere if any clients had their debug level set.
+//                            MainConsole.Instance.OutputFormat("Debug packet level set to {0}", newDebug);
                         }
                         else
                         {
@@ -881,6 +883,7 @@ namespace OpenSim
                         if (int.TryParse(args[2], out newDebug))
                         {
                             MainServer.Instance.DebugLevel = newDebug;
+                            MainConsole.Instance.OutputFormat("Debug http level set to {0}", newDebug);
                             break;
                         }
                     }
@@ -916,7 +919,7 @@ namespace OpenSim
                     break;
 
                 default:
-                    MainConsole.Instance.Output("Unknown debug");
+                    MainConsole.Instance.Output("Unknown debug command");
                     break;
             }
         }

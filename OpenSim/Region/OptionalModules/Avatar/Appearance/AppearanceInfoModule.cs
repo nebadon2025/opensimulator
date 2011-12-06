@@ -186,7 +186,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.Appearance
                         ScenePresence sp = scene.GetScenePresence(optionalTargetFirstName, optionalTargetLastName);
                         if (sp != null && !sp.IsChildAgent)
                         {
-                            bool bakedTextureValid = scene.AvatarFactory.ValidateBakedTextureCache(sp);
+                            bool bakedTextureValid = scene.AvatarFactory.ValidateBakedTextureCache(sp.ControllingClient);
                             MainConsole.Instance.OutputFormat(
                                 "{0} baked appearance texture is {1}", sp.Name, bakedTextureValid ? "OK" : "corrupt");
                         }
@@ -196,7 +196,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.Appearance
                         scene.ForEachRootScenePresence(
                             sp =>
                             {
-                                bool bakedTextureValid = scene.AvatarFactory.ValidateBakedTextureCache(sp);
+                                bool bakedTextureValid = scene.AvatarFactory.ValidateBakedTextureCache(sp.ControllingClient);
                                 MainConsole.Instance.OutputFormat(
                                     "{0} baked appearance texture is {1}", sp.Name, bakedTextureValid ? "OK" : "corrupt");
                             }

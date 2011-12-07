@@ -4208,7 +4208,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="action"></param>
         public void ForEachRootScenePresence(Action<ScenePresence> action)
         {
-            if(m_sceneGraph != null)
+            if (m_sceneGraph != null)
             {
                 m_sceneGraph.ForEachRootScenePresence(action);
             }
@@ -4307,9 +4307,9 @@ namespace OpenSim.Region.Framework.Scenes
             return m_sceneGraph.GetGroupByPrim(localID);
         }
 
-        public override bool TryGetScenePresence(UUID avatarId, out ScenePresence avatar)
+        public override bool TryGetScenePresence(UUID agentID, out ScenePresence sp)
         {
-            return m_sceneGraph.TryGetScenePresence(avatarId, out avatar);
+            return m_sceneGraph.TryGetScenePresence(agentID, out sp);
         }
 
         public bool TryGetAvatarByName(string avatarName, out ScenePresence avatar)

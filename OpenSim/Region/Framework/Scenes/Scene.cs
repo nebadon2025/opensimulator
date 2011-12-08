@@ -2472,13 +2472,13 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         /// <param name="client"></param>
         /// <param name="type">The type of agent to add.</param>
-        public override void AddNewClient(IClientAPI client, PresenceType type)
+        public override ISceneAgent AddNewClient(IClientAPI client, PresenceType type)
         {
             AgentCircuitData aCircuit = m_authenticateHandler.GetAgentCircuitData(client.CircuitCode);
             bool vialogin = false;
 
             if (aCircuit == null) // no good, didn't pass NewUserConnection successfully
-                return;
+                return null;
 
             vialogin = (aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaHGLogin) != 0 || 
                        (aCircuit.teleportFlags & (uint)Constants.TeleportFlags.ViaLogin) != 0;
@@ -2532,6 +2532,8 @@ namespace OpenSim.Region.Framework.Scenes
             EventManager.TriggerOnNewClient(client);
             if (vialogin)
                 EventManager.TriggerOnClientLogin(client);
+
+            return sp;
         }
 
         /// <summary>

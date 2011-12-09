@@ -4193,20 +4193,6 @@ namespace OpenSim.Region.Framework.Scenes
             return m_sceneGraph.GetScenePresence(localID);
         }
 
-        public override bool PresenceChildStatus(UUID avatarID)
-        {
-            ScenePresence cp = GetScenePresence(avatarID);
-
-            // FIXME: This is really crap - some logout code is relying on a NullReferenceException to halt its processing
-            // This needs to be fixed properly by cleaning up the logout code.
-            //if (cp != null)
-            //    return cp.IsChildAgent;
-
-            //return false;
-
-            return cp.IsChildAgent;
-        }
-
         /// <summary>
         /// Performs action on all ROOT (not child) scene presences.
         /// This is just a shortcut function since frequently actions only appy to root SPs

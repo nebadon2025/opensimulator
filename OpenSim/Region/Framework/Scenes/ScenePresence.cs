@@ -839,8 +839,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             //m_log.DebugFormat("[SCENE]: known regions in {0}: {1}", Scene.RegionInfo.RegionName, KnownChildRegionHandles.Count);
 
-            bool wasChild = m_isChildAgent;
-            m_isChildAgent = false;
+            bool wasChild = IsChildAgent;
+            IsChildAgent = false;
 
             IGroupsModule gm = m_scene.RequestModuleInterface<IGroupsModule>();
             if (gm != null)
@@ -986,7 +986,7 @@ namespace OpenSim.Region.Framework.Scenes
             // depending on the exact timing.  This shouldn't matter anyway since child agent positions are not updated.
             //Velocity = new Vector3(0, 0, 0);
             
-            m_isChildAgent = true;
+            IsChildAgent = true;
             m_scene.SwapRootAgentCount(true);
             RemoveFromPhysicalScene();
 
@@ -1152,7 +1152,7 @@ namespace OpenSim.Region.Framework.Scenes
             ValidateAndSendAppearanceAndAgentData();
 
             // Create child agents in neighbouring regions
-            if (openChildAgents && !m_isChildAgent)
+            if (openChildAgents && !IsChildAgent)
             {
                 IEntityTransferModule m_agentTransfer = m_scene.RequestModuleInterface<IEntityTransferModule>();
                 if (m_agentTransfer != null)
@@ -2354,7 +2354,7 @@ namespace OpenSim.Region.Framework.Scenes
             if (!sendingPrims)
                 Util.FireAndForget(delegate { sendingPrims = true; SendPrimUpdates(); sendingPrims = false; });
 
-            if (m_isChildAgent == false)
+            if (IsChildAgent == false)
             {
 //                PhysicsActor actor = m_physicsActor;
 

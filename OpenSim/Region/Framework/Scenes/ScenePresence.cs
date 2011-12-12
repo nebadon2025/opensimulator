@@ -1163,13 +1163,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             //m_log.DebugFormat("[SCENE PRESENCE] Completed movement");
 
-<<<<<<< HEAD
-            m_controllingClient.MoveAgentIntoRegion(m_scene.RegionInfo, AbsolutePosition, look);
-            SendInitialData();
-=======
             ControllingClient.MoveAgentIntoRegion(m_scene.RegionInfo, AbsolutePosition, look);
             ValidateAndSendAppearanceAndAgentData();
->>>>>>> f61e548... On a new client circuit, send the initial reply ack to let the client know it's live before sending other data.
 
             // Create child agents in neighbouring regions
             if (openChildAgents && !m_isChildAgent)

@@ -1093,13 +1093,11 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Sets avatar height in the physics plugin
         /// </summary>
+        /// <param name="height">New height of avatar</param>
         public void SetHeight(float height)
         {
             if (PhysicsActor != null && !IsChildAgent)
-            {
-                Vector3 SetSize = new Vector3(0.45f, 0.6f, height);
-                PhysicsActor.Size = SetSize;
-            }
+                PhysicsActor.Size = new Vector3(0.45f, 0.6f, height);
         }
 
         /// <summary>
@@ -3311,14 +3309,11 @@ namespace OpenSim.Region.Framework.Scenes
             m_physicsActor = scene.AddAvatar(LocalId, Firstname + "." + Lastname, pVec,
                                                  new Vector3(0f, 0f, m_appearance.AvatarHeight), isFlying);
 
-            scene.AddPhysicsActorTaint(m_physicsActor);
-            //m_physicsActor.OnRequestTerseUpdate += SendTerseUpdateToAllClients;
-            m_physicsActor.OnCollisionUpdate += PhysicsCollisionUpdate;
-            m_physicsActor.OnOutOfBounds += OutOfBoundsCall; // Called for PhysicsActors when there's something wrong
-            m_physicsActor.SubscribeEvents(500);
-            m_physicsActor.LocalID = LocalId;
-
-            SetHeight(m_appearance.AvatarHeight);
+            //PhysicsActor.OnRequestTerseUpdate += SendTerseUpdateToAllClients;
+            PhysicsActor.OnCollisionUpdate += PhysicsCollisionUpdate;
+            PhysicsActor.OnOutOfBounds += OutOfBoundsCall; // Called for PhysicsActors when there's something wrong
+            PhysicsActor.SubscribeEvents(500);
+            PhysicsActor.LocalID = LocalId;
         }
 
         private void OutOfBoundsCall(Vector3 pos)

@@ -761,16 +761,15 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void RegisterToEvents()
         {
-            m_controllingClient.OnCompleteMovementToRegion += CompleteMovement;
-            //m_controllingClient.OnCompleteMovementToRegion += SendInitialData;
-            m_controllingClient.OnAgentUpdate += HandleAgentUpdate;
-            m_controllingClient.OnAgentRequestSit += HandleAgentRequestSit;
-            m_controllingClient.OnAgentSit += HandleAgentSit;
-            m_controllingClient.OnSetAlwaysRun += HandleSetAlwaysRun;
-            m_controllingClient.OnStartAnim += HandleStartAnim;
-            m_controllingClient.OnStopAnim += HandleStopAnim;
-            m_controllingClient.OnForceReleaseControls += HandleForceReleaseControls;
-            m_controllingClient.OnAutoPilotGo += MoveToTarget;
+            ControllingClient.OnCompleteMovementToRegion += CompleteMovement;
+            ControllingClient.OnAgentUpdate += HandleAgentUpdate;
+            ControllingClient.OnAgentRequestSit += HandleAgentRequestSit;
+            ControllingClient.OnAgentSit += HandleAgentSit;
+            ControllingClient.OnSetAlwaysRun += HandleSetAlwaysRun;
+            ControllingClient.OnStartAnim += HandleStartAnim;
+            ControllingClient.OnStopAnim += HandleStopAnim;
+            ControllingClient.OnForceReleaseControls += HandleForceReleaseControls;
+            ControllingClient.OnAutoPilotGo += MoveToTarget;
 
             // ControllingClient.OnChildAgentStatus += new StatusChange(this.ChildStatusChange);
             // ControllingClient.OnStopMovement += new GenericCall2(this.StopMovement);
@@ -806,11 +805,6 @@ namespace OpenSim.Region.Framework.Scenes
 
         #endregion
 
-        public uint GenerateClientFlags(UUID ObjectID)
-        {
-            return m_scene.Permissions.GenerateClientFlags(m_uuid, ObjectID);
-        }
-
         /// <summary>
         /// Send updates to the client about prims which have been placed on the update queue.  We don't
         /// necessarily send updates for all the parts on the queue, e.g. if an updates with a more recent
@@ -820,7 +814,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             m_sceneViewer.SendPrimUpdates();
         }
-
+        
         #region Status Methods
 
         /// <summary>

@@ -1388,6 +1388,13 @@ namespace OpenSim.Region.Framework.Scenes
 
         #endregion
 
+        /// <summary>
+        /// Send the parts of this SOG to a single client
+        /// </summary>
+        /// <remarks>
+        /// Used when the client initially connects and when client sends RequestPrim packet
+        /// </remarks>
+        /// <param name="remoteClient"></param>
         public void SendFullUpdateToClient(IClientAPI remoteClient)
         {
             RootPart.SendFullUpdate(remoteClient);
@@ -1691,10 +1698,11 @@ namespace OpenSim.Region.Framework.Scenes
 
         /// <summary>
         /// Reset the UUIDs for all the prims that make up this group.
-        ///
+        /// </summary>
+        /// <remarks>
         /// This is called by methods which want to add a new group to an existing scene, in order
         /// to ensure that there are no clashes with groups already present.
-        /// </summary>
+        /// </remarks>
         public void ResetIDs()
         {
             lock (m_parts.SyncRoot)

@@ -3386,7 +3386,13 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void SetGroup(UUID groupID, IClientAPI client)
         {
-            _groupID = groupID;
+            // Scene.AddNewPrims() calls with client == null so can't use this.
+//            m_log.DebugFormat(
+//                "[SCENE OBJECT PART]: Setting group for {0} to {1} for {2}",
+//                Name, groupID, OwnerID);
+
+            GroupID = groupID;
+            
             if (client != null)
                 SendPropertiesToClient(client);
             m_updateFlag = 2;

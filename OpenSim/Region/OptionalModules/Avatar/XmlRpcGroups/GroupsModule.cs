@@ -225,6 +225,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
             if (m_debugEnabled) m_log.DebugFormat("[GROUPS]: {0} called", System.Reflection.MethodBase.GetCurrentMethod().Name);
 
             client.OnUUIDGroupNameRequest += HandleUUIDGroupNameRequest;
+            client.OnObjectGroupRequest += HandleObjectGroupUpdate;
             client.OnAgentDataUpdateRequest += OnAgentDataUpdateRequest;
             client.OnDirFindQuery += OnDirFindQuery;
             client.OnRequestAvatarProperties += OnRequestAvatarProperties;
@@ -232,7 +233,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
             // Used for Notices and Group Invites/Accept/Reject
             client.OnInstantMessage += OnInstantMessage;
 
-            // Send client thier groups information.
+            // Send client their groups information.
             SendAgentGroupDataUpdate(client, client.AgentId);
         }
 
@@ -333,6 +334,30 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
             }
 
             remoteClient.SendGroupNameReply(GroupID, GroupName);
+        }
+
+        private void HandleObjectGroupUpdate(
+            IClientAPI remoteClient, UUID GroupID, uint objectLocalID, UUID Garbage)
+        {
+            GroupMembershipData gmd = GetMembershipData(GroupID, remoteClient.AgentId);
+
+            if (gmd == null)
+            {
+//                m_log.WarnFormat(
+//                    "[GROUPS]: User {0} is not a member of group {1} so they can't update {2} to this group",
+//                    remoteClient.Name, GroupID, objectLocalID);
+
+                return;
+            }
+
+            SceneObjectGroup so = ((Scene)remoteClient.Scene).GetGroupByPrim(objectLocalID);
+            if (so != null)
+            {
+                if (so.OwnerID == remoteClient.AgentId)
+                {
+                    so.SetGroup(GroupID, remoteClient);
+                }
+            }
         }
 
         private void OnInstantMessage(IClientAPI remoteClient, GridInstantMessage im)

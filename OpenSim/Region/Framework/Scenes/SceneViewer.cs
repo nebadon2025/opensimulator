@@ -145,8 +145,7 @@ namespace OpenSim.Region.Framework.Scenes
     //                                "[SCENE PRESENCE]: Fully   updating prim {0}, {1} - part timestamp {2}",
     //                                part.Name, part.UUID, part.TimeStampFull);
 
-                            part.SendFullUpdate(m_presence.ControllingClient,
-                                   m_presence.GenerateClientFlags(part.UUID));
+                            part.SendFullUpdate(m_presence.ControllingClient);
 
                             // We'll update to the part's timestamp rather than
                             // the current time to avoid the race condition
@@ -186,8 +185,7 @@ namespace OpenSim.Region.Framework.Scenes
                             continue;
                         }
 
-                        part.SendFullUpdate(m_presence.ControllingClient,
-                                m_presence.GenerateClientFlags(part.UUID));
+                        part.SendFullUpdate(m_presence.ControllingClient);
                     }
                 }
             }

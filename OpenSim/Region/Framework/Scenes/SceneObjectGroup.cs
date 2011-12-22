@@ -677,7 +677,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //m_log.DebugFormat("[SCENE]: Given local id {0} to part {1}, linknum {2}, parent {3} {4}", part.LocalId, part.UUID, part.LinkNum, part.ParentID, part.ParentUUID);
             }
 
-            ApplyPhysics(m_scene.m_physicalPrim);
+            ApplyPhysics();
 
             // Don't trigger the update here - otherwise some client issues occur when multiple updates are scheduled
             // for the same object with very different properties.  The caller must schedule the update.
@@ -1254,8 +1254,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Apply physics to this group
         /// </summary>
-        /// <param name="m_physicalPrim"></param>
-        public void ApplyPhysics(bool m_physicalPrim)
+        public void ApplyPhysics()
         {
             // Apply physics to the root prim
             m_rootPart.ApplyPhysics(m_rootPart.GetEffectiveObjectFlags(), m_rootPart.VolumeDetectActive);

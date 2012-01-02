@@ -2792,6 +2792,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                         m_global_contactcount = 0;
                         
                         d.WorldQuickStep(world, ODE_STEPSIZE);
+
                         d.JointGroupEmpty(contactgroup);
                     }
                     catch (Exception e)

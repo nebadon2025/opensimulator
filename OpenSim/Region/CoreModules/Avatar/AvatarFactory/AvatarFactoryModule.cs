@@ -115,22 +115,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
 
         #endregion
 
-        /// <summary>
-        /// Check for the existence of the baked texture assets.
-        /// </summary>
-        /// <param name="client"></param>
         public bool ValidateBakedTextureCache(IClientAPI client)
-        {
-            return ValidateBakedTextureCache(client, true);
-        }
-
-        /// <summary>
-        /// Check for the existence of the baked texture assets. Request a rebake
-        /// unless checkonly is true.
-        /// </summary>
-        /// <param name="client"></param>
-        /// <param name="checkonly"></param>
-        private bool ValidateBakedTextureCache(IClientAPI client, bool checkonly)
         {
             ScenePresence sp = m_scene.GetScenePresence(client.AgentId);
             if (sp == null)
@@ -164,23 +149,47 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                 
                 defonly = false; // found a non-default texture reference
 
-                if (!CheckBakedTextureAsset(client, face.TextureID, idx))
-                {
-                    // the asset didn't exist if we are only checking, then we found a bad
-                    // one and we're done otherwise, ask for a rebake
-                    if (checkonly)
-                        return false;
-
-                    m_log.InfoFormat("[AVFACTORY]: missing baked texture {0}, requesting rebake", face.TextureID);
-                    
-                    client.SendRebakeAvatarTextures(face.TextureID);
-                }
+                if (m_scene.AssetService.Get(face.TextureID.ToString()) == null)
+                    return false;
             }
 
             m_log.DebugFormat("[AVFACTORY]: Completed texture check for {0}", client.AgentId);
 
             // If we only found default textures, then the appearance is not cached
             return (defonly ? false : true);
+        }
+
+        public void RequestRebake(IScenePresence sp, bool missingTexturesOnly)
+        {
+            for (int i = 0; i < AvatarAppearance.BAKE_INDICES.Length; i++)
+            {
+                int idx = AvatarAppearance.BAKE_INDICES[i];
+                Primitive.TextureEntryFace face = sp.Appearance.Texture.FaceTextures[idx];
+
+                // if there is no texture entry, skip it
+                if (face == null)
+                    continue;
+
+//                m_log.DebugFormat(
+//                    "[AVFACTORY]: Looking for texture {0}, id {1} for {2} {3}",
+//                    face.TextureID, idx, client.Name, client.AgentId);
+
+                // if the texture is one of the "defaults" then skip it
+                // this should probably be more intelligent (skirt texture doesnt matter
+                // if the avatar isnt wearing a skirt) but if any of the main baked
+                // textures is default then the rest should be as well
+                if (face.TextureID == UUID.Zero || face.TextureID == AppearanceManager.DEFAULT_AVATAR_TEXTURE)
+                    continue;
+
+                if (missingTexturesOnly && m_scene.AssetService.Get(face.TextureID.ToString()) != null)
+                    continue;
+                else
+                    m_log.DebugFormat(
+                        "[AVFACTORY]: Missing baked texture {0} ({1}) for {2}, requesting rebake.",
+                        face.TextureID, idx, sp.Name);
+
+                sp.ControllingClient.SendRebakeAvatarTextures(face.TextureID);
+            }
         }
 
         /// <summary>
@@ -230,8 +239,8 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                 {
                     changed = sp.Appearance.SetTextureEntries(textureEntry) || changed;
 
-                    m_log.InfoFormat("[AVFACTORY]: received texture update for {0}", client.AgentId);
-                    ValidateBakedTextureCache(client, false);
+                    if (!ValidateBakedTextureCache(sp.ControllingClient))
+                        RequestRebake(sp, true);
 
                     // This appears to be set only in the final stage of the appearance
                     // update transaction. In theory, we should be able to do an immediate

@@ -443,10 +443,31 @@ namespace OpenSim
         {
             RegionInfo regionInfo = scene.RegionInfo;
 
+            string estateName = "", masterFirstName = "", masterLastName = "";
+
+            IniConfigSource source = new IniConfigSource(regionInfo.RegionFile);
+            if (source.Configs[regionInfo.RegionName] != null)
+            {
+                estateName = source.Configs[regionInfo.RegionName].GetString("EstateName", "My Estate");
+                masterFirstName = source.Configs[regionInfo.RegionName].GetString("MasterAvatarFirstName", "FirstName");
+                masterLastName = source.Configs[regionInfo.RegionName].GetString("MasterAvatarLastName", "LastName"); 
+            }
+
             MainConsole.Instance.OutputFormat("Estate {0} has no owner set.", regionInfo.EstateSettings.EstateName);
             List<char> excluded = new List<char>(new char[1]{' '});
-            string first = MainConsole.Instance.CmdPrompt("Estate owner first name", "Test", excluded);
-            string last = MainConsole.Instance.CmdPrompt("Estate owner last name", "User", excluded);
+
+            string first, last;
+
+            if ((masterFirstName != "") && (masterLastName != ""))
+            {
+                first = masterFirstName;
+                last = masterLastName;
+            }
+            else
+            {
+                first = MainConsole.Instance.CmdPrompt("Estate owner first name", "Test", excluded);
+                last = MainConsole.Instance.CmdPrompt("Estate owner last name", "User", excluded);
+            }
 
             UserAccount account = scene.UserAccountService.GetUserAccount(regionInfo.ScopeID, first, last);
 
@@ -885,11 +906,20 @@ namespace OpenSim
         /// <param name="regInfo"></param>
         /// <param name="existingName">A list of estate names that already exist.</param>
         /// <returns>true if the estate was created, false otherwise</returns>
-        public bool CreateEstate(RegionInfo regInfo, List<string> existingNames)
+        public bool CreateEstate(RegionInfo regInfo, List<string> existingNames, string estateName)
         {
             // Create a new estate
             regInfo.EstateSettings = EstateDataService.LoadEstateSettings(regInfo.RegionID, true);
-            string newName = MainConsole.Instance.CmdPrompt("New estate name", regInfo.EstateSettings.EstateName);
+
+            string newName;
+            if (estateName != "")
+            {
+                newName = estateName;
+            }
+            else
+            {
+                newName = MainConsole.Instance.CmdPrompt("New estate name", regInfo.EstateSettings.EstateName);
+            }
 
             if (existingNames.Contains(newName))
             {
@@ -925,15 +955,23 @@ namespace OpenSim
                 List<EstateSettings> estates = EstateDataService.LoadEstateSettingsAll();                
                 List<string> estateNames = new List<string>();
                 foreach (EstateSettings estate in estates)
-                    estateNames.Add(estate.EstateName);                
-                
+                    estateNames.Add(estate.EstateName);
+
+                string estateName = "";
+
+                IniConfigSource source = new IniConfigSource(regInfo.RegionFile);
+                if (source.Configs[regInfo.RegionName] != null)
+                {
+                    estateName = source.Configs[regInfo.RegionName].GetString("EstateName", "My Estate");
+                }
+                    
                 while (true)
                 {
                     if (estates.Count == 0)
                     {                        
                         m_log.Info("[ESTATE] No existing estates found.  You must create a new one.");
-                        
-                        if (CreateEstate(regInfo, estateNames))
+
+                        if (CreateEstate(regInfo, estateNames, estateName))
                             break;                        
                         else
                             continue;
@@ -949,7 +987,7 @@ namespace OpenSim
                         
                         if (response == "no")
                         {
-                            if (CreateEstate(regInfo, estateNames))                            
+                            if (CreateEstate(regInfo, estateNames, estateName))                            
                                 break;
                             else
                                 continue;

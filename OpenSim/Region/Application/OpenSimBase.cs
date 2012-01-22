@@ -443,14 +443,22 @@ namespace OpenSim
         {
             RegionInfo regionInfo = scene.RegionInfo;
 
-            string estateName = "", masterFirstName = "", masterLastName = "";
+            string estateFirstName = "", estateLastName = "", estateOwnerEMail = "", estateOwnerPassword = "", estateOwnerUUID = "";
 
-            IniConfigSource source = new IniConfigSource(regionInfo.RegionFile);
-            if (source.Configs[regionInfo.RegionName] != null)
+            if (m_config.Source.Configs["EstateDefaults"] != null)
             {
-                estateName = source.Configs[regionInfo.RegionName].GetString("EstateName", "My Estate");
-                masterFirstName = source.Configs[regionInfo.RegionName].GetString("MasterAvatarFirstName", "FirstName");
-                masterLastName = source.Configs[regionInfo.RegionName].GetString("MasterAvatarLastName", "LastName"); 
+                string estateOwner = m_config.Source.Configs["EstateDefaults"].GetString("EstateOwner", "").Trim();
+                string[] ownerNames = estateOwner.Split(' ');
+
+                if (ownerNames.Length == 2)
+                {
+                    estateFirstName = ownerNames[0];
+                    estateLastName = ownerNames[1];
+                }
+                // Info to be used only on Standalone Mode
+                estateOwnerUUID = m_config.Source.Configs["EstateDefaults"].GetString("estateOwnerUUID", "");
+                estateOwnerEMail = m_config.Source.Configs["EstateDefaults"].GetString("estateOwnerEMail", "");
+                estateOwnerPassword = m_config.Source.Configs["EstateDefaults"].GetString("estateOwnerPassword", "");
             }
 
             MainConsole.Instance.OutputFormat("Estate {0} has no owner set.", regionInfo.EstateSettings.EstateName);
@@ -458,10 +466,10 @@ namespace OpenSim
 
             string first, last;
 
-            if ((masterFirstName != "") && (masterLastName != ""))
+            if ((estateFirstName != "") && (estateLastName != ""))
             {
-                first = masterFirstName;
-                last = masterLastName;
+                first = estateFirstName;
+                last = estateLastName;
             }
             else
             {
@@ -488,10 +496,22 @@ namespace OpenSim
 
                 if (scene.UserAccountService is UserAccountService)
                 {
-                    string password = MainConsole.Instance.PasswdPrompt("Password");
-                    string email = MainConsole.Instance.CmdPrompt("Email", "");
+                    string password = "", email = "", rawPrincipalId = "";
 
-                    string rawPrincipalId = MainConsole.Instance.CmdPrompt("User ID", UUID.Random().ToString());
+                    if (estateOwnerPassword != "")
+                        password = estateOwnerPassword;
+                    else
+                        MainConsole.Instance.PasswdPrompt("Password");
+
+                    if (estateOwnerEMail != "")
+                        email = estateOwnerEMail;
+                    else
+                        email = MainConsole.Instance.CmdPrompt("Email", "");
+
+                    if (estateOwnerUUID != "")
+                        rawPrincipalId = estateOwnerUUID;
+                    else
+                        rawPrincipalId = MainConsole.Instance.CmdPrompt("User ID", UUID.Random().ToString());
         
                     UUID principalId = UUID.Zero;
                     if (!UUID.TryParse(rawPrincipalId, out principalId))
@@ -958,11 +978,12 @@ namespace OpenSim
                     estateNames.Add(estate.EstateName);
 
                 string estateName = "";
+                string estateOwner = "";
 
-                IniConfigSource source = new IniConfigSource(regInfo.RegionFile);
-                if (source.Configs[regInfo.RegionName] != null)
+                if (m_config.Source.Configs["EstateDefaults"] != null)
                 {
-                    estateName = source.Configs[regInfo.RegionName].GetString("EstateName", "My Estate");
+                    estateName = m_config.Source.Configs["EstateDefaults"].GetString("EstateName", "");
+                    estateOwner = m_config.Source.Configs["EstateDefaults"].GetString("EstateOwner", "");
                 }
                     
                 while (true)
@@ -972,9 +993,12 @@ namespace OpenSim
                         m_log.Info("[ESTATE] No existing estates found.  You must create a new one.");
 
                         if (CreateEstate(regInfo, estateNames, estateName))
-                            break;                        
+                            break;
                         else
+                        {
+                            estateName = "";
                             continue;
+                        }
                     }
                     else
                     {
@@ -987,10 +1011,13 @@ namespace OpenSim
                         
                         if (response == "no")
                         {
-                            if (CreateEstate(regInfo, estateNames, estateName))                            
+                            if (CreateEstate(regInfo, estateNames, estateName))
                                 break;
                             else
+                            {
+                                estateName = "";
                                 continue;
+                            }
                         }
                         else
                         {                           

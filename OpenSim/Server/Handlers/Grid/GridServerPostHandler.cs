@@ -85,6 +85,9 @@ namespace OpenSim.Server.Handlers.Grid
                     case "deregister":
                         return Deregister(request);
 
+                    case "get_empty_coordinates":
+                        return GetEmptyCoordinates(request);
+
                     case "get_neighbours":
                         return GetNeighbours(request);
 
@@ -192,6 +195,32 @@ namespace OpenSim.Server.Handlers.Grid
             else
                 return FailureResult();
 
+        }
+
+        byte[] GetEmptyCoordinates(Dictionary<string, object> request)
+        {
+            UUID scopeID = UUID.Zero;
+            if (request.ContainsKey("SCOPEID"))
+                UUID.TryParse(request["SCOPEID"].ToString(), out scopeID);
+            else
+                m_log.WarnFormat("[GRID HANDLER]: no scopeID in request to get empty coordinates");
+
+            Dictionary<string, object> result = new Dictionary<string, object>();
+
+            // TODO: Create the Method to get Empty Coordinates
+            List<GridRegion> rinfos = m_GridService.GetEmptyCoordinates(scopeID);
+
+            if ((rinfos == null) || ((rinfos != null) && (rinfos.Count == 0)))
+                result["coordinates"] = "null";
+            else
+            {
+                result["coordinates"] = rinfos[0].RegionCoordX.ToString() + "," + rinfos[0].RegionCoordY.ToString();
+            }
+
+            string xmlString = ServerUtils.BuildXmlResponse(result);
+            //m_log.DebugFormat("[GRID HANDLER]: resp string: {0}", xmlString);
+            UTF8Encoding encoding = new UTF8Encoding();
+            return encoding.GetBytes(xmlString);
         }
 
         byte[] GetNeighbours(Dictionary<string, object> request)

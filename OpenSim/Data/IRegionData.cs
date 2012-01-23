@@ -74,6 +74,8 @@ namespace OpenSim.Data
         RegionData Get(int x, int y, UUID ScopeID);
         List<RegionData> Get(int xStart, int yStart, int xEnd, int yEnd, UUID ScopeID);
 
+        List<RegionData> GetEmpty(UUID ScopeID);
+
         bool Store(RegionData data);
 
         bool SetDataItem(UUID principalID, string item, string value);

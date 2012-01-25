@@ -1282,17 +1282,17 @@ namespace OpenSim.Region.CoreModules.RegionSync.RegionSyncModule
             throw new System.NotImplementedException();
         }
 
-        public void SendTextBoxRequest(string message, int chatChannel, string objectname, string ownerFirstName, string ownerLastName, UUID objectId)
-        {
-            throw new System.NotImplementedException();
-        }
-
         public void SendEstateList(UUID invoice, int code, UUID[] Data, uint estateID)
         {
             throw new System.NotImplementedException();
         }
 
         public void StopFlying(ISceneEntity p)
+        {
+            throw new System.NotImplementedException();
+        }
+
+        public void SendTextBoxRequest(string message, int chatChannel, string objectname, UUID ownerID, string ownerFirstName, string ownerLastName, UUID objectId)
         {
             throw new System.NotImplementedException();
         }

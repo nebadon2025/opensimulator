@@ -1054,6 +1054,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                 CAPSULE_RADIUS = 0.01f;
             }
 
+//          lock (OdeScene.UniversalColliderSyncObject)
             Shell = d.CreateCapsule(_parent_scene.space, CAPSULE_RADIUS, CAPSULE_LENGTH);
 
             d.GeomSetCategoryBits(Shell, (int)m_collisionCategories);
@@ -1185,7 +1186,9 @@ namespace OpenSim.Region.Physics.OdePlugin
 
             if (Shell != IntPtr.Zero)
             {
+//              lock (OdeScene.UniversalColliderSyncObject)
                 d.GeomDestroy(Shell);
+
                 _parent_scene.geom_name_map.Remove(Shell);
                 _parent_scene.actor_name_map.Remove(Shell);
 

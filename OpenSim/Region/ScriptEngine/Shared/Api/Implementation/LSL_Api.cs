@@ -4039,9 +4039,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             Vector3 av3 = new Vector3(Util.Clip((float)color.x, 0.0f, 1.0f),
                                       Util.Clip((float)color.y, 0.0f, 1.0f),
                                       Util.Clip((float)color.z, 0.0f, 1.0f));
-            m_host.SetText(text, av3, Util.Clip((float)alpha, 0.0f, 1.0f));
-            m_host.ParentGroup.HasGroupChanged = true;
-            m_host.ParentGroup.ScheduleGroupForFullUpdate();
+            m_host.SetText(text.Length > 254 ? text.Remove(255) : text, av3, Util.Clip((float)alpha, 0.0f, 1.0f));
+            //m_host.ParentGroup.HasGroupChanged = true;
+            //m_host.ParentGroup.ScheduleGroupForFullUpdate();
         }
 
         public LSL_Float llWater(LSL_Vector offset)
@@ -5506,7 +5506,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             foreach (GridRegion sri in neighbors)
             {
-                if (sri.RegionLocX == neighborX && sri.RegionLocY == neighborY)
+                if (sri.RegionCoordX == neighborX && sri.RegionCoordY == neighborY)
                     return 0;
             }
 
@@ -6603,7 +6603,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
 
             // the rest of the permission checks are done in RezScript, so check the pin there as well
-            World.RezScript(srcId, m_host, destId, pin, running, start_param);
+            World.RezScriptFromPrim(srcId, m_host, destId, pin, running, start_param);
+
             // this will cause the delay even if the script pin or permissions were wrong - seems ok
             ScriptSleep(3000);
         }
@@ -7564,6 +7565,18 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             land.SetMusicUrl(url);
 
             ScriptSleep(2000);
+        }
+
+        public LSL_String llGetParcelMusicURL()
+        {
+            m_host.AddScriptLPS(1);
+
+            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
+
+            if (land.LandData.OwnerID != m_host.OwnerID)
+                return String.Empty;
+
+            return land.GetMusicUrl();
         }
 
         public LSL_Vector llGetRootPosition()
@@ -10631,6 +10644,75 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             list.Add(refcount); //The status code, either the # of contacts, RCERR_SIM_PERF_LOW, or RCERR_CAST_TIME_EXCEEDED
 
             return list;
+        }
+
+        public LSL_Integer llManageEstateAccess(int action, string avatar)
+        {
+            m_host.AddScriptLPS(1);
+            EstateSettings estate = World.RegionInfo.EstateSettings;
+            bool isAccount = false;
+            bool isGroup = false;
+
+            if (!estate.IsEstateOwner(m_host.OwnerID) || !estate.IsEstateManager(m_host.OwnerID))
+                return 0;
+
+            UUID id = new UUID();
+            if (!UUID.TryParse(avatar, out id))
+                return 0;
+
+            UserAccount account = World.UserAccountService.GetUserAccount(World.RegionInfo.ScopeID, id);
+            isAccount = account != null ? true : false;
+            if (!isAccount)
+            {
+                IGroupsModule groups = World.RequestModuleInterface<IGroupsModule>();
+                if (groups != null)
+                {
+                    GroupRecord group = groups.GetGroupRecord(id);
+                    isGroup = group != null ? true : false;
+                    if (!isGroup)
+                        return 0;
+                }
+                else
+                    return 0;
+            }
+
+            switch (action)
+            {
+                case ScriptBaseClass.ESTATE_ACCESS_ALLOWED_AGENT_ADD:
+                    if (!isAccount) return 0;
+                    if (estate.HasAccess(id)) return 1;
+                    if (estate.IsBanned(id))
+                        estate.RemoveBan(id);
+                    estate.AddEstateUser(id);
+                    break;
+                case ScriptBaseClass.ESTATE_ACCESS_ALLOWED_AGENT_REMOVE:
+                    if (!isAccount || !estate.HasAccess(id)) return 0;
+                    estate.RemoveEstateUser(id);
+                    break;
+                case ScriptBaseClass.ESTATE_ACCESS_ALLOWED_GROUP_ADD:
+                    if (!isGroup) return 0;
+                    if (estate.GroupAccess(id)) return 1;
+                    estate.AddEstateGroup(id);
+                    break;
+                case ScriptBaseClass.ESTATE_ACCESS_ALLOWED_GROUP_REMOVE:
+                    if (!isGroup || !estate.GroupAccess(id)) return 0;
+                    estate.RemoveEstateGroup(id);
+                    break;
+                case ScriptBaseClass.ESTATE_ACCESS_BANNED_AGENT_ADD:
+                    if (!isAccount) return 0;
+                    if (estate.IsBanned(id)) return 1;
+                    EstateBan ban = new EstateBan();
+                    ban.EstateID = estate.EstateID;
+                    ban.BannedUserID = id;
+                    estate.AddBan(ban);
+                    break;
+                case ScriptBaseClass.ESTATE_ACCESS_BANNED_AGENT_REMOVE:
+                    if (!isAccount || !estate.IsBanned(id)) return 0;
+                    estate.RemoveBan(id);
+                    break;
+                default: return 0;
+            }
+            return 1;
         }
 
         #region Not Implemented

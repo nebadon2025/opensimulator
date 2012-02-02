@@ -432,6 +432,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int REGION_FLAG_ALLOW_DIRECT_TELEPORT = 0x100000;          // region allows direct teleports
         public const int REGION_FLAG_RESTRICT_PUSHOBJECT = 0x400000;            // region restricts llPushObject
 
+        //llManageEstateAccess
+        public const int ESTATE_ACCESS_ALLOWED_AGENT_ADD = 0;
+        public const int ESTATE_ACCESS_ALLOWED_AGENT_REMOVE = 1;
+        public const int ESTATE_ACCESS_ALLOWED_GROUP_ADD = 2;
+        public const int ESTATE_ACCESS_ALLOWED_GROUP_REMOVE = 3;
+        public const int ESTATE_ACCESS_BANNED_AGENT_ADD = 4;
+        public const int ESTATE_ACCESS_BANNED_AGENT_REMOVE = 5;
+
         public static readonly LSLInteger PAY_HIDE = new LSLInteger(-1);
         public static readonly LSLInteger PAY_DEFAULT = new LSLInteger(-2);
 
@@ -608,6 +616,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
 
         public const int OS_NPC_CREATOR_OWNED = 0x1;
         public const int OS_NPC_NOT_OWNED = 0x2;
+        public const int OS_NPC_SENSE_AS_AGENT = 0x4;
 
         public const string URL_REQUEST_GRANTED = "URL_REQUEST_GRANTED";
         public const string URL_REQUEST_DENIED = "URL_REQUEST_DENIED";

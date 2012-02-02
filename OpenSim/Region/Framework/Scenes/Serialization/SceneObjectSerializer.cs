@@ -794,10 +794,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
         private static void ProcessTIOldItemID(TaskInventoryItem item, XmlTextReader reader)
         {
-            Util.ReadUUID(reader, "OldItemID");
-            // On deserialization, the old item id MUST BE UUID.Zero!!!!!
-            // Setting this to the saved value will BREAK script persistence!
-            // item.OldItemID = Util.ReadUUID(reader, "OldItemID");
+            item.OldItemID = Util.ReadUUID(reader, "OldItemID");
         }
 
         private static void ProcessTILastOwnerID(TaskInventoryItem item, XmlTextReader reader)
@@ -1192,8 +1189,13 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             writer.WriteElementString("ObjectSaleType", sop.ObjectSaleType.ToString());
             writer.WriteElementString("OwnershipCost", sop.OwnershipCost.ToString());
             WriteUUID(writer, "GroupID", sop.GroupID, options);
-            WriteUUID(writer, "OwnerID", sop.OwnerID, options);
-            WriteUUID(writer, "LastOwnerID", sop.LastOwnerID, options);
+
+            UUID ownerID = options.ContainsKey("wipe-owners") ? UUID.Zero : sop.OwnerID;
+            WriteUUID(writer, "OwnerID", ownerID, options);
+
+            UUID lastOwnerID = options.ContainsKey("wipe-owners") ? UUID.Zero : sop.LastOwnerID;
+            WriteUUID(writer, "LastOwnerID", lastOwnerID, options);
+
             writer.WriteElementString("BaseMask", sop.BaseMask.ToString());
             writer.WriteElementString("OwnerMask", sop.OwnerMask.ToString());
             writer.WriteElementString("GroupMask", sop.GroupMask.ToString());
@@ -1277,7 +1279,6 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                     writer.WriteElementString("BasePermissions", item.BasePermissions.ToString());
                     writer.WriteElementString("CreationDate", item.CreationDate.ToString());
 
-                    
                     WriteUUID(writer, "CreatorID", item.CreatorID, options);
 
                     if (item.CreatorData != null && item.CreatorData != string.Empty)
@@ -1298,10 +1299,16 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                     writer.WriteElementString("InvType", item.InvType.ToString());
                     WriteUUID(writer, "ItemID", item.ItemID, options);
                     WriteUUID(writer, "OldItemID", item.OldItemID, options);
-                    WriteUUID(writer, "LastOwnerID", item.LastOwnerID, options);
+
+                    UUID lastOwnerID = options.ContainsKey("wipe-owners") ? UUID.Zero : item.LastOwnerID;
+                    WriteUUID(writer, "LastOwnerID", lastOwnerID, options);
+
                     writer.WriteElementString("Name", item.Name);
                     writer.WriteElementString("NextPermissions", item.NextPermissions.ToString());
-                    WriteUUID(writer, "OwnerID", item.OwnerID, options);
+
+                    UUID ownerID = options.ContainsKey("wipe-owners") ? UUID.Zero : item.OwnerID;
+                    WriteUUID(writer, "OwnerID", ownerID, options);
+
                     writer.WriteElementString("CurrentPermissions", item.CurrentPermissions.ToString());
                     WriteUUID(writer, "ParentID", item.ParentID, options);
                     WriteUUID(writer, "ParentPartID", item.ParentPartID, options);

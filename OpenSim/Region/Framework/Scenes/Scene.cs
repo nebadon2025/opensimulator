@@ -600,23 +600,6 @@ namespace OpenSim.Region.Framework.Scenes
                                           "reload estate",
                                           "Reload the estate data", HandleReloadEstate);
 
-            MainConsole.Instance.Commands.AddCommand("region", false, "delete object owner",
-                                          "delete object owner <UUID>",
-                                          "Delete object by owner", HandleDeleteObject);
-            MainConsole.Instance.Commands.AddCommand("region", false, "delete object creator",
-                                          "delete object creator <UUID>",
-                                          "Delete object by creator", HandleDeleteObject);
-            MainConsole.Instance.Commands.AddCommand("region", false, "delete object uuid",
-                                          "delete object uuid <UUID>",
-                                          "Delete object by uuid", HandleDeleteObject);
-            MainConsole.Instance.Commands.AddCommand("region", false, "delete object name",
-                                          "delete object name <name>",
-                                          "Delete object by name", HandleDeleteObject);
-
-            MainConsole.Instance.Commands.AddCommand("region", false, "delete object outside",
-                                          "delete object outside",
-                                          "Delete all objects outside boundaries", HandleDeleteObject);
-
             //Bind Storage Manager functions to some land manager functions for this scene
             EventManager.OnLandObjectAdded +=
                 new EventManager.LandObjectAdded(simDataService.StoreLandObject);
@@ -1943,6 +1926,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// If true, the object is made persistent into the scene.
         /// If false, the object will not persist over server restarts
         /// </param>
+        /// <returns>true if the object was added.  false if not</returns>
         public bool AddNewSceneObject(SceneObjectGroup sceneObject, bool attachToBackup)
         {
             return AddNewSceneObject(sceneObject, attachToBackup, true);
@@ -1960,6 +1944,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// If true, updates for the new scene object are sent to all viewers in range.
         /// If false, it is left to the caller to schedule the update
         /// </param>
+        /// <returns>true if the object was added.  false if not</returns>
         public bool AddNewSceneObject(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates)
         {           
             if (m_sceneGraph.AddNewSceneObject(sceneObject, attachToBackup, sendClientUpdates))
@@ -3071,11 +3056,11 @@ namespace OpenSim.Region.Framework.Scenes
         public override void RemoveClient(UUID agentID, bool closeChildAgents)
         {
             CheckHeartbeat();
-            bool childagentYN = false;
+            bool isChildAgent = false;
             ScenePresence avatar = GetScenePresence(agentID);
             if (avatar != null)
             {
-                childagentYN = avatar.IsChildAgent;
+                isChildAgent = avatar.IsChildAgent;
 
                 if (avatar.ParentID != 0)
                 {
@@ -3086,9 +3071,9 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     m_log.DebugFormat(
                         "[SCENE]: Removing {0} agent {1} from region {2}",
-                        (childagentYN ? "child" : "root"), agentID, RegionInfo.RegionName);
+                        (isChildAgent ? "child" : "root"), agentID, RegionInfo.RegionName);
 
-                    m_sceneGraph.removeUserCount(!childagentYN);
+                    m_sceneGraph.removeUserCount(!isChildAgent);
 
                     // TODO: We shouldn't use closeChildAgents here - it's being used by the NPC module to stop
                     // unnecessary operations.  This should go away once NPCs have no accompanying IClientAPI
@@ -3118,8 +3103,18 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     m_eventManager.TriggerOnRemovePresence(agentID);
     
-                    if (AttachmentsModule != null && !avatar.IsChildAgent && avatar.PresenceType != PresenceType.Npc)
-                        AttachmentsModule.SaveChangedAttachments(avatar);
+                    if (AttachmentsModule != null && !isChildAgent && avatar.PresenceType != PresenceType.Npc)
+                    {
+                        IUserManagement uMan = RequestModuleInterface<IUserManagement>(); 
+                        // Don't save attachments for HG visitors, it
+                        // messes up their inventory. When a HG visitor logs
+                        // out on a foreign grid, their attachments will be
+                        // reloaded in the state they were in when they left
+                        // the home grid. This is best anyway as the visited
+                        // grid may use an incompatible script engine.
+                        if (uMan == null || uMan.IsLocalGridUser(avatar.UUID))
+                            AttachmentsModule.SaveChangedAttachments(avatar, false);
+                    }
     
                     ForEachClient(
                         delegate(IClientAPI client)
@@ -4858,93 +4853,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        private void HandleDeleteObject(string module, string[] cmd)
-        {
-            if (cmd.Length < 3)
-                return;
-
-            string mode = cmd[2];
-            string o = "";
-
-            if (mode != "outside")
-            {
-                if (cmd.Length < 4)
-                    return;
-
-                o = cmd[3];
-            }
-
-            List<SceneObjectGroup> deletes = new List<SceneObjectGroup>();
-
-            UUID match;
-
-            switch (mode)
-            {
-            case "owner":
-                if (!UUID.TryParse(o, out match))
-                    return;
-                ForEachSOG(delegate (SceneObjectGroup g)
-                        {
-                            if (g.OwnerID == match && !g.IsAttachment)
-                                deletes.Add(g);
-                        });
-                break;
-            case "creator":
-                if (!UUID.TryParse(o, out match))
-                    return;
-                ForEachSOG(delegate (SceneObjectGroup g)
-                        {
-                            if (g.RootPart.CreatorID == match && !g.IsAttachment)
-                                deletes.Add(g);
-                        });
-                break;
-            case "uuid":
-                if (!UUID.TryParse(o, out match))
-                    return;
-                ForEachSOG(delegate (SceneObjectGroup g)
-                        {
-                            if (g.UUID == match && !g.IsAttachment)
-                                deletes.Add(g);
-                        });
-                break;
-            case "name":
-                ForEachSOG(delegate (SceneObjectGroup g)
-                        {
-                            if (g.RootPart.Name == o && !g.IsAttachment)
-                                deletes.Add(g);
-                        });
-                break;
-            case "outside":
-                ForEachSOG(delegate (SceneObjectGroup g)
-                        {
-                            SceneObjectPart rootPart = g.RootPart;
-                            bool delete = false;
-
-                            if (rootPart.GroupPosition.Z < 0.0 || rootPart.GroupPosition.Z > 10000.0)
-                            {
-                                delete = true;
-                            }
-                            else
-                            {
-                                ILandObject parcel = LandChannel.GetLandObject(rootPart.GroupPosition.X, rootPart.GroupPosition.Y);
-
-                                if (parcel == null || parcel.LandData.Name == "NO LAND")
-                                    delete = true;
-                            }
-
-                            if (delete && !g.IsAttachment && !deletes.Contains(g))
-                                deletes.Add(g);
-                        });
-                break;
-            }
-
-            foreach (SceneObjectGroup g in deletes)
-            {
-                m_log.InfoFormat("[SCENE]: Deleting object {0}", g.UUID);
-                DeleteSceneObject(g, false);
-            }
-        }
-
         private void HandleReloadEstate(string module, string[] cmd)
         {
             if (MainConsole.Instance.ConsoleScene == null ||
@@ -5064,6 +4972,36 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     reason = "The region is full";
                     return false;
+                }
+            }
+
+            if (position == Vector3.Zero) // Teleport
+            {
+                if (!RegionInfo.EstateSettings.AllowDirectTeleport)
+                {
+                    SceneObjectGroup telehub;
+                    if (RegionInfo.RegionSettings.TelehubObject != UUID.Zero && (telehub = GetSceneObjectGroup(RegionInfo.RegionSettings.TelehubObject)) != null)
+                    {
+                        List<SpawnPoint> spawnPoints = RegionInfo.RegionSettings.SpawnPoints();
+                        bool banned = true;
+                        foreach (SpawnPoint sp in spawnPoints)
+                        {
+                            Vector3 spawnPoint = sp.GetLocation(telehub.AbsolutePosition, telehub.GroupRotation);
+                            ILandObject land = LandChannel.GetLandObject(spawnPoint.X, spawnPoint.Y);
+                            if (land == null)
+                                continue;
+                            if (land.IsEitherBannedOrRestricted(agentID))
+                                continue;
+                            banned = false;
+                            break;
+                        }
+
+                        if (banned)
+                        {
+                            reason = "No suitable landing point found";
+                            return false;
+                        }
+                    }
                 }
             }
 

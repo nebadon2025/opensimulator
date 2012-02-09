@@ -164,6 +164,11 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Grid
             return false;
         }
 
+        public List<GridRegion> GetEmptyCoordinates(UUID scopeID)
+        {
+            return m_RemoteGridService.GetEmptyCoordinates(scopeID);
+        }
+
         public List<GridRegion> GetNeighbours(UUID scopeID, UUID regionID)
         {
             return m_RemoteGridService.GetNeighbours(scopeID, regionID);

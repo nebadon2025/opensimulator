@@ -171,6 +171,15 @@ namespace OpenSim.Services.Connectors
             return false;
         }
 
+        public List<GridRegion> GetEmptyCoordinates(UUID scopeID)
+        {
+            List<GridRegion> rinfos = new List<GridRegion>();
+
+            // TODO : Search empty spots on Grid to register a new SIM
+
+            return rinfos;
+        }
+
         public List<GridRegion> GetNeighbours(UUID scopeID, UUID regionID)
         {
             Dictionary<string, object> sendData = new Dictionary<string, object>();

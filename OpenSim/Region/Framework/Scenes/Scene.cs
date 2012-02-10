@@ -707,6 +707,7 @@ namespace OpenSim.Region.Framework.Scenes
                     if (config.Configs[RegionInfo.RegionName].Contains("MaptileStaticUUID"))
                     {
                         tile = config.Configs[RegionInfo.RegionName].GetString("MaptileStaticUUID", UUID.Zero.ToString());
+                        m_log.Info("[SCENE]: MaptileStaticUUID " + tile);
                     }
 
                     if (UUID.TryParse(tile, out tileID))

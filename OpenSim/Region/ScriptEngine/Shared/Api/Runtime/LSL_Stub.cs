@@ -539,6 +539,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llGetLinkNumber();
         }
 
+        public LSL_Integer llGetLinkNumberOfSides(int link)
+        {
+            return m_LSL_Functions.llGetLinkNumberOfSides(link);
+        }
+
         public LSL_Integer llGetListEntryType(LSL_List src, int index)
         {
             return m_LSL_Functions.llGetListEntryType(src, index);
@@ -647,6 +652,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public LSL_Integer llGetParcelMaxPrims(LSL_Vector pos, int sim_wide)
         {
             return m_LSL_Functions.llGetParcelMaxPrims(pos, sim_wide);
+        }
+
+        public LSL_String llGetParcelMusicURL()
+        {
+            return m_LSL_Functions.llGetParcelMusicURL();
         }
 
         public LSL_Integer llGetParcelPrimCount(LSL_Vector pos, int category, int sim_wide)
@@ -1047,6 +1057,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public void llLoopSoundSlave(string sound, double volume)
         {
             m_LSL_Functions.llLoopSoundSlave(sound, volume);
+        }
+
+        public LSL_Integer llManageEstateAccess(int action, string avatar)
+        {
+            return m_LSL_Functions.llManageEstateAccess(action, avatar);
         }
 
         public void llMakeExplosion(int particles, double scale, double vel, double lifetime, double arc, string texture, LSL_Vector offset)

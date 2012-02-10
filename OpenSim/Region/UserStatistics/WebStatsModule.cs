@@ -301,7 +301,7 @@ namespace OpenSim.Region.UserStatistics
 
         public void OnRegisterCaps(UUID agentID, Caps caps)
         {
-            m_log.DebugFormat("[VC]: OnRegisterCaps: agentID {0} caps {1}", agentID, caps);
+            m_log.DebugFormat("[WEB STATS MODULE]: OnRegisterCaps: agentID {0} caps {1}", agentID, caps);
             string capsPath = "/CAPS/VS/" + UUID.Random();
             caps.RegisterHandler("ViewerStats",
                                  new RestStreamHandler("POST", capsPath,
@@ -442,7 +442,7 @@ namespace OpenSim.Region.UserStatistics
         public string ViewerStatsReport(string request, string path, string param,
                                       UUID agentID, Caps caps)
         {
-            //m_log.Debug(request);
+//            m_log.DebugFormat("[WEB STATS MODULE]: Received viewer starts report from {0}", agentID);
  
             UpdateUserStats(ParseViewerStats(request,agentID), dbConn);
 
@@ -462,7 +462,7 @@ namespace OpenSim.Region.UserStatistics
                 
                     if (!m_sessions.ContainsKey(agentID))
                     {
-                        m_log.Warn("[VS]: no session for stat disclosure");
+                        m_log.Warn("[WEB STATS MODULE]: no session for stat disclosure");
                         return new UserSessionID();
                     }
                     uid = m_sessions[agentID];
@@ -655,26 +655,25 @@ namespace OpenSim.Region.UserStatistics
                 updatecmd.Parameters.Add(new SqliteParameter(":session_key", uid.session_data.session_id.ToString()));
                 updatecmd.Parameters.Add(new SqliteParameter(":agent_key", uid.session_data.agent_id.ToString()));
                 updatecmd.Parameters.Add(new SqliteParameter(":region_key", uid.session_data.region_id.ToString()));
-                m_log.Debug("UPDATE");
+//                m_log.Debug("UPDATE");
 
                 int result = updatecmd.ExecuteNonQuery();
 
                 if (result == 0)
                 {
-                    m_log.Debug("INSERT");
+//                    m_log.Debug("INSERT");
                     updatecmd.CommandText = SQL_STATS_TABLE_INSERT;
                     try
                     {
                         updatecmd.ExecuteNonQuery();
                     }
-                    catch 
-                        (SqliteExecutionException)
+                    catch (SqliteExecutionException)
                     {
-                        m_log.Warn("[WEBSTATS]: failed to write stats to storage Execution Exception");
+                        m_log.Warn("[WEB STATS MODULE]: failed to write stats to storage Execution Exception");
                     }
                     catch (SqliteSyntaxException)
                     {
-                        m_log.Warn("[WEBSTATS]: failed to write stats to storage SQL Syntax Exception");
+                        m_log.Warn("[WEB STATS MODULE]: failed to write stats to storage SQL Syntax Exception");
                     }
 
                 }

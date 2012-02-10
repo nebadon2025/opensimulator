@@ -31,13 +31,16 @@ using System.Net;
 using OpenMetaverse;
 using OpenMetaverse.Packets;
 using OpenSim.Framework;
+using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.CoreModules.World.Estate;
 
 namespace OpenSim.Region.OptionalModules.World.NPC
 {
-    public class NPCAvatar : IClientAPI
+    public class NPCAvatar : IClientAPI, INPC
     {
+        public bool SenseAsAgent { get; set; }
+
         private readonly string m_firstname;
         private readonly string m_lastname;
         private readonly Vector3 m_startPos;
@@ -45,13 +48,15 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         private readonly Scene m_scene;
         private readonly UUID m_ownerID;
 
-        public NPCAvatar(string firstname, string lastname, Vector3 position, UUID ownerID, Scene scene)
+        public NPCAvatar(
+            string firstname, string lastname, Vector3 position, UUID ownerID, bool senseAsAgent, Scene scene)
         {
             m_firstname = firstname;
             m_lastname = lastname;
             m_startPos = position;
             m_scene = scene;
             m_ownerID = ownerID;
+            SenseAsAgent = senseAsAgent;
         }
 
         public IScene Scene
@@ -928,14 +933,14 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         public void SendTelehubInfo(UUID ObjectID, string ObjectName, Vector3 ObjectPos, Quaternion ObjectRot, List<Vector3> SpawnPoint)
         {
         }
-        public void SendDetailedEstateData(UUID invoice, string estateName, uint estateID, uint parentEstate, uint estateFlags, uint sunPosition, UUID covenant, string abuseEmail, UUID estateOwner)
+        public void SendDetailedEstateData(UUID invoice, string estateName, uint estateID, uint parentEstate, uint estateFlags, uint sunPosition, UUID covenant, uint covenantChanged, string abuseEmail, UUID estateOwner)
         {
         }
 
         public void SendLandProperties(int sequence_id, bool snap_selection, int request_result, ILandObject lo, float simObjectBonusFactor,int parcelObjectCapacity, int simObjectCapacity, uint regionFlags)
         {
         }
-        public void SendLandAccessListData(List<UUID> avatars, uint accessFlag, int localLandID)
+        public void SendLandAccessListData(List<LandAccessEntry> accessList, uint accessFlag, int localLandID)
         {
         }
         public void SendForceClientSelectObjects(List<uint> objectIDs)

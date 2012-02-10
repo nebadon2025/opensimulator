@@ -4439,7 +4439,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             EstateCovenantReplyPacket einfopack = new EstateCovenantReplyPacket();
             EstateCovenantReplyPacket.DataBlock edata = new EstateCovenantReplyPacket.DataBlock();
             edata.CovenantID = covenant;
-            edata.CovenantTimestamp = 0;
+            edata.CovenantTimestamp = (uint) m_scene.RegionInfo.RegionSettings.CovenantChangedDateTime;
             edata.EstateOwnerID = m_scene.RegionInfo.EstateSettings.EstateOwner;
             edata.EstateName = Utils.StringToBytes(m_scene.RegionInfo.EstateSettings.EstateName);
             einfopack.Data = edata;
@@ -4447,8 +4447,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         }
 
         public void SendDetailedEstateData(
-            UUID invoice, string estateName, uint estateID, uint parentEstate, uint estateFlags, uint sunPosition, 
-            UUID covenant, string abuseEmail, UUID estateOwner)
+            UUID invoice, string estateName, uint estateID, uint parentEstate, uint estateFlags, uint sunPosition,
+            UUID covenant, uint covenantChanged, string abuseEmail, UUID estateOwner)
         {
 //            m_log.DebugFormat(
 //                "[LLCLIENTVIEW]: Sending detailed estate data to {0} with covenant asset id {1}", Name, covenant);
@@ -4473,7 +4473,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             returnblock[4].Parameter = Utils.StringToBytes(sunPosition.ToString());
             returnblock[5].Parameter = Utils.StringToBytes(parentEstate.ToString());
             returnblock[6].Parameter = Utils.StringToBytes(covenant.ToString());
-            returnblock[7].Parameter = Utils.StringToBytes("1160895077"); // what is this?
+            returnblock[7].Parameter = Utils.StringToBytes(covenantChanged.ToString());
             returnblock[8].Parameter = Utils.StringToBytes("1"); // what is this?
             returnblock[9].Parameter = Utils.StringToBytes(abuseEmail);
 
@@ -4623,7 +4623,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             }
         }
 
-        public void SendLandAccessListData(List<UUID> avatars, uint accessFlag, int localLandID)
+        public void SendLandAccessListData(List<LandAccessEntry> accessList, uint accessFlag, int localLandID)
         {
             ParcelAccessListReplyPacket replyPacket = (ParcelAccessListReplyPacket)PacketPool.Instance.GetPacket(PacketType.ParcelAccessListReply);
             replyPacket.Data.AgentID = AgentId;
@@ -4632,12 +4632,12 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             replyPacket.Data.SequenceID = 0;
 
             List<ParcelAccessListReplyPacket.ListBlock> list = new List<ParcelAccessListReplyPacket.ListBlock>();
-            foreach (UUID avatar in avatars)
+            foreach (LandAccessEntry entry in accessList)
             {
                 ParcelAccessListReplyPacket.ListBlock block = new ParcelAccessListReplyPacket.ListBlock();
                 block.Flags = accessFlag;
-                block.ID = avatar;
-                block.Time = 0;
+                block.ID = entry.AgentID;
+                block.Time = entry.Expires;
                 list.Add(block);
             }
 
@@ -8577,13 +8577,13 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             }
             #endregion
 
-            List<ParcelManager.ParcelAccessEntry> entries = new List<ParcelManager.ParcelAccessEntry>();
+            List<LandAccessEntry> entries = new List<LandAccessEntry>();
             foreach (ParcelAccessListUpdatePacket.ListBlock block in updatePacket.List)
             {
-                ParcelManager.ParcelAccessEntry entry = new ParcelManager.ParcelAccessEntry();
+                LandAccessEntry entry = new LandAccessEntry();
                 entry.AgentID = block.ID;
                 entry.Flags = (AccessList)block.Flags;
-                entry.Time = Util.ToDateTime(block.Time);
+                entry.Expires = block.Time;
                 entries.Add(entry);
             }
 
@@ -9252,9 +9252,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                             {
                                 param1 = Convert.ToUInt32(Utils.BytesToString(messagePacket.ParamList[1].Parameter));
                             }
-                            catch (Exception ex)
+                            catch
                             {
-
                             }
                         }
 

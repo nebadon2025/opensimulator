@@ -264,6 +264,12 @@ namespace OpenSim.Region.Framework.Scenes
             set { RootPart.Name = value; }
         }
 
+        public string Description
+        {
+            get { return RootPart.Description; }
+            set { RootPart.Description = value; }
+        }
+
         /// <summary>
         /// Added because the Parcel code seems to use it
         /// but not sure a object should have this
@@ -441,6 +447,12 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        public UUID LastOwnerID
+        {
+            get { return m_rootPart.LastOwnerID; }
+            set { m_rootPart.LastOwnerID = value; }
+        }
+
         public UUID OwnerID
         {
             get { return m_rootPart.OwnerID; }
@@ -555,7 +567,8 @@ namespace OpenSim.Region.Framework.Scenes
 
 //        ~SceneObjectGroup()
 //        {
-//            m_log.DebugFormat("[SCENE OBJECT GROUP]: Destructor called for {0}, local id {1}", Name, LocalId);
+//            //m_log.DebugFormat("[SCENE OBJECT GROUP]: Destructor called for {0}, local id {1}", Name, LocalId);
+//            Console.WriteLine("Destructor called for {0}, local id {1}", Name, LocalId);
 //        }
 
         #region Constructors
@@ -1948,6 +1961,10 @@ namespace OpenSim.Region.Framework.Scenes
 //                "[SCENE OBJECT GROUP]: Linking group with root part {0}, {1} to group with root part {2}, {3}",
 //                objectGroup.RootPart.Name, objectGroup.RootPart.UUID, RootPart.Name, RootPart.UUID);
 
+            // Linking to ourselves is not a valid operation.
+            if (objectGroup == this)
+                return;
+
             SceneObjectPart linkPart = objectGroup.m_rootPart;
 
             Vector3 oldGroupPosition = linkPart.GroupPosition;
@@ -2411,9 +2428,9 @@ namespace OpenSim.Region.Framework.Scenes
                     for (int i = 0; i < parts.Length; i++)
                     {
                         SceneObjectPart part = parts[i];
-                        if (part.Scale.X > m_scene.RegionInfo.PhysPrimMax || 
-                            part.Scale.Y > m_scene.RegionInfo.PhysPrimMax || 
-                            part.Scale.Z > m_scene.RegionInfo.PhysPrimMax)
+                        if (part.Scale.X > m_scene.m_maxPhys ||
+                            part.Scale.Y > m_scene.m_maxPhys ||
+                            part.Scale.Z > m_scene.m_maxPhys )
                         {
                             UsePhysics = false; // Reset physics
                             break;

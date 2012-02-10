@@ -759,7 +759,7 @@ namespace OpenSim.Data.SQLite
                     landaccesslist.Rows.Remove(rowsToDelete[iter]);
                 }
                 rowsToDelete.Clear();
-                foreach (ParcelManager.ParcelAccessEntry entry in parcel.LandData.ParcelAccessList)
+                foreach (LandAccessEntry entry in parcel.LandData.ParcelAccessList)
                 {
                     DataRow newAccessRow = landaccesslist.NewRow();
                     fillLandAccessRow(newAccessRow, entry, parcel.LandData.GlobalID);
@@ -1185,6 +1185,7 @@ namespace OpenSim.Data.SQLite
             createCol(regionsettings, "fixed_sun", typeof (Int32));
             createCol(regionsettings, "sun_position", typeof (Double));
             createCol(regionsettings, "covenant", typeof(String));
+            createCol(regionsettings, "covenant_datetime", typeof(Int32));
             createCol(regionsettings, "map_tile_ID", typeof(String));
             regionsettings.PrimaryKey = new DataColumn[] { regionsettings.Columns["regionUUID"] };
             return regionsettings;
@@ -1456,7 +1457,7 @@ namespace OpenSim.Data.SQLite
                 newData.UserLocation = Vector3.Zero;
                 newData.UserLookAt = Vector3.Zero;
             }
-            newData.ParcelAccessList = new List<ParcelManager.ParcelAccessEntry>();
+            newData.ParcelAccessList = new List<LandAccessEntry>();
             UUID authBuyerID = UUID.Zero;
 
             UUID.TryParse((string)row["AuthbuyerID"], out authBuyerID);
@@ -1509,6 +1510,7 @@ namespace OpenSim.Data.SQLite
             newSettings.FixedSun = Convert.ToBoolean(row["fixed_sun"]);
             newSettings.SunPosition = Convert.ToDouble(row["sun_position"]);
             newSettings.Covenant = new UUID((String) row["covenant"]);
+            newSettings.CovenantChangedDateTime = Convert.ToInt32(row["covenant_datetime"]);
             newSettings.TerrainImageID = new UUID((String)row["map_tile_ID"]);
 
             return newSettings;
@@ -1519,12 +1521,12 @@ namespace OpenSim.Data.SQLite
         /// </summary>
         /// <param name="row"></param>
         /// <returns></returns>
-        private static ParcelManager.ParcelAccessEntry buildLandAccessData(DataRow row)
+        private static LandAccessEntry buildLandAccessData(DataRow row)
         {
-            ParcelManager.ParcelAccessEntry entry = new ParcelManager.ParcelAccessEntry();
+            LandAccessEntry entry = new LandAccessEntry();
             entry.AgentID = new UUID((string) row["AccessUUID"]);
             entry.Flags = (AccessList) row["Flags"];
-            entry.Time = new DateTime();
+            entry.Expires = 0;
             return entry;
         }
 
@@ -1787,7 +1789,7 @@ namespace OpenSim.Data.SQLite
         /// <param name="row"></param>
         /// <param name="entry"></param>
         /// <param name="parcelID"></param>
-        private static void fillLandAccessRow(DataRow row, ParcelManager.ParcelAccessEntry entry, UUID parcelID)
+        private static void fillLandAccessRow(DataRow row, LandAccessEntry entry, UUID parcelID)
         {
             row["LandUUID"] = parcelID.ToString();
             row["AccessUUID"] = entry.AgentID.ToString();
@@ -1833,6 +1835,7 @@ namespace OpenSim.Data.SQLite
             row["fixed_sun"] = settings.FixedSun;
             row["sun_position"] = settings.SunPosition;
             row["covenant"] = settings.Covenant.ToString();
+            row["covenant_datetime"] = settings.CovenantChangedDateTime;
             row["map_tile_ID"] = settings.TerrainImageID.ToString();
         }
 

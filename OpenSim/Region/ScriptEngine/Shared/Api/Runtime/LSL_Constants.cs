@@ -432,6 +432,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int REGION_FLAG_ALLOW_DIRECT_TELEPORT = 0x100000;          // region allows direct teleports
         public const int REGION_FLAG_RESTRICT_PUSHOBJECT = 0x400000;            // region restricts llPushObject
 
+        //llManageEstateAccess
+        public const int ESTATE_ACCESS_ALLOWED_AGENT_ADD = 0;
+        public const int ESTATE_ACCESS_ALLOWED_AGENT_REMOVE = 1;
+        public const int ESTATE_ACCESS_ALLOWED_GROUP_ADD = 2;
+        public const int ESTATE_ACCESS_ALLOWED_GROUP_REMOVE = 3;
+        public const int ESTATE_ACCESS_BANNED_AGENT_ADD = 4;
+        public const int ESTATE_ACCESS_BANNED_AGENT_REMOVE = 5;
+
         public static readonly LSLInteger PAY_HIDE = new LSLInteger(-1);
         public static readonly LSLInteger PAY_DEFAULT = new LSLInteger(-2);
 
@@ -608,24 +616,27 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
 
         public const int OS_NPC_CREATOR_OWNED = 0x1;
         public const int OS_NPC_NOT_OWNED = 0x2;
+        public const int OS_NPC_SENSE_AS_AGENT = 0x4;
 
         public const string URL_REQUEST_GRANTED = "URL_REQUEST_GRANTED";
         public const string URL_REQUEST_DENIED = "URL_REQUEST_DENIED";
 
-        public static readonly LSLInteger RC_REJECT_TYPES = 2;
-        public static readonly LSLInteger RC_DATA_FLAGS = 4;
-        public static readonly LSLInteger RC_MAX_HITS = 8;
-        public static readonly LSLInteger RC_DETECT_PHANTOM = 16;
+        public static readonly LSLInteger RC_REJECT_TYPES = 0;
+        public static readonly LSLInteger RC_DETECT_PHANTOM = 1;
+        public static readonly LSLInteger RC_DATA_FLAGS = 2;
+        public static readonly LSLInteger RC_MAX_HITS = 3;
 
-        public static readonly LSLInteger RC_REJECT_AGENTS = 2;
-        public static readonly LSLInteger RC_REJECT_PHYSICAL = 4;
-        public static readonly LSLInteger RC_REJECT_NONPHYSICAL = 8;
-        public static readonly LSLInteger RC_REJECT_LAND = 16;
+        public static readonly LSLInteger RC_REJECT_AGENTS = 1;
+        public static readonly LSLInteger RC_REJECT_PHYSICAL = 2;
+        public static readonly LSLInteger RC_REJECT_NONPHYSICAL = 4;
+        public static readonly LSLInteger RC_REJECT_LAND = 8;
 
-        public static readonly LSLInteger RC_GET_NORMAL = 2;
-        public static readonly LSLInteger RC_GET_ROOT_KEY = 4;
-        public static readonly LSLInteger RC_GET_LINK_NUM = 8;
+        public static readonly LSLInteger RC_GET_NORMAL = 1;
+        public static readonly LSLInteger RC_GET_ROOT_KEY = 2;
+        public static readonly LSLInteger RC_GET_LINK_NUM = 4;
 
-        public static readonly LSLInteger RCERR_CAST_TIME_EXCEEDED = 1;
+        public static readonly LSLInteger RCERR_UNKNOWN = -1;        
+        public static readonly LSLInteger RCERR_SIM_PERF_LOW = -2;
+        public static readonly LSLInteger RCERR_CAST_TIME_EXCEEDED = 3;
     }
 }

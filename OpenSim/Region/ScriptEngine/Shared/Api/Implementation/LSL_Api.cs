@@ -4039,9 +4039,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             Vector3 av3 = new Vector3(Util.Clip((float)color.x, 0.0f, 1.0f),
                                       Util.Clip((float)color.y, 0.0f, 1.0f),
                                       Util.Clip((float)color.z, 0.0f, 1.0f));
-            m_host.SetText(text, av3, Util.Clip((float)alpha, 0.0f, 1.0f));
-            m_host.ParentGroup.HasGroupChanged = true;
-            m_host.ParentGroup.ScheduleGroupForFullUpdate();
+            m_host.SetText(text.Length > 254 ? text.Remove(255) : text, av3, Util.Clip((float)alpha, 0.0f, 1.0f));
+            //m_host.ParentGroup.HasGroupChanged = true;
+            //m_host.ParentGroup.ScheduleGroupForFullUpdate();
         }
 
         public LSL_Float llWater(LSL_Vector offset)
@@ -5506,7 +5506,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             foreach (GridRegion sri in neighbors)
             {
-                if (sri.RegionLocX == neighborX && sri.RegionLocY == neighborY)
+                if (sri.RegionCoordX == neighborX && sri.RegionCoordY == neighborY)
                     return 0;
             }
 
@@ -5714,16 +5714,21 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public void llEjectFromLand(string pest)
         {
             m_host.AddScriptLPS(1);
-            UUID agentId = new UUID();
-            if (UUID.TryParse(pest, out agentId))
+            UUID agentID = new UUID();
+            if (UUID.TryParse(pest, out agentID))
             {
-                ScenePresence presence = World.GetScenePresence(agentId);
+                ScenePresence presence = World.GetScenePresence(agentID);
                 if (presence != null)
                 {
                     // agent must be over the owners land
-                    if (m_host.OwnerID == World.LandChannel.GetLandObject(
-                            presence.AbsolutePosition.X, presence.AbsolutePosition.Y).LandData.OwnerID)
-                        World.TeleportClientHome(agentId, presence.ControllingClient);
+                    ILandObject land = World.LandChannel.GetLandObject(presence.AbsolutePosition.X, presence.AbsolutePosition.Y);
+                    if (land == null)
+                        return;
+
+                    if (m_host.OwnerID == land.LandData.OwnerID)
+                    {
+                        World.TeleportClientHome(agentID, presence.ControllingClient);
+                    }
                 }
             }
             ScriptSleep(5000);
@@ -6408,24 +6413,37 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.AddScriptLPS(1);
             UUID key;
             ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
-            if (World.Permissions.CanEditParcelProperties(m_host.OwnerID, land, GroupPowers.LandManageAllowed))
+            if (World.Permissions.CanEditParcelProperties(m_host.OwnerID, land, GroupPowers.LandManageBanned))
             {
-                ParcelManager.ParcelAccessEntry entry = new ParcelManager.ParcelAccessEntry();
+                int expires = 0;
+                if (hours != 0)
+                    expires = Util.UnixTimeSinceEpoch() + (int)(3600.0 * hours);
+
                 if (UUID.TryParse(avatar, out key))
                 {
-                    if (land.LandData.ParcelAccessList.FindIndex(
-                            delegate(ParcelManager.ParcelAccessEntry e)
+                    int idx = land.LandData.ParcelAccessList.FindIndex(
+                            delegate(LandAccessEntry e)
                             {
                                 if (e.AgentID == key && e.Flags == AccessList.Access)
                                     return true;
                                 return false;
-                            }) == -1)
-                    {
-                        entry.AgentID = key;
-                        entry.Flags = AccessList.Access;
-                        entry.Time = DateTime.Now.AddHours(hours);
-                        land.LandData.ParcelAccessList.Add(entry);
-                    }
+                            });
+
+                    if (idx != -1 && (land.LandData.ParcelAccessList[idx].Expires == 0 || (expires != 0 && expires < land.LandData.ParcelAccessList[idx].Expires)))
+                        return;
+
+                    if (idx != -1)
+                        land.LandData.ParcelAccessList.RemoveAt(idx);
+
+                    LandAccessEntry entry = new LandAccessEntry();
+
+                    entry.AgentID = key;
+                    entry.Flags = AccessList.Access;
+                    entry.Expires = expires;
+
+                    land.LandData.ParcelAccessList.Add(entry);
+
+                    World.EventManager.TriggerLandObjectUpdated((uint)land.LandData.LocalID, land);
                 }
             }
             ScriptSleep(100);
@@ -6603,7 +6621,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
 
             // the rest of the permission checks are done in RezScript, so check the pin there as well
-            World.RezScript(srcId, m_host, destId, pin, running, start_param);
+            World.RezScriptFromPrim(srcId, m_host, destId, pin, running, start_param);
+
             // this will cause the delay even if the script pin or permissions were wrong - seems ok
             ScriptSleep(3000);
         }
@@ -7564,6 +7583,18 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             land.SetMusicUrl(url);
 
             ScriptSleep(2000);
+        }
+
+        public LSL_String llGetParcelMusicURL()
+        {
+            m_host.AddScriptLPS(1);
+
+            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
+
+            if (land.LandData.OwnerID != m_host.OwnerID)
+                return String.Empty;
+
+            return land.GetMusicUrl();
         }
 
         public LSL_Vector llGetRootPosition()
@@ -9666,22 +9697,35 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
             if (World.Permissions.CanEditParcelProperties(m_host.OwnerID, land, GroupPowers.LandManageBanned))
             {
-                ParcelManager.ParcelAccessEntry entry = new ParcelManager.ParcelAccessEntry();
+                int expires = 0;
+                if (hours != 0)
+                    expires = Util.UnixTimeSinceEpoch() + (int)(3600.0 * hours);
+
                 if (UUID.TryParse(avatar, out key))
                 {
-                    if (land.LandData.ParcelAccessList.FindIndex(
-                            delegate(ParcelManager.ParcelAccessEntry e)
+                    int idx = land.LandData.ParcelAccessList.FindIndex(
+                            delegate(LandAccessEntry e)
                             {
                                 if (e.AgentID == key && e.Flags == AccessList.Ban)
                                     return true;
                                 return false;
-                            }) == -1)
-                    {
-                        entry.AgentID = key;
-                        entry.Flags = AccessList.Ban;
-                        entry.Time = DateTime.Now.AddHours(hours);
-                        land.LandData.ParcelAccessList.Add(entry);
-                    }
+                            });
+
+                    if (idx != -1 && (land.LandData.ParcelAccessList[idx].Expires == 0 || (expires != 0 && expires < land.LandData.ParcelAccessList[idx].Expires)))
+                        return;
+
+                    if (idx != -1)
+                        land.LandData.ParcelAccessList.RemoveAt(idx);
+
+                    LandAccessEntry entry = new LandAccessEntry();
+
+                    entry.AgentID = key;
+                    entry.Flags = AccessList.Ban;
+                    entry.Expires = expires;
+
+                    land.LandData.ParcelAccessList.Add(entry);
+
+                    World.EventManager.TriggerLandObjectUpdated((uint)land.LandData.LocalID, land);
                 }
             }
             ScriptSleep(100);
@@ -9697,7 +9741,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 if (UUID.TryParse(avatar, out key))
                 {
                     int idx = land.LandData.ParcelAccessList.FindIndex(
-                            delegate(ParcelManager.ParcelAccessEntry e)
+                            delegate(LandAccessEntry e)
                             {
                                 if (e.AgentID == key && e.Flags == AccessList.Access)
                                     return true;
@@ -9705,7 +9749,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             });
 
                     if (idx != -1)
+                    {
                         land.LandData.ParcelAccessList.RemoveAt(idx);
+                        World.EventManager.TriggerLandObjectUpdated((uint)land.LandData.LocalID, land);
+                    }
                 }
             }
             ScriptSleep(100);
@@ -9721,7 +9768,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 if (UUID.TryParse(avatar, out key))
                 {
                     int idx = land.LandData.ParcelAccessList.FindIndex(
-                            delegate(ParcelManager.ParcelAccessEntry e)
+                            delegate(LandAccessEntry e)
                             {
                                 if (e.AgentID == key && e.Flags == AccessList.Ban)
                                     return true;
@@ -9729,7 +9776,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             });
 
                     if (idx != -1)
+                    {
                         land.LandData.ParcelAccessList.RemoveAt(idx);
+                        World.EventManager.TriggerLandObjectUpdated((uint)land.LandData.LocalID, land);
+                    }
                 }
             }
             ScriptSleep(100);
@@ -9984,7 +10034,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             LandData land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).LandData;
             if (land.OwnerID == m_host.OwnerID)
             {
-                foreach (ParcelManager.ParcelAccessEntry entry in land.ParcelAccessList)
+                foreach (LandAccessEntry entry in land.ParcelAccessList)
                 {
                     if (entry.Flags == AccessList.Ban)
                     {
@@ -10001,7 +10051,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             LandData land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).LandData;
             if (land.OwnerID == m_host.OwnerID)
             {
-                foreach (ParcelManager.ParcelAccessEntry entry in land.ParcelAccessList)
+                foreach (LandAccessEntry entry in land.ParcelAccessList)
                 {
                     if (entry.Flags == AccessList.Access)
                     {
@@ -10631,6 +10681,75 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             list.Add(refcount); //The status code, either the # of contacts, RCERR_SIM_PERF_LOW, or RCERR_CAST_TIME_EXCEEDED
 
             return list;
+        }
+
+        public LSL_Integer llManageEstateAccess(int action, string avatar)
+        {
+            m_host.AddScriptLPS(1);
+            EstateSettings estate = World.RegionInfo.EstateSettings;
+            bool isAccount = false;
+            bool isGroup = false;
+
+            if (!estate.IsEstateOwner(m_host.OwnerID) || !estate.IsEstateManager(m_host.OwnerID))
+                return 0;
+
+            UUID id = new UUID();
+            if (!UUID.TryParse(avatar, out id))
+                return 0;
+
+            UserAccount account = World.UserAccountService.GetUserAccount(World.RegionInfo.ScopeID, id);
+            isAccount = account != null ? true : false;
+            if (!isAccount)
+            {
+                IGroupsModule groups = World.RequestModuleInterface<IGroupsModule>();
+                if (groups != null)
+                {
+                    GroupRecord group = groups.GetGroupRecord(id);
+                    isGroup = group != null ? true : false;
+                    if (!isGroup)
+                        return 0;
+                }
+                else
+                    return 0;
+            }
+
+            switch (action)
+            {
+                case ScriptBaseClass.ESTATE_ACCESS_ALLOWED_AGENT_ADD:
+                    if (!isAccount) return 0;
+                    if (estate.HasAccess(id)) return 1;
+                    if (estate.IsBanned(id))
+                        estate.RemoveBan(id);
+                    estate.AddEstateUser(id);
+                    break;
+                case ScriptBaseClass.ESTATE_ACCESS_ALLOWED_AGENT_REMOVE:
+                    if (!isAccount || !estate.HasAccess(id)) return 0;
+                    estate.RemoveEstateUser(id);
+                    break;
+                case ScriptBaseClass.ESTATE_ACCESS_ALLOWED_GROUP_ADD:
+                    if (!isGroup) return 0;
+                    if (estate.GroupAccess(id)) return 1;
+                    estate.AddEstateGroup(id);
+                    break;
+                case ScriptBaseClass.ESTATE_ACCESS_ALLOWED_GROUP_REMOVE:
+                    if (!isGroup || !estate.GroupAccess(id)) return 0;
+                    estate.RemoveEstateGroup(id);
+                    break;
+                case ScriptBaseClass.ESTATE_ACCESS_BANNED_AGENT_ADD:
+                    if (!isAccount) return 0;
+                    if (estate.IsBanned(id)) return 1;
+                    EstateBan ban = new EstateBan();
+                    ban.EstateID = estate.EstateID;
+                    ban.BannedUserID = id;
+                    estate.AddBan(ban);
+                    break;
+                case ScriptBaseClass.ESTATE_ACCESS_BANNED_AGENT_REMOVE:
+                    if (!isAccount || !estate.IsBanned(id)) return 0;
+                    estate.RemoveBan(id);
+                    break;
+                default: return 0;
+            }
+            return 1;
         }
 
         #region Not Implemented

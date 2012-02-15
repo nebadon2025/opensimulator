@@ -704,16 +704,34 @@ namespace OpenSim.Region.Framework.Scenes
                     string tile = startupConfig.GetString("MaptileStaticUUID", UUID.Zero.ToString());
                     UUID tileID;
 
-                    if (config.Configs[RegionInfo.RegionName].Contains("MaptileStaticUUID"))
+                    m_log.Info(String.Format("[SCENE]: MaptileStaticUUID for {0} config -> {1}", RegionInfo.RegionName, RegionInfo.RegionFile));
+
+                    IniConfigSource sourceRegion = new IniConfigSource(RegionInfo.RegionFile);
+
+                    if (sourceRegion.Configs[RegionInfo.RegionName] != null)
                     {
-                        m_log.Info("[SCENE]: MaptileStaticUUID for " + RegionInfo.RegionName);
-                        tile = config.Configs[RegionInfo.RegionName].GetString("MaptileStaticUUID", UUID.Zero.ToString());
-                        m_log.Info("[SCENE]: MaptileStaticUUID " + tile);
+                        if (sourceRegion.Configs[RegionInfo.RegionName].Contains("MaptileStaticUUID"))
+                        {
+                            tile = sourceRegion.Configs[RegionInfo.RegionName].GetString("MaptileStaticUUID", UUID.Zero.ToString());
+                            m_log.Info("[SCENE]: MaptileStaticUUID " + tile);
+                        }
                     }
 
                     if (UUID.TryParse(tile, out tileID))
                     {
                         RegionInfo.RegionSettings.TerrainImageID = tileID;
+                    }
+
+                    if (tileID == UUID.Zero)
+                    {
+                        int maptileRefresh = startupConfig.GetInt("MaptileRefresh", 0);
+                        if (maptileRefresh != 0)
+                        {
+                            m_mapGenerationTimer.Interval = maptileRefresh * 1000;
+                            m_mapGenerationTimer.Elapsed += RegenerateMaptileAndReregister;
+                            m_mapGenerationTimer.AutoReset = true;
+                            m_mapGenerationTimer.Start();
+                        }
                     }
                 }
 
@@ -728,9 +746,9 @@ namespace OpenSim.Region.Framework.Scenes
                 m_update_terrain          = startupConfig.GetInt(   "UpdateTerrainEveryNFrames",         m_update_terrain);
                 m_update_temp_cleaning    = startupConfig.GetInt(   "UpdateTempCleaningEveryNFrames",    m_update_temp_cleaning);
             }
-            catch
+            catch(Exception e)
             {
-                m_log.Warn("[SCENE]: Failed to load StartupConfig");
+                m_log.Warn("[SCENE]: Failed to load StartupConfig : "+e.Message);
             }
 
             #endregion Region Config

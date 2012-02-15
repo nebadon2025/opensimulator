@@ -724,6 +724,8 @@ namespace OpenSim.Region.Framework.Scenes
 
                     if (tileID == UUID.Zero)
                     {
+                        m_generateMaptiles = true;
+
                         int maptileRefresh = startupConfig.GetInt("MaptileRefresh", 0);
                         if (maptileRefresh != 0)
                         {

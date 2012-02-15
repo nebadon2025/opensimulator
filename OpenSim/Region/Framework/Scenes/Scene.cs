@@ -704,11 +704,17 @@ namespace OpenSim.Region.Framework.Scenes
                     string tile = startupConfig.GetString("MaptileStaticUUID", UUID.Zero.ToString());
                     UUID tileID;
 
-                    if (config.Configs[RegionInfo.RegionName].Contains("MaptileStaticUUID"))
+                    m_log.Info(String.Format("[SCENE]: MaptileStaticUUID for {0} config -> {1}", RegionInfo.RegionName, RegionInfo.RegionFile));
+
+                    IniConfigSource sourceRegion = new IniConfigSource(RegionInfo.RegionFile);
+
+                    if (sourceRegion.Configs[RegionInfo.RegionName] != null)
                     {
-                        m_log.Info("[SCENE]: MaptileStaticUUID for " + RegionInfo.RegionName);
-                        tile = config.Configs[RegionInfo.RegionName].GetString("MaptileStaticUUID", UUID.Zero.ToString());
-                        m_log.Info("[SCENE]: MaptileStaticUUID " + tile);
+                        if (sourceRegion.Configs[RegionInfo.RegionName].Contains("MaptileStaticUUID"))
+                        {
+                            tile = sourceRegion.Configs[RegionInfo.RegionName].GetString("MaptileStaticUUID", UUID.Zero.ToString());
+                            m_log.Info("[SCENE]: MaptileStaticUUID " + tile);
+                        }
                     }
 
                     if (UUID.TryParse(tile, out tileID))

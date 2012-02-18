@@ -144,11 +144,16 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 m_id, succeeded, m_userInfo, m_invPath, m_saveStream, reportedException);
         }
 
-        protected void SaveInvItem(InventoryItemBase inventoryItem, string path, Dictionary<string, object> options, IUserAccountService userAccountService)
+        protected void SaveInvItem(
+            InventoryItemBase inventoryItem, string path, Dictionary<string, object> options,
+            IUserAccountService userAccountService, string folderPath)
         {
             if (options.ContainsKey("exclude"))
             {
-                if (((List<String>)options["exclude"]).Contains(inventoryItem.Name) ||
+                //Full details of current item is folder path plus item name.
+                folderPath = CreateFolderPath(folderPath, inventoryItem.Name);
+
+                if (((List<String>)options["exclude"]).Contains(folderPath) ||
                     ((List<String>)options["exclude"]).Contains(inventoryItem.ID.ToString()))
                 {
                     if (options.ContainsKey("verbose"))
@@ -189,13 +194,17 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
         /// <param name="saveThisFolderItself">If true, save this folder itself.  If false, only saves contents</param>
         /// <param name="options"></param>
         /// <param name="userAccountService"></param>
+        /// <param name="folderPath">Path to previous (parent) folder</param>
         protected void SaveInvFolder(
             InventoryFolderBase inventoryFolder, string path, bool saveThisFolderItself,
-            Dictionary<string, object> options, IUserAccountService userAccountService)
+            Dictionary<string, object> options, IUserAccountService userAccountService, string folderPath)
         {
+            //Current folder path is previous folder path plus current folder.
+            folderPath = CreateFolderPath(folderPath, inventoryFolder.Name);
+
             if (options.ContainsKey("excludefolders"))
             {
-                if (((List<String>)options["excludefolders"]).Contains(inventoryFolder.Name) ||
+                if (((List<String>)options["excludefolders"]).Contains(folderPath) ||
                     ((List<String>)options["excludefolders"]).Contains(inventoryFolder.ID.ToString()))
                 {
                     if (options.ContainsKey("verbose"))
@@ -224,12 +233,12 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
 
             foreach (InventoryFolderBase childFolder in contents.Folders)
             {
-                SaveInvFolder(childFolder, path, true, options, userAccountService);
+                SaveInvFolder(childFolder, path, true, options, userAccountService, folderPath);
             }
 
             foreach (InventoryItemBase item in contents.Items)
             {
-                SaveInvItem(item, path, options, userAccountService);
+                SaveInvItem(item, path, options, userAccountService, folderPath);
             }
         }
 
@@ -315,7 +324,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                         m_invPath == String.Empty ? InventoryFolderImpl.PATH_DELIMITER : m_invPath);
 
                     //recurse through all dirs getting dirs and files
-                    SaveInvFolder(inventoryFolder, ArchiveConstants.INVENTORY_PATH, !saveFolderContentsOnly, options, userAccountService);
+                    SaveInvFolder(inventoryFolder, ArchiveConstants.INVENTORY_PATH, !saveFolderContentsOnly, options, userAccountService, String.Empty);
                 }
                 else if (inventoryItem != null)
                 {
@@ -323,7 +332,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                         "[INVENTORY ARCHIVER]: Found item {0} {1} at {2}",
                         inventoryItem.Name, inventoryItem.ID, m_invPath);
 
-                    SaveInvItem(inventoryItem, ArchiveConstants.INVENTORY_PATH, options, userAccountService);
+                    SaveInvItem(inventoryItem, ArchiveConstants.INVENTORY_PATH, options, userAccountService, m_invPath);
                 }
 
                 // Don't put all this profile information into the archive right now.
@@ -434,6 +443,20 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 InventoryArchiveUtils.EscapeArchivePath(name),
                 ArchiveConstants.INVENTORY_NODE_NAME_COMPONENT_SEPARATOR,
                 id);
+        }
+
+        /// <summary>
+        /// Create the path to the inventory folder about to be processed
+        /// </summary>
+        /// <param name="folderPath"></param>
+        /// <param name="subFolder"></param>
+        /// <returns></returns>
+        public string CreateFolderPath(string folderPath, string subFolder)
+        {
+            if (folderPath != "")
+                folderPath += "/";
+
+            return folderPath + subFolder;
         }
 
         /// <summary>

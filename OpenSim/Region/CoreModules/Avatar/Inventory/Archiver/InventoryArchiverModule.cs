@@ -132,7 +132,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                     + "-e|--exclude=<name/uuid> don't save the inventory item in archive" + Environment.NewLine
                     + "-f|--excludefolder=<folder/uuid> don't save contents of the folder in archive" + Environment.NewLine
                     + "-v|--verbose extra debug messages." + Environment.NewLine
-                    + "--noassets stops assets being saved to the IAR."
+                    + "--noassets stops assets being saved to the IAR." + Environment.NewLine
                     + "<IAR path> is the filesystem path at which to save the IAR."
                     + string.Format("  If this is not given then the filename {0} in the current directory is used", DEFAULT_INV_BACKUP_FILENAME),
                     HandleSaveInvConsoleCommand);

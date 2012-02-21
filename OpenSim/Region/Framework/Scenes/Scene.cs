@@ -721,6 +721,10 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         RegionInfo.RegionSettings.TerrainImageID = tileID;
                     }
+                    else
+                    {
+                        tileID = UUID.Zero;
+                    }
 
                     if (tileID == UUID.Zero)
                     {

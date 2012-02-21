@@ -994,6 +994,9 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                                          neighbourRegion.RegionHandle);
                         return agent;
                     }
+                    // No turning back
+                    agent.IsChildAgent = true;
+
                     string capsPath = neighbourRegion.ServerURI + CapsUtil.GetCapsSeedPath(agentcaps);
     
                     m_log.DebugFormat("[ENTITY TRANSFER MODULE]: Sending new CAPS seed url {0} to client {1}", capsPath, agent.UUID);
@@ -1138,7 +1141,6 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
 
         /// <summary>
         /// This informs all neighbouring regions about agent "avatar".
-        /// Calls an asynchronous method to do so..  so it doesn't lag the sim.
         /// </summary>
         /// <param name="sp"></param>
         public void EnableChildAgents(ScenePresence sp)
@@ -1258,12 +1260,16 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
 
                 if (neighbour.RegionHandle != sp.Scene.RegionInfo.RegionHandle)
                 {
-                    InformClientOfNeighbourDelegate d = InformClientOfNeighbourAsync;
                     try
                     {
-                        d.BeginInvoke(sp, cagents[count], neighbour, neighbour.ExternalEndPoint, newAgent,
-                                      InformClientOfNeighbourCompleted,
-                                      d);
+                        // Let's put this back at sync, so that it doesn't clog 
+                        // the network, especially for regions in the same physical server.
+                        // We're really not in a hurry here.
+                        InformClientOfNeighbourAsync(sp, cagents[count], neighbour, neighbour.ExternalEndPoint, newAgent);
+                        //InformClientOfNeighbourDelegate d = InformClientOfNeighbourAsync;
+                        //d.BeginInvoke(sp, cagents[count], neighbour, neighbour.ExternalEndPoint, newAgent,
+                        //              InformClientOfNeighbourCompleted,
+                        //              d);
                     }
 
                     catch (ArgumentOutOfRangeException)

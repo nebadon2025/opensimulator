@@ -456,9 +456,9 @@ namespace OpenSim
                     estateLastName = ownerNames[1];
                 }
                 // Info to be used only on Standalone Mode
-                estateOwnerUUID = m_config.Source.Configs["EstateDefaults"].GetString("estateOwnerUUID", "");
-                estateOwnerEMail = m_config.Source.Configs["EstateDefaults"].GetString("estateOwnerEMail", "");
-                estateOwnerPassword = m_config.Source.Configs["EstateDefaults"].GetString("estateOwnerPassword", "");
+                estateOwnerUUID = m_config.Source.Configs["EstateDefaults"].GetString("EstateOwnerUUID", "");
+                estateOwnerEMail = m_config.Source.Configs["EstateDefaults"].GetString("EstateOwnerEMail", "");
+                estateOwnerPassword = m_config.Source.Configs["EstateDefaults"].GetString("EstateOwnerPassword", "");
             }
 
             MainConsole.Instance.OutputFormat("Estate {0} has no owner set.", regionInfo.EstateSettings.EstateName);

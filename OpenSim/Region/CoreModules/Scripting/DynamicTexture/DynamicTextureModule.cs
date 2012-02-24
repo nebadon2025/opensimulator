@@ -87,21 +87,26 @@ namespace OpenSim.Region.CoreModules.Scripting.DynamicTexture
             {
                 if (RegisteredScenes.ContainsKey(updater.SimUUID))
                 {
-                    Scene scene = RegisteredScenes[updater.SimUUID];
-                    updater.DataReceived(data, scene);
+                    updater.DataReceived(data, RegisteredScenes[updater.SimUUID]);
                 }
-            }
-
-            if (updater.UpdateTimer == 0)
-            {
-                lock (Updaters)
+                
+                if (updater.UpdateTimer == 0)
                 {
-                    if (!Updaters.ContainsKey(updater.UpdaterID))
+                    lock (Updaters)
                     {
-                        Updaters.Remove(updater.UpdaterID);
+                        if (!Updaters.ContainsKey(updater.UpdaterID))
+                        {
+                            UUID idRemove = updater.UpdaterID;
+
+                            Updaters[idRemove] = null;
+                            updater = null;
+
+                            Updaters.Remove(idRemove);
+                        }
                     }
                 }
             }
+
         }
 
         public UUID AddDynamicTextureURL(UUID simID, UUID primID, string contentType, string url,
@@ -124,18 +129,17 @@ namespace OpenSim.Region.CoreModules.Scripting.DynamicTexture
         {
             if (RenderPlugins.ContainsKey(contentType))
             {
-                DynamicTextureUpdater updater = new DynamicTextureUpdater();
-                updater.SimUUID = simID;
-                updater.PrimID = primID;
-                updater.ContentType = contentType;
-                updater.Url = url;
-                updater.UpdateTimer = updateTimer;
-                updater.UpdaterID = UUID.Random();
-                updater.Params = extraParams;
-                updater.BlendWithOldTexture = SetBlending;
-                updater.FrontAlpha = AlphaValue;
-                updater.Face = face;
-                updater.Disp = disp;
+                DynamicTextureUpdater updater = new DynamicTextureUpdater() { SimUUID = simID, 
+                                                                                PrimID = primID, 
+                                                                                ContentType = contentType, 
+                                                                                Url = url, 
+                                                                                UpdateTimer = updateTimer, 
+                                                                                UpdaterID = UUID.Random(), 
+                                                                                Params = extraParams, 
+                                                                                BlendWithOldTexture = SetBlending, 
+                                                                                FrontAlpha = AlphaValue, 
+                                                                                Face = face, 
+                                                                                Disp = disp };
 
                 lock (Updaters)
                 {
@@ -169,19 +173,18 @@ namespace OpenSim.Region.CoreModules.Scripting.DynamicTexture
         {
             if (RenderPlugins.ContainsKey(contentType))
             {
-                DynamicTextureUpdater updater = new DynamicTextureUpdater();
-                updater.SimUUID = simID;
-                updater.PrimID = primID;
-                updater.ContentType = contentType;
-                updater.BodyData = data;
-                updater.UpdateTimer = updateTimer;
-                updater.UpdaterID = UUID.Random();
-                updater.Params = extraParams;
-                updater.BlendWithOldTexture = SetBlending;
-                updater.FrontAlpha = AlphaValue;
-                updater.Face = face;
-                updater.Url = "Local image";
-                updater.Disp = disp;
+                DynamicTextureUpdater updater = new DynamicTextureUpdater() { SimUUID = simID, 
+                                                                                PrimID = primID, 
+                                                                                ContentType = contentType, 
+                                                                                BodyData = data, 
+                                                                                UpdateTimer = updateTimer, 
+                                                                                UpdaterID = UUID.Random(), 
+                                                                                Params = extraParams, 
+                                                                                BlendWithOldTexture = SetBlending, 
+                                                                                FrontAlpha = AlphaValue, 
+                                                                                Face = face, 
+                                                                                Url = "Local image", 
+                                                                                Disp = disp };
 
                 lock (Updaters)
                 {
@@ -306,14 +309,10 @@ namespace OpenSim.Region.CoreModules.Scripting.DynamicTexture
                 }
 
                 // Create a new asset for user
-                AssetBase asset
-                    = new AssetBase(
-                        UUID.Random(), "DynamicImage" + Util.RandomClass.Next(1, 10000), (sbyte)AssetType.Texture,
-                        scene.RegionInfo.RegionID.ToString());
-                asset.Data = assetData;
-                asset.Description = String.Format("URL image : {0}", Url);
-                asset.Local = false;
-                asset.Temporary = ((Disp & DISP_TEMP) != 0);
+                AssetBase asset = new AssetBase(UUID.Random(), "DynamicImage" + Util.RandomClass.Next(1, 10000), (sbyte)AssetType.Texture, scene.RegionInfo.RegionID.ToString()) { Data = assetData, 
+                                      Description = String.Format("URL image : {0}", Url), 
+                                      Local = false, 
+                                      Temporary = ((Disp & DISP_TEMP) != 0) };
                 scene.AssetService.Store(asset);
 
                 IJ2KDecoder cacheLayerDecode = scene.RequestModuleInterface<IJ2KDecoder>();
@@ -387,22 +386,19 @@ namespace OpenSim.Region.CoreModules.Scripting.DynamicTexture
                         if (setNewAlpha)
                             SetAlpha(ref image1, newAlpha);
 
-                        Bitmap joint = MergeBitMaps(image1, image2);
-
-                        byte[] result = new byte[0];
-
-                        try
+                        using (Bitmap joint = MergeBitMaps(image1, image2))
                         {
-                            result = OpenJPEG.EncodeFromImage(joint, true);
+                            byte[] result = new byte[0];
+                            try
+                            {
+                                result = OpenJPEG.EncodeFromImage(joint, true);
+                            }
+                            catch (Exception e)
+                            {
+                                m_log.ErrorFormat("[DYNAMICTEXTUREMODULE]: OpenJpeg Encode Failed.  Exception {0}{1}", e.Message, e.StackTrace);
+                            }
+                            return result;
                         }
-                        catch (Exception e)
-                        {
-                            m_log.ErrorFormat(
-                                "[DYNAMICTEXTUREMODULE]: OpenJpeg Encode Failed.  Exception {0}{1}",
-                                e.Message, e.StackTrace);
-                        }
-
-                        return result;
                     }
                 }
 
@@ -411,14 +407,12 @@ namespace OpenSim.Region.CoreModules.Scripting.DynamicTexture
 
             public Bitmap MergeBitMaps(Bitmap front, Bitmap back)
             {
-                Bitmap joint;
-                Graphics jG;
-
-                joint = new Bitmap(back.Width, back.Height, PixelFormat.Format32bppArgb);
-                jG = Graphics.FromImage(joint);
-
-                jG.DrawImage(back, 0, 0, back.Width, back.Height);
-                jG.DrawImage(front, 0, 0, back.Width, back.Height);
+                Bitmap joint = new Bitmap(back.Width, back.Height, PixelFormat.Format32bppArgb);
+                using (Graphics jG = Graphics.FromImage(joint))
+                {
+                    jG.DrawImage(back, 0, 0, back.Width, back.Height);
+                    jG.DrawImage(front, 0, 0, back.Width, back.Height);
+                }
 
                 return joint;
             }

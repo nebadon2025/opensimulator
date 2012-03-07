@@ -67,6 +67,9 @@ namespace OpenSim
         private const string PLUGIN_ASSET_CACHE = "/OpenSim/AssetCache";
         private const string PLUGIN_ASSET_SERVER_CLIENT = "/OpenSim/AssetClient";
 
+        // OpenSim.ini Section name for ESTATES Settings
+        public const string ESTATE_SECTION_NAME = "Estates";
+
         protected string proxyUrl;
         protected int proxyOffset = 0;
         
@@ -445,9 +448,9 @@ namespace OpenSim
 
             string estateFirstName = "", estateLastName = "", estateOwnerEMail = "", estateOwnerPassword = "", estateOwnerUUID = "";
 
-            if (m_config.Source.Configs["EstateDefaults"] != null)
+            if (m_config.Source.Configs[ESTATE_SECTION_NAME] != null)
             {
-                string estateOwner = m_config.Source.Configs["EstateDefaults"].GetString("EstateOwner", "").Trim();
+                string estateOwner = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("EstateOwner", "").Trim();
                 string[] ownerNames = estateOwner.Split(' ');
 
                 if (ownerNames.Length == 2)
@@ -456,9 +459,9 @@ namespace OpenSim
                     estateLastName = ownerNames[1];
                 }
                 // Info to be used only on Standalone Mode
-                estateOwnerUUID = m_config.Source.Configs["EstateDefaults"].GetString("EstateOwnerUUID", "");
-                estateOwnerEMail = m_config.Source.Configs["EstateDefaults"].GetString("EstateOwnerEMail", "");
-                estateOwnerPassword = m_config.Source.Configs["EstateDefaults"].GetString("EstateOwnerPassword", "");
+                estateOwnerUUID = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("EstateOwnerUUID", "");
+                estateOwnerEMail = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("EstateOwnerEMail", "");
+                estateOwnerPassword = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("EstateOwnerPassword", "");
             }
 
             MainConsole.Instance.OutputFormat("Estate {0} has no owner set.", regionInfo.EstateSettings.EstateName);
@@ -980,10 +983,10 @@ namespace OpenSim
                 string estateName = "";
                 string estateOwner = "";
 
-                if (m_config.Source.Configs["EstateDefaults"] != null)
+                if (m_config.Source.Configs[ESTATE_SECTION_NAME] != null)
                 {
-                    estateName = m_config.Source.Configs["EstateDefaults"].GetString("EstateName", "");
-                    estateOwner = m_config.Source.Configs["EstateDefaults"].GetString("EstateOwner", "");
+                    estateName = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("EstateName", "");
+                    estateOwner = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("EstateOwner", "");
                 }
                     
                 while (true)

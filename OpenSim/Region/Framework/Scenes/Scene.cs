@@ -628,10 +628,10 @@ namespace OpenSim.Region.Framework.Scenes
 
             #region Region Config
 
-            try
+            // Region config overrides global config
+            //
+            if (m_config.Configs["Startup"] != null)
             {
-                // Region config overrides global config
-                //
                 IConfig startupConfig = m_config.Configs["Startup"];
 
                 m_defaultDrawDistance = startupConfig.GetFloat("DefaultDrawDistance",m_defaultDrawDistance);
@@ -761,37 +761,34 @@ namespace OpenSim.Region.Framework.Scenes
 
             #region Interest Management
 
-            if (m_config != null)
+            IConfig interestConfig = m_config.Configs["InterestManagement"];
+            if (interestConfig != null)
             {
-                IConfig interestConfig = m_config.Configs["InterestManagement"];
-                if (interestConfig != null)
+                string update_prioritization_scheme = interestConfig.GetString("UpdatePrioritizationScheme", "Time").Trim().ToLower();
+
+                try
                 {
-                    string update_prioritization_scheme = interestConfig.GetString("UpdatePrioritizationScheme", "Time").Trim().ToLower();
-
-                    try
-                    {
-                        m_priorityScheme = (UpdatePrioritizationSchemes)Enum.Parse(typeof(UpdatePrioritizationSchemes), update_prioritization_scheme, true);
-                    }
-                    catch (Exception)
-                    {
-                        m_log.Warn("[PRIORITIZER]: UpdatePrioritizationScheme was not recognized, setting to default prioritizer Time");
-                        m_priorityScheme = UpdatePrioritizationSchemes.Time;
-                    }
-
-                    m_reprioritizationEnabled = interestConfig.GetBoolean("ReprioritizationEnabled", true);
-                    m_reprioritizationInterval = interestConfig.GetDouble("ReprioritizationInterval", 5000.0);
-                    m_rootReprioritizationDistance = interestConfig.GetDouble("RootReprioritizationDistance", 10.0);
-                    m_childReprioritizationDistance = interestConfig.GetDouble("ChildReprioritizationDistance", 20.0);
+                    m_priorityScheme = (UpdatePrioritizationSchemes)Enum.Parse(typeof(UpdatePrioritizationSchemes), update_prioritization_scheme, true);
                 }
+                catch (Exception)
+                {
+                    m_log.Warn("[PRIORITIZER]: UpdatePrioritizationScheme was not recognized, setting to default prioritizer Time");
+                    m_priorityScheme = UpdatePrioritizationSchemes.Time;
+                }
+
+                m_reprioritizationEnabled = interestConfig.GetBoolean("ReprioritizationEnabled", true);
+                m_reprioritizationInterval = interestConfig.GetDouble("ReprioritizationInterval", 5000.0);
+                m_rootReprioritizationDistance = interestConfig.GetDouble("RootReprioritizationDistance", 10.0);
+                m_childReprioritizationDistance = interestConfig.GetDouble("ChildReprioritizationDistance", 20.0);
             }
 
-            m_log.InfoFormat("[SCENE]: Using the {0} prioritization scheme", m_priorityScheme);
+            m_log.DebugFormat("[SCENE]: Using the {0} prioritization scheme", m_priorityScheme);
 
             #endregion Interest Management
 
             StatsReporter = new SimStatsReporter(this);
             StatsReporter.OnSendStatsResult += SendSimStatsPackets;
-            StatsReporter.OnStatsIncorrect += m_sceneGraph.RecalculateStats;            
+            StatsReporter.OnStatsIncorrect += m_sceneGraph.RecalculateStats;
         }
 
         /// <summary>
@@ -1106,6 +1103,8 @@ namespace OpenSim.Region.Framework.Scenes
         public override void Close()
         {
             m_log.InfoFormat("[SCENE]: Closing down the single simulator: {0}", RegionInfo.RegionName);
+
+            StatsReporter.Close();
 
             m_restartTimer.Stop();
             m_restartTimer.Close();
@@ -4187,16 +4186,11 @@ namespace OpenSim.Region.Framework.Scenes
         public bool PipeEventsForScript(uint localID)
         {
             SceneObjectPart part = GetSceneObjectPart(localID);
+
             if (part != null)
             {
-                // Changed so that child prims of attachments return ScriptDanger for their parent, so that
-                //  their scripts will actually run.
-                //      -- Leaf, Tue Aug 12 14:17:05 EDT 2008
                 SceneObjectPart parent = part.ParentGroup.RootPart;
-                if (part.ParentGroup.IsAttachment)
-                    return ScriptDanger(parent, parent.GetWorldPosition());
-                else
-                    return ScriptDanger(part, part.GetWorldPosition());
+                return ScriptDanger(parent, parent.GetWorldPosition());
             }
             else
             {

@@ -754,7 +754,19 @@
     ; XmlRpcServiceReadKey    = 1234
     ; XmlRpcServiceWriteKey   = 1234
 
-
+[Estates]
+	;#
+	;; This section inform to simulator the default values for the Estate creation. You don't need to enter estate info at console.
+	;; * Note this info don't change the pre-existing estate owner and names or the other data
+	
+	; DefaultEstateName=EstateName
+	; DefaultEstateOwnerName=FirstName LastName
+	
+	;; Info only used on Standalone Mode
+	; DefaultEstateOwnerUUID = 00000000-0000-0000-0000-000000000000
+	; DefaultEstateOwnerEMail = owner@domain.com
+	; DefaultEstateOwnerPassword = password
+	
 [InterestManagement]
      ;# {UpdatePrioritizationScheme} {} {Update prioritization scheme?} {BestAvatarResponsiveness Time Distance SimpleAngularDistance FrontBack} BestAvatarResponsiveness
      ;; This section controls how state updates are prioritized for each client

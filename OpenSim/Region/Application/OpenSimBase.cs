@@ -450,8 +450,8 @@ namespace OpenSim
 
             if (m_config.Source.Configs[ESTATE_SECTION_NAME] != null)
             {
-                string estateOwner = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("EstateOwner", "").Trim();
-                string[] ownerNames = estateOwner.Split(' ');
+                string defaultEstateOwnerName = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("DefaultEstateOwnerName", "").Trim();
+                string[] ownerNames = defaultEstateOwnerName.Split(' ');
 
                 if (ownerNames.Length == 2)
                 {
@@ -459,9 +459,9 @@ namespace OpenSim
                     estateLastName = ownerNames[1];
                 }
                 // Info to be used only on Standalone Mode
-                estateOwnerUUID = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("EstateOwnerUUID", "");
-                estateOwnerEMail = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("EstateOwnerEMail", "");
-                estateOwnerPassword = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("EstateOwnerPassword", "");
+                estateOwnerUUID = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("DefaultEstateOwnerUUID", "");
+                estateOwnerEMail = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("DefaultEstateOwnerEMail", "");
+                estateOwnerPassword = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("DefaultEstateOwnerPassword", "");
             }
 
             MainConsole.Instance.OutputFormat("Estate {0} has no owner set.", regionInfo.EstateSettings.EstateName);
@@ -935,7 +935,7 @@ namespace OpenSim
             regInfo.EstateSettings = EstateDataService.LoadEstateSettings(regInfo.RegionID, true);
 
             string newName;
-            if (estateName != "")
+            if (estateName != null && estateName != "")
             {
                 newName = estateName;
             }
@@ -985,8 +985,8 @@ namespace OpenSim
 
                 if (m_config.Source.Configs[ESTATE_SECTION_NAME] != null)
                 {
-                    estateName = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("EstateName", "");
-                    estateOwner = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("EstateOwner", "");
+                    estateName = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("DefaultEstateName", "");
+                    estateOwner = m_config.Source.Configs[ESTATE_SECTION_NAME].GetString("DefaultEstateOwnerName", "");
                 }
                     
                 while (true)

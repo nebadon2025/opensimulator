@@ -752,10 +752,6 @@ namespace OpenSim.Region.Framework.Scenes
                 m_update_terrain          = startupConfig.GetInt(   "UpdateTerrainEveryNFrames",         m_update_terrain);
                 m_update_temp_cleaning    = startupConfig.GetInt(   "UpdateTempCleaningEveryNFrames",    m_update_temp_cleaning);
             }
-            catch(Exception e)
-            {
-                m_log.Warn("[SCENE]: Failed to load StartupConfig : "+e.Message);
-            }
 
             #endregion Region Config
 

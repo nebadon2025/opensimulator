@@ -283,6 +283,10 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 remoteClient.SendAgentAlertMessage("Script saved", false);
             }
+
+            // Tell anyone managing scripts that a script has been reloaded/changed
+            EventManager.TriggerUpdateScript(remoteClient.AgentId, itemId, primId, isScriptRunning, item.AssetID);
+
             part.ParentGroup.ResumeScripts();
             return errors;
         }
@@ -629,7 +633,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 IInventoryAccessModule invAccess = RequestModuleInterface<IInventoryAccessModule>();
                 if (invAccess != null)
-                    invAccess.TransferInventoryAssets(itemCopy, senderId, recipient);
+                    Util.FireAndForget(delegate { invAccess.TransferInventoryAssets(itemCopy, senderId, recipient); });
             }
 
             if (!Permissions.BypassPermissions())
@@ -1151,8 +1155,7 @@ namespace OpenSim.Region.Framework.Scenes
                 return;
             }
 
-            TaskInventoryItem item = part.Inventory.GetInventoryItem(itemId);
-            if ((item.CurrentPermissions & (uint)PermissionMask.Copy) == 0)
+            if ((taskItem.CurrentPermissions & (uint)PermissionMask.Copy) == 0)
             {
                 // If the item to be moved is no copy, we need to be able to
                 // edit the prim.
@@ -1624,9 +1627,13 @@ namespace OpenSim.Region.Framework.Scenes
                     // have state in inventory
                     part.Inventory.CreateScriptInstance(copyID, 0, false, DefaultScriptEngine, 0);
 
+                    // tell anyone watching that there is a new script in town
+                    EventManager.TriggerNewScript(agentID, part, copyID);
+
                     //                        m_log.InfoFormat("[PRIMINVENTORY]: " +
                     //                                         "Rezzed script {0} into prim local ID {1} for user {2}",
                     //                                         item.inventoryName, localID, remoteClient.Name);
+
                     part.ParentGroup.ResumeScripts();
 
                     return part;
@@ -1707,6 +1714,10 @@ namespace OpenSim.Region.Framework.Scenes
 
             part.Inventory.AddInventoryItem(taskItem, false);
             part.Inventory.CreateScriptInstance(taskItem, 0, false, DefaultScriptEngine, 0);
+
+            // tell anyone managing scripts that a new script exists
+            EventManager.TriggerNewScript(agentID, part, taskItem.ItemID);
+
             part.ParentGroup.ResumeScripts();
 
             return part;
@@ -1926,7 +1937,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                         foreach (SceneObjectGroup g in deleteGroups)
                         {
-                            AddReturn(g.OwnerID, g.Name, g.AbsolutePosition, "parcel owner return");
+                            AddReturn(g.OwnerID == g.GroupID ? g.LastOwnerID : g.OwnerID, g.Name, g.AbsolutePosition, "parcel owner return");
                         }
                     }
                 }

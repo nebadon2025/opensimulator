@@ -215,27 +215,9 @@ namespace OpenSim.Region.Framework.Scenes
                 if (sp.IsChildAgent)
                     continue;
 
-                if (sp.ParentID != 0)
-                {
-                    // sitting avatar
-                    SceneObjectPart sop = m_parentScene.GetSceneObjectPart(sp.ParentID);
-                    if (sop != null)
-                    {
-                        coarseLocations.Add(sop.AbsolutePosition + sp.OffsetPosition);
-                        avatarUUIDs.Add(sp.UUID);
-                    }
-                    else
-                    {
-                        // we can't find the parent..  ! arg!
-                        coarseLocations.Add(sp.AbsolutePosition);
-                        avatarUUIDs.Add(sp.UUID);
-                    }
-                }
-                else
-                {
-                    coarseLocations.Add(sp.AbsolutePosition);
-                    avatarUUIDs.Add(sp.UUID);
-                }
+                coarseLocations.Add(sp.AbsolutePosition);
+
+                avatarUUIDs.Add(sp.UUID);
             }
         }
 
@@ -1592,7 +1574,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (group != null)
             {
-                if (m_parentScene.Permissions.CanEditObject(group.UUID,agentID))
+                if (m_parentScene.Permissions.CanEditObject(group.UUID, agentID))
                 {
                     group.UpdateExtraParam(primLocalID, type, inUse, data);
                 }
@@ -1609,7 +1591,7 @@ namespace OpenSim.Region.Framework.Scenes
             SceneObjectGroup group = GetGroupByPrim(primLocalID);
             if (group != null)
             {
-                if (m_parentScene.Permissions.CanEditObject(group.GetPartsFullID(primLocalID), agentID))
+                if (m_parentScene.Permissions.CanEditObject(group.UUID, agentID))
                 {
                     ObjectShapePacket.ObjectDataBlock shapeData = new ObjectShapePacket.ObjectDataBlock();
                     shapeData.ObjectLocalID = shapeBlock.ObjectLocalID;

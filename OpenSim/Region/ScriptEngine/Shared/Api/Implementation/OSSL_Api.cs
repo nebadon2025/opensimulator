@@ -2093,6 +2093,20 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             return HomeURI;
         }
 
+        public string osGetGridGatekeeperURI()
+        {
+            CheckThreatLevel(ThreatLevel.Moderate, "osGetGridGatekeeperURI");
+            m_host.AddScriptLPS(1);
+
+            string gatekeeperURI = String.Empty;
+            IConfigSource config = m_ScriptEngine.ConfigSource;
+
+            if (config.Configs["GridService"] != null)
+                gatekeeperURI = config.Configs["GridService"].GetString("Gatekeeper", gatekeeperURI);
+
+            return gatekeeperURI;
+        }
+
         public string osGetGridCustom(string key)
         {
             CheckThreatLevel(ThreatLevel.Moderate, "osGetGridCustom");
@@ -2158,6 +2172,31 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
 
             return result;
+        }
+
+        public LSL_String osReplaceString(string src, string pattern, string replace, int count, int start)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osReplaceString");
+            m_host.AddScriptLPS(1);
+
+            // Normalize indices (if negative).
+            // After normlaization they may still be
+            // negative, but that is now relative to
+            // the start, rather than the end, of the
+            // sequence.
+            if (start < 0)
+            {
+                start = src.Length + start;
+            }
+
+            if (start < 0 || start >= src.Length)
+            {
+                return src;
+            }
+
+            // Find matches beginning at start position
+            Regex matcher = new Regex(pattern);
+            return matcher.Replace(src,replace,count,start);
         }
 
         public string osLoadedCreationDate()
@@ -2595,7 +2634,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 UUID npcID = new UUID(npc.m_string);
 
                 if (module.CheckPermissions(npcID, m_host.OwnerID))
-                    AvatarPlayAnimation(npcID.ToString(), animation);
+                    AvatarStopAnimation(npcID.ToString(), animation);
             }
         }
 
@@ -2740,7 +2779,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             CheckThreatLevel(ThreatLevel.Moderate, "osSetSpeed");
             m_host.AddScriptLPS(1);
             ScenePresence avatar = World.GetScenePresence(new UUID(UUID));
-            avatar.SpeedModifier = (float)SpeedModifier;
+
+            if (avatar != null)
+                avatar.SpeedModifier = (float)SpeedModifier;
         }
         
         public void osKickAvatar(string FirstName,string SurName,string alert)

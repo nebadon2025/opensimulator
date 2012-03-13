@@ -457,6 +457,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_OSSL_Functions.osGetGridHomeURI();
         }
 
+        public string osGetGridGatekeeperURI()
+        {
+            return m_OSSL_Functions.osGetGridGatekeeperURI();
+        }
+
         public string osGetGridCustom(string key)
         {
             return m_OSSL_Functions.osGetGridCustom(key);
@@ -471,6 +476,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         {
             return m_OSSL_Functions.osMatchString(src, pattern, start);
         }
+
+        public LSL_String osReplaceString(string src, string pattern, string replace, int count, int start)
+        {
+            return m_OSSL_Functions.osReplaceString(src,pattern,replace,count,start);
+        }
+        
 
         // Information about data loaded into the region
         public string osLoadedCreationDate()

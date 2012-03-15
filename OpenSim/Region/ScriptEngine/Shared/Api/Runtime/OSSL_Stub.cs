@@ -472,6 +472,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_OSSL_Functions.osMatchString(src, pattern, start);
         }
 
+        public LSL_String osReplaceString(string src, string pattern, string replace, int count, int start)
+        {
+            return m_OSSL_Functions.osReplaceString(src,pattern,replace,count,start);
+        }
+        
+
         // Information about data loaded into the region
         public string osLoadedCreationDate()
         {
@@ -493,6 +499,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_OSSL_Functions.osGetLinkPrimitiveParams(linknumber, rules);
         }
 
+        public LSL_Integer osIsNpc(LSL_Key npc)
+        {
+            return m_OSSL_Functions.osIsNpc(npc);
+        }
+
         public key osNpcCreate(string user, string name, vector position, key cloneFrom)
         {
             return m_OSSL_Functions.osNpcCreate(user, name, position, cloneFrom);
@@ -511,6 +522,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public void osNpcLoadAppearance(key npc, string notecard)
         {
             m_OSSL_Functions.osNpcLoadAppearance(npc, notecard);
+        }
+
+        public LSL_Key osNpcGetOwner(LSL_Key npc)
+        {
+            return m_OSSL_Functions.osNpcGetOwner(npc);
         }
 
         public vector osNpcGetPos(LSL_Key npc)

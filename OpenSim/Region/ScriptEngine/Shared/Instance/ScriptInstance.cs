@@ -55,7 +55,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
 {
     public class ScriptInstance : MarshalByRefObject, IScriptInstance
     {
-//        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         
         private IScriptEngine m_Engine;
         private IScriptWorkItem m_CurrentResult = null;
@@ -109,7 +109,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
         private Dictionary<string,IScriptApi> m_Apis = new Dictionary<string,IScriptApi>();
 
         // Script state
-        private string m_State="default";
+        private string m_State = "default";
 
         public Object[] PluginData = new Object[0];
 
@@ -127,6 +127,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                     m_minEventDelay = value;
                 else 
                     m_minEventDelay = 0.0;
+
                 m_eventDelayTicks = (long)(m_minEventDelay * 10000000L);
                 m_nextEventTimeTicks = DateTime.Now.Ticks;
             }
@@ -296,9 +297,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                 //RemotingServices.GetLifetimeService(m_Script as ScriptBaseClass);
 //                lease.Register(this);
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                // m_log.ErrorFormat("[Script] Error loading assembly {0}\n"+e.ToString(), assembly);
+                m_log.ErrorFormat(
+                    "[SCRIPT INSTANCE]: Error loading assembly {0}.  Exception {1}{2}",
+                    assembly, e.Message, e.StackTrace);
             }
 
             try
@@ -313,9 +316,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                 part.SetScriptEvents(m_ItemID,
                                      (int)m_Script.GetStateEventFlags(State));
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                // m_log.Error("[Script] Error loading script instance\n"+e.ToString());
+                m_log.ErrorFormat(
+                    "[SCRIPT INSTANCE]: Error loading script instance from assembly {0}.  Exception {1}{2}",
+                    assembly, e.Message, e.StackTrace);
+
                 return;
             }
 
@@ -377,12 +383,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                     }
                     else
                     {
-                        // m_log.Error("[Script] Unable to load script state: Memory limit exceeded");
+                        m_log.ErrorFormat(
+                            "[SCRIPT INSTANCE]: Unable to load script state from assembly {0}: Memory limit exceeded",
+                            assembly);
                     }
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    // m_log.ErrorFormat("[Script] Unable to load script state from xml: {0}\n"+e.ToString(), xml);
+                     m_log.ErrorFormat(
+                         "[SCRIPT INSTANCE]: Unable to load script state from assembly {0}.  XML is {1}.  Exception {2}{3}",
+                         assembly, xml, e.Message, e.StackTrace);
                 }
             }
 //            else
@@ -527,6 +537,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
 
         public bool Stop(int timeout)
         {
+//            m_log.DebugFormat(
+//                "[SCRIPT INSTANCE]: Stopping script {0} {1} with timeout {2}", ScriptName, ItemID, timeout);
+
             IScriptWorkItem result;
 
             lock (m_EventQueue)
@@ -759,7 +772,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                         }
                         catch (Exception e)
                         {
-                            // m_log.DebugFormat("[SCRIPT] Exception: {0}", e.Message);
+//                            m_log.DebugFormat(
+//                                "[SCRIPT] Exception in script {0} {1}: {2}{3}",
+//                                ScriptName, ItemID, e.Message, e.StackTrace);
+
                             m_InEvent = false;
                             m_CurrentEvent = String.Empty;
 

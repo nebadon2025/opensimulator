@@ -63,77 +63,32 @@ namespace OpenSim.Framework
         // a "long" call for warning & debugging purposes
         public const int LongCallTime = 500;
 
-//        /// <summary>
-//        /// Send LLSD to an HTTP client in application/llsd+json form
-//        /// </summary>
-//        /// <param name="response">HTTP response to send the data in</param>
-//        /// <param name="body">LLSD to send to the client</param>
-//        public static void SendJSONResponse(OSHttpResponse response, OSDMap body)
-//        {
-//            byte[] responseData = Encoding.UTF8.GetBytes(OSDParser.SerializeJsonString(body));
-//
-//            response.ContentEncoding = Encoding.UTF8;
-//            response.ContentLength = responseData.Length;
-//            response.ContentType = "application/llsd+json";
-//            response.Body.Write(responseData, 0, responseData.Length);
-//        }
-//
-//        /// <summary>
-//        /// Send LLSD to an HTTP client in application/llsd+xml form
-//        /// </summary>
-//        /// <param name="response">HTTP response to send the data in</param>
-//        /// <param name="body">LLSD to send to the client</param>
-//        public static void SendXMLResponse(OSHttpResponse response, OSDMap body)
-//        {
-//            byte[] responseData = OSDParser.SerializeLLSDXmlBytes(body);
-//
-//            response.ContentEncoding = Encoding.UTF8;
-//            response.ContentLength = responseData.Length;
-//            response.ContentType = "application/llsd+xml";
-//            response.Body.Write(responseData, 0, responseData.Length);
-//        }
+        // dictionary of end points
+        private static Dictionary<string,object> m_endpointSerializer = new Dictionary<string,object>();
+        
 
-        /// <summary>
-        /// Make a GET or GET-like request to a web service that returns LLSD
-        /// or JSON data
-        /// </summary>
-        public static OSDMap ServiceRequest(string url, string httpVerb)
+        private static object EndPointLock(string url)
         {
-            string errorMessage;
+            System.Uri uri = new System.Uri(url);
+            string endpoint = string.Format("{0}:{1}",uri.Host,uri.Port);
 
-            try
+            lock (m_endpointSerializer)
             {
-                HttpWebRequest request = (HttpWebRequest)HttpWebRequest.Create(url);
-                request.Method = httpVerb;
+                object eplock = null;
 
-                using (WebResponse response = request.GetResponse())
+                if (! m_endpointSerializer.TryGetValue(endpoint,out eplock))
                 {
-                    using (Stream responseStream = response.GetResponseStream())
-                    {
-                        try
-                        {
-                            string responseStr = responseStream.GetStreamString();
-                            OSD responseOSD = OSDParser.Deserialize(responseStr);
-                            if (responseOSD.Type == OSDType.Map)
-                                return (OSDMap)responseOSD;
-                            else
-                                errorMessage = "Response format was invalid.";
-                        }
-                        catch
-                        {
-                            errorMessage = "Failed to parse the response.";
-                        }
-                    }
+                    eplock = new object();
+                    m_endpointSerializer.Add(endpoint,eplock);
+                    // m_log.WarnFormat("[WEB UTIL] add a new host to end point serializer {0}",endpoint);
                 }
-            }
-            catch (Exception ex)
-            {
-                m_log.Warn(httpVerb + " on URL " + url + " failed: " + ex.Message);
-                errorMessage = ex.Message;
-            }
 
-            return new OSDMap { { "Message", OSD.FromString("Service request failed. " + errorMessage) } };
+                return eplock;
+            }
         }
+        
+                
+        #region JSONRequest
 
         /// <summary>
         /// PUT JSON-encoded data to a web service that returns LLSD or
@@ -165,6 +120,14 @@ namespace OpenSim.Framework
         }
         
         public static OSDMap ServiceOSDRequest(string url, OSDMap data, string method, int timeout, bool compressed)
+        {
+            lock (EndPointLock(url))
+            {
+                return ServiceOSDRequestWorker(url,data,method,timeout,compressed);
+            }
+        }
+
+        private static OSDMap ServiceOSDRequestWorker(string url, OSDMap data, string method, int timeout, bool compressed)
         {
             int reqnum = m_requestNumber++;
             // m_log.DebugFormat("[WEB UTIL]: <{0}> start osd request for {1}, method {2}",reqnum,url,method);
@@ -303,6 +266,10 @@ namespace OpenSim.Framework
             return result;
         }
         
+        #endregion JSONRequest
+
+        #region FormRequest
+
         /// <summary>
         /// POST URL-encoded form data to a web service that returns LLSD or
         /// JSON data
@@ -313,6 +280,14 @@ namespace OpenSim.Framework
         }
         
         public static OSDMap ServiceFormRequest(string url, NameValueCollection data, int timeout)
+        {
+            lock (EndPointLock(url))
+            {
+                return ServiceFormRequestWorker(url,data,timeout);
+            }
+        }
+
+        private static OSDMap ServiceFormRequestWorker(string url, NameValueCollection data, int timeout)
         {
             int reqnum = m_requestNumber++;
             string method = (data != null && data["RequestMethod"] != null) ? data["RequestMethod"] : "unknown";
@@ -397,6 +372,8 @@ namespace OpenSim.Framework
             result["Message"] = OSD.FromString("Service request failed: " + msg);
             return result;
         }
+
+        #endregion FormRequest
         
         #region Uri
 

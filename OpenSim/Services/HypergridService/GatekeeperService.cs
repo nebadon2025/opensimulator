@@ -188,9 +188,9 @@ namespace OpenSim.Services.HypergridService
             string authURL = string.Empty;
             if (aCircuit.ServiceURLs.ContainsKey("HomeURI"))
                 authURL = aCircuit.ServiceURLs["HomeURI"].ToString();
-            m_log.InfoFormat("[GATEKEEPER SERVICE]: Login request for {0} {1} @ {2} ({3}) at {4} using viewer {5}, channel {6}, IP {7}, Mac {8}, Id0 {9}",
+            m_log.InfoFormat("[GATEKEEPER SERVICE]: Login request for {0} {1} @ {2} ({3}) at {4} using viewer {5}, channel {6}, IP {7}, Mac {8}, Id0 {9} Teleport Flags {10}",
                 aCircuit.firstname, aCircuit.lastname, authURL, aCircuit.AgentID, destination.RegionName,
-                aCircuit.Viewer, aCircuit.Channel, aCircuit.IPAddress, aCircuit.Mac, aCircuit.Id0);
+                aCircuit.Viewer, aCircuit.Channel, aCircuit.IPAddress, aCircuit.Mac, aCircuit.Id0, aCircuit.teleportFlags.ToString());
             
             //
             // Check client
@@ -296,9 +296,10 @@ namespace OpenSim.Services.HypergridService
                 aCircuit.firstname = account.FirstName;
                 aCircuit.lastname = account.LastName;
             }
-            if (account == null && !aCircuit.lastname.StartsWith("@"))
+            if (account == null)
             {
-                aCircuit.firstname = aCircuit.firstname + "." + aCircuit.lastname;
+                if (!aCircuit.lastname.StartsWith("@"))
+                    aCircuit.firstname = aCircuit.firstname + "." + aCircuit.lastname;
                 try
                 {
                     Uri uri = new Uri(aCircuit.ServiceURLs["HomeURI"].ToString());
@@ -315,6 +316,10 @@ namespace OpenSim.Services.HypergridService
             // Finally launch the agent at the destination
             //
             Constants.TeleportFlags loginFlag = isFirstLogin ? Constants.TeleportFlags.ViaLogin : Constants.TeleportFlags.ViaHGLogin;
+
+            // Preserve our TeleportFlags we have gathered so-far
+            loginFlag |= (Constants.TeleportFlags) aCircuit.teleportFlags;
+
             m_log.DebugFormat("[GATEKEEPER SERVICE]: launching agent {0}", loginFlag);
             return m_SimulationService.CreateAgent(destination, aCircuit, (uint)loginFlag, out reason);
         }

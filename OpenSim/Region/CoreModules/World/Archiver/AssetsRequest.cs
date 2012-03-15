@@ -141,13 +141,15 @@ namespace OpenSim.Region.CoreModules.World.Archiver
                 PerformAssetsRequestCallback(null);
                 return;
             }
-            
-            foreach (KeyValuePair<UUID, AssetType> kvp in m_uuids)
-            {
-                m_assetService.Get(kvp.Key.ToString(), kvp.Value, PreAssetRequestCallback);
-            }
 
             m_requestCallbackTimer.Enabled = true;
+
+            foreach (KeyValuePair<UUID, AssetType> kvp in m_uuids)
+            {
+//                m_assetService.Get(kvp.Key.ToString(), kvp.Value, PreAssetRequestCallback);
+                AssetBase asset = m_assetService.Get(kvp.Key.ToString());
+                PreAssetRequestCallback(kvp.Key.ToString(), kvp.Value, asset);
+            }
         }
 
         protected void OnRequestCallbackTimeout(object source, ElapsedEventArgs args)
@@ -310,10 +312,10 @@ namespace OpenSim.Region.CoreModules.World.Archiver
 
         protected AssetBase PostProcess(AssetBase asset)
         {
-            if (asset.Type == (sbyte)AssetType.Object && asset.Data != null && m_options.ContainsKey("profile"))
+            if (asset.Type == (sbyte)AssetType.Object && asset.Data != null && m_options.ContainsKey("home"))
             {
                 //m_log.DebugFormat("[ARCHIVER]: Rewriting object data for {0}", asset.ID);
-                string xml = ExternalRepresentationUtils.RewriteSOP(Utils.BytesToString(asset.Data), m_options["profile"].ToString(), m_userAccountService, m_scopeID);
+                string xml = ExternalRepresentationUtils.RewriteSOP(Utils.BytesToString(asset.Data), m_options["home"].ToString(), m_userAccountService, m_scopeID);
                 asset.Data = Utils.StringToBytes(xml);
             }
             return asset;

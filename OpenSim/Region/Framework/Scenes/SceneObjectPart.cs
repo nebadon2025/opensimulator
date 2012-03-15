@@ -235,7 +235,7 @@ namespace OpenSim.Region.Framework.Scenes
         
         public bool IgnoreUndoUpdate = false;
         
-        private PrimFlags LocalFlags;
+        public PrimFlags LocalFlags;
         
         private float m_damage = -1.0f;
         private byte[] m_TextureAnimation;
@@ -303,6 +303,9 @@ namespace OpenSim.Region.Framework.Scenes
 
 //        ~SceneObjectPart()
 //        {
+//            Console.WriteLine(
+//                "[SCENE OBJECT PART]: Destructor called for {0}, local id {1}, parent {2} {3}",
+//                Name, LocalId, ParentGroup.Name, ParentGroup.LocalId);
 //            m_log.DebugFormat(
 //                "[SCENE OBJECT PART]: Destructor called for {0}, local id {1}, parent {2} {3}",
 //                Name, LocalId, ParentGroup.Name, ParentGroup.LocalId);
@@ -902,32 +905,18 @@ namespace OpenSim.Region.Framework.Scenes
         public Color Color
         {
             get { return m_color; }
-            set
-            {
-                m_color = value;
-
-                /* ScheduleFullUpdate() need not be called b/c after
-                 * setting the color, the text will be set, so then
-                 * ScheduleFullUpdate() will be called. */
-                //ScheduleFullUpdate();
-            }
+            set { m_color = value; }
         }
 
         public string Text
         {
             get
             {
-                string returnstr = m_text;
-                if (returnstr.Length > 255)
-                {
-                    returnstr = returnstr.Substring(0, 254);
-                }
-                return returnstr;
+                if (m_text.Length > 255)
+                    return m_text.Substring(0, 254);
+                return m_text;
             }
-            set
-            {
-                m_text = value;
-            }
+            set { m_text = value; }
         }
 
 
@@ -1515,17 +1504,13 @@ namespace OpenSim.Region.Framework.Scenes
                         PhysActor = null;
                     }
 
-                    // Basic Physics returns null..  joy joy joy.
+                    // Basic Physics can also return null as well as an exception catch.
                     if (PhysActor != null)
                     {
                         PhysActor.SOPName = this.Name; // save object into the PhysActor so ODE internals know the joint/body info
                         PhysActor.SetMaterial(Material);
                         DoPhysicsPropertyUpdate(RigidBody, true);
                         PhysActor.SetVolumeDetect(VolumeDetectActive ? 1 : 0);
-                    }
-                    else
-                    {
-                        m_log.DebugFormat("[SOP]: physics actor is null for {0} with parent {1}", UUID, this.ParentGroup.UUID);
                     }
                 }
             }
@@ -1561,19 +1546,16 @@ namespace OpenSim.Region.Framework.Scenes
             if (userExposed)
                 dupe.UUID = UUID.Random();
 
-            //memberwiseclone means it also clones the physics actor reference
-            // This will make physical prim 'bounce' if not set to null.
-            if (!userExposed)
-                dupe.PhysActor = null;
+            dupe.PhysActor = null;
 
             dupe.OwnerID = AgentID;
             dupe.GroupID = GroupID;
             dupe.GroupPosition = GroupPosition;
             dupe.OffsetPosition = OffsetPosition;
             dupe.RotationOffset = RotationOffset;
-            dupe.Velocity = new Vector3(0, 0, 0);
-            dupe.Acceleration = new Vector3(0, 0, 0);
-            dupe.AngularVelocity = new Vector3(0, 0, 0);
+            dupe.Velocity = Velocity;
+            dupe.Acceleration = Acceleration;
+            dupe.AngularVelocity = AngularVelocity;
             dupe.Flags = Flags;
 
             dupe.OwnershipCost = OwnershipCost;
@@ -2764,6 +2746,9 @@ namespace OpenSim.Region.Framework.Scenes
             //            m_log.DebugFormat(
             //                "[SCENE OBJECT PART]: Scheduling full  update for {0}, {1} at {2}",
             //                UUID, Name, TimeStampFull);
+
+            if (ParentGroup.Scene != null)
+                ParentGroup.Scene.EventManager.TriggerSceneObjectPartUpdated(this);
         }
 
         /// <summary>
@@ -2780,6 +2765,7 @@ namespace OpenSim.Region.Framework.Scenes
             if (ParentGroup.IsAttachment)
             {
                 ScheduleFullUpdate();
+                return;
             }
 
             if (UpdateFlag == UpdateRequired.NONE)
@@ -2794,6 +2780,9 @@ namespace OpenSim.Region.Framework.Scenes
             //                    "[SCENE OBJECT PART]: Scheduling terse update for {0}, {1} at {2}",
             //                    UUID, Name, TimeStampTerse);
             }
+
+            if (ParentGroup.Scene != null)
+                ParentGroup.Scene.EventManager.TriggerSceneObjectPartUpdated(this);
         }
 
         public void ScriptSetPhysicsStatus(bool UsePhysics)
@@ -4520,10 +4509,18 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Update the texture entry for this part.
         /// </summary>
-        /// <param name="textureEntry"></param>
-        public void UpdateTextureEntry(byte[] textureEntry)
+        /// <param name="serializedTextureEntry"></param>
+        public void UpdateTextureEntry(byte[] serializedTextureEntry)
         {
-            Primitive.TextureEntry newTex = new Primitive.TextureEntry(textureEntry, 0, textureEntry.Length);
+            UpdateTextureEntry(new Primitive.TextureEntry(serializedTextureEntry, 0, serializedTextureEntry.Length));
+        }
+
+        /// <summary>
+        /// Update the texture entry for this part.
+        /// </summary>
+        /// <param name="newTex"></param>
+        public void UpdateTextureEntry(Primitive.TextureEntry newTex)
+        {
             Primitive.TextureEntry oldTex = Shape.Textures;
 
             Changed changeFlags = 0;
@@ -4555,7 +4552,7 @@ namespace OpenSim.Region.Framework.Scenes
                     break;
             }
 
-            m_shape.TextureEntry = textureEntry;
+            m_shape.TextureEntry = newTex.GetBytes();
             if (changeFlags != 0)
                 TriggerScriptChangedEvent(changeFlags);
             UpdateFlag = UpdateRequired.FULL;

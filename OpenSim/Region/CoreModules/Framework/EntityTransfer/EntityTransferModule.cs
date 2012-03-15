@@ -208,8 +208,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
 
                     foreach (SceneObjectGroup grp in sp.GetAttachments())
                     {
-                        if (grp.IsDeleted)
-                            sp.Scene.EventManager.TriggerOnScriptChangedEvent(grp.LocalId, (uint)Changed.TELEPORT);
+                        sp.Scene.EventManager.TriggerOnScriptChangedEvent(grp.LocalId, (uint)Changed.TELEPORT);
                     }
                 }
                 else // Another region possibly in another simulator
@@ -995,6 +994,9 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                                          neighbourRegion.RegionHandle);
                         return agent;
                     }
+                    // No turning back
+                    agent.IsChildAgent = true;
+
                     string capsPath = neighbourRegion.ServerURI + CapsUtil.GetCapsSeedPath(agentcaps);
     
                     m_log.DebugFormat("[ENTITY TRANSFER MODULE]: Sending new CAPS seed url {0} to client {1}", capsPath, agent.UUID);
@@ -1139,7 +1141,6 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
 
         /// <summary>
         /// This informs all neighbouring regions about agent "avatar".
-        /// Calls an asynchronous method to do so..  so it doesn't lag the sim.
         /// </summary>
         /// <param name="sp"></param>
         public void EnableChildAgents(ScenePresence sp)
@@ -1259,12 +1260,16 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
 
                 if (neighbour.RegionHandle != sp.Scene.RegionInfo.RegionHandle)
                 {
-                    InformClientOfNeighbourDelegate d = InformClientOfNeighbourAsync;
                     try
                     {
-                        d.BeginInvoke(sp, cagents[count], neighbour, neighbour.ExternalEndPoint, newAgent,
-                                      InformClientOfNeighbourCompleted,
-                                      d);
+                        // Let's put this back at sync, so that it doesn't clog 
+                        // the network, especially for regions in the same physical server.
+                        // We're really not in a hurry here.
+                        InformClientOfNeighbourAsync(sp, cagents[count], neighbour, neighbour.ExternalEndPoint, newAgent);
+                        //InformClientOfNeighbourDelegate d = InformClientOfNeighbourAsync;
+                        //d.BeginInvoke(sp, cagents[count], neighbour, neighbour.ExternalEndPoint, newAgent,
+                        //              InformClientOfNeighbourCompleted,
+                        //              d);
                     }
 
                     catch (ArgumentOutOfRangeException)
@@ -1699,14 +1704,13 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
 
             // Offset the positions for the new region across the border
             Vector3 oldGroupPosition = grp.RootPart.GroupPosition;
-            grp.RootPart.GroupPosition = pos;
 
             // If we fail to cross the border, then reset the position of the scene object on that border.
             uint x = 0, y = 0;
             Utils.LongToUInts(newRegionHandle, out x, out y);
             GridRegion destination = scene.GridService.GetRegionByPosition(scene.RegionInfo.ScopeID, (int)x, (int)y);
 
-            if (destination == null || !CrossPrimGroupIntoNewRegion(destination, grp, silent))
+            if (destination == null || !CrossPrimGroupIntoNewRegion(destination, pos, grp, silent))
             {
                 m_log.InfoFormat("[ENTITY TRANSFER MODULE] cross region transfer failed for object {0}",grp.UUID);
 
@@ -1736,7 +1740,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
         /// true if the crossing itself was successful, false on failure
         /// FIMXE: we still return true if the crossing object was not successfully deleted from the originating region
         /// </returns>
-        protected bool CrossPrimGroupIntoNewRegion(GridRegion destination, SceneObjectGroup grp, bool silent)
+        protected bool CrossPrimGroupIntoNewRegion(GridRegion destination, Vector3 newPosition, SceneObjectGroup grp, bool silent)
         {
             //m_log.Debug("  >>> CrossPrimGroupIntoNewRegion <<<");
 
@@ -1761,7 +1765,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                 //if (m_interregionCommsOut != null)
                 //    successYN = m_interregionCommsOut.SendCreateObject(newRegionHandle, grp, true);
                 if (m_aScene.SimulationService != null)
-                    successYN = m_aScene.SimulationService.CreateObject(destination, grp, true);
+                    successYN = m_aScene.SimulationService.CreateObject(destination, newPosition, grp, true);
 
                 if (successYN)
                 {
@@ -1820,7 +1824,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                     gobj.IsAttachment = false;
                     //gobj.RootPart.LastOwnerID = gobj.GetFromAssetID();
                     m_log.DebugFormat("[ENTITY TRANSFER MODULE]: Sending attachment {0} to region {1}", gobj.UUID, destination.RegionName);
-                    CrossPrimGroupIntoNewRegion(destination, gobj, silent);
+                    CrossPrimGroupIntoNewRegion(destination, Vector3.Zero, gobj, silent);
                 }
             }
 

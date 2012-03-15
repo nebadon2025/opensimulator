@@ -164,9 +164,9 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Grid
             return false;
         }
 
-        public List<GridRegion> GetEmptyCoordinates(UUID scopeID)
+        public GridRegion GetEmptyCoordinates(UUID scopeID, int desiredX, int desiredY)
         {
-            return m_RemoteGridService.GetEmptyCoordinates(scopeID);
+            return m_RemoteGridService.GetEmptyCoordinates(scopeID, desiredX, desiredY);
         }
 
         public List<GridRegion> GetNeighbours(UUID scopeID, UUID regionID)
@@ -191,10 +191,16 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Grid
 
         public GridRegion GetRegionByPosition(UUID scopeID, int x, int y)
         {
-            GridRegion rinfo = m_LocalGridService.GetRegionByPosition(scopeID, x, y);
+            bool inCache = false;
+            GridRegion rinfo = m_RegionInfoCache.Get(scopeID, Util.UIntsToLong((uint)x, (uint)y), out inCache);
+            if (inCache)
+                return rinfo;
+
+            rinfo = m_LocalGridService.GetRegionByPosition(scopeID, x, y);
             if (rinfo == null)
                 rinfo = m_RemoteGridService.GetRegionByPosition(scopeID, x, y);
 
+            m_RegionInfoCache.Cache(rinfo);
             return rinfo;
         }
 

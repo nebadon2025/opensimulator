@@ -94,6 +94,7 @@ namespace OpenSim.Region.ClientStack.Linden
         private static readonly string m_notecardUpdatePath = "0004/";
         private static readonly string m_notecardTaskUpdatePath = "0005/";
         //        private static readonly string m_fetchInventoryPath = "0006/";
+        private static readonly string m_copyFromNotecardPath = "0007/";
         // private static readonly string m_remoteParcelRequestPath = "0009/";// This is in the LandManagementModule.
 
 
@@ -180,6 +181,7 @@ namespace OpenSim.Region.ClientStack.Linden
                 m_HostCapsObj.RegisterHandler("UpdateNotecardAgentInventory", req);
                 m_HostCapsObj.RegisterHandler("UpdateScriptAgentInventory", req);
                 m_HostCapsObj.RegisterHandler("UpdateScriptAgent", req);
+                m_HostCapsObj.RegisterHandler("CopyInventoryFromNotecard", new RestStreamHandler("POST", capsBase + m_copyFromNotecardPath, CopyInventoryFromNotecard));
              
                 // As of RC 1.22.9 of the Linden client this is
                 // supported
@@ -260,7 +262,7 @@ namespace OpenSim.Region.ClientStack.Linden
         {
             try
             {
-                m_log.Debug("[CAPS]: ScriptTaskInventory Request in region: " + m_regionName);
+//                m_log.Debug("[CAPS]: ScriptTaskInventory Request in region: " + m_regionName);
                 //m_log.DebugFormat("[CAPS]: request: {0}, path: {1}, param: {2}", request, path, param);
 
                 Hashtable hash = (Hashtable)LLSD.LLSDDeserialize(Utils.StringToBytes(request));
@@ -366,7 +368,7 @@ namespace OpenSim.Region.ClientStack.Linden
 
                     if (mm != null)
                     {
-                        if (!mm.UploadCovered(client, mm.UploadCharge))
+                        if (!mm.UploadCovered(client.AgentId, mm.UploadCharge))
                         {
                             if (client != null)
                                 client.SendAgentAlertMessage("Unable to upload asset. Insufficient funds.", false);
@@ -420,7 +422,7 @@ namespace OpenSim.Region.ClientStack.Linden
                                           string assetType)
         {
             m_log.DebugFormat(
-                "Uploaded asset {0} for inventory item {1}, inv type {2}, asset type {3}",
+                "[BUNCH OF CAPS]: Uploaded asset {0} for inventory item {1}, inv type {2}, asset type {3}",
                 assetID, inventoryItem, inventoryType, assetType);
 
             sbyte assType = 0;
@@ -623,7 +625,12 @@ namespace OpenSim.Region.ClientStack.Linden
             item.AssetType = assType;
             item.InvType = inType;
             item.Folder = parentFolder;
-            item.CurrentPermissions = (uint)PermissionMask.All;
+
+            // If we set PermissionMask.All then when we rez the item the next permissions will replace the current
+            // (owner) permissions.  This becomes a problem if next permissions are changed.
+            item.CurrentPermissions
+                = (uint)(PermissionMask.Move | PermissionMask.Copy | PermissionMask.Modify | PermissionMask.Transfer);
+
             item.BasePermissions = (uint)PermissionMask.All;
             item.EveryOnePermissions = 0;
             item.NextPermissions = (uint)PermissionMask.All;
@@ -722,6 +729,75 @@ namespace OpenSim.Region.ClientStack.Linden
             //                             LLSDHelpers.SerialiseLLSDReply(uploadResponse)));
 
             return LLSDHelpers.SerialiseLLSDReply(uploadResponse);
+        }
+
+        /// <summary>
+        /// Called by the CopyInventoryFromNotecard caps handler.
+        /// </summary>
+        /// <param name="request"></param>
+        /// <param name="path"></param>
+        /// <param name="param"></param>
+        public string CopyInventoryFromNotecard(string request, string path, string param,
+                                             IOSHttpRequest httpRequest, IOSHttpResponse httpResponse)
+        {
+            Hashtable response = new Hashtable();
+            response["int_response_code"] = 404;
+            response["content_type"] = "text/plain";
+            response["keepalive"] = false;
+            response["str_response_string"] = "";
+
+            try
+            {
+                OSDMap content = (OSDMap)OSDParser.DeserializeLLSDXml(request);
+                UUID objectID = content["object-id"].AsUUID();
+                UUID notecardID = content["notecard-id"].AsUUID();
+                UUID folderID = content["folder-id"].AsUUID();
+                UUID itemID = content["item-id"].AsUUID();
+
+                //  m_log.InfoFormat("[CAPS]: CopyInventoryFromNotecard, FolderID:{0}, ItemID:{1}, NotecardID:{2}, ObjectID:{3}", folderID, itemID, notecardID, objectID);
+
+                if (objectID != UUID.Zero)
+                {
+                    SceneObjectPart part = m_Scene.GetSceneObjectPart(objectID);
+                    if (part != null)
+                    {
+                        TaskInventoryItem taskItem = part.Inventory.GetInventoryItem(notecardID);
+                        if (!m_Scene.Permissions.CanCopyObjectInventory(notecardID, objectID, m_HostCapsObj.AgentID))
+                        {
+                            return LLSDHelpers.SerialiseLLSDReply(response);
+                        }
+                    }
+                }
+
+                InventoryItemBase item = null;
+                InventoryItemBase copyItem = null;
+                IClientAPI client = null;
+
+                m_Scene.TryGetClient(m_HostCapsObj.AgentID, out client);
+                item = m_Scene.InventoryService.GetItem(new InventoryItemBase(itemID));
+                if (item != null)
+                {
+                    copyItem = m_Scene.GiveInventoryItem(m_HostCapsObj.AgentID, item.Owner, itemID, folderID);
+                    if (copyItem != null && client != null)
+                    {
+                        m_log.InfoFormat("[CAPS]: CopyInventoryFromNotecard, ItemID:{0}, FolderID:{1}", copyItem.ID, copyItem.Folder);
+                        client.SendBulkUpdateInventory(copyItem);
+                    }
+                }
+                else
+                {
+                    m_log.ErrorFormat("[CAPS]: CopyInventoryFromNotecard - Failed to retrieve item {0} from notecard {1}", itemID, notecardID);
+                    if (client != null)
+                        client.SendAlertMessage("Failed to retrieve item");
+                }
+            }
+            catch (Exception e)
+            {
+                m_log.ErrorFormat("[CAPS]: CopyInventoryFromNotecard : {0}", e.ToString());
+            }
+
+            response["int_response_code"] = 200;
+            return LLSDHelpers.SerialiseLLSDReply(response);
         }
     }
 

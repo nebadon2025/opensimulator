@@ -134,9 +134,18 @@ namespace OpenSim.Region.Physics.OdePlugin
                                                         | CollisionCategories.Body
                                                         | CollisionCategories.Character
                                                         | CollisionCategories.Land);
-        internal IntPtr Body = IntPtr.Zero;
+        /// <summary>
+        /// Body for dynamics simulation
+        /// </summary>
+        internal IntPtr Body { get; private set; }
+
         private OdeScene _parent_scene;
-        internal IntPtr Shell = IntPtr.Zero;
+
+        /// <summary>
+        /// Collision geometry
+        /// </summary>
+        internal IntPtr Shell { get; private set; }
+        
         private IntPtr Amotor = IntPtr.Zero;
         private d.Mass ShellMass;
 
@@ -147,6 +156,22 @@ namespace OpenSim.Region.Physics.OdePlugin
         internal UUID m_uuid { get; private set; }
         internal bool bad = false;
 
+        /// <summary>
+        /// ODE Avatar.
+        /// </summary>
+        /// <param name="avName"></param>
+        /// <param name="parent_scene"></param>
+        /// <param name="pos"></param>
+        /// <param name="size"></param>
+        /// <param name="pid_d"></param>
+        /// <param name="pid_p"></param>
+        /// <param name="capsule_radius"></param>
+        /// <param name="tensor"></param>
+        /// <param name="density">
+        /// Only used right now to return information to LSL.  Not actually used to set mass in ODE!
+        /// </param>
+        /// <param name="walk_divisor"></param>
+        /// <param name="rundivisor"></param>
         public OdeCharacter(
             String avName, OdeScene parent_scene, Vector3 pos, Vector3 size, float pid_d, float pid_p,
             float capsule_radius, float tensor, float density,
@@ -777,6 +802,10 @@ namespace OpenSim.Region.Physics.OdePlugin
             Vector3 vec = Vector3.Zero;
             d.Vector3 vel = d.BodyGetLinearVel(Body);
 
+//            m_log.DebugFormat(
+//                "[ODE CHARACTER]: Current velocity in Move() is <{0},{1},{2}>, target {3} for {4}",
+//                vel.X, vel.Y, vel.Z, _target_velocity, Name);
+
             float movementdivisor = 1f;
 
             if (!m_alwaysRun)
@@ -875,18 +904,20 @@ namespace OpenSim.Region.Physics.OdePlugin
 
                 if (flying)
                 {
+                    // This also acts as anti-gravity so that we hover when flying rather than fall.
                     vec.Z = (_target_velocity.Z - vel.Z) * (PID_D);
                 }
             }
 
             if (flying)
             {
+                // Anti-gravity so that we hover when flying rather than fall.
                 vec.Z += ((-1 * _parent_scene.gravityz) * m_mass);
 
                 //Added for auto fly height. Kitto Flora
                 //d.Vector3 pos = d.BodyGetPosition(Body);
                 float target_altitude = _parent_scene.GetTerrainHeightAtXY(_position.X, _position.Y) + MinimumGroundFlightOffset;
-                
+
                 if (_position.Z < target_altitude)
                 {
                     vec.Z += (target_altitude - _position.Z) * PID_P * 5.0f;
@@ -911,6 +942,25 @@ namespace OpenSim.Region.Physics.OdePlugin
                 defects.Add(this);
 
                 return;
+            }
+
+            d.Vector3 newVel = d.BodyGetLinearVel(Body);
+            if (newVel.X >= 256 || newVel.X <= 256 || newVel.Y >= 256 || newVel.Y <= 256 || newVel.Z >= 256 || newVel.Z <= 256)
+            {
+//                m_log.DebugFormat(
+//                    "[ODE CHARACTER]: Limiting falling velocity from {0} to {1} for {2}", newVel.Z, -9.8, Name);
+
+                newVel.X = Util.Clamp<float>(newVel.X, -255f, 255f);
+                newVel.Y = Util.Clamp<float>(newVel.Y, -255f, 255f);
+
+                if (!flying)
+                    newVel.Z
+                        = Util.Clamp<float>(
+                            newVel.Z, -_parent_scene.AvatarTerminalVelocity, _parent_scene.AvatarTerminalVelocity);
+                else
+                    newVel.Z = Util.Clamp<float>(newVel.Z, -255f, 255f);
+
+                d.BodySetLinearVel(Body, newVel.X, newVel.Y, newVel.Z);
             }
         }
 
@@ -1018,6 +1068,13 @@ namespace OpenSim.Region.Physics.OdePlugin
         /// <param name="tensor"></param>
         private void CreateOdeStructures(float npositionX, float npositionY, float npositionZ, float tensor)
         {
+            if (!(Shell == IntPtr.Zero && Body == IntPtr.Zero && Amotor == IntPtr.Zero))
+            {
+                m_log.ErrorFormat(
+                    "[ODE CHARACTER]: Creating ODE structures for {0} even though some already exist.  Shell = {1}, Body = {2}, Amotor = {3}",
+                    Name, Shell, Body, Amotor);
+            }
+
             int dAMotorEuler = 1;
 //            _parent_scene.waitForSpaceUnlock(_parent_scene.space);
             if (CAPSULE_LENGTH <= 0)
@@ -1032,6 +1089,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                 CAPSULE_RADIUS = 0.01f;
             }
 
+//          lock (OdeScene.UniversalColliderSyncObject)
             Shell = d.CreateCapsule(_parent_scene.space, CAPSULE_RADIUS, CAPSULE_LENGTH);
 
             d.GeomSetCategoryBits(Shell, (int)m_collisionCategories);
@@ -1135,6 +1193,14 @@ namespace OpenSim.Region.Physics.OdePlugin
         /// </summary>
         internal void DestroyOdeStructures()
         {
+            // Create avatar capsule and related ODE data
+            if (Shell == IntPtr.Zero || Body == IntPtr.Zero || Amotor == IntPtr.Zero)
+            {
+                m_log.ErrorFormat(
+                    "[ODE CHARACTER]: Destroying ODE structures for {0} even though some are already null.  Shell = {1}, Body = {2}, Amotor = {3}",
+                    Name, Shell, Body, Amotor);
+            }
+
             // destroy avatar capsule and related ODE data
             if (Amotor != IntPtr.Zero)
             {
@@ -1155,7 +1221,9 @@ namespace OpenSim.Region.Physics.OdePlugin
 
             if (Shell != IntPtr.Zero)
             {
+//              lock (OdeScene.UniversalColliderSyncObject)
                 d.GeomDestroy(Shell);
+
                 _parent_scene.geom_name_map.Remove(Shell);
                 _parent_scene.actor_name_map.Remove(Shell);
 
@@ -1260,15 +1328,6 @@ namespace OpenSim.Region.Physics.OdePlugin
             {
                 if (m_tainted_isPhysical)
                 {
-                    // Create avatar capsule and related ODE data
-                    if (!(Shell == IntPtr.Zero && Body == IntPtr.Zero && Amotor == IntPtr.Zero))
-                    {
-                        m_log.Warn("[ODE CHARACTER]: re-creating the following avatar ODE data for " + Name + ", even though it already exists - "
-                            + (Shell!=IntPtr.Zero ? "Shell ":"")
-                            + (Body!=IntPtr.Zero ? "Body ":"")
-                            + (Amotor!=IntPtr.Zero ? "Amotor ":""));
-                    }
-
                     CreateOdeStructures(_position.X, _position.Y, _position.Z, m_tensor);
                     _parent_scene.AddCharacter(this);
                 }

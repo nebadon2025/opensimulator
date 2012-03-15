@@ -105,6 +105,32 @@ namespace OpenSim.Region.Physics.OdePlugin
         private readonly ILog m_log;
         // private Dictionary<string, sCollisionData> m_storedCollisions = new Dictionary<string, sCollisionData>();
 
+        /// <summary>
+        /// Provide a sync object so that only one thread calls d.Collide() at a time across all OdeScene instances.
+        /// </summary>
+        /// <remarks>
+        /// With ODE as of r1755 (though also tested on r1860), only one thread can call d.Collide() at a
+        /// time, even where physics objects are in entirely different ODE worlds.  This is because generating contacts
+        /// uses a static cache at the ODE level.
+        ///
+        /// Without locking, simulators running multiple regions will eventually crash with a native stack trace similar
+        /// to
+        ///
+        /// mono() [0x489171]
+        /// mono() [0x4d154f]
+        /// /lib/x86_64-linux-gnu/libpthread.so.0(+0xfc60) [0x7f6ded592c60]
+        /// .../opensim/bin/libode-x86_64.so(_ZN6Opcode11OBBCollider8_CollideEPKNS_14AABBNoLeafNodeE+0xd7a) [0x7f6dd822628a]
+        ///
+        /// ODE provides an experimental option to cache in thread local storage but compiling ODE with this option
+        /// causes OpenSimulator to immediately crash with a native stack trace similar to
+        ///
+        /// mono() [0x489171]
+        /// mono() [0x4d154f]
+        /// /lib/x86_64-linux-gnu/libpthread.so.0(+0xfc60) [0x7f03c9849c60]
+        /// .../opensim/bin/libode-x86_64.so(_Z12dCollideCCTLP6dxGeomS0_iP12dContactGeomi+0x92) [0x7f03b44bcf82]
+        /// </remarks>
+        internal static Object UniversalColliderSyncObject = new Object();
+
         private Random fluidRandomizer = new Random(Environment.TickCount);
 
         private const uint m_regionWidth = Constants.RegionSize;
@@ -117,6 +143,8 @@ namespace OpenSim.Region.Physics.OdePlugin
         public float gravityx = 0f;
         public float gravityy = 0f;
         public float gravityz = -9.8f;
+
+        public float AvatarTerminalVelocity { get; set; }
 
         private float contactsurfacelayer = 0.001f;
 
@@ -432,6 +460,15 @@ namespace OpenSim.Region.Physics.OdePlugin
                     gravityx = physicsconfig.GetFloat("world_gravityx", 0f);
                     gravityy = physicsconfig.GetFloat("world_gravityy", 0f);
                     gravityz = physicsconfig.GetFloat("world_gravityz", -9.8f);
+
+                    float avatarTerminalVelocity = physicsconfig.GetFloat("avatar_terminal_velocity", 54f);
+                    AvatarTerminalVelocity = Util.Clamp<float>(avatarTerminalVelocity, 0, 255f);
+                    if (AvatarTerminalVelocity != avatarTerminalVelocity)
+                    {
+                        m_log.WarnFormat(
+                            "[ODE SCENE]: avatar_terminal_velocity of {0} is invalid.  Clamping to {1}",
+                            avatarTerminalVelocity, AvatarTerminalVelocity);
+                    }
 
                     worldHashspaceLow = physicsconfig.GetInt("world_hashspace_size_low", -4);
                     worldHashspaceHigh = physicsconfig.GetInt("world_hashspace_size_high", 128);
@@ -799,7 +836,9 @@ namespace OpenSim.Region.Physics.OdePlugin
                 if (b1 != IntPtr.Zero && b2 != IntPtr.Zero && d.AreConnectedExcluding(b1, b2, d.JointType.Contact))
                     return;
 
-                count = d.Collide(g1, g2, contacts.Length, contacts, d.ContactGeom.SizeOf);
+                lock (OdeScene.UniversalColliderSyncObject)
+                    count = d.Collide(g1, g2, contacts.Length, contacts, d.ContactGeom.SizeOf);
+
                 if (count > contacts.Length)
                     m_log.Error("[ODE SCENE]: Got " + count + " contacts when we asked for a maximum of " + contacts.Length);
             }
@@ -1525,7 +1564,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                 chr.CollidingGround = false;
                 chr.CollidingObj = false;
                 
-                // test the avatar's geometry for collision with the space
+                // Test the avatar's geometry for collision with the space
                 // This will return near and the space that they are the closest to
                 // And we'll run this again against the avatar and the space segment
                 // This will return with a bunch of possible objects in the space segment

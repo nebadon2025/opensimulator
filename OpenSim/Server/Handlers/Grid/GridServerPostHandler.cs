@@ -207,14 +207,23 @@ namespace OpenSim.Server.Handlers.Grid
 
             Dictionary<string, object> result = new Dictionary<string, object>();
 
-            // TODO: Create the Method to get Empty Coordinates
-            List<GridRegion> rinfos = m_GridService.GetEmptyCoordinates(scopeID);
+            int desiredX = 7000; // put this at OpenSim.ini file
+            int desiredY = 7000; // this also
 
-            if ((rinfos == null) || ((rinfos != null) && (rinfos.Count == 0)))
-                result["coordinates"] = "null";
+            if (request.ContainsKey("X"))
+                int.TryParse( request["X"].ToString(), out desiredX);
+
+            if (request.ContainsKey("Y"))
+                int.TryParse(request["Y"].ToString(), out desiredY);
+
+            // TODO: Create the Method to get Empty Coordinates
+            GridRegion rinfo = m_GridService.GetEmptyCoordinates(scopeID, desiredX, desiredY);
+
+            if (rinfo == null)
+                result["coordinates"] = desiredX + "," + desiredY;
             else
             {
-                result["coordinates"] = rinfos[0].RegionCoordX.ToString() + "," + rinfos[0].RegionCoordY.ToString();
+                result["coordinates"] = rinfo.RegionCoordX.ToString() + "," + rinfo.RegionCoordY.ToString();
             }
 
             string xmlString = ServerUtils.BuildXmlResponse(result);

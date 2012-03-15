@@ -267,10 +267,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <returns></returns>
         public void CreateScriptInstance(TaskInventoryItem item, int startParam, bool postOnRez, string engine, int stateSource)
         {
-            // m_log.InfoFormat(
-            //     "[PRIM INVENTORY]: " +
-            //     "Starting script {0}, {1} in prim {2}, {3}",
-            //     item.Name, item.ItemID, Name, UUID);
+//             m_log.DebugFormat("[PRIM INVENTORY]: Starting script {0} {1} in prim {2} {3} in {4}",
+//                 item.Name, item.ItemID, m_part.Name, m_part.UUID, m_part.ParentGroup.Scene.RegionInfo.RegionName);
 
             if (!m_part.ParentGroup.Scene.Permissions.CanRunScript(item.ItemID, m_part.UUID, item.OwnerID))
                 return;
@@ -299,22 +297,22 @@ namespace OpenSim.Region.Framework.Scenes
                 if (null == asset)
                 {
                     m_log.ErrorFormat(
-                        "[PRIM INVENTORY]: " +
-                        "Couldn't start script {0}, {1} at {2} in {3} since asset ID {4} could not be found",
+                        "[PRIM INVENTORY]: Couldn't start script {0}, {1} at {2} in {3} since asset ID {4} could not be found",
                         item.Name, item.ItemID, m_part.AbsolutePosition, 
                         m_part.ParentGroup.Scene.RegionInfo.RegionName, item.AssetID);
                 }
                 else
                 {
                     if (m_part.ParentGroup.m_savedScriptState != null)
-                        RestoreSavedScriptState(item.OldItemID, item.ItemID);
+                        item.OldItemID = RestoreSavedScriptState(item.LoadedItemID, item.OldItemID, item.ItemID);
 
                     lock (m_items)
                     {
+                        m_items[item.ItemID].OldItemID = item.OldItemID;
                         m_items[item.ItemID].PermsMask = 0;
                         m_items[item.ItemID].PermsGranter = UUID.Zero;
                     }
-                
+
                     string script = Utils.BytesToString(asset.Data);
                     m_part.ParentGroup.Scene.EventManager.TriggerRezScript(
                         m_part.LocalId, item.ItemID, script, startParam, postOnRez, engine, stateSource);
@@ -324,17 +322,20 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        private void RestoreSavedScriptState(UUID oldID, UUID newID)
+        private UUID RestoreSavedScriptState(UUID loadedID, UUID oldID, UUID newID)
         {
             IScriptModule[] engines = m_part.ParentGroup.Scene.RequestModuleInterfaces<IScriptModule>();
             if (engines.Length == 0) // No engine at all
-                return;
+                return oldID;
 
-            if (m_part.ParentGroup.m_savedScriptState.ContainsKey(oldID))
+            UUID stateID = oldID;
+            if (!m_part.ParentGroup.m_savedScriptState.ContainsKey(oldID))
+                stateID = loadedID;
+            if (m_part.ParentGroup.m_savedScriptState.ContainsKey(stateID))
             {
                 XmlDocument doc = new XmlDocument();
 
-                doc.LoadXml(m_part.ParentGroup.m_savedScriptState[oldID]);
+                doc.LoadXml(m_part.ParentGroup.m_savedScriptState[stateID]);
                 
                 ////////// CRUFT WARNING ///////////////////////////////////
                 //
@@ -351,7 +352,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                     XmlElement rootN = newDoc.CreateElement("", "State", "");
                     XmlAttribute uuidA = newDoc.CreateAttribute("", "UUID", "");
-                    uuidA.Value = oldID.ToString();
+                    uuidA.Value = stateID.ToString();
                     rootN.Attributes.Append(uuidA);
                     XmlAttribute engineA = newDoc.CreateAttribute("", "Engine", "");
                     engineA.Value = "XEngine";
@@ -365,20 +366,22 @@ namespace OpenSim.Region.Framework.Scenes
                     // This created document has only the minimun data
                     // necessary for XEngine to parse it successfully
 
-                    m_part.ParentGroup.m_savedScriptState[oldID] = newDoc.OuterXml;
+                    m_part.ParentGroup.m_savedScriptState[stateID] = newDoc.OuterXml;
                 }
                 
                 foreach (IScriptModule e in engines)
                 {
                     if (e != null)
                     {
-                        if (e.SetXMLState(newID, m_part.ParentGroup.m_savedScriptState[oldID]))
+                        if (e.SetXMLState(newID, m_part.ParentGroup.m_savedScriptState[stateID]))
                             break;
                     }
                 }
 
-                m_part.ParentGroup.m_savedScriptState.Remove(oldID);
+                m_part.ParentGroup.m_savedScriptState.Remove(stateID);
             }
+
+            return stateID;
         }
 
         /// <summary>
@@ -394,8 +397,7 @@ namespace OpenSim.Region.Framework.Scenes
                 CreateScriptInstance(item, startParam, postOnRez, engine, stateSource);
             else
                 m_log.ErrorFormat(
-                    "[PRIM INVENTORY]: " +
-                    "Couldn't start script with ID {0} since it couldn't be found for prim {1}, {2} at {3} in {4}",
+                    "[PRIM INVENTORY]: Couldn't start script with ID {0} since it couldn't be found for prim {1}, {2} at {3} in {4}",
                     itemId, m_part.Name, m_part.UUID, 
                     m_part.AbsolutePosition, m_part.ParentGroup.Scene.RegionInfo.RegionName);
         }

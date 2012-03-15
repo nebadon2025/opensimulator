@@ -41,12 +41,6 @@ namespace OpenSim.Region.Framework.Scenes
 {
     public delegate void PhysicsCrash();
 
-    public delegate void ObjectDuplicateDelegate(EntityBase original, EntityBase clone);
-
-    public delegate void ObjectCreateDelegate(EntityBase obj);
-
-    public delegate void ObjectDeleteDelegate(EntityBase obj);
-
     /// <summary>
     /// This class used to be called InnerScene and may not yet truly be a SceneGraph.  The non scene graph components
     /// should be migrated out over time.
@@ -59,10 +53,6 @@ namespace OpenSim.Region.Framework.Scenes
 
         protected internal event PhysicsCrash UnRecoverableError;
         private PhysicsCrash handlerPhysicsCrash = null;
-
-        public event ObjectDuplicateDelegate OnObjectDuplicate;
-        public event ObjectCreateDelegate OnObjectCreate;
-        public event ObjectDeleteDelegate OnObjectRemove;
 
         #endregion
 
@@ -225,27 +215,9 @@ namespace OpenSim.Region.Framework.Scenes
                 if (sp.IsChildAgent)
                     continue;
 
-                if (sp.ParentID != 0)
-                {
-                    // sitting avatar
-                    SceneObjectPart sop = m_parentScene.GetSceneObjectPart(sp.ParentID);
-                    if (sop != null)
-                    {
-                        coarseLocations.Add(sop.AbsolutePosition + sp.OffsetPosition);
-                        avatarUUIDs.Add(sp.UUID);
-                    }
-                    else
-                    {
-                        // we can't find the parent..  ! arg!
-                        coarseLocations.Add(sp.AbsolutePosition);
-                        avatarUUIDs.Add(sp.UUID);
-                    }
-                }
-                else
-                {
-                    coarseLocations.Add(sp.AbsolutePosition);
-                    avatarUUIDs.Add(sp.UUID);
-                }
+                coarseLocations.Add(sp.AbsolutePosition);
+
+                avatarUUIDs.Add(sp.UUID);
             }
         }
 
@@ -311,6 +283,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         /// 
         /// This method does not send updates to the client - callers need to handle this themselves.
+        /// Caller should also trigger EventManager.TriggerObjectAddedToScene
         /// <param name="sceneObject"></param>
         /// <param name="attachToBackup"></param>
         /// <param name="pos">Position of the object.  If null then the position stored in the object is used.</param>
@@ -363,14 +336,26 @@ namespace OpenSim.Region.Framework.Scenes
         /// </returns>
         protected bool AddSceneObject(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates)
         {
-            if (sceneObject == null || sceneObject.RootPart.UUID == UUID.Zero)
+            if (sceneObject.UUID == UUID.Zero)
+            {
+                m_log.ErrorFormat(
+                    "[SCENEGRAPH]: Tried to add scene object {0} to {1} with illegal UUID of {2}",
+                    sceneObject.Name, m_parentScene.RegionInfo.RegionName, UUID.Zero);
+
                 return false;
+            }
 
             if (Entities.ContainsKey(sceneObject.UUID))
+            {
+//                m_log.DebugFormat(
+//                    "[SCENEGRAPH]: Scene graph for {0} already contains object {1} in AddSceneObject()",
+//                    m_parentScene.RegionInfo.RegionName, sceneObject.UUID);
+
                 return false;
-            
+            }
+
 //            m_log.DebugFormat(
-//                "[SCENEGRAPH]: Adding scene object {0} {1}, with {2} parts on {3}", 
+//                "[SCENEGRAPH]: Adding scene object {0} {1}, with {2} parts on {3}",
 //                sceneObject.Name, sceneObject.UUID, sceneObject.Parts.Length, m_parentScene.RegionInfo.RegionName);
 
             SceneObjectPart[] parts = sceneObject.Parts;
@@ -404,12 +389,9 @@ namespace OpenSim.Region.Framework.Scenes
             if (attachToBackup)
                 sceneObject.AttachToBackup();
 
-            if (OnObjectCreate != null)
-                OnObjectCreate(sceneObject);
-
             lock (SceneObjectGroupsByFullID)
                 SceneObjectGroupsByFullID[sceneObject.UUID] = sceneObject;
-            
+
             lock (SceneObjectGroupsByFullPartID)
             {
                 foreach (SceneObjectPart part in parts)
@@ -455,9 +437,6 @@ namespace OpenSim.Region.Framework.Scenes
                 if ((grp.RootPart.Flags & PrimFlags.Physics) == PrimFlags.Physics)
                     RemovePhysicalPrim(grp.PrimCount);
             }
-
-            if (OnObjectRemove != null)
-                OnObjectRemove(Entities[uuid]);
             
             lock (SceneObjectGroupsByFullID)
                 SceneObjectGroupsByFullID.Remove(grp.UUID);
@@ -925,7 +904,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         /// <param name="fullID"></param>
         /// <returns>null if no scene object group containing that prim is found</returns>
-        private SceneObjectGroup GetGroupByPrim(UUID fullID)
+        public SceneObjectGroup GetGroupByPrim(UUID fullID)
         {
             SceneObjectGroup sog;
             lock (SceneObjectGroupsByFullPartID)
@@ -1153,8 +1132,10 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="action"></param>
         protected internal void ForEachSOG(Action<SceneObjectGroup> action)
         {
-            // FIXME: Need to lock here, really.
-            List<SceneObjectGroup> objlist = new List<SceneObjectGroup>(SceneObjectGroupsByFullID.Values);
+            List<SceneObjectGroup> objlist;
+            lock (SceneObjectGroupsByFullID)
+                objlist = new List<SceneObjectGroup>(SceneObjectGroupsByFullID.Values);
+
             foreach (SceneObjectGroup obj in objlist)
             {
                 try
@@ -1163,7 +1144,7 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 catch (Exception e)
                 {
-                    // Catch it and move on. This includes situations where splist has inconsistent info
+                    // Catch it and move on. This includes situations where objlist has inconsistent info
                     m_log.WarnFormat(
                         "[SCENEGRAPH]: Problem processing action in ForEachSOG: {0} {1}", e.Message, e.StackTrace);
                 }
@@ -1398,10 +1379,10 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Update the texture entry of the given prim.
         /// </summary>
-        /// 
+        /// <remarks>
         /// A texture entry is an object that contains details of all the textures of the prim's face.  In this case,
         /// the texture is given in its byte serialized form.
-        /// 
+        /// </remarks>
         /// <param name="localID"></param>
         /// <param name="texture"></param>
         /// <param name="remoteClient"></param>
@@ -1593,7 +1574,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (group != null)
             {
-                if (m_parentScene.Permissions.CanEditObject(group.UUID,agentID))
+                if (m_parentScene.Permissions.CanEditObject(group.UUID, agentID))
                 {
                     group.UpdateExtraParam(primLocalID, type, inUse, data);
                 }
@@ -1610,7 +1591,7 @@ namespace OpenSim.Region.Framework.Scenes
             SceneObjectGroup group = GetGroupByPrim(primLocalID);
             if (group != null)
             {
-                if (m_parentScene.Permissions.CanEditObject(group.GetPartsFullID(primLocalID), agentID))
+                if (m_parentScene.Permissions.CanEditObject(group.UUID, agentID))
                 {
                     ObjectShapePacket.ObjectDataBlock shapeData = new ObjectShapePacket.ObjectDataBlock();
                     shapeData.ObjectLocalID = shapeBlock.ObjectLocalID;
@@ -1663,6 +1644,10 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     SceneObjectGroup child = children[i].ParentGroup;
 
+                    // Don't try and add a group to itself - this will only cause severe problems later on.
+                    if (child == parentGroup)
+                        continue;
+
                     // Make sure no child prim is set for sale
                     // So that, on delink, no prims are unwittingly
                     // left for sale and sold off
@@ -1685,11 +1670,13 @@ namespace OpenSim.Region.Framework.Scenes
 
                 // We need to explicitly resend the newly link prim's object properties since no other actions
                 // occur on link to invoke this elsewhere (such as object selection)
-                parentGroup.RootPart.CreateSelected = true;
-                parentGroup.TriggerScriptChangedEvent(Changed.LINK);
-                parentGroup.HasGroupChanged = true;
-                parentGroup.ScheduleGroupForFullUpdate();
-                
+                if (childGroups.Count > 0)
+                {
+                    parentGroup.RootPart.CreateSelected = true;
+                    parentGroup.TriggerScriptChangedEvent(Changed.LINK);
+                    parentGroup.HasGroupChanged = true;
+                    parentGroup.ScheduleGroupForFullUpdate();
+                }
             }
             finally
             {
@@ -1874,22 +1861,6 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Duplicate the given object, Fire and Forget, No rotation, no return wrapper
-        /// </summary>
-        /// <param name="originalPrim"></param>
-        /// <param name="offset"></param>
-        /// <param name="flags"></param>
-        /// <param name="AgentID"></param>
-        /// <param name="GroupID"></param>
-        protected internal void DuplicateObject(uint originalPrim, Vector3 offset, uint flags, UUID AgentID, UUID GroupID)
-        {
-            //m_log.DebugFormat("[SCENE]: Duplication of object {0} at offset {1} requested by agent {2}", originalPrim, offset, AgentID);
-
-            // SceneObjectGroup dupe = DuplicateObject(originalPrim, offset, flags, AgentID, GroupID, Quaternion.Zero);
-            DuplicateObject(originalPrim, offset, flags, AgentID, GroupID, Quaternion.Identity);
-        }
-        
-        /// <summary>
         /// Duplicate the given object.
         /// </summary>
         /// <param name="originalPrim"></param>
@@ -1978,9 +1949,6 @@ namespace OpenSim.Region.Framework.Scenes
 
                     // required for physics to update it's position
                     copy.AbsolutePosition = copy.AbsolutePosition;
-
-                    if (OnObjectDuplicate != null)
-                        OnObjectDuplicate(original, copy);
 
                     return copy;
                 }

@@ -317,7 +317,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         protected readonly UUID m_agentId;
         private readonly uint m_circuitCode;
         private readonly byte[] m_channelVersion = Utils.EmptyBytes;
-        private readonly Dictionary<string, UUID> m_defaultAnimations = new Dictionary<string, UUID>();
         private readonly IGroupsModule m_GroupsModule;
 
         private int m_cachedTextureSerial;
@@ -452,10 +451,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             RegisterInterface<IClientChat>(this);
             RegisterInterface<IClientIPEndpoint>(this);
 
-            InitDefaultAnimations();
-
             m_scene = scene;
-
             m_entityUpdates = new PriorityQueue(m_scene.Entities.Count);
             m_entityProps = new PriorityQueue(m_scene.Entities.Count);
             m_fullUpdateDataBlocksBuilder = new List<ObjectUpdatePacket.ObjectDataBlock>();
@@ -4439,7 +4435,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             EstateCovenantReplyPacket einfopack = new EstateCovenantReplyPacket();
             EstateCovenantReplyPacket.DataBlock edata = new EstateCovenantReplyPacket.DataBlock();
             edata.CovenantID = covenant;
-            edata.CovenantTimestamp = 0;
+            edata.CovenantTimestamp = (uint) m_scene.RegionInfo.RegionSettings.CovenantChangedDateTime;
             edata.EstateOwnerID = m_scene.RegionInfo.EstateSettings.EstateOwner;
             edata.EstateName = Utils.StringToBytes(m_scene.RegionInfo.EstateSettings.EstateName);
             einfopack.Data = edata;
@@ -4447,8 +4443,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         }
 
         public void SendDetailedEstateData(
-            UUID invoice, string estateName, uint estateID, uint parentEstate, uint estateFlags, uint sunPosition, 
-            UUID covenant, string abuseEmail, UUID estateOwner)
+            UUID invoice, string estateName, uint estateID, uint parentEstate, uint estateFlags, uint sunPosition,
+            UUID covenant, uint covenantChanged, string abuseEmail, UUID estateOwner)
         {
 //            m_log.DebugFormat(
 //                "[LLCLIENTVIEW]: Sending detailed estate data to {0} with covenant asset id {1}", Name, covenant);
@@ -4473,7 +4469,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             returnblock[4].Parameter = Utils.StringToBytes(sunPosition.ToString());
             returnblock[5].Parameter = Utils.StringToBytes(parentEstate.ToString());
             returnblock[6].Parameter = Utils.StringToBytes(covenant.ToString());
-            returnblock[7].Parameter = Utils.StringToBytes("1160895077"); // what is this?
+            returnblock[7].Parameter = Utils.StringToBytes(covenantChanged.ToString());
             returnblock[8].Parameter = Utils.StringToBytes("1"); // what is this?
             returnblock[9].Parameter = Utils.StringToBytes(abuseEmail);
 
@@ -4623,7 +4619,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             }
         }
 
-        public void SendLandAccessListData(List<UUID> avatars, uint accessFlag, int localLandID)
+        public void SendLandAccessListData(List<LandAccessEntry> accessList, uint accessFlag, int localLandID)
         {
             ParcelAccessListReplyPacket replyPacket = (ParcelAccessListReplyPacket)PacketPool.Instance.GetPacket(PacketType.ParcelAccessListReply);
             replyPacket.Data.AgentID = AgentId;
@@ -4632,12 +4628,12 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             replyPacket.Data.SequenceID = 0;
 
             List<ParcelAccessListReplyPacket.ListBlock> list = new List<ParcelAccessListReplyPacket.ListBlock>();
-            foreach (UUID avatar in avatars)
+            foreach (LandAccessEntry entry in accessList)
             {
                 ParcelAccessListReplyPacket.ListBlock block = new ParcelAccessListReplyPacket.ListBlock();
                 block.Flags = accessFlag;
-                block.ID = avatar;
-                block.Time = 0;
+                block.ID = entry.AgentID;
+                block.Time = entry.Expires;
                 list.Add(block);
             }
 
@@ -5107,7 +5103,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             AddLocalPacketHandler(PacketType.ImprovedInstantMessage, HandlerImprovedInstantMessage, false);
             AddLocalPacketHandler(PacketType.AcceptFriendship, HandlerAcceptFriendship);
             AddLocalPacketHandler(PacketType.DeclineFriendship, HandlerDeclineFriendship);
-            AddLocalPacketHandler(PacketType.TerminateFriendship, HandlerTerminateFrendship);
+            AddLocalPacketHandler(PacketType.TerminateFriendship, HandlerTerminateFriendship);
             AddLocalPacketHandler(PacketType.RezObject, HandlerRezObject);
             AddLocalPacketHandler(PacketType.DeRezObject, HandlerDeRezObject);
             AddLocalPacketHandler(PacketType.ModifyLand, HandlerModifyLand);
@@ -5827,7 +5823,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             return true;
         }
 
-        private bool HandlerTerminateFrendship(IClientAPI sender, Packet Pack)
+        private bool HandlerTerminateFriendship(IClientAPI sender, Packet Pack)
         {
             TerminateFriendshipPacket tfriendpack = (TerminateFriendshipPacket)Pack;
 
@@ -5842,13 +5838,13 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
             UUID listOwnerAgentID = tfriendpack.AgentData.AgentID;
             UUID exFriendID = tfriendpack.ExBlock.OtherID;
-
-            FriendshipTermination handlerTerminateFriendship = OnTerminateFriendship;
-            if (handlerTerminateFriendship != null)
+            FriendshipTermination TerminateFriendshipHandler = OnTerminateFriendship;
+            if (TerminateFriendshipHandler != null)
             {
-                handlerTerminateFriendship(this, listOwnerAgentID, exFriendID);
+                TerminateFriendshipHandler(this, listOwnerAgentID, exFriendID);
+                return true;
             }
-            return true;
+            return false;
         }
 
         private bool HandleFindAgent(IClientAPI client, Packet Packet)
@@ -7625,6 +7621,13 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                     }
                 }
             }
+            else
+                if (transfer.TransferInfo.SourceType == (int)SourceType.SimEstate)
+                {
+                    //TransferRequestPacket does not include covenant uuid?
+                    //get scene covenant uuid
+                    taskID = m_scene.RegionInfo.RegionSettings.Covenant;
+                }
 
             MakeAssetRequest(transfer, taskID);
 
@@ -8577,13 +8580,13 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             }
             #endregion
 
-            List<ParcelManager.ParcelAccessEntry> entries = new List<ParcelManager.ParcelAccessEntry>();
+            List<LandAccessEntry> entries = new List<LandAccessEntry>();
             foreach (ParcelAccessListUpdatePacket.ListBlock block in updatePacket.List)
             {
-                ParcelManager.ParcelAccessEntry entry = new ParcelManager.ParcelAccessEntry();
+                LandAccessEntry entry = new LandAccessEntry();
                 entry.AgentID = block.ID;
                 entry.Flags = (AccessList)block.Flags;
-                entry.Time = Util.ToDateTime(block.Time);
+                entry.Expires = block.Time;
                 entries.Add(entry);
             }
 
@@ -9252,9 +9255,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                             {
                                 param1 = Convert.ToUInt32(Utils.BytesToString(messagePacket.ParamList[1].Parameter));
                             }
-                            catch (Exception ex)
+                            catch
                             {
-
                             }
                         }
 
@@ -11204,30 +11206,9 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             OutPacket(scriptQuestion, ThrottleOutPacketType.Task);
         }
 
-        private void InitDefaultAnimations()
-        {
-            using (XmlTextReader reader = new XmlTextReader("data/avataranimations.xml"))
-            {
-                XmlDocument doc = new XmlDocument();
-                doc.Load(reader);
-                if (doc.DocumentElement != null)
-                    foreach (XmlNode nod in doc.DocumentElement.ChildNodes)
-                    {
-                        if (nod.Attributes["name"] != null)
-                        {
-                            string name = nod.Attributes["name"].Value.ToLower();
-                            string id = nod.InnerText;
-                            m_defaultAnimations.Add(name, (UUID)id);
-                        }
-                    }
-            }
-        }
-
         public UUID GetDefaultAnimation(string name)
         {
-            if (m_defaultAnimations.ContainsKey(name))
-                return m_defaultAnimations[name];
-            return UUID.Zero;
+            return SLUtil.GetDefaultAvatarAnimation(name);
         }
 
         /// <summary>
@@ -11986,6 +11967,11 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             {
                 requestID = new UUID(transferRequest.TransferInfo.Params, 80);
             }
+            else if (transferRequest.TransferInfo.SourceType == (int)SourceType.SimEstate)
+            {
+                requestID = taskID;
+            }
+
 
 //            m_log.DebugFormat("[CLIENT]: {0} requesting asset {1}", Name, requestID);
 

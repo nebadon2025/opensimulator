@@ -138,8 +138,11 @@ namespace OpenSim.Region.Framework.Scenes
         public event OnPermissionErrorDelegate OnPermissionError;
 
         /// <summary>
-        /// Fired when a new script is created.
+        /// Fired when a script is run.
         /// </summary>
+        /// <remarks>
+        /// Occurs after OnNewScript.
+        /// </remarks>
         public event NewRezScript OnRezScript;
         public delegate void NewRezScript(uint localID, UUID itemID, string script, int startParam, bool postOnRez, string engine, int stateSource);
 
@@ -173,6 +176,9 @@ namespace OpenSim.Region.Framework.Scenes
         public delegate void AvatarEnteringNewParcel(ScenePresence avatar, int localLandID, UUID regionID);
         public event AvatarEnteringNewParcel OnAvatarEnteringNewParcel;
 
+        public delegate void AvatarAppearanceChange(ScenePresence avatar);
+        public event AvatarAppearanceChange OnAvatarAppearanceChange;
+
         public event Action<ScenePresence> OnSignificantClientMovement;
 
         public delegate void IncomingInstantMessage(GridInstantMessage message);
@@ -184,10 +190,74 @@ namespace OpenSim.Region.Framework.Scenes
 
         public event ClientClosed OnClientClosed;
 
+        public delegate void NewScript(UUID clientID, SceneObjectPart part, UUID itemID);
+
         /// <summary>
-        /// This is fired when a scene object property that a script might be interested in (such as color, scale or
-        /// inventory) changes.  Only enough information is sent for the LSL changed event
-        /// (see http://lslwiki.net/lslwiki/wakka.php?wakka=changed)
+        /// Fired when a script is created.
+        /// </summary>
+        /// <remarks>
+        /// Occurs before OnRezScript
+        /// </remarks>
+        public event NewScript OnNewScript;
+
+        public virtual void TriggerNewScript(UUID clientID, SceneObjectPart part, UUID itemID)
+        {
+            NewScript handlerNewScript = OnNewScript;
+            if (handlerNewScript != null)
+            {
+                foreach (NewScript d in handlerNewScript.GetInvocationList())
+                {
+                    try
+                    {
+                        d(clientID, part, itemID);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerNewScript failed - continuing.  {0} {1}",
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+
+        public delegate void UpdateScript(UUID clientID, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID);
+
+        /// <summary>
+        /// An indication that the script has changed.
+        /// </summary>
+        /// <remarks>
+        /// Triggered after the scene receives a client's upload of an updated script and has stored it in an asset.
+        /// </remarks>
+        public event UpdateScript OnUpdateScript;
+        
+        public virtual void TriggerUpdateScript(UUID clientId, UUID itemId, UUID primId, bool isScriptRunning, UUID newAssetID)
+        {
+            UpdateScript handlerUpdateScript = OnUpdateScript;
+            if (handlerUpdateScript != null)
+            {
+                foreach (UpdateScript d in handlerUpdateScript.GetInvocationList())
+                {
+                    try
+                    {
+                        d(clientId, itemId, primId, isScriptRunning, newAssetID);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerUpdateScript failed - continuing.  {0} {1}",
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        } 
+
+        /// <summary>
+        /// ScriptChangedEvent is fired when a scene object property that a script might be interested 
+        /// in (such as color, scale or inventory) changes.  Only enough information sent is for the LSL changed event.
+        /// This is not an indication that the script has changed (see OnUpdateScript for that). 
+        /// This event is sent to a script to tell it that some property changed on 
+        /// the object the script is in. See http://lslwiki.net/lslwiki/wakka.php?wakka=changed .
         /// </summary>
         public event ScriptChangedEvent OnScriptChangedEvent;
         public delegate void ScriptChangedEvent(uint localID, uint change);
@@ -398,11 +468,17 @@ namespace OpenSim.Region.Framework.Scenes
         public event SceneObjectPartCopyDelegate OnSceneObjectPartCopy;
         public delegate void SceneObjectPartCopyDelegate(SceneObjectPart copy, SceneObjectPart original, bool userExposed);
 
+        public delegate void SceneObjectPartUpdated(SceneObjectPart sop);
+        public event SceneObjectPartUpdated OnSceneObjectPartUpdated;
+
         public delegate void RegionUp(GridRegion region);
         public event RegionUp OnRegionUp;
 
         public delegate void RegionStarted(Scene scene);
         public event RegionStarted OnRegionStarted;
+
+        public delegate void RegionHeartbeatEnd(Scene scene);
+        public event RegionHeartbeatEnd OnRegionHeartbeatEnd;
 
         public delegate void LoginsEnabled(string regionName);
         public event LoginsEnabled OnLoginsEnabled;
@@ -1226,6 +1302,27 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         m_log.ErrorFormat(
                             "[EVENT MANAGER]: Delegate for TriggerAvatarEnteringNewParcel failed - continuing.  {0} {1}", 
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+
+        public void TriggerAvatarAppearanceChanged(ScenePresence avatar)
+        {
+            AvatarAppearanceChange handler = OnAvatarAppearanceChange;
+            if (handler != null)
+            {
+                foreach (AvatarAppearanceChange d in handler.GetInvocationList())
+                {
+                    try
+                    {
+                        d(avatar);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerAvatarAppearanceChanged failed - continuing.  {0} {1}", 
                             e.Message, e.StackTrace);
                     }
                 }
@@ -2203,6 +2300,27 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        public void TriggerSceneObjectPartUpdated(SceneObjectPart sop)
+        {
+            SceneObjectPartUpdated handler = OnSceneObjectPartUpdated;
+            if (handler != null)
+            {
+                foreach (SceneObjectPartUpdated d in handler.GetInvocationList())
+                {
+                    try
+                    {
+                        d(sop);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat(
+                            "[EVENT MANAGER]: Delegate for TriggerSceneObjectPartUpdated failed - continuing.  {0} {1}", 
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+
         public void TriggerOnParcelPropertiesUpdateRequest(LandUpdateArgs args,
                         int local_id, IClientAPI remote_client)
         {
@@ -2261,6 +2379,27 @@ namespace OpenSim.Region.Framework.Scenes
                     catch (Exception e)
                     {
                         m_log.ErrorFormat("[EVENT MANAGER]: Delegate for RegionStarted failed - continuing {0} - {1}",
+                            e.Message, e.StackTrace);
+                    }
+                }
+            }
+        }
+
+        public void TriggerRegionHeartbeatEnd(Scene scene)
+        {
+            RegionHeartbeatEnd handler = OnRegionHeartbeatEnd;
+
+            if (handler != null)
+            {
+                foreach (RegionHeartbeatEnd d in handler.GetInvocationList())
+                {
+                    try
+                    {
+                        d(scene);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat("[EVENT MANAGER]: Delegate for OnRegionHeartbeatEnd failed - continuing {0} - {1}",
                             e.Message, e.StackTrace);
                     }
                 }

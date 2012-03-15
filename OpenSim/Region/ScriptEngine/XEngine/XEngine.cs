@@ -26,14 +26,15 @@
  */
 
 using System;
-using System.IO;
-using System.Threading;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Reflection;
 using System.Security;
 using System.Security.Policy;
-using System.Reflection;
-using System.Globalization;
+using System.Text;
+using System.Threading;
 using System.Xml;
 using OpenMetaverse;
 using OpenMetaverse.StructuredData;
@@ -48,7 +49,10 @@ using OpenSim.Region.ScriptEngine.Shared;
 using OpenSim.Region.ScriptEngine.Shared.ScriptBase;
 using OpenSim.Region.ScriptEngine.Shared.CodeTools;
 using OpenSim.Region.ScriptEngine.Shared.Instance;
+using OpenSim.Region.ScriptEngine.Shared.Api;
+using OpenSim.Region.ScriptEngine.Shared.Api.Plugins;
 using OpenSim.Region.ScriptEngine.Interfaces;
+using Timer = OpenSim.Region.ScriptEngine.Shared.Api.Plugins.Timer;
 
 using ScriptCompileQueue = OpenSim.Framework.LocklessQueue<object[]>;
 
@@ -273,17 +277,22 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             }
 
             MainConsole.Instance.Commands.AddCommand(
-                "scripts", false, "scripts show", "scripts show [<script-item-uuid>]", "Show script information",
+                "Scripts", false, "xengine status", "xengine status", "Show status information",
+                "Show status information on the script engine.",
+                HandleShowStatus);
+
+            MainConsole.Instance.Commands.AddCommand(
+                "Scripts", false, "scripts show", "scripts show [<script-item-uuid>]", "Show script information",
                 "Show information on all scripts known to the script engine."
                     + "If a <script-item-uuid> is given then only information on that script will be shown.",
                 HandleShowScripts);
 
             MainConsole.Instance.Commands.AddCommand(
-                "scripts", false, "show scripts", "show scripts [<script-item-uuid>]", "Show script information",
+                "Scripts", false, "show scripts", "show scripts [<script-item-uuid>]", "Show script information",
                 "Synonym for scripts show command", HandleShowScripts);
 
             MainConsole.Instance.Commands.AddCommand(
-                "scripts", false, "scripts suspend", "scripts suspend [<script-item-uuid>]", "Suspends all running scripts",
+                "Scripts", false, "scripts suspend", "scripts suspend [<script-item-uuid>]", "Suspends all running scripts",
                 "Suspends all currently running scripts.  This only suspends event delivery, it will not suspend a"
                     + " script that is currently processing an event.\n"
                     + "Suspended scripts will continue to accumulate events but won't process them.\n"
@@ -291,20 +300,20 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                  (module, cmdparams) => HandleScriptsAction(cmdparams, HandleSuspendScript));
 
             MainConsole.Instance.Commands.AddCommand(
-                "scripts", false, "scripts resume", "scripts resume [<script-item-uuid>]", "Resumes all suspended scripts",
+                "Scripts", false, "scripts resume", "scripts resume [<script-item-uuid>]", "Resumes all suspended scripts",
                 "Resumes all currently suspended scripts.\n"
                     + "Resumed scripts will process all events accumulated whilst suspended."
                     + "If a <script-item-uuid> is given then only that script will be resumed.  Otherwise, all suitable scripts are resumed.",
                 (module, cmdparams) => HandleScriptsAction(cmdparams, HandleResumeScript));
 
             MainConsole.Instance.Commands.AddCommand(
-                "scripts", false, "scripts stop", "scripts stop [<script-item-uuid>]", "Stops all running scripts",
+                "Scripts", false, "scripts stop", "scripts stop [<script-item-uuid>]", "Stops all running scripts",
                 "Stops all running scripts."
                     + "If a <script-item-uuid> is given then only that script will be stopped.  Otherwise, all suitable scripts are stopped.",
                 (module, cmdparams) => HandleScriptsAction(cmdparams, HandleStopScript));
 
             MainConsole.Instance.Commands.AddCommand(
-                "scripts", false, "scripts start", "scripts start [<script-item-uuid>]", "Starts all stopped scripts",
+                "Scripts", false, "scripts start", "scripts start [<script-item-uuid>]", "Starts all stopped scripts",
                 "Starts all stopped scripts."
                     + "If a <script-item-uuid> is given then only that script will be started.  Otherwise, all suitable scripts are started.",
                 (module, cmdparams) => HandleScriptsAction(cmdparams, HandleStartScript));
@@ -318,6 +327,9 @@ namespace OpenSim.Region.ScriptEngine.XEngine
         /// <returns>true if we're okay to proceed, false if not.</returns>
         private void HandleScriptsAction(string[] cmdparams, Action<IScriptInstance> action)
         {
+            if (!(MainConsole.Instance.ConsoleScene == null || MainConsole.Instance.ConsoleScene == m_Scene))
+                return;
+
             lock (m_Scripts)
             {
                 string rawItemId;
@@ -359,8 +371,44 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             }
         }
 
+        private void HandleShowStatus(string module, string[] cmdparams)
+        {
+            if (!(MainConsole.Instance.ConsoleScene == null || MainConsole.Instance.ConsoleScene == m_Scene))
+                return;
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendFormat("Status of XEngine instance for {0}\n", m_Scene.RegionInfo.RegionName);
+
+            lock (m_Scripts)
+                sb.AppendFormat("Scripts loaded             : {0}\n", m_Scripts.Count);
+
+            sb.AppendFormat("Unique scripts             : {0}\n", m_uniqueScripts.Count);
+            sb.AppendFormat("Scripts waiting for load   : {0}\n", m_CompileQueue.Count);
+            sb.AppendFormat("Allocated threads          : {0}\n", m_ThreadPool.ActiveThreads);
+            sb.AppendFormat("In use threads             : {0}\n", m_ThreadPool.InUseThreads);
+            sb.AppendFormat("Work items waiting         : {0}\n", m_ThreadPool.WaitingCallbacks);
+//            sb.AppendFormat("Assemblies loaded          : {0}\n", m_Assemblies.Count);
+
+            SensorRepeat sr = AsyncCommandManager.GetSensorRepeatPlugin(this);
+            sb.AppendFormat("Sensors                    : {0}\n", sr.SensorsCount);
+
+            Dataserver ds = AsyncCommandManager.GetDataserverPlugin(this);
+            sb.AppendFormat("Dataserver requests        : {0}\n", ds.DataserverRequestsCount);
+
+            Timer t = AsyncCommandManager.GetTimerPlugin(this);
+            sb.AppendFormat("Timers                     : {0}\n", t.TimersCount);
+
+            Listener l = AsyncCommandManager.GetListenerPlugin(this);
+            sb.AppendFormat("Listeners                  : {0}\n", l.ListenerCount);
+
+            MainConsole.Instance.OutputFormat(sb.ToString());
+        }
+
         public void HandleShowScripts(string module, string[] cmdparams)
         {
+            if (!(MainConsole.Instance.ConsoleScene == null || MainConsole.Instance.ConsoleScene == m_Scene))
+                return;
+
             if (cmdparams.Length == 2)
             {
                 lock (m_Scripts)
@@ -395,10 +443,21 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                 status = "running";
             }
 
-            MainConsole.Instance.OutputFormat(
-                "{0}.{1}, item UUID {2}, prim UUID {3} @ {4} ({5})",
-                instance.PrimName, instance.ScriptName, instance.ItemID, instance.ObjectID,
-                sop.AbsolutePosition, status);
+            StringBuilder sb = new StringBuilder();
+            Queue eq = instance.EventQueue;
+
+            sb.AppendFormat("Script name         : {0}\n", instance.ScriptName);
+            sb.AppendFormat("Status              : {0}\n", status);
+
+            lock (eq)
+                sb.AppendFormat("Queued events       : {0}\n", eq.Count);
+
+            sb.AppendFormat("Item UUID           : {0}\n", instance.ItemID);
+            sb.AppendFormat("Containing part name: {0}\n", instance.PrimName);
+            sb.AppendFormat("Containing part UUID: {0}\n", instance.ObjectID);
+            sb.AppendFormat("Position            : {0}\n", sop.AbsolutePosition);
+
+            MainConsole.Instance.OutputFormat(sb.ToString());
         }
 
         private void HandleSuspendScript(IScriptInstance instance)
@@ -636,6 +695,10 @@ namespace OpenSim.Region.ScriptEngine.XEngine
 
         public void OnRezScript(uint localID, UUID itemID, string script, int startParam, bool postOnRez, string engine, int stateSource)
         {
+//            m_log.DebugFormat(
+//                "[XEngine]: OnRezScript event triggered for script {0}, startParam {1}, postOnRez {2}, engine {3}, stateSource {4}, script\n{5}",
+//                 itemID, startParam, postOnRez, engine, stateSource, script);
+
             if (script.StartsWith("//MRM:"))
                 return;
 
@@ -717,6 +780,8 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                     m_CompileDict[itemID] = 0;
                 }
 
+//                m_log.DebugFormat("[XEngine]: Added script {0} to compile queue", itemID);
+
                 if (m_CurrentCompile == null)
                 {
                     // NOTE: Although we use a lockless queue, the lock here
@@ -778,6 +843,8 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             bool postOnRez = (bool)p[4];
             StateSource stateSource = (StateSource)p[5];
 
+//            m_log.DebugFormat("[XEngine]: DoOnRezScript called for script {0}", itemID);
+
             lock (m_CompileDict)
             {
                 if (!m_CompileDict.ContainsKey(itemID))
@@ -826,7 +893,7 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             {
                 try
                 {
-                    lock (m_AddingAssemblies) 
+                    lock (m_AddingAssemblies)
                     {
                         m_Compiler.PerformScriptCompile(script, assetID.ToString(), item.OwnerID, out assembly, out linemap);
                         if (!m_AddingAssemblies.ContainsKey(assembly)) {
@@ -878,6 +945,8 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                 }
                 catch (Exception e)
                 {
+//                    m_log.ErrorFormat("[XEngine]: Exception when rezzing script {0}{1}", e.Message, e.StackTrace);
+
     //                try
     //                {
                         if (!m_ScriptErrors.ContainsKey(itemID))
@@ -1087,7 +1156,6 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                 SceneObjectPart part = m_Scene.GetSceneObjectPart(localID);
                 handlerObjectRemoved(part.UUID);
             }
-
 
             ScriptRemoved handlerScriptRemoved = OnScriptRemoved;
             if (handlerScriptRemoved != null)
@@ -1336,6 +1404,8 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             {
                 string path = Path.Combine(Directory.GetCurrentDirectory(),
                                            Path.Combine(s, assemblyName))+".dll";
+
+//                Console.WriteLine("[XEngine]: Trying to resolve {0}", path);
 
                 if (File.Exists(path))
                     return Assembly.LoadFrom(path);
@@ -1819,16 +1889,24 @@ namespace OpenSim.Region.ScriptEngine.XEngine
 
         public void SuspendScript(UUID itemID)
         {
+//            m_log.DebugFormat("[XEngine]: Received request to suspend script with ID {0}", itemID);
+
             IScriptInstance instance = GetInstance(itemID);
             if (instance != null)
                 instance.Suspend();
+//            else
+//                m_log.DebugFormat("[XEngine]: Could not find script with ID {0} to resume", itemID);
         }
 
         public void ResumeScript(UUID itemID)
         {
+//            m_log.DebugFormat("[XEngine]: Received request to resume script with ID {0}", itemID);
+
             IScriptInstance instance = GetInstance(itemID);
             if (instance != null)
                 instance.Resume();
+//            else
+//                m_log.DebugFormat("[XEngine]: Could not find script with ID {0} to resume", itemID);
         }
     }
 }

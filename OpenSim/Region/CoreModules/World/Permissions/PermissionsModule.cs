@@ -206,17 +206,17 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             m_scene.Permissions.OnControlPrimMedia += CanControlPrimMedia;
             m_scene.Permissions.OnInteractWithPrimMedia += CanInteractWithPrimMedia;
 
-            m_scene.AddCommand(this, "bypass permissions",
+            m_scene.AddCommand("Users", this, "bypass permissions",
                     "bypass permissions <true / false>",
                     "Bypass permission checks",
                     HandleBypassPermissions);
 
-            m_scene.AddCommand(this, "force permissions",
+            m_scene.AddCommand("Users", this, "force permissions",
                     "force permissions <true / false>",
                     "Force permissions on or off",
                     HandleForcePermissions);
 
-            m_scene.AddCommand(this, "debug permissions",
+            m_scene.AddCommand("Users", this, "debug permissions",
                     "debug permissions <true / false>",
                     "Turn on permissions debugging",
                     HandleDebugPermissions);                    
@@ -677,18 +677,12 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             bool permission = false;
             bool locked = false;
 
-            if (!m_scene.Entities.ContainsKey(objId))
-            {
-                return false;
-            }
+            SceneObjectPart part = m_scene.GetSceneObjectPart(objId);
 
-            // If it's not an object, we cant edit it.
-            if ((!(m_scene.Entities[objId] is SceneObjectGroup)))
-            {
+            if (part == null)
                 return false;
-            }
 
-            SceneObjectGroup group = (SceneObjectGroup)m_scene.Entities[objId];
+            SceneObjectGroup group = part.ParentGroup;
 
             UUID objectOwner = group.OwnerID;
             locked = ((group.RootPart.OwnerMask & PERM_LOCKED) == 0);
@@ -707,7 +701,12 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             // Object owners should be able to edit their own content
             if (currentUser == objectOwner)
             {
-                permission = true;
+                // there is no way that later code can change this back to false
+                // so just return true immediately and short circuit the more
+                // expensive group checks
+                return true;
+                
+                //permission = true;
             }
             else if (group.IsAttachment)
             {
@@ -971,16 +970,6 @@ namespace OpenSim.Region.CoreModules.World.Permissions
         {
             DebugPermissionInformation(MethodInfo.GetCurrentMethod().Name);
             if (m_bypassPermissions) return m_bypassPermissionsValue;
-
-            SceneObjectPart part = m_scene.GetSceneObjectPart(objectID);
-
-            // If we selected a sub-prim to edit, the objectID won't represent the object, but only a part.
-            // We have to check the permissions of the group, though.
-            if (part.ParentID != 0)
-            {
-                objectID = part.ParentUUID;
-                part = m_scene.GetSceneObjectPart(objectID);
-            }
 
             return GenericObjectPermission(editorID, objectID, false);
         }

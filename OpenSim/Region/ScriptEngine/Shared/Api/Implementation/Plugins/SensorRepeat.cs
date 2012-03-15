@@ -31,7 +31,6 @@ using System.Collections.Generic;
 using OpenMetaverse;
 using OpenSim.Framework;
 using log4net;
-
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Region.ScriptEngine.Shared;
@@ -41,7 +40,21 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Plugins
 {
     public class SensorRepeat
     {
+//        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
         public AsyncCommandManager m_CmdManager;
+
+        /// <summary>
+        /// Number of sensors active.
+        /// </summary>
+        public int SensorsCount
+        {
+            get
+            {
+                lock (SenseRepeatListLock)
+                    return SenseRepeaters.Count;
+            }
+        }
 
         public SensorRepeat(AsyncCommandManager CmdManager)
         {
@@ -156,12 +169,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Plugins
 
         public void CheckSenseRepeaterEvents()
         {
-            // Nothing to do here?
-            if (SenseRepeaters.Count == 0)
-                return;
-
             lock (SenseRepeatListLock)
             {
+                // Nothing to do here?
+                if (SenseRepeaters.Count == 0)
+                    return;
+
                 // Go through all timers
                 foreach (SenseRepeatClass ts in SenseRepeaters)
                 {
@@ -445,12 +458,42 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Plugins
             Vector3 toRegionPos;
             double dis;
 
-            Action<ScenePresence> senseEntity = new Action<ScenePresence>(delegate(ScenePresence presence)
+            Action<ScenePresence> senseEntity = new Action<ScenePresence>(presence =>
             {
+//                m_log.DebugFormat(
+//                    "[SENSOR REPEAT]: Inspecting scene presence {0}, type {1} on sensor sweep for {2}, type {3}",
+//                    presence.Name, presence.PresenceType, ts.name, ts.type);
+
                 if ((ts.type & NPC) == 0 && presence.PresenceType == PresenceType.Npc)
-                    return;
-                if ((ts.type & AGENT) == 0 && presence.PresenceType == PresenceType.User)
-                    return;
+                {
+                    INPC npcData = npcModule.GetNPC(presence.UUID, presence.Scene);
+                    if (npcData == null || !npcData.SenseAsAgent)
+                    {
+//                        m_log.DebugFormat(
+//                            "[SENSOR REPEAT]: Discarding NPC {0} from agent sense sweep for script item id {1}",
+//                            presence.Name, ts.itemID);
+                        return;
+                    }
+                }
+
+                if ((ts.type & AGENT) == 0)
+                {
+                    if (presence.PresenceType == PresenceType.User)
+                    {
+                        return;
+                    }
+                    else
+                    {
+                        INPC npcData = npcModule.GetNPC(presence.UUID, presence.Scene);
+                        if (npcData != null && npcData.SenseAsAgent)
+                        {
+//                            m_log.DebugFormat(
+//                                "[SENSOR REPEAT]: Discarding NPC {0} from non-agent sense sweep for script item id {1}",
+//                                presence.Name, ts.itemID);
+                            return;
+                        }
+                    }
+                }
 
                 if (presence.IsDeleted || presence.IsChildAgent || presence.GodLevel > 0.0)
                     return;
@@ -604,7 +647,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Plugins
                 ts.next =
                     DateTime.Now.ToUniversalTime().AddSeconds(ts.interval);
 
-                SenseRepeaters.Add(ts);
+                lock (SenseRepeatListLock)
+                    SenseRepeaters.Add(ts);
+                
                 idx += 6;
             }
         }

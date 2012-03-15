@@ -700,10 +700,10 @@ namespace OpenSim.Data.MySQL
 
                         cmd.Parameters.Clear();
                         cmd.CommandText = "insert into landaccesslist (LandUUID, " +
-                                "AccessUUID, Flags) values (?LandUUID, ?AccessUUID, " +
-                                "?Flags)";
+                                "AccessUUID, Flags, Expires) values (?LandUUID, ?AccessUUID, " +
+                                "?Flags, ?Expires)";
 
-                        foreach (ParcelManager.ParcelAccessEntry entry in parcel.LandData.ParcelAccessList)
+                        foreach (LandAccessEntry entry in parcel.LandData.ParcelAccessList)
                         {
                             FillLandAccessCommand(cmd, entry, parcel.LandData.GlobalID);
                             ExecuteNonQuery(cmd);
@@ -994,9 +994,11 @@ namespace OpenSim.Data.MySQL
                             "elevation_2_sw, water_height, " +
                             "terrain_raise_limit, terrain_lower_limit, " +
                             "use_estate_sun, fixed_sun, sun_position, " +
-                            "covenant, Sandbox, sunvectorx, sunvectory, " +
+                            "covenant, covenant_datetime, Sandbox, sunvectorx, sunvectory, " +
                             "sunvectorz, loaded_creation_datetime, " +
-                            "loaded_creation_id, map_tile_ID) values (?RegionUUID, ?BlockTerraform, " +
+                            "loaded_creation_id, map_tile_ID, " +
+                            "TelehubObject, parcel_tile_ID) " +
+                             "values (?RegionUUID, ?BlockTerraform, " +
                             "?BlockFly, ?AllowDamage, ?RestrictPushing, " +
                             "?AllowLandResell, ?AllowLandJoinDivide, " +
                             "?BlockShowInSearch, ?AgentLimit, ?ObjectBonus, " +
@@ -1008,10 +1010,10 @@ namespace OpenSim.Data.MySQL
                             "?Elevation2SE, ?Elevation1SW, ?Elevation2SW, " +
                             "?WaterHeight, ?TerrainRaiseLimit, " +
                             "?TerrainLowerLimit, ?UseEstateSun, ?FixedSun, " +
-                            "?SunPosition, ?Covenant, ?Sandbox, " +
+                            "?SunPosition, ?Covenant, ?CovenantChangedDateTime, ?Sandbox, " +
                             "?SunVectorX, ?SunVectorY, ?SunVectorZ, " +
                             "?LoadedCreationDateTime, ?LoadedCreationID, " +
-                            "?TerrainImageID)";
+                            "?TerrainImageID, ?TelehubObject, ?ParcelImageID) ";
 
                         FillRegionSettingsCommand(cmd, rs);
 
@@ -1281,7 +1283,7 @@ namespace OpenSim.Data.MySQL
             newSettings.TerrainRaiseLimit = Convert.ToDouble(row["terrain_raise_limit"]);
             newSettings.TerrainLowerLimit = Convert.ToDouble(row["terrain_lower_limit"]);
             newSettings.UseEstateSun = Convert.ToBoolean(row["use_estate_sun"]);
-            newSettings.Sandbox = Convert.ToBoolean(row["sandbox"]);
+            newSettings.Sandbox = Convert.ToBoolean(row["Sandbox"]);
             newSettings.SunVector = new Vector3 (
                                                  Convert.ToSingle(row["sunvectorx"]),
                                                  Convert.ToSingle(row["sunvectory"]),
@@ -1290,7 +1292,7 @@ namespace OpenSim.Data.MySQL
             newSettings.FixedSun = Convert.ToBoolean(row["fixed_sun"]);
             newSettings.SunPosition = Convert.ToDouble(row["sun_position"]);
             newSettings.Covenant = DBGuid.FromDB(row["covenant"]);
-
+            newSettings.CovenantChangedDateTime = Convert.ToInt32(row["covenant_datetime"]);
             newSettings.LoadedCreationDateTime = Convert.ToInt32(row["loaded_creation_datetime"]);
             
             if (row["loaded_creation_id"] is DBNull)
@@ -1299,6 +1301,8 @@ namespace OpenSim.Data.MySQL
                 newSettings.LoadedCreationID = (String) row["loaded_creation_id"];
 
             newSettings.TerrainImageID = DBGuid.FromDB(row["map_tile_ID"]);
+            newSettings.ParcelImageID = DBGuid.FromDB(row["parcel_tile_ID"]);
+            newSettings.TelehubObject = DBGuid.FromDB(row["TelehubObject"]);
 
             return newSettings;
         }
@@ -1373,7 +1377,7 @@ namespace OpenSim.Data.MySQL
             newData.ObscureMusic = Convert.ToBoolean(row["ObscureMusic"]);
             newData.ObscureMedia = Convert.ToBoolean(row["ObscureMedia"]);
 
-            newData.ParcelAccessList = new List<ParcelManager.ParcelAccessEntry>();
+            newData.ParcelAccessList = new List<LandAccessEntry>();
 
             return newData;
         }
@@ -1383,12 +1387,12 @@ namespace OpenSim.Data.MySQL
         /// </summary>
         /// <param name="row"></param>
         /// <returns></returns>
-        private static ParcelManager.ParcelAccessEntry BuildLandAccessData(IDataReader row)
+        private static LandAccessEntry BuildLandAccessData(IDataReader row)
         {
-            ParcelManager.ParcelAccessEntry entry = new ParcelManager.ParcelAccessEntry();
+            LandAccessEntry entry = new LandAccessEntry();
             entry.AgentID = DBGuid.FromDB(row["AccessUUID"]);
             entry.Flags = (AccessList) Convert.ToInt32(row["Flags"]);
-            entry.Time = new DateTime();
+            entry.Expires = Convert.ToInt32(row["Expires"]);
             return entry;
         }
 
@@ -1626,10 +1630,12 @@ namespace OpenSim.Data.MySQL
             cmd.Parameters.AddWithValue("FixedSun", settings.FixedSun);
             cmd.Parameters.AddWithValue("SunPosition", settings.SunPosition);
             cmd.Parameters.AddWithValue("Covenant", settings.Covenant.ToString());
+            cmd.Parameters.AddWithValue("CovenantChangedDateTime", settings.CovenantChangedDateTime);
             cmd.Parameters.AddWithValue("LoadedCreationDateTime", settings.LoadedCreationDateTime);
             cmd.Parameters.AddWithValue("LoadedCreationID", settings.LoadedCreationID);
             cmd.Parameters.AddWithValue("TerrainImageID", settings.TerrainImageID);
-
+            cmd.Parameters.AddWithValue("ParcelImageID", settings.ParcelImageID);
+            cmd.Parameters.AddWithValue("TelehubObject", settings.TelehubObject);
         }
 
         /// <summary>
@@ -1692,11 +1698,12 @@ namespace OpenSim.Data.MySQL
         /// <param name="row"></param>
         /// <param name="entry"></param>
         /// <param name="parcelID"></param>
-        private static void FillLandAccessCommand(MySqlCommand cmd, ParcelManager.ParcelAccessEntry entry, UUID parcelID)
+        private static void FillLandAccessCommand(MySqlCommand cmd, LandAccessEntry entry, UUID parcelID)
         {
             cmd.Parameters.AddWithValue("LandUUID", parcelID.ToString());
             cmd.Parameters.AddWithValue("AccessUUID", entry.AgentID.ToString());
             cmd.Parameters.AddWithValue("Flags", entry.Flags);
+            cmd.Parameters.AddWithValue("Expires", entry.Expires.ToString());
         }
 
         /// <summary>
@@ -1844,20 +1851,20 @@ namespace OpenSim.Data.MySQL
 
                     using (MySqlCommand cmd = dbcon.CreateCommand())
                     {
-                        cmd.CommandText = "select PointX, PointY, PointZ from spawn_points where RegionID = ?RegionID";
+                        cmd.CommandText = "select Yaw, Pitch, Distance from spawn_points where RegionID = ?RegionID";
                         cmd.Parameters.AddWithValue("?RegionID", rs.RegionUUID.ToString());
 
                         using (IDataReader r = cmd.ExecuteReader())
                         {
                             while (r.Read())
                             {
-                                Vector3 point = new Vector3();
+                                SpawnPoint sp = new SpawnPoint();
 
-                                point.X = (float)r["PointX"];
-                                point.Y = (float)r["PointY"];
-                                point.Z = (float)r["PointZ"];
+                                sp.Yaw = (float)r["Yaw"];
+                                sp.Pitch = (float)r["Pitch"];
+                                sp.Distance = (float)r["Distance"];
 
-                                rs.AddSpawnPoint(point);
+                                rs.AddSpawnPoint(sp);
                             }
                         }
                     }
@@ -1882,14 +1889,14 @@ namespace OpenSim.Data.MySQL
 
                         cmd.Parameters.Clear();
 
-                        cmd.CommandText = "insert into spawn_points (RegionID, PointX, PointY, PointZ) values ( ?EstateID, ?PointX, ?PointY,?PointZ)";
+                        cmd.CommandText = "insert into spawn_points (RegionID, Yaw, Pitch, Distance) values ( ?RegionID, ?Yaw, ?Pitch, ?Distance)";
 
-                        foreach (Vector3 p in rs.SpawnPoints())
+                        foreach (SpawnPoint p in rs.SpawnPoints())
                         {
-                            cmd.Parameters.AddWithValue("?EstateID", rs.RegionUUID.ToString());
-                            cmd.Parameters.AddWithValue("?PointX", p.X);
-                            cmd.Parameters.AddWithValue("?PointY", p.Y);
-                            cmd.Parameters.AddWithValue("?PointZ", p.Z);
+                            cmd.Parameters.AddWithValue("?RegionID", rs.RegionUUID.ToString());
+                            cmd.Parameters.AddWithValue("?Yaw", p.Yaw);
+                            cmd.Parameters.AddWithValue("?Pitch", p.Pitch);
+                            cmd.Parameters.AddWithValue("?Distance", p.Distance);
 
                             cmd.ExecuteNonQuery();
                             cmd.Parameters.Clear();

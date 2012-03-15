@@ -108,7 +108,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 OnInventoryArchiveSaved += SaveInvConsoleCommandCompleted;
                 
                 scene.AddCommand(
-                    this, "load iar",
+                    "Archiving", this, "load iar",
                     "load iar [-m|--merge] <first> <last> <inventory path> <password> [<IAR path>]",
                     "Load user inventory archive (IAR).",
                     "-m|--merge is an option which merges the loaded IAR with existing inventory folders where possible, rather than always creating new ones"
@@ -121,13 +121,13 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                     HandleLoadInvConsoleCommand);
                 
                 scene.AddCommand(
-                    this, "save iar",
-                    "save iar [--p|-profile=<url>] [--noassets] <first> <last> <inventory path> <password> [<IAR path>] [--v|-verbose]",
+                    "Archiving", this, "save iar",
+                    "save iar [-h|--home=<url>] [--noassets] <first> <last> <inventory path> <password> [<IAR path>] [-c|--creators] [-v|--verbose]",
                     "Save user inventory archive (IAR).", 
                     "<first> is the user's first name." + Environment.NewLine
                     + "<last> is the user's last name." + Environment.NewLine
                     + "<inventory path> is the path inside the user's inventory for the folder/item to be saved." + Environment.NewLine
-                    + "-p|--profile=<url> adds the url of the profile service to the saved user information." + Environment.NewLine
+                    + "-h|--home=<url> adds the url of the profile service to the saved user information." + Environment.NewLine
                     + "-c|--creators preserves information about foreign creators." + Environment.NewLine
                     + "-v|--verbose extra debug messages." + Environment.NewLine
                     + "--noassets stops assets being saved to the IAR."
@@ -349,8 +349,6 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
         {
             try
             {
-                m_log.Info("[INVENTORY ARCHIVER]: PLEASE NOTE THAT THIS FACILITY IS EXPERIMENTAL.  BUG REPORTS WELCOME.");
-                
                 Dictionary<string, object> options = new Dictionary<string, object>();
                 OptionSet optionSet = new OptionSet().Add("m|merge", delegate (string v) { options["merge"] = v != null; });
                 
@@ -396,7 +394,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
 
             OptionSet ops = new OptionSet();
             //ops.Add("v|version=", delegate(string v) { options["version"] = v; });
-            ops.Add("p|profile=", delegate(string v) { options["profile"] = v; });
+            ops.Add("h|home=", delegate(string v) { options["home"] = v; });
             ops.Add("v|verbose", delegate(string v) { options["verbose"] = v; });
             ops.Add("c|creators", delegate(string v) { options["creators"] = v; });
             ops.Add("noassets", delegate(string v) { options["noassets"] = v != null; });
@@ -408,13 +406,12 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 if (mainParams.Count < 6)
                 {
                     m_log.Error(
-                        "[INVENTORY ARCHIVER]: usage is save iar [--p|-profile=<url>] [--noassets] <first name> <last name> <inventory path> <user password> [<save file path>]");
+                        "[INVENTORY ARCHIVER]: usage is save iar [-h|--home=<url>] [--noassets] <first name> <last name> <inventory path> <user password> [<save file path>] [-c|--creators] [-v|--verbose]");
                     return;
                 }
     
-                m_log.Info("[INVENTORY ARCHIVER]: PLEASE NOTE THAT THIS FACILITY IS EXPERIMENTAL.  BUG REPORTS WELCOME.");
-                if (options.ContainsKey("profile"))
-                    m_log.WarnFormat("[INVENTORY ARCHIVER]: Please be aware that inventory archives with creator information are not compatible with OpenSim 0.7.0.2 and earlier.  Do not use the -profile option if you want to produce a compatible IAR");
+                if (options.ContainsKey("home"))
+                    m_log.WarnFormat("[INVENTORY ARCHIVER]: Please be aware that inventory archives with creator information are not compatible with OpenSim 0.7.0.2 and earlier.  Do not use the -home option if you want to produce a compatible IAR");
 
                 string firstName = mainParams[2];
                 string lastName = mainParams[3];

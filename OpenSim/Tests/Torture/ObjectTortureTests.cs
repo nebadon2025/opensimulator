@@ -154,7 +154,7 @@ namespace OpenSim.Tests.Torture
             //
             // However, that means that we need to manually run an update here to clear out that list so that deleted
             // objects will be clean up by the garbage collector before the next stress test is run.
-            scene.Update();
+            scene.Update(1);
 
             // Currently, we need to do this in order to garbage collect the scene objects ready for the next test run.
             // However, what we really need to do is find out why the entire scene is not garbage collected in

@@ -1209,7 +1209,7 @@ namespace OpenSim.Region.Framework.Scenes
                 endFrame = Frame + frames;
 
             float physicsFPS = 0f;
-            int tmpFrameMS, tmpPhysicsMS, tmpPhysicsMS2, tmpAgentMS, tmpTempOnRezMS, evMS, backMS, terMS;
+            int tmpPhysicsMS, tmpPhysicsMS2, tmpAgentMS, tmpTempOnRezMS, evMS, backMS, terMS;
             int maintc;
             List<Vector3> coarseLocations;
             List<UUID> avatarUUIDs;
@@ -1221,7 +1221,6 @@ namespace OpenSim.Region.Framework.Scenes
 
 //            m_log.DebugFormat("[SCENE]: Processing frame {0} in {1}", Frame, RegionInfo.RegionName);
 
-                tmpFrameMS = maintc;
                 agentMS = tempOnRezMS = eventMS = backupMS = terrainMS = landMS = 0;
 
                 try
@@ -1315,7 +1314,7 @@ namespace OpenSim.Region.Framework.Scenes
                     //    landMS = Util.EnvironmentTickCountSubtract(ldMS);
                     //}
     
-                    frameMS = Util.EnvironmentTickCountSubtract(tmpFrameMS);
+                    frameMS = Util.EnvironmentTickCountSubtract(maintc);
                     otherMS = tempOnRezMS + eventMS + backupMS + terrainMS + landMS;
                     lastCompletedFrame = Util.EnvironmentTickCount();
 

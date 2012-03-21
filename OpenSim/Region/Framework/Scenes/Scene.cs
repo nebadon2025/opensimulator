@@ -1095,7 +1095,10 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 bool enableUpdateDebugging;
                 if (bool.TryParse(options["updates"], out enableUpdateDebugging))
+                {
                     DebugUpdates = enableUpdateDebugging;
+                    GcNotify.Enabled = DebugUpdates;
+                }
             }
         }
 

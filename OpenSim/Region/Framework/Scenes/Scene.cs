@@ -190,7 +190,11 @@ namespace OpenSim.Region.Framework.Scenes
         private int backupMS;
         private int terrainMS;
         private int landMS;
-        private int lastCompletedFrame;
+
+        /// <summary>
+        /// Tick at which the last frame was processed.
+        /// </summary>
+        private int m_lastFrameTick;
 
         /// <summary>
         /// Signals whether temporary objects are currently being cleaned up.  Needed because this is launched
@@ -467,7 +471,7 @@ namespace OpenSim.Region.Framework.Scenes
         public int MonitorBackupTime { get { return backupMS; } }
         public int MonitorTerrainTime { get { return terrainMS; } }
         public int MonitorLandTime { get { return landMS; } }
-        public int MonitorLastFrameTick { get { return lastCompletedFrame; } }
+        public int MonitorLastFrameTick { get { return m_lastFrameTick; } }
 
         public UpdatePrioritizationSchemes UpdatePrioritizationScheme { get { return m_priorityScheme; } }
         public bool IsReprioritizationEnabled { get { return m_reprioritizationEnabled; } }
@@ -1210,6 +1214,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             float physicsFPS = 0f;
             int tmpPhysicsMS, tmpPhysicsMS2, tmpAgentMS, tmpTempOnRezMS, evMS, backMS, terMS;
+            int previousFrameTick;
             int maintc;
             List<Vector3> coarseLocations;
             List<UUID> avatarUUIDs;
@@ -1313,10 +1318,9 @@ namespace OpenSim.Region.Framework.Scenes
                     //    UpdateLand();
                     //    landMS = Util.EnvironmentTickCountSubtract(ldMS);
                     //}
-    
+
                     frameMS = Util.EnvironmentTickCountSubtract(maintc);
                     otherMS = tempOnRezMS + eventMS + backupMS + terrainMS + landMS;
-                    lastCompletedFrame = Util.EnvironmentTickCount();
 
                     // if (Frame%m_update_avatars == 0)
                     //   UpdateInWorldTime();
@@ -1386,16 +1390,19 @@ namespace OpenSim.Region.Framework.Scenes
                 // Tell the watchdog that this thread is still alive
                 Watchdog.UpdateThread();
 
-                maintc = Util.EnvironmentTickCountSubtract(maintc);
+//                previousFrameTick = m_lastFrameTick;
+                m_lastFrameTick = Util.EnvironmentTickCount();
+                maintc = Util.EnvironmentTickCountSubtract(m_lastFrameTick, maintc);
                 maintc = (int)(MinFrameTime * 1000) - maintc;
 
                 if (maintc > 0)
                     Thread.Sleep(maintc);
 
-//                if (frameMS > (int)(MinFrameTime * 1000))
+                // Optionally warn if a frame takes double the amount of time that it should.
+//                if (Util.EnvironmentTickCountSubtract(m_lastFrameTick, previousFrameTick) > (int)(MinFrameTime * 1000 * 2))
 //                    m_log.WarnFormat(
 //                        "[SCENE]: Frame took {0} ms (desired max {1} ms) in {2}",
-//                        frameMS,
+//                        Util.EnvironmentTickCountSubtract(m_lastFrameTick, previousFrameTick),
 //                        MinFrameTime * 1000,
 //                        RegionInfo.RegionName);
             }

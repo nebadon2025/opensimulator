@@ -211,7 +211,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         private bool m_cleaningTemps = false;
 
-        private Object m_heartbeatLock = new Object();
+//        private Object m_heartbeatLock = new Object();
 
         // TODO: Possibly stop other classes being able to manipulate this directly.
         private SceneGraph m_sceneGraph;
@@ -1164,9 +1164,9 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Start the timer which triggers regular scene updates
+        /// Start the scene
         /// </summary>
-        public void StartTimer()
+        public void Start()
         {
 //            m_log.DebugFormat("[SCENE]: Starting Heartbeat timer for {0}", RegionInfo.RegionName);
 
@@ -1211,33 +1211,34 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         private void Heartbeat()
         {
-            if (!Monitor.TryEnter(m_heartbeatLock))
-            {
-                Watchdog.RemoveThread();
-                return;
-            }
+//            if (!Monitor.TryEnter(m_heartbeatLock))
+//            {
+//                Watchdog.RemoveThread();
+//                return;
+//            }
 
-            try
-            {
-                m_eventManager.TriggerOnRegionStarted(this);
+//            try
+//            {
 
-                // The first frame can take a very long time due to physics actors being added on startup.  Therefore,
-                // don't turn on the watchdog alarm for this thread until the second frame, in order to prevent false
-                // alarms for scenes with many objects.
-                Update(1);
-                Watchdog.GetCurrentThreadInfo().AlarmIfTimeout = true;
+            m_eventManager.TriggerOnRegionStarted(this);
 
-                while (!shuttingdown)
-                    Update(-1);
+            // The first frame can take a very long time due to physics actors being added on startup.  Therefore,
+            // don't turn on the watchdog alarm for this thread until the second frame, in order to prevent false
+            // alarms for scenes with many objects.
+            Update(1);
+            Watchdog.GetCurrentThreadInfo().AlarmIfTimeout = true;
+
+            while (!shuttingdown)
+                Update(-1);
 
 //                m_lastUpdate = Util.EnvironmentTickCount();
 //                m_firstHeartbeat = false;
-            }
-            finally
-            {
-                Monitor.Pulse(m_heartbeatLock);
-                Monitor.Exit(m_heartbeatLock);
-            }
+//            }
+//            finally
+//            {
+//                Monitor.Pulse(m_heartbeatLock);
+//                Monitor.Exit(m_heartbeatLock);
+//            }
 
             Watchdog.RemoveThread();
         }

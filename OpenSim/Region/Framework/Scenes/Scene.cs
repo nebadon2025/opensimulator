@@ -1084,6 +1084,12 @@ namespace OpenSim.Region.Framework.Scenes
                     m_physics_enabled = enablePhysics;
             }
 
+//            if (options.ContainsKey("collisions"))
+//            {
+//                // TODO: Implement.  If false, should stop objects colliding, though possibly should still allow
+//                // the avatar themselves to collide with the ground.
+//            }
+
             if (options.ContainsKey("teleport"))
             {
                 bool enableTeleportDebugging;

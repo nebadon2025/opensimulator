@@ -176,12 +176,16 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             get { return m_ConfigSource; }
         }
 
+        /// <summary>
+        /// Event fired after the script engine has finished removing a script.
+        /// </summary>
         public event ScriptRemoved OnScriptRemoved;
+
+        /// <summary>
+        /// Event fired after the script engine has finished removing a script from an object.
+        /// </summary>
         public event ObjectRemoved OnObjectRemoved;
 
-        //
-        // IRegionModule functions
-        //
         public void Initialise(IConfigSource configSource)
         {
             if (configSource.Configs["XEngine"] == null)
@@ -376,6 +380,11 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             if (!(MainConsole.Instance.ConsoleScene == null || MainConsole.Instance.ConsoleScene == m_Scene))
                 return;
 
+            MainConsole.Instance.OutputFormat(GetStatusReport());
+        }
+
+        public string GetStatusReport()
+        {
             StringBuilder sb = new StringBuilder();
             sb.AppendFormat("Status of XEngine instance for {0}\n", m_Scene.RegionInfo.RegionName);
 
@@ -384,24 +393,26 @@ namespace OpenSim.Region.ScriptEngine.XEngine
 
             sb.AppendFormat("Unique scripts             : {0}\n", m_uniqueScripts.Count);
             sb.AppendFormat("Scripts waiting for load   : {0}\n", m_CompileQueue.Count);
+            sb.AppendFormat("Max threads                : {0}\n", m_ThreadPool.MaxThreads);
+            sb.AppendFormat("Min threads                : {0}\n", m_ThreadPool.MinThreads);
             sb.AppendFormat("Allocated threads          : {0}\n", m_ThreadPool.ActiveThreads);
             sb.AppendFormat("In use threads             : {0}\n", m_ThreadPool.InUseThreads);
             sb.AppendFormat("Work items waiting         : {0}\n", m_ThreadPool.WaitingCallbacks);
 //            sb.AppendFormat("Assemblies loaded          : {0}\n", m_Assemblies.Count);
 
             SensorRepeat sr = AsyncCommandManager.GetSensorRepeatPlugin(this);
-            sb.AppendFormat("Sensors                    : {0}\n", sr.SensorsCount);
+            sb.AppendFormat("Sensors                    : {0}\n", sr != null ? sr.SensorsCount : 0);
 
             Dataserver ds = AsyncCommandManager.GetDataserverPlugin(this);
-            sb.AppendFormat("Dataserver requests        : {0}\n", ds.DataserverRequestsCount);
+            sb.AppendFormat("Dataserver requests        : {0}\n", ds != null ? ds.DataserverRequestsCount : 0);
 
             Timer t = AsyncCommandManager.GetTimerPlugin(this);
-            sb.AppendFormat("Timers                     : {0}\n", t.TimersCount);
+            sb.AppendFormat("Timers                     : {0}\n", t != null ? t.TimersCount : 0);
 
             Listener l = AsyncCommandManager.GetListenerPlugin(this);
-            sb.AppendFormat("Listeners                  : {0}\n", l.ListenerCount);
+            sb.AppendFormat("Listeners                  : {0}\n", l != null ? l.ListenerCount : 0);
 
-            MainConsole.Instance.OutputFormat(sb.ToString());
+            return sb.ToString();
         }
 
         public void HandleShowScripts(string module, string[] cmdparams)
@@ -988,7 +999,6 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             lock (m_Scripts)
             {
                 // Create the object record
-
                 if ((!m_Scripts.ContainsKey(itemID)) ||
                     (m_Scripts[itemID].AssetID != assetID))
                 {
@@ -1078,7 +1088,6 @@ namespace OpenSim.Region.ScriptEngine.XEngine
 
                 if (!m_PrimObjects[localID].Contains(itemID))
                     m_PrimObjects[localID].Add(itemID);
-
             }
 
             if (!m_Assemblies.ContainsKey(assetID))
@@ -1117,7 +1126,11 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             }
 
             instance.ClearQueue();
-            instance.Stop(0);
+
+            // Give the script some time to finish processing its last event.  Simply aborting the script thread can
+            // cause issues on mono 2.6, 2.10 and possibly later where locks are not released properly on abort.
+            instance.Stop(1000);
+
 //                bool objectRemoved = false;
 
             lock (m_PrimObjects)
@@ -1148,14 +1161,9 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                 UnloadAppDomain(instance.AppDomain);
             }
 
-            instance = null;
-
             ObjectRemoved handlerObjectRemoved = OnObjectRemoved;
             if (handlerObjectRemoved != null)
-            {
-                SceneObjectPart part = m_Scene.GetSceneObjectPart(localID);
-                handlerObjectRemoved(part.UUID);
-            }
+                handlerObjectRemoved(instance.ObjectID);
 
             ScriptRemoved handlerScriptRemoved = OnScriptRemoved;
             if (handlerScriptRemoved != null)
@@ -1885,6 +1893,59 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                 }
                 return new ArrayList();
             }
+        }
+
+        public Dictionary<uint, float> GetObjectScriptsExecutionTimes()
+        {
+            long tickNow = Util.EnvironmentTickCount();
+            Dictionary<uint, float> topScripts = new Dictionary<uint, float>();
+
+            lock (m_Scripts)
+            {
+                foreach (IScriptInstance si in m_Scripts.Values)
+                {
+                    if (!topScripts.ContainsKey(si.LocalID))
+                        topScripts[si.RootLocalID] = 0;
+
+//                    long ticksElapsed = tickNow - si.MeasurementPeriodTickStart;
+//                    float framesElapsed = ticksElapsed / (18.1818 * TimeSpan.TicksPerMillisecond);
+
+                    // Execution time of the script adjusted by it's measurement period to make scripts started at
+                    // different times comparable.
+//                    float adjustedExecutionTime
+//                        = (float)si.MeasurementPeriodExecutionTime
+//                            / ((float)(tickNow - si.MeasurementPeriodTickStart) / ScriptInstance.MaxMeasurementPeriod)
+//                            / TimeSpan.TicksPerMillisecond;
+
+                    long ticksElapsed = tickNow - si.MeasurementPeriodTickStart;
+
+                    // Avoid divide by zerp
+                    if (ticksElapsed == 0)
+                        ticksElapsed = 1;
+
+                    // Scale execution time to the ideal 55 fps frame time for these reasons.
+                    //
+                    // 1) XEngine does not execute scripts per frame, unlike other script engines.  Hence, there is no
+                    // 'script execution time per frame', which is the original purpose of this value.
+                    //
+                    // 2) Giving the raw execution times is misleading since scripts start at different times, making
+                    // it impossible to compare scripts.
+                    //
+                    // 3) Scaling the raw execution time to the time that the script has been running is better but
+                    // is still misleading since a script that has just been rezzed may appear to have been running
+                    // for much longer.
+                    //
+                    // 4) Hence, we scale execution time to an idealised frame time (55 fps).  This is also not perfect
+                    // since the figure does not represent actual execution time and very hard running scripts will
+                    // never exceed 18ms (though this is a very high number for script execution so is a warning sign).
+                    float adjustedExecutionTime
+                        = ((float)si.MeasurementPeriodExecutionTime / ticksElapsed) * 18.1818f;
+
+                    topScripts[si.RootLocalID] += adjustedExecutionTime;
+                }
+            }
+
+            return topScripts;
         }
 
         public void SuspendScript(UUID itemID)

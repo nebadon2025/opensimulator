@@ -172,6 +172,7 @@
 
     ;# {permissionmodules} {} {Permission modules to use (may specify multiple modules, separated by comma} {} DefaultPermissionsModule
     ;; Permission modules to use, separated by comma.
+    ;; Possible modules are DefaultPermissionsModule, PrimLimitsModule
     ; permissionmodules = DefaultPermissionsModule
 
     ;# {serverside_object_permissions} {permissionmodules:DefaultPermissionsModule} {Activate permission handling by the sim?} {true false} true
@@ -192,6 +193,15 @@
     ; region_owner_is_god = true
     ; region_manager_is_god = false
     ; parcel_owner_is_god = true
+
+    ;; More control over permissions
+    ;; This is definitely not SL!
+    ; Provides a simple control for land owners to give build rights to specific avatars
+    ; in publicly accessible parcels that disallow object creation in general. 
+    ; Owners specific avatars by adding them to the Access List of the parcel
+    ; without having to use the Groups feature
+    ; simple_build_permissions = false
+
 
     ;; Default script engine to use. Currently, we only have XEngine
     ; DefaultScriptEngine = "XEngine"
@@ -789,12 +799,9 @@
     ;# {Enabled} {} {Enable Non Player Character (NPC) facilities} {true false} false
     ; Enabled = false
 
-
-[PrimLimitsModule]
-    ;# {EnforcePrimLimits} {} {Enforce parcel prim limits} {true false} false
-    ;; Enable parcel prim limits.  Off by default to emulate pre-existing behavior.
-    ; EnforcePrimLimits = false
-
+[Terrain]
+    ;# {InitialTerrain} {} {Initial terrain type} {pinhead-island flat} pinhead-island
+    ; InitialTerrain = "pinhead-island"
 
 [Architecture]
     ;# {Include-Architecture} {} {Choose one of the following architectures} {config-include/Standalone.ini config-include/StandaloneHypergrid.ini config-include/Grid.ini config-include/GridHypergrid.ini config-include/SimianGrid.ini config-include/HyperSimianGrid.ini} config-include/Standalone.ini

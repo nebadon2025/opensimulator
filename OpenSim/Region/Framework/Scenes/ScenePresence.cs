@@ -2293,7 +2293,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     if (direc.Z > 2.0f)
                     {
-                        direc.Z *= 3.0f;
+                        direc.Z *= 2.6f;
 
                         // TODO: PreJump and jump happen too quickly.  Many times prejump gets ignored.
                         Animator.TrySetMovementAnimation("PREJUMP");
@@ -3826,7 +3826,7 @@ namespace OpenSim.Region.Framework.Scenes
             ILandObject land = m_scene.LandChannel.GetLandObject(pos.X, pos.Y);
             if (land != null)
             {
-                if (Scene.DEBUG)
+                if (Scene.DebugTeleporting)
                     TeleportFlagsDebug();
 
                 // If we come in via login, landmark or map, we want to

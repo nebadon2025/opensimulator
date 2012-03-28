@@ -333,7 +333,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Friends
             //m_log.DebugFormat("[XXX]: OnClientLogin!");
             // Inform the friends that this user is online
             StatusChange(agentID, true);
-            
+
             // Register that we need to send the list of online friends to this user
             lock (m_NeedsListOfOnlineFriends)
                 m_NeedsListOfOnlineFriends.Add(agentID);
@@ -608,8 +608,14 @@ namespace OpenSim.Region.CoreModules.Avatar.Friends
         {
             StoreFriendships(client.AgentId, friendID);
 
-            // Update the local cache
-            RecacheFriends(client);
+            ICallingCardModule ccm = client.Scene.RequestModuleInterface<ICallingCardModule>();
+            if (ccm != null)
+            {
+                ccm.CreateCallingCard(client.AgentId, friendID, UUID.Zero);
+            }
+
+            // Update the local cache. 
+            CacheFriends(client);
 
             //
             // Notify the friend
@@ -784,6 +790,13 @@ namespace OpenSim.Region.CoreModules.Avatar.Friends
                     (byte)OpenMetaverse.InstantMessageDialog.FriendshipAccepted, userID.ToString(), false, Vector3.Zero);
                 friendClient.SendInstantMessage(im);
 
+                ICallingCardModule ccm = friendClient.Scene.RequestModuleInterface<ICallingCardModule>();
+                if (ccm != null)
+                {
+                    ccm.CreateCallingCard(friendID, userID, UUID.Zero);
+                }
+
+
                 // Update the local cache
                 RecacheFriends(friendClient);
 
@@ -806,7 +819,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Friends
                 // we're done
                 return true;
             }
-            
+
             return false;
         }
 
@@ -858,7 +871,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Friends
 
         public bool LocalStatusNotification(UUID userID, UUID friendID, bool online)
         {
-//            m_log.DebugFormat("[FRIENDS]: Local Status Notify {0} that user {1} is {2}", friendID, userID, online);
+            //m_log.DebugFormat("[FRIENDS]: Local Status Notify {0} that user {1} is {2}", friendID, userID, online);
             IClientAPI friendClient = LocateClientObject(friendID);
             if (friendClient != null)
             {

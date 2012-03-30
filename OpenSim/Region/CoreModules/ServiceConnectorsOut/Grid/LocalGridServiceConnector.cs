@@ -166,6 +166,11 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Grid
             return m_GridService.DeregisterRegion(regionID);
         }
 
+        public GridRegion GetEmptyCoordinates(UUID scopeID, int desiredX, int desiredY)
+        {
+            return m_GridService.GetEmptyCoordinates(scopeID, desiredX, desiredY);
+        }
+
         public List<GridRegion> GetNeighbours(UUID scopeID, UUID regionID)
         {
             return m_GridService.GetNeighbours(scopeID, regionID); 

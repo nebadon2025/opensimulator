@@ -154,6 +154,15 @@ namespace OpenSim.Services.Connectors.SimianGrid
             return success;
         }
 
+        public GridRegion GetEmptyCoordinates(UUID scopeID, int desiredX, int desiredY)
+        {
+            GridRegion rinfo = new GridRegion();
+
+            // TODO : Search empty spots on Grid to register a new SIM
+
+            return rinfo;
+        }
+
         public List<GridRegion> GetNeighbours(UUID scopeID, UUID regionID)
         {
             const int NEIGHBOR_RADIUS = 128;

@@ -324,5 +324,21 @@ namespace OpenSim.Data.MySQL
 
             return RunCommand(cmd);
         }
+
+        /// <summary>
+        /// GetEmptyCoordinates - return one coordinate at grid based on desired X,Y
+        /// </summary>
+        /// <param name="ScopeID"></param>
+        /// <param name="desiredX"></param>
+        /// <param name="desiredY"></param>
+        /// <returns></returns>
+        public RegionData GetEmptyCoordinates(UUID ScopeID, int desiredX, int desiredY)
+        {
+            RegionData region = new RegionData() { posX = desiredX, posY = desiredY };
+
+            // TODO: Search a empty spot and reserve it for a while;
+
+            return region;
+        }
     }
 }

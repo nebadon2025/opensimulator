@@ -275,6 +275,15 @@ namespace OpenSim.Services.GridService
             return m_Database.Delete(regionID);
         }
 
+        public GridRegion GetEmptyCoordinates(UUID scopeID, int desiredX, int desiredY)
+        {
+            GridRegion rinfo = new GridRegion();
+
+            // TODO : Search empty spots on Grid to register a new SIM
+
+            return rinfo;
+        }
+
         public List<GridRegion> GetNeighbours(UUID scopeID, UUID regionID)
         {
             List<GridRegion> rinfos = new List<GridRegion>();

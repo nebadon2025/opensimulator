@@ -1,4 +1,4 @@
-The following people have contributed to OpenSim (Thank you 
+   <<<>>>>The following people have contributed to OpenSim (Thank you 
 for your effort!)
 
 = Current OpenSim Developers (in very rough order of appearance) =
@@ -89,6 +89,7 @@ what it is today.
 * Fernando Oliveira
 * Fly-Man
 * Flyte Xevious
+* Garmin Kawaguichi
 * Imaze Rhiano
 * Intimidated
 * Jeremy Bongio (IBM)

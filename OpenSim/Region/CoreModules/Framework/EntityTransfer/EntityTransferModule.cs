@@ -60,6 +60,8 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             set { m_MaxTransferDistance = value; }
         }
 
+        private int m_levelHGTeleport = 0;
+
         protected bool m_Enabled = false;
         protected Scene m_aScene;
         protected List<Scene> m_Scenes = new List<Scene>();
@@ -101,7 +103,10 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
         {
             IConfig transferConfig = source.Configs["EntityTransfer"];
             if (transferConfig != null)
+            {
                 MaxTransferDistance = transferConfig.GetInt("max_distance", 4095);
+                m_levelHGTeleport = transferConfig.GetInt("LevelHGTeleport", 0);
+            }
 
             m_agentsInTransit = new List<UUID>();
             m_Enabled = true;
@@ -224,6 +229,16 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                         {
                             m_log.WarnFormat("[ENTITY TRANSFER MODULE]: Final destination is having problems. Unable to teleport agent.");
                             sp.ControllingClient.SendTeleportFailed("Problem at destination");
+                            return;
+                        }
+
+                        // check if HyperGrid teleport is allowed, based on user level
+                        int flags = m_aScene.GridService.GetRegionFlags(sp.Scene.RegionInfo.ScopeID, reg.RegionID);
+
+                        if (((flags & (int)OpenSim.Data.RegionFlags.Hyperlink) != 0) && (sp.UserLevel < m_levelHGTeleport))
+                        {
+                            m_log.WarnFormat("[ENTITY TRANSFER MODULE]: Final destination link is non permitted hypergrid region. Unable to teleport agent.");
+                            sp.ControllingClient.SendTeleportFailed("HyperGrid teleport not permitted");
                             return;
                         }
 
@@ -447,7 +462,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                         "[ENTITY TRANSFER MODULE]: UpdateAgent failed on teleport of {0} to {1}.  Returning avatar to source region.", 
                         sp.Name, finalDestination.RegionName);
                     
-                    Fail(sp, finalDestination);
+                    Fail(sp, finalDestination, logout);
                     return;
                 }
 
@@ -479,7 +494,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                         "[ENTITY TRANSFER MODULE]: Teleport of {0} to {1} failed due to no callback from destination region.  Returning avatar to source region.", 
                         sp.Name, finalDestination.RegionName);
                     
-                    Fail(sp, finalDestination);                   
+                    Fail(sp, finalDestination, logout);                   
                     return;
                 }
 
@@ -530,7 +545,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             }
         }
 
-        private void Fail(ScenePresence sp, GridRegion finalDestination)
+        protected virtual void Fail(ScenePresence sp, GridRegion finalDestination, bool logout)
         {
             // Client never contacted destination. Let's restore everything back
             sp.ControllingClient.SendTeleportFailed("Problems connecting to destination.");

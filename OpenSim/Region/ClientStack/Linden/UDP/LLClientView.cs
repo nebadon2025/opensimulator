@@ -59,7 +59,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
     /// Handles new client connections
     /// Constructor takes a single Packet and authenticates everything
     /// </summary>
-    public class LLClientView : IClientAPI, IClientCore, IClientIM, IClientChat, IClientIPEndpoint, IStatsCollector
+    public class LLClientView : IClientAPI, IClientCore, IClientIM, IClientChat, IClientInventory, IClientIPEndpoint, IStatsCollector
     {
         /// <value>
         /// Debug packet level.  See OpenSim.RegisterConsoleCommands() for more details.
@@ -384,7 +384,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             set { m_startpos = value; }
         }
         public UUID AgentId { get { return m_agentId; } }
-        public ISceneAgent SceneAgent { get; private set; }
+        public ISceneAgent SceneAgent { get; set; }
         public UUID ActiveGroupId { get { return m_activeGroupID; } }
         public string ActiveGroupName { get { return m_activeGroupName; } }
         public ulong ActiveGroupPowers { get { return m_activeGroupPowers; } }
@@ -448,6 +448,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 //            DebugPacketLevel = 1;
 
             RegisterInterface<IClientIM>(this);
+            RegisterInterface<IClientInventory>(this);
             RegisterInterface<IClientChat>(this);
             RegisterInterface<IClientIPEndpoint>(this);
 
@@ -694,7 +695,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         public virtual void Start()
         {
-            SceneAgent = m_scene.AddNewClient(this, PresenceType.User);
+            m_scene.AddNewClient(this, PresenceType.User);
 
             RefreshGroupMembership();
         }
@@ -5783,7 +5784,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             // My guess is this is the folder to stick the calling card into
             List<UUID> callingCardFolders = new List<UUID>();
 
-            UUID agentID = afriendpack.AgentData.AgentID;
             UUID transactionID = afriendpack.TransactionBlock.TransactionID;
 
             for (int fi = 0; fi < afriendpack.FolderData.Length; fi++)
@@ -5794,10 +5794,10 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             FriendActionDelegate handlerApproveFriendRequest = OnApproveFriendRequest;
             if (handlerApproveFriendRequest != null)
             {
-                handlerApproveFriendRequest(this, agentID, transactionID, callingCardFolders);
+                handlerApproveFriendRequest(this, transactionID, callingCardFolders);
             }
-            return true;
 
+            return true;
         }
 
         private bool HandlerDeclineFriendship(IClientAPI sender, Packet Pack)
@@ -5816,7 +5816,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             if (OnDenyFriendRequest != null)
             {
                 OnDenyFriendRequest(this,
-                                    dfriendpack.AgentData.AgentID,
                                     dfriendpack.TransactionBlock.TransactionID,
                                     null);
             }
@@ -5836,14 +5835,14 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             }
             #endregion
 
-            UUID listOwnerAgentID = tfriendpack.AgentData.AgentID;
             UUID exFriendID = tfriendpack.ExBlock.OtherID;
             FriendshipTermination TerminateFriendshipHandler = OnTerminateFriendship;
             if (TerminateFriendshipHandler != null)
             {
-                TerminateFriendshipHandler(this, listOwnerAgentID, exFriendID);
+                TerminateFriendshipHandler(this, exFriendID);
                 return true;
             }
+
             return false;
         }
 
@@ -11161,12 +11160,13 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                     return true;
             }
             #endregion
+
             GrantUserFriendRights GrantUserRightsHandler = OnGrantUserRights;
             if (GrantUserRightsHandler != null)
                 GrantUserRightsHandler(this,
-                    GrantUserRights.AgentData.AgentID,
                     GrantUserRights.Rights[0].AgentRelated,
                     GrantUserRights.Rights[0].RelatedRights);
+
             return true;
         }
 
@@ -12261,6 +12261,130 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             }
             if (reply != null)
                 OutPacket(reply, ThrottleOutPacketType.Task);
+        }
+
+        public void SendRemoveInventoryItems(UUID[] items)
+        {
+            IEventQueue eq = Scene.RequestModuleInterface<IEventQueue>();
+
+            if (eq == null)
+            {
+                m_log.DebugFormat("[LLCLIENT]: Null event queue");
+                return;
+            }
+
+            OSDMap llsd = new OSDMap(3);
+
+            OSDMap AgentDataMap = new OSDMap(1);
+            AgentDataMap.Add("AgentID", OSD.FromUUID(AgentId));
+            AgentDataMap.Add("SessionID", OSD.FromUUID(SessionId));
+
+            OSDArray AgentData = new OSDArray(1);
+            AgentData.Add(AgentDataMap);
+
+            llsd.Add("AgentData", AgentData);
+
+            OSDArray ItemData = new OSDArray();
+
+            foreach (UUID item in items)
+            {
+                OSDMap ItemDataMap = new OSDMap(2);
+                ItemDataMap.Add("ItemID", OSD.FromUUID(item));
+                ItemDataMap.Add("AgentID", OSD.FromUUID(AgentId));
+
+                ItemData.Add(ItemDataMap);
+            }
+
+            llsd.Add("ItemData", ItemData);
+
+            eq.Enqueue(BuildEvent("RemoveInventoryItem",
+                    llsd), AgentId);
+        }
+
+        public void SendRemoveInventoryFolders(UUID[] folders)
+        {
+            IEventQueue eq = Scene.RequestModuleInterface<IEventQueue>();
+
+            if (eq == null)
+            {
+                m_log.DebugFormat("[LLCLIENT]: Null event queue");
+                return;
+            }
+
+            OSDMap llsd = new OSDMap(3);
+
+            OSDMap AgentDataMap = new OSDMap(1);
+            AgentDataMap.Add("AgentID", OSD.FromUUID(AgentId));
+            AgentDataMap.Add("SessionID", OSD.FromUUID(SessionId));
+
+            OSDArray AgentData = new OSDArray(1);
+            AgentData.Add(AgentDataMap);
+
+            llsd.Add("AgentData", AgentData);
+
+            OSDArray FolderData = new OSDArray();
+
+            foreach (UUID folder in folders)
+            {
+                OSDMap FolderDataMap = new OSDMap(2);
+                FolderDataMap.Add("FolderID", OSD.FromUUID(folder));
+                FolderDataMap.Add("AgentID", OSD.FromUUID(AgentId));
+
+                FolderData.Add(FolderDataMap);
+            }
+
+            llsd.Add("FolderData", FolderData);
+
+            eq.Enqueue(BuildEvent("RemoveInventoryFolder",
+                    llsd), AgentId);
+        }
+
+        public void SendBulkUpdateInventory(InventoryFolderBase[] folders, InventoryItemBase[] items)
+        {
+            IEventQueue eq = Scene.RequestModuleInterface<IEventQueue>();
+
+            if (eq == null)
+            {
+                m_log.DebugFormat("[LLCLIENT]: Null event queue");
+                return;
+            }
+
+            OSDMap llsd = new OSDMap(3);
+
+            OSDMap AgentDataMap = new OSDMap(1);
+            AgentDataMap.Add("AgentID", OSD.FromUUID(AgentId));
+            AgentDataMap.Add("SessionID", OSD.FromUUID(SessionId));
+
+            OSDArray AgentData = new OSDArray(1);
+            AgentData.Add(AgentDataMap);
+
+            llsd.Add("AgentData", AgentData);
+
+            OSDArray FolderData = new OSDArray();
+
+            foreach (InventoryFolderBase folder in folders)
+            {
+                OSDMap FolderDataMap = new OSDMap(5);
+                FolderDataMap.Add("FolderID", OSD.FromUUID(folder.ID));
+                FolderDataMap.Add("AgentID", OSD.FromUUID(AgentId));
+                FolderDataMap.Add("ParentID", OSD.FromUUID(folder.ParentID));
+                FolderDataMap.Add("Type", OSD.FromInteger(folder.Type));
+                FolderDataMap.Add("Name", OSD.FromString(folder.Name));
+
+                FolderData.Add(FolderDataMap);
+            }
+
+            llsd.Add("FolderData", FolderData);
+
+            OSDArray ItemData = new OSDArray();
+
+            foreach (InventoryItemBase item in items)
+            {
+                OSDMap ItemDataMap = new OSDMap();
+                ItemData.Add(ItemDataMap);
+            }
+
+            llsd.Add("ItemData", ItemData);
         }
     }
 }

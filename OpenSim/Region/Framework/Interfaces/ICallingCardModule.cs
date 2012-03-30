@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -25,32 +25,16 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-using System.Collections;
-using OpenSim.Region.ScriptEngine.Interfaces;
+using System;
+using System.Collections.Generic;
+using System.Text;
+using OpenMetaverse;
+using OpenSim.Framework;
 
-using LSL_Float = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLFloat;
-using LSL_Integer = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLInteger;
-using LSL_Key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
-using LSL_List = OpenSim.Region.ScriptEngine.Shared.LSL_Types.list;
-using LSL_Rotation = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Quaternion;
-using LSL_String = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
-using LSL_Vector = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Vector3;
-
-namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
+namespace OpenSim.Framework
 {
-    public interface IMOD_Api
+    public interface ICallingCardModule
     {
-        // Invocation functions
-        void modInvokeN(string fname, params object[] parms);
-        LSL_String modInvokeS(string fname, params object[] parms);
-        LSL_Integer modInvokeI(string fname, params object[] parms);
-        LSL_Float modInvokeF(string fname, params object[] parms);
-        LSL_Key modInvokeK(string fname, params object[] parms);
-        LSL_Vector modInvokeV(string fname, params object[] parms);
-        LSL_Rotation modInvokeR(string fname, params object[] parms);
-        LSL_List modInvokeL(string fname, params object[] parms);
-        
-        //Module functions
-        string modSendCommand(string modules, string command, string k);
+        UUID CreateCallingCard(UUID userID, UUID creatorID, UUID folderID);
     }
 }

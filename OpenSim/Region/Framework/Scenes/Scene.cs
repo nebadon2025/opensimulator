@@ -1862,8 +1862,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             foreach (SceneObjectGroup group in PrimsFromDB)
             {
-                EventManager.TriggerOnSceneObjectLoaded(group);
                 AddRestoredSceneObject(group, true, true);
+                EventManager.TriggerOnSceneObjectLoaded(group);
                 SceneObjectPart rootPart = group.GetChildPart(group.UUID);
                 rootPart.Flags &= ~PrimFlags.Scripted;
                 rootPart.TrimPermissions();
@@ -2700,6 +2700,10 @@ namespace OpenSim.Region.Framework.Scenes
                     "[SCENE]: Already found {0} scene presence for {1} in {2} when asked to add new scene presence",
                     sp.IsChildAgent ? "child" : "root", sp.Name, RegionInfo.RegionName);
             }
+
+            // We must set this here so that TriggerOnNewClient and TriggerOnClientLogin can determine whether the
+            // client is for a root or child agent.
+            client.SceneAgent = sp;
 
             m_LastLogin = Util.EnvironmentTickCount();
 

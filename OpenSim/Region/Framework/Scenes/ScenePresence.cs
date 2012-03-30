@@ -32,6 +32,7 @@ using System.Reflection;
 using System.Timers;
 using OpenMetaverse;
 using log4net;
+using Nini.Config;
 using OpenSim.Framework;
 using OpenSim.Framework.Client;
 using OpenSim.Region.Framework.Interfaces;
@@ -1161,6 +1162,7 @@ namespace OpenSim.Region.Framework.Scenes
                 if (friendsModule != null)
                     friendsModule.SendFriendsOnlineIfNeeded(ControllingClient);
             }
+
 
 //            m_log.DebugFormat(
 //                "[SCENE PRESENCE]: Completing movement of {0} into region {1} took {2}ms", 

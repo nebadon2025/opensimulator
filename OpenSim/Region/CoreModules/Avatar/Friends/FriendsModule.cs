@@ -110,7 +110,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Friends
             }
         }
 
-        protected IFriendsService FriendsService
+        public IFriendsService FriendsService
         {
             get
             {
@@ -937,7 +937,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Friends
             }
         }
 
-        protected virtual FriendInfo[] GetFriendsFromService(IClientAPI client)
+        public virtual FriendInfo[] GetFriendsFromService(IClientAPI client)
         {
             return FriendsService.GetFriends(client.AgentId);
         }

@@ -68,6 +68,7 @@ namespace OpenSim.Services.Interfaces
         bool ReportAgent(UUID sessionID, UUID regionID);
 
         PresenceInfo GetAgent(UUID sessionID);
+        PresenceInfo VerifyAgent(UUID s_sessionID);
         PresenceInfo[] GetAgents(string[] userIDs);
     }
 }

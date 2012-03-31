@@ -41,6 +41,7 @@ using OpenSim.Services.Interfaces;
 using OpenSim.Framework;
 using OpenSim.Framework.Servers.HttpServer;
 using OpenMetaverse;
+using OpenMetaverse.StructuredData;
 
 namespace OpenSim.Server.Handlers.Presence
 {
@@ -244,7 +245,6 @@ namespace OpenSim.Server.Handlers.Presence
             UTF8Encoding encoding = new UTF8Encoding();
             return encoding.GetBytes(xmlString);
         }
-
         
         private byte[] SuccessResult()
         {

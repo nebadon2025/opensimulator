@@ -49,6 +49,7 @@ namespace OpenSim.Data
         bool Store(PresenceData data);
 
         PresenceData Get(UUID sessionID);
+        PresenceData Verify(UUID s_sessionID);
         void LogoutRegionAgents(UUID regionID);
         bool ReportAgent(UUID sessionID, UUID regionID);
         PresenceData[] Get(string field, string data);

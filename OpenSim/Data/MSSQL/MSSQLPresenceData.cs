@@ -61,6 +61,17 @@ namespace OpenSim.Data.MSSQL
             return ret[0];
         }
 
+        public PresenceData Verify(UUID s_sessionID)
+        {
+            PresenceData[] ret = Get("SecureSessionID",
+                    s_sessionID.ToString());
+
+            if (ret.Length == 0)
+                return null;
+
+            return ret[0];
+        }
+
         public void LogoutRegionAgents(UUID regionID)
         {
             using (SqlConnection conn = new SqlConnection(m_ConnectionString))

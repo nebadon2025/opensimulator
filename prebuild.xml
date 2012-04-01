@@ -1179,6 +1179,7 @@
       <Reference name="OpenSim.Server.Base"/>
       <Reference name="Nini" path="../../../bin/"/>
       <Reference name="log4net" path="../../../bin/"/>
+      <Reference name="Mono.Addins" path="../../../bin/"/>
 
       <Files>
         <Match pattern="*.cs" recurse="true"/>

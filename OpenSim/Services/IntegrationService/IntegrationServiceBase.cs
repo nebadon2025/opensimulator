@@ -5,10 +5,21 @@ using System.Reflection;
 using Nini.Config;
 using OpenSim.Framework;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
+using Mono.Addins;
+
+
+[assembly:AddinRoot ("IntegrationService", "1.0")]
 
 namespace OpenSim.Services.IntegrationService
 {
-    public class IntegrationServiceBase : ServiceBase
+    [TypeExtensionPoint (Path="/OpenSim/IntegrationService", Name="IntegrationService")]
+    public interface IntegrationPlugin
+    {
+        void run();
+    }
+
+
+     public class IntegrationServiceBase : ServiceBase
     {
         protected IPresenceService m_PresenceService;
         protected IGridService m_GridService;
@@ -18,6 +29,11 @@ namespace OpenSim.Services.IntegrationService
             : base(config)
         {
             Object[] args = new Object[] { config };
+
+            AddinManager.Initialize (".");
+            AddinManager.Registry.Update ();
+            foreach (IntegrationPlugin cmd in AddinManager.GetExtensionObjects("/OpenSim/IntegrationService"))
+         cmd.run ();
 
             m_IntegrationServerConfig = config.Configs["IntegrationService"];
             if (m_IntegrationServerConfig == null)

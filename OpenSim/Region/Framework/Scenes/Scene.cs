@@ -1833,7 +1833,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 AddRestoredSceneObject(group, true, true);
                 EventManager.TriggerOnSceneObjectLoaded(group);
-                SceneObjectPart rootPart = group.GetChildPart(group.UUID);
+                SceneObjectPart rootPart = group.GetPart(group.UUID);
                 rootPart.Flags &= ~PrimFlags.Scripted;
                 rootPart.TrimPermissions();
 
@@ -1971,9 +1971,15 @@ namespace OpenSim.Region.Framework.Scenes
             if (Permissions.CanRezObject(1, ownerID, pos))
             {
                 // rez ON the ground, not IN the ground
-               // pos.Z += 0.25F; The rez point should now be correct so that its not in the ground
+                // pos.Z += 0.25F; The rez point should now be correct so that its not in the ground
 
                 AddNewPrim(ownerID, groupID, pos, rot, shape);
+            }
+            else
+            {
+                IClientAPI client = null;
+                if (TryGetClient(ownerID, out client))
+                    client.SendAlertMessage("You cannot create objects here.");
             }
         }
 
@@ -4168,7 +4174,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (ent is SceneObjectGroup)
                 {
-                    SceneObjectPart part = ((SceneObjectGroup)ent).GetChildPart(((SceneObjectGroup)ent).UUID);
+                    SceneObjectPart part = ((SceneObjectGroup)ent).GetPart(((SceneObjectGroup)ent).UUID);
                     if (part != null)
                     {
                         if (part.Name == cmdparams[2])

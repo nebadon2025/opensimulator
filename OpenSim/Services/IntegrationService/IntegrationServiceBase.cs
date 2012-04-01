@@ -1,6 +1,7 @@
 using System;
 using OpenSim.Services.Interfaces;
 using OpenSim.Services.Base;
+using OpenSim.Framework.Servers.HttpServer;
 using System.Reflection;
 using Nini.Config;
 using OpenSim.Framework;
@@ -23,17 +24,24 @@ namespace OpenSim.Services.IntegrationService
     {
         protected IPresenceService m_PresenceService;
         protected IGridService m_GridService;
+        protected IHttpServer m_Server;
         IConfig m_IntegrationServerConfig;
 
-        public IntegrationServiceBase(IConfigSource config)
+        public IntegrationServiceBase(IConfigSource config, IHttpServer server)
             : base(config)
         {
             Object[] args = new Object[] { config };
 
+
+            m_Server = server;
+
             AddinManager.Initialize (".");
             AddinManager.Registry.Update ();
             foreach (IntegrationPlugin cmd in AddinManager.GetExtensionObjects("/OpenSim/IntegrationService"))
-         cmd.run ();
+            {
+                cmd.run ();
+                server.AddStreamHandler((IRequestHandler)cmd);
+            }
 
             m_IntegrationServerConfig = config.Configs["IntegrationService"];
             if (m_IntegrationServerConfig == null)

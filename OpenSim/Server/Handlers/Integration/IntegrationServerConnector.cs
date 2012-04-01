@@ -28,7 +28,7 @@ namespace OpenSim.Server.Handlers.Integration
             if (service == String.Empty)
                 throw new Exception("No LocalServiceModule in config file");
 
-            Object[] args = new Object[] { config };
+            Object[] args = new Object[] { config, server };
             m_IntegrationService = ServerUtils.LoadPlugin<IIntegrationService>(service, args);
 
             server.AddStreamHandler(new IntegrationServerHandler(m_IntegrationService));

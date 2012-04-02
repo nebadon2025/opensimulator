@@ -46,7 +46,7 @@ namespace OpenSim.Services.IntegrationService
         public IntegrationService(IConfigSource config, IHttpServer server)
             : base(config, server)
         {
-            m_log.InfoFormat("[IntegrationService]: Loaded");
+            m_log.InfoFormat("[INTEGRATION SERVICE]: Loaded");
 
         }
 

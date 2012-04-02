@@ -53,6 +53,8 @@ namespace OpenSim.Services.IntegrationService
      public class IntegrationServiceBase : ServiceBase
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
+        private string m_ConfigName = "IntegrationService";
         
         protected IPresenceService m_PresenceService;
         protected IGridService m_GridService;
@@ -62,15 +64,20 @@ namespace OpenSim.Services.IntegrationService
         public IntegrationServiceBase(IConfigSource config, IHttpServer server)
             : base(config)
         {
-            Object[] args = new Object[] { config };
 
+            IConfig serverConfig = config.Configs[m_ConfigName];
+            if (serverConfig == null)
+                throw new Exception(String.Format("No section {0} in config file", m_ConfigName));
 
+            string RegistryLocation = serverConfig.GetString("PluginRegistryLocation",
+                    ".");
             AddinManager.AddinLoaded += on_addinloaded_;
+            AddinManager.AddinLoadError += on_addinloaderror_;
 
             m_Server = server;
 
             suppress_console_output_(true);
-            AddinManager.Initialize (".");
+            AddinManager.Initialize (RegistryLocation);
             AddinManager.Registry.Update ();
             suppress_console_output_(false);
 
@@ -78,13 +85,13 @@ namespace OpenSim.Services.IntegrationService
             {
                 cmd.Init (config);
                 server.AddStreamHandler((IRequestHandler)cmd);
-                m_log.InfoFormat("[Integration]: Loading IntegrationService plugin {0}", cmd.Name);
+                m_log.InfoFormat("[INTEGRATION SERVICE]: Loading IntegrationService plugin {0}", cmd.Name);
             }
 
             m_IntegrationServerConfig = config.Configs["IntegrationService"];
             if (m_IntegrationServerConfig == null)
             {
-                throw new Exception("[IntegrationService]: Missing configuration");
+                throw new Exception("[INTEGRATION SERVICE]: Missing configuration");
                 return;
             }
 
@@ -92,6 +99,7 @@ namespace OpenSim.Services.IntegrationService
             string presenceService = m_IntegrationServerConfig.GetString("PresenceService", String.Empty);
 
 
+            Object[] args = new Object[] { config };
             if (gridService != string.Empty)
                 m_GridService = LoadPlugin<IGridService>(gridService, args);
             if (presenceService != string.Empty)
@@ -99,9 +107,20 @@ namespace OpenSim.Services.IntegrationService
 
         }
 
+        private void on_addinloaderror_(object sender, AddinErrorEventArgs args)
+        {
+            if (args.Exception == null)
+                m_log.Error ("[INTEGRATION SERVICE]: Plugin Error: "
+                        + args.Message);
+            else
+                m_log.Error ("[INTEGRATION SERVICE]: Plugin Error: "
+                        + args.Exception.Message + "\n"
+                        + args.Exception.StackTrace);
+        }
+
         private void on_addinloaded_(object sender, AddinEventArgs args)
         {
-            m_log.Info ("[IntegrationService]: Plugin Loaded: " + args.AddinId);
+            m_log.Info ("[INTEGRATION SERVICE]: Plugin Loaded: " + args.AddinId);
         }
 
         private static TextWriter prev_console_;

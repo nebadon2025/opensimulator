@@ -25,6 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+using System;
+using System.Reflection;
 using OpenSim.Server.Base;
 using OpenSim.Services.Interfaces;
 using OpenSim.Framework;
@@ -32,17 +34,19 @@ using OpenSim.Framework.Servers.HttpServer;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using OpenMetaverse;
 using Nini.Config;
-
+using log4net;
 
 
 namespace OpenSim.Services.IntegrationService
 {
     public class IntegrationService : IntegrationServiceBase, IIntegrationService
     {
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         public IntegrationService(IConfigSource config, IHttpServer server)
             : base(config, server)
         {
+            m_log.InfoFormat("[IntegrationService]: Loaded");
 
         }
 

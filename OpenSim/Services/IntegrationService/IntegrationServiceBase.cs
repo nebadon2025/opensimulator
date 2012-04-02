@@ -26,6 +26,7 @@
  */
 
 using System;
+using System.IO;
 using OpenSim.Services.Interfaces;
 using OpenSim.Services.Base;
 using OpenSim.Framework.Servers.HttpServer;
@@ -34,6 +35,7 @@ using Nini.Config;
 using OpenSim.Framework;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using Mono.Addins;
+using log4net;
 
 
 [assembly:AddinRoot ("IntegrationService", "1.0")]
@@ -44,11 +46,14 @@ namespace OpenSim.Services.IntegrationService
     public interface IntegrationPlugin
     {
         void Init(IConfigSource config);
+        string Name{ get; }
     }
 
 
      public class IntegrationServiceBase : ServiceBase
     {
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        
         protected IPresenceService m_PresenceService;
         protected IGridService m_GridService;
         protected IHttpServer m_Server;
@@ -60,14 +65,20 @@ namespace OpenSim.Services.IntegrationService
             Object[] args = new Object[] { config };
 
 
+            AddinManager.AddinLoaded += on_addinloaded_;
+
             m_Server = server;
 
+            suppress_console_output_(true);
             AddinManager.Initialize (".");
             AddinManager.Registry.Update ();
+            suppress_console_output_(false);
+
             foreach (IntegrationPlugin cmd in AddinManager.GetExtensionObjects("/OpenSim/IntegrationService"))
             {
                 cmd.Init (config);
                 server.AddStreamHandler((IRequestHandler)cmd);
+                m_log.InfoFormat("[Integration]: Loading IntegrationService plugin {0}", cmd.Name);
             }
 
             m_IntegrationServerConfig = config.Configs["IntegrationService"];
@@ -86,6 +97,26 @@ namespace OpenSim.Services.IntegrationService
             if (presenceService != string.Empty)
                 m_PresenceService = LoadPlugin<IPresenceService>(presenceService, args);
 
+        }
+
+        private void on_addinloaded_(object sender, AddinEventArgs args)
+        {
+            m_log.Info ("[IntegrationService]: Plugin Loaded: " + args.AddinId);
+        }
+
+        private static TextWriter prev_console_;
+        public void suppress_console_output_(bool save)
+        {
+            if (save)
+            {
+                prev_console_ = System.Console.Out;
+                System.Console.SetOut(new StreamWriter(Stream.Null));
+            }
+            else
+            {
+                if (prev_console_ != null)
+                    System.Console.SetOut(prev_console_);
+            }
         }
     }
 }

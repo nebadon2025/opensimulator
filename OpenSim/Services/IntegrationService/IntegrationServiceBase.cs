@@ -69,8 +69,10 @@ namespace OpenSim.Services.IntegrationService
             if (serverConfig == null)
                 throw new Exception(String.Format("No section {0} in config file", m_ConfigName));
 
+            // defaults to the ./bin directory
             string RegistryLocation = serverConfig.GetString("PluginRegistryLocation",
                     ".");
+
             AddinManager.AddinLoaded += on_addinloaded_;
             AddinManager.AddinLoadError += on_addinloaderror_;
 
@@ -98,7 +100,8 @@ namespace OpenSim.Services.IntegrationService
             string gridService = m_IntegrationServerConfig.GetString("GridService", String.Empty);
             string presenceService = m_IntegrationServerConfig.GetString("PresenceService", String.Empty);
 
-
+            // These are here now, but will be gone soon.
+            // Each plugin will load it's own services
             Object[] args = new Object[] { config };
             if (gridService != string.Empty)
                 m_GridService = LoadPlugin<IGridService>(gridService, args);

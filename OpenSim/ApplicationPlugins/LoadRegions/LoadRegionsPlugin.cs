@@ -135,7 +135,10 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
                     }
                 }
             }
-
+            // Temporary fix for an issue after the mono-addis upgrade
+            // PostInilise can fire before the region is loaded, so need to
+            // track down the cause of that
+            Thread.Sleep(300);
             m_openSim.ModuleLoader.PostInitialise();
             m_openSim.ModuleLoader.ClearCache();
         }

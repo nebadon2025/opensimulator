@@ -2162,12 +2162,6 @@ namespace OpenSim.Region.Framework.Scenes
                     part.RemoveFromPhysics();
                 }
             }
-            
-//            if (rootPart.PhysActor != null)
-//            {
-//                PhysicsScene.RemovePrim(rootPart.PhysActor);
-//                rootPart.PhysActor = null;
-//            }
 
             if (UnlinkSceneObject(group, false))
             {

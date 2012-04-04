@@ -78,57 +78,24 @@ namespace OpenSim.Server.Handlers.Integration
                 switch (command)
                 {
                     // agent
-                    case "verify_agent_ssession":
-                        return HandleVerifyAgentSession(request);
+                    case "foo":
+                        break;
 
-                    case "verify_agent_region":
-                        return FailureResult("Not Implemented");
+                    case "bar":
+                        break;
 
                     default:
-                        m_log.DebugFormat("[IntegrationHandler]: unknown method {0} request {1}", command.Length, command);
+                        m_log.DebugFormat("[INTEGRATION HANDLER]: unknown method {0} request {1}", command.Length, command);
                         return FailureResult("IntegrationHandler: Unrecognized method requested!");
                 }
             }
             catch (Exception e)
             {
-                m_log.DebugFormat("[IntegrationHandler]: Exception {0}", e);
+                m_log.DebugFormat("[INTEGRATION HANDLER]: Exception {0}", e);
             }
 
             return FailureResult();
         }
-
-        #region Handlers
-        /// <summary>
-        /// Verifies the agent to external applications.
-        /// </summary>
-        /// <returns>
-        /// UUID of the agent.
-        /// </returns>
-        /// <param name='request'>
-        /// request - Send SecureSessionID and optionally Encoding=xml for xml Output
-        /// </param>
-        byte[] HandleVerifyAgentSession(OSDMap request)
-        {
-            UUID s_session = UUID.Zero;
-
-            if (!request.ContainsKey("SecureSessionID"))
-                return FailureResult();
-
-            if (!UUID.TryParse(request["SecureSessionID"].AsString(), out s_session))
-                return FailureResult();
-
-            PresenceInfo pinfo = m_IntegrationService.VerifyAgent(s_session);
-
-            OSDMap result = new OSDMap();
-
-            if (pinfo == null)
-                result["agent_id"] = OSD.FromUUID(UUID.Zero);
-            else
-                result["agent_id"] = OSD.FromString(pinfo.UserID.ToString());
-
-            return Encoding.UTF8.GetBytes(OSDParser.SerializeJsonString(result));
-        }
-        #endregion Handlers
 
         #region utility
         private byte[] FailureResult()

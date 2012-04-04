@@ -49,12 +49,5 @@ namespace OpenSim.Services.IntegrationService
             m_log.InfoFormat("[INTEGRATION SERVICE]: Loaded");
 
         }
-
-        #region IIntegrationService implementation
-        public PresenceInfo VerifyAgent(UUID SecureSessionID)
-        {
-            return m_PresenceService.VerifyAgent(SecureSessionID);
-        }
-        #endregion
     }
 }

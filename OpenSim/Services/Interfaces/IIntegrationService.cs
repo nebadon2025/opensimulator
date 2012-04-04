@@ -36,7 +36,6 @@ namespace OpenSim.Services.Interfaces
 {
     public interface IIntegrationService
     {
-        PresenceInfo VerifyAgent(UUID SecretSessionID);
     }
 }
 

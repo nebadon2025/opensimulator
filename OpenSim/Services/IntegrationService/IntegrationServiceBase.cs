@@ -46,7 +46,7 @@ namespace OpenSim.Services.IntegrationService
     [TypeExtensionPoint (Path="/OpenSim/IntegrationService", Name="IntegrationService")]
     public interface IntegrationPlugin
     {
-        void Init(IConfigSource config);
+        void Init(IConfigSource config, IConfig data);
         string Name{ get; }
         string ConfigName { get; }
     }
@@ -93,6 +93,9 @@ namespace OpenSim.Services.IntegrationService
                 return;
             }
 
+            // Send the default data service
+            IConfig DataService = config.Configs["DatabaseService"];
+
             // Add a command to the console
             if (MainConsole.Instance != null)
             {
@@ -116,7 +119,7 @@ namespace OpenSim.Services.IntegrationService
                 // We maintain a configuration per-plugin to enhance modularity
                 // If ConfigSource is null, we will get the default from the repo
                 // and write it to our directory
-                cmd.Init (ConfigSource);
+                cmd.Init (ConfigSource, DataService);
                 server.AddStreamHandler((IRequestHandler)cmd);
                 m_log.InfoFormat("[INTEGRATION SERVICE]: Loading IntegrationService plugin {0}", cmd.Name);
             }

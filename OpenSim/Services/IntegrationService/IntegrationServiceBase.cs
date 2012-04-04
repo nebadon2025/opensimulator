@@ -37,6 +37,7 @@ using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using Mono.Addins;
 using log4net;
 
+using Ux = OpenSim.Services.IntegrationService.IUtils;
 
 [assembly:AddinRoot ("IntegrationService", "1.0")]
 
@@ -47,8 +48,8 @@ namespace OpenSim.Services.IntegrationService
     {
         void Init(IConfigSource config);
         string Name{ get; }
+        string ConfigName { get; }
     }
-
 
      public class IntegrationServiceBase : ServiceBase
     {
@@ -59,7 +60,9 @@ namespace OpenSim.Services.IntegrationService
         protected IPresenceService m_PresenceService;
         protected IGridService m_GridService;
         protected IHttpServer m_Server;
+        protected string m_IntegrationConfig;
         IConfig m_IntegrationServerConfig;
+        string m_IntegrationConfigLoc;
 
         public IntegrationServiceBase(IConfigSource config, IHttpServer server)
             : base(config)
@@ -73,10 +76,33 @@ namespace OpenSim.Services.IntegrationService
             string RegistryLocation = serverConfig.GetString("PluginRegistryLocation",
                     ".");
 
+            // Deal with files only for now - will add url/environment later
+            m_IntegrationConfigLoc = serverConfig.GetString("IntegrationConfig", String.Empty);
+              if(String.IsNullOrEmpty(m_IntegrationConfigLoc))
+                m_log.Error("[INTEGRATION SERVICE]: No IntegrationConfig defined in the Robust.ini");
+
             AddinManager.AddinLoaded += on_addinloaded_;
             AddinManager.AddinLoadError += on_addinloaderror_;
 
             m_Server = server;
+
+            m_IntegrationServerConfig = config.Configs["IntegrationService"];
+            if (m_IntegrationServerConfig == null)
+            {
+                throw new Exception("[INTEGRATION SERVICE]: Missing configuration");
+                return;
+            }
+
+            // Add a command to the console
+            if (MainConsole.Instance != null)
+            {
+                MainConsole.Instance.Commands.AddCommand("Integration", true,
+                            "show repos",
+                            "show repos",
+                            "Show list of registered plugin repositories",
+                            String.Empty,
+                            HandleShowRepos);
+            }
 
             suppress_console_output_(true);
             AddinManager.Initialize (RegistryLocation);
@@ -85,16 +111,14 @@ namespace OpenSim.Services.IntegrationService
 
             foreach (IntegrationPlugin cmd in AddinManager.GetExtensionObjects("/OpenSim/IntegrationService"))
             {
-                cmd.Init (config);
+                IConfigSource ConfigSource = Ux.GetConfigSource(m_IntegrationConfigLoc, cmd.ConfigName);
+
+                // We maintain a configuration per-plugin to enhance modularity
+                // If ConfigSource is null, we will get the default from the repo
+                // and write it to our directory
+                cmd.Init (ConfigSource);
                 server.AddStreamHandler((IRequestHandler)cmd);
                 m_log.InfoFormat("[INTEGRATION SERVICE]: Loading IntegrationService plugin {0}", cmd.Name);
-            }
-
-            m_IntegrationServerConfig = config.Configs["IntegrationService"];
-            if (m_IntegrationServerConfig == null)
-            {
-                throw new Exception("[INTEGRATION SERVICE]: Missing configuration");
-                return;
             }
 
             string gridService = m_IntegrationServerConfig.GetString("GridService", String.Empty);
@@ -108,6 +132,11 @@ namespace OpenSim.Services.IntegrationService
             if (presenceService != string.Empty)
                 m_PresenceService = LoadPlugin<IPresenceService>(presenceService, args);
 
+        }
+
+        private IConfigSource GetConfig(string configName)
+        {
+            return new IniConfigSource();
         }
 
         private void on_addinloaderror_(object sender, AddinErrorEventArgs args)
@@ -140,5 +169,26 @@ namespace OpenSim.Services.IntegrationService
                     System.Console.SetOut(prev_console_);
             }
         }
+
+
+
+
+        #region console handlers
+        private void HandleShowRepos(string module, string[] cmd)
+        {
+            if ( cmd.Length < 2 )
+            {
+                MainConsole.Instance.Output("Syntax: show repos");
+                return;
+            }
+
+//            List<UserData> list = m_Database.ListNames();
+//
+//            foreach (UserData name in list)
+//            {
+//                MainConsole.Instance.Output(String.Format("{0} {1}",name.FirstName, name.LastName));
+//            }
+        }
+        #endregion
     }
 }

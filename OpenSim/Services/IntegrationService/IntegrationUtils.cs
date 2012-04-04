@@ -27,9 +27,11 @@
 
 
 using System;
+using System.IO;
 using System.Reflection;
 using System.Text;
 using log4net;
+using Nini.Config;
 using OpenMetaverse.StructuredData;
 
 
@@ -39,6 +41,7 @@ namespace OpenSim.Services.IntegrationService
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
+        #region web utils
         public static bool ParseStringToOSDMap(string input, out OSDMap json)
         {
             try
@@ -97,5 +100,31 @@ namespace OpenSim.Services.IntegrationService
         {
             return Encoding.UTF8.GetBytes(OSDParser.SerializeJsonString(doc));
         }
+        #endregion web utils
+
+        #region config utils
+        public static IConfigSource GetConfigSource(string IniPath, string IniName)
+        {
+            string configFilePath = Path.GetFullPath(
+                        Path.Combine(IniPath, IniName));
+
+            if (File.Exists(configFilePath))
+            {
+                IConfigSource config = new IniConfigSource(configFilePath);
+                return config;
+            }
+            else
+            {
+                return new IniConfigSource();
+            }
+        }
+        #endregion config utils
+
+        public static T LoadPlugin<T>(string dllName, Object[] args) where T:class
+        {
+            return OpenSim.Server.Base.ServerUtils.LoadPlugin<T>(dllName, args);
+
+        }
+
     }
 }

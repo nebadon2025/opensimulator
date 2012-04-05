@@ -65,8 +65,51 @@ namespace OpenSim.Services.IntegrationService
                                                      "uninstall", "uninstall \"plugin name\"", "Remove plugin from repository",
                                                      HandleUnInstallPlugin);
 
-            MainConsole.Instance.Commands.AddCommand("Integration", true, "check installed", "check installed \"plugin name=\"",
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "check installed", "check installed \"plugin name=\"","Check installed plugin",
                                                      HandleCheckInstalledPlugin);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "list installed", "list installed \"plugin name=\"","List install plugins",
+                                                     HandleListInstalledPlugin);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "list available", "list available \"plugin name=\"","List available plugins",
+                                                     HandleListAvailablePlugin);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true, "list updates", "list updates","List availble updates",
+                                                     HandleListUpdates);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "update", "update \"plugin name=\"","Update the plugin",
+                                                     HandleUpdatePlugin);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "add repo", "add repo \"url\"","Add repository",
+                                                     HandleAddRepo);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true, "get repo", "get repo \"url\"", "Sync with a registered repository",
+                                                     HandleGetRepo);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "remove repo", "remove repo \"[url | index]\"","Remove registered repository",
+                                                     HandleRemoveRepo);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "enable repo", "enable repo \"[url | index]\"","Enable registered repository",
+                                                     HandleEnableRepo);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "disable repo", "disable repo \"[url | index]\"","Disable registered repository",
+                                                     HandleDisableRepo);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "list repos", "list repos","List registered repositories",
+                                                     HandleListRepos);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "show info", "show info \"plugin name\"","Show detailed information for plugin",
+                                                     HandleShowAddinInfo);
 
         }
 
@@ -156,9 +199,6 @@ namespace OpenSim.Services.IntegrationService
                 MainConsole.Instance.Output(m_PluginManager.AddinInfo());
                 return;
             }
-
-            MainConsole.Instance.Output(String.Format("{0} {1}","Hello", "World!" ));
-
         }
         #endregion
     }

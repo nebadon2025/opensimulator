@@ -62,6 +62,7 @@ namespace OpenSim.Services.IntegrationService
         protected IGridService m_GridService;
         protected IHttpServer m_Server;
         protected string m_IntegrationConfig;
+        protected PluginManager m_PluginManager;
         IConfig m_IntegrationServerConfig;
         string m_IntegrationConfigLoc;
 
@@ -76,6 +77,8 @@ namespace OpenSim.Services.IntegrationService
             // defaults to the ./bin directory
             string RegistryLocation = serverConfig.GetString("PluginRegistryLocation",
                     ".");
+
+            m_PluginManager = new PluginManager(RegistryLocation);
 
             // Deal with files only for now - will add url/environment later
             m_IntegrationConfigLoc = serverConfig.GetString("IntegrationConfig", String.Empty);
@@ -92,18 +95,6 @@ namespace OpenSim.Services.IntegrationService
             {
                 throw new Exception("[INTEGRATION SERVICE]: Missing configuration");
                 return;
-            }
-
-
-            // Add a command to the console
-            if (MainConsole.Instance != null)
-            {
-                MainConsole.Instance.Commands.AddCommand("Integration", true,
-                            "show repos",
-                            "show repos",
-                            "Show list of registered plugin repositories",
-                            String.Empty,
-                            HandleShowRepos);
             }
 
             suppress_console_output_(true);
@@ -190,26 +181,5 @@ namespace OpenSim.Services.IntegrationService
                     System.Console.SetOut(prev_console_);
             }
         }
-
-
-
-
-        #region console handlers
-        private void HandleShowRepos(string module, string[] cmd)
-        {
-            if ( cmd.Length < 2 )
-            {
-                MainConsole.Instance.Output("Syntax: show repos");
-                return;
-            }
-
-//            List<UserData> list = m_Database.ListNames();
-//
-//            foreach (UserData name in list)
-//            {
-//                MainConsole.Instance.Output(String.Format("{0} {1}",name.FirstName, name.LastName));
-//            }
-        }
-        #endregion
     }
 }

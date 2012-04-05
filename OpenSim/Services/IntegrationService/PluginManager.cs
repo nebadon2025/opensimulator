@@ -32,5 +32,92 @@ using Mono.Addins.Setup;
 namespace OpenSim.Services.IntegrationService
 {
     // This will maintain the plugin repositories and plugins
+    public class PluginManager
+    {
+        protected AddinRegistry m_Registry;
+        protected SetupService m_Manager;
 
+        public PluginManager(string registry_path)
+        {
+            m_Registry = new AddinRegistry(".", registry_path);
+            m_Manager = new SetupService(m_Registry);
+
+
+        }
+
+        public string Install()
+        {
+            return "Install";
+        }
+
+        public string UnInstall()
+        {
+            return "UnInstall";
+        }
+
+        public string CheckInstalled()
+        {
+            return "CheckInstall";
+        }
+
+        public string ListInstalled()
+        {
+            return "ListInstalled";
+        }
+
+        public string ListAvailable()
+        {
+            return "ListAvailable";
+        }
+
+        public string ListUpdates()
+        {
+            return "ListUpdates";
+        }
+
+        public string Update()
+        {
+            return "Update";
+        }
+
+        public string AddRepository()
+        {
+            return "AddRepository";
+        }
+
+        public string GetRepository()
+        {
+            return "GetRepository";
+        }
+
+        public string RemoveRepository()
+        {
+            return "RemoveRepository";
+        }
+
+        public string EnableRepository()
+        {
+            return "EnableRepository";
+        }
+
+        public string DisableRepository()
+        {
+            return DisableRepository();
+        }
+
+        public string ListRepositories()
+        {
+            return "ListRepositories";
+        }
+
+        public string UpdateRegistry()
+        {
+            return "UpdateRegistry";
+        }
+
+        public string AddinInfo()
+        {
+            return "AddinInfo";
+        }
+    }
 }

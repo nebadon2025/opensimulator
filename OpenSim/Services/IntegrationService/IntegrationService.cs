@@ -48,6 +48,118 @@ namespace OpenSim.Services.IntegrationService
         {
             m_log.InfoFormat("[INTEGRATION SERVICE]: Loaded");
 
+            // Add a command to the console
+            if (MainConsole.Instance != null)
+            {
+                AddConsoleCommands();
+            }
         }
+
+        private void AddConsoleCommands()
+        {
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "install", "install \"plugin name\"", "Install plugin from repository",
+                                                     HandleInstallPlugin);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "uninstall", "uninstall \"plugin name\"", "Remove plugin from repository",
+                                                     HandleUnInstallPlugin);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true, "check installed", "check installed \"plugin name=\"",
+                                                     HandleCheckInstalledPlugin);
+
+        }
+
+        #region console handlers
+        private void HandleInstallPlugin(string module, string[] cmd)
+        {
+            MainConsole.Instance.Output(m_PluginManager.Install());
+            return;
+        }
+
+        private void HandleUnInstallPlugin(string module, string[] cmd)
+        {
+            MainConsole.Instance.Output(m_PluginManager.UnInstall());
+            return;
+        }
+
+        private void HandleCheckInstalledPlugin(string module, string[] cmd)
+        {
+            MainConsole.Instance.Output(m_PluginManager.CheckInstalled());
+            return;
+        }
+
+        private void HandleListInstalledPlugin(string module, string[] cmd)
+        {
+            MainConsole.Instance.Output(m_PluginManager.ListInstalled());
+            return;
+        }
+
+        private void HandleListAvailablePlugin(string module, string[] cmd)
+        {
+            MainConsole.Instance.Output(m_PluginManager.ListAvailable());
+            return;
+        }
+
+        private void HandleListUpdates(string module, string[] cmd)
+        {
+            MainConsole.Instance.Output(m_PluginManager.ListUpdates());
+            return;
+        }
+
+        private void HandleUpdatePlugin(string module, string[] cmd)
+        {
+            MainConsole.Instance.Output(m_PluginManager.Update());
+            return;
+        }
+
+        private void HandleAddRepo(string module, string[] cmd)
+        {
+            MainConsole.Instance.Output(m_PluginManager.AddRepository());
+            return;
+        }
+
+        private void HandleGetRepo(string module, string[] cmd)
+        {
+            MainConsole.Instance.Output(m_PluginManager.GetRepository());
+            return;
+        }
+
+        private void HandleRemoveRepo(string module, string[] cmd)
+        {
+            MainConsole.Instance.Output(m_PluginManager.RemoveRepository());
+            return;
+        }
+
+        private void HandleEnableRepo(string module, string[] cmd)
+        {
+            MainConsole.Instance.Output(m_PluginManager.EnableRepository());
+            return;
+        }
+
+        private void HandleDisableRepo(string module, string[] cmd)
+        {
+            MainConsole.Instance.Output(m_PluginManager.DisableRepository());
+            return;
+        }
+
+        private void HandleListRepos(string module, string[] cmd)
+        {
+            MainConsole.Instance.Output(m_PluginManager.ListRepositories());
+            return;
+        }
+
+        private void HandleShowAddinInfo(string module, string[] cmd)
+        {
+            if ( cmd.Length < 2 )
+            {
+                MainConsole.Instance.Output(m_PluginManager.AddinInfo());
+                return;
+            }
+
+            MainConsole.Instance.Output(String.Format("{0} {1}","Hello", "World!" ));
+
+        }
+        #endregion
     }
 }

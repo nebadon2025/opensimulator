@@ -30,6 +30,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Xml;
 using log4net;
 using Nini.Config;
 using OpenMetaverse.StructuredData;
@@ -115,8 +116,30 @@ namespace OpenSim.Services.IntegrationService
             }
             else
             {
-                return new IniConfigSource();
+                return null;
             }
+        }
+
+        public static IConfigSource LoadInitialConfig(string url)
+        {
+            IConfigSource source = new XmlConfigSource();
+            m_log.InfoFormat("[CONFIG]: {0} is a http:// URI, fetching ...", url);
+
+            // The ini file path is a http URI
+            // Try to read it
+            try
+            {
+                XmlReader r = XmlReader.Create(url);
+                IConfigSource cs = new XmlConfigSource(r);
+                source.Merge(cs);
+            }
+            catch (Exception e)
+            {
+                m_log.FatalFormat("[CONFIG]: Exception reading config from URI {0}\n" + e.ToString(), url);
+                Environment.Exit(1);
+            }
+
+            return source;
         }
         #endregion config utils
 

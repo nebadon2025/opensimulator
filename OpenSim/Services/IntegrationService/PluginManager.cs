@@ -31,6 +31,6 @@ using Mono.Addins.Setup;
 
 namespace OpenSim.Services.IntegrationService
 {
-
+    // This will maintain the plugin repositories and plugins
 
 }

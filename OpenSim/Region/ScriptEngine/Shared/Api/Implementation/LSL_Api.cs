@@ -3055,7 +3055,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             SceneObjectPart host = (SceneObjectPart)o;
 
             SceneObjectGroup grp = host.ParentGroup;
-            UUID itemID = grp.GetFromItemID();
+            UUID itemID = grp.FromItemID;
             ScenePresence presence = World.GetScenePresence(host.OwnerID);
 
             IAttachmentsModule attachmentsModule = m_ScriptEngine.World.AttachmentsModule;

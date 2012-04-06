@@ -26,6 +26,7 @@
  */
 
 using System;
+using System.Collections;
 using System.Reflection;
 using OpenSim.Server.Base;
 using OpenSim.Services.Interfaces;
@@ -35,6 +36,7 @@ using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using OpenMetaverse;
 using Nini.Config;
 using log4net;
+using Mono.Addins;
 
 
 namespace OpenSim.Services.IntegrationService
@@ -48,7 +50,7 @@ namespace OpenSim.Services.IntegrationService
         {
             m_log.InfoFormat("[INTEGRATION SERVICE]: Loaded");
 
-            // Add a command to the console
+            // Add commands to the console
             if (MainConsole.Instance != null)
             {
                 AddConsoleCommands();
@@ -77,7 +79,8 @@ namespace OpenSim.Services.IntegrationService
                                                      "list available", "list available \"plugin name=\"","List available plugins",
                                                      HandleListAvailablePlugin);
 
-            MainConsole.Instance.Commands.AddCommand("Integration", true, "list updates", "list updates","List availble updates",
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "list updates", "list updates","List availble updates",
                                                      HandleListUpdates);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
@@ -88,7 +91,8 @@ namespace OpenSim.Services.IntegrationService
                                                      "add repo", "add repo \"url\"","Add repository",
                                                      HandleAddRepo);
 
-            MainConsole.Instance.Commands.AddCommand("Integration", true, "get repo", "get repo \"url\"", "Sync with a registered repository",
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "get repo", "get repo \"url\"", "Sync with a registered repository",
                                                      HandleGetRepo);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
@@ -134,13 +138,13 @@ namespace OpenSim.Services.IntegrationService
 
         private void HandleListInstalledPlugin(string module, string[] cmd)
         {
-            MainConsole.Instance.Output(m_PluginManager.ListInstalled());
+            m_PluginManager.ListInstalledAddins();
             return;
         }
 
         private void HandleListAvailablePlugin(string module, string[] cmd)
         {
-            MainConsole.Instance.Output(m_PluginManager.ListAvailable());
+            m_PluginManager.ListAvailable();
             return;
         }
 
@@ -176,7 +180,7 @@ namespace OpenSim.Services.IntegrationService
 
         private void HandleEnableRepo(string module, string[] cmd)
         {
-            MainConsole.Instance.Output(m_PluginManager.EnableRepository());
+            m_PluginManager.EnableRepository(cmd);
             return;
         }
 
@@ -188,7 +192,7 @@ namespace OpenSim.Services.IntegrationService
 
         private void HandleListRepos(string module, string[] cmd)
         {
-            MainConsole.Instance.Output(m_PluginManager.ListRepositories());
+            m_PluginManager.ListRepositories();
             return;
         }
 

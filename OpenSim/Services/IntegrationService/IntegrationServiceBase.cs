@@ -77,8 +77,8 @@ namespace OpenSim.Services.IntegrationService
             // defaults to the ./bin directory
             string RegistryLocation = serverConfig.GetString("PluginRegistryLocation",
                     ".");
-
-            m_PluginManager = new PluginManager(RegistryLocation);
+            AddinRegistry registry = new AddinRegistry(RegistryLocation, ".");
+            m_PluginManager = new PluginManager(registry);
 
             // Deal with files only for now - will add url/environment later
             m_IntegrationConfigLoc = serverConfig.GetString("IntegrationConfig", String.Empty);

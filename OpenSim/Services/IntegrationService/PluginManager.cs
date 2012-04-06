@@ -26,33 +26,69 @@
  */
 
 using System;
+using System.Text;
 using System.Collections;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using Mono.Addins;
 using Mono.Addins.Setup;
+using Mono.Addins.Description;
 using OpenSim.Framework;
 
 namespace OpenSim.Services.IntegrationService
 {
     // This will maintain the plugin repositories and plugins
-    public class PluginManager
+    public class PluginManager : SetupService
     {
         protected AddinRegistry m_Registry;
-        protected SetupService m_Service;
+//        protected SetupService m_Service;
 
-        public PluginManager(string registry_path)
+        internal PluginManager( AddinRegistry r): base (r)
         {
-            m_Registry = new AddinRegistry(registry_path);
-            m_Service = new SetupService(m_Registry);
+            m_Registry = r;
         }
 
-        public string Install()
+//        public PluginManager(string registry_path)
+//        {
+//            m_Registry = new AddinRegistry(registry_path);
+//            m_Service = new SetupService(m_Registry);
+//        }
+//
+        public string InstallPlugin(string[] args)
         {
-            return "Install";
+            PackageCollection pack = new PackageCollection();
+            PackageCollection toUninstall;
+            DependencyCollection unresolved;
+
+            IProgressStatus ps = new ConsoleProgressStatus(true);
+
+            string name = Addin.GetIdName(args[1]);
+            string version = Addin.GetIdVersion(args[1]);
+
+            AddinRepositoryEntry[] aentry = Repositories.GetAvailableAddin(name, version);
+
+            foreach (AddinRepositoryEntry ae in aentry)
+            {
+                Package p = Package.FromRepository(ae);
+                pack.Add(p);
+            }
+
+
+            ResolveDependencies(ps, pack, out toUninstall, out unresolved);
+
+
+            if(Install(ps, pack) == true)
+                return "Install";
+            else
+                return "Bomb";
         }
 
-        public string UnInstall()
+        public void UnInstall(string[] args)
         {
-            return "UnInstall";
+            IProgressStatus ps = new ConsoleProgressStatus(true);
+            Addin addin =  m_Registry.GetAddin(args[1]);
+            Uninstall(ps, addin.Id);
+            return;
         }
 
         public string CheckInstalled()
@@ -67,21 +103,24 @@ namespace OpenSim.Services.IntegrationService
             MainConsole.Instance.Output("Installed Plugins");
             foreach (Addin addin in list)
             {
-                MainConsole.Instance.Output(" - " + addin.Name + " " + addin.Version);
+                MainConsole.Instance.OutputFormat("* {0} rev. {1}", addin.Name, addin.Version);
             }
 
             return;
         }
 
-        public void ListAvailable()
+        public ArrayList ListAvailable()
         {
-            MainConsole.Instance.Output("Available Plugins");
-            AddinRepositoryEntry[] addins = m_Service.Repositories.GetAvailableAddins ();
-            // foreach (PackageRepositoryEntry addin in addins)
+            AddinRepositoryEntry[] addins = Repositories.GetAvailableAddins ();
+            ArrayList list = new ArrayList();
+
             foreach (AddinRepositoryEntry addin in addins)
             {
-                MainConsole.Instance.OutputFormat("{0} - {1} ",addin.Addin.Name, addin.RepositoryName );
+                StringBuilder sb = new StringBuilder();
+                sb.Append(String.Format("{0} rev. {1}, repo {2}", addin.Addin.Id, addin.Addin.Version, addin.RepositoryUrl));
+                list.Add(sb.ToString());
             }
+            return list;
         }
 
         public string ListUpdates()
@@ -94,8 +133,9 @@ namespace OpenSim.Services.IntegrationService
             return "Update";
         }
 
-        public string AddRepository()
+        public string AddRepository(string[] args)
         {
+            Repositories.RegisterRepository(null, args[2].ToString(), true);
             return "AddRepository";
         }
 
@@ -104,24 +144,14 @@ namespace OpenSim.Services.IntegrationService
             return "GetRepository";
         }
 
-        public string RemoveRepository()
+        public string RemoveRepository(string[] args)
         {
             return "RemoveRepository";
         }
 
-        public string EnableRepository(string[] args)
+        public void EnableRepository(string[] args)
         {
-            return "Test";
-        }
-
-        public string DisableRepository()
-        {
-            return DisableRepository();
-        }
-
-        public void ListRepositories()
-        {
-            AddinRepository[] reps = m_Service.Repositories.GetRepositories();
+            AddinRepository[] reps = Repositories.GetRepositories();
             Array.Sort (reps, (r1,r2) => r1.Title.CompareTo(r2.Title));
             if (reps.Length == 0)
             {
@@ -129,20 +159,73 @@ namespace OpenSim.Services.IntegrationService
                 return;
             }
 
-            int n = 0;
-            MainConsole.Instance.Output("Registered Repositories");
+            int n = Convert.ToInt16(args[2]);
+            if (n > (reps.Length -1))
+            {
+                MainConsole.Instance.Output("Selection out of range");
+                return;
+            }
 
+            AddinRepository rep = reps[n];
+            //return "TEST";
+            Repositories.SetRepositoryEnabled(rep.Url, true);
+            return;
+            //return DisableRepository();
+        }
+
+        public void DisableRepository(string[] args)
+        {
+            AddinRepository[] reps = Repositories.GetRepositories();
+            Array.Sort (reps, (r1,r2) => r1.Title.CompareTo(r2.Title));
+            if (reps.Length == 0)
+            {
+                MainConsole.Instance.Output("No repositories have been registered.");
+                return;
+            }
+
+            int n = Convert.ToInt16(args[2]);
+            if (n > (reps.Length -1))
+            {
+                MainConsole.Instance.Output("Selection out of range");
+                return;
+            }
+
+            AddinRepository rep = reps[n];
+            //return "TEST";
+            Repositories.SetRepositoryEnabled(rep.Url, false);
+            return;
+            //return DisableRepository();
+        }
+
+        public ArrayList ListRepositories()
+        {
+            AddinRepository[] reps = Repositories.GetRepositories();
+            Array.Sort (reps, (r1,r2) => r1.Title.CompareTo(r2.Title));
+            if (reps.Length == 0)
+            {
+                MainConsole.Instance.Output("No repositories have been registered.");
+                return null;
+            }
+
+            ArrayList list = new ArrayList();
+
+            int n = 0;
             foreach (AddinRepository rep in reps)
             {
-                string num = n.ToString ();
-                MainConsole.Instance.Output(num + ") ");
+                StringBuilder sb = new StringBuilder();
+
+                sb.AppendFormat("{0}) ", n.ToString());
                 if (!rep.Enabled)
-                    MainConsole.Instance.Output("(Disabled) ");
-                MainConsole.Instance.Output(rep.Title);
+                    sb.AppendFormat("(Disabled) ");
+                sb.AppendFormat("{0}", rep.Title);
                 if (rep.Title != rep.Url)
-                    MainConsole.Instance.Output(new string (' ', num.Length + 2) + rep.Url);
+                    sb.AppendFormat("{0}", rep.Url);
+
+                list.Add(sb.ToString());
                 n++;
             }
+
+            return list;
         }
 
         public void UpdateRegistry()

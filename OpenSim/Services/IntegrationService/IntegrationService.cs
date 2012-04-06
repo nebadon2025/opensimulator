@@ -27,6 +27,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Reflection;
 using OpenSim.Server.Base;
 using OpenSim.Services.Interfaces;
@@ -61,142 +62,155 @@ namespace OpenSim.Services.IntegrationService
         {
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "install", "install \"plugin name\"", "Install plugin from repository",
-                                                     HandleInstallPlugin);
+                                                     HandleConsoleInstallPlugin);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "uninstall", "uninstall \"plugin name\"", "Remove plugin from repository",
-                                                     HandleUnInstallPlugin);
+                                                     HandleConsoleUnInstallPlugin);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "check installed", "check installed \"plugin name=\"","Check installed plugin",
-                                                     HandleCheckInstalledPlugin);
+                                                     HandleConsoleCheckInstalledPlugin);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "list installed", "list installed \"plugin name=\"","List install plugins",
-                                                     HandleListInstalledPlugin);
+                                                     HandleConsoleListInstalledPlugin);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "list available", "list available \"plugin name=\"","List available plugins",
-                                                     HandleListAvailablePlugin);
+                                                     HandleConsoleListAvailablePlugin);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "list updates", "list updates","List availble updates",
-                                                     HandleListUpdates);
+                                                     HandleConsoleListUpdates);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "update", "update \"plugin name=\"","Update the plugin",
-                                                     HandleUpdatePlugin);
+                                                     HandleConsoleUpdatePlugin);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "add repo", "add repo \"url\"","Add repository",
-                                                     HandleAddRepo);
+                                                     HandleConsoleAddRepo);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "get repo", "get repo \"url\"", "Sync with a registered repository",
-                                                     HandleGetRepo);
+                                                     HandleConsoleGetRepo);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "remove repo", "remove repo \"[url | index]\"","Remove registered repository",
-                                                     HandleRemoveRepo);
+                                                     HandleConsoleRemoveRepo);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "enable repo", "enable repo \"[url | index]\"","Enable registered repository",
-                                                     HandleEnableRepo);
+                                                     HandleConsoleEnableRepo);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "disable repo", "disable repo \"[url | index]\"","Disable registered repository",
-                                                     HandleDisableRepo);
+                                                     HandleConsoleDisableRepo);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "list repos", "list repos","List registered repositories",
-                                                     HandleListRepos);
+                                                     HandleConsoleListRepos);
 
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "show info", "show info \"plugin name\"","Show detailed information for plugin",
-                                                     HandleShowAddinInfo);
+                                                     HandleConsoleShowAddinInfo);
 
         }
 
         #region console handlers
-        private void HandleInstallPlugin(string module, string[] cmd)
+        private void HandleConsoleInstallPlugin(string module, string[] cmd)
         {
-            MainConsole.Instance.Output(m_PluginManager.Install());
+            MainConsole.Instance.Output(m_PluginManager.InstallPlugin(cmd));
             return;
         }
 
-        private void HandleUnInstallPlugin(string module, string[] cmd)
+        private void HandleConsoleUnInstallPlugin(string module, string[] cmd)
         {
-            MainConsole.Instance.Output(m_PluginManager.UnInstall());
+            if (cmd.Length == 2)
+            {
+                m_PluginManager.UnInstall(cmd);
+            }
             return;
         }
 
-        private void HandleCheckInstalledPlugin(string module, string[] cmd)
+        private void HandleConsoleCheckInstalledPlugin(string module, string[] cmd)
         {
             MainConsole.Instance.Output(m_PluginManager.CheckInstalled());
             return;
         }
 
-        private void HandleListInstalledPlugin(string module, string[] cmd)
+        private void HandleConsoleListInstalledPlugin(string module, string[] cmd)
         {
             m_PluginManager.ListInstalledAddins();
             return;
         }
 
-        private void HandleListAvailablePlugin(string module, string[] cmd)
+        private void HandleConsoleListAvailablePlugin(string module, string[] cmd)
         {
-            m_PluginManager.ListAvailable();
+            ArrayList list = m_PluginManager.ListAvailable();
+            foreach (string entry in list)
+                MainConsole.Instance.Output(entry);
+
             return;
         }
 
-        private void HandleListUpdates(string module, string[] cmd)
+        private void HandleConsoleListUpdates(string module, string[] cmd)
         {
             MainConsole.Instance.Output(m_PluginManager.ListUpdates());
             return;
         }
 
-        private void HandleUpdatePlugin(string module, string[] cmd)
+        private void HandleConsoleUpdatePlugin(string module, string[] cmd)
         {
             MainConsole.Instance.Output(m_PluginManager.Update());
             return;
         }
 
-        private void HandleAddRepo(string module, string[] cmd)
+        private void HandleConsoleAddRepo(string module, string[] cmd)
         {
-            MainConsole.Instance.Output(m_PluginManager.AddRepository());
+            if ( cmd.Length == 3)
+            {
+                m_PluginManager.AddRepository(cmd);
+            }
+
             return;
         }
 
-        private void HandleGetRepo(string module, string[] cmd)
+        private void HandleConsoleGetRepo(string module, string[] cmd)
         {
             MainConsole.Instance.Output(m_PluginManager.GetRepository());
             return;
         }
 
-        private void HandleRemoveRepo(string module, string[] cmd)
+        private void HandleConsoleRemoveRepo(string module, string[] cmd)
         {
-            MainConsole.Instance.Output(m_PluginManager.RemoveRepository());
+            MainConsole.Instance.Output(m_PluginManager.RemoveRepository(cmd));
             return;
         }
 
-        private void HandleEnableRepo(string module, string[] cmd)
+        private void HandleConsoleEnableRepo(string module, string[] cmd)
         {
             m_PluginManager.EnableRepository(cmd);
             return;
         }
 
-        private void HandleDisableRepo(string module, string[] cmd)
+        private void HandleConsoleDisableRepo(string module, string[] cmd)
         {
-            MainConsole.Instance.Output(m_PluginManager.DisableRepository());
+            m_PluginManager.DisableRepository(cmd);
             return;
         }
 
-        private void HandleListRepos(string module, string[] cmd)
+        private void HandleConsoleListRepos(string module, string[] cmd)
         {
-            m_PluginManager.ListRepositories();
+            ArrayList list = m_PluginManager.ListRepositories();
+            foreach (string entry in list)
+                MainConsole.Instance.Output(entry);
+
             return;
         }
 
-        private void HandleShowAddinInfo(string module, string[] cmd)
+        private void HandleConsoleShowAddinInfo(string module, string[] cmd)
         {
             if ( cmd.Length < 2 )
             {

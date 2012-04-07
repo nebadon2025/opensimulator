@@ -46,6 +46,7 @@ namespace OpenSim.Services.IntegrationService
         internal PluginManager( AddinRegistry r): base (r)
         {
             m_Registry = r;
+            m_Registry.Update();
         }
 
 //        public PluginManager(string registry_path)
@@ -61,6 +62,8 @@ namespace OpenSim.Services.IntegrationService
             DependencyCollection unresolved;
 
             IProgressStatus ps = new ConsoleProgressStatus(true);
+
+            m_Registry.Update(ps);
 
             string name = Addin.GetIdName(args[1]);
             string version = Addin.GetIdVersion(args[1]);
@@ -78,7 +81,10 @@ namespace OpenSim.Services.IntegrationService
 
 
             if(Install(ps, pack) == true)
+            {
+                m_Registry.Update(ps);
                 return "Install";
+            }
             else
                 return "Bomb";
         }
@@ -88,6 +94,7 @@ namespace OpenSim.Services.IntegrationService
             IProgressStatus ps = new ConsoleProgressStatus(true);
             Addin addin =  m_Registry.GetAddin(args[1]);
             Uninstall(ps, addin.Id);
+            m_Registry.Rebuild(null);
             return;
         }
 

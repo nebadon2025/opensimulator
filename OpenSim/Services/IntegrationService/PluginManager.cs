@@ -49,12 +49,6 @@ namespace OpenSim.Services.IntegrationService
             m_Registry.Update();
         }
 
-//        public PluginManager(string registry_path)
-//        {
-//            m_Registry = new AddinRegistry(registry_path);
-//            m_Service = new SetupService(m_Registry);
-//        }
-//
         public string InstallPlugin(string[] args)
         {
             PackageCollection pack = new PackageCollection();
@@ -76,9 +70,7 @@ namespace OpenSim.Services.IntegrationService
                 pack.Add(p);
             }
 
-
             ResolveDependencies(ps, pack, out toUninstall, out unresolved);
-
 
             if(Install(ps, pack) == true)
             {
@@ -112,7 +104,6 @@ namespace OpenSim.Services.IntegrationService
             {
                 MainConsole.Instance.OutputFormat("* {0} rev. {1}", addin.Name, addin.Version);
             }
-
             return;
         }
 
@@ -174,10 +165,8 @@ namespace OpenSim.Services.IntegrationService
             }
 
             AddinRepository rep = reps[n];
-            //return "TEST";
             Repositories.SetRepositoryEnabled(rep.Url, true);
             return;
-            //return DisableRepository();
         }
 
         public void DisableRepository(string[] args)
@@ -198,10 +187,8 @@ namespace OpenSim.Services.IntegrationService
             }
 
             AddinRepository rep = reps[n];
-            //return "TEST";
             Repositories.SetRepositoryEnabled(rep.Url, false);
             return;
-            //return DisableRepository();
         }
 
         public ArrayList ListRepositories()
@@ -231,7 +218,6 @@ namespace OpenSim.Services.IntegrationService
                 list.Add(sb.ToString());
                 n++;
             }
-
             return list;
         }
 

@@ -35,10 +35,12 @@ using OpenSim.Framework;
 using OpenSim.Framework.Servers.HttpServer;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using OpenMetaverse;
+using OpenMetaverse.StructuredData;
 using Nini.Config;
 using log4net;
 using Mono.Addins;
 
+using Ux = OpenSim.Services.IntegrationService.IUtils;
 
 namespace OpenSim.Services.IntegrationService
 {
@@ -115,7 +117,6 @@ namespace OpenSim.Services.IntegrationService
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "show info", "show info \"plugin name\"","Show detailed information for plugin",
                                                      HandleConsoleShowAddinInfo);
-
         }
 
         #region console handlers
@@ -173,7 +174,6 @@ namespace OpenSim.Services.IntegrationService
             {
                 m_PluginManager.AddRepository(cmd);
             }
-
             return;
         }
 
@@ -217,6 +217,18 @@ namespace OpenSim.Services.IntegrationService
                 MainConsole.Instance.Output(m_PluginManager.AddinInfo());
                 return;
             }
+        }
+        #endregion
+
+        #region web handlers
+        public byte[] HandleWebListPlugins(OSDMap request)
+        {
+            return Ux.FailureResult("Not Implemented");
+        }
+
+        public byte[] HandleWebPluginInfo(OSDMap request)
+        {
+            return Ux.FailureResult("Not Implemented");
         }
         #endregion
     }

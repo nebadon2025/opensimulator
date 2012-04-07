@@ -78,10 +78,11 @@ namespace OpenSim.Server.Handlers.Integration
                 switch (command)
                 {
                     // agent
-                    case "foo":
-                        break;
+                    case "list_plugins":
+                        return HandleListPlugins(request);
 
-                    case "bar":
+                    case "plugin_info":
+                        return HandlePluginInfo(request);
                         break;
 
                     default:
@@ -97,7 +98,20 @@ namespace OpenSim.Server.Handlers.Integration
             return FailureResult();
         }
 
+        #region web handlers
+        private byte[] HandleListPlugins(OSDMap request)
+        {
+            return m_IntegrationService.HandleWebListPlugins(request);
+        }
+
+        private byte[] HandlePluginInfo(OSDMap request)
+        {
+            return m_IntegrationService.HandleWebPluginInfo(request);
+        }
+        #endregion web handlers
+
         #region utility
+        // These are in IntegrationUtils.cs for plugins
         private byte[] FailureResult()
         {
             return FailureResult(String.Empty);

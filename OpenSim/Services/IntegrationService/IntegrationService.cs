@@ -158,7 +158,7 @@ namespace OpenSim.Services.IntegrationService
 
         private void HandleConsoleListUpdates(string module, string[] cmd)
         {
-            MainConsole.Instance.Output(m_PluginManager.ListUpdates());
+            m_PluginManager.ListUpdates();
             return;
         }
 
@@ -179,16 +179,18 @@ namespace OpenSim.Services.IntegrationService
 
         private void HandleConsoleGetRepo(string module, string[] cmd)
         {
-            MainConsole.Instance.Output(m_PluginManager.GetRepository());
+            m_PluginManager.GetRepository();
             return;
         }
 
         private void HandleConsoleRemoveRepo(string module, string[] cmd)
         {
-            MainConsole.Instance.Output(m_PluginManager.RemoveRepository(cmd));
+            if (cmd.Length == 3)
+                m_PluginManager.RemoveRepository(cmd);
             return;
         }
 
+        // Enable repo
         private void HandleConsoleEnableRepo(string module, string[] cmd)
         {
             m_PluginManager.EnableRepository(cmd);
@@ -201,6 +203,7 @@ namespace OpenSim.Services.IntegrationService
             return;
         }
 
+        // List repositories
         private void HandleConsoleListRepos(string module, string[] cmd)
         {
             ArrayList list = m_PluginManager.ListRepositories();
@@ -212,9 +215,9 @@ namespace OpenSim.Services.IntegrationService
 
         private void HandleConsoleShowAddinInfo(string module, string[] cmd)
         {
-            if ( cmd.Length < 2 )
+            if ( cmd.Length >= 3 )
             {
-                MainConsole.Instance.Output(m_PluginManager.AddinInfo());
+                m_PluginManager.AddinInfo(cmd);
                 return;
             }
         }

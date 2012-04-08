@@ -81,6 +81,7 @@ namespace OpenSim.Services.IntegrationService
                 return "Bomb";
         }
 
+        // Remove plugin
         public void UnInstall(string[] args)
         {
             IProgressStatus ps = new ConsoleProgressStatus(true);
@@ -95,6 +96,7 @@ namespace OpenSim.Services.IntegrationService
             return "CheckInstall";
         }
 
+        // List instaled addins
         public void ListInstalledAddins()
         {
             ArrayList list = new ArrayList();
@@ -102,11 +104,13 @@ namespace OpenSim.Services.IntegrationService
             MainConsole.Instance.Output("Installed Plugins");
             foreach (Addin addin in list)
             {
+                if(addin.Description.Category == "IntegrationPlugin")
                 MainConsole.Instance.OutputFormat("* {0} rev. {1}", addin.Name, addin.Version);
             }
             return;
         }
 
+        // List compatible plugins in registered repositories
         public ArrayList ListAvailable()
         {
             AddinRepositoryEntry[] addins = Repositories.GetAvailableAddins ();
@@ -121,32 +125,66 @@ namespace OpenSim.Services.IntegrationService
             return list;
         }
 
-        public string ListUpdates()
+        // List available updates
+        public void ListUpdates()
         {
-            return "ListUpdates";
+            IProgressStatus ps = new ConsoleProgressStatus(true);
+            Console.WriteLine ("Looking for updates...");
+            Repositories.UpdateAllRepositories (ps);
+            Console.WriteLine ("Available add-in updates:");
+            bool found = false;
+            AddinRepositoryEntry[] entries = Repositories.GetAvailableUpdates ();
+
+            foreach (AddinRepositoryEntry entry in entries)
+            {
+                Console.WriteLine(String.Format("{0}",entry.Addin.Id));
+            }
         }
 
+        // Sync to repositories
         public string Update()
         {
+            IProgressStatus ps = new ConsoleProgressStatus(true);
+            Repositories.UpdateAllRepositories (ps);
             return "Update";
         }
 
+        // Register a repository
         public string AddRepository(string[] args)
         {
             Repositories.RegisterRepository(null, args[2].ToString(), true);
             return "AddRepository";
         }
 
-        public string GetRepository()
+        public void GetRepository()
         {
-            return "GetRepository";
+            Repositories.UpdateAllRepositories (new ConsoleProgressStatus (true));
         }
 
-        public string RemoveRepository(string[] args)
+        // Remove a repository from the list
+        public void RemoveRepository(string[] args)
         {
-            return "RemoveRepository";
+            AddinRepository[] reps = Repositories.GetRepositories();
+            Array.Sort (reps, (r1,r2) => r1.Title.CompareTo(r2.Title));
+            if (reps.Length == 0)
+            {
+                MainConsole.Instance.Output("No repositories have been registered.");
+                return;
+            }
+
+            int n = Convert.ToInt16(args[2]);
+            if (n > (reps.Length -1))
+            {
+                MainConsole.Instance.Output("Selection out of range");
+                return;
+            }
+
+            AddinRepository rep = reps[n];
+            Repositories.RemoveRepository (rep.Url);
+            return;
         }
 
+        // Enable repository
         public void EnableRepository(string[] args)
         {
             AddinRepository[] reps = Repositories.GetRepositories();
@@ -169,6 +207,7 @@ namespace OpenSim.Services.IntegrationService
             return;
         }
 
+        // Disable a repository
         public void DisableRepository(string[] args)
         {
             AddinRepository[] reps = Repositories.GetRepositories();
@@ -191,6 +230,7 @@ namespace OpenSim.Services.IntegrationService
             return;
         }
 
+        // List registered repositories
         public ArrayList ListRepositories()
         {
             AddinRepository[] reps = Repositories.GetRepositories();
@@ -208,12 +248,12 @@ namespace OpenSim.Services.IntegrationService
             {
                 StringBuilder sb = new StringBuilder();
 
-                sb.AppendFormat("{0}) ", n.ToString());
+                sb.AppendFormat("{0})", n.ToString());
                 if (!rep.Enabled)
-                    sb.AppendFormat("(Disabled) ");
-                sb.AppendFormat("{0}", rep.Title);
+                    sb.AppendFormat(" (Disabled)");
+                sb.AppendFormat(" {0}", rep.Title);
                 if (rep.Title != rep.Url)
-                    sb.AppendFormat("{0}", rep.Url);
+                    sb.AppendFormat(" {0}", rep.Url);
 
                 list.Add(sb.ToString());
                 n++;
@@ -226,8 +266,15 @@ namespace OpenSim.Services.IntegrationService
             m_Registry.Update();
         }
 
-        public string AddinInfo()
+        public string AddinInfo(string[] args)
         {
+
+            string id = args[2];
+            Addin addin = Registry.GetAddin(id, true);
+            MainConsole.Instance.OutputFormat("Name: {0}\nURL: {1}\n{2}",
+                                              addin.Name, addin.Description.Url,
+                                              addin.Description.FileName);
+
             return "AddinInfo";
         }
     }

@@ -87,7 +87,7 @@ namespace OpenSim.Services.IntegrationService
 
             AddinManager.AddinLoaded += on_addinloaded_;
             AddinManager.AddinLoadError += on_addinloaderror_;
-
+            AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
             m_Server = server;
 
             m_IntegrationServerConfig = config.Configs["IntegrationService"];
@@ -107,6 +107,9 @@ namespace OpenSim.Services.IntegrationService
                 string ConfigPath = String.Format("{0}/(1)", m_IntegrationConfigLoc,cmd.ConfigName);
                 IConfigSource PlugConfig = Ux.GetConfigSource(m_IntegrationConfigLoc, cmd.ConfigName);
 
+                // We maintain a configuration per-plugin to enhance modularity
+                // If ConfigSource is null, we will get the default from the repo
+                // and write it to our directory
                 // Fetch the starter ini
                 if (PlugConfig == null)
                 {
@@ -137,9 +140,8 @@ namespace OpenSim.Services.IntegrationService
                     PlugConfig = source;
                 }
 
-                // We maintain a configuration per-plugin to enhance modularity
-                // If ConfigSource is null, we will get the default from the repo
-                // and write it to our directory
+                // Initialise and bring up the plugin
+                // Need to take down the plugin when disabling it.
                 cmd.Init (PlugConfig);
                 server.AddStreamHandler((IRequestHandler)cmd);
                 m_log.InfoFormat("[INTEGRATION SERVICE]: Loading IntegrationService plugin {0}", cmd.Name);
@@ -149,6 +151,11 @@ namespace OpenSim.Services.IntegrationService
         private IConfigSource GetConfig(string configName)
         {
             return new IniConfigSource();
+        }
+
+        void HandleAddinManagerAddinUnloaded (object sender, AddinEventArgs args)
+        {
+            MainConsole.Instance.Output("Plugin Unloaded");
         }
 
         private void on_addinloaderror_(object sender, AddinErrorEventArgs args)

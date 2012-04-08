@@ -117,6 +117,14 @@ namespace OpenSim.Services.IntegrationService
             MainConsole.Instance.Commands.AddCommand("Integration", true,
                                                      "show info", "show info \"plugin name\"","Show detailed information for plugin",
                                                      HandleConsoleShowAddinInfo);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "disable plugin", "disable plugin \"plugin name\"","disable the plugin",
+                                                     HandleConsoleDisablePlugin);
+
+            MainConsole.Instance.Commands.AddCommand("Integration", true,
+                                                     "enable plugin", "enable plugin \"plugin name\"","enable the plugin",
+                                                     HandleConsoleEnablePlugin);
         }
 
         #region console handlers
@@ -197,6 +205,7 @@ namespace OpenSim.Services.IntegrationService
             return;
         }
 
+        // Disable repository
         private void HandleConsoleDisableRepo(string module, string[] cmd)
         {
             m_PluginManager.DisableRepository(cmd);
@@ -213,6 +222,7 @@ namespace OpenSim.Services.IntegrationService
             return;
         }
 
+        // Show description information
         private void HandleConsoleShowAddinInfo(string module, string[] cmd)
         {
             if ( cmd.Length >= 3 )
@@ -220,6 +230,20 @@ namespace OpenSim.Services.IntegrationService
                 m_PluginManager.AddinInfo(cmd);
                 return;
             }
+        }
+
+        // Disable plugin
+        private void HandleConsoleDisablePlugin(string module, string[] cmd)
+        {
+            m_PluginManager.DisablePlugin(cmd);
+            return;
+        }
+
+        // Enable plugin
+        private void HandleConsoleEnablePlugin(string module, string[] cmd)
+        {
+            m_PluginManager.EnablePlugin(cmd);
+            return;
         }
         #endregion
 

@@ -99,13 +99,17 @@ namespace OpenSim.Services.IntegrationService
         // List instaled addins
         public void ListInstalledAddins()
         {
+            int count = 0;
             ArrayList list = new ArrayList();
             list.AddRange(m_Registry.GetAddins());
             MainConsole.Instance.Output("Installed Plugins");
             foreach (Addin addin in list)
             {
                 if(addin.Description.Category == "IntegrationPlugin")
-                MainConsole.Instance.OutputFormat("* {0} rev. {1}", addin.Name, addin.Version);
+                MainConsole.Instance.OutputFormat("{0}) {1} {2} rev. {3}", count.ToString(),
+                                                      addin.Enabled == false ? "[X]" : "[ ]",
+                                                      addin.Name, addin.Version );
+                count++;
             }
             return;
         }
@@ -246,16 +250,7 @@ namespace OpenSim.Services.IntegrationService
             int n = 0;
             foreach (AddinRepository rep in reps)
             {
-                StringBuilder sb = new StringBuilder();
-
-                sb.AppendFormat("{0})", n.ToString());
-                if (!rep.Enabled)
-                    sb.AppendFormat(" (Disabled)");
-                sb.AppendFormat(" {0}", rep.Title);
-                if (rep.Title != rep.Url)
-                    sb.AppendFormat(" {0}", rep.Url);
-
-                list.Add(sb.ToString());
+                list.Add(String.Format("{0}) {1} {2} {3}",n.ToString(), rep.Enabled == true ? "[ ]" : "[X]", rep.Name, rep.Url));
                 n++;
             }
             return list;
@@ -276,6 +271,40 @@ namespace OpenSim.Services.IntegrationService
                                               addin.Description.FileName);
 
             return "AddinInfo";
+        }
+
+        // Disable a plugin
+        public void DisablePlugin(string[] args)
+        {
+
+//            AddinRepository[] reps = Repositories.GetRepositories();
+//            Array.Sort (reps, (r1,r2) => r1.Title.CompareTo(r2.Title));
+//            if (reps.Length == 0)
+//            {
+//                MainConsole.Instance.Output("No repositories have been registered.");
+//                return;
+//            }
+//
+//            int n = Convert.ToInt16(args[2]);
+//            if (n > (reps.Length -1))
+//            {
+//                MainConsole.Instance.Output("Selection out of range");
+//                return;
+//            }
+
+            Addin addin =  m_Registry.GetAddin(args[2]);
+            AddinManager.Registry.DisableAddin(addin.Id);
+            addin.Enabled = false;
+            return;
+        }
+
+        // Enable plugin
+        public void EnablePlugin(string[] args)
+        {
+            Addin addin =  m_Registry.GetAddin(args[2]);
+            AddinManager.Registry.EnableAddin(addin.Id);
+            addin.Enabled = true;
+            return;
         }
     }
 }

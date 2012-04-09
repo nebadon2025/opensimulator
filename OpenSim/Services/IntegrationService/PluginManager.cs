@@ -99,13 +99,13 @@ namespace OpenSim.Services.IntegrationService
         // List instaled addins
         public void ListInstalledAddins()
         {
-            int count = 0;
-            ArrayList list = new ArrayList();
-            list.AddRange(m_Registry.GetAddins());
+            Addin[] addins = GetSortedAddinList("IntegrationPlugin");
+
             MainConsole.Instance.Output("Installed Plugins");
-            foreach (Addin addin in list)
+
+            int count = 0;
+            foreach (Addin addin in addins)
             {
-                if(addin.Description.Category == "IntegrationPlugin")
                 MainConsole.Instance.OutputFormat("{0}) {1} {2} rev. {3}", count.ToString(),
                                                       addin.Enabled == false ? "[X]" : "[ ]",
                                                       addin.Name, addin.Version );
@@ -292,7 +292,17 @@ namespace OpenSim.Services.IntegrationService
 //                return;
 //            }
 
-            Addin addin =  m_Registry.GetAddin(args[2]);
+            Addin[] addins = GetSortedAddinList("IntegrationPlugin");
+
+            int n = Convert.ToInt16(args[2]);
+            if (n > (addins.Length -1))
+            {
+                MainConsole.Instance.Output("Selection out of range");
+                return;
+            }
+
+            Addin addin = addins[n];
+            // Addin addin =  m_Registry.GetAddin(args[2]);
             AddinManager.Registry.DisableAddin(addin.Id);
             addin.Enabled = false;
             return;
@@ -301,10 +311,39 @@ namespace OpenSim.Services.IntegrationService
         // Enable plugin
         public void EnablePlugin(string[] args)
         {
-            Addin addin =  m_Registry.GetAddin(args[2]);
-            AddinManager.Registry.EnableAddin(addin.Id);
+            Addin[] addins = GetSortedAddinList("IntegrationPlugin");
+
+            int n = Convert.ToInt16(args[2]);
+            if (n > (addins.Length -1))
+            {
+                MainConsole.Instance.Output("Selection out of range");
+                return;
+            }
+
+            Addin addin = addins[n];
+            // Addin addin =  m_Registry.GetAddin(args[2]);
             addin.Enabled = true;
             return;
         }
+
+        #region Util
+        private Addin[] GetSortedAddinList(string category)
+        {
+            ArrayList list = new ArrayList();
+            list.AddRange(m_Registry.GetAddins());
+            ArrayList xlist = new ArrayList();
+
+            foreach (Addin addin in list)
+            {
+                if (addin.Description.Category == category)
+                    xlist.Add(addin);
+            }
+
+            Addin[] addins = xlist.ToArray(typeof(Addin)) as Addin[];
+            Array.Sort(addins,(r1,r2) => r1.Id.CompareTo(r2.Id));
+
+            return addins;
+        }
+        #endregion Util
     }
 }

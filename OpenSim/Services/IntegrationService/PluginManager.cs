@@ -41,7 +41,6 @@ namespace OpenSim.Services.IntegrationService
     public class PluginManager : SetupService
     {
         protected AddinRegistry m_Registry;
-//        protected SetupService m_Service;
 
         internal PluginManager( AddinRegistry r): base (r)
         {
@@ -276,22 +275,6 @@ namespace OpenSim.Services.IntegrationService
         // Disable a plugin
         public void DisablePlugin(string[] args)
         {
-
-//            AddinRepository[] reps = Repositories.GetRepositories();
-//            Array.Sort (reps, (r1,r2) => r1.Title.CompareTo(r2.Title));
-//            if (reps.Length == 0)
-//            {
-//                MainConsole.Instance.Output("No repositories have been registered.");
-//                return;
-//            }
-//
-//            int n = Convert.ToInt16(args[2]);
-//            if (n > (reps.Length -1))
-//            {
-//                MainConsole.Instance.Output("Selection out of range");
-//                return;
-//            }
-
             Addin[] addins = GetSortedAddinList("IntegrationPlugin");
 
             int n = Convert.ToInt16(args[2]);
@@ -302,7 +285,6 @@ namespace OpenSim.Services.IntegrationService
             }
 
             Addin addin = addins[n];
-            // Addin addin =  m_Registry.GetAddin(args[2]);
             AddinManager.Registry.DisableAddin(addin.Id);
             addin.Enabled = false;
             return;
@@ -321,7 +303,6 @@ namespace OpenSim.Services.IntegrationService
             }
 
             Addin addin = addins[n];
-            // Addin addin =  m_Registry.GetAddin(args[2]);
             addin.Enabled = true;
             return;
         }

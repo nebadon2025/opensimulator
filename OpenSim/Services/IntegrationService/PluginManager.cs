@@ -27,6 +27,7 @@
 
 using System;
 using System.Text;
+using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -260,11 +261,19 @@ namespace OpenSim.Services.IntegrationService
             m_Registry.Update();
         }
 
+        // Show plugin info
         public string AddinInfo(string[] args)
         {
+            Addin[] addins = GetSortedAddinList("IntegrationPlugin");
 
-            string id = args[2];
-            Addin addin = Registry.GetAddin(id, true);
+            int n = Convert.ToInt16(args[2]);
+            if (n > (addins.Length -1))
+            {
+                MainConsole.Instance.Output("Selection out of range");
+                return "XXX";
+            }
+
+            Addin addin = addins[n];
             MainConsole.Instance.OutputFormat("Name: {0}\nURL: {1}\n{2}",
                                               addin.Name, addin.Description.Url,
                                               addin.Description.FileName);
@@ -304,15 +313,32 @@ namespace OpenSim.Services.IntegrationService
 
             Addin addin = addins[n];
             addin.Enabled = true;
+            AddinManager.Registry.EnableAddin(addin.Id);
+            AddinManager.Registry.Update();
+            AddinManager.AddinEngine.LoadAddin(null, addin.Id);
             return;
         }
 
         #region Util
+        private void Testing()
+        {
+            Addin[] list = Registry.GetAddins();
+
+            var addins = list.Where( a => a.Description.Category == "IntegrationPlugin");
+
+            foreach (Addin addin in addins)
+            {
+                MainConsole.Instance.OutputFormat("Addin {0}", addin.Name);
+            }
+        }
+
         private Addin[] GetSortedAddinList(string category)
         {
             ArrayList list = new ArrayList();
             list.AddRange(m_Registry.GetAddins());
             ArrayList xlist = new ArrayList();
+
+
 
             foreach (Addin addin in list)
             {

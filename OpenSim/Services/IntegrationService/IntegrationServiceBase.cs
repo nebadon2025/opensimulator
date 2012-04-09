@@ -52,19 +52,28 @@ namespace OpenSim.Services.IntegrationService
         string DefaultConfig { get; }
     }
 
-     public class IntegrationServiceBase : ServiceBase
+    // Hide the nasty stuff in here, let the IntegrationService be clean for
+    // our command and request handlers
+    public class IntegrationServiceBase : ServiceBase
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private string m_ConfigName = "IntegrationService";
         
-        protected IPresenceService m_PresenceService;
-        protected IGridService m_GridService;
+        // protected IPresenceService m_PresenceService;
+        // protected IGridService m_GridService;
         protected IHttpServer m_Server;
+
         protected string m_IntegrationConfig;
         protected PluginManager m_PluginManager;
-        IConfig m_IntegrationServerConfig;
-        string m_IntegrationConfigLoc;
+        AddinManager am;
+
+        // Our individual pluggin configs
+        protected IConfig m_IntegrationServerConfig;
+        protected string m_IntegrationConfigLoc;
+
+        // Our server config
+        IConfigSource m_ConfigSource;
 
         public IntegrationServiceBase(IConfigSource config, IHttpServer server)
             : base(config)
@@ -77,6 +86,7 @@ namespace OpenSim.Services.IntegrationService
             // defaults to the ./bin directory
             string RegistryLocation = serverConfig.GetString("PluginRegistryLocation",
                     ".");
+
             AddinRegistry registry = new AddinRegistry(RegistryLocation, ".");
             m_PluginManager = new PluginManager(registry);
 
@@ -88,6 +98,7 @@ namespace OpenSim.Services.IntegrationService
             AddinManager.AddinLoaded += on_addinloaded_;
             AddinManager.AddinLoadError += on_addinloaderror_;
             AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
+            AddinManager.AddinEngine.ExtensionChanged += HandleAddinManagerAddinEngineExtensionChanged;
             m_Server = server;
 
             m_IntegrationServerConfig = config.Configs["IntegrationService"];
@@ -101,6 +112,10 @@ namespace OpenSim.Services.IntegrationService
             AddinManager.Initialize (RegistryLocation);
             AddinManager.Registry.Update ();
             suppress_console_output_(false);
+
+
+            AddinManager.AddExtensionNodeHandler ("/OpenSim/IntegrationService", OnExtensionChanged);
+
 
             foreach (IntegrationPlugin cmd in AddinManager.GetExtensionObjects("/OpenSim/IntegrationService"))
             {
@@ -148,6 +163,11 @@ namespace OpenSim.Services.IntegrationService
             }
         }
 
+        void HandleAddinManagerAddinEngineExtensionChanged (object sender, ExtensionEventArgs args)
+        {
+            MainConsole.Instance.Output("Plugin Extension Change");
+        }
+
         private IConfigSource GetConfig(string configName)
         {
             return new IniConfigSource();
@@ -167,6 +187,30 @@ namespace OpenSim.Services.IntegrationService
                 m_log.Error ("[INTEGRATION SERVICE]: Plugin Error: "
                         + args.Exception.Message + "\n"
                         + args.Exception.StackTrace);
+        }
+
+        // This is out init
+        // We can do build-up and tear-down of our plugin
+        void OnExtensionChanged (object s, ExtensionNodeEventArgs args)
+        {
+            IntegrationPlugin ip = (IntegrationPlugin) args.ExtensionObject;
+
+            m_log.Info ("[INTEGRATION SERVICE]: Plugin Change");
+
+            switch (args.Change)
+            {
+                // Build up
+                case ExtensionChange.Add:
+
+                    m_log.InfoFormat("[INTEGRATION SERVICE]: Plugin Added {0}", ip.Name);
+                    return;
+
+                // Tear down
+                case ExtensionChange.Remove:
+
+                    m_log.InfoFormat("[INTEGRATION SERVICE]: Plugin Remove {0}", ip.Name);
+                    return;
+            }
         }
 
         private void on_addinloaded_(object sender, AddinEventArgs args)

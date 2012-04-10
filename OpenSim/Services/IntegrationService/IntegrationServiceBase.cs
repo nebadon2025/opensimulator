@@ -39,7 +39,7 @@ using log4net;
 
 using Ux = OpenSim.Services.IntegrationService.IUtils;
 
-[assembly:AddinRoot ("IntegrationService", "1.0")]
+[assembly:AddinRoot ("IntegrationService", "1.1")]
 
 namespace OpenSim.Services.IntegrationService
 {
@@ -47,6 +47,7 @@ namespace OpenSim.Services.IntegrationService
     public interface IntegrationPlugin
     {
         void Init(IConfigSource PluginConfig);
+        void Unload();
         string Name{ get; }
         string ConfigName { get; }
         string DefaultConfig { get; }
@@ -95,10 +96,6 @@ namespace OpenSim.Services.IntegrationService
               if(String.IsNullOrEmpty(m_IntegrationConfigLoc))
                 m_log.Error("[INTEGRATION SERVICE]: No IntegrationConfig defined in the Robust.ini");
 
-            AddinManager.AddinLoaded += on_addinloaded_;
-            AddinManager.AddinLoadError += on_addinloaderror_;
-            AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
-            AddinManager.AddinEngine.ExtensionChanged += HandleAddinManagerAddinEngineExtensionChanged;
             m_Server = server;
 
             m_IntegrationServerConfig = config.Configs["IntegrationService"];
@@ -108,10 +105,21 @@ namespace OpenSim.Services.IntegrationService
                 return;
             }
 
-            suppress_console_output_(true);
+
             AddinManager.Initialize (RegistryLocation);
+
+            suppress_console_output_(true);
+
+
+            AddinManager.AddinLoaded += on_addinloaded_;
+            AddinManager.AddinLoadError += on_addinloaderror_;
+            AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
+            AddinManager.AddinEngine.ExtensionChanged += HandleAddinManagerAddinEngineExtensionChanged;
+
             AddinManager.Registry.Update ();
+
             suppress_console_output_(false);
+
 
 
             AddinManager.AddExtensionNodeHandler ("/OpenSim/IntegrationService", OnExtensionChanged);

@@ -46,7 +46,7 @@ namespace OpenSim.Services.IntegrationService
     [TypeExtensionPoint (Path="/OpenSim/IntegrationService", Name="IntegrationService")]
     public interface IntegrationPlugin
     {
-        void Init(IConfigSource PluginConfig);
+        void Init(IConfigSource PluginConfig, IHttpServer server);
         void Unload();
         string Name{ get; }
         string ConfigName { get; }
@@ -69,18 +69,18 @@ namespace OpenSim.Services.IntegrationService
         protected PluginManager m_PluginManager;
         AddinManager am;
 
-        // Our individual pluggin configs
+        //
         protected IConfig m_IntegrationServerConfig;
         protected string m_IntegrationConfigLoc;
-
-        // Our server config
         IConfigSource m_ConfigSource;
 
         public IntegrationServiceBase(IConfigSource config, IHttpServer server)
             : base(config)
         {
+            m_ConfigSource = config;
+            m_Server = server;
 
-            IConfig serverConfig = config.Configs[m_ConfigName];
+            IConfig serverConfig = m_ConfigSource.Configs[m_ConfigName];
             if (serverConfig == null)
                 throw new Exception(String.Format("No section {0} in config file", m_ConfigName));
 
@@ -96,9 +96,8 @@ namespace OpenSim.Services.IntegrationService
               if(String.IsNullOrEmpty(m_IntegrationConfigLoc))
                 m_log.Error("[INTEGRATION SERVICE]: No IntegrationConfig defined in the Robust.ini");
 
-            m_Server = server;
 
-            m_IntegrationServerConfig = config.Configs["IntegrationService"];
+            m_IntegrationServerConfig = m_ConfigSource.Configs["IntegrationService"];
             if (m_IntegrationServerConfig == null)
             {
                 throw new Exception("[INTEGRATION SERVICE]: Missing configuration");
@@ -121,54 +120,48 @@ namespace OpenSim.Services.IntegrationService
             suppress_console_output_(false);
 
 
-
             AddinManager.AddExtensionNodeHandler ("/OpenSim/IntegrationService", OnExtensionChanged);
 
-
-            foreach (IntegrationPlugin cmd in AddinManager.GetExtensionObjects("/OpenSim/IntegrationService"))
-            {
-                string ConfigPath = String.Format("{0}/(1)", m_IntegrationConfigLoc,cmd.ConfigName);
-                IConfigSource PlugConfig = Ux.GetConfigSource(m_IntegrationConfigLoc, cmd.ConfigName);
-
-                // We maintain a configuration per-plugin to enhance modularity
-                // If ConfigSource is null, we will get the default from the repo
-                // and write it to our directory
-                // Fetch the starter ini
-                if (PlugConfig == null)
-                {
-
-                    m_log.InfoFormat("[INTEGRATION SERVICE]: Fetching starter config for {0} from {1}", cmd.Name, cmd.DefaultConfig);
-
-                    // Send the default data service
-                    IConfig DataService = config.Configs["DatabaseService"];
-                    m_log.InfoFormat("[INTEGRATION SERVICE]: Writing initial config to {0}", cmd.ConfigName);
-                    // FileStream fs = File.Create(Path.Combine(m_IntegrationConfigLoc,cmd.ConfigName));
-                    // System.Text.ASCIIEncoding enc = new System.Text.ASCIIEncoding();
-                    // Byte[] buf = enc.GetBytes("; Automatically Generated Configuration - Edit for your installation\n" );
-                    // fs.Write(buf, 0, buf.Length);
-                    // fs.Close();
-
-                    IniConfigSource source = new IniConfigSource();
-                    IConfig Init = source.AddConfig("DatabaseService");
-                    Init.Set("StorageProvider",(string)DataService.GetString("StorageProvider"));
-                    Init.Set("ConnectionString", (string)DataService.GetString("ConnectionString"));
-
-
-                    PlugConfig = Ux.LoadInitialConfig(cmd.DefaultConfig);
-
-                    source.Merge(PlugConfig);
-
-                    source.Save(Path.Combine(m_IntegrationConfigLoc, cmd.ConfigName));
-
-                    PlugConfig = source;
-                }
-
-                // Initialise and bring up the plugin
-                // Need to take down the plugin when disabling it.
-                cmd.Init (PlugConfig);
-                server.AddStreamHandler((IRequestHandler)cmd);
-                m_log.InfoFormat("[INTEGRATION SERVICE]: Loading IntegrationService plugin {0}", cmd.Name);
-            }
+            // **** Moving this
+//            foreach (IntegrationPlugin cmd in AddinManager.GetExtensionObjects("/OpenSim/IntegrationService"))
+//            {
+//                string ConfigPath = String.Format("{0}/(1)", m_IntegrationConfigLoc,cmd.ConfigName);
+//                IConfigSource PlugConfig = Ux.GetConfigSource(m_IntegrationConfigLoc, cmd.ConfigName);
+//
+//                // We maintain a configuration per-plugin to enhance modularity
+//                // If ConfigSource is null, we will get the default from the repo
+//                // and write it to our directory
+//                // Fetch the starter ini
+//                if (PlugConfig == null)
+//                {
+//
+//                    m_log.InfoFormat("[INTEGRATION SERVICE]: Fetching starter config for {0} from {1}", cmd.Name, cmd.DefaultConfig);
+//
+//                    // Send the default data service
+//                    IConfig DataService = m_ConfigSource.Configs["DatabaseService"];
+//                    m_log.InfoFormat("[INTEGRATION SERVICE]: Writing initial config to {0}", cmd.ConfigName);
+//
+//                    IniConfigSource source = new IniConfigSource();
+//                    IConfig Init = source.AddConfig("DatabaseService");
+//                    Init.Set("StorageProvider",(string)DataService.GetString("StorageProvider"));
+//                    Init.Set("ConnectionString", (string)DataService.GetString("ConnectionString"));
+//
+//
+//                    PlugConfig = Ux.LoadInitialConfig(cmd.DefaultConfig);
+//
+//                    source.Merge(PlugConfig);
+//
+//                    source.Save(Path.Combine(m_IntegrationConfigLoc, cmd.ConfigName));
+//
+//                    PlugConfig = source;
+//                }
+//
+//                // Initialise and bring up the plugin
+//                // Need to take down the plugin when disabling it.
+//                cmd.Init (PlugConfig);
+//                server.AddStreamHandler((IRequestHandler)cmd);
+//                m_log.InfoFormat("[INTEGRATION SERVICE]: Loading IntegrationService plugin {0}", cmd.Name);
+//            }
         }
 
         void HandleAddinManagerAddinEngineExtensionChanged (object sender, ExtensionEventArgs args)
@@ -211,12 +204,14 @@ namespace OpenSim.Services.IntegrationService
                 case ExtensionChange.Add:
 
                     m_log.InfoFormat("[INTEGRATION SERVICE]: Plugin Added {0}", ip.Name);
+                    LoadingPlugin(ip);
                     return;
 
                 // Tear down
                 case ExtensionChange.Remove:
 
                     m_log.InfoFormat("[INTEGRATION SERVICE]: Plugin Remove {0}", ip.Name);
+                    UnLoadingPlugin(ip);
                     return;
             }
         }
@@ -239,6 +234,47 @@ namespace OpenSim.Services.IntegrationService
                 if (prev_console_ != null)
                     System.Console.SetOut(prev_console_);
             }
+        }
+
+        private void LoadingPlugin(IntegrationPlugin plugin)
+        {
+            string ConfigPath = String.Format("{0}/(1)", m_IntegrationConfigLoc,plugin.ConfigName);
+            IConfigSource PlugConfig = Ux.GetConfigSource(m_IntegrationConfigLoc, plugin.ConfigName);
+
+            // We maintain a configuration per-plugin to enhance modularity
+            // If ConfigSource is null, we will get the default from the repo
+            // and write it to our directory
+            // Fetch the starter ini
+            if (PlugConfig == null)
+            {
+                m_log.InfoFormat("[INTEGRATION SERVICE]: Fetching starter config for {0} from {1}", plugin.Name, plugin.DefaultConfig);
+
+                // Send the default data service
+                IConfig DataService = m_ConfigSource.Configs["DatabaseService"];
+                m_log.InfoFormat("[INTEGRATION SERVICE]: Writing initial config to {0}", plugin.ConfigName);
+
+                IniConfigSource source = new IniConfigSource();
+                IConfig Init = source.AddConfig("DatabaseService");
+                Init.Set("StorageProvider",(string)DataService.GetString("StorageProvider"));
+                Init.Set("ConnectionString", (string)DataService.GetString("ConnectionString"));
+
+
+                PlugConfig = Ux.LoadInitialConfig(plugin.DefaultConfig);
+
+                source.Merge(PlugConfig);
+
+                source.Save(Path.Combine(m_IntegrationConfigLoc, plugin.ConfigName));
+
+                PlugConfig = source;
+            }
+
+            m_log.InfoFormat("[INTEGRATION SERVICE]: In Loading Plugin {0}", plugin.Name);
+            plugin.Init(PlugConfig, m_Server);
+        }
+
+        private void UnLoadingPlugin(IntegrationPlugin plugin)
+        {
+
         }
     }
 }

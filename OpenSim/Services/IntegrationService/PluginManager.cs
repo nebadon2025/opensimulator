@@ -84,8 +84,17 @@ namespace OpenSim.Services.IntegrationService
         // Remove plugin
         public void UnInstall(string[] args)
         {
+            Addin[] addins = GetSortedAddinList("IntegrationPlugin");
+
+            int n = Convert.ToInt16(args[2]);
+            if (n > (addins.Length -1))
+            {
+                MainConsole.Instance.Output("Selection out of range");
+                return;
+            }
+
+            Addin addin = addins[n];
             IProgressStatus ps = new ConsoleProgressStatus(true);
-            Addin addin =  m_Registry.GetAddin(args[1]);
             Uninstall(ps, addin.Id);
             m_Registry.Rebuild(null);
             return;

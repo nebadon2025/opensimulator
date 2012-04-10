@@ -86,7 +86,7 @@ namespace OpenSim.Services.IntegrationService
         {
             Addin[] addins = GetSortedAddinList("IntegrationPlugin");
 
-            int n = Convert.ToInt16(args[2]);
+            int n = Convert.ToInt16(args[1]);
             if (n > (addins.Length -1))
             {
                 MainConsole.Instance.Output("Selection out of range");
@@ -94,9 +94,12 @@ namespace OpenSim.Services.IntegrationService
             }
 
             Addin addin = addins[n];
+            MainConsole.Instance.OutputFormat("Uninstalling plugin {0}", addin.Id);
+            AddinManager.Registry.DisableAddin(addin.Id);
+            addin.Enabled = false;
             IProgressStatus ps = new ConsoleProgressStatus(true);
             Uninstall(ps, addin.Id);
-            m_Registry.Rebuild(null);
+            // m_Registry.Rebuild(null);
             return;
         }
 
@@ -321,10 +324,24 @@ namespace OpenSim.Services.IntegrationService
             }
 
             Addin addin = addins[n];
+
             addin.Enabled = true;
             AddinManager.Registry.EnableAddin(addin.Id);
-            AddinManager.Registry.Update();
-            AddinManager.AddinEngine.LoadAddin(null, addin.Id);
+            // AddinManager.Registry.Update();
+            if(m_Registry.IsAddinEnabled(addin.Id))
+            {
+                ConsoleProgressStatus ps = new ConsoleProgressStatus(true);
+                if (!AddinManager.AddinEngine.IsAddinLoaded(addin.Id))
+                {
+                    AddinManager.Registry.Rebuild(ps);
+                    AddinManager.AddinEngine.LoadAddin(ps, addin.Id);
+                }
+
+            }
+            else
+            {
+                MainConsole.Instance.OutputFormat("Not Enabled in this domain {0}", addin.Name);
+            }
             return;
         }
 

@@ -90,9 +90,9 @@ namespace OpenSim.Services.IntegrationService
 
             AddinRegistry registry = new AddinRegistry(RegistryLocation, ".");
 
-            suppress_console_output_(true);
+            Ux.suppress_console_output_(true);
             m_PluginManager = new PluginManager(registry);
-            suppress_console_output_(false);
+            Ux.suppress_console_output_(false);
 
             // Deal with files only for now - will add url/environment later
             m_IntegrationConfigLoc = serverConfig.GetString("IntegrationConfig", String.Empty);
@@ -176,20 +176,20 @@ namespace OpenSim.Services.IntegrationService
             m_log.Info ("[INTEGRATION SERVICE]: Plugin Loaded: " + args.AddinId);
         }
 
-        private static TextWriter prev_console_;
-        public void suppress_console_output_(bool save)
-        {
-            if (save)
-            {
-                prev_console_ = System.Console.Out;
-                System.Console.SetOut(new StreamWriter(Stream.Null));
-            }
-            else
-            {
-                if (prev_console_ != null)
-                    System.Console.SetOut(prev_console_);
-            }
-        }
+//        private static TextWriter prev_console_;
+//        public void suppress_console_output_(bool save)
+//        {
+//            if (save)
+//            {
+//                prev_console_ = System.Console.Out;
+//                System.Console.SetOut(new StreamWriter(Stream.Null));
+//            }
+//            else
+//            {
+//                if (prev_console_ != null)
+//                    System.Console.SetOut(prev_console_);
+//            }
+//        }
 
         private void LoadingPlugin(IntegrationPlugin plugin)
         {

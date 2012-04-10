@@ -149,5 +149,20 @@ namespace OpenSim.Services.IntegrationService
 
         }
 
+        private static TextWriter prev_console_;
+        public static void suppress_console_output_(bool save)
+        {
+            if (save)
+            {
+                prev_console_ = System.Console.Out;
+                System.Console.SetOut(new StreamWriter(Stream.Null));
+            }
+            else
+            {
+                if (prev_console_ != null)
+                    System.Console.SetOut(prev_console_);
+            }
+        }
+
     }
 }

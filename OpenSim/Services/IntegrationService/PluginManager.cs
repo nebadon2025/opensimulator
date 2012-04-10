@@ -36,6 +36,8 @@ using Mono.Addins.Setup;
 using Mono.Addins.Description;
 using OpenSim.Framework;
 
+using Ux = OpenSim.Services.IntegrationService.IUtils;
+
 namespace OpenSim.Services.IntegrationService
 {
     // This will maintain the plugin repositories and plugins
@@ -55,12 +57,13 @@ namespace OpenSim.Services.IntegrationService
             PackageCollection toUninstall;
             DependencyCollection unresolved;
 
-            IProgressStatus ps = new ConsoleProgressStatus(true);
+            IProgressStatus ps = new ConsoleProgressStatus(false);
 
-            m_Registry.Update(ps);
+            // m_Registry.Update(ps);
 
             string name = Addin.GetIdName(args[1]);
             string version = Addin.GetIdVersion(args[1]);
+
 
             AddinRepositoryEntry[] aentry = Repositories.GetAvailableAddin(name, version);
 
@@ -78,7 +81,9 @@ namespace OpenSim.Services.IntegrationService
                 return "Install";
             }
             else
+            {
                 return "Bomb";
+            }
         }
 
         // Remove plugin
@@ -97,9 +102,8 @@ namespace OpenSim.Services.IntegrationService
             MainConsole.Instance.OutputFormat("Uninstalling plugin {0}", addin.Id);
             AddinManager.Registry.DisableAddin(addin.Id);
             addin.Enabled = false;
-            IProgressStatus ps = new ConsoleProgressStatus(true);
+            IProgressStatus ps = new ConsoleProgressStatus(false);
             Uninstall(ps, addin.Id);
-            // m_Registry.Rebuild(null);
             return;
         }
 
@@ -174,7 +178,7 @@ namespace OpenSim.Services.IntegrationService
 
         public void GetRepository()
         {
-            Repositories.UpdateAllRepositories (new ConsoleProgressStatus (true));
+            Repositories.UpdateAllRepositories (new ConsoleProgressStatus (false));
         }
 
         // Remove a repository from the list
@@ -330,13 +334,12 @@ namespace OpenSim.Services.IntegrationService
             // AddinManager.Registry.Update();
             if(m_Registry.IsAddinEnabled(addin.Id))
             {
-                ConsoleProgressStatus ps = new ConsoleProgressStatus(true);
+                ConsoleProgressStatus ps = new ConsoleProgressStatus(false);
                 if (!AddinManager.AddinEngine.IsAddinLoaded(addin.Id))
                 {
                     AddinManager.Registry.Rebuild(ps);
                     AddinManager.AddinEngine.LoadAddin(ps, addin.Id);
                 }
-
             }
             else
             {

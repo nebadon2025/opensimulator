@@ -46,7 +46,7 @@ namespace OpenSim.Services.IntegrationService
     [TypeExtensionPoint (Path="/OpenSim/IntegrationService", Name="IntegrationService")]
     public interface IntegrationPlugin
     {
-        void Init(IConfigSource PluginConfig, IHttpServer server);
+        void Init(IConfigSource PluginConfig, IHttpServer server, ServiceBase service);
         void Unload();
         string Name{ get; }
         string ConfigName { get; }
@@ -224,7 +224,7 @@ namespace OpenSim.Services.IntegrationService
             }
 
             m_log.InfoFormat("[INTEGRATION SERVICE]: ****** In Loading Plugin {0}", plugin.Name);
-            plugin.Init(PlugConfig, m_Server);
+            plugin.Init(PlugConfig, m_Server, this);
         }
 
         private void UnLoadingPlugin(IntegrationPlugin plugin)

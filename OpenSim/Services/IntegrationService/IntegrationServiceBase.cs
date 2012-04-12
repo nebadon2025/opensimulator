@@ -83,40 +83,81 @@ namespace OpenSim.Services.IntegrationService
             IConfig serverConfig = m_ConfigSource.Configs[m_ConfigName];
             if (serverConfig == null)
                 throw new Exception(String.Format("No section {0} in config file", m_ConfigName));
-
-            // defaults to the ./bin directory
-            string RegistryLocation = serverConfig.GetString("PluginRegistryLocation",
-                    ".");
-
-            AddinRegistry registry = new AddinRegistry(RegistryLocation, ".");
-
-            Ux.suppress_console_output_(true);
-            m_PluginManager = new PluginManager(registry);
-            Ux.suppress_console_output_(false);
-
-            // Deal with files only for now - will add url/environment later
+            
             m_IntegrationConfigLoc = serverConfig.GetString("IntegrationConfig", String.Empty);
-              if(String.IsNullOrEmpty(m_IntegrationConfigLoc))
-                m_log.Error("[INTEGRATION SERVICE]: No IntegrationConfig defined in the Robust.ini");
+            AddinRegistry registry ;
+            bool DEVELOPMENT = serverConfig.GetBoolean("DevelopmentMode", false);
 
-
-            m_IntegrationServerConfig = m_ConfigSource.Configs["IntegrationService"];
-            if (m_IntegrationServerConfig == null)
+            // Are we developing plugins? We will load them now
+            if (DEVELOPMENT == true)
             {
-                throw new Exception("[INTEGRATION SERVICE]: Missing configuration");
-                return;
+                AddinManager.Initialize (".");
+                registry = new AddinRegistry(".", ".");
+                registry.Update ();
+    
+                AddinManager.AddinLoaded += on_addinloaded_;
+                AddinManager.AddinLoadError += on_addinloaderror_;
+                AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
+                AddinManager.AddinEngine.ExtensionChanged += HandleAddinManagerAddinEngineExtensionChanged;
+                // AddinManager.GetExtensionObjects("/OpenSim/IntegrationService");
+    
+                registry.Update ();
+                foreach (IntegrationPlugin cmd in AddinManager.GetExtensionObjects("/OpenSim/IntegrationService"))
+                {
+                    m_log.InfoFormat("[INTEGRATION SERVICE]: Processing _Addin {0}", cmd.Name);
+                    LoadingPlugin(cmd);
+                }
+    
+                Addin[] addins = registry.GetAddins();
+    
+                foreach (Addin addin in addins)
+                {
+                    if (addin.Description.Category == "IntegrationPlugin")
+                    {
+                        m_log.InfoFormat("[INTEGRATION SERVICE]: Processing O Addin {0}", addin.Name);
+                        addin.Enabled = true;
+                        registry.EnableAddin(addin.Id);
+                        registry.Update();
+                        AddinManager.AddinEngine.LoadAddin(null, addin.Id);
+                    }
+                }
             }
+            else
+            {
+                // defaults to the ./bin directory
+                string RegistryLocation = serverConfig.GetString("PluginRegistryLocation",
+                        ".");
+    
+                registry = new AddinRegistry(RegistryLocation, ".");
+    
+                Ux.suppress_console_output_(true);
+                m_PluginManager = new PluginManager(registry);
+                Ux.suppress_console_output_(false);
+    
+                // Deal with files only for now - will add url/environment later
+                m_IntegrationConfigLoc = serverConfig.GetString("IntegrationConfig", String.Empty);
+                  if(String.IsNullOrEmpty(m_IntegrationConfigLoc))
+                    m_log.Error("[INTEGRATION SERVICE]: No IntegrationConfig defined in the Robust.ini");
+    
+    
+                m_IntegrationServerConfig = m_ConfigSource.Configs["IntegrationService"];
+                if (m_IntegrationServerConfig == null)
+                {
+                    throw new Exception("[INTEGRATION SERVICE]: Missing configuration");
+                    return;
+                }
+    
+                AddinManager.Initialize (RegistryLocation);
+                AddinManager.Registry.Update ();
+    
+                AddinManager.AddinLoaded += on_addinloaded_;
+                AddinManager.AddinLoadError += on_addinloaderror_;
+                AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
+                AddinManager.AddinEngine.ExtensionChanged += HandleAddinManagerAddinEngineExtensionChanged;
+    
+                AddinManager.AddExtensionNodeHandler ("/OpenSim/IntegrationService", OnExtensionChanged);
 
-            AddinManager.Initialize (RegistryLocation);
-            AddinManager.Registry.Update ();
-
-            AddinManager.AddinLoaded += on_addinloaded_;
-            AddinManager.AddinLoadError += on_addinloaderror_;
-            AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
-            AddinManager.AddinEngine.ExtensionChanged += HandleAddinManagerAddinEngineExtensionChanged;
-
-            AddinManager.AddExtensionNodeHandler ("/OpenSim/IntegrationService", OnExtensionChanged);
-
+            }
         }
 
         void HandleAddinManagerAddinEngineExtensionChanged (object sender, ExtensionEventArgs args)

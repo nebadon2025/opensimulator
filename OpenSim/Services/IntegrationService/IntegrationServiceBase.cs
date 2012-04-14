@@ -48,7 +48,7 @@ namespace OpenSim.Services.IntegrationService
     {
         void Init(IConfigSource PluginConfig, IHttpServer server, ServiceBase service);
         void Unload();
-        string Name{ get; }
+        string Name { get; }
         string ConfigName { get; }
         string DefaultConfig { get; }
     }
@@ -252,7 +252,7 @@ namespace OpenSim.Services.IntegrationService
                 IniConfigSource source = new IniConfigSource();
                 IConfig Init = source.AddConfig("DatabaseService");
                 Init.Set("StorageProvider",(string)DataService.GetString("StorageProvider"));
-                Init.Set("ConnectionString", (string)DataService.GetString("ConnectionString"));
+				Init.Set("ConnectionString", String.Format ("\"{0}\"",DataService.GetString("ConnectionString")));
 
 
                 PlugConfig = Ux.LoadInitialConfig(plugin.DefaultConfig);
@@ -261,7 +261,8 @@ namespace OpenSim.Services.IntegrationService
 
                 source.Save(Path.Combine(m_IntegrationConfigLoc, plugin.ConfigName));
 
-                PlugConfig = source;
+				PlugConfig = Ux.GetConfigSource(m_IntegrationConfigLoc, plugin.ConfigName);
+                // PlugConfig = source;
             }
 
             m_log.InfoFormat("[INTEGRATION SERVICE]: ****** In Loading Plugin {0}", plugin.Name);

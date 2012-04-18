@@ -642,10 +642,6 @@ namespace OpenSim.Region.Framework.Scenes
 
             #endregion Region Settings
 
-            MainConsole.Instance.Commands.AddCommand("Estates", false, "reload estate",
-                                          "reload estate",
-                                          "Reload the estate data", HandleReloadEstate);
-
             //Bind Storage Manager functions to some land manager functions for this scene
             EventManager.OnLandObjectAdded +=
                 new EventManager.LandObjectAdded(simDataService.StoreLandObject);
@@ -2198,12 +2194,6 @@ namespace OpenSim.Region.Framework.Scenes
                     part.RemoveFromPhysics();
                 }
             }
-            
-//            if (rootPart.PhysActor != null)
-//            {
-//                PhysicsScene.RemovePrim(rootPart.PhysActor);
-//                rootPart.PhysActor = null;
-//            }
 
             if (UnlinkSceneObject(group, false))
             {
@@ -2607,7 +2597,7 @@ namespace OpenSim.Region.Framework.Scenes
                     SceneObjectGroup grp = sceneObject;
 
                     m_log.DebugFormat(
-                        "[ATTACHMENT]: Received attachment {0}, inworld asset id {1}", grp.GetFromItemID(), grp.UUID);
+                        "[ATTACHMENT]: Received attachment {0}, inworld asset id {1}", grp.FromItemID, grp.UUID);
                     m_log.DebugFormat(
                         "[ATTACHMENT]: Attach to avatar {0} at position {1}", sp.UUID, grp.AbsolutePosition);
 

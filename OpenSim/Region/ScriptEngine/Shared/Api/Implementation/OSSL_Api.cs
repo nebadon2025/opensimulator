@@ -369,7 +369,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     if (m_FunctionPerms[function].AllowedOwnerClasses.Contains("ESTATE_MANAGER"))
                     {
                         //Only Estate Managers may use the function
-                        if (World.RegionInfo.EstateSettings.IsEstateManager(ownerID) && World.RegionInfo.EstateSettings.EstateOwner != ownerID)
+                        if (World.RegionInfo.EstateSettings.IsEstateManagerOrOwner(ownerID) && World.RegionInfo.EstateSettings.EstateOwner != ownerID)
                         {
                             return;
                         }
@@ -1179,12 +1179,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             CheckThreatLevel(ThreatLevel.High, "osSetRegionWaterHeight");
 
             m_host.AddScriptLPS(1);
-            //Check to make sure that the script's owner is the estate manager/master
-            //World.Permissions.GenericEstatePermission(
-            if (World.Permissions.IsGod(m_host.OwnerID))
-            {
-                World.EventManager.TriggerRequestChangeWaterHeight((float)height);
-            }
+
+            World.EventManager.TriggerRequestChangeWaterHeight((float)height);
         }
 
         /// <summary>
@@ -1195,27 +1191,23 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         /// <param name="sunHour">The "Sun Hour" that is desired, 0...24, with 0 just after SunRise</param>
         public void osSetRegionSunSettings(bool useEstateSun, bool sunFixed, double sunHour)
         {
-            CheckThreatLevel(ThreatLevel.Nuisance, "osSetRegionSunSettings");
+            CheckThreatLevel(ThreatLevel.High, "osSetRegionSunSettings");
 
             m_host.AddScriptLPS(1);
-            //Check to make sure that the script's owner is the estate manager/master
-            //World.Permissions.GenericEstatePermission(
-            if (World.Permissions.IsGod(m_host.OwnerID))
-            {
-                while (sunHour > 24.0)
-                    sunHour -= 24.0;
 
-                while (sunHour < 0)
-                    sunHour += 24.0;
+            while (sunHour > 24.0)
+                sunHour -= 24.0;
 
+            while (sunHour < 0)
+                sunHour += 24.0;
 
-                World.RegionInfo.RegionSettings.UseEstateSun = useEstateSun;
-                World.RegionInfo.RegionSettings.SunPosition  = sunHour + 6; // LL Region Sun Hour is 6 to 30
-                World.RegionInfo.RegionSettings.FixedSun     = sunFixed;
-                World.RegionInfo.RegionSettings.Save();
+            World.RegionInfo.RegionSettings.UseEstateSun = useEstateSun;
+            World.RegionInfo.RegionSettings.SunPosition  = sunHour + 6; // LL Region Sun Hour is 6 to 30
+            World.RegionInfo.RegionSettings.FixedSun     = sunFixed;
+            World.RegionInfo.RegionSettings.Save();
 
-                World.EventManager.TriggerEstateToolsSunUpdate(World.RegionInfo.RegionHandle, sunFixed, useEstateSun, (float)sunHour);
-            }
+            World.EventManager.TriggerEstateToolsSunUpdate(
+                World.RegionInfo.RegionHandle, sunFixed, useEstateSun, (float)sunHour);
         }
 
         /// <summary>
@@ -1225,26 +1217,23 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         /// <param name="sunHour">The "Sun Hour" that is desired, 0...24, with 0 just after SunRise</param>
         public void osSetEstateSunSettings(bool sunFixed, double sunHour)
         {
-            CheckThreatLevel(ThreatLevel.Nuisance, "osSetEstateSunSettings");
+            CheckThreatLevel(ThreatLevel.High, "osSetEstateSunSettings");
 
             m_host.AddScriptLPS(1);
-            //Check to make sure that the script's owner is the estate manager/master
-            //World.Permissions.GenericEstatePermission(
-            if (World.Permissions.IsGod(m_host.OwnerID))
-            {
-                while (sunHour > 24.0)
-                    sunHour -= 24.0;
 
-                while (sunHour < 0)
-                    sunHour += 24.0;
+            while (sunHour > 24.0)
+                sunHour -= 24.0;
 
-                World.RegionInfo.EstateSettings.UseGlobalTime = !sunFixed;
-                World.RegionInfo.EstateSettings.SunPosition = sunHour;
-                World.RegionInfo.EstateSettings.FixedSun = sunFixed;
-                World.RegionInfo.EstateSettings.Save();
+            while (sunHour < 0)
+                sunHour += 24.0;
 
-                World.EventManager.TriggerEstateToolsSunUpdate(World.RegionInfo.RegionHandle, sunFixed, World.RegionInfo.RegionSettings.UseEstateSun, (float)sunHour);
-            }
+            World.RegionInfo.EstateSettings.UseGlobalTime = !sunFixed;
+            World.RegionInfo.EstateSettings.SunPosition = sunHour;
+            World.RegionInfo.EstateSettings.FixedSun = sunFixed;
+            World.RegionInfo.EstateSettings.Save();
+
+            World.EventManager.TriggerEstateToolsSunUpdate(
+                World.RegionInfo.RegionHandle, sunFixed, World.RegionInfo.RegionSettings.UseEstateSun, (float)sunHour);
         }
 
         /// <summary>
@@ -2525,7 +2514,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public void osNpcStopMoveToTarget(LSL_Key npc)
         {
-            CheckThreatLevel(ThreatLevel.VeryLow, "osNpcStopMoveTo");
+            CheckThreatLevel(ThreatLevel.High, "osNpcStopMoveToTarget");
             m_host.AddScriptLPS(1);
 
             INPCModule module = World.RequestModuleInterface<INPCModule>();
@@ -3048,6 +3037,61 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             groupsModule.EjectGroupMember(null, m_host.OwnerID, m_host.GroupID, agent);
 
             return ScriptBaseClass.TRUE;
+        }
+
+        /// <summary>
+        /// Sets terrain estate texture
+        /// </summary>
+        /// <param name="level"></param>
+        /// <param name="texture"></param>
+        /// <returns></returns>
+        public void osSetTerrainTexture(int level, LSL_Key texture)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osSetTerrainTexture");
+
+            m_host.AddScriptLPS(1);
+            //Check to make sure that the script's owner is the estate manager/master
+            //World.Permissions.GenericEstatePermission(
+            if (World.Permissions.IsGod(m_host.OwnerID))
+            {
+                if (level < 0 || level > 3)
+                    return;
+
+                UUID textureID = new UUID();
+                if (!UUID.TryParse(texture, out textureID))
+                    return;
+
+                // estate module is required
+                IEstateModule estate = World.RequestModuleInterface<IEstateModule>();
+                if (estate != null)
+                    estate.setEstateTerrainBaseTexture(level, textureID);
+            }
+        }
+
+        /// <summary>
+        /// Sets terrain heights of estate
+        /// </summary>
+        /// <param name="corner"></param>
+        /// <param name="low"></param>
+        /// <param name="high"></param>
+        /// <returns></returns>
+        public void osSetTerrainTextureHeight(int corner, double low, double high)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osSetTerrainTextureHeight");
+
+            m_host.AddScriptLPS(1);
+            //Check to make sure that the script's owner is the estate manager/master
+            //World.Permissions.GenericEstatePermission(
+            if (World.Permissions.IsGod(m_host.OwnerID))
+            {
+                if (corner < 0 || corner > 3)
+                    return;
+
+                // estate module is required
+                IEstateModule estate = World.RequestModuleInterface<IEstateModule>();
+                if (estate != null)
+                    estate.setEstateTerrainTextureHeights(corner, (float)low, (float)high);
+            }
         }
     }
 }

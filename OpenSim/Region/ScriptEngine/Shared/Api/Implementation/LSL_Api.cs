@@ -1362,7 +1362,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (scale.z < 0.01)
                 scale.z = 0.01;
 
-            if (part.ParentGroup.RootPart.PhysActor != null && part.ParentGroup.RootPart.PhysActor.IsPhysical)
+            PhysicsActor pa = part.ParentGroup.RootPart.PhysActor;
+
+            if (pa != null && pa.IsPhysical)
             {
                 if (scale.x > World.m_maxPhys)
                     scale.x = World.m_maxPhys;
@@ -2020,27 +2022,28 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         protected LSL_Vector GetPartLocalPos(SceneObjectPart part)
         {
             m_host.AddScriptLPS(1);
-            if (part.ParentID == 0)
+
+            Vector3 pos;
+
+            if (!part.IsRoot)
             {
-                return new LSL_Vector(part.AbsolutePosition.X,
-                                      part.AbsolutePosition.Y,
-                                      part.AbsolutePosition.Z);
+                pos = part.OffsetPosition;
             }
             else
             {
-                if (m_host.IsRoot)
+                if (part.ParentGroup.IsAttachment)
                 {
-                    return new LSL_Vector(m_host.AttachedPos.X,
-                                          m_host.AttachedPos.Y,
-                                          m_host.AttachedPos.Z);
+                    pos = part.AttachedPos;
                 }
                 else
                 {
-                    return new LSL_Vector(part.OffsetPosition.X,
-                                          part.OffsetPosition.Y,
-                                          part.OffsetPosition.Z);
+                    pos = part.AbsolutePosition;
                 }
             }
+
+//            m_log.DebugFormat("[LSL API]: Returning {0} in GetPartLocalPos()", pos);
+
+            return new LSL_Vector(pos.X, pos.Y, pos.Z);
         }
 
         public void llSetRot(LSL_Rotation rot)
@@ -2088,7 +2091,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             // but only if the object is not physial and active.   This is important for rotating doors.
             // without the absoluteposition = absoluteposition happening, the doors do not move in the physics
             // scene
-            if (part.PhysActor != null && !part.PhysActor.IsPhysical)
+            PhysicsActor pa = part.PhysActor;
+
+            if (pa != null && !pa.IsPhysical)
             {
                 part.ParentGroup.ResetChildPrimPhysicsPositions();
             }
@@ -2819,7 +2824,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                         float groupmass = new_group.GetMass();
 
-                        if (new_group.RootPart.PhysActor != null && new_group.RootPart.PhysActor.IsPhysical && llvel != Vector3.Zero)
+                        PhysicsActor pa = new_group.RootPart.PhysActor;
+
+                        if (pa != null && pa.IsPhysical && llvel != Vector3.Zero)
                         {
                             //Recoil.
                             llApplyImpulse(new LSL_Vector(llvel.X * groupmass, llvel.Y * groupmass, llvel.Z * groupmass), 0);
@@ -2860,12 +2867,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             // we need to convert from a vector describing
             // the angles of rotation in radians into rotation value
-
             LSL_Rotation rot = llEuler2Rot(angle);
             
             // Per discussion with Melanie, for non-physical objects llLookAt appears to simply
             // set the rotation of the object, copy that behavior
-            if (strength == 0 || m_host.PhysActor == null || !m_host.PhysActor.IsPhysical)
+            PhysicsActor pa = m_host.PhysActor;
+
+            if (strength == 0 || pa == null || !pa.IsPhysical)
             {
                 llSetRot(rot);
             }
@@ -2900,7 +2908,31 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_Float llGetMass()
         {
             m_host.AddScriptLPS(1);
-            return m_host.GetMass();
+
+            if (m_host.ParentGroup.IsAttachment)
+            {
+                ScenePresence attachedAvatar = World.GetScenePresence(m_host.ParentGroup.AttachedAvatar);
+
+                if (attachedAvatar != null)
+                {
+                    return attachedAvatar.GetMass();
+                }
+                else
+                {
+                    return 0;
+                }
+            }
+            else
+            {
+                if (m_host.IsRoot)
+                {
+                    return m_host.ParentGroup.GetMass();
+                }
+                else
+                {
+                    return m_host.GetMass();
+                }
+            }
         }
 
         public void llCollisionFilter(string name, string id, int accept)
@@ -3048,7 +3080,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             SceneObjectPart host = (SceneObjectPart)o;
 
             SceneObjectGroup grp = host.ParentGroup;
-            UUID itemID = grp.GetFromItemID();
+            UUID itemID = grp.FromItemID;
             ScenePresence presence = World.GetScenePresence(host.OwnerID);
 
             IAttachmentsModule attachmentsModule = m_ScriptEngine.World.AttachmentsModule;
@@ -3201,6 +3233,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public void llSetHoverHeight(double height, int water, double tau)
         {
             m_host.AddScriptLPS(1);
+
             if (m_host.PhysActor != null)
             {
                 PIDHoverType hoverType = PIDHoverType.Ground;
@@ -3251,7 +3284,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             
             // Per discussion with Melanie, for non-physical objects llLookAt appears to simply
             // set the rotation of the object, copy that behavior
-            if (strength == 0 || m_host.PhysActor == null || !m_host.PhysActor.IsPhysical)
+            PhysicsActor pa = m_host.PhysActor;
+
+            if (strength == 0 || pa == null || !pa.IsPhysical)
             {
                 llSetLocalRot(target);
             }
@@ -7136,6 +7171,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     switch (code)
                     {
                         case (int)ScriptBaseClass.PRIM_POSITION:
+                        case (int)ScriptBaseClass.PRIM_POS_LOCAL:
                             if (remain < 1)
                                 return;
 
@@ -9219,7 +9255,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             // child agents have a mass of 1.0
                             return 1;
                         else
-                            return (double)avatar.PhysicsActor.Mass;
+                            return (double)avatar.GetMass();
                 }
                 catch (KeyNotFoundException)
                 {
@@ -10320,6 +10356,35 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             case ScriptBaseClass.OBJECT_CREATOR:
                                 ret.Add(new LSL_String(UUID.Zero.ToString()));
                                 break;
+                            // For the following 8 see the Object version below
+                            case ScriptBaseClass.OBJECT_RUNNING_SCRIPT_COUNT:
+                                ret.Add(new LSL_Integer(av.RunningScriptCount()));
+                                break;
+                            case ScriptBaseClass.OBJECT_TOTAL_SCRIPT_COUNT:
+                                ret.Add(new LSL_Integer(av.ScriptCount()));
+                                break;
+                            case ScriptBaseClass.OBJECT_SCRIPT_MEMORY:
+                                ret.Add(new LSL_Integer(av.RunningScriptCount() * 16384));
+                                break;
+                            case ScriptBaseClass.OBJECT_SCRIPT_TIME:
+                                ret.Add(new LSL_Float(av.ScriptExecutionTime() / 1000.0f));
+                                break;
+                            case ScriptBaseClass.OBJECT_PRIM_EQUIVALENCE:
+                                ret.Add(new LSL_Integer(1));
+                                break;
+                            case ScriptBaseClass.OBJECT_SERVER_COST:
+                                ret.Add(new LSL_Float(0));
+                                break;
+                            case ScriptBaseClass.OBJECT_STREAMING_COST:
+                                ret.Add(new LSL_Float(0));
+                                break;
+                            case ScriptBaseClass.OBJECT_PHYSICS_COST:
+                                ret.Add(new LSL_Float(0));
+                                break;
+                            default:
+                                // Invalid or unhandled constant.
+                                ret.Add(new LSL_Integer(ScriptBaseClass.OBJECT_UNKNOWN_DETAIL));
+                                break;
                         }
                     }
 
@@ -10356,6 +10421,54 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                                 break;
                             case ScriptBaseClass.OBJECT_CREATOR:
                                 ret.Add(new LSL_String(obj.CreatorID.ToString()));
+                                break;
+                            case ScriptBaseClass.OBJECT_RUNNING_SCRIPT_COUNT:
+                                ret.Add(new LSL_Integer(obj.ParentGroup.RunningScriptCount()));
+                                break;
+                            case ScriptBaseClass.OBJECT_TOTAL_SCRIPT_COUNT:
+                                ret.Add(new LSL_Integer(obj.ParentGroup.ScriptCount()));
+                                break;
+                            case ScriptBaseClass.OBJECT_SCRIPT_MEMORY:
+                                // The value returned in SL for mono scripts is 65536 * number of active scripts
+                                // and 16384 * number of active scripts for LSO. since llGetFreememory
+                                // is coded to give the LSO value use it here
+                                ret.Add(new LSL_Integer(obj.ParentGroup.RunningScriptCount() * 16384));
+                                break;
+                            case ScriptBaseClass.OBJECT_SCRIPT_TIME:
+                                // Average cpu time in seconds per simulator frame expended on all scripts in the object
+                                ret.Add(new LSL_Float(obj.ParentGroup.ScriptExecutionTime() / 1000.0f));
+                                break;
+                            case ScriptBaseClass.OBJECT_PRIM_EQUIVALENCE:
+                                // according to the SL wiki A prim or linkset will have prim
+                                // equivalent of the number of prims in a linkset if it does not
+                                // contain a mesh anywhere in the link set or is not a normal prim
+                                // The value returned in SL for normal prims is prim count
+                                ret.Add(new LSL_Integer(obj.ParentGroup.PrimCount));
+                                break;
+                            // The following 3 costs I have intentionaly coded to return zero. They are part of
+                            // "Land Impact" calculations. These calculations are probably not applicable
+                            // to OpenSim and are not yet complete in SL
+                            case ScriptBaseClass.OBJECT_SERVER_COST:
+                                // The linden calculation is here
+                                // http://wiki.secondlife.com/wiki/Mesh/Mesh_Server_Weight
+                                // The value returned in SL for normal prims looks like the prim count
+                                ret.Add(new LSL_Float(0));
+                                break;
+                            case ScriptBaseClass.OBJECT_STREAMING_COST:
+                                // The linden calculation is here
+                                // http://wiki.secondlife.com/wiki/Mesh/Mesh_Streaming_Cost
+                                // The value returned in SL for normal prims looks like the prim count * 0.06
+                                ret.Add(new LSL_Float(0));
+                                break;
+                            case ScriptBaseClass.OBJECT_PHYSICS_COST:
+                                // The linden calculation is here
+                                // http://wiki.secondlife.com/wiki/Mesh/Mesh_physics
+                                // The value returned in SL for normal prims looks like the prim count
+                                ret.Add(new LSL_Float(0));
+                                break;
+                            default:
+                                // Invalid or unhandled constant.
+                                ret.Add(new LSL_Integer(ScriptBaseClass.OBJECT_UNKNOWN_DETAIL));
                                 break;
                         }
                     }
@@ -10728,7 +10841,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                 if (entity is SceneObjectPart)
                 {
-                    if (((SceneObjectPart)entity).PhysActor != null && ((SceneObjectPart)entity).PhysActor.IsPhysical)
+                    PhysicsActor pa = ((SceneObjectPart)entity).PhysActor;
+
+                    if (pa != null && pa.IsPhysical)
                     {
                         if (!checkPhysical)
                             continue;
@@ -10772,7 +10887,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             bool isAccount = false;
             bool isGroup = false;
 
-            if (!estate.IsEstateOwner(m_host.OwnerID) || !estate.IsEstateManager(m_host.OwnerID))
+            if (!estate.IsEstateOwner(m_host.OwnerID) || !estate.IsEstateManagerOrOwner(m_host.OwnerID))
                 return 0;
 
             UUID id = new UUID();
@@ -10834,6 +10949,40 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             return 1;
         }
 
+        public LSL_Integer llGetMemoryLimit()
+        {
+            m_host.AddScriptLPS(1);
+            // The value returned for LSO scripts in SL
+            return 16384;
+        }
+
+        public LSL_Integer llSetMemoryLimit(LSL_Integer limit)
+        {
+            m_host.AddScriptLPS(1);
+            // Treat as an LSO script
+            return ScriptBaseClass.FALSE;
+        }
+
+        public LSL_Integer llGetSPMaxMemory()
+        {
+            m_host.AddScriptLPS(1);
+            // The value returned for LSO scripts in SL
+            return 16384;
+        }
+
+        public LSL_Integer llGetUsedMemory()
+        {
+            m_host.AddScriptLPS(1);
+            // The value returned for LSO scripts in SL
+            return 16384;
+        }
+
+        public void llScriptProfiler(LSL_Integer flags)
+        {
+            m_host.AddScriptLPS(1);
+            // This does nothing for LSO scripts in SL
+        }
+
         #region Not Implemented
         //
         // Listing the unimplemented lsl functions here, please move
@@ -10844,24 +10993,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
             NotImplemented("llGetEnv");
-        }
-
-        public void llGetSPMaxMemory()
-        {
-            m_host.AddScriptLPS(1);
-            NotImplemented("llGetSPMaxMemory");
-        }
-
-        public void llGetUsedMemory()
-        {
-            m_host.AddScriptLPS(1);
-            NotImplemented("llGetUsedMemory");
-        }
-
-        public void llScriptProfiler(LSL_Integer flags)
-        {
-            m_host.AddScriptLPS(1);
-            NotImplemented("llScriptProfiler");
         }
 
         public void llSetSoundQueueing(int queue)

@@ -3418,6 +3418,63 @@ namespace OpenSim.Region.Framework.Scenes
                 return m_attachments.Count > 0;
         }
 
+        /// <summary>
+        /// Returns the total count of scripts in all parts inventories.
+        /// </summary>
+        public int ScriptCount()
+        {
+            int count = 0;
+            lock (m_attachments)
+            {
+                foreach (SceneObjectGroup gobj in m_attachments)
+                {
+                    if (gobj != null)
+                    {
+                        count += gobj.ScriptCount();
+                    }
+                }
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// A float the value is a representative execution time in milliseconds of all scripts in all attachments.
+        /// </summary>
+        public float ScriptExecutionTime()
+        {
+            float time = 0.0f;
+            lock (m_attachments)
+            {
+                foreach (SceneObjectGroup gobj in m_attachments)
+                {
+                    if (gobj != null)
+                    {
+                        time += gobj.ScriptExecutionTime();
+                    }
+                }
+            }
+            return time;
+        }
+
+        /// <summary>
+        /// Returns the total count of running scripts in all parts.
+        /// </summary>
+        public int RunningScriptCount()
+        {
+            int count = 0;
+            lock (m_attachments)
+            {
+                foreach (SceneObjectGroup gobj in m_attachments)
+                {
+                    if (gobj != null)
+                    {
+                        count += gobj.RunningScriptCount();
+                    }
+                }
+            }
+            return count;
+        }
+
         public bool HasScriptedAttachments()
         {
             lock (m_attachments)
@@ -3512,6 +3569,22 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                 }
             });
+        }
+
+        /// <summary>
+        /// Gets the mass.
+        /// </summary>
+        /// <returns>
+        /// The mass.
+        /// </returns>
+        public float GetMass()
+        {
+            PhysicsActor pa = PhysicsActor;
+
+            if (pa != null)
+                return pa.Mass;
+            else
+                return 0;
         }
 
         internal void PushForce(Vector3 impulse)
@@ -3759,7 +3832,7 @@ namespace OpenSim.Region.Framework.Scenes
                 land.LandData.UserLocation != Vector3.Zero &&
                 land.LandData.OwnerID != m_uuid &&
                 (!m_scene.Permissions.IsGod(m_uuid)) &&
-                (!m_scene.RegionInfo.EstateSettings.IsEstateManager(m_uuid)))
+                (!m_scene.RegionInfo.EstateSettings.IsEstateManagerOrOwner(m_uuid)))
             {
                 float curr = Vector3.Distance(AbsolutePosition, pos);
                 if (Vector3.Distance(land.LandData.UserLocation, pos) < curr)
@@ -3779,7 +3852,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (GodLevel < 200 &&
                     ((!m_scene.Permissions.IsGod(m_uuid) &&
-                    !m_scene.RegionInfo.EstateSettings.IsEstateManager(m_uuid)) || 
+                    !m_scene.RegionInfo.EstateSettings.IsEstateManagerOrOwner(m_uuid)) || 
                     (m_teleportFlags & TeleportFlags.ViaLocation) != 0 ||
                     (m_teleportFlags & Constants.TeleportFlags.ViaHGLogin) != 0))
                 {
@@ -3847,7 +3920,7 @@ namespace OpenSim.Region.Framework.Scenes
                         GodLevel < 200 &&
                         ((land.LandData.OwnerID != m_uuid && 
                           !m_scene.Permissions.IsGod(m_uuid) &&
-                          !m_scene.RegionInfo.EstateSettings.IsEstateManager(m_uuid)) || 
+                          !m_scene.RegionInfo.EstateSettings.IsEstateManagerOrOwner(m_uuid)) || 
                          (m_teleportFlags & TeleportFlags.ViaLocation) != 0 ||
                          (m_teleportFlags & Constants.TeleportFlags.ViaHGLogin) != 0))
                     {

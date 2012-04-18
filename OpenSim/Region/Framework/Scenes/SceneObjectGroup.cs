@@ -523,16 +523,21 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 m_isSelected = value;
                 // Tell physics engine that group is selected
-                if (m_rootPart.PhysActor != null)
+
+                PhysicsActor pa = m_rootPart.PhysActor;
+                if (pa != null)
                 {
-                    m_rootPart.PhysActor.Selected = value;
+                    pa.Selected = value;
+
                     // Pass it on to the children.
                     SceneObjectPart[] parts = m_parts.GetArray();
                     for (int i = 0; i < parts.Length; i++)
                     {
                         SceneObjectPart child = parts[i];
-                        if (child.PhysActor != null)
-                            child.PhysActor.Selected = value;
+
+                        PhysicsActor childPa = child.PhysActor;
+                        if (childPa != null)
+                            childPa.Selected = value;
                     }
                 }
             }
@@ -566,7 +571,9 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_LoopSoundSlavePrims = value; }
         }
 
-        // The UUID for the Region this Object is in.
+        /// <summary>
+        /// The UUID for the region this object is in.
+        /// </summary>
         public UUID RegionUUID
         {
             get
@@ -578,6 +585,22 @@ namespace OpenSim.Region.Framework.Scenes
                 return UUID.Zero;
             }
         }
+
+        /// <summary>
+        /// The item ID that this object was rezzed from, if applicable.
+        /// </summary>
+        /// <remarks>
+        /// If not applicable will be UUID.Zero
+        /// </remarks>
+        public UUID FromItemID { get; set; }
+
+        /// <summary>
+        /// The folder ID that this object was rezzed from, if applicable.
+        /// </summary>
+        /// <remarks>
+        /// If not applicable will be UUID.Zero
+        /// </remarks>
+        public UUID FromFolderID { get; set; }
 
         #endregion
 
@@ -639,18 +662,6 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                 } 
             }
-        }
-
-        public void SetFromItemID(UUID AssetId)
-        {
-            SceneObjectPart[] parts = m_parts.GetArray();
-            for (int i = 0; i < parts.Length; i++)
-                parts[i].FromItemID = AssetId;
-        }
-
-        public UUID GetFromItemID()
-        {
-            return m_rootPart.FromItemID;
         }
 
         /// <summary>
@@ -1478,7 +1489,8 @@ namespace OpenSim.Region.Framework.Scenes
                 }
 
                 // Need to duplicate the physics actor as well
-                if (part.PhysActor != null && userExposed)
+                PhysicsActor originalPartPa = part.PhysActor;
+                if (originalPartPa != null && userExposed)
                 {
                     PrimitiveBaseShape pbs = newPart.Shape;
     
@@ -1489,10 +1501,10 @@ namespace OpenSim.Region.Framework.Scenes
                             newPart.AbsolutePosition,
                             newPart.Scale,
                             newPart.RotationOffset,
-                            part.PhysActor.IsPhysical,
+                            originalPartPa.IsPhysical,
                             newPart.LocalId);
     
-                    newPart.DoPhysicsPropertyUpdate(part.PhysActor.IsPhysical, true);
+                    newPart.DoPhysicsPropertyUpdate(originalPartPa.IsPhysical, true);
                 }
             }
             
@@ -1564,45 +1576,53 @@ namespace OpenSim.Region.Framework.Scenes
             }
             else
             {
-                if (RootPart.PhysActor != null)
+                PhysicsActor pa = RootPart.PhysActor;
+
+                if (pa != null)
                 {
-                    RootPart.PhysActor.AddForce(impulse, true);
-                    m_scene.PhysicsScene.AddPhysicsActorTaint(RootPart.PhysActor);
+                    pa.AddForce(impulse, true);
+                    m_scene.PhysicsScene.AddPhysicsActorTaint(pa);
                 }
             }
         }
 
         public void applyAngularImpulse(Vector3 impulse)
         {
-            if (RootPart.PhysActor != null)
+            PhysicsActor pa = RootPart.PhysActor;
+
+            if (pa != null)
             {
                 if (!IsAttachment)
                 {
-                    RootPart.PhysActor.AddAngularForce(impulse, true);
-                    m_scene.PhysicsScene.AddPhysicsActorTaint(RootPart.PhysActor);
+                    pa.AddAngularForce(impulse, true);
+                    m_scene.PhysicsScene.AddPhysicsActorTaint(pa);
                 }
             }
         }
 
         public void setAngularImpulse(Vector3 impulse)
         {
-            if (RootPart.PhysActor != null)
+            PhysicsActor pa = RootPart.PhysActor;
+
+            if (pa != null)
             {
                 if (!IsAttachment)
                 {
-                    RootPart.PhysActor.Torque = impulse;
-                    m_scene.PhysicsScene.AddPhysicsActorTaint(RootPart.PhysActor);
+                    pa.Torque = impulse;
+                    m_scene.PhysicsScene.AddPhysicsActorTaint(pa);
                 }
             }
         }
 
         public Vector3 GetTorque()
         {
-            if (RootPart.PhysActor != null)
+            PhysicsActor pa = RootPart.PhysActor;
+
+            if (pa != null)
             {
                 if (!IsAttachment)
                 {
-                    Vector3 torque = RootPart.PhysActor.Torque;
+                    Vector3 torque = pa.Torque;
                     return torque;
                 }
             }
@@ -1622,19 +1642,23 @@ namespace OpenSim.Region.Framework.Scenes
             }
             else
             {
-                if (RootPart.PhysActor != null)
+                PhysicsActor pa = RootPart.PhysActor;
+
+                if (pa != null)
                 {
-                    RootPart.PhysActor.PIDTarget = target;
-                    RootPart.PhysActor.PIDTau = tau;
-                    RootPart.PhysActor.PIDActive = true;
+                    pa.PIDTarget = target;
+                    pa.PIDTau = tau;
+                    pa.PIDActive = true;
                 }
             }
         }
 
         public void stopMoveToTarget()
         {
-            if (RootPart.PhysActor != null)
-                RootPart.PhysActor.PIDActive = false;
+            PhysicsActor pa = RootPart.PhysActor;
+
+            if (pa != null)
+                pa.PIDActive = false;
         }
         
         /// <summary>
@@ -1645,18 +1669,20 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="tau">Number of seconds over which to reach target</param>
         public void SetHoverHeight(float height, PIDHoverType hoverType, float tau)
         {
-            if (RootPart.PhysActor != null)
+            PhysicsActor pa = RootPart.PhysActor;
+
+            if (pa != null)
             {
                 if (height != 0f)
                 {
-                    RootPart.PhysActor.PIDHoverHeight = height;
-                    RootPart.PhysActor.PIDHoverType = hoverType;
-                    RootPart.PhysActor.PIDTau = tau;
-                    RootPart.PhysActor.PIDHoverActive = true;
+                    pa.PIDHoverHeight = height;
+                    pa.PIDHoverType = hoverType;
+                    pa.PIDTau = tau;
+                    pa.PIDHoverActive = true;
                 }
                 else
                 {
-                    RootPart.PhysActor.PIDHoverActive = false;
+                    pa.PIDHoverActive = false;
                 }
             }
         }
@@ -1936,6 +1962,10 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Link the prims in a given group to this group
         /// </summary>
+        /// <remarks>
+        /// Do not call this method directly - use Scene.LinkObjects() instead to avoid races between threads.
+        /// FIXME: There are places where scripts call these methods directly without locking.  This is a potential race condition.
+        /// </remarks>
         /// <param name="objectGroup">The group of prims which should be linked to this group</param>
         public void LinkToGroup(SceneObjectGroup objectGroup)
         {
@@ -2019,6 +2049,11 @@ namespace OpenSim.Region.Framework.Scenes
         /// Delink the given prim from this group.  The delinked prim is established as
         /// an independent SceneObjectGroup.
         /// </summary>
+        /// <remarks>
+        /// FIXME: This method should not be called directly since it bypasses update locking, allowing a potential race
+        /// condition.  But currently there is no
+        /// alternative method that does take a lonk to delink a single prim.
+        /// </remarks>
         /// <param name="partID"></param>
         /// <returns>The object group of the newly delinked prim.  Null if part could not be found</returns>
         public SceneObjectGroup DelinkFromGroup(uint partID)
@@ -2030,6 +2065,11 @@ namespace OpenSim.Region.Framework.Scenes
         /// Delink the given prim from this group.  The delinked prim is established as
         /// an independent SceneObjectGroup.
         /// </summary>
+        /// <remarks>
+        /// FIXME: This method should not be called directly since it bypasses update locking, allowing a potential race
+        /// condition.  But currently there is no
+        /// alternative method that does take a lonk to delink a single prim.
+        /// </remarks>
         /// <param name="partID"></param>
         /// <param name="sendEvents"></param>
         /// <returns>The object group of the newly delinked prim.  Null if part could not be found</returns>
@@ -2055,6 +2095,11 @@ namespace OpenSim.Region.Framework.Scenes
         /// Delink the given prim from this group.  The delinked prim is established as
         /// an independent SceneObjectGroup.
         /// </summary>
+        /// <remarks>
+        /// FIXME: This method should not be called directly since it bypasses update locking, allowing a potential race
+        /// condition.  But currently there is no
+        /// alternative method that does take a lonk to delink a single prim.
+        /// </remarks>
         /// <param name="partID"></param>
         /// <param name="sendEvents"></param>
         /// <returns>The object group of the newly delinked prim.</returns>
@@ -2094,10 +2139,10 @@ namespace OpenSim.Region.Framework.Scenes
             linkPart.ParentID = 0;
             linkPart.LinkNum = 0;
 
-            if (linkPart.PhysActor != null)
-            {
-                m_scene.PhysicsScene.RemovePrim(linkPart.PhysActor);
-            }
+            PhysicsActor linkPartPa = linkPart.PhysActor;
+
+            if (linkPartPa != null)
+                m_scene.PhysicsScene.RemovePrim(linkPartPa);
 
             // We need to reset the child part's position
             // ready for life as a separate object after being a part of another object
@@ -2188,17 +2233,19 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (m_scene.EventManager.TriggerGroupMove(UUID, pos))
             {
-                if (m_rootPart.PhysActor != null)
+                PhysicsActor pa = m_rootPart.PhysActor;
+
+                if (pa != null)
                 {
-                    if (m_rootPart.PhysActor.IsPhysical)
+                    if (pa.IsPhysical)
                     {
                         if (!m_rootPart.BlockGrab)
                         {
                             Vector3 llmoveforce = pos - AbsolutePosition;
                             Vector3 grabforce = llmoveforce;
-                            grabforce = (grabforce / 10) * m_rootPart.PhysActor.Mass;
-                            m_rootPart.PhysActor.AddForce(grabforce, true);
-                            m_scene.PhysicsScene.AddPhysicsActorTaint(m_rootPart.PhysActor);
+                            grabforce = (grabforce / 10) * pa.Mass;
+                            pa.AddForce(grabforce, true);
+                            m_scene.PhysicsScene.AddPhysicsActorTaint(pa);
                         }
                     }
                     else
@@ -2228,9 +2275,11 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (m_scene.EventManager.TriggerGroupSpinStart(UUID))
             {
-                if (m_rootPart.PhysActor != null)
+                PhysicsActor pa = m_rootPart.PhysActor;
+
+                if (pa != null)
                 {
-                    if (m_rootPart.PhysActor.IsPhysical)
+                    if (pa.IsPhysical)
                     {
                         m_rootPart.IsWaitingForFirstSpinUpdatePacket = true;
                     }
@@ -2271,12 +2320,13 @@ namespace OpenSim.Region.Framework.Scenes
             // but it will result in over-shoot or under-shoot of the target orientation.
             // For the end user, this means that ctrl+shift+drag can be used for relative,
             // but not absolute, adjustments of orientation for physical prims.
-          
             if (m_scene.EventManager.TriggerGroupSpin(UUID, newOrientation))
             {
-                if (m_rootPart.PhysActor != null)
+                PhysicsActor pa = m_rootPart.PhysActor;
+
+                if (pa != null)
                 {
-                    if (m_rootPart.PhysActor.IsPhysical)
+                    if (pa.IsPhysical)
                     {
                         if (m_rootPart.IsWaitingForFirstSpinUpdatePacket)
                         {
@@ -2302,9 +2352,9 @@ namespace OpenSim.Region.Framework.Scenes
 
                           //m_log.Error("SCENE OBJECT GROUP]: rotation axis is " + rotationAxis);
                           Vector3 spinforce = new Vector3(rotationAxis.X, rotationAxis.Y, rotationAxis.Z);
-                          spinforce = (spinforce/8) * m_rootPart.PhysActor.Mass; // 8 is an arbitrary torque scaling factor
-                          m_rootPart.PhysActor.AddAngularForce(spinforce,true);
-                          m_scene.PhysicsScene.AddPhysicsActorTaint(m_rootPart.PhysActor);
+                          spinforce = (spinforce/8) * pa.Mass; // 8 is an arbitrary torque scaling factor
+                          pa.AddAngularForce(spinforce,true);
+                          m_scene.PhysicsScene.AddPhysicsActorTaint(pa);
                         }
                     }
                     else
@@ -2478,8 +2528,10 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 part.UpdateShape(shapeBlock);
 
-                if (part.PhysActor != null)
-                    m_scene.PhysicsScene.AddPhysicsActorTaint(part.PhysActor);
+                PhysicsActor pa = m_rootPart.PhysActor;
+
+                if (pa != null)
+                    m_scene.PhysicsScene.AddPhysicsActorTaint(pa);
             }
         }
 
@@ -2502,7 +2554,9 @@ namespace OpenSim.Region.Framework.Scenes
             scale.Y = Math.Min(scale.Y, Scene.m_maxNonphys);
             scale.Z = Math.Min(scale.Z, Scene.m_maxNonphys);
 
-            if (RootPart.PhysActor != null && RootPart.PhysActor.IsPhysical)
+            PhysicsActor pa = m_rootPart.PhysActor;
+
+            if (pa != null && pa.IsPhysical)
             {
                 scale.X = Math.Min(scale.X, Scene.m_maxPhys);
                 scale.Y = Math.Min(scale.Y, Scene.m_maxPhys);
@@ -2528,7 +2582,7 @@ namespace OpenSim.Region.Framework.Scenes
                         float f = 1.0f;
                         float a = 1.0f;
 
-                        if (RootPart.PhysActor != null && RootPart.PhysActor.IsPhysical)
+                        if (pa != null && pa.IsPhysical)
                         {
                             if (oldSize.X * x > m_scene.m_maxPhys)
                             {
@@ -2658,6 +2712,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     m_rootPart.AttachedPos = pos;
                 }
+
                 if (RootPart.GetStatusSandbox())
                 {
                     if (Util.GetDistanceTo(RootPart.StatusSandboxPos, pos) > 10)
@@ -2668,8 +2723,8 @@ namespace OpenSim.Region.Framework.Scenes
                               ChatTypeEnum.DebugChannel, 0x7FFFFFFF, RootPart.AbsolutePosition, Name, UUID, false);
                     }
                 }
-                AbsolutePosition = pos;
 
+                AbsolutePosition = pos;
                 HasGroupChanged = true;
             }
 
@@ -2893,10 +2948,13 @@ namespace OpenSim.Region.Framework.Scenes
 
             m_rootPart.StoreUndoState();
             m_rootPart.UpdateRotation(rot);
-            if (m_rootPart.PhysActor != null)
+
+            PhysicsActor pa = m_rootPart.PhysActor;
+
+            if (pa != null)
             {
-                m_rootPart.PhysActor.Orientation = m_rootPart.RotationOffset;
-                m_scene.PhysicsScene.AddPhysicsActorTaint(m_rootPart.PhysActor);
+                pa.Orientation = m_rootPart.RotationOffset;
+                m_scene.PhysicsScene.AddPhysicsActorTaint(pa);
             }
 
             SceneObjectPart[] parts = m_parts.GetArray();
@@ -3216,7 +3274,72 @@ namespace OpenSim.Region.Framework.Scenes
             for (int i = 0; i < parts.Length; i++)
                 parts[i].TriggerScriptChangedEvent(val);
         }
-        
+
+        /// <summary>
+        /// Returns a count of the number of scripts in this groups parts.
+        /// </summary>
+        public int ScriptCount()
+        {
+            int count = 0;
+            SceneObjectPart[] parts = m_parts.GetArray();
+            for (int i = 0; i < parts.Length; i++)
+                count += parts[i].Inventory.ScriptCount();
+
+            return count;
+        }
+
+        /// <summary>
+        /// A float the value is a representative execution time in milliseconds of all scripts in the link set.
+        /// </summary>
+        public float ScriptExecutionTime()
+        {
+            IScriptModule[] engines = Scene.RequestModuleInterfaces<IScriptModule>();
+
+            if (engines.Length == 0) // No engine at all
+                return 0.0f;
+
+            float time = 0.0f;
+
+            // get all the scripts in all parts
+            SceneObjectPart[] parts = m_parts.GetArray();
+            List<TaskInventoryItem> scripts = new List<TaskInventoryItem>();
+            for (int i = 0; i < parts.Length; i++)
+            {
+                scripts.AddRange(parts[i].Inventory.GetInventoryItems(InventoryType.LSL));
+            }
+            // extract the UUIDs
+            List<UUID> ids = new List<UUID>(scripts.Count);
+            foreach (TaskInventoryItem script in scripts)
+            {
+                if (!ids.Contains(script.ItemID))
+                {
+                    ids.Add(script.ItemID);
+                }
+            }
+            // Offer the list of script UUIDs to each engine found and accumulate the time
+            foreach (IScriptModule e in engines)
+            {
+                if (e != null)
+                {
+                    time += e.GetScriptExecutionTime(ids);
+                }
+            }
+            return time;
+        }
+
+        /// <summary>
+        /// Returns a count of the number of running scripts in this groups parts.
+        /// </summary>
+        public int RunningScriptCount()
+        {
+            int count = 0;
+            SceneObjectPart[] parts = m_parts.GetArray();
+            for (int i = 0; i < parts.Length; i++)
+                count += parts[i].Inventory.RunningScriptCount();
+
+            return count;
+        }
+
         public override string ToString()
         {
             return String.Format("{0} {1} ({2})", Name, UUID, AbsolutePosition);
@@ -3238,7 +3361,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public virtual string ExtraToXmlString()
         {
-            return "<ExtraFromItemID>" + GetFromItemID().ToString() + "</ExtraFromItemID>";
+            return "<ExtraFromItemID>" + FromItemID.ToString() + "</ExtraFromItemID>";
         }
 
         public virtual void ExtraFromXmlString(string xmlstr)
@@ -3250,7 +3373,7 @@ namespace OpenSim.Region.Framework.Scenes
             UUID uuid = UUID.Zero;
             UUID.TryParse(id, out uuid);
 
-            SetFromItemID(uuid);
+            FromItemID = uuid;
         }
 
         #endregion

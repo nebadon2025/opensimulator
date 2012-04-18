@@ -91,6 +91,9 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         protected internal Dictionary<uint, SceneObjectGroup> SceneObjectGroupsByLocalPartID = new Dictionary<uint, SceneObjectGroup>();        
 
+        /// <summary>
+        /// Lock to prevent object group update, linking and delinking operations from running concurrently.
+        /// </summary>
         private Object m_updateLock = new Object();
 
         #endregion
@@ -306,7 +309,8 @@ namespace OpenSim.Region.Framework.Scenes
             if (rot != null)
                 sceneObject.UpdateGroupRotationR((Quaternion)rot);
 
-            if (sceneObject.RootPart.PhysActor != null && sceneObject.RootPart.PhysActor.IsPhysical && vel != Vector3.Zero)
+            PhysicsActor pa = sceneObject.RootPart.PhysActor;
+            if (pa != null && pa.IsPhysical && vel != Vector3.Zero)
             {
                 sceneObject.RootPart.ApplyImpulse((vel * sceneObject.GetMass()), false);
                 sceneObject.Velocity = vel;

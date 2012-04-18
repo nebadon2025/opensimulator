@@ -222,7 +222,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void CreateScriptInstances(int startParam, bool postOnRez, string engine, int stateSource)
         {
-            List<TaskInventoryItem> scripts = GetInventoryScripts();
+            List<TaskInventoryItem> scripts = GetInventoryItems(InventoryType.LSL);
             foreach (TaskInventoryItem item in scripts)
                 CreateScriptInstance(item, startParam, postOnRez, engine, stateSource);
         }
@@ -255,7 +255,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </param>
         public void RemoveScriptInstances(bool sceneObjectBeingDeleted)
         {
-            List<TaskInventoryItem> scripts = GetInventoryScripts();
+            List<TaskInventoryItem> scripts = GetInventoryItems(InventoryType.LSL);
             foreach (TaskInventoryItem item in scripts)
                 RemoveScriptInstance(item.ItemID, sceneObjectBeingDeleted);
         }
@@ -1081,8 +1081,57 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                 }
             }
-            
+
             return false;
+        }
+
+        /// <summary>
+        /// Returns the count of scripts in this parts inventory.
+        /// </summary>
+        /// <returns></returns>
+        public int ScriptCount()
+        {
+            int count = 0;
+            lock (m_items)
+            {
+                foreach (TaskInventoryItem item in m_items.Values)
+                {
+                    if (item.InvType == (int)InventoryType.LSL)
+                    {
+                        count++;
+                    }
+                }
+            }
+
+            return count;
+        }
+        /// <summary>
+        /// Returns the count of running scripts in this parts inventory.
+        /// </summary>
+        /// <returns></returns>
+        public int RunningScriptCount()
+        {
+            IScriptModule[] engines = m_part.ParentGroup.Scene.RequestModuleInterfaces<IScriptModule>();
+            if (engines.Length == 0)
+                return 0;
+
+            int count = 0;
+            List<TaskInventoryItem> scripts = GetInventoryItems(InventoryType.LSL);
+
+            foreach (TaskInventoryItem item in scripts)
+            {
+                foreach (IScriptModule engine in engines)
+                {
+                    if (engine != null)
+                    {
+                        if (engine.GetScriptState(item.ItemID))
+                        {
+                            count++;
+                        }
+                    }
+                }
+            }
+            return count;
         }
 
         public List<UUID> GetInventoryList()
@@ -1108,14 +1157,14 @@ namespace OpenSim.Region.Framework.Scenes
             return ret;
         }
 
-        public List<TaskInventoryItem> GetInventoryScripts()
+        public List<TaskInventoryItem> GetInventoryItems(InventoryType type)
         {
             List<TaskInventoryItem> ret = new List<TaskInventoryItem>();
 
             lock (m_items)
             {
                 foreach (TaskInventoryItem item in m_items.Values)
-                    if (item.InvType == (int)InventoryType.LSL)
+                    if (item.InvType == (int)type)
                         ret.Add(item);
             }
 
@@ -1134,7 +1183,7 @@ namespace OpenSim.Region.Framework.Scenes
             if (engines.Length == 0) // No engine at all
                 return ret;
 
-            List<TaskInventoryItem> scripts = GetInventoryScripts();
+            List<TaskInventoryItem> scripts = GetInventoryItems(InventoryType.LSL);
 
             foreach (TaskInventoryItem item in scripts)
             {
@@ -1162,7 +1211,7 @@ namespace OpenSim.Region.Framework.Scenes
             if (engines.Length == 0)
                 return;
 
-            List<TaskInventoryItem> scripts = GetInventoryScripts();
+            List<TaskInventoryItem> scripts = GetInventoryItems(InventoryType.LSL);
 
             foreach (TaskInventoryItem item in scripts)
             {

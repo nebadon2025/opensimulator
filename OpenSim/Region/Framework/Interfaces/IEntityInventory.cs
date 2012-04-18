@@ -172,7 +172,17 @@ namespace OpenSim.Region.Framework.Interfaces
         /// If no inventory item has that name then an empty list is returned.
         /// </returns>
         List<TaskInventoryItem> GetInventoryItems(string name);
-        
+
+        /// <summary>
+        /// Get inventory items by type.
+        /// </summary>
+        /// <param type="name"></param>
+        /// <returns>
+        /// A list of inventory items of that type.
+        /// If no inventory items of that type then an empty list is returned.
+        /// </returns>
+        List<TaskInventoryItem> GetInventoryItems(InventoryType type);
+
         /// <summary>
         /// Get the scene object referenced by an inventory item.
         /// </summary>
@@ -224,6 +234,16 @@ namespace OpenSim.Region.Framework.Interfaces
         /// Returns true if this inventory contains any scripts
         /// </summary></returns>
         bool ContainsScripts();
+
+        /// <summary>
+        /// Returns the count of scripts contained
+        /// </summary></returns>
+        int ScriptCount();
+
+        /// <summary>
+        /// Returns the count of running scripts contained
+        /// </summary></returns>
+        int RunningScriptCount();
 
         /// <summary>
         /// Get the uuids of all items in this inventory

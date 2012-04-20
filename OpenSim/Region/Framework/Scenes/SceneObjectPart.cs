@@ -1699,6 +1699,9 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="isNew"></param>
         public void DoPhysicsPropertyUpdate(bool UsePhysics, bool isNew)
         {
+            if (ParentGroup.Scene == null)
+                return;
+            
             if (!ParentGroup.Scene.PhysicalPrims && UsePhysics)
                 return;
 
@@ -4154,7 +4157,7 @@ namespace OpenSim.Region.Framework.Scenes
             // For now, we use the NINJA naming scheme for identifying joints.
             // In the future, we can support other joint specification schemes such as a 
             // custom checkbox in the viewer GUI.
-            if (ParentGroup.Scene.PhysicsScene.SupportsNINJAJoints)
+            if (ParentGroup.Scene != null && ParentGroup.Scene.PhysicsScene.SupportsNINJAJoints)
             {
                 string hingeString = "hingejoint";
                 return (Name.Length >= hingeString.Length && Name.Substring(0, hingeString.Length) == hingeString);
@@ -4170,7 +4173,7 @@ namespace OpenSim.Region.Framework.Scenes
             // For now, we use the NINJA naming scheme for identifying joints.
             // In the future, we can support other joint specification schemes such as a 
             // custom checkbox in the viewer GUI.
-            if (ParentGroup.Scene.PhysicsScene.SupportsNINJAJoints)
+            if (ParentGroup.Scene != null && ParentGroup.Scene.PhysicsScene.SupportsNINJAJoints)
             {
                 string ballString = "balljoint";
                 return (Name.Length >= ballString.Length && Name.Substring(0, ballString.Length) == ballString);
@@ -4186,7 +4189,7 @@ namespace OpenSim.Region.Framework.Scenes
             // For now, we use the NINJA naming scheme for identifying joints.
             // In the future, we can support other joint specification schemes such as a 
             // custom checkbox in the viewer GUI.
-            if (ParentGroup.Scene.PhysicsScene.SupportsNINJAJoints)
+            if (ParentGroup.Scene != null && ParentGroup.Scene.PhysicsScene.SupportsNINJAJoints)
             {
                 return IsHingeJoint() || IsBallJoint();
             }

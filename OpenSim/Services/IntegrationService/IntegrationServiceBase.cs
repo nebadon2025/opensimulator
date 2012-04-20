@@ -39,18 +39,19 @@ using log4net;
 
 using Ux = OpenSim.Services.IntegrationService.IUtils;
 
-[assembly:AddinRoot ("IntegrationService", "1.1")]
+[assembly:AddinRoot ("IntegrationService", "2.0")]
 
 namespace OpenSim.Services.IntegrationService
 {
     [TypeExtensionPoint (Path="/OpenSim/IntegrationService", Name="IntegrationService")]
-    public interface IntegrationPlugin
+    public interface IntegrationPlugin: IDisposable
     {
         void Init(IConfigSource PluginConfig, IHttpServer server, ServiceBase service);
         void Unload();
         string Name { get; }
         string ConfigName { get; }
         string DefaultConfig { get; }
+        void Dispose();
     }
 
     // Hide the nasty stuff in here, let the IntegrationService be clean for
@@ -151,7 +152,7 @@ namespace OpenSim.Services.IntegrationService
                 AddinManager.AddinLoaded += on_addinloaded_;
                 AddinManager.AddinLoadError += on_addinloaderror_;
                 AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
-                AddinManager.AddinEngine.ExtensionChanged += HandleAddinManagerAddinEngineExtensionChanged;
+                // AddinManager.AddinEngine.ExtensionChanged += HandleAddinManagerAddinEngineExtensionChanged;
     
                 AddinManager.AddExtensionNodeHandler ("/OpenSim/IntegrationService", OnExtensionChanged);
 
@@ -160,7 +161,7 @@ namespace OpenSim.Services.IntegrationService
 
         void HandleAddinManagerAddinEngineExtensionChanged (object sender, ExtensionEventArgs args)
         {
-            MainConsole.Instance.Output("Plugin Extension Change");
+            MainConsole.Instance.Output(String.Format ("Plugin Extension Change Path:{0}", args.Path));
         }
 
         private IConfigSource GetConfig(string configName)
@@ -254,6 +255,7 @@ namespace OpenSim.Services.IntegrationService
 
         private void UnLoadingPlugin(IntegrationPlugin plugin)
         {
+            MainConsole.Instance.Output(plugin.Name);
             plugin.Unload();
         }
     }

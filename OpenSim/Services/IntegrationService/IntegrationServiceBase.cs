@@ -44,14 +44,13 @@ using Ux = OpenSim.Services.IntegrationService.IUtils;
 namespace OpenSim.Services.IntegrationService
 {
     [TypeExtensionPoint (Path="/OpenSim/IntegrationService", Name="IntegrationService")]
-    public interface IntegrationPlugin: IDisposable
+    public interface IntegrationPlugin
     {
         void Init(IConfigSource PluginConfig, IHttpServer server, ServiceBase service);
         void Unload();
         string Name { get; }
         string ConfigName { get; }
         string DefaultConfig { get; }
-        void Dispose();
     }
 
     // Hide the nasty stuff in here, let the IntegrationService be clean for

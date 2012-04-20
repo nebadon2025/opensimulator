@@ -130,9 +130,7 @@ namespace OpenSim.Services.IntegrationService
     
                 registry = new AddinRegistry(RegistryLocation, ".");
     
-                Ux.suppress_console_output_(true);
                 m_PluginManager = new PluginManager(registry);
-                Ux.suppress_console_output_(false);
     
                 // Deal with files only for now - will add url/environment later
                 m_IntegrationConfigLoc = serverConfig.GetString("IntegrationConfig", String.Empty);
@@ -186,7 +184,7 @@ namespace OpenSim.Services.IntegrationService
                         + args.Exception.StackTrace);
         }
 
-        // This is out init
+        // This is our init
         // We can do build-up and tear-down of our plugin
         void OnExtensionChanged (object s, ExtensionNodeEventArgs args)
         {
@@ -216,21 +214,6 @@ namespace OpenSim.Services.IntegrationService
         {
             m_log.Info ("[INTEGRATION SERVICE]: Plugin Loaded: " + args.AddinId);
         }
-
-//        private static TextWriter prev_console_;
-//        public void suppress_console_output_(bool save)
-//        {
-//            if (save)
-//            {
-//                prev_console_ = System.Console.Out;
-//                System.Console.SetOut(new StreamWriter(Stream.Null));
-//            }
-//            else
-//            {
-//                if (prev_console_ != null)
-//                    System.Console.SetOut(prev_console_);
-//            }
-//        }
 
         private void LoadingPlugin(IntegrationPlugin plugin)
         {

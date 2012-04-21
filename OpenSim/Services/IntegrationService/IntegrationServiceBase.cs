@@ -87,7 +87,10 @@ namespace OpenSim.Services.IntegrationService
             AddinRegistry registry ;
             bool DEVELOPMENT = serverConfig.GetBoolean("DevelopmentMode", false);
 
-            // Are we developing plugins? We will load them now
+            // Are we developing plugins? We will load them now.
+            // This will allow debugging of the modules and will 
+            // use the runtime directory for the registry. Will not
+            // be able to use the repo/registry commands ...
             if (DEVELOPMENT == true)
             {
                 AddinManager.Initialize (".");
@@ -146,12 +149,11 @@ namespace OpenSim.Services.IntegrationService
                 AddinManager.AddinLoaded += on_addinloaded_;
                 AddinManager.AddinLoadError += on_addinloaderror_;
                 AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
-
                 AddinManager.AddExtensionNodeHandler ("/OpenSim/IntegrationService", OnExtensionChanged);
-
             }
         }
 
+        #region addin event handlers
         void HandleAddinManagerAddinEngineExtensionChanged (object sender, ExtensionEventArgs args)
         {
             MainConsole.Instance.Output(String.Format ("Plugin Extension Change Path:{0}", args.Path));
@@ -207,6 +209,7 @@ namespace OpenSim.Services.IntegrationService
         {
             m_log.Info ("[INTEGRATION SERVICE]: Plugin Loaded: " + args.AddinId);
         }
+        #endregion addin-event handlers
 
         private void LoadingPlugin(IntegrationPlugin plugin)
         {

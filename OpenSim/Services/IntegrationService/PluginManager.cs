@@ -59,19 +59,22 @@ namespace OpenSim.Services.IntegrationService
 
             IProgressStatus ps = new ConsoleProgressStatus(false);
 
-            // m_Registry.Update(ps);
-
             string name = Addin.GetIdName(args[1]);
             string version = Addin.GetIdVersion(args[1]);
 
+            AddinRepositoryEntry[] available = GetSortedAvailbleAddins();
 
-            AddinRepositoryEntry[] aentry = Repositories.GetAvailableAddin(name, version);
-
-            foreach (AddinRepositoryEntry ae in aentry)
+            int n = Convert.ToInt16(args[1]);
+            if (n > (available.Length -1))
             {
-                Package p = Package.FromRepository(ae);
-                pack.Add(p);
+                MainConsole.Instance.Output("Selection out of range");
+                return "Error";
             }
+            
+            AddinRepositoryEntry aentry = available[n];
+
+            Package p = Package.FromRepository(aentry);
+            pack.Add(p);
 
             ResolveDependencies(ps, pack, out toUninstall, out unresolved);
 
@@ -133,14 +136,16 @@ namespace OpenSim.Services.IntegrationService
         // List compatible plugins in registered repositories
         public ArrayList ListAvailable()
         {
-            AddinRepositoryEntry[] addins = Repositories.GetAvailableAddins ();
+            AddinRepositoryEntry[] addins = GetSortedAvailbleAddins();
             ArrayList list = new ArrayList();
 
+            int count = 0;
             foreach (AddinRepositoryEntry addin in addins)
             {
                 StringBuilder sb = new StringBuilder();
-                sb.Append(String.Format("{0} rev. {1}, repo {2}", addin.Addin.Id, addin.Addin.Version, addin.RepositoryUrl));
+                sb.Append(String.Format("{0}) {1} rev. {2}, repo {3}", count.ToString(), addin.Addin.Name, addin.Addin.Version, addin.RepositoryName));
                 list.Add(sb.ToString());
+                count++;
             }
             return list;
         }
@@ -178,7 +183,7 @@ namespace OpenSim.Services.IntegrationService
 
         public void GetRepository()
         {
-            Repositories.UpdateAllRepositories (new ConsoleProgressStatus (false));
+            Repositories.UpdateAllRepositories(new ConsoleProgressStatus(false));
         }
 
         // Remove a repository from the list
@@ -361,13 +366,36 @@ namespace OpenSim.Services.IntegrationService
             }
         }
 
+        // These will let us deal with numbered lists instead
+        // of needing to type in the full ids 
+        private AddinRepositoryEntry[] GetSortedAvailbleAddins()
+        {
+            ArrayList list = new ArrayList();
+            list.AddRange(Repositories.GetAvailableAddins());
+
+            AddinRepositoryEntry[] addins = list.ToArray(typeof(AddinRepositoryEntry)) as AddinRepositoryEntry[];
+
+            Array.Sort(addins,(r1,r2) => r1.Addin.Id.CompareTo(r2.Addin.Id));
+
+            return addins;
+        }
+
+        private AddinRepository[] GetSortedAddinRepo()
+        {
+            ArrayList list = new ArrayList();
+            list.AddRange(Repositories.GetRepositories());
+
+            AddinRepository[] repos = list.ToArray(typeof(AddinRepository)) as AddinRepository[];
+            Array.Sort (repos,(r1,r2) => r1.Name.CompareTo(r2.Name));
+
+            return repos;
+        }
+
         private Addin[] GetSortedAddinList(string category)
         {
             ArrayList list = new ArrayList();
             list.AddRange(m_Registry.GetAddins());
             ArrayList xlist = new ArrayList();
-
-
 
             foreach (Addin addin in list)
             {

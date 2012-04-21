@@ -88,5 +88,24 @@ namespace OpenSim.Region.Framework.Scenes.Tests
 
             Assert.That(rootPart.Flags, Is.EqualTo(PrimFlags.None));            
         }
+
+        /// <summary>
+        /// Test that linking results in the correct physical status for all linkees.
+        /// </summary>
+        [Test]
+        public void TestLinkPhysicsChildPhysicalOnly()
+        {
+            TestHelpers.InMethod();
+
+            m_scene.AddSceneObject(m_so1);
+            m_scene.AddSceneObject(m_so2);
+
+            m_so2.ScriptSetPhysicsStatus(true);
+
+            m_scene.LinkObjects(m_ownerId, m_so1.LocalId, new List<uint>() { m_so2.LocalId });
+
+            Assert.That(m_so1.RootPart.Flags, Is.EqualTo(PrimFlags.None));
+            Assert.That(m_so1.Parts[1].Flags, Is.EqualTo(PrimFlags.None));
+        }
     }
 }

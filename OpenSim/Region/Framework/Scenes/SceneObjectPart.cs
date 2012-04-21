@@ -1701,7 +1701,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (ParentGroup.Scene == null)
                 return;
-            
+
             if (!ParentGroup.Scene.PhysicalPrims && UsePhysics)
                 return;
 

@@ -51,7 +51,7 @@ namespace OpenSim.Services.IntegrationService
         public IntegrationService(IConfigSource config, IHttpServer server)
             : base(config, server)
         {
-            m_log.InfoFormat("[INTEGRATION SERVICE]: Loaded");
+            m_log.DebugFormat("[INTEGRATION SERVICE]: Loaded");
 
             // Add commands to the console
             if (MainConsole.Instance != null)
@@ -60,6 +60,7 @@ namespace OpenSim.Services.IntegrationService
             }
         }
 
+        // Our console commands
         private void AddConsoleCommands()
         {
             MainConsole.Instance.Commands.AddCommand("Integration", true,
@@ -128,6 +129,7 @@ namespace OpenSim.Services.IntegrationService
         }
 
         #region console handlers
+        // Handle our console commands
         private void HandleConsoleInstallPlugin(string module, string[] cmd)
         {
             MainConsole.Instance.Output(m_PluginManager.InstallPlugin(cmd));

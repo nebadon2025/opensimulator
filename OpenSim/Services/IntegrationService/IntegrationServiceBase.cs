@@ -40,7 +40,6 @@ using log4net;
 using Ux = OpenSim.Services.IntegrationService.IUtils;
 
 [assembly:AddinRoot ("IntegrationService", "2.0")]
-
 namespace OpenSim.Services.IntegrationService
 {
     [TypeExtensionPoint (Path="/OpenSim/IntegrationService", Name="IntegrationService")]
@@ -99,22 +98,20 @@ namespace OpenSim.Services.IntegrationService
                 AddinManager.AddinLoadError += on_addinloaderror_;
                 AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
                 AddinManager.AddinEngine.ExtensionChanged += HandleAddinManagerAddinEngineExtensionChanged;
-                // AddinManager.GetExtensionObjects("/OpenSim/IntegrationService");
     
                 registry.Update ();
                 foreach (IntegrationPlugin cmd in AddinManager.GetExtensionObjects("/OpenSim/IntegrationService"))
                 {
-                    m_log.InfoFormat("[INTEGRATION SERVICE]: Processing _Addin {0}", cmd.Name);
+                    m_log.DebugFormat("[INTEGRATION SERVICE]: Processing _Addin {0}", cmd.Name);
                     LoadingPlugin(cmd);
                 }
     
                 Addin[] addins = registry.GetAddins();
-    
                 foreach (Addin addin in addins)
                 {
                     if (addin.Description.Category == "IntegrationPlugin")
                     {
-                        m_log.InfoFormat("[INTEGRATION SERVICE]: Processing O Addin {0}", addin.Name);
+                        m_log.DebugFormat("[INTEGRATION SERVICE]: Processing O Addin {0}", addin.Name);
                         addin.Enabled = true;
                         registry.EnableAddin(addin.Id);
                         registry.Update();
@@ -125,11 +122,9 @@ namespace OpenSim.Services.IntegrationService
             else
             {
                 // defaults to the ./bin directory
-                string RegistryLocation = serverConfig.GetString("PluginRegistryLocation",
-                        ".");
+                string RegistryLocation = serverConfig.GetString("PluginRegistryLocation", ".");
     
                 registry = new AddinRegistry(RegistryLocation, ".");
-    
                 m_PluginManager = new PluginManager(registry);
     
                 // Deal with files only for now - will add url/environment later
@@ -147,12 +142,11 @@ namespace OpenSim.Services.IntegrationService
     
                 AddinManager.Initialize (RegistryLocation);
                 AddinManager.Registry.Update ();
-    
+
                 AddinManager.AddinLoaded += on_addinloaded_;
                 AddinManager.AddinLoadError += on_addinloaderror_;
                 AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
-                // AddinManager.AddinEngine.ExtensionChanged += HandleAddinManagerAddinEngineExtensionChanged;
-    
+
                 AddinManager.AddExtensionNodeHandler ("/OpenSim/IntegrationService", OnExtensionChanged);
 
             }
@@ -189,7 +183,6 @@ namespace OpenSim.Services.IntegrationService
         void OnExtensionChanged (object s, ExtensionNodeEventArgs args)
         {
             IntegrationPlugin ip = (IntegrationPlugin) args.ExtensionObject;
-
             m_log.Info ("[INTEGRATION SERVICE]: Plugin Change");
 
             switch (args.Change)
@@ -197,14 +190,14 @@ namespace OpenSim.Services.IntegrationService
                 // Build up
                 case ExtensionChange.Add:
 
-                    m_log.InfoFormat("[INTEGRATION SERVICE]: Plugin Added {0}", ip.Name);
+                    m_log.DebugFormat("[INTEGRATION SERVICE]: Plugin Added {0}", ip.Name);
                     LoadingPlugin(ip);
                     return;
 
                 // Tear down
                 case ExtensionChange.Remove:
 
-                    m_log.InfoFormat("[INTEGRATION SERVICE]: Plugin Remove {0}", ip.Name);
+                    m_log.DebugFormat("[INTEGRATION SERVICE]: Plugin Remove {0}", ip.Name);
                     UnLoadingPlugin(ip);
                     return;
             }
@@ -226,36 +219,39 @@ namespace OpenSim.Services.IntegrationService
             // Fetch the starter ini
             if (PlugConfig == null)
             {
-                m_log.InfoFormat("[INTEGRATION SERVICE]: Fetching starter config for {0} from {1}", plugin.Name, plugin.DefaultConfig);
+                m_log.DebugFormat("[INTEGRATION SERVICE]: Fetching starter config for {0} from {1}", plugin.Name, plugin.DefaultConfig);
 
                 // Send the default data service
                 IConfig DataService = m_ConfigSource.Configs["DatabaseService"];
-                m_log.InfoFormat("[INTEGRATION SERVICE]: Writing initial config to {0}", plugin.ConfigName);
+                m_log.DebugFormat("[INTEGRATION SERVICE]: Writing initial config to {0}", plugin.ConfigName);
 
                 IniConfigSource source = new IniConfigSource();
                 IConfig Init = source.AddConfig("DatabaseService");
                 Init.Set("StorageProvider",(string)DataService.GetString("StorageProvider"));
 				Init.Set("ConnectionString", String.Format ("\"{0}\"",DataService.GetString("ConnectionString")));
 
-
                 PlugConfig = Ux.LoadInitialConfig(plugin.DefaultConfig);
-
                 source.Merge(PlugConfig);
-
                 source.Save(Path.Combine(m_IntegrationConfigLoc, plugin.ConfigName));
-
 				PlugConfig = Ux.GetConfigSource(m_IntegrationConfigLoc, plugin.ConfigName);
-                // PlugConfig = source;
             }
 
-            m_log.InfoFormat("[INTEGRATION SERVICE]: ****** In Loading Plugin {0}", plugin.Name);
+            m_log.DebugFormat("[INTEGRATION SERVICE]: ****** In Loading Plugin {0}", plugin.Name);
             plugin.Init(PlugConfig, m_Server, this);
         }
 
         private void UnLoadingPlugin(IntegrationPlugin plugin)
         {
-            MainConsole.Instance.Output(plugin.Name);
-            plugin.Unload();
+            try
+            {
+                plugin.Unload();
+            }
+            catch(Exception e)
+            {
+                // Getting some "Error Object reference not set to an instance of an object"
+                // when the plugins are unloaded. This keeps things quiet for now
+                // m_log.DebugFormat("[INTEGRATION SERVICE]: Error {0}", e.Message);
+            }
         }
     }
 }

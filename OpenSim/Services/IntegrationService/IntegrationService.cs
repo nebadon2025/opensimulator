@@ -259,6 +259,21 @@ namespace OpenSim.Services.IntegrationService
         {
             return Ux.FailureResult("Not Implemented");
         }
+
+        public byte[] HandleWebListAvailablePlugins(OSDMap request)
+        {
+            return Ux.FailureResult("Not Implemented");
+        }
+
+        public byte[] HandleWebInstallPlugin(OSDMap request)
+        {
+            return Ux.FailureResult("Not Implemented");
+        }
+
+        public byte[] HandleWebUnInstallPlugin(OSDMap request)
+        {
+            return Ux.FailureResult("Not Implemented");
+        }
         #endregion
     }
 }

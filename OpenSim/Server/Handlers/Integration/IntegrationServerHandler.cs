@@ -108,6 +108,21 @@ namespace OpenSim.Server.Handlers.Integration
         {
             return m_IntegrationService.HandleWebPluginInfo(request);
         }
+
+        public byte[] HandleWebListAvailablePlugins(OSDMap request)
+        {
+            return m_IntegrationService.HandleWebListAvailablePlugins(request);
+        }
+
+        public byte[] HandleWebInstallPlugin(OSDMap request)
+        {
+            return m_IntegrationService.HandleWebInstallPlugin(request);
+        }
+
+        public byte[] HnadleWebUnInstallPlugin(OSDMap request)
+        {
+            return m_IntegrationService.HandleWebUnInstallPlugin(request);
+        }
         #endregion web handlers
 
         #region utility

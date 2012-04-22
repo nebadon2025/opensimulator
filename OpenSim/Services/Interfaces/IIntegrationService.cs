@@ -36,8 +36,13 @@ namespace OpenSim.Services.Interfaces
 {
     public interface IIntegrationService
     {
+        #region Web handlers
         byte[] HandleWebListPlugins(OSDMap request);
         byte[] HandleWebPluginInfo(OSDMap request);
+        byte[] HandleWebListAvailablePlugins(OSDMap request);
+        byte[] HandleWebInstallPlugin(OSDMap request);
+        byte[] HandleWebUnInstallPlugin(OSDMap request);
+        #endregion
     }
 }
 

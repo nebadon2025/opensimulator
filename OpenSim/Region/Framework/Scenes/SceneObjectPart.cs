@@ -4283,7 +4283,10 @@ namespace OpenSim.Region.Framework.Scenes
                 AddFlag(PrimFlags.Phantom);
 
                 if (PhysActor != null)
+                {
                     RemoveFromPhysics();
+                    pa = null;
+                }
             }
             else // Not phantom
             {
@@ -4349,7 +4352,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     pa.SetVolumeDetect(1);
                     AddFlag(PrimFlags.Phantom); // We set this flag also if VD is active
-                    this.VolumeDetectActive = true;
+                    VolumeDetectActive = true;
                 }
             }
             else
@@ -4357,9 +4360,9 @@ namespace OpenSim.Region.Framework.Scenes
                 // Remove VolumeDetect in any case. Note, it's safe to call SetVolumeDetect as often as you like
                 // (mumbles, well, at least if you have infinte CPU powers :-))
                 if (pa != null)
-                    PhysActor.SetVolumeDetect(0);
+                    pa.SetVolumeDetect(0);
 
-                this.VolumeDetectActive = false;
+                VolumeDetectActive = false;
             }
 
             if (SetTemporary)

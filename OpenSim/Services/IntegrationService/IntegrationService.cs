@@ -249,28 +249,90 @@ namespace OpenSim.Services.IntegrationService
         }
         #endregion
 
-        #region web handlers
-        public byte[] HandleWebListPlugins(OSDMap request)
+//        #region web handlers
+//        public byte[] HandleWebListPlugins(OSDMap request)
+//        {
+//            return Ux.FailureResult("Not Implemented");
+//        }
+//
+//        public byte[] HandleWebPluginInfo(OSDMap request)
+//        {
+//            return Ux.FailureResult("Not Implemented");
+//        }
+//
+//        public byte[] HandleWebListAvailablePlugins(OSDMap request)
+//        {
+//            return Ux.FailureResult("Not Implemented");
+//        }
+//
+//        public byte[] HandleWebInstallPlugin(OSDMap request)
+//        {
+//            return Ux.FailureResult("Not Implemented");
+//        }
+//
+//        public byte[] HandleWebUnInstallPlugin(OSDMap request)
+//        {
+//            return Ux.FailureResult("Not Implemented");
+//        }
+//        #endregion
+
+        #region IIntegrationService implementation
+        public byte[] HandleWebListRepositories (OSDMap request)
         {
             return Ux.FailureResult("Not Implemented");
         }
 
-        public byte[] HandleWebPluginInfo(OSDMap request)
+        public byte[] HandleWebAddRepository (OSDMap request)
         {
             return Ux.FailureResult("Not Implemented");
         }
 
-        public byte[] HandleWebListAvailablePlugins(OSDMap request)
+        public byte[] HandleWebRemoveRepositroy (OSDMap request)
         {
             return Ux.FailureResult("Not Implemented");
         }
 
-        public byte[] HandleWebInstallPlugin(OSDMap request)
+        public byte[] HandleEnableRepository (OSDMap request)
         {
             return Ux.FailureResult("Not Implemented");
         }
 
-        public byte[] HandleWebUnInstallPlugin(OSDMap request)
+        public byte[] HandleWebDisableRepository (OSDMap request)
+        {
+            return Ux.FailureResult("Not Implemented");
+        }
+
+        public byte[] HandleWebListPlugins (OSDMap request)
+        {
+            return Ux.FailureResult("Not Implemented");
+        }
+
+        public byte[] HandleWebPluginInfo (OSDMap request)
+        {
+            return Ux.FailureResult("Not Implemented");
+        }
+
+        public byte[] HandleWebListAvailablePlugins (OSDMap request)
+        {
+            return Ux.FailureResult("Not Implemented");
+        }
+
+        public byte[] HandleWebInstallPlugin (OSDMap request)
+        {
+            return Ux.FailureResult("Not Implemented");
+        }
+
+        public byte[] HandleWebUnInstallPlugin (OSDMap request)
+        {
+            return Ux.FailureResult("Not Implemented");
+        }
+
+        public byte[] HandleWebEnablePlugin (OSDMap request)
+        {
+            return Ux.FailureResult("Not Implemented");
+        }
+
+        public byte[] HandleWebDisablePlugin (OSDMap request)
         {
             return Ux.FailureResult("Not Implemented");
         }

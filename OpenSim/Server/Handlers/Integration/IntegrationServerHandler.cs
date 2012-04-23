@@ -66,31 +66,65 @@ namespace OpenSim.Server.Handlers.Integration
             {
                 OSDMap request = null;
                 if (ServerUtils.ParseStringToOSDMap(body, out request) == false)
+                {
                     return FailureResult();
-                
-                // Dictionary<string, object> request = ServerUtils.ParseQueryString(body);
+                }
 
                 if (!request.ContainsKey("command"))
+                {
                     return FailureResult("Error, no command defined!");
-                string command = request["command"].AsString();
+                }
 
-                // command...
+                string command = request["command"].AsString ();
+
                 switch (command)
                 {
-                    // agent
                     case "list_plugins":
                         return HandleListPlugins(request);
+        
+                    case "list_available":
+                        return HandleListAvailablePlugins(request);
 
+                    case "install_plugin":
+                        return HandleInstallPlugin(request);
+
+                    case "uninstall_plugin":
+                        return HandleUnInstallPlugin(request);
+
+                    case "enable_plugin":
+                        return HandleEnablePlugin (request);
+
+                    case "disable_plugin":
+                        return HandleDisblePlugin(request);
+        
                     case "plugin_info":
                         return HandlePluginInfo(request);
-                        break;
 
+                    case "list_repos":
+                        return HandleListRepositories (request);
+
+                    case "add_repo":
+                        return HandleAddRepository(request);
+
+                    case "remove_repo":
+                        return HandleRemoveRepository(request);
+
+                    case "enable_repo":
+                        return HandleEnablePlugin(request);
+
+                    case "disable_repo":
+                        return HandleDisableRepository(request);
+        
                     default:
-                        m_log.DebugFormat("[INTEGRATION HANDLER]: unknown method {0} request {1}", command.Length, command);
-                        return FailureResult("IntegrationHandler: Unrecognized method requested!");
+                        m_log.DebugFormat(
+                            "[INTEGRATION HANDLER]: unknown method {0} request {1}",
+                            command.Length,
+                            command
+                        );
+                        return FailureResult ("IntegrationHandler: Unrecognized method requested!");
                 }
-            }
-            catch (Exception e)
+            } 
+            catch (Exception e) 
             {
                 m_log.DebugFormat("[INTEGRATION HANDLER]: Exception {0}", e);
             }
@@ -99,29 +133,76 @@ namespace OpenSim.Server.Handlers.Integration
         }
 
         #region web handlers
+        // List installed plugins
         private byte[] HandleListPlugins(OSDMap request)
         {
             return m_IntegrationService.HandleWebListPlugins(request);
         }
 
+        // Show plugin info
         private byte[] HandlePluginInfo(OSDMap request)
         {
             return m_IntegrationService.HandleWebPluginInfo(request);
         }
 
-        public byte[] HandleWebListAvailablePlugins(OSDMap request)
+        // Enable plugin
+        private byte[] HandleEnablePlugin(OSDMap request)
         {
-            return m_IntegrationService.HandleWebListAvailablePlugins(request);
+            return m_IntegrationService.HandleWebEnablePlugin(request);
         }
 
-        public byte[] HandleWebInstallPlugin(OSDMap request)
+        // Disable plugin
+        private byte[] HandleDisblePlugin(OSDMap request)
+        {
+            return m_IntegrationService.HandleWebDisablePlugin(request);
+        }
+
+        // Install plugin
+        public byte[] HandleInstallPlugin(OSDMap request)
         {
             return m_IntegrationService.HandleWebInstallPlugin(request);
         }
 
-        public byte[] HnadleWebUnInstallPlugin(OSDMap request)
+        // Uninstall plugin
+        public byte[] HandleUnInstallPlugin(OSDMap request)
         {
             return m_IntegrationService.HandleWebUnInstallPlugin(request);
+        }
+
+        // List available plugins
+        public byte[] HandleListAvailablePlugins(OSDMap request)
+        {
+            return m_IntegrationService.HandleWebListAvailablePlugins(request);
+        }
+
+        // List repositories
+        public byte[] HandleListRepositories(OSDMap request)
+        {
+            return m_IntegrationService.HandleWebListRepositories(request);
+        }
+
+        // Add repository
+        public byte[] HandleAddRepository(OSDMap request)
+        {
+            return m_IntegrationService.HandleWebAddRepository(request);
+        }
+
+        // Remove repository
+        public byte[] HandleRemoveRepository(OSDMap request)
+        {
+            return m_IntegrationService.HandleWebRemoveRepositroy(request);
+        }
+
+        // Enable repository
+        public byte[] HandleEnableRepository(OSDMap request)
+        {
+            return m_IntegrationService.HandleEnableRepository(request);
+        }
+
+        // Disable repository
+        public byte[] HandleDisableRepository(OSDMap request)
+        {
+            return m_IntegrationService.HandleWebDisableRepository(request);
         }
         #endregion web handlers
 

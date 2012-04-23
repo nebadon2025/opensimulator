@@ -209,6 +209,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             throw new Exception("OSSL Runtime Error: " + msg);
         }
 
+        /// <summary>
+        /// Initialize the LSL interface.
+        /// </summary>
+        /// <remarks>
+        /// FIXME: This is an abomination.  We should be able to set this up earlier but currently we have no
+        /// guarantee the interface is present on Initialize().  There needs to be another post initialize call from
+        /// ScriptInstance.
+        /// </remarks>
         private void InitLSL()
         {
             if (m_LSL_Api != null)
@@ -2917,6 +2925,26 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             DateTime date = new DateTime(epochTicks);
 
             return date.ToString("yyyy-MM-ddTHH:mm:ss.fffffffZ");
+        }
+
+        public void osForceAttachToAvatar(int attachmentPoint)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osForceAttachToAvatar");
+
+            m_host.AddScriptLPS(1);
+
+            InitLSL();
+            ((LSL_Api)m_LSL_Api).AttachToAvatar(attachmentPoint);
+        }
+
+        public void osForceDetachFromAvatar()
+        {
+            CheckThreatLevel(ThreatLevel.High, "osForceDetachFromAvatar");
+
+            m_host.AddScriptLPS(1);
+
+            InitLSL();
+            ((LSL_Api)m_LSL_Api).DetachFromAvatar();
         }
     }
 }

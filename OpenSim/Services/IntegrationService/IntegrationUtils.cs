@@ -101,6 +101,11 @@ namespace OpenSim.Services.IntegrationService
         {
             return Encoding.UTF8.GetBytes(OSDParser.SerializeJsonString(doc));
         }
+
+        public static byte[] DocToBytes(string json)
+        {
+            return Encoding.UTF8.GetBytes(json);
+        }
         #endregion web utils
 
         #region config utils

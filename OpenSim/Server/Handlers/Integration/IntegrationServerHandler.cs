@@ -81,7 +81,7 @@ namespace OpenSim.Server.Handlers.Integration
                 {
                     case "list_plugins":
                         return HandleListPlugins(request);
-        
+
                     case "list_available":
                         return HandleListAvailablePlugins(request);
 
@@ -96,7 +96,7 @@ namespace OpenSim.Server.Handlers.Integration
 
                     case "disable_plugin":
                         return HandleDisblePlugin(request);
-        
+
                     case "plugin_info":
                         return HandlePluginInfo(request);
 
@@ -114,7 +114,7 @@ namespace OpenSim.Server.Handlers.Integration
 
                     case "disable_repo":
                         return HandleDisableRepository(request);
-        
+
                     default:
                         m_log.DebugFormat(
                             "[INTEGRATION HANDLER]: unknown method {0} request {1}",
@@ -123,8 +123,8 @@ namespace OpenSim.Server.Handlers.Integration
                         );
                         return FailureResult ("IntegrationHandler: Unrecognized method requested!");
                 }
-            } 
-            catch (Exception e) 
+            }
+            catch (Exception e)
             {
                 m_log.DebugFormat("[INTEGRATION HANDLER]: Exception {0}", e);
             }

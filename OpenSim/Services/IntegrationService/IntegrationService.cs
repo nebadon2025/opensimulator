@@ -29,6 +29,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Linq;
 using OpenSim.Server.Base;
 using OpenSim.Services.Interfaces;
 using OpenSim.Framework;
@@ -130,12 +131,15 @@ namespace OpenSim.Services.IntegrationService
 
         #region console handlers
         // Handle our console commands
+        //
+        // Install plugin from registered repository
         private void HandleConsoleInstallPlugin(string module, string[] cmd)
         {
             MainConsole.Instance.Output(m_PluginManager.InstallPlugin(cmd));
             return;
         }
 
+        // Remove installed plugin
         private void HandleConsoleUnInstallPlugin(string module, string[] cmd)
         {
             if (cmd.Length == 2)
@@ -145,18 +149,36 @@ namespace OpenSim.Services.IntegrationService
             return;
         }
 
+        // Check installed plugins **not working
         private void HandleConsoleCheckInstalledPlugin(string module, string[] cmd)
         {
             MainConsole.Instance.Output(m_PluginManager.CheckInstalled());
             return;
         }
 
+        // List installed plugins
         private void HandleConsoleListInstalledPlugin(string module, string[] cmd)
         {
-            m_PluginManager.ListInstalledAddins();
+            Dictionary<string, object> result = new Dictionary<string, object>();
+            m_PluginManager.ListInstalledAddins(out result);
+
+            ArrayList s = new ArrayList();
+            s.AddRange(result.Keys);
+            s.Sort();
+
+            foreach (string k in s)
+            {
+                Dictionary<string, object> plugin = (Dictionary<string, object>)result[k];
+                bool enabled = (bool)plugin["enabled"];
+                MainConsole.Instance.OutputFormat("{0}) {1} {2} rev. {3}",
+                                                  k,
+                                                  enabled == true ? "[ ]" : "[X]",
+                                                  plugin["name"], plugin["version"]);
+            }
             return;
         }
 
+        // List available plugins on registered repositories
         private void HandleConsoleListAvailablePlugin(string module, string[] cmd)
         {
             ArrayList list = m_PluginManager.ListAvailable();
@@ -166,18 +188,21 @@ namespace OpenSim.Services.IntegrationService
             return;
         }
 
+        // List available updates **not ready
         private void HandleConsoleListUpdates(string module, string[] cmd)
         {
             m_PluginManager.ListUpdates();
             return;
         }
 
+        // Update plugin **not ready
         private void HandleConsoleUpdatePlugin(string module, string[] cmd)
         {
             MainConsole.Instance.Output(m_PluginManager.Update());
             return;
         }
 
+        // Register repository
         private void HandleConsoleAddRepo(string module, string[] cmd)
         {
             if ( cmd.Length == 3)
@@ -187,12 +212,14 @@ namespace OpenSim.Services.IntegrationService
             return;
         }
 
+        // Get repository status **not working
         private void HandleConsoleGetRepo(string module, string[] cmd)
         {
             m_PluginManager.GetRepository();
             return;
         }
 
+        // Remove registered repository
         private void HandleConsoleRemoveRepo(string module, string[] cmd)
         {
             if (cmd.Length == 3)
@@ -200,7 +227,7 @@ namespace OpenSim.Services.IntegrationService
             return;
         }
 
-        // Enable repo
+        // Enable repository
         private void HandleConsoleEnableRepo(string module, string[] cmd)
         {
             m_PluginManager.EnableRepository(cmd);
@@ -249,33 +276,6 @@ namespace OpenSim.Services.IntegrationService
         }
         #endregion
 
-//        #region web handlers
-//        public byte[] HandleWebListPlugins(OSDMap request)
-//        {
-//            return Ux.FailureResult("Not Implemented");
-//        }
-//
-//        public byte[] HandleWebPluginInfo(OSDMap request)
-//        {
-//            return Ux.FailureResult("Not Implemented");
-//        }
-//
-//        public byte[] HandleWebListAvailablePlugins(OSDMap request)
-//        {
-//            return Ux.FailureResult("Not Implemented");
-//        }
-//
-//        public byte[] HandleWebInstallPlugin(OSDMap request)
-//        {
-//            return Ux.FailureResult("Not Implemented");
-//        }
-//
-//        public byte[] HandleWebUnInstallPlugin(OSDMap request)
-//        {
-//            return Ux.FailureResult("Not Implemented");
-//        }
-//        #endregion
-
         #region IIntegrationService implementation
         public byte[] HandleWebListRepositories (OSDMap request)
         {
@@ -302,9 +302,12 @@ namespace OpenSim.Services.IntegrationService
             return Ux.FailureResult("Not Implemented");
         }
 
-        public byte[] HandleWebListPlugins (OSDMap request)
+        public byte[] HandleWebListPlugins(OSDMap request)
         {
-            return Ux.FailureResult("Not Implemented");
+            Dictionary<string, object> result = new Dictionary<string, object>();
+            m_PluginManager.ListInstalledAddins(out result);
+            string json = LitJson.JsonMapper.ToJson(result);
+            return Ux.DocToBytes(json);
         }
 
         public byte[] HandleWebPluginInfo (OSDMap request)

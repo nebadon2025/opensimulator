@@ -35,7 +35,6 @@ using Mono.Addins;
 using Mono.Addins.Setup;
 using Mono.Addins.Description;
 using OpenSim.Framework;
-
 using Ux = OpenSim.Services.IntegrationService.IUtils;
 
 namespace OpenSim.Services.IntegrationService
@@ -65,12 +64,12 @@ namespace OpenSim.Services.IntegrationService
             AddinRepositoryEntry[] available = GetSortedAvailbleAddins();
 
             int n = Convert.ToInt16(args[1]);
-            if (n > (available.Length -1))
+            if (n > (available.Length - 1))
             {
                 MainConsole.Instance.Output("Selection out of range");
                 return "Error";
             }
-            
+
             AddinRepositoryEntry aentry = available[n];
 
             Package p = Package.FromRepository(aentry);
@@ -78,9 +77,13 @@ namespace OpenSim.Services.IntegrationService
 
             ResolveDependencies(ps, pack, out toUninstall, out unresolved);
 
-            if(Install(ps, pack) == true)
+            // Attempt to install the plugin disabled
+            if (Install(ps, pack) == true)
             {
                 m_Registry.Update(ps);
+                Addin addin = m_Registry.GetAddin(aentry.Addin.Id);
+                m_Registry.DisableAddin(addin.Id);
+                addin.Enabled = false;
                 return "Install";
             }
             else
@@ -116,20 +119,26 @@ namespace OpenSim.Services.IntegrationService
         }
 
         // List instaled addins
-        public void ListInstalledAddins()
+        public void ListInstalledAddins(out Dictionary<string, object> result)
         {
-            Addin[] addins = GetSortedAddinList("IntegrationPlugin");
+            Dictionary<string, object> res = new Dictionary<string, object>();
 
-            MainConsole.Instance.Output("Installed Plugins");
+            Addin[] addins = GetSortedAddinList("IntegrationPlugin");
 
             int count = 0;
             foreach (Addin addin in addins)
             {
-                MainConsole.Instance.OutputFormat("{0}) {1} {2} rev. {3}", count.ToString(),
-                                                      addin.Enabled == false ? "[X]" : "[ ]",
-                                                      addin.Name, addin.Version );
+                Dictionary<string, object> r = new Dictionary<string, object>();
+                r["enabled"] = addin.Enabled == true ? true : false;
+                r["name"] = addin.LocalId;
+                r["version"] = addin.Version;
+
+                res.Add(count.ToString(), r);
+
                 count++;
             }
+
+            result = res;
             return;
         }
 
@@ -158,7 +167,7 @@ namespace OpenSim.Services.IntegrationService
             Repositories.UpdateAllRepositories (ps);
             Console.WriteLine ("Available add-in updates:");
             bool found = false;
-            AddinRepositoryEntry[] entries = Repositories.GetAvailableUpdates ();
+            AddinRepositoryEntry[] entries = Repositories.GetAvailableUpdates();
 
             foreach (AddinRepositoryEntry entry in entries)
             {
@@ -367,7 +376,7 @@ namespace OpenSim.Services.IntegrationService
         }
 
         // These will let us deal with numbered lists instead
-        // of needing to type in the full ids 
+        // of needing to type in the full ids
         private AddinRepositoryEntry[] GetSortedAvailbleAddins()
         {
             ArrayList list = new ArrayList();

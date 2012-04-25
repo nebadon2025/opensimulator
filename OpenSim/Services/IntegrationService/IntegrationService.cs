@@ -166,7 +166,9 @@ namespace OpenSim.Services.IntegrationService
             s.AddRange(result.Keys);
             s.Sort();
 
-            foreach (string k in s)
+            var list = result.Keys.ToList();
+            list.Sort();
+            foreach (var k in list)
             {
                 Dictionary<string, object> plugin = (Dictionary<string, object>)result[k];
                 bool enabled = (bool)plugin["enabled"];
@@ -181,10 +183,20 @@ namespace OpenSim.Services.IntegrationService
         // List available plugins on registered repositories
         private void HandleConsoleListAvailablePlugin(string module, string[] cmd)
         {
-            ArrayList list = m_PluginManager.ListAvailable();
-            foreach (string entry in list)
-                MainConsole.Instance.Output(entry);
+            Dictionary<string, object> result = new Dictionary<string, object>();
+            m_PluginManager.ListAvailable(out result);
 
+            var list = result.Keys.ToList();
+            list.Sort();
+            foreach (var k in list)
+            {
+                // name, version, repository
+                Dictionary<string, object> plugin = (Dictionary<string, object>)result[k];
+                MainConsole.Instance.OutputFormat("{0} rev. {1} {2}",
+                                                  plugin["name"],
+                                                  plugin["version"],
+                                                  plugin["repository"]);
+            }
             return;
         }
 
@@ -244,9 +256,23 @@ namespace OpenSim.Services.IntegrationService
         // List repositories
         private void HandleConsoleListRepos(string module, string[] cmd)
         {
-            ArrayList list = m_PluginManager.ListRepositories();
-            foreach (string entry in list)
-                MainConsole.Instance.Output(entry);
+            Dictionary<string, object> result = new Dictionary<string, object>();
+            m_PluginManager.ListRepositories(out result);
+
+            var list = result.Keys.ToList();
+            list.Sort();
+            foreach (var k in list)
+            {
+                Dictionary<string, object> repo = (Dictionary<string, object>)result[k];
+                bool enabled = (bool)repo["enabled"];
+                MainConsole.Instance.OutputFormat("{0}) {1} {2}",
+                                                  k,
+                                                  enabled == true ? "[ ]" : "[X]",
+                                                  repo["name"], repo["url"]);
+            }
+            //ArrayList list = m_PluginManager.ListRepositories();
+            //foreach (string entry in list)
+            //    MainConsole.Instance.Output(entry);
 
             return;
         }
@@ -277,9 +303,12 @@ namespace OpenSim.Services.IntegrationService
         #endregion
 
         #region IIntegrationService implementation
-        public byte[] HandleWebListRepositories (OSDMap request)
+        public byte[] HandleWebListRepositories(OSDMap request)
         {
-            return Ux.FailureResult("Not Implemented");
+            Dictionary<string, object> result = new Dictionary<string, object>();
+            m_PluginManager.ListRepositories(out result);
+            string json = LitJson.JsonMapper.ToJson(result);
+            return Ux.DocToBytes(json);
         }
 
         public byte[] HandleWebAddRepository (OSDMap request)
@@ -315,9 +344,12 @@ namespace OpenSim.Services.IntegrationService
             return Ux.FailureResult("Not Implemented");
         }
 
-        public byte[] HandleWebListAvailablePlugins (OSDMap request)
+        public byte[] HandleWebListAvailablePlugins(OSDMap request)
         {
-            return Ux.FailureResult("Not Implemented");
+            Dictionary<string, object> result = new Dictionary<string, object>();
+            m_PluginManager.ListAvailable(out result);
+            string json = LitJson.JsonMapper.ToJson(result);
+            return Ux.DocToBytes(json);
         }
 
         public byte[] HandleWebInstallPlugin (OSDMap request)

@@ -133,33 +133,37 @@ namespace OpenSim.Services.IntegrationService
                 r["name"] = addin.LocalId;
                 r["version"] = addin.Version;
 
-                res.Add(count.ToString(), r);
+                result.Add(count.ToString(), r);
 
                 count++;
             }
-
             result = res;
             return;
         }
 
         // List compatible plugins in registered repositories
-        public ArrayList ListAvailable()
+        public void ListAvailable(out Dictionary<string, object> result)
         {
+            Dictionary<string, object> res = new Dictionary<string, object>();
+
             AddinRepositoryEntry[] addins = GetSortedAvailbleAddins();
-            ArrayList list = new ArrayList();
 
             int count = 0;
             foreach (AddinRepositoryEntry addin in addins)
             {
-                StringBuilder sb = new StringBuilder();
-                sb.Append(String.Format("{0}) {1} rev. {2}, repo {3}", count.ToString(), addin.Addin.Name, addin.Addin.Version, addin.RepositoryName));
-                list.Add(sb.ToString());
+                Dictionary<string, object> r = new Dictionary<string, object>();
+                r["name"] = addin.Addin.Name;
+                r["version"] = addin.Addin.Version;
+                r["repository"] = addin.RepositoryName;
+
+                res.Add(count.ToString(), r);
                 count++;
             }
-            return list;
+            result = res;
+            return;
         }
 
-        // List available updates
+        // List available updates ** 1
         public void ListUpdates()
         {
             IProgressStatus ps = new ConsoleProgressStatus(true);
@@ -265,25 +269,30 @@ namespace OpenSim.Services.IntegrationService
         }
 
         // List registered repositories
-        public ArrayList ListRepositories()
+        public void ListRepositories(out Dictionary<string, object> result)
         {
-            AddinRepository[] reps = Repositories.GetRepositories();
-            Array.Sort (reps, (r1,r2) => r1.Title.CompareTo(r2.Title));
+            Dictionary<string, object> res = new Dictionary<string, object>();
+            result = res;
+
+            AddinRepository[] reps = GetSortedAddinRepo();
             if (reps.Length == 0)
             {
                 MainConsole.Instance.Output("No repositories have been registered.");
-                return null;
+                return;
             }
 
-            ArrayList list = new ArrayList();
-
-            int n = 0;
+            int count = 0;
             foreach (AddinRepository rep in reps)
             {
-                list.Add(String.Format("{0}) {1} {2} {3}",n.ToString(), rep.Enabled == true ? "[ ]" : "[X]", rep.Name, rep.Url));
-                n++;
+                Dictionary<string, object> r = new Dictionary<string, object>();
+                r["enabled"] = rep.Enabled == true ? true : false;
+                r["name"] = rep.Name;
+                r["url"] = rep.Url;
+                
+                res.Add(count.ToString(), r);
+                count++;
             }
-            return list;
+            return;
         }
 
         public void UpdateRegistry()
@@ -418,5 +427,9 @@ namespace OpenSim.Services.IntegrationService
             return addins;
         }
         #endregion Util
+
+        #region Notes
+        // ** 1 Not working
+        #endregion Notes
     }
 }

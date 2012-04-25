@@ -253,7 +253,9 @@ namespace OpenSim.Framework
                                      reqnum,url,method,tickdiff,tickdata);
             }
            
-	        m_log.DebugFormat("[WEB UTIL]: <{0}> osd request for {1}, method {2} FAILED: {3}", reqnum, url, method, errorMessage); 
+            m_log.DebugFormat(
+                "[WEB UTIL]: <{0}> osd request for {1}, method {2} FAILED: {3}", reqnum, url, method, errorMessage);
+
             return ErrorResponseMap(errorMessage);
         }
 
@@ -382,7 +384,8 @@ namespace OpenSim.Framework
                                      reqnum,url,method,tickdiff,tickdata);
             }
 
-            m_log.WarnFormat("[WEB UTIL]: <{0}> form request failed: {1}",reqnum,errorMessage);
+            m_log.WarnFormat("[WEB UTIL]: <{0}> form request to {1} failed: {2}", reqnum, url, errorMessage);
+
             return ErrorResponseMap(errorMessage);
         }
 
@@ -789,12 +792,16 @@ namespace OpenSim.Framework
                     }
                     else
                     {
-                        m_log.ErrorFormat("[ASYNC REQUEST]: Request {0} {1} failed with status {2} and message {3}", verb, requestUrl, e.Status, e.Message);
+                        m_log.ErrorFormat(
+                            "[ASYNC REQUEST]: Request {0} {1} failed with status {2} and message {3}",
+                            verb, requestUrl, e.Status, e.Message);
                     }
                 }
                 catch (Exception e)
                 {
-                    m_log.ErrorFormat("[ASYNC REQUEST]: Request {0} {1} failed with exception {2}", verb, requestUrl, e);
+                    m_log.ErrorFormat(
+                        "[ASYNC REQUEST]: Request {0} {1} failed with exception {2}{3}",
+                        verb, requestUrl, e.Message, e.StackTrace);
                 }
 
                 //  m_log.DebugFormat("[ASYNC REQUEST]: Received {0}", deserial.ToString());
@@ -806,7 +813,8 @@ namespace OpenSim.Framework
                 catch (Exception e)
                 {
                     m_log.ErrorFormat(
-                        "[ASYNC REQUEST]: Request {0} {1} callback failed with exception {2}", verb, requestUrl, e);
+                        "[ASYNC REQUEST]: Request {0} {1} callback failed with exception {2}{3}",
+                        verb, requestUrl, e.Message, e.StackTrace);
                 }
 
             }, null);
@@ -859,7 +867,8 @@ namespace OpenSim.Framework
                     }
                     catch (Exception e)
                     {
-                        m_log.DebugFormat("[FORMS]: exception occured on sending request to {0}: " + e.ToString(), requestUrl);
+                        m_log.DebugFormat(
+                            "[FORMS]: exception occured {0} {1}: {2}{3}", verb, requestUrl, e.Message, e.StackTrace);
                     }
                     finally
                     {
@@ -885,7 +894,9 @@ namespace OpenSim.Framework
                             }
                             catch (Exception e)
                             {
-                                m_log.DebugFormat("[FORMS]: exception occured on receiving reply " + e.ToString());
+                                m_log.DebugFormat(
+                                    "[FORMS]: Exception occured on receiving {0} {1}: {2}{3}",
+                                    verb, requestUrl, e.Message, e.StackTrace);
                             }
                             finally
                             {
@@ -898,7 +909,7 @@ namespace OpenSim.Framework
                 catch (System.InvalidOperationException)
                 {
                     // This is what happens when there is invalid XML
-                    m_log.DebugFormat("[FORMS]: InvalidOperationException on receiving request");
+                    m_log.DebugFormat("[FORMS]: InvalidOperationException on receiving {0} {1}", verb, requestUrl);
                 }
             }
             return respstring;
@@ -956,7 +967,10 @@ namespace OpenSim.Framework
                 }
                 catch (Exception e)
                 {
-                    m_log.DebugFormat("[SynchronousRestObjectRequester]: exception in sending data to {0}: {1}", requestUrl, e); 
+                    m_log.DebugFormat(
+                        "[SynchronousRestObjectRequester]: Exception in making request {0} {1}: {2}{3}",
+                        verb, requestUrl, e.Message, e.StackTrace);
+
                     return deserial;
                 }
                 finally
@@ -978,7 +992,11 @@ namespace OpenSim.Framework
                         respStream.Close();
                     }
                     else
-                        m_log.DebugFormat("[SynchronousRestObjectRequester]: Oops! no content found in response stream from {0} {1}", requestUrl, verb);
+                    {
+                        m_log.DebugFormat(
+                            "[SynchronousRestObjectRequester]: Oops! no content found in response stream from {0} {1}",
+                            verb, requestUrl);
+                    }
                 }
             }
             catch (WebException e)
@@ -989,17 +1007,21 @@ namespace OpenSim.Framework
                     return deserial;
                 else
                     m_log.ErrorFormat(
-                        "[SynchronousRestObjectRequester]: WebException {0} {1} {2} {3}",
-                        requestUrl, typeof(TResponse).ToString(), e.Message, e.StackTrace);
+                        "[SynchronousRestObjectRequester]: WebException for {0} {1} {2}: {3} {4}",
+                        verb, requestUrl, typeof(TResponse).ToString(), e.Message, e.StackTrace);
             }
             catch (System.InvalidOperationException)
             {
                 // This is what happens when there is invalid XML
-                m_log.DebugFormat("[SynchronousRestObjectRequester]: Invalid XML {0} {1}", requestUrl, typeof(TResponse).ToString());
+                m_log.DebugFormat(
+                    "[SynchronousRestObjectRequester]: Invalid XML from {0} {1} {2}",
+                    verb, requestUrl, typeof(TResponse).ToString());
             }
             catch (Exception e)
             {
-                m_log.DebugFormat("[SynchronousRestObjectRequester]: Exception on response from {0} {1}", requestUrl, e);
+                m_log.DebugFormat(
+                    "[SynchronousRestObjectRequester]: Exception on response from {0} {1}: {2}{3}",
+                    verb, requestUrl, e.Message, e.StackTrace);
             }
 
             return deserial;

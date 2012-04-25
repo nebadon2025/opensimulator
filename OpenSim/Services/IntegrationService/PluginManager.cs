@@ -133,7 +133,7 @@ namespace OpenSim.Services.IntegrationService
                 r["name"] = addin.LocalId;
                 r["version"] = addin.Version;
 
-                result.Add(count.ToString(), r);
+                res.Add(count.ToString(), r);
 
                 count++;
             }

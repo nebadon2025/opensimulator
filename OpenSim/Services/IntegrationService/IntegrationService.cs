@@ -192,7 +192,8 @@ namespace OpenSim.Services.IntegrationService
             {
                 // name, version, repository
                 Dictionary<string, object> plugin = (Dictionary<string, object>)result[k];
-                MainConsole.Instance.OutputFormat("{0} rev. {1} {2}",
+                MainConsole.Instance.OutputFormat("{0}) {1} rev. {2} {3}",
+                                                  k,
                                                   plugin["name"],
                                                   plugin["version"],
                                                   plugin["repository"]);

@@ -236,7 +236,9 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                             sp.ControllingClient.SendTeleportFailed("Problem at destination");
                             return;
                         }
-                        
+
+                        destinationRegionName = finalDestination.RegionName;
+
                         uint curX = 0, curY = 0;
                         Utils.LongToUInts(sp.Scene.RegionInfo.RegionHandle, out curX, out curY);
                         int curCellX = (int)(curX / Constants.RegionSize);
@@ -407,7 +409,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                 bool logout = false;
                 if (!CreateAgent(sp, reg, finalDestination, agentCircuit, teleportFlags, out reason, out logout))
                 {
-                    sp.ControllingClient.SendTeleportFailed(String.Format("Destination refused: {0}",
+                    sp.ControllingClient.SendTeleportFailed(String.Format("Teleport refused: {0}",
                                                                               reason));
                     return;
                 }

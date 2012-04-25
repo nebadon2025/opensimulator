@@ -192,7 +192,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                         m_log.WarnFormat(
                             "[ENTITY TRANSFER MODULE]: RequestTeleportToLocation() was given an illegal position of {0} for avatar {1}, {2}.  Substituting {3}",
                             position, sp.Name, sp.UUID, emergencyPos);
-                        
+
                         position = emergencyPos;
                     }
 
@@ -215,6 +215,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                     sp.ControllingClient.SendTeleportStart(teleportFlags);
 
                     sp.ControllingClient.SendLocalTeleport(position, lookAt, teleportFlags);
+                    sp.Velocity = Vector3.Zero;
                     sp.Teleport(position);
 
                     foreach (SceneObjectGroup grp in sp.GetAttachments())

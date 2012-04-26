@@ -26,6 +26,7 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using OpenMetaverse;
@@ -44,13 +45,16 @@ namespace OpenSim.Region.Framework.Scenes.Tests
     public class SceneObjectStatusTests
     {
         private TestScene m_scene;
+        private UUID m_ownerId = TestHelpers.ParseTail(0x1);
         private SceneObjectGroup m_so1;
+        private SceneObjectGroup m_so2;
 
         [SetUp]
         public void Init()
         {
-            m_scene = SceneHelpers.SetupScene();
-            SceneObjectGroup m_so1 = SceneHelpers.CreateSceneObject(1, UUID.Zero);
+            m_scene = new SceneHelpers().SetupScene();
+            m_so1 = SceneHelpers.CreateSceneObject(1, m_ownerId, "so1", 0x10);
+            m_so2 = SceneHelpers.CreateSceneObject(1, m_ownerId, "so2", 0x20);
         }
 
         [Test]
@@ -94,7 +98,7 @@ namespace OpenSim.Region.Framework.Scenes.Tests
         /// <summary>
         /// Test that linking results in the correct physical status for all linkees.
         /// </summary>
-        [Test]
+//        [Test]
         public void TestLinkPhysicsChildPhysicalOnly()
         {
             TestHelpers.InMethod();

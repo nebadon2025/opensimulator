@@ -133,12 +133,41 @@ namespace OpenSim.Services.IntegrationService
         // Handle our console commands
         //
         // Install plugin from registered repository
+        /// <summary>
+        /// Handles the console install plugin command. Attempts to install the selected plugin
+        /// and 
+        /// </summary>
+        /// <param name='module'>
+        /// Module.
+        /// </param>
+        /// <param name='cmd'>
+        /// Cmd.
+        /// </param>
         private void HandleConsoleInstallPlugin(string module, string[] cmd)
         {
+            Dictionary<string, object> result = new Dictionary<string, object>();
+
             if (cmd.Length == 2)
             {
                 int ndx = Convert.ToInt16(cmd[1]);
-                MainConsole.Instance.Output(m_PluginManager.InstallPlugin(ndx));
+                if (m_PluginManager.InstallPlugin(ndx, out result) == true)
+                {
+                    ArrayList s = new ArrayList();
+                    s.AddRange(result.Keys);
+                    s.Sort();
+
+                    var list = result.Keys.ToList();
+                    list.Sort();
+                    foreach (var k in list)
+                    {
+                        Dictionary<string, object> plugin = (Dictionary<string, object>)result[k];
+                        bool enabled = (bool)plugin["enabled"];
+                        MainConsole.Instance.OutputFormat("{0}) {1} {2} rev. {3}",
+                                                  k,
+                                                  enabled == true ? "[ ]" : "[X]",
+                                                  plugin["name"], plugin["version"]);
+                    }
+                }
             }
             return;
         }
@@ -287,11 +316,11 @@ namespace OpenSim.Services.IntegrationService
             {
                 
                 Dictionary<string, object> result = new Dictionary<string, object>();
-                
+
                 int ndx = Convert.ToInt16(cmd[2]);
                 m_PluginManager.AddinInfo(ndx, out result);
 
-                MainConsole.Instance.OutputFormat("Name: {0}\nURL: {1}\n{2}\n{3}",
+                MainConsole.Instance.OutputFormat("Name: {0}\nURL: {1}\nFile: {2}\nAuthor: {3}\nCategory: {4}\nDesc: {5}",
                                                   result["name"],
                                                   result["url"],
                                                   result["file_name"],
@@ -380,9 +409,19 @@ namespace OpenSim.Services.IntegrationService
             return Ux.DocToBytes(json);
         }
 
-        public byte[] HandleWebInstallPlugin (OSDMap request)
+        public byte[] HandleWebInstallPlugin(OSDMap request)
         {
-            return Ux.FailureResult("Not Implemented");
+            Dictionary<string, object> result = new Dictionary<string, object>();
+            int ndx = Convert.ToInt16(request["index"].ToString());
+            if (m_PluginManager.InstallPlugin(ndx, out result) == true)
+            {
+                string json = LitJson.JsonMapper.ToJson(result);
+                return Ux.DocToBytes(json);
+            }
+            else
+            {
+                return Ux.FailureResult("No index supplied");
+            }
         }
 
         public byte[] HandleWebUnInstallPlugin (OSDMap request)

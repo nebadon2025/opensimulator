@@ -65,8 +65,10 @@ namespace OpenSim.Services.IntegrationService
         /// <param name='args'>
         /// Arguments.
         /// </param>
-        public string InstallPlugin(int ndx)
+        public bool InstallPlugin(int ndx, out Dictionary<string, object> result)
         {
+            Dictionary<string, object> res = new Dictionary<string, object>();
+
             PackageCollection pack = new PackageCollection();
             PackageCollection toUninstall;
             DependencyCollection unresolved;
@@ -78,7 +80,8 @@ namespace OpenSim.Services.IntegrationService
             if (ndx > (available.Length - 1))
             {
                 MainConsole.Instance.Output("Selection out of range");
-                return "Error";
+                result = res;
+                return false;
             }
 
             AddinRepositoryEntry aentry = available[ndx];
@@ -95,11 +98,14 @@ namespace OpenSim.Services.IntegrationService
                 Addin addin = m_Registry.GetAddin(aentry.Addin.Id);
                 m_Registry.DisableAddin(addin.Id);
                 addin.Enabled = false;
-                return "Install";
-            }
+                ListInstalledAddins(out res);
+                result = res;
+                return true;
+            } 
             else
             {
-                return "Bomb";
+                result = res;
+                return false;
             }
         }
 
@@ -410,12 +416,7 @@ namespace OpenSim.Services.IntegrationService
             res["url"] = addin.Description.Url;
             res["file_name"] = addin.Description.FileName;
 
-//            MainConsole.Instance.OutputFormat("Name: {0}\nURL: {1}\n{2}",
-//                                              addin.Name, addin.Description.Url,
-//                                              addin.Description.FileName);
-
             result = res;
-
             return true;
         }
 

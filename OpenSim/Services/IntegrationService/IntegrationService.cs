@@ -135,7 +135,11 @@ namespace OpenSim.Services.IntegrationService
         // Install plugin from registered repository
         private void HandleConsoleInstallPlugin(string module, string[] cmd)
         {
-            MainConsole.Instance.Output(m_PluginManager.InstallPlugin(cmd));
+            if (cmd.Length == 2)
+            {
+                int ndx = Convert.ToInt16(cmd[1]);
+                MainConsole.Instance.Output(m_PluginManager.InstallPlugin(ndx));
+            }
             return;
         }
 
@@ -144,7 +148,8 @@ namespace OpenSim.Services.IntegrationService
         {
             if (cmd.Length == 2)
             {
-                m_PluginManager.UnInstall(cmd);
+                int ndx = Convert.ToInt16(cmd[1]);
+                m_PluginManager.UnInstall(ndx);
             }
             return;
         }
@@ -220,7 +225,7 @@ namespace OpenSim.Services.IntegrationService
         {
             if ( cmd.Length == 3)
             {
-                m_PluginManager.AddRepository(cmd);
+                m_PluginManager.AddRepository(cmd[2]);
             }
             return;
         }
@@ -271,9 +276,6 @@ namespace OpenSim.Services.IntegrationService
                                                   enabled == true ? "[ ]" : "[X]",
                                                   repo["name"], repo["url"]);
             }
-            //ArrayList list = m_PluginManager.ListRepositories();
-            //foreach (string entry in list)
-            //    MainConsole.Instance.Output(entry);
 
             return;
         }
@@ -281,9 +283,22 @@ namespace OpenSim.Services.IntegrationService
         // Show description information
         private void HandleConsoleShowAddinInfo(string module, string[] cmd)
         {
-            if ( cmd.Length >= 3 )
+            if (cmd.Length >= 3)
             {
-                m_PluginManager.AddinInfo(cmd);
+                
+                Dictionary<string, object> result = new Dictionary<string, object>();
+                
+                int ndx = Convert.ToInt16(cmd[2]);
+                m_PluginManager.AddinInfo(ndx, out result);
+
+                MainConsole.Instance.OutputFormat("Name: {0}\nURL: {1}\n{2}\n{3}",
+                                                  result["name"],
+                                                  result["url"],
+                                                  result["file_name"],
+                                                  result["author"],
+                                                  result["category"],
+                                                  result["description"]);
+
                 return;
             }
         }
@@ -340,9 +355,21 @@ namespace OpenSim.Services.IntegrationService
             return Ux.DocToBytes(json);
         }
 
-        public byte[] HandleWebPluginInfo (OSDMap request)
+        public byte[] HandleWebPluginInfo(OSDMap request)
         {
-            return Ux.FailureResult("Not Implemented");
+            Dictionary<string, object> result = new Dictionary<string, object>();
+
+            if(!String.IsNullOrEmpty(request["index"].ToString()))
+            {
+                int ndx = Convert.ToInt16(request["index"].ToString());
+                m_PluginManager.AddinInfo(ndx, out result);
+                string json = LitJson.JsonMapper.ToJson(result);
+                return Ux.DocToBytes(json);
+            }
+            else
+            {
+                return Ux.FailureResult("No index supplied");
+            }
         }
 
         public byte[] HandleWebListAvailablePlugins(OSDMap request)

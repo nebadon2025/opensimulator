@@ -75,7 +75,7 @@ namespace OpenSim.Server.Handlers.Integration
                     return FailureResult("Error, no command defined!");
                 }
 
-                string command = request["command"].AsString ();
+                string command = request["command"].AsString();
 
                 switch (command)
                 {
@@ -84,6 +84,9 @@ namespace OpenSim.Server.Handlers.Integration
 
                     case "list_available":
                         return HandleListAvailablePlugins(request);
+
+                    case "show_info":
+                        return  HandlePluginInfo(request);
 
                     case "install_plugin":
                         return HandleInstallPlugin(request);

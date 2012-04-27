@@ -44,13 +44,28 @@ namespace OpenSim.Services.IntegrationService
     {
         protected AddinRegistry m_Registry;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="OpenSim.Services.IntegrationService.PluginManager"/> class.
+        /// </summary>
+        /// <param name='r'>
+        /// R.
+        /// </param>
         internal PluginManager( AddinRegistry r): base (r)
         {
             m_Registry = r;
             m_Registry.Update();
         }
 
-        public string InstallPlugin(string[] args)
+        /// <summary>
+        /// Installs the plugin.
+        /// </summary>
+        /// <returns>
+        /// The plugin.
+        /// </returns>
+        /// <param name='args'>
+        /// Arguments.
+        /// </param>
+        public string InstallPlugin(int ndx)
         {
             PackageCollection pack = new PackageCollection();
             PackageCollection toUninstall;
@@ -58,19 +73,15 @@ namespace OpenSim.Services.IntegrationService
 
             IProgressStatus ps = new ConsoleProgressStatus(false);
 
-            string name = Addin.GetIdName(args[1]);
-            string version = Addin.GetIdVersion(args[1]);
-
             AddinRepositoryEntry[] available = GetSortedAvailbleAddins();
 
-            int n = Convert.ToInt16(args[1]);
-            if (n > (available.Length - 1))
+            if (ndx > (available.Length - 1))
             {
                 MainConsole.Instance.Output("Selection out of range");
                 return "Error";
             }
 
-            AddinRepositoryEntry aentry = available[n];
+            AddinRepositoryEntry aentry = available[ndx];
 
             Package p = Package.FromRepository(aentry);
             pack.Add(p);
@@ -93,18 +104,23 @@ namespace OpenSim.Services.IntegrationService
         }
 
         // Remove plugin
-        public void UnInstall(string[] args)
+        /// <summary>
+        /// Uns the install.
+        /// </summary>
+        /// <param name='args'>
+        /// Arguments.
+        /// </param>
+        public void UnInstall(int ndx)
         {
             Addin[] addins = GetSortedAddinList("IntegrationPlugin");
 
-            int n = Convert.ToInt16(args[1]);
-            if (n > (addins.Length -1))
+            if (ndx > (addins.Length -1))
             {
                 MainConsole.Instance.Output("Selection out of range");
                 return;
             }
 
-            Addin addin = addins[n];
+            Addin addin = addins[ndx];
             MainConsole.Instance.OutputFormat("Uninstalling plugin {0}", addin.Id);
             AddinManager.Registry.DisableAddin(addin.Id);
             addin.Enabled = false;
@@ -113,12 +129,23 @@ namespace OpenSim.Services.IntegrationService
             return;
         }
 
+        /// <summary>
+        /// Checks the installed.
+        /// </summary>
+        /// <returns>
+        /// The installed.
+        /// </returns>
         public string CheckInstalled()
         {
             return "CheckInstall";
         }
 
-        // List instaled addins
+        /// <summary>
+        /// Lists the installed addins.
+        /// </summary>
+        /// <param name='result'>
+        /// Result.
+        /// </param>
         public void ListInstalledAddins(out Dictionary<string, object> result)
         {
             Dictionary<string, object> res = new Dictionary<string, object>();
@@ -142,6 +169,12 @@ namespace OpenSim.Services.IntegrationService
         }
 
         // List compatible plugins in registered repositories
+        /// <summary>
+        /// Lists the available.
+        /// </summary>
+        /// <param name='result'>
+        /// Result.
+        /// </param>
         public void ListAvailable(out Dictionary<string, object> result)
         {
             Dictionary<string, object> res = new Dictionary<string, object>();
@@ -164,6 +197,9 @@ namespace OpenSim.Services.IntegrationService
         }
 
         // List available updates ** 1
+        /// <summary>
+        /// Lists the updates.
+        /// </summary>
         public void ListUpdates()
         {
             IProgressStatus ps = new ConsoleProgressStatus(true);
@@ -180,6 +216,9 @@ namespace OpenSim.Services.IntegrationService
         }
 
         // Sync to repositories
+        /// <summary>
+        /// Update this instance.
+        /// </summary>
         public string Update()
         {
             IProgressStatus ps = new ConsoleProgressStatus(true);
@@ -188,18 +227,36 @@ namespace OpenSim.Services.IntegrationService
         }
 
         // Register a repository
-        public string AddRepository(string[] args)
+        /// <summary>
+        /// Register a repository with our server.
+        /// </summary>
+        /// <returns>
+        /// result of the action
+        /// </returns>
+        /// <param name='repo'>
+        /// The URL of the repository we want to add
+        /// </param>
+        public bool AddRepository(string repo)
         {
-            Repositories.RegisterRepository(null, args[2].ToString(), true);
-            return "AddRepository";
+            Repositories.RegisterRepository(null, repo, true);
+            return true;
         }
 
+        /// <summary>
+        /// Gets the repository.
+        /// </summary>
         public void GetRepository()
         {
             Repositories.UpdateAllRepositories(new ConsoleProgressStatus(false));
         }
 
         // Remove a repository from the list
+        /// <summary>
+        /// Removes the repository.
+        /// </summary>
+        /// <param name='args'>
+        /// Arguments.
+        /// </param>
         public void RemoveRepository(string[] args)
         {
             AddinRepository[] reps = Repositories.GetRepositories();
@@ -223,6 +280,12 @@ namespace OpenSim.Services.IntegrationService
         }
 
         // Enable repository
+        /// <summary>
+        /// Enables the repository.
+        /// </summary>
+        /// <param name='args'>
+        /// Arguments.
+        /// </param>
         public void EnableRepository(string[] args)
         {
             AddinRepository[] reps = Repositories.GetRepositories();
@@ -246,6 +309,12 @@ namespace OpenSim.Services.IntegrationService
         }
 
         // Disable a repository
+        /// <summary>
+        /// Disables the repository.
+        /// </summary>
+        /// <param name='args'>
+        /// Arguments.
+        /// </param>
         public void DisableRepository(string[] args)
         {
             AddinRepository[] reps = Repositories.GetRepositories();
@@ -269,6 +338,12 @@ namespace OpenSim.Services.IntegrationService
         }
 
         // List registered repositories
+        /// <summary>
+        /// Lists the repositories.
+        /// </summary>
+        /// <param name='result'>
+        /// Result.
+        /// </param>
         public void ListRepositories(out Dictionary<string, object> result)
         {
             Dictionary<string, object> res = new Dictionary<string, object>();
@@ -295,32 +370,62 @@ namespace OpenSim.Services.IntegrationService
             return;
         }
 
+        /// <summary>
+        /// Updates the registry.
+        /// </summary>
         public void UpdateRegistry()
         {
             m_Registry.Update();
         }
 
         // Show plugin info
-        public string AddinInfo(string[] args)
+        /// <summary>
+        /// Addins the info.
+        /// </summary>
+        /// <returns>
+        /// The info.
+        /// </returns>
+        /// <param name='args'>
+        /// Arguments.
+        /// </param>
+        public bool AddinInfo(int ndx, out Dictionary<string, object> result)
         {
+            Dictionary<string, object> res = new Dictionary<string, object>();
+            result = res;
+
             Addin[] addins = GetSortedAddinList("IntegrationPlugin");
 
-            int n = Convert.ToInt16(args[2]);
-            if (n > (addins.Length -1))
+            if (ndx > (addins.Length - 1))
             {
                 MainConsole.Instance.Output("Selection out of range");
-                return "XXX";
+                return false;
             }
+            // author category description
+            Addin addin = addins[ndx];
 
-            Addin addin = addins[n];
-            MainConsole.Instance.OutputFormat("Name: {0}\nURL: {1}\n{2}",
-                                              addin.Name, addin.Description.Url,
-                                              addin.Description.FileName);
+            res["author"] = addin.Description.Author;
+            res["category"] = addin.Description.Category;
+            res["description"] = addin.Description.Description;
+            res["name"] = addin.Name;
+            res["url"] = addin.Description.Url;
+            res["file_name"] = addin.Description.FileName;
 
-            return "AddinInfo";
+//            MainConsole.Instance.OutputFormat("Name: {0}\nURL: {1}\n{2}",
+//                                              addin.Name, addin.Description.Url,
+//                                              addin.Description.FileName);
+
+            result = res;
+
+            return true;
         }
 
         // Disable a plugin
+        /// <summary>
+        /// Disables the plugin.
+        /// </summary>
+        /// <param name='args'>
+        /// Arguments.
+        /// </param>
         public void DisablePlugin(string[] args)
         {
             Addin[] addins = GetSortedAddinList("IntegrationPlugin");
@@ -339,6 +444,12 @@ namespace OpenSim.Services.IntegrationService
         }
 
         // Enable plugin
+        /// <summary>
+        /// Enables the plugin.
+        /// </summary>
+        /// <param name='args'>
+        /// Arguments.
+        /// </param>
         public void EnablePlugin(string[] args)
         {
             Addin[] addins = GetSortedAddinList("IntegrationPlugin");

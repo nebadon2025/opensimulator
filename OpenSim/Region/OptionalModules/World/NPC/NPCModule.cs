@@ -157,7 +157,7 @@ namespace OpenSim.Region.OptionalModules.World.NPC
 
                     sp.CompleteMovement(npcAvatar, false);
                     m_avatars.Add(npcAvatar.AgentId, npcAvatar);
-                    m_log.DebugFormat("[NPC MODULE]: Created NPC with id {0}", npcAvatar.AgentId);
+                    m_log.DebugFormat("[NPC MODULE]: Created NPC {0} {1}", npcAvatar.AgentId, sp.Name);
 
                     return npcAvatar.AgentId;
                 }
@@ -212,6 +212,11 @@ namespace OpenSim.Region.OptionalModules.World.NPC
 
         public bool Say(UUID agentID, Scene scene, string text)
         {
+            return Say(agentID, scene, text, 0);
+        }
+
+        public bool Say(UUID agentID, Scene scene, string text, int channel)
+        {
             lock (m_avatars)
             {
                 if (m_avatars.ContainsKey(agentID))
@@ -219,7 +224,25 @@ namespace OpenSim.Region.OptionalModules.World.NPC
                     ScenePresence sp;
                     scene.TryGetScenePresence(agentID, out sp);
 
-                    m_avatars[agentID].Say(text);
+                    m_avatars[agentID].Say(channel, text);
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool Shout(UUID agentID, Scene scene, string text, int channel)
+        {
+            lock (m_avatars)
+            {
+                if (m_avatars.ContainsKey(agentID))
+                {
+                    ScenePresence sp;
+                    scene.TryGetScenePresence(agentID, out sp);
+
+                    m_avatars[agentID].Shout(channel, text);
 
                     return true;
                 }
@@ -238,6 +261,24 @@ namespace OpenSim.Region.OptionalModules.World.NPC
                     scene.TryGetScenePresence(agentID, out sp);
                     sp.HandleAgentRequestSit(m_avatars[agentID], agentID, partID, Vector3.Zero);
 //                    sp.HandleAgentSit(m_avatars[agentID], agentID);
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool Whisper(UUID agentID, Scene scene, string text, int channel)
+        {
+            lock (m_avatars)
+            {
+                if (m_avatars.ContainsKey(agentID))
+                {
+                    ScenePresence sp;
+                    scene.TryGetScenePresence(agentID, out sp);
+
+                    m_avatars[agentID].Whisper(channel, text);
 
                     return true;
                 }
@@ -299,7 +340,7 @@ namespace OpenSim.Region.OptionalModules.World.NPC
                     scene.RemoveClient(agentID, false);
                     m_avatars.Remove(agentID);
 
-//                    m_log.DebugFormat("[NPC MODULE]: Removed {0} {1}", agentID, av.Name);
+                    m_log.DebugFormat("[NPC MODULE]: Removed NPC {0} {1}", agentID, av.Name);
                     return true;
                 }
             }

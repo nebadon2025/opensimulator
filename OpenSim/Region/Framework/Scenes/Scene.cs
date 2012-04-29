@@ -103,6 +103,7 @@ namespace OpenSim.Region.Framework.Scenes
         public bool m_trustBinaries;
         public bool m_allowScriptCrossings;
         public bool m_useFlySlow;
+        public bool m_useTrashOnDelete = true;
 
         /// <summary>
         /// Temporarily setting to trigger appearance resends at 60 second intervals.
@@ -436,6 +437,7 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (m_simulationService == null)
                     m_simulationService = RequestModuleInterface<ISimulationService>();
+
                 return m_simulationService;
             }
         }
@@ -684,8 +686,8 @@ namespace OpenSim.Region.Framework.Scenes
                 //Animation states
                 m_useFlySlow = startupConfig.GetBoolean("enableflyslow", false);
 
-                PhysicalPrims = startupConfig.GetBoolean("physical_prim", true);
-                CollidablePrims = startupConfig.GetBoolean("collidable_prim", true);
+                PhysicalPrims = startupConfig.GetBoolean("physical_prim", PhysicalPrims);
+                CollidablePrims = startupConfig.GetBoolean("collidable_prim", CollidablePrims);
 
                 m_maxNonphys = startupConfig.GetFloat("NonphysicalPrimMax", m_maxNonphys);
                 if (RegionInfo.NonphysPrimMax > 0)
@@ -709,6 +711,7 @@ namespace OpenSim.Region.Framework.Scenes
                     m_clampPrimSize = true;
                 }
 
+                m_useTrashOnDelete = startupConfig.GetBoolean("UseTrashOnDelete",m_useTrashOnDelete);
                 m_trustBinaries = startupConfig.GetBoolean("TrustBinaries", m_trustBinaries);
                 m_allowScriptCrossings = startupConfig.GetBoolean("AllowScriptCrossing", m_allowScriptCrossings);
                 m_dontPersistBefore =
@@ -831,13 +834,11 @@ namespace OpenSim.Region.Framework.Scenes
             StatsReporter.OnStatsIncorrect += m_sceneGraph.RecalculateStats;
         }
 
-        /// <summary>
-        /// Mock constructor for scene group persistency unit tests.
-        /// SceneObjectGroup RegionId property is delegated to Scene.
-        /// </summary>
-        /// <param name="regInfo"></param>
         public Scene(RegionInfo regInfo)
         {
+            PhysicalPrims = true;
+            CollidablePrims = true;
+
             BordersLocked = true;
             Border northBorder = new Border();
             northBorder.BorderLine = new Vector3(float.MinValue, float.MaxValue, (int)Constants.RegionSize);  //<---
@@ -864,8 +865,6 @@ namespace OpenSim.Region.Framework.Scenes
             m_eventManager = new EventManager();
 
             m_permissions = new ScenePermissions(this);
-
-//            m_lastUpdate = Util.EnvironmentTickCount();
         }
 
         #endregion
@@ -3250,8 +3249,8 @@ namespace OpenSim.Region.Framework.Scenes
                 try
                 {
                     m_log.DebugFormat(
-                        "[SCENE]: Removing {0} agent {1} from region {2}",
-                        (isChildAgent ? "child" : "root"), agentID, RegionInfo.RegionName);
+                        "[SCENE]: Removing {0} agent {1} {2} from region {3}",
+                        (isChildAgent ? "child" : "root"), avatar.Name, agentID, RegionInfo.RegionName);
 
                     m_sceneGraph.removeUserCount(!isChildAgent);
 
@@ -3829,41 +3828,41 @@ namespace OpenSim.Region.Framework.Scenes
             return m_authenticateHandler.TryChangeCiruitCode(oldcc, newcc);
         }
 
-        /// <summary>
-        /// The Grid has requested that we log-off a user.  Log them off.
-        /// </summary>
-        /// <param name="AvatarID">Unique ID of the avatar to log-off</param>
-        /// <param name="RegionSecret">SecureSessionID of the user, or the RegionSecret text when logging on to the grid</param>
-        /// <param name="message">message to display to the user.  Reason for being logged off</param>
-        public void HandleLogOffUserFromGrid(UUID AvatarID, UUID RegionSecret, string message)
-        {
-            ScenePresence loggingOffUser = GetScenePresence(AvatarID);
-            if (loggingOffUser != null)
-            {
-                UUID localRegionSecret = UUID.Zero;
-                bool parsedsecret = UUID.TryParse(m_regInfo.regionSecret, out localRegionSecret);
-
-                // Region Secret is used here in case a new sessionid overwrites an old one on the user server.
-                // Will update the user server in a few revisions to use it.
-
-                if (RegionSecret == loggingOffUser.ControllingClient.SecureSessionId || (parsedsecret && RegionSecret == localRegionSecret))
-                {
-                    m_sceneGridService.SendCloseChildAgentConnections(loggingOffUser.UUID, loggingOffUser.KnownRegionHandles);
-                    loggingOffUser.ControllingClient.Kick(message);
-                    // Give them a second to receive the message!
-                    Thread.Sleep(1000);
-                    loggingOffUser.ControllingClient.Close();
-                }
-                else
-                {
-                    m_log.Info("[USERLOGOFF]: System sending the LogOff user message failed to sucessfully authenticate");
-                }
-            }
-            else
-            {
-                m_log.InfoFormat("[USERLOGOFF]: Got a logoff request for {0} but the user isn't here.  The user might already have been logged out", AvatarID.ToString());
-            }
-        }
+//        /// <summary>
+//        /// The Grid has requested that we log-off a user.  Log them off.
+//        /// </summary>
+//        /// <param name="AvatarID">Unique ID of the avatar to log-off</param>
+//        /// <param name="RegionSecret">SecureSessionID of the user, or the RegionSecret text when logging on to the grid</param>
+//        /// <param name="message">message to display to the user.  Reason for being logged off</param>
+//        public void HandleLogOffUserFromGrid(UUID AvatarID, UUID RegionSecret, string message)
+//        {
+//            ScenePresence loggingOffUser = GetScenePresence(AvatarID);
+//            if (loggingOffUser != null)
+//            {
+//                UUID localRegionSecret = UUID.Zero;
+//                bool parsedsecret = UUID.TryParse(m_regInfo.regionSecret, out localRegionSecret);
+//
+//                // Region Secret is used here in case a new sessionid overwrites an old one on the user server.
+//                // Will update the user server in a few revisions to use it.
+//
+//                if (RegionSecret == loggingOffUser.ControllingClient.SecureSessionId || (parsedsecret && RegionSecret == localRegionSecret))
+//                {
+//                    m_sceneGridService.SendCloseChildAgentConnections(loggingOffUser.UUID, loggingOffUser.KnownRegionHandles);
+//                    loggingOffUser.ControllingClient.Kick(message);
+//                    // Give them a second to receive the message!
+//                    Thread.Sleep(1000);
+//                    loggingOffUser.ControllingClient.Close();
+//                }
+//                else
+//                {
+//                    m_log.Info("[USERLOGOFF]: System sending the LogOff user message failed to sucessfully authenticate");
+//                }
+//            }
+//            else
+//            {
+//                m_log.InfoFormat("[USERLOGOFF]: Got a logoff request for {0} but the user isn't here.  The user might already have been logged out", AvatarID.ToString());
+//            }
+//        }
 
         /// <summary>
         /// Triggered when an agent crosses into this sim.  Also happens on initial login.
@@ -3912,7 +3911,10 @@ namespace OpenSim.Region.Framework.Scenes
             ILandObject nearestParcel = GetNearestAllowedParcel(cAgentData.AgentID, Constants.RegionSize / 2, Constants.RegionSize / 2);
             if (nearestParcel == null)
             {
-                m_log.DebugFormat("[SCENE]: Denying root agent entry to {0}: no allowed parcel", cAgentData.AgentID);
+                m_log.DebugFormat(
+                    "[SCENE]: Denying root agent entry to {0} in {1}: no allowed parcel",
+                    cAgentData.AgentID, RegionInfo.RegionName);
+
                 return false;
             }
 

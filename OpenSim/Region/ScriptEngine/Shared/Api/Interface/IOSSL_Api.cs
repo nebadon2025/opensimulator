@@ -98,6 +98,20 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         void osAvatarPlayAnimation(string avatar, string animation);
         void osAvatarStopAnimation(string avatar, string animation);
 
+        // Attachment commands
+
+        /// <summary>
+        /// Attach the object containing this script to the avatar that owns it without checking for PERMISSION_ATTACH
+        /// </summary>
+        /// <param name='attachment'>The attachment point.  For example, ATTACH_CHEST</param>
+        void osForceAttachToAvatar(int attachment);
+
+        /// <summary>
+        /// Detach the object containing this script from the avatar it is attached to without checking for PERMISSION_ATTACH
+        /// </summary>
+        /// <remarks>Nothing happens if the object is not attached.</remarks>
+        void osForceDetachFromAvatar();
+
         //texture draw functions
         string osMovePen(string drawList, int x, int y);
         string osDrawLine(string drawList, int startX, int startY, int endX, int endY);
@@ -203,11 +217,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         void        osNpcSetRot(LSL_Key npc, rotation rot);
         void        osNpcStopMoveToTarget(LSL_Key npc);
         void        osNpcSay(key npc, string message);
+        void        osNpcSay(key npc, int channel, string message);
+        void        osNpcShout(key npc, int channel, string message);
         void        osNpcSit(key npc, key target, int options);
         void        osNpcStand(LSL_Key npc);
         void        osNpcRemove(key npc);
         void        osNpcPlayAnimation(LSL_Key npc, string animation);
         void        osNpcStopAnimation(LSL_Key npc, string animation);
+        void        osNpcWhisper(key npc, int channel, string message);
 
         LSL_Key     osOwnerSaveAppearance(string notecard);
         LSL_Key     osAgentSaveAppearance(key agentId, string notecard);

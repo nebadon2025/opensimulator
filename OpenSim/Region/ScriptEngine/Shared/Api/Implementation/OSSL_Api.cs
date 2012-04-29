@@ -209,6 +209,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             throw new Exception("OSSL Runtime Error: " + msg);
         }
 
+        /// <summary>
+        /// Initialize the LSL interface.
+        /// </summary>
+        /// <remarks>
+        /// FIXME: This is an abomination.  We should be able to set this up earlier but currently we have no
+        /// guarantee the interface is present on Initialize().  There needs to be another post initialize call from
+        /// ScriptInstance.
+        /// </remarks>
         private void InitLSL()
         {
             if (m_LSL_Api != null)
@@ -343,7 +351,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                     UUID ownerID = ti.OwnerID;
 
-                    //OSSL only may be used if objet is in the same group as the parcel
+                    //OSSL only may be used if object is in the same group as the parcel
                     if (m_FunctionPerms[function].AllowedOwnerClasses.Contains("PARCEL_GROUP_MEMBER"))
                     {
                         ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
@@ -721,11 +729,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             m_host.AddScriptLPS(1);
 
+            // For safety, we add another permission check here, and don't rely only on the standard OSSL permissions
             if (World.Permissions.CanRunConsoleCommand(m_host.OwnerID))
             {
                 MainConsole.Instance.RunCommand(command);
                 return true;
             }
+
             return false;
         }
 
@@ -1609,7 +1619,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public Object osParseJSONNew(string JSON)
         {
-            CheckThreatLevel(ThreatLevel.None, "osParseJSON");
+            CheckThreatLevel(ThreatLevel.None, "osParseJSONNew");
 
             m_host.AddScriptLPS(1);
 
@@ -2531,6 +2541,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public void osNpcSay(LSL_Key npc, string message)
         {
+            osNpcSay(npc, 0, message);
+        }
+
+        public void osNpcSay(LSL_Key npc, int channel, string message)
+        {
             CheckThreatLevel(ThreatLevel.High, "osNpcSay");
             m_host.AddScriptLPS(1);
 
@@ -2542,7 +2557,24 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 if (!module.CheckPermissions(npcId, m_host.OwnerID))
                     return;
 
-                module.Say(npcId, World, message);
+                module.Say(npcId, World, message, channel);
+            }
+        }
+
+        public void osNpcShout(LSL_Key npc, int channel, string message)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osNpcShout");
+            m_host.AddScriptLPS(1);
+
+            INPCModule module = World.RequestModuleInterface<INPCModule>();
+            if (module != null)
+            {
+                UUID npcId = new UUID(npc.m_string);
+
+                if (!module.CheckPermissions(npcId, m_host.OwnerID))
+                    return;
+
+                module.Shout(npcId, World, message, channel);
             }
         }
 
@@ -2624,6 +2656,23 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                 if (module.CheckPermissions(npcID, m_host.OwnerID))
                     AvatarStopAnimation(npcID.ToString(), animation);
+            }
+        }
+
+        public void osNpcWhisper(LSL_Key npc, int channel, string message)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osNpcWhisper");
+            m_host.AddScriptLPS(1);
+
+            INPCModule module = World.RequestModuleInterface<INPCModule>();
+            if (module != null)
+            {
+                UUID npcId = new UUID(npc.m_string);
+
+                if (!module.CheckPermissions(npcId, m_host.OwnerID))
+                    return;
+
+                module.Whisper(npcId, World, message, channel);
             }
         }
 
@@ -2778,21 +2827,18 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             CheckThreatLevel(ThreatLevel.Severe, "osKickAvatar");
             m_host.AddScriptLPS(1);
 
-            if (World.Permissions.CanRunConsoleCommand(m_host.OwnerID))
+            World.ForEachRootScenePresence(delegate(ScenePresence sp)
             {
-                World.ForEachRootScenePresence(delegate(ScenePresence sp)
+                if (sp.Firstname == FirstName && sp.Lastname == SurName)
                 {
-                    if (sp.Firstname == FirstName && sp.Lastname == SurName)
-                    {
-                        // kick client...
-                        if (alert != null)
-                            sp.ControllingClient.Kick(alert);
+                    // kick client...
+                    if (alert != null)
+                        sp.ControllingClient.Kick(alert);
 
-                        // ...and close on our side
-                        sp.Scene.IncomingCloseAgent(sp.UUID);
-                    }
-                });
-            }
+                    // ...and close on our side
+                    sp.Scene.IncomingCloseAgent(sp.UUID);
+                }
+            });
         }
         
         public void osCauseDamage(string avatar, double damage)
@@ -3092,6 +3138,26 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 if (estate != null)
                     estate.setEstateTerrainTextureHeights(corner, (float)low, (float)high);
             }
+        }
+
+        public void osForceAttachToAvatar(int attachmentPoint)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osForceAttachToAvatar");
+
+            m_host.AddScriptLPS(1);
+
+            InitLSL();
+            ((LSL_Api)m_LSL_Api).AttachToAvatar(attachmentPoint);
+        }
+
+        public void osForceDetachFromAvatar()
+        {
+            CheckThreatLevel(ThreatLevel.High, "osForceDetachFromAvatar");
+
+            m_host.AddScriptLPS(1);
+
+            InitLSL();
+            ((LSL_Api)m_LSL_Api).DetachFromAvatar();
         }
     }
 }

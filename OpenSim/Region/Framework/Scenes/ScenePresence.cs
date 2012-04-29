@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -45,6 +45,7 @@ using TeleportFlags = OpenSim.Framework.Constants.TeleportFlags;
 
 namespace OpenSim.Region.Framework.Scenes
 {
+    [Flags]
     enum ScriptControlled : uint
     {
         CONTROL_ZERO = 0,
@@ -990,23 +991,24 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="pos"></param>
         public void Teleport(Vector3 pos)
         {
-            bool isFlying = Flying;
-            RemoveFromPhysicalScene();
-            Velocity = Vector3.Zero;
-            CheckLandingPoint(ref pos);
-            AbsolutePosition = pos;
-            AddToPhysicalScene(isFlying);
-
-            SendTerseUpdateToAllClients();
+            TeleportWithMomentum(pos, null);
         }
 
-        public void TeleportWithMomentum(Vector3 pos)
+        public void TeleportWithMomentum(Vector3 pos, Vector3? v)
         {
             bool isFlying = Flying;
+            Vector3 vel = Velocity;
             RemoveFromPhysicalScene();
             CheckLandingPoint(ref pos);
             AbsolutePosition = pos;
             AddToPhysicalScene(isFlying);
+            if (PhysicsActor != null)
+            {
+                if (v.HasValue)
+                    PhysicsActor.SetMomentum((Vector3)v);
+                else
+                    PhysicsActor.SetMomentum(vel);
+            }
 
             SendTerseUpdateToAllClients();
         }
@@ -1141,7 +1143,10 @@ namespace OpenSim.Region.Framework.Scenes
 
             if ((m_callbackURI != null) && !m_callbackURI.Equals(""))
             {
-                m_log.DebugFormat("[SCENE PRESENCE]: Releasing agent in URI {0}", m_callbackURI);
+                m_log.DebugFormat(
+                    "[SCENE PRESENCE]: Releasing {0} {1} with callback to {2}",
+                    client.Name, client.AgentId, m_callbackURI);
+
                 Scene.SimulationService.ReleaseAgent(m_originRegionID, UUID, m_callbackURI);
                 m_callbackURI = null;
             }
@@ -1216,7 +1221,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
 //            m_log.DebugFormat(
 //                "[SCENE PRESENCE]: In {0} received agent update from {1}, flags {2}",
-//                Scene.RegionInfo.RegionName, remoteClient.Name, agentData.ControlFlags);
+//                Scene.RegionInfo.RegionName, remoteClient.Name, (AgentManager.ControlFlags)agentData.ControlFlags);
 
             if (IsChildAgent)
             {
@@ -1316,14 +1321,8 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
 
-            lock (scriptedcontrols)
-            {
-                if (scriptedcontrols.Count > 0)
-                {
-                    SendControlToScripts((uint)flags);
-                    flags = RemoveIgnoredControls(flags, IgnoredControls);
-                }
-            }
+            uint flagsForScripts = (uint)flags;
+            flags = RemoveIgnoredControls(flags, IgnoredControls);
 
             if ((flags & AgentManager.ControlFlags.AGENT_CONTROL_SIT_ON_GROUND) != 0)
                 HandleAgentSitOnGround();
@@ -1416,7 +1415,7 @@ namespace OpenSim.Region.Framework.Scenes
                                     MovementFlag |= (byte)nudgehack;
                                 }
 
-//                                m_log.DebugFormat("[SCENE PRESENCE]: Updating MovementFlag for {0} with {1}", Name, DCF);
+                                //m_log.DebugFormat("[SCENE PRESENCE]: Updating MovementFlag for {0} with {1}", Name, DCF);
                                 MovementFlag += (byte)(uint)DCF;
                                 update_movementflag = true;
                             }
@@ -1429,7 +1428,7 @@ namespace OpenSim.Region.Framework.Scenes
                                 && ((MovementFlag & (byte)nudgehack) == nudgehack))
                                 ) // This or is for Nudge forward
                             {
-//                                m_log.DebugFormat("[SCENE PRESENCE]: Updating MovementFlag for {0} with lack of {1}", Name, DCF);
+                                //m_log.DebugFormat("[SCENE PRESENCE]: Updating MovementFlag for {0} with lack of {1}", Name, DCF);
                                 MovementFlag -= ((byte)(uint)DCF);
                                 update_movementflag = true;
 
@@ -1510,8 +1509,18 @@ namespace OpenSim.Region.Framework.Scenes
 //                    }
 //                }
 
-//                if (update_movementflag && ParentID == 0)
-//                    Animator.UpdateMovementAnimations();
+                if (update_movementflag && ParentID == 0)
+                    Animator.UpdateMovementAnimations();
+
+                lock (scriptedcontrols)
+                {
+                    if (scriptedcontrols.Count > 0)
+                    {
+                        // Notify the scripts only after calling UpdateMovementAnimations(), so that if a script
+                        // (e.g., a walking script) checks which animation is active it will be the correct animation.
+                        SendControlToScripts(flagsForScripts);
+                    }
+                }
             }
 
             m_scene.EventManager.TriggerOnClientMovement(this);
@@ -1689,9 +1698,9 @@ namespace OpenSim.Region.Framework.Scenes
             if (pos.Z - terrainHeight < 0.2)
                 pos.Z = terrainHeight;
 
-            m_log.DebugFormat(
-                "[SCENE PRESENCE]: Avatar {0} set move to target {1} (terrain height {2}) in {3}",
-                Name, pos, terrainHeight, m_scene.RegionInfo.RegionName);
+//            m_log.DebugFormat(
+//                "[SCENE PRESENCE]: Avatar {0} set move to target {1} (terrain height {2}) in {3}",
+//                Name, pos, terrainHeight, m_scene.RegionInfo.RegionName);
 
             if (noFly)
                 Flying = false;

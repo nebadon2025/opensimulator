@@ -74,13 +74,14 @@ namespace OpenSim.Data.MySQL
 
         public void LogoutRegionAgents(UUID regionID)
         {
-            MySqlCommand cmd = new MySqlCommand();
-
-            cmd.CommandText = String.Format("delete from {0} where `RegionID`=?RegionID", m_Realm);
-
-            cmd.Parameters.AddWithValue("?RegionID", regionID.ToString());
-
-            ExecuteNonQuery(cmd);
+            using (MySqlCommand cmd = new MySqlCommand())
+            {
+                cmd.CommandText = String.Format("delete from {0} where `RegionID`=?RegionID", m_Realm);
+    
+                cmd.Parameters.AddWithValue("?RegionID", regionID.ToString());
+    
+                ExecuteNonQuery(cmd);
+            }
         }
 
         public bool ReportAgent(UUID sessionID, UUID regionID)
@@ -92,15 +93,16 @@ namespace OpenSim.Data.MySQL
             if (regionID == UUID.Zero)
                 return false;
 
-            MySqlCommand cmd = new MySqlCommand();
-
-            cmd.CommandText = String.Format("update {0} set RegionID=?RegionID, LastSeen=NOW() where `SessionID`=?SessionID", m_Realm);
-
-            cmd.Parameters.AddWithValue("?SessionID", sessionID.ToString());
-            cmd.Parameters.AddWithValue("?RegionID", regionID.ToString());
-
-            if (ExecuteNonQuery(cmd) == 0)
-                return false;
+            using (MySqlCommand cmd = new MySqlCommand())
+            {
+                cmd.CommandText = String.Format("update {0} set RegionID=?RegionID, LastSeen=NOW() where `SessionID`=?SessionID", m_Realm);
+    
+                cmd.Parameters.AddWithValue("?SessionID", sessionID.ToString());
+                cmd.Parameters.AddWithValue("?RegionID", regionID.ToString());
+    
+                if (ExecuteNonQuery(cmd) == 0)
+                    return false;
+            }
 
             return true;
         }

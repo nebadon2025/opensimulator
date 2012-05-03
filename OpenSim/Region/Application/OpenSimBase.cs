@@ -384,7 +384,7 @@ namespace OpenSim
             scene.LoadPrimsFromStorage(regionInfo.originRegionID);
             
             // TODO : Try setting resource for region xstats here on scene
-            MainServer.Instance.AddStreamHandler(new Region.Framework.Scenes.RegionStatsHandler(regionInfo)); 
+            MainServer.Instance.AddStreamHandler(new RegionStatsHandler(regionInfo));
             
             scene.loadAllLandObjectsFromStorage(regionInfo.originRegionID);
             scene.EventManager.TriggerParcelPrimCountUpdate();
@@ -727,6 +727,9 @@ namespace OpenSim
                 return Util.UTF8.GetBytes("OK");
             }
 
+            public string Name { get { return "SimStatus"; } }
+            public string Description { get { return "Simulator Status"; } }
+
             public string ContentType
             {
                 get { return "text/plain"; }
@@ -751,6 +754,9 @@ namespace OpenSim
         {
             OpenSimBase m_opensim;
             string osXStatsURI = String.Empty;
+
+            public string Name { get { return "XSimStatus"; } }
+            public string Description { get { return "Simulator XStatus"; } }
         
             public XSimStatusHandler(OpenSimBase sim)
             {
@@ -791,6 +797,9 @@ namespace OpenSim
         {
             OpenSimBase m_opensim;
             string osUXStatsURI = String.Empty;
+
+            public string Name { get { return "UXSimStatus"; } }
+            public string Description { get { return "Simulator UXStatus"; } }
         
             public UXSimStatusHandler(OpenSimBase sim)
             {

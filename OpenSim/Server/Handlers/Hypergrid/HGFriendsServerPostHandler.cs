@@ -91,7 +91,8 @@ namespace OpenSim.Server.Handlers.Hypergrid
                     case "deletefriendship":
                         return DeleteFriendship(request);
                 }
-                m_log.DebugFormat("[HGFRIENDS HANDLER]: unknown method {0} request {1}", method.Length, method);
+                
+                m_log.DebugFormat("[HGFRIENDS HANDLER]: unknown method {0}", method);
             }
             catch (Exception e)
             {

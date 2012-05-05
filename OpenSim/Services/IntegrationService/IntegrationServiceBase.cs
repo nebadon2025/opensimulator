@@ -39,7 +39,7 @@ using log4net;
 
 using Ux = OpenSim.Services.IntegrationService.IUtils;
 
-[assembly:AddinRoot ("IntegrationService", "2.0")]
+[assembly:AddinRoot ("IntegrationService", "2.1")]
 namespace OpenSim.Services.IntegrationService
 {
     [TypeExtensionPoint (Path="/OpenSim/IntegrationService", Name="IntegrationService")]

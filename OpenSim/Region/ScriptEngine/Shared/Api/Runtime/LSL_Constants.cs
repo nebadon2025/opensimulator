@@ -488,6 +488,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int OBJECT_GROUP = 7;
         public const int OBJECT_CREATOR = 8;
 
+        // for llGetAgentList
+        public const int AGENT_LIST_PARCEL = 1;
+        public const int AGENT_LIST_PARCEL_OWNER = 2;
+        public const int AGENT_LIST_REGION = 4;
+
         // Can not be public const?
         public static readonly vector ZERO_VECTOR = new vector(0.0, 0.0, 0.0);
         public static readonly rotation ZERO_ROTATION = new rotation(0.0, 0.0, 0.0, 1.0);

@@ -58,16 +58,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         internal IScriptEngine m_ScriptEngine;
         internal SceneObjectPart m_host;
         internal uint m_localID;
-        internal UUID m_itemID;
+        internal TaskInventoryItem m_item;
         internal bool m_MODFunctionsEnabled = false;
         internal IScriptModuleComms m_comms = null;
 
-        public void Initialize(IScriptEngine ScriptEngine, SceneObjectPart host, uint localID, UUID itemID)
+        public void Initialize(IScriptEngine ScriptEngine, SceneObjectPart host, uint localID, TaskInventoryItem item)
         {
             m_ScriptEngine = ScriptEngine;
             m_host = host;
             m_localID = localID;
-            m_itemID = itemID;
+            m_item = item;
 
             if (m_ScriptEngine.Config.GetBoolean("AllowMODFunctions", false))
                 m_MODFunctionsEnabled = true;
@@ -115,7 +115,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             IWorldComm wComm = m_ScriptEngine.World.RequestModuleInterface<IWorldComm>();
             wComm.DeliverMessage(ChatTypeEnum.Shout, ScriptBaseClass.DEBUG_CHANNEL, m_host.Name, m_host.UUID, message);
         }
-
+        
+        /// <summary>
+        /// Send a command to functions registered on an event
+        /// </summary>
         public string modSendCommand(string module, string command, string k)
         {
             if (!m_MODFunctionsEnabled)
@@ -126,7 +129,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             UUID req = UUID.Random();
 
-            m_comms.RaiseEvent(m_itemID, req.ToString(), module, command, k);
+            m_comms.RaiseEvent(m_item.ItemID, req.ToString(), module, command, k);
 
             return req.ToString();
         }

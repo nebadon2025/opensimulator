@@ -325,7 +325,16 @@ ServiceConnectors = "8003/OpenSim.Server.Handlers.dll:AssetServiceConnector,8003
     ;password = http://127.0.0.1/password
 
 [IntegrationService]
+
     LocalServiceModule = "OpenSim.Services.IntegrationService.dll:IntegrationService"
+
+    ;; Location for plugin management data, default is "."
+    PluginRegistryLocation="/home/opensim/var/run/addin/Integration"
+    ;;
+    ;; Each plugin uses it's own ini (for now these are files only)
+    ;; The initial files are supplied by the plugin when it is installed
+    ;; and this is the location for the directory for these.
+    IntegrationConfig = "/home/opensim/etc/Integration"
 
     GridService = "OpenSim.Services.GridService.dll:GridService"
     PresenceService = "OpenSim.Services.PresenceService.dll:PresenceService"

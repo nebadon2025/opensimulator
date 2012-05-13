@@ -3571,7 +3571,7 @@ namespace OpenSim.Region.Framework.Scenes
                     if ( spawnpoints.Count  > 1)
                     {
                         // We have multiple SpawnPoints, Route the agent to a random one
-                        agent.startpos =  spawnpoints[Util.RandomClass.Next(spawnpoints.Count)].GetLocation(telehub.AbsolutePosition, telehub.GroupRotation);
+                        agent.startpos =  spawnpoints[Util.RandomClass.Next(spawnpoints.Count) - 1].GetLocation(telehub.AbsolutePosition, telehub.GroupRotation);
                     }
                     else
                     {

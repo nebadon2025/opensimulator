@@ -125,7 +125,7 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
                 bool changed = m_openSim.PopulateRegionEstateInfo(regionsToLoad[i]);
                 m_openSim.CreateRegion(regionsToLoad[i], true, out scene);
                 if (changed)
-		  regionsToLoad[i].EstateSettings.Save();
+		            regionsToLoad[i].EstateSettings.Save();
                 
                 if (scene != null)
                 {

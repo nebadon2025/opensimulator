@@ -265,8 +265,7 @@ namespace OpenSim.Region.CoreModules.World.Archiver
                 }
                 */
 
-                SceneObjectGroup sceneObject = SceneObjectSerializer.FromXml2Format(serialisedSceneObject);
-//                SceneObjectGroup sceneObject = serialiser.DeserializeGroupFromXml2(serialisedSceneObject);
+                SceneObjectGroup sceneObject = serialiser.DeserializeGroupFromXml2(serialisedSceneObject);
 
                 // For now, give all incoming scene objects new uuids.  This will allow scenes to be cloned
                 // on the same region server and multiple examples a single object archive to be imported

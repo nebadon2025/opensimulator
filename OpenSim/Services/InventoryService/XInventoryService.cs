@@ -40,9 +40,9 @@ namespace OpenSim.Services.InventoryService
 {
     public class XInventoryService : ServiceBase, IInventoryService
     {
-//        private static readonly ILog m_log =
-//                LogManager.GetLogger(
-//                MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog m_log =
+                LogManager.GetLogger(
+                MethodBase.GetCurrentMethod().DeclaringType);
 
         protected IXInventoryData m_Database;
         protected bool m_AllowDelete = true;
@@ -297,8 +297,22 @@ namespace OpenSim.Services.InventoryService
             if (check != null)
                 return false;
 
-            XInventoryFolder xFolder = ConvertFromOpenSim(folder);
-            return m_Database.StoreFolder(xFolder);
+            if (folder.Type == (short)AssetType.Folder
+                || folder.Type == (short)AssetType.Unknown
+                || folder.Type == (short)AssetType.OutfitFolder
+                || GetFolderForType(folder.Owner, (AssetType)(folder.Type)) == null)
+            {
+                XInventoryFolder xFolder = ConvertFromOpenSim(folder);
+                return m_Database.StoreFolder(xFolder);
+            }
+            else
+            {
+                m_log.WarnFormat(
+                    "[XINVENTORY]: Folder of type {0} already exists when tried to add {1} to {2} for {3}",
+                    folder.Type, folder.Name, folder.ParentID, folder.Owner);
+            }
+
+            return false;
         }
 
         public virtual bool UpdateFolder(InventoryFolderBase folder)

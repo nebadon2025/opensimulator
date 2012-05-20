@@ -27,68 +27,33 @@
 
 using System;
 using System.Collections.Generic;
-using OpenMetaverse;
-using OpenSim.Framework;
-using OpenSim.Region.Framework.Interfaces;
+using System.Linq;
+using System.Text;
 using OpenSim.Region.Framework.Scenes;
+using System.IO;
+using OpenMetaverse;
 
-namespace OpenSim.Region.RegionCombinerModule
+namespace OpenSim.Region.Framework.Interfaces
 {
-    public class RegionConnections
+    public interface IRegionCombinerModule
     {
         /// <summary>
-        /// Root Region ID
+        /// Does the given id belong to the root region of a megaregion?
         /// </summary>
-        public UUID RegionId;
+        bool IsRootForMegaregion(UUID regionId);
 
         /// <summary>
-        /// Root Region Scene
+        /// Gets the size of megaregion.
         /// </summary>
-        public Scene RegionScene;
-
-        /// <summary>
-        /// LargeLandChannel for combined region
-        /// </summary>
-        public ILandChannel RegionLandChannel;
-
-        /// <summary>
-        /// The x map co-ordinate for this region (where each co-ordinate is a Constants.RegionSize block).
-        /// </summary>
-        public uint X;
-
-        /// <summary>
-        /// The y co-ordinate for this region (where each cor-odinate is a Constants.RegionSize block).
-        /// </summary>
-        public uint Y;
-
-        /// <summary>
-        /// The X meters position of this connection.
-        /// </summary>
-        public uint PosX { get { return X * Constants.RegionSize; } }
-
-        /// <summary>
-        /// The Y meters co-ordinate of this connection.
-        /// </summary>
-        public uint PosY { get { return Y * Constants.RegionSize; } }
-
-        /// <summary>
-        /// The size of the megaregion in meters.
-        /// </summary>
-        public uint XEnd;
-
-        /// <summary>
-        /// The size of the megaregion in meters.
-        /// </summary>
-        public uint YEnd;
-
-        public List<RegionData> ConnectedRegions;
-        public RegionCombinerPermissionModule PermissionModule;
-        public RegionCombinerClientEventForwarder ClientEventForwarder;
-
-        public void UpdateExtents(Vector3 extents)
-        {
-            XEnd = (uint)extents.X;
-            YEnd = (uint)extents.Y;
-        }
+        /// <remarks>
+        /// Returns size in meters.
+        /// Do not rely on this method remaining the same - this area is actively under development.
+        /// </remarks>
+        /// <param name="sceneId">
+        /// The id of the root region for a megaregion.
+        /// This may change in the future to allow any region id that makes up a megaregion.
+        /// Currently, will throw an exception if this does not match a root region.
+        /// </param>
+        Vector2 GetSizeOfMegaregion(UUID regionId);
     }
 }

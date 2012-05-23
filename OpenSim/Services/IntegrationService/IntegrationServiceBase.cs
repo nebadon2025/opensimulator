@@ -45,9 +45,9 @@ namespace OpenSim.Services.IntegrationService
     [TypeExtensionPoint (Path="/OpenSim/IntegrationService", Name="IntegrationService")]
     public interface IntegrationPlugin
     {
-        void Init(IConfigSource PluginConfig, IHttpServer server, ServiceBase service);
+        void Init(IConfigSource MainConfig, IConfigSource PluginConfig, IHttpServer server, ServiceBase service);
         void Unload();
-        string Name { get; }
+        string PluginName { get; }
         string ConfigName { get; }
         string DefaultConfig { get; }
     }
@@ -105,7 +105,7 @@ namespace OpenSim.Services.IntegrationService
                 registry.Update ();
                 foreach (IntegrationPlugin cmd in AddinManager.GetExtensionObjects("/OpenSim/IntegrationService"))
                 {
-                    m_log.DebugFormat("[INTEGRATION SERVICE]: Processing _Addin {0}", cmd.Name);
+                    m_log.DebugFormat("[INTEGRATION SERVICE]: Processing _Addin {0}", cmd.PluginName);
                     LoadingPlugin(cmd);
                 }
     
@@ -192,14 +192,14 @@ namespace OpenSim.Services.IntegrationService
                 // Build up
                 case ExtensionChange.Add:
 
-                    m_log.DebugFormat("[INTEGRATION SERVICE]: Plugin Added {0}", ip.Name);
+                    m_log.DebugFormat("[INTEGRATION SERVICE]: Plugin Added {0}", ip.PluginName);
                     LoadingPlugin(ip);
                     return;
 
                 // Tear down
                 case ExtensionChange.Remove:
 
-                    m_log.DebugFormat("[INTEGRATION SERVICE]: Plugin Remove {0}", ip.Name);
+                    m_log.DebugFormat("[INTEGRATION SERVICE]: Plugin Remove {0}", ip.PluginName);
                     UnLoadingPlugin(ip);
                     return;
             }
@@ -222,7 +222,7 @@ namespace OpenSim.Services.IntegrationService
             // Fetch the starter ini
             if (PlugConfig == null)
             {
-                m_log.DebugFormat("[INTEGRATION SERVICE]: Fetching starter config for {0} from {1}", plugin.Name, plugin.DefaultConfig);
+                m_log.DebugFormat("[INTEGRATION SERVICE]: Fetching starter config for {0} from {1}", plugin.PluginName, plugin.DefaultConfig);
 
                 // Send the default data service
                 IConfig DataService = m_ConfigSource.Configs["DatabaseService"];
@@ -239,8 +239,8 @@ namespace OpenSim.Services.IntegrationService
 				PlugConfig = Ux.GetConfigSource(m_IntegrationConfigLoc, plugin.ConfigName);
             }
 
-            m_log.DebugFormat("[INTEGRATION SERVICE]: ****** In Loading Plugin {0}", plugin.Name);
-            plugin.Init(PlugConfig, m_Server, this);
+            m_log.DebugFormat("[INTEGRATION SERVICE]: ****** In Loading Plugin {0}", plugin.PluginName);
+            plugin.Init(m_ConfigSource, PlugConfig, m_Server, this);
         }
 
         private void UnLoadingPlugin(IntegrationPlugin plugin)

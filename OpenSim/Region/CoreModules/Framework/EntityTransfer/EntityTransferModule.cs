@@ -153,7 +153,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
         {
             if (!m_Enabled)
                 return;
-            
+
             m_eqModule = m_scene.RequestModuleInterface<IEventQueue>();
         }
 
@@ -420,11 +420,6 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                 return;
             }
 
-            // Fixing a bug where teleporting while sitting results in the avatar ending up removed from
-            // both regions
-            if (sp.ParentID != (uint)0)
-                sp.StandUp();
-
             if (!sp.ValidateAttachments())
                 m_log.DebugFormat(
                     "[ENTITY TRANSFER MODULE]: Failed validation of all attachments for teleport of {0} from {1} to {2}.  Continuing.",
@@ -451,7 +446,12 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                 return;
             }
 
-            m_log.DebugFormat("[ENTITY TRANSFER MODULE]: Destination is running version {0}", version);
+            m_log.DebugFormat("[ENTITY TRANSFER MODULE]: Destination is running version {0}", version);            
+
+            // Fixing a bug where teleporting while sitting results in the avatar ending up removed from
+            // both regions
+            if (sp.ParentID != (uint)0)
+                sp.StandUp();
 
             sp.ControllingClient.SendTeleportStart(teleportFlags);
 

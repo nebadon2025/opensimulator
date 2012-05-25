@@ -1105,6 +1105,8 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
 
             try
             {
+                SetInTransit(agent.UUID);
+
                 ulong neighbourHandle = Utils.UIntsToLong((uint)(neighbourx * Constants.RegionSize), (uint)(neighboury * Constants.RegionSize));
     
                 m_log.DebugFormat(
@@ -1123,8 +1125,6 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
 
                 agent.RemoveFromPhysicalScene();
 
-                SetInTransit(agent.UUID);
-
                 AgentData cAgent = new AgentData(); 
                 agent.CopyTo(cAgent);
                 cAgent.Position = pos;
@@ -1140,9 +1140,12 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                 if (!m_scene.SimulationService.UpdateAgent(neighbourRegion, cAgent))
                 {
                     // region doesn't take it
+                    UpdateInTransit(agent.UUID, AgentTransferState.CleaningUp);
+
                     ReInstantiateScripts(agent);
                     agent.AddToPhysicalScene(isFlying);
                     ResetFromTransit(agent.UUID);
+
                     return agent;
                 }
 
@@ -1202,7 +1205,6 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                     CrossAttachmentsIntoNewRegion(neighbourRegion, agent, true);
                 }
 
-
                 // Next, let's close the child agent connections that are too far away.
                 agent.CloseChildAgents(neighbourx, neighboury);
 
@@ -1226,6 +1228,8 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                 m_log.ErrorFormat(
                     "[ENTITY TRANSFER MODULE]: Problem crossing user {0} to new region {1} from {2}.  Exception {3}{4}",
                     agent.Name, neighbourRegion.RegionName, agent.Scene.RegionInfo.RegionName, e.Message, e.StackTrace);
+
+                // TODO: Might be worth attempting other restoration here such as reinstantiation of scripts, etc.
             }
 
             return agent;

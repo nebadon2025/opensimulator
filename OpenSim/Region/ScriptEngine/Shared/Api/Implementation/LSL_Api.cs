@@ -5519,7 +5519,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     }
                 }
             }
-            List<UUID> presenceIds = new List<UUID>();
 
             World.ForEachRootScenePresence(
                 delegate (ScenePresence ssp)

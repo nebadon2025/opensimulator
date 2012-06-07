@@ -497,6 +497,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public IAttachmentsModule AttachmentsModule { get; set; }
         public IEntityTransferModule EntityTransferModule { get; private set; }
+        public IAgentAssetTransactions AgentTransactionsModule { get; private set; }
 
         public IAvatarFactoryModule AvatarFactory
         {
@@ -1219,6 +1220,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_capsModule = RequestModuleInterface<ICapabilitiesModule>();
             EntityTransferModule = RequestModuleInterface<IEntityTransferModule>();
             m_groupsModule = RequestModuleInterface<IGroupsModule>();
+            AgentTransactionsModule = RequestModuleInterface<IAgentAssetTransactions>();
         }
 
         #endregion
@@ -3277,12 +3279,10 @@ namespace OpenSim.Region.Framework.Scenes
                                 catch (NullReferenceException) { }
                             });
                     }
-    
-                    IAgentAssetTransactions agentTransactions = this.RequestModuleInterface<IAgentAssetTransactions>();
-                    if (agentTransactions != null)
-                    {
-                        agentTransactions.RemoveAgentAssetTransactions(agentID);
-                    }
+
+                    // It's possible for child agents to have transactions if changes are being made cross-border.
+                    if (AgentTransactionsModule != null)
+                        AgentTransactionsModule.RemoveAgentAssetTransactions(agentID);
                 }
                 finally
                 {

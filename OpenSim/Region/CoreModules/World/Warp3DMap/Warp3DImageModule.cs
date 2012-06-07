@@ -54,8 +54,7 @@ namespace OpenSim.Region.CoreModules.World.Warp3DMap
         private static readonly UUID TEXTURE_METADATA_MAGIC = new UUID("802dc0e0-f080-4931-8b57-d1be8611c4f3");
         private static readonly Color4 WATER_COLOR = new Color4(29, 72, 96, 216);
 
-        private static readonly ILog m_log =
-            LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private Scene m_scene;
         private IRendering m_primMesher;
@@ -88,11 +87,11 @@ namespace OpenSim.Region.CoreModules.World.Warp3DMap
             if (renderers.Count > 0)
             {
                 m_primMesher = RenderingLoader.LoadRenderer(renderers[0]);
-                m_log.Debug("[MAPTILE]: Loaded prim mesher " + m_primMesher.ToString());
+                m_log.DebugFormat("[WARP 3D IMAGE MODULE]: Loaded prim mesher {0}", m_primMesher);
             }
             else
             {
-                m_log.Debug("[MAPTILE]: No prim mesher loaded, prim rendering will be disabled");
+                m_log.Debug("[WARP 3D IMAGE MODULE]: No prim mesher loaded, prim rendering will be disabled");
             }
 
             m_scene.RegisterModuleInterface<IMapImageGenerator>(this);
@@ -150,7 +149,7 @@ namespace OpenSim.Region.CoreModules.World.Warp3DMap
             }
             catch
             {
-                m_log.Warn("[MAPTILE]: Failed to load StartupConfig");
+                m_log.Warn("[WARP 3D IMAGE MODULE]: Failed to load StartupConfig");
             }
 
             m_colors.Clear();
@@ -204,7 +203,10 @@ namespace OpenSim.Region.CoreModules.World.Warp3DMap
             Bitmap bitmap = renderer.Scene.getImage();
 
             if (m_useAntiAliasing)
-                bitmap = ImageUtils.ResizeImage(bitmap, viewport.Width, viewport.Height);
+            {
+                using (Bitmap origBitmap = bitmap)
+                    bitmap = ImageUtils.ResizeImage(origBitmap, viewport.Width, viewport.Height);
+            }
 
             return bitmap;
         }
@@ -219,7 +221,7 @@ namespace OpenSim.Region.CoreModules.World.Warp3DMap
             catch (Exception e)
             {
                 // JPEG2000 encoder failed
-                m_log.Error("[MAPTILE]: Failed generating terrain map: " + e);
+                m_log.Error("[WARP 3D IMAGE MODULE]: Failed generating terrain map: ", e);
             }
 
             return null;
@@ -318,8 +320,17 @@ namespace OpenSim.Region.CoreModules.World.Warp3DMap
             uint globalX, globalY;
             Utils.LongToUInts(m_scene.RegionInfo.RegionHandle, out globalX, out globalY);
 
-            Bitmap image = TerrainSplat.Splat(heightmap, textureIDs, startHeights, heightRanges, new Vector3d(globalX, globalY, 0.0), m_scene.AssetService, textureTerrain);
-            warp_Texture texture = new warp_Texture(image);
+            warp_Texture texture;
+
+            using (
+                Bitmap image
+                    = TerrainSplat.Splat(
+                        heightmap, textureIDs, startHeights, heightRanges,
+                        new Vector3d(globalX, globalY, 0.0), m_scene.AssetService, textureTerrain))
+            {
+                texture = new warp_Texture(image);
+            }
+
             warp_Material material = new warp_Material(texture);
             material.setReflectivity(50);
             renderer.Scene.addMaterial("TerrainColor", material);
@@ -546,42 +557,46 @@ namespace OpenSim.Region.CoreModules.World.Warp3DMap
             {
                 try
                 {
-                    Bitmap bitmap = (Bitmap)J2kImage.FromStream(stream);
-                    width = bitmap.Width;
-                    height = bitmap.Height;
+                    int pixelBytes;
 
-                    BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadOnly, bitmap.PixelFormat);
-                    int pixelBytes = (bitmap.PixelFormat == PixelFormat.Format24bppRgb) ? 3 : 4;
-
-                    // Sum up the individual channels
-                    unsafe
+                    using (Bitmap bitmap = (Bitmap)J2kImage.FromStream(stream))
                     {
-                        if (pixelBytes == 4)
+                        width = bitmap.Width;
+                        height = bitmap.Height;
+    
+                        BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadOnly, bitmap.PixelFormat);
+                        pixelBytes = (bitmap.PixelFormat == PixelFormat.Format24bppRgb) ? 3 : 4;
+    
+                        // Sum up the individual channels
+                        unsafe
                         {
-                            for (int y = 0; y < height; y++)
+                            if (pixelBytes == 4)
                             {
-                                byte* row = (byte*)bitmapData.Scan0 + (y * bitmapData.Stride);
-
-                                for (int x = 0; x < width; x++)
+                                for (int y = 0; y < height; y++)
                                 {
-                                    b += row[x * pixelBytes + 0];
-                                    g += row[x * pixelBytes + 1];
-                                    r += row[x * pixelBytes + 2];
-                                    a += row[x * pixelBytes + 3];
+                                    byte* row = (byte*)bitmapData.Scan0 + (y * bitmapData.Stride);
+    
+                                    for (int x = 0; x < width; x++)
+                                    {
+                                        b += row[x * pixelBytes + 0];
+                                        g += row[x * pixelBytes + 1];
+                                        r += row[x * pixelBytes + 2];
+                                        a += row[x * pixelBytes + 3];
+                                    }
                                 }
                             }
-                        }
-                        else
-                        {
-                            for (int y = 0; y < height; y++)
+                            else
                             {
-                                byte* row = (byte*)bitmapData.Scan0 + (y * bitmapData.Stride);
-
-                                for (int x = 0; x < width; x++)
+                                for (int y = 0; y < height; y++)
                                 {
-                                    b += row[x * pixelBytes + 0];
-                                    g += row[x * pixelBytes + 1];
-                                    r += row[x * pixelBytes + 2];
+                                    byte* row = (byte*)bitmapData.Scan0 + (y * bitmapData.Stride);
+    
+                                    for (int x = 0; x < width; x++)
+                                    {
+                                        b += row[x * pixelBytes + 0];
+                                        g += row[x * pixelBytes + 1];
+                                        r += row[x * pixelBytes + 2];
+                                    }
                                 }
                             }
                         }
@@ -603,7 +618,10 @@ namespace OpenSim.Region.CoreModules.World.Warp3DMap
                 }
                 catch (Exception ex)
                 {
-                    m_log.WarnFormat("[MAPTILE]: Error decoding JPEG2000 texture {0} ({1} bytes): {2}", textureID, j2kData.Length, ex.Message);
+                    m_log.WarnFormat(
+                        "[WARP 3D IMAGE MODULE]: Error decoding JPEG2000 texture {0} ({1} bytes): {2}",
+                        textureID, j2kData.Length, ex.Message);
+
                     width = 0;
                     height = 0;
                     return new Color4(0.5f, 0.5f, 0.5f, 1.0f);

@@ -348,6 +348,8 @@ namespace OpenSim.Services.IntegrationService
         #endregion
 
         #region IIntegrationService implementation
+        // Will hold back on implementing things here that can actually make changes
+        // Need to secure it first
         public byte[] HandleWebListRepositories(OSDMap request)
         {
             Dictionary<string, object> result = new Dictionary<string, object>();

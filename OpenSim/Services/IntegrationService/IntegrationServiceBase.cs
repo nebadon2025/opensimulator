@@ -60,15 +60,12 @@ namespace OpenSim.Services.IntegrationService
 
         private string m_ConfigName = "IntegrationService";
         
-        // protected IPresenceService m_PresenceService;
-        // protected IGridService m_GridService;
         protected IHttpServer m_Server;
 
         protected string m_IntegrationConfig;
         protected PluginManager m_PluginManager;
         AddinManager am;
 
-        //
         protected IConfig m_IntegrationServerConfig;
         protected string m_IntegrationConfigLoc;
         IConfigSource m_ConfigSource;

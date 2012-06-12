@@ -3436,7 +3436,10 @@ namespace OpenSim.Region.Framework.Scenes
                 // We have a zombie from a crashed session. 
                 // Or the same user is trying to be root twice here, won't work.
                 // Kill it.
-                m_log.DebugFormat("[SCENE]: Zombie scene presence detected for {0} in {1}", agent.AgentID, RegionInfo.RegionName);
+                m_log.DebugFormat(
+                    "[SCENE]: Zombie scene presence detected for {0} {1} in {2}",
+                    sp.Name, sp.UUID, RegionInfo.RegionName);
+
                 sp.ControllingClient.Close();
                 sp = null;
             }

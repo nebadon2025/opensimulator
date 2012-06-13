@@ -1041,10 +1041,6 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         {
         }
 
-        public void KillEndDone()
-        {
-        }
-
         public void SendEventInfoReply (EventData info)
         {
         }

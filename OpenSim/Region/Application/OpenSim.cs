@@ -911,7 +911,7 @@ namespace OpenSim
                         int newDebug;
                         if (int.TryParse(args[2], out newDebug))
                         {
-                            MainServer.Instance.DebugLevel = newDebug;
+                            MainServer.DebugLevel = newDebug;
                             MainConsole.Instance.OutputFormat("Debug http level set to {0}", newDebug);
                             break;
                         }

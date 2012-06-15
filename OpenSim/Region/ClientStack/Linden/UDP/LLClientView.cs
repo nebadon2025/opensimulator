@@ -2719,6 +2719,19 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             }
         }
 
+        public void SendAssetNotFound(AssetRequestToClient req)
+        {
+            TransferInfoPacket Transfer = new TransferInfoPacket();
+            Transfer.TransferInfo.ChannelType = 2;
+            Transfer.TransferInfo.Status = -2;
+            Transfer.TransferInfo.TargetType = 0;
+            Transfer.TransferInfo.Params = req.Params;
+            Transfer.TransferInfo.Size = 0;
+            Transfer.TransferInfo.TransferID = req.TransferRequestID;
+            Transfer.Header.Zerocoded = true;
+            OutPacket(Transfer, ThrottleOutPacketType.Asset);
+        }
+
         public void SendTexture(AssetBase TextureAsset)
         {
 
@@ -3722,8 +3735,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                         }
                     }
     
-                    ++updatesThisCall;
-    
                     #region UpdateFlags to packet type conversion
     
                     PrimUpdateFlags updateFlags = (PrimUpdateFlags)update.Flags;
@@ -3780,16 +3791,27 @@ namespace OpenSim.Region.ClientStack.LindenUDP
     
                     if (!canUseImproved && !canUseCompressed)
                     {
+                        ObjectUpdatePacket.ObjectDataBlock updateBlock;
+
                         if (update.Entity is ScenePresence)
                         {
-                            objectUpdateBlocks.Value.Add(CreateAvatarUpdateBlock((ScenePresence)update.Entity));
-                            objectUpdates.Value.Add(update);
+                            updateBlock = CreateAvatarUpdateBlock((ScenePresence)update.Entity);
                         }
                         else
                         {
-                            objectUpdateBlocks.Value.Add(CreatePrimUpdateBlock((SceneObjectPart)update.Entity, this.m_agentId));
-                            objectUpdates.Value.Add(update);
+                            SceneObjectPart part = (SceneObjectPart)update.Entity;
+                            updateBlock = CreatePrimUpdateBlock(part, AgentId);
+
+                            // If the part has become a private hud since the update was scheduled then we do not
+                            // want to send it to other avatars.
+                            if (part.ParentGroup.IsAttachment
+                                && part.ParentGroup.HasPrivateAttachmentPoint
+                                && part.ParentGroup.AttachedAvatar != AgentId)
+                                continue;
                         }
+
+                        objectUpdateBlocks.Value.Add(updateBlock);
+                        objectUpdates.Value.Add(update);
                     }
                     else if (!canUseImproved)
                     {
@@ -3806,15 +3828,31 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                         }
                         else
                         {
+                            ImprovedTerseObjectUpdatePacket.ObjectDataBlock terseUpdateBlock
+                                = CreateImprovedTerseBlock(update.Entity, updateFlags.HasFlag(PrimUpdateFlags.Textures));
+
                             // Everything else goes here
-                            terseUpdateBlocks.Value.Add(CreateImprovedTerseBlock(update.Entity, updateFlags.HasFlag(PrimUpdateFlags.Textures)));
+                            if (update.Entity is SceneObjectPart)
+                            {
+                                SceneObjectPart part = (SceneObjectPart)update.Entity;
+
+                                // If the part has become a private hud since the update was scheduled then we do not
+                                // want to send it to other avatars.
+                                if (part.ParentGroup.IsAttachment
+                                    && part.ParentGroup.HasPrivateAttachmentPoint
+                                    && part.ParentGroup.AttachedAvatar != AgentId)
+                                    continue;
+                            }
+
+                            terseUpdateBlocks.Value.Add(terseUpdateBlock);
                             terseUpdates.Value.Add(update);
                         }
                     }
+
+                    ++updatesThisCall;
     
                     #endregion Block Construction
                 }
-                
     
                 #region Packet Sending
                 ushort timeDilation = Utils.FloatToUInt16(avgTimeDilation, 0.0f, 1.0f);
@@ -11650,7 +11688,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 if (DebugPacketLevel <= 100 && (packet.Type == PacketType.AvatarAnimation || packet.Type == PacketType.ViewerEffect))
                     logPacket = false;
                 
-                if (DebugPacketLevel <= 50 && packet.Type == PacketType.ImprovedTerseObjectUpdate)
+                if (DebugPacketLevel <= 50
+                    & (packet.Type == PacketType.ImprovedTerseObjectUpdate || packet.Type == PacketType.ObjectUpdate))
                     logPacket = false;
 
                 if (DebugPacketLevel <= 25 && packet.Type == PacketType.ObjectPropertiesFamily)
@@ -11860,10 +11899,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             return string.Empty;
         }
 
-        public void KillEndDone()
-        {
-        }
-
         #region IClientCore
 
         private readonly Dictionary<Type, object> m_clientInterfaces = new Dictionary<Type, object>();
@@ -11981,13 +12016,26 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         /// <param name="asset"></param>
         protected void AssetReceived(string id, Object sender, AssetBase asset)
         {
-            if (asset == null)
-                return;
-
             TransferRequestPacket transferRequest = (TransferRequestPacket)sender;
 
             UUID requestID = UUID.Zero;
             byte source = (byte)SourceType.Asset;
+
+            AssetRequestToClient req = new AssetRequestToClient();
+
+            if (asset == null)
+            {
+                req.AssetInf = null;
+                req.AssetRequestSource = source;
+                req.IsTextureRequest = false;
+                req.NumPackets = 0;
+                req.Params = transferRequest.TransferInfo.Params;
+                req.RequestAssetID = requestID;
+                req.TransferRequestID = transferRequest.TransferInfo.TransferID;
+
+                SendAssetNotFound(req);
+                return;
+            }
 
             if (transferRequest.TransferInfo.SourceType == (int)SourceType.Asset)
             {
@@ -12005,7 +12053,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 return;
 
             // The asset is known to exist and is in our cache, so add it to the AssetRequests list
-            AssetRequestToClient req = new AssetRequestToClient();
             req.AssetInf = asset;
             req.AssetRequestSource = source;
             req.IsTextureRequest = false;

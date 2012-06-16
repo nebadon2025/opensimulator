@@ -28,10 +28,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-
-using OpenSim.Framework;
-
+using System.Reflection;
+using log4net;
 using OpenMetaverse;
+using OpenSim.Framework;
 
 namespace OpenSim.Services.Interfaces
 {
@@ -91,6 +91,8 @@ namespace OpenSim.Services.Interfaces
     /// </summary>
     public class AvatarData
     {
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
         // This pretty much determines which name/value pairs will be
         // present below. The name/value pair describe a part of
         // the avatar. For SL avatars, these would be "shape", "texture1",
@@ -172,11 +174,21 @@ namespace OpenSim.Services.Interfaces
 
             Data["VisualParams"] = String.Join(",", vps);
 
-            // Attachments
-            List<AvatarAttachment> attachments = appearance.GetAttachments();
-            foreach (AvatarAttachment attach in attachments)
+            Dictionary<int, List<AvatarAttachment>> attachments = appearance.GetAttachmentsByAttachPoint();
+
+            foreach (KeyValuePair<int, List<AvatarAttachment>> kvp in attachments)
             {
-                Data["_ap_" + attach.AttachPoint] = attach.ItemID.ToString();
+                for (int i = 0; i < kvp.Value.Count; i++)
+                {
+                    AvatarAttachment attachment = kvp.Value[i];
+
+                    // Attachments old single point 'ap' style for compatibility
+                    // The last attachment will effectively be the one chosen if there is more than one on a point.
+                    Data["_ap_" + attachment.AttachPoint] = attachment.ItemID.ToString();
+
+                    // Multi point 'ap2' style
+                    Data[string.Format("_ap2_{0}_{1}", attachment.AttachPoint, i)] = attachment.ItemID.ToString();
+                }
             }
         }
 
@@ -291,22 +303,68 @@ namespace OpenSim.Services.Interfaces
                 }
 
                 // Attachments
-                Dictionary<string, string> attchs = new Dictionary<string, string>();
-                foreach (KeyValuePair<string, string> _kvp in Data)
-                    if (_kvp.Key.StartsWith("_ap_"))
-                        attchs[_kvp.Key] = _kvp.Value;
+                Dictionary<int, UUID> attchsAp1 = new Dictionary<int, UUID>();
+                Dictionary<int, List<UUID>> attchsAp2 = new Dictionary<int, List<UUID>>();
 
-                foreach (KeyValuePair<string, string> _kvp in attchs)
+                foreach (KeyValuePair<string, string> kvp in Data)
                 {
-                    string pointStr = _kvp.Key.Substring(4);
-                    int point = 0;
-                    if (!Int32.TryParse(pointStr, out point))
-                        continue;
+                    if (kvp.Key.StartsWith("_ap_"))
+                    {
+                        string pointStr = kvp.Key.Substring(4);
+                        int point = 0;
+                        if (!Int32.TryParse(pointStr, out point))
+                            continue;
+    
+                        UUID itemUuid = UUID.Zero;
+                        if (!UUID.TryParse(kvp.Value, out itemUuid))
+                            continue;
 
-                    UUID uuid = UUID.Zero;
-                    UUID.TryParse(_kvp.Value, out uuid);
+                        attchsAp1[point] = itemUuid;
+                    }
+                    else if (kvp.Key.StartsWith("_ap2_"))
+                    {
+                        string[] parts = kvp.Key.Split(new char[] { '_' });
+                        string rawAttachPoint = parts[2];
+                        int attachPoint;
 
-                    appearance.SetAttachment(point, uuid, UUID.Zero);
+                        if (!int.TryParse(rawAttachPoint, out attachPoint))
+                        {
+                            m_log.WarnFormat("[AVATAR DATA]: Received bad attachment key {0} in {1}", parts[1], kvp.Key);
+                            continue;
+                        }
+
+                        UUID itemUuid = UUID.Zero;
+                        if (!UUID.TryParse(kvp.Value, out itemUuid))
+                        {
+                            m_log.WarnFormat("[AVATAR DATA]: Received bad attachment item UUID {0}", kvp.Value);
+                            continue;
+                        }
+
+                        if (!attchsAp2.ContainsKey(attachPoint))
+                            attchsAp2[attachPoint] = new List<UUID>();
+
+                        attchsAp2[attachPoint].Add(itemUuid);
+                    }
+                }
+
+                if (attchsAp2.Count > 0)
+                {
+                    m_log.DebugFormat("[AVATAR DATA]: Using ap2 format attachments");
+                    foreach (KeyValuePair<int, List<UUID>> kvp in attchsAp2)
+                    {
+                        foreach (UUID itemUuid in kvp.Value)
+                        {
+                            // | 0x80 is a temporary hack to signal that this is an attachment append (this is what
+                            // the viewer uses to indicate this, but ultimately we will want to do something different
+                            appearance.SetAttachment(kvp.Key | 0x80, itemUuid, UUID.Zero);
+                        }
+                    }
+                }
+                else
+                {
+                    m_log.DebugFormat("[AVATAR DATA]: Using ap1 format attachments");
+                    foreach (KeyValuePair<int, UUID> kvp in attchsAp1)
+                        appearance.SetAttachment(kvp.Key, kvp.Value, UUID.Zero);
                 }
 
                 if (appearance.Wearables[AvatarWearable.BODY].Count == 0)

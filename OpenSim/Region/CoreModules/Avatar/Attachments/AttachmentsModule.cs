@@ -206,7 +206,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
     
                 // TODO: this short circuits multiple attachments functionality  in  LL viewer 2.1+ and should
                 // be removed when that functionality is implemented in opensim
-                attachmentPt &= 0x7f;
+//                attachmentPt &= 0x7f;
                 
                 // If the attachment point isn't the same as the one previously used
                 // set it's offset position = 0 so that it appears on the attachment point
@@ -241,17 +241,17 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                     List<SceneObjectGroup> attachments = sp.GetAttachments(attachmentPt);
     
                     // At the moment we can only deal with a single attachment
-                    if (attachments.Count != 0)
-                    {
-                        UUID oldAttachmentItemID = attachments[0].FromItemID;
-        
-                        if (oldAttachmentItemID != UUID.Zero)
-                            DetachSingleAttachmentToInvInternal(sp, oldAttachmentItemID);
-                        else
-                            m_log.WarnFormat(
-                                "[ATTACHMENTS MODULE]: When detaching existing attachment {0} {1} at point {2} to make way for {3} {4} for {5}, couldn't find the associated item ID to adjust inventory attachment record!",
-                                attachments[0].Name, attachments[0].LocalId, attachmentPt, group.Name, group.LocalId, sp.Name);
-                    }
+//                    if (attachments.Count != 0)
+//                    {
+//                        UUID oldAttachmentItemID = attachments[0].FromItemID;
+//        
+//                        if (oldAttachmentItemID != UUID.Zero)
+//                            DetachSingleAttachmentToInvInternal(sp, oldAttachmentItemID);
+//                        else
+//                            m_log.WarnFormat(
+//                                "[ATTACHMENTS MODULE]: When detaching existing attachment {0} {1} at point {2} to make way for {3} {4} for {5}, couldn't find the associated item ID to adjust inventory attachment record!",
+//                                attachments[0].Name, attachments[0].LocalId, attachmentPt, group.Name, group.LocalId, sp.Name);
+//                    }
     
                     // Add the new attachment to inventory if we don't already have it.
                     UUID newAttachmentItemID = group.FromItemID;
@@ -278,7 +278,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
 
             // TODO: this short circuits multiple attachments functionality  in  LL viewer 2.1+ and should
             // be removed when that functionality is implemented in opensim
-            AttachmentPt &= 0x7f;
+//            AttachmentPt &= 0x7f;
 
             // Viewer 2/3 sometimes asks to re-wear items that are already worn (and show up in it's inventory as such).
             // This often happens during login - not sure the exact reason.
@@ -834,7 +834,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
 
                 // TODO: this short circuits multiple attachments functionality  in  LL viewer 2.1+ and should
                 // be removed when that functionality is implemented in opensim
-                AttachmentPt &= 0x7f;
+//                AttachmentPt &= 0x7f;
 
                 // Calls attach with a Zero position
                 if (AttachObject(sp, part.ParentGroup, AttachmentPt, false))

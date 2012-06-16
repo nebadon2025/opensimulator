@@ -140,7 +140,7 @@ namespace OpenSim.Framework
 
         public AvatarAppearance(AvatarAppearance appearance, bool copyWearables)
         {
-//            m_log.WarnFormat("[AVATAR APPEARANCE] create from an existing appearance");
+            m_log.DebugFormat("[AVATAR APPEARANCE]: Creating from an existing appearance");
 
             if (appearance == null)
             {
@@ -404,11 +404,30 @@ namespace OpenSim.Framework
             return alist;
         }
 
+        /// <summary>
+        /// Get attachments listed by attach point.
+        /// </summary>
+        /// <returns>
+        /// A dictionary that can be altered by the caller.  This will have no impact on the original dictionary.
+        /// </returns>
+        public Dictionary<int, List<AvatarAttachment>> GetAttachmentsByAttachPoint()
+        {
+            Dictionary<int, List<AvatarAttachment>> returnDict = new Dictionary<int, List<AvatarAttachment>>();
+
+            lock (m_attachments)
+            {
+                foreach (KeyValuePair<int, List<AvatarAttachment>> kvp in m_attachments)
+                    returnDict[kvp.Key] = new List<AvatarAttachment>(kvp.Value);
+            }
+
+            return returnDict;
+        }
+
         internal void AppendAttachment(AvatarAttachment attach)
         {
-//            m_log.DebugFormat(
-//                "[AVATAR APPEARNCE]: Appending itemID={0}, assetID={1} at {2}",
-//                attach.ItemID, attach.AssetID, attach.AttachPoint);
+            m_log.DebugFormat(
+                "[AVATAR APPEARNCE]: Appending itemID={0}, assetID={1} at {2}",
+                attach.ItemID, attach.AssetID, attach.AttachPoint);
 
             lock (m_attachments)
             {
@@ -421,9 +440,9 @@ namespace OpenSim.Framework
 
         internal void ReplaceAttachment(AvatarAttachment attach)
         {
-//            m_log.DebugFormat(
-//                "[AVATAR APPEARANCE]: Replacing itemID={0}, assetID={1} at {2}",
-//                attach.ItemID, attach.AssetID, attach.AttachPoint);
+            m_log.DebugFormat(
+                "[AVATAR APPEARANCE]: Replacing itemID={0}, assetID={1} at {2}",
+                attach.ItemID, attach.AssetID, attach.AttachPoint);
 
             lock (m_attachments)
             {
@@ -449,9 +468,9 @@ namespace OpenSim.Framework
         /// </returns>
         public bool SetAttachment(int attachpoint, UUID item, UUID asset)
         {
-//            m_log.DebugFormat(
-//                "[AVATAR APPEARANCE]: Setting attachment at {0} with item ID {1}, asset ID {2}",
-//                 attachpoint, item, asset);
+            m_log.DebugFormat(
+                "[AVATAR APPEARANCE]: Setting attachment at {0} with item ID {1}, asset ID {2}",
+                 attachpoint, item, asset);
 
             if (attachpoint == 0)
                 return false;
@@ -490,11 +509,18 @@ namespace OpenSim.Framework
             {
                 // strip the append bit
                 int point = attachpoint & 0x7F;
-                AppendAttachment(new AvatarAttachment(point, item, asset));
+
+                // We must check if we already have the item attached.  If we do then we must replace since we may
+                // need to set the asset ID
+                // FIXME: This needs to become more straightforward.
+                if (GetAttachmentForItem(item) == null)
+                    AppendAttachment(new AvatarAttachment(point, item, asset));
+                else
+                    ReplaceAttachment(new AvatarAttachment(point, item, asset));
             }
             else
             {
-                ReplaceAttachment(new AvatarAttachment(attachpoint,item, asset));
+                ReplaceAttachment(new AvatarAttachment(attachpoint, item, asset));
             }
 
             return true;
@@ -614,6 +640,8 @@ namespace OpenSim.Framework
         /// </summary>
         public void Unpack(OSDMap data)
         {
+            m_log.DebugFormat("[AVATAR APPEARANCE]: Unpacking OSDMap appearance data");
+
             if ((data != null) && (data["serial"] != null))
                 m_serial = data["serial"].AsInteger();
             if ((data != null) && (data["height"] != null))

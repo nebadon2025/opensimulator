@@ -3811,6 +3811,15 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                                 && part.ParentGroup.HasPrivateAttachmentPoint
                                 && part.ParentGroup.AttachedAvatar != AgentId)
                                 continue;
+
+                            // If the part has since been deleted, then drop the update.  In the case of attachments,
+                            // this is to avoid spurious updates to other viewers since post-processing of attachments
+                            // has to change the IsAttachment flag for various reasons (which will end up in a pass
+                            // of the test above).
+                            //
+                            // Actual deletions (kills) happen in another method.
+                            if (part.ParentGroup.IsDeleted)
+                                continue;
                         }
 
                         objectUpdateBlocks.Value.Add(updateBlock);
@@ -3818,7 +3827,20 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                     }
                     else if (!canUseImproved)
                     {
-                        compressedUpdateBlocks.Value.Add(CreateCompressedUpdateBlock((SceneObjectPart)update.Entity, updateFlags));
+                        SceneObjectPart part = (SceneObjectPart)update.Entity;
+                        ObjectUpdateCompressedPacket.ObjectDataBlock compressedBlock
+                            = CreateCompressedUpdateBlock(part, updateFlags);
+
+                        // If the part has since been deleted, then drop the update.  In the case of attachments,
+                        // this is to avoid spurious updates to other viewers since post-processing of attachments
+                        // has to change the IsAttachment flag for various reasons (which will end up in a pass
+                        // of the test above).
+                        //
+                        // Actual deletions (kills) happen in another method.
+                        if (part.ParentGroup.IsDeleted)
+                            continue;
+
+                        compressedUpdateBlocks.Value.Add(compressedBlock);
                         compressedUpdates.Value.Add(update);
                     }
                     else
@@ -3844,6 +3866,15 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                                 if (part.ParentGroup.IsAttachment
                                     && part.ParentGroup.HasPrivateAttachmentPoint
                                     && part.ParentGroup.AttachedAvatar != AgentId)
+                                    continue;
+
+                                // If the part has since been deleted, then drop the update.  In the case of attachments,
+                                // this is to avoid spurious updates to other viewers since post-processing of attachments
+                                // has to change the IsAttachment flag for various reasons (which will end up in a pass
+                                // of the test above).
+                                //
+                                // Actual deletions (kills) happen in another method.
+                                if (part.ParentGroup.IsDeleted)
                                     continue;
                             }
 

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -26,36 +26,21 @@
  */
 
 using System;
-using System.Collections;
-using OpenMetaverse;
+using NUnit.Framework;
 
-namespace OpenSim.Framework.Servers.HttpServer
+namespace OpenSim.Tests.Common
 {
-    public delegate void RequestMethod(UUID requestID, Hashtable request);
-    public delegate bool HasEventsMethod(UUID requestID, UUID pId);
-
-    public delegate Hashtable GetEventsMethod(UUID requestID, UUID pId, string request);
-
-    public delegate Hashtable NoEventsMethod(UUID requestID, UUID pId);
-
-    public class PollServiceEventArgs : EventArgs
+    [TestFixture]
+    public class OpenSimTestCase
     {
-        public HasEventsMethod HasEvents;
-        public GetEventsMethod GetEvents;
-        public NoEventsMethod NoEvents;
-        public RequestMethod Request;
-        public UUID Id;
-
-        public PollServiceEventArgs(
-            RequestMethod pRequest,
-            HasEventsMethod pHasEvents, GetEventsMethod pGetEvents, NoEventsMethod pNoEvents,
-            UUID pId)
+        [SetUp]
+        public virtual void SetUp()
         {
-            Request = pRequest;
-            HasEvents = pHasEvents;
-            GetEvents = pGetEvents;
-            NoEvents = pNoEvents;
-            Id = pId;
+//            TestHelpers.InMethod();
+            // Disable logging for each test so that one where logging is enabled doesn't cause all subsequent tests
+            // to have logging on if it failed with an exception.
+            TestHelpers.DisableLogging();
         }
     }
 }
+

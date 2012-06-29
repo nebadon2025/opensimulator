@@ -172,9 +172,9 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
             {
                 uint p = (uint)attach.AttachPoint;
 
-//                m_log.DebugFormat(
-//                    "[ATTACHMENTS MODULE]: Doing initial rez of attachment with itemID {0}, assetID {1}, point {2} for {3} in {4}",
-//                    attach.ItemID, attach.AssetID, p, sp.Name, m_scene.RegionInfo.RegionName);
+                m_log.DebugFormat(
+                    "[ATTACHMENTS MODULE]: Doing initial rez of attachment with itemID {0}, assetID {1}, point {2} for {3} in {4}",
+                    attach.ItemID, attach.AssetID, p, sp.Name, m_scene.RegionInfo.RegionName);
 
                 // For some reason assetIDs are being written as Zero's in the DB -- need to track tat down
                 // But they're not used anyway, the item is being looked up for now, so let's proceed.
@@ -297,7 +297,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                 if (sp.PresenceType != PresenceType.Npc)
                 {
                     // Remove any previous attachments
-                    List<SceneObjectGroup> attachments = sp.GetAttachments(attachmentPt);
+//                    List<SceneObjectGroup> attachments = sp.GetAttachments(attachmentPt);
     
                     // At the moment we can only deal with a single attachment
 //                    if (attachments.Count != 0)
@@ -329,13 +329,18 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
             if (!Enabled)
                 return null;
 
-//            m_log.DebugFormat(
-//                "[ATTACHMENTS MODULE]: RezSingleAttachmentFromInventory to point {0} from item {1} for {2}",
-//                (AttachmentPoint)AttachmentPt, itemID, sp.Name);
+            m_log.DebugFormat(
+                "[ATTACHMENTS MODULE]: RezSingleAttachmentFromInventory to point {0} from item {1} for {2}",
+                AttachmentPt, itemID, sp.Name);
 
             // TODO: this short circuits multiple attachments functionality  in  LL viewer 2.1+ and should
             // be removed when that functionality is implemented in opensim
 //            AttachmentPt &= 0x7f;
+
+            // Temporarily, always add the append bit to so that existing multi-attachments re-rezzed from inventory
+            // on login are preserved
+            // FIXME: We need to stop having to add this bit just go get AvatarAppearance to append rather than replace.
+            AttachmentPt |= 0x80;
 
             // Viewer 2/3 sometimes asks to re-wear items that are already worn (and show up in it's inventory as such).
             // This often happens during login - not sure the exact reason.
@@ -356,9 +361,9 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
 //            if (sp.Appearance.GetAttachmentForItem(itemID) != null)
             if (alreadyOn)
             {
-//                m_log.WarnFormat(
-//                    "[ATTACHMENTS MODULE]: Ignoring request by {0} to wear item {1} at {2} since it is already worn",
-//                    sp.Name, itemID, AttachmentPt);
+                m_log.WarnFormat(
+                    "[ATTACHMENTS MODULE]: Ignoring request by {0} to wear item {1} at {2} since it is already worn",
+                    sp.Name, itemID, AttachmentPt);
 
                 return null;
             }

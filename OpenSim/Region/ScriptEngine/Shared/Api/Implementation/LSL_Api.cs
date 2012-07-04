@@ -4041,7 +4041,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     return tid.ToString();
                 }
             }
-            
+
             ScriptSleep(1000);
             return String.Empty;
         }
@@ -4164,9 +4164,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             UUID partItemID;
             foreach (SceneObjectPart part in parts)
             {
-                TaskInventoryDictionary itemsDictionary = (TaskInventoryDictionary)part.TaskInventory.Clone();
-
-                foreach (TaskInventoryItem item in itemsDictionary.Values)
+                foreach (TaskInventoryItem item in part.Inventory.GetInventoryItems())
                 {
                     if (item.Type == ScriptBaseClass.INVENTORY_SCRIPT)
                     {

@@ -1082,7 +1082,7 @@ namespace OpenSim.Data.Tests
             sop.Shape = PrimitiveBaseShape.Default;
 
             SceneObjectGroup sog = new SceneObjectGroup(sop);
-            sog.SetScene(scene);
+//            sog.SetScene(scene);
 
             return sog;
         }

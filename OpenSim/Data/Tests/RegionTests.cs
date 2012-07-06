@@ -1070,8 +1070,6 @@ namespace OpenSim.Data.Tests
             regionInfo.RegionLocX = 0;
             regionInfo.RegionLocY = 0;
 
-            Scene scene = new Scene(regionInfo);
-
             SceneObjectPart sop = new SceneObjectPart();
             sop.Name = name;
             sop.Description = name;

@@ -2125,7 +2125,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_String osFormatString(string str, LSL_List strings)
         {
-            CheckThreatLevel(ThreatLevel.Low, "osFormatString");
+            CheckThreatLevel(ThreatLevel.VeryLow, "osFormatString");
             m_host.AddScriptLPS(1);
 
             return String.Format(str, strings.Data);
@@ -2133,7 +2133,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_List osMatchString(string src, string pattern, int start)
         {
-            CheckThreatLevel(ThreatLevel.High, "osMatchString");
+            CheckThreatLevel(ThreatLevel.VeryLow, "osMatchString");
             m_host.AddScriptLPS(1);
 
             LSL_List result = new LSL_List();
@@ -2175,7 +2175,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_String osReplaceString(string src, string pattern, string replace, int count, int start)
         {
-            CheckThreatLevel(ThreatLevel.High, "osReplaceString");
+            CheckThreatLevel(ThreatLevel.VeryLow, "osReplaceString");
             m_host.AddScriptLPS(1);
 
             // Normalize indices (if negative).
@@ -2674,6 +2674,41 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     return;
 
                 module.Whisper(npcId, World, message, channel);
+            }
+        }
+
+        public void osNpcTouch(LSL_Key npcLSL_Key, LSL_Key object_key, LSL_Integer link_num)
+        {
+            CheckThreatLevel(ThreatLevel.High, "osNpcTouch");
+            m_host.AddScriptLPS(1);
+            INPCModule module = World.RequestModuleInterface<INPCModule>();
+            int linkNum = link_num.value;
+            if (module != null || (linkNum < 0 && linkNum != ScriptBaseClass.LINK_THIS))
+            {
+                UUID npcId;
+                if (!UUID.TryParse(npcLSL_Key, out npcId) || !module.CheckPermissions(npcId, m_host.OwnerID))
+                    return;
+                SceneObjectPart part = null;
+                UUID objectId;
+                if (UUID.TryParse(LSL_String.ToString(object_key), out objectId))
+                    part = World.GetSceneObjectPart(objectId);
+                if (part == null)
+                    return;
+                if (linkNum != ScriptBaseClass.LINK_THIS)
+                {
+                    if (linkNum == 0 || linkNum == ScriptBaseClass.LINK_ROOT)
+                    { // 0 and 1 are treated as root, find the root if the current part isnt it
+                        if (!part.IsRoot)
+                            part = part.ParentGroup.RootPart;
+                    }
+                    else
+                    { // Find the prim with the given link number if not found then fail silently
+                        part = part.ParentGroup.GetLinkNumPart(linkNum);
+                        if (part == null)
+                            return;
+                    }
+                }
+                module.Touch(npcId, part.UUID);
             }
         }
 

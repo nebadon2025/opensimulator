@@ -2495,7 +2495,16 @@ namespace OpenSim.Region.Framework.Scenes
             }
             catch (Exception e)
             {
-                m_log.WarnFormat("[SCENE]: Problem casting object, exception {0}{1}", e.Message, e.StackTrace);
+                m_log.WarnFormat("[INTERREGION]: Problem casting object, exception {0}{1}", e.Message, e.StackTrace);
+                return false;
+            }
+
+            // If the user is banned, we won't let any of their objects
+            // enter. Period.
+            //
+            if (RegionInfo.EstateSettings.IsBanned(newObject.OwnerID))
+            {
+                m_log.InfoFormat("[INTERREGION]: Denied prim crossing for banned avatar {0}", newObject.OwnerID);
                 return false;
             }
 
@@ -2504,14 +2513,28 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (!AddSceneObject(newObject))
             {
-                m_log.DebugFormat("[SCENE]: Problem adding scene object {0} in {1} ", sog.UUID, RegionInfo.RegionName);
+                m_log.DebugFormat(
+                    "[INTERREGION]: Problem adding scene object {0} in {1} ", newObject.UUID, RegionInfo.RegionName);
                 return false;
             }
 
-            // For attachments, we need to wait until the agent is root
-            // before we restart the scripts, or else some functions won't work.
             if (!newObject.IsAttachment)
             {
+                // FIXME: It would be better to never add the scene object at all rather than add it and then delete
+                // it
+                if (!Permissions.CanObjectEntry(newObject.UUID, true, newObject.AbsolutePosition))
+                {
+                    // Deny non attachments based on parcel settings
+                    //
+                    m_log.Info("[INTERREGION]: Denied prim crossing because of parcel settings");
+
+                    DeleteSceneObject(newObject, false);
+
+                    return false;
+                }
+
+                // For attachments, we need to wait until the agent is root
+                // before we restart the scripts, or else some functions won't work.
                 newObject.RootPart.ParentGroup.CreateScriptInstances(0, false, DefaultScriptEngine, GetStateSource(newObject));
                 newObject.ResumeScripts();
             }
@@ -2531,18 +2554,6 @@ namespace OpenSim.Region.Framework.Scenes
         /// <returns>True if the SceneObjectGroup was added, False if it was not</returns>
         public bool AddSceneObject(SceneObjectGroup sceneObject)
         {
-            // If the user is banned, we won't let any of their objects
-            // enter. Period.
-            //
-            if (RegionInfo.EstateSettings.IsBanned(sceneObject.OwnerID))
-            {
-                m_log.InfoFormat("[INTERREGION]: Denied prim crossing for banned avatar {0}", sceneObject.OwnerID);
-
-                return false;
-            }
-
-            sceneObject.SetScene(this);
-
             // Force allocation of new LocalId
             //
             SceneObjectPart[] parts = sceneObject.Parts;
@@ -2587,18 +2598,6 @@ namespace OpenSim.Region.Framework.Scenes
             else
             {
                 AddRestoredSceneObject(sceneObject, true, false);
-
-                if (!Permissions.CanObjectEntry(sceneObject.UUID,
-                        true, sceneObject.AbsolutePosition))
-                {
-                    // Deny non attachments based on parcel settings
-                    //
-                    m_log.Info("[INTERREGION]: Denied prim crossing because of parcel settings");
-
-                    DeleteSceneObject(sceneObject, false);
-
-                    return false;
-                }
             }
 
             return true;
@@ -4458,6 +4457,17 @@ namespace OpenSim.Region.Framework.Scenes
         public void ForEachScenePresence(Action<ScenePresence> action)
         {
             m_sceneGraph.ForEachScenePresence(action);
+        }
+
+        /// <summary>
+        /// Get all the scene object groups.
+        /// </summary>
+        /// <returns>
+        /// The scene object groups.  If the scene is empty then an empty list is returned.
+        /// </returns>
+        public List<SceneObjectGroup> GetSceneObjectGroups()
+        {
+            return m_sceneGraph.GetSceneObjectGroups();
         }
 
         /// <summary>

@@ -496,7 +496,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             get
             {
-                if (PhysicsActor != null && m_parentID == 0)
+                if (PhysicsActor != null && ParentID == 0)
                 {
                     m_pos = PhysicsActor.Position;
 
@@ -633,12 +633,24 @@ namespace OpenSim.Region.Framework.Scenes
 
         public bool IsChildAgent { get; set; }
 
-        public uint ParentID
-        {
-            get { return m_parentID; }
-            set { m_parentID = value; }
-        }
-        private uint m_parentID;
+        /// <summary>
+        /// If the avatar is sitting, the local ID of the prim that it's sitting on.  If not sitting then zero.
+        /// </summary>
+        public uint ParentID { get; set; }
+
+        /// <summary>
+        /// Are we sitting on an object?
+        /// </summary>
+        /// <remarks>A more readable way of testing presence sit status than ParentID == 0</remarks>
+        public bool IsSatOnObject { get { return ParentID != 0; } }
+
+        /// <summary>
+        /// If the avatar is sitting, the prim that it's sitting on.  If not sitting then null.
+        /// </summary>
+        /// <remarks>
+        /// If you use this property then you must take a reference since another thread could set it to null.
+        /// </remarks>
+        public SceneObjectPart ParentPart { get; set; }
 
         public float Health
         {
@@ -1867,6 +1879,8 @@ namespace OpenSim.Region.Framework.Scenes
                 SendAvatarDataToAllAgents();
                 m_requestedSitTargetID = 0;
 
+                part.RemoveSittingAvatar(UUID);
+
                 if (part != null)
                     part.ParentGroup.TriggerScriptChangedEvent(Changed.LINK);
             }
@@ -1946,7 +1960,7 @@ namespace OpenSim.Region.Framework.Scenes
                    )
                    ));
 
-//                m_log.DebugFormat("[SCENE PRESENCE]: {0} {1}", SitTargetisSet, SitTargetUnOccupied);
+            m_log.DebugFormat("[SCENE PRESENCE]: {0} {1}", SitTargetisSet, SitTargetUnOccupied);
 
             if (PhysicsActor != null)
                 m_sitAvatarHeight = PhysicsActor.Size.Z;
@@ -1979,6 +1993,12 @@ namespace OpenSim.Region.Framework.Scenes
                     AbsolutePosition = pos + new Vector3(0.0f, 0.0f, m_sitAvatarHeight);
                     canSit = true;
                 }
+//                else
+//                {
+//                    m_log.DebugFormat(
+//                        "[SCENE PRESENCE]: Ignoring sit request of {0} on {1} {2} because sit target is unset and outside 10m",
+//                        Name, part.Name, part.LocalId);
+//                }
             }
 
             if (canSit)
@@ -1988,6 +2008,8 @@ namespace OpenSim.Region.Framework.Scenes
                     // We can remove the physicsActor until they stand up.
                     RemoveFromPhysicalScene();
                 }
+
+                part.AddSittingAvatar(UUID);
 
                 cameraAtOffset = part.GetCameraAtOffset();
                 cameraEyeOffset = part.GetCameraEyeOffset();

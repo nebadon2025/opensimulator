@@ -4835,6 +4835,9 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name='avatarId'></param>
         protected internal bool AddSittingAvatar(UUID avatarId)
         {
+            if (IsSitTargetSet && SitTargetAvatar == UUID.Zero)
+                SitTargetAvatar = avatarId;
+
             HashSet<UUID> sittingAvatars = m_sittingAvatars;
 
             if (sittingAvatars == null)
@@ -4857,6 +4860,9 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name='avatarId'></param>
         protected internal bool RemoveSittingAvatar(UUID avatarId)
         {
+            if (SitTargetAvatar == avatarId)
+                SitTargetAvatar = UUID.Zero;
+
             HashSet<UUID> sittingAvatars = m_sittingAvatars;
 
             // This can occur under a race condition where another thread

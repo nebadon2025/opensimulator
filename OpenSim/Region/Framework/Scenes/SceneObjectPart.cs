@@ -135,6 +135,21 @@ namespace OpenSim.Region.Framework.Scenes
             get { return ParentGroup.RootPart == this; } 
         }
 
+        /// <summary>
+        /// Is an explicit sit target set for this part?
+        /// </summary>
+        public bool IsSitTargetSet
+        {
+            get
+            {
+                return
+                    !(SitTargetPosition == Vector3.Zero
+                      && (SitTargetOrientation == Quaternion.Identity // Valid Zero Rotation quaternion
+                       || SitTargetOrientation.X == 0f && SitTargetOrientation.Y == 0f && SitTargetOrientation.Z == 1f && SitTargetOrientation.W == 0f // W-Z Mapping was invalid at one point
+                       || SitTargetOrientation.X == 0f && SitTargetOrientation.Y == 0f && SitTargetOrientation.Z == 0f && SitTargetOrientation.W == 0f)); // Invalid Quaternion
+            }
+        }
+
         #region Fields
 
         public bool AllowedDrop;
@@ -4510,6 +4525,9 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name='avatarId'></param>
         protected internal bool AddSittingAvatar(UUID avatarId)
         {
+            if (IsSitTargetSet && SitTargetAvatar == UUID.Zero)
+                SitTargetAvatar = avatarId;
+
             HashSet<UUID> sittingAvatars = m_sittingAvatars;
 
             if (sittingAvatars == null)
@@ -4532,6 +4550,9 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name='avatarId'></param>
         protected internal bool RemoveSittingAvatar(UUID avatarId)
         {
+            if (SitTargetAvatar == avatarId)
+                SitTargetAvatar = UUID.Zero;
+
             HashSet<UUID> sittingAvatars = m_sittingAvatars;
 
             // This can occur under a race condition where another thread

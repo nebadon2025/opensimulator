@@ -38,8 +38,6 @@ namespace OpenSim.Framework.Serialization.External
     /// </summary>
     public class RegionSettingsSerializer
     {
-        protected static ASCIIEncoding m_asciiEncoding = new ASCIIEncoding();
-        
         /// <summary>
         /// Deserialize settings
         /// </summary>
@@ -48,7 +46,7 @@ namespace OpenSim.Framework.Serialization.External
         /// <exception cref="System.Xml.XmlException"></exception>
         public static RegionSettings Deserialize(byte[] serializedSettings)
         {
-            return Deserialize(m_asciiEncoding.GetString(serializedSettings, 0, serializedSettings.Length));
+            return Deserialize(Encoding.ASCII.GetString(serializedSettings, 0, serializedSettings.Length));
         }
         
         /// <summary>

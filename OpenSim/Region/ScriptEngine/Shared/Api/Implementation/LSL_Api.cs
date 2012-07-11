@@ -10299,9 +10299,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     return;
                 }
 
-                System.Text.UTF8Encoding enc =
-                    new System.Text.UTF8Encoding();
-                string data = enc.GetString(a.Data);
+                string data = Encoding.UTF8.GetString(a.Data);
                 //m_log.Debug(data);
                 NotecardCache.Cache(id, data);
                 AsyncCommands.
@@ -10354,9 +10352,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                                  return;
                              }
 
-                             System.Text.UTF8Encoding enc =
-                                 new System.Text.UTF8Encoding();
-                             string data = enc.GetString(a.Data);
+                             string data = Encoding.UTF8.GetString(a.Data);
                              //m_log.Debug(data);
                              NotecardCache.Cache(id, data);
                              AsyncCommands.DataserverPlugin.DataserverReply(id.ToString(),

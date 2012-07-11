@@ -1756,7 +1756,7 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                             tfs.Read(tdata, 0, tdata.Length);
                         }
 
-                        assem = new System.Text.ASCIIEncoding().GetString(tdata);
+                        assem = Encoding.ASCII.GetString(tdata);
                     }
                     catch (Exception e)
                     {

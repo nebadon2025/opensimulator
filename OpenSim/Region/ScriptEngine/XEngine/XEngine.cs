@@ -77,7 +77,13 @@ namespace OpenSim.Region.ScriptEngine.XEngine
         private IConfigSource m_ConfigSource = null;
         private ICompiler m_Compiler;
         private int m_MinThreads;
-        private int m_MaxThreads ;
+        private int m_MaxThreads;
+
+        /// <summary>
+        /// Amount of time to delay before starting.
+        /// </summary>
+        private int m_StartDelay;
+
         private int m_IdleTimeout;
         private int m_StackSize;
         private int m_SleepTime;
@@ -231,6 +237,7 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             m_MaxThreads = m_ScriptConfig.GetInt("MaxThreads", 100);
             m_IdleTimeout = m_ScriptConfig.GetInt("IdleTimeout", 60);
             string priority = m_ScriptConfig.GetString("Priority", "BelowNormal");
+            m_StartDelay = m_ScriptConfig.GetInt("StartDelay", 15000);
             m_MaxScriptQueue = m_ScriptConfig.GetInt("MaxScriptEventQueue",300);
             m_StackSize = m_ScriptConfig.GetInt("ThreadStackSize", 262144);
             m_SleepTime = m_ScriptConfig.GetInt("MaintenanceInterval", 10) * 1000;
@@ -886,7 +893,7 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             {
                 // This delay exists to stop mono problems where script compilation and startup would stop the sim
                 // working properly for the session.
-                System.Threading.Thread.Sleep(15000);
+                System.Threading.Thread.Sleep(m_StartDelay);
             }
 
             object[] o;
@@ -1676,12 +1683,12 @@ namespace OpenSim.Region.ScriptEngine.XEngine
 
         public string GetXMLState(UUID itemID)
         {
-//            m_log.DebugFormat("[XEngine]: Getting XML state for {0}", itemID);
+//            m_log.DebugFormat("[XEngine]: Getting XML state for script instance {0}", itemID);
 
             IScriptInstance instance = GetInstance(itemID);
             if (instance == null)
             {
-//                m_log.DebugFormat("[XEngine]: Found no script for {0}, returning empty string", itemID);
+//                m_log.DebugFormat("[XEngine]: Found no script instance for {0}, returning empty string", itemID);
                 return "";
             }
 

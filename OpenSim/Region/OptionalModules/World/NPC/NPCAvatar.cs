@@ -895,11 +895,6 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         {
         }
 
-        public EndPoint GetClientEP()
-        {
-            return null;
-        }
-
         public ClientInfo GetClientInfo()
         {
             return null;

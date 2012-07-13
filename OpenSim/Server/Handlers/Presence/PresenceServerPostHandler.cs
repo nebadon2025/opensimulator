@@ -200,9 +200,9 @@ namespace OpenSim.Server.Handlers.Presence
                 result["result"] = pinfo.ToKeyValuePairs();
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
+
             //m_log.DebugFormat("[GRID HANDLER]: resp string: {0}", xmlString);
-            UTF8Encoding encoding = new UTF8Encoding();
-            return encoding.GetBytes(xmlString);
+            return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
         byte[] GetAgents(Dictionary<string, object> request)
@@ -241,9 +241,9 @@ namespace OpenSim.Server.Handlers.Presence
             }
 
             string xmlString = ServerUtils.BuildXmlResponse(result);
+            
             //m_log.DebugFormat("[GRID HANDLER]: resp string: {0}", xmlString);
-            UTF8Encoding encoding = new UTF8Encoding();
-            return encoding.GetBytes(xmlString);
+            return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
         
         private byte[] SuccessResult()

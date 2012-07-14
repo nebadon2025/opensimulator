@@ -29,19 +29,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
-using System.Linq;
-using OpenSim.Server.Base;
-using OpenSim.Services.Interfaces;
 using OpenSim.Framework;
 using OpenSim.Framework.Servers.HttpServer;
+using OpenSim.Services.Interfaces;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
-using OpenMetaverse;
-using OpenMetaverse.StructuredData;
-using Nini.Config;
-using log4net;
-using Mono.Addins;
-
 using Ux = OpenSim.Services.IntegrationService.IntegrationUtils;
+
 
 namespace OpenSim.Services.IntegrationService
 {
@@ -358,22 +351,22 @@ namespace OpenSim.Services.IntegrationService
             return Ux.DocToBytes(json);
         }
 
-        public byte[] HandleWebAddRepository (OSDMap request)
+        public byte[] HandleWebAddRepository(OSDMap request)
         {
             return Ux.FailureResult("Not Implemented");
         }
 
-        public byte[] HandleWebRemoveRepositroy (OSDMap request)
+        public byte[] HandleWebRemoveRepositroy(OSDMap request)
         {
             return Ux.FailureResult("Not Implemented");
         }
 
-        public byte[] HandleEnableRepository (OSDMap request)
+        public byte[] HandleEnableRepository(OSDMap request)
         {
             return Ux.FailureResult("Not Implemented");
         }
 
-        public byte[] HandleWebDisableRepository (OSDMap request)
+        public byte[] HandleWebDisableRepository(OSDMap request)
         {
             return Ux.FailureResult("Not Implemented");
         }
@@ -426,17 +419,17 @@ namespace OpenSim.Services.IntegrationService
             }
         }
 
-        public byte[] HandleWebUnInstallPlugin (OSDMap request)
+        public byte[] HandleWebUnInstallPlugin(OSDMap request)
         {
             return Ux.FailureResult("Not Implemented");
         }
 
-        public byte[] HandleWebEnablePlugin (OSDMap request)
+        public byte[] HandleWebEnablePlugin(OSDMap request)
         {
             return Ux.FailureResult("Not Implemented");
         }
 
-        public byte[] HandleWebDisablePlugin (OSDMap request)
+        public byte[] HandleWebDisablePlugin(OSDMap request)
         {
             return Ux.FailureResult("Not Implemented");
         }

@@ -95,7 +95,7 @@ namespace OpenSim.Server.Handlers.Integration
                         return HandleUnInstallPlugin(request);
 
                     case "enable_plugin":
-                        return HandleEnablePlugin (request);
+                        return HandleEnablePlugin(request);
 
                     case "disable_plugin":
                         return HandleDisblePlugin(request);
@@ -104,7 +104,7 @@ namespace OpenSim.Server.Handlers.Integration
                         return HandlePluginInfo(request);
 
                     case "list_repos":
-                        return HandleListRepositories (request);
+                        return HandleListRepositories(request);
 
                     case "add_repo":
                         return HandleAddRepository(request);
@@ -124,7 +124,7 @@ namespace OpenSim.Server.Handlers.Integration
                             command.Length,
                             command
                         );
-                        return FailureResult ("IntegrationHandler: Unrecognized method requested!");
+                        return FailureResult("IntegrationHandler: Unrecognized method requested!");
                 }
             }
             catch (Exception e)

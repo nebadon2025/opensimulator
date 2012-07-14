@@ -27,22 +27,19 @@
 
 using System;
 using System.IO;
-using OpenSim.Services.Interfaces;
-using OpenSim.Services.Base;
-using OpenSim.Framework.Servers.HttpServer;
 using System.Reflection;
-using Nini.Config;
 using OpenSim.Framework;
+using OpenSim.Framework.Servers.HttpServer;
+using OpenSim.Services.Base;
+using OpenSim.Services.Interfaces;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
-using Mono.Addins;
-using log4net;
-
 using Ux = OpenSim.Services.IntegrationService.IntegrationUtils;
 
-[assembly:AddinRoot ("IntegrationService", "2.1")]
+
+[assembly:AddinRoot("IntegrationService", "2.1")]
 namespace OpenSim.Services.IntegrationService
 {
-    [TypeExtensionPoint (Path="/OpenSim/IntegrationService", Name="IntegrationService")]
+    [TypeExtensionPoint(Path="/OpenSim/IntegrationService", Name="IntegrationService")]
     public interface IntegrationPlugin
     {
         void Init(IConfigSource MainConfig, IConfigSource PluginConfig, IHttpServer server, ServiceBase service);
@@ -90,16 +87,16 @@ namespace OpenSim.Services.IntegrationService
             // be able to use the repo/registry commands ...
             if (DEVELOPMENT == true)
             {
-                AddinManager.Initialize (".");
+                AddinManager.Initialize(".");
                 registry = new AddinRegistry(".", ".");
-                registry.Update ();
+                registry.Update();
     
                 AddinManager.AddinLoaded += on_addinloaded_;
                 AddinManager.AddinLoadError += on_addinloaderror_;
                 AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
                 AddinManager.AddinEngine.ExtensionChanged += HandleAddinManagerAddinEngineExtensionChanged;
     
-                registry.Update ();
+                registry.Update();
                 foreach (IntegrationPlugin cmd in AddinManager.GetExtensionObjects("/OpenSim/IntegrationService"))
                 {
                     m_log.DebugFormat("[INTEGRATION SERVICE]: Processing _Addin {0}", cmd.PluginName);
@@ -140,20 +137,20 @@ namespace OpenSim.Services.IntegrationService
                     return;
                 }
     
-                AddinManager.Initialize (RegistryLocation);
-                AddinManager.Registry.Update ();
+                AddinManager.Initialize(RegistryLocation);
+                AddinManager.Registry.Update();
 
                 AddinManager.AddinLoaded += on_addinloaded_;
                 AddinManager.AddinLoadError += on_addinloaderror_;
                 AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
-                AddinManager.AddExtensionNodeHandler ("/OpenSim/IntegrationService", OnExtensionChanged);
+                AddinManager.AddExtensionNodeHandler("/OpenSim/IntegrationService", OnExtensionChanged);
             }
         }
 
         #region addin event handlers
-        void HandleAddinManagerAddinEngineExtensionChanged (object sender, ExtensionEventArgs args)
+        void HandleAddinManagerAddinEngineExtensionChanged(object sender, ExtensionEventArgs args)
         {
-            MainConsole.Instance.Output(String.Format ("Plugin Extension Change Path:{0}", args.Path));
+            MainConsole.Instance.Output(String.Format("Plugin Extension Change Path:{0}", args.Path));
         }
 
         private IConfigSource GetConfig(string configName)
@@ -161,7 +158,7 @@ namespace OpenSim.Services.IntegrationService
             return new IniConfigSource();
         }
 
-        void HandleAddinManagerAddinUnloaded (object sender, AddinEventArgs args)
+        void HandleAddinManagerAddinUnloaded(object sender, AddinEventArgs args)
         {
             MainConsole.Instance.Output("Plugin Unloaded");
         }
@@ -169,20 +166,20 @@ namespace OpenSim.Services.IntegrationService
         private void on_addinloaderror_(object sender, AddinErrorEventArgs args)
         {
             if (args.Exception == null)
-                m_log.Error ("[INTEGRATION SERVICE]: Plugin Error: "
+                m_log.Error("[INTEGRATION SERVICE]: Plugin Error: "
                         + args.Message);
             else
-                m_log.Error ("[INTEGRATION SERVICE]: Plugin Error: "
+                m_log.Error("[INTEGRATION SERVICE]: Plugin Error: "
                         + args.Exception.Message + "\n"
                         + args.Exception.StackTrace);
         }
 
         // This is our init
         // We can do build-up and tear-down of our plugin
-        void OnExtensionChanged (object s, ExtensionNodeEventArgs args)
+        void OnExtensionChanged(object s, ExtensionNodeEventArgs args)
         {
             IntegrationPlugin ip = (IntegrationPlugin) args.ExtensionObject;
-            m_log.Info ("[INTEGRATION SERVICE]: Plugin Change");
+            m_log.Info("[INTEGRATION SERVICE]: Plugin Change");
 
             switch (args.Change)
             {
@@ -204,7 +201,7 @@ namespace OpenSim.Services.IntegrationService
 
         private void on_addinloaded_(object sender, AddinEventArgs args)
         {
-            m_log.Info ("[INTEGRATION SERVICE]: Plugin Loaded: " + args.AddinId);
+            m_log.Info("[INTEGRATION SERVICE]: Plugin Loaded: " + args.AddinId);
         }
         #endregion addin-event handlers
 
@@ -228,7 +225,7 @@ namespace OpenSim.Services.IntegrationService
                 IniConfigSource source = new IniConfigSource();
                 IConfig Init = source.AddConfig("DatabaseService");
                 Init.Set("StorageProvider",(string)DataService.GetString("StorageProvider"));
-				Init.Set("ConnectionString", String.Format ("\"{0}\"",DataService.GetString("ConnectionString")));
+				Init.Set("ConnectionString", String.Format("\"{0}\"",DataService.GetString("ConnectionString")));
 
                 PlugConfig = Ux.LoadInitialConfig(plugin.DefaultConfig);
                 source.Merge(PlugConfig);

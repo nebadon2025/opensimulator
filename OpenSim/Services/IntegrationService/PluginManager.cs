@@ -50,7 +50,7 @@ namespace OpenSim.Services.IntegrationService
         /// <param name='r'>
         /// R.
         /// </param>
-        internal PluginManager( AddinRegistry r): base (r)
+        internal PluginManager(AddinRegistry r): base (r)
         {
             m_Registry = r;
             m_Registry.Update();
@@ -228,7 +228,7 @@ namespace OpenSim.Services.IntegrationService
         public string Update()
         {
             IProgressStatus ps = new ConsoleProgressStatus(true);
-            Repositories.UpdateAllRepositories (ps);
+            Repositories.UpdateAllRepositories(ps);
             return "Update";
         }
 
@@ -266,7 +266,7 @@ namespace OpenSim.Services.IntegrationService
         public void RemoveRepository(string[] args)
         {
             AddinRepository[] reps = Repositories.GetRepositories();
-            Array.Sort (reps, (r1,r2) => r1.Title.CompareTo(r2.Title));
+            Array.Sort(reps, (r1,r2) => r1.Title.CompareTo(r2.Title));
             if (reps.Length == 0)
             {
                 MainConsole.Instance.Output("No repositories have been registered.");
@@ -281,7 +281,7 @@ namespace OpenSim.Services.IntegrationService
             }
 
             AddinRepository rep = reps[n];
-            Repositories.RemoveRepository (rep.Url);
+            Repositories.RemoveRepository(rep.Url);
             return;
         }
 
@@ -295,7 +295,7 @@ namespace OpenSim.Services.IntegrationService
         public void EnableRepository(string[] args)
         {
             AddinRepository[] reps = Repositories.GetRepositories();
-            Array.Sort (reps, (r1,r2) => r1.Title.CompareTo(r2.Title));
+            Array.Sort(reps, (r1,r2) => r1.Title.CompareTo(r2.Title));
             if (reps.Length == 0)
             {
                 MainConsole.Instance.Output("No repositories have been registered.");
@@ -324,7 +324,7 @@ namespace OpenSim.Services.IntegrationService
         public void DisableRepository(string[] args)
         {
             AddinRepository[] reps = Repositories.GetRepositories();
-            Array.Sort (reps, (r1,r2) => r1.Title.CompareTo(r2.Title));
+            Array.Sort(reps, (r1,r2) => r1.Title.CompareTo(r2.Title));
             if (reps.Length == 0)
             {
                 MainConsole.Instance.Output("No repositories have been registered.");

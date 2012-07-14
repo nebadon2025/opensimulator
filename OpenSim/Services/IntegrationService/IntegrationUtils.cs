@@ -38,7 +38,7 @@ using OpenMetaverse.StructuredData;
 
 namespace OpenSim.Services.IntegrationService
 {
-    public static class IUtils
+    public static class IntegrationUtils
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -82,8 +82,8 @@ namespace OpenSim.Services.IntegrationService
         public static byte[] FailureResult(string msg)
         {
             OSDMap doc = new OSDMap(2);
-            doc["Result"] = OSD.FromString("Failure");
-            doc["Message"] = OSD.FromString(msg);
+            doc["result"] = OSD.FromString("failure");
+            doc["message"] = OSD.FromString(msg);
 
             return DocToBytes(doc);
         }
@@ -91,8 +91,8 @@ namespace OpenSim.Services.IntegrationService
         public static byte[] ResponseMessage(string message)
         {
             OSDMap doc = new OSDMap(2);
-            doc["Result"] = OSD.FromString("Success");
-            doc["Message"] = OSD.FromString(message);
+            doc["result"] = OSD.FromString("success");
+            doc["message"] = OSD.FromString(message);
 
             return DocToBytes(doc);
         }

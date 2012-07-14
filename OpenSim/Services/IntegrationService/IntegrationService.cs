@@ -41,7 +41,7 @@ using Nini.Config;
 using log4net;
 using Mono.Addins;
 
-using Ux = OpenSim.Services.IntegrationService.IUtils;
+using Ux = OpenSim.Services.IntegrationService.IntegrationUtils;
 
 namespace OpenSim.Services.IntegrationService
 {

@@ -37,7 +37,7 @@ using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using Mono.Addins;
 using log4net;
 
-using Ux = OpenSim.Services.IntegrationService.IUtils;
+using Ux = OpenSim.Services.IntegrationService.IntegrationUtils;
 
 [assembly:AddinRoot ("IntegrationService", "2.1")]
 namespace OpenSim.Services.IntegrationService

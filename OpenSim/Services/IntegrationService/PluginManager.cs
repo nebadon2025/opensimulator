@@ -35,7 +35,7 @@ using Mono.Addins;
 using Mono.Addins.Setup;
 using Mono.Addins.Description;
 using OpenSim.Framework;
-using Ux = OpenSim.Services.IntegrationService.IUtils;
+using Ux = OpenSim.Services.IntegrationService.IntegrationUtils;
 
 namespace OpenSim.Services.IntegrationService
 {

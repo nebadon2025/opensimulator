@@ -489,14 +489,13 @@ namespace OpenSim.Region.Framework.Scenes
         public delegate void RegionHeartbeatEnd(Scene scene);
         public event RegionHeartbeatEnd OnRegionHeartbeatEnd;
 
-        public delegate void LoginsEnabled(string regionName);
-
         /// <summary>
         /// This should only fire in all circumstances if the RegionReady module is active.
         /// </summary>
         /// <remarks>
         /// TODO: Fire this even when the RegionReady module is not active.
         /// </remarks>
+        public delegate void LoginsEnabled(IScene scene);
         public event LoginsEnabled OnLoginsEnabled;
 
         public delegate void PrimsLoaded(Scene s);
@@ -2428,7 +2427,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public void TriggerLoginsEnabled (string regionName)
+        public void TriggerLoginsEnabled(Scene scene)
         {
             LoginsEnabled handler = OnLoginsEnabled;
 
@@ -2438,7 +2437,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     try
                     {
-                        d(regionName);
+                        d(scene);
                     }
                     catch (Exception e)
                     {

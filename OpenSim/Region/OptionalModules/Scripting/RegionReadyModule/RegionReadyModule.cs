@@ -244,6 +244,8 @@ namespace OpenSim.Region.OptionalModules.Scripting.RegionReady
                 {
                     RRAlert("enabled");
                 }
+
+                m_scene.EventManager.TriggerRegionReady(m_scene);
             }
 
             m_scene.EventManager.OnEmptyScriptCompileQueue -= OnEmptyScriptCompileQueue;

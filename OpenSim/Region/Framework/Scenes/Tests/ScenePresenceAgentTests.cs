@@ -107,8 +107,6 @@ namespace OpenSim.Region.Framework.Scenes.Tests
             Assert.That(sp, Is.Not.Null);
             Assert.That(sp.IsChildAgent, Is.False);
             Assert.That(sp.UUID, Is.EqualTo(spUuid));
-
-            Assert.That(scene.GetScenePresences().Count, Is.EqualTo(1));
         }
 
         [Test]

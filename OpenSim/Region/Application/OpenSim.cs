@@ -1127,8 +1127,8 @@ namespace OpenSim
                     c => cdt.AddRow(
                         s.Name,
                         c.Name,
-                        c.RemoteEndPoint.ToString(),
                         c.CircuitCode.ToString(),
+                        c.RemoteEndPoint.ToString(),                
                         c.IsActive.ToString())));
 
             MainConsole.Instance.Output(cdt.ToString());

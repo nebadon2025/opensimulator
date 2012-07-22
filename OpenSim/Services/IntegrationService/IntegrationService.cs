@@ -43,7 +43,9 @@ using log4net;
 using Mono.Addins;
 using Ux = OpenSim.Services.IntegrationService.IntegrationUtils;
 
-
+// ****[ Robust ] Keep the core services here and rebrand it as a more generic
+// ****[ Robust ] service for use in buthe OpenSim.exe and Robust.exe
+//
 namespace OpenSim.Services.IntegrationService
 {
     public class IntegrationService : IntegrationServiceBase, IIntegrationService
@@ -61,7 +63,13 @@ namespace OpenSim.Services.IntegrationService
                 AddConsoleCommands();
             }
         }
-
+  
+        // ****[ Robust ] We have console commands to manage the repositories and modules.
+        // ****[ Robust ] We can add/remove/enable/disable repositories and modules
+        // ****[ Robust ] We can query repositories for available modules and updates
+        // ****[ Robust ] The manager needs to be moved to OpenSim.Framework so we can
+        // ****[ Robust ] use it to complete the region module loader
+        //
         // Our console commands
         private void AddConsoleCommands()
         {
@@ -347,7 +355,11 @@ namespace OpenSim.Services.IntegrationService
             return;
         }
         #endregion
-
+  
+        // ****[ Robust ] These are handlers that relate to the console commands, but
+        // ****[ Robust ] are connecting to remote applications. It would be ok to do
+        // ****[ Robust ] this later in a separate module
+        //
         #region IIntegrationService implementation
         // Will hold back on implementing things here that can actually make changes
         // Need to secure it first

@@ -41,7 +41,11 @@ namespace OpenSim.Services.IntegrationService
     public static class IntegrationUtils
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
+  
+        // ****[ Robust ] Only a couple of these are needed in the core management system
+        // ****[ Robust ] These could be moved to the implementation instead of being in 
+        // ****[ Robust ] a separate file
+        //
         #region web utils
         public static bool ParseStringToOSDMap(string input, out OSDMap json)
         {

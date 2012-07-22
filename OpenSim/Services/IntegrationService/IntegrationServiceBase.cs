@@ -39,9 +39,18 @@ using Mono.Addins;
 using log4net;
 using Ux = OpenSim.Services.IntegrationService.IntegrationUtils;
 
+
+// ****[ Robust ] Re-factor to use in both OpenSim.exe and Robust.exe
+// ****[ Robust ] ** Loading can be done in modules that overide a base 
+// ****[ Robust ] ** class that provides the base services for the 
+// ****[ Robust ] ** discovery, loading and event queing of the modules
+
+
+// ****[ Robust ] We need to define our root to graft our modules into
 [assembly:AddinRoot("IntegrationService", "2.1")]
 namespace OpenSim.Services.IntegrationService
 {
+    // ****[ Robust ] The name our modules look for as a dependency
     [TypeExtensionPoint(Path="/OpenSim/IntegrationService", Name="IntegrationService")]
     public interface IntegrationPlugin
     {
@@ -83,7 +92,12 @@ namespace OpenSim.Services.IntegrationService
             m_IntegrationConfigLoc = serverConfig.GetString("IntegrationConfig", String.Empty);
             AddinRegistry registry ;
             bool DEVELOPMENT = serverConfig.GetBoolean("DevelopmentMode", false);
-
+   
+            // ****[ Robust ] Would be able to load as a local Robust module,
+            // ****[ Robust ] during development, by adding the info to the
+            // ****[ Robust ] ServiceConnectors. Also allows modules to be 
+            // ****[ Robust ] loaded locally under normal operations
+            //
             // Are we developing plugins? We will load them now.
             // This will allow debugging of the modules and will 
             // use the runtime directory for the registry. Will not
@@ -119,6 +133,12 @@ namespace OpenSim.Services.IntegrationService
                     }
                 }
             }
+            // ****[ Robust ] Place this in a loader that getsd called from 
+            //                Robust after the main server is running
+            //
+            // ****[ Robust ] Make generic version of this to be overridden
+            // ****[ Robust ] by OpenSim.exe and Robust.exe
+            //
             else
             {
                 // defaults to the ./bin directory
@@ -176,7 +196,10 @@ namespace OpenSim.Services.IntegrationService
                         + args.Exception.Message + "\n"
                         + args.Exception.StackTrace);
         }
-
+  
+        // ****[ Robust ] This is where we get control of the plugin during
+        // ****[ Robust ] the loading and unloading
+        // 
         // This is our init
         // We can do build-up and tear-down of our plugin
         void OnExtensionChanged(object s, ExtensionNodeEventArgs args)
@@ -207,7 +230,15 @@ namespace OpenSim.Services.IntegrationService
             m_log.Info("[INTEGRATION SERVICE]: Plugin Loaded: " + args.AddinId);
         }
         #endregion addin-event handlers
-
+  
+        // ****[ Robust ] We are taking the module from the event handler and
+        // ****[ Robust ] taking it through the initialization process
+        // ****[ Robust ] This is using a mixture of the user's existing ini
+        // ****[ Robust ] and the developer supplied initial configuration
+        // ****[ Robust ]
+        // ****[ Robust ] We should first check the user's ini for existing entries
+        // ****[ Robust ] in case they have configured the module ahead of time.
+        //
         private void LoadingPlugin(IntegrationPlugin plugin)
         {
             string ConfigPath = String.Format("{0}/(1)", m_IntegrationConfigLoc,plugin.ConfigName);
@@ -239,7 +270,10 @@ namespace OpenSim.Services.IntegrationService
             m_log.DebugFormat("[INTEGRATION SERVICE]: ****** In Loading Plugin {0}", plugin.PluginName);
             plugin.Init(m_ConfigSource, PlugConfig, m_Server, this);
         }
-
+  
+        // ****[ Robust ] We are taking the plugin from the event handler to unload it
+        // ****[ Robust ] and we need to tear down to release all objects.
+        //
         private void UnLoadingPlugin(IntegrationPlugin plugin)
         {
             try

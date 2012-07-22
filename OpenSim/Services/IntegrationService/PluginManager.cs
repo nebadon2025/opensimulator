@@ -39,6 +39,16 @@ using Ux = OpenSim.Services.IntegrationService.IntegrationUtils;
 
 namespace OpenSim.Services.IntegrationService
 {
+    // ****[ Robust ] These are the functions that connect our console
+    // ****[ Robust ] commands to the addin management. This needs to
+    // ****[ Robust ] be maintained in a file separately from the main
+    // ****[ Robust ] implementation in the same namespace. Any generaly
+    // ****[ Robust ] usefull methods can be located in one of the existing
+    // ****[ Robust ] places
+    // ****[ Robust ]
+    // ****[ Robust ] This needs to be in OpenSim.Framework so it can be
+    // ****[ Robust ] used to complete the region module management
+    //
     // This will maintain the plugin repositories and plugins
     public class PluginManager : SetupService
     {

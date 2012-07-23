@@ -1656,6 +1656,8 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         parentGroup.LinkToGroup(child);
 
+                        child.DetachFromBackup();
+
                         // this is here so physics gets updated!
                         // Don't remove!  Bad juju!  Stay away! or fix physics!
                         child.AbsolutePosition = child.AbsolutePosition;

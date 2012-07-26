@@ -108,12 +108,15 @@ namespace OpenSim.Services.IntegrationService
                 Addin addin = m_Registry.GetAddin(aentry.Addin.Id);
                 m_Registry.DisableAddin(addin.Id);
                 addin.Enabled = false;
+                
+                MainConsole.Instance.Output("Installation Success");
                 ListInstalledAddins(out res);
                 result = res;
                 return true;
             } 
             else
-            {
+            {                
+                MainConsole.Instance.Output("Installation Failed");
                 result = res;
                 return false;
             }
@@ -142,6 +145,7 @@ namespace OpenSim.Services.IntegrationService
             addin.Enabled = false;
             IProgressStatus ps = new ConsoleProgressStatus(false);
             Uninstall(ps, addin.Id);
+            MainConsole.Instance.Output("Uninstall Success - restart to complete operation");
             return;
         }
 

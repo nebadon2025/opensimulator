@@ -25,7 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-namespace OpenSim.Framework.Statistics
+namespace OpenSim.Framework.Monitoring
 {
     /// <summary>
     /// Implemented by classes which collect up non-viewer statistical information

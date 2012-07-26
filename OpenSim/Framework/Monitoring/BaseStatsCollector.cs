@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -25,17 +25,43 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-namespace OpenSim.Framework.Statistics.Interfaces
+using System;
+using System.Diagnostics;
+using System.Text;
+using OpenMetaverse;
+using OpenMetaverse.StructuredData;
+
+namespace OpenSim.Framework.Monitoring
 {
     /// <summary>
-    /// Implemented by objects which allow statistical information to be pulled from them.
+    /// Statistics which all collectors are interested in reporting
     /// </summary>
-    public interface IPullStatsProvider
+    public class BaseStatsCollector : IStatsCollector
     {
-        /// <summary>
-        /// Provide statistical information.  Only temporary one long string.
-        /// </summary>
-        /// <returns></returns>
-        string GetStats();
+        public virtual string Report()
+        {
+            StringBuilder sb = new StringBuilder(Environment.NewLine);
+            sb.Append("MEMORY STATISTICS");
+            sb.Append(Environment.NewLine);
+
+            sb.AppendFormat(
+                "Allocated to OpenSim objects: {0} MB\n",
+                Math.Round(GC.GetTotalMemory(false) / 1024.0 / 1024.0));
+
+            sb.AppendFormat(
+                "OpenSim object memory churn : {0} MB/s\n",
+                Math.Round((MemoryWatchdog.AverageMemoryChurn * 1000) / 1024.0 / 1024, 3));
+
+            sb.AppendFormat(
+                "Process memory              : {0} MB\n",
+                Math.Round(Process.GetCurrentProcess().WorkingSet64 / 1024.0 / 1024.0));
+
+            return sb.ToString();
+        }
+        
+        public virtual string XReport(string uptime, string version)
+        {
+            return (string) Math.Round(GC.GetTotalMemory(false) / 1024.0 / 1024.0).ToString() ;
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -25,40 +25,41 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-using System;
-using System.Diagnostics;
-using System.Text;
-using OpenMetaverse;
-using OpenMetaverse.StructuredData;
-
-
-namespace OpenSim.Framework.Statistics
+namespace OpenSim.Framework.Monitoring
 {
     /// <summary>
-    /// Statistics which all collectors are interested in reporting
+    /// Singleton used to provide access to statistics reporters
     /// </summary>
-    public class BaseStatsCollector : IStatsCollector
+    public class StatsManager
     {
-        public virtual string Report()
-        {
-            StringBuilder sb = new StringBuilder(Environment.NewLine);
-            sb.Append("MEMORY STATISTICS");
-            sb.Append(Environment.NewLine);
-            sb.Append(
-                string.Format(
-                    "Allocated to OpenSim objects: {0} MB\n",
-                    Math.Round(GC.GetTotalMemory(false) / 1024.0 / 1024.0)));
-            sb.Append(
-                string.Format(
-                    "Process memory              : {0} MB\n",
-                    Math.Round(Process.GetCurrentProcess().WorkingSet64 / 1024.0 / 1024.0)));
+        private static AssetStatsCollector assetStats;
+        private static UserStatsCollector userStats;
+        private static SimExtraStatsCollector simExtraStats = new SimExtraStatsCollector();
 
-            return sb.ToString();
-        }
-        
-        public virtual string XReport(string uptime, string version)
+        public static AssetStatsCollector AssetStats { get { return assetStats; } }
+        public static UserStatsCollector UserStats { get { return userStats; } }
+        public static SimExtraStatsCollector SimExtraStats { get { return simExtraStats; } }
+
+        /// <summary>
+        /// Start collecting statistics related to assets.
+        /// Should only be called once.
+        /// </summary>
+        public static AssetStatsCollector StartCollectingAssetStats()
         {
-            return (string) Math.Round(GC.GetTotalMemory(false) / 1024.0 / 1024.0).ToString() ;
+            assetStats = new AssetStatsCollector();
+
+            return assetStats;
+        }
+
+        /// <summary>
+        /// Start collecting statistics related to users.
+        /// Should only be called once.
+        /// </summary>
+        public static UserStatsCollector StartCollectingUserStats()
+        {
+            userStats = new UserStatsCollector();
+
+            return userStats;
         }
     }
 }

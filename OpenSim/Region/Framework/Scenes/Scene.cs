@@ -40,6 +40,7 @@ using OpenMetaverse;
 using OpenMetaverse.Packets;
 using OpenMetaverse.Imaging;
 using OpenSim.Framework;
+using OpenSim.Framework.Monitoring;
 using OpenSim.Services.Interfaces;
 using OpenSim.Framework.Communications;
 using OpenSim.Framework.Console;
@@ -1499,8 +1500,8 @@ namespace OpenSim.Region.Framework.Scenes
                             m_sceneGridService.InformNeighborsThatRegionisUp(
                                 RequestModuleInterface<INeighbourService>(), RegionInfo);
 
-                            // Region ready should always be triggered whether logins are immediately enabled or not.
-                            EventManager.TriggerRegionReady(this);
+                            // Region ready should always be set
+                            Ready = true;
                         }
                         else
                         {
@@ -3297,17 +3298,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     if (AttachmentsModule != null)
                     {
-                        // Don't save attachments for HG visitors, it
-                        // messes up their inventory. When a HG visitor logs
-                        // out on a foreign grid, their attachments will be
-                        // reloaded in the state they were in when they left
-                        // the home grid. This is best anyway as the visited
-                        // grid may use an incompatible script engine.
-                        bool saveChanged
-                            = avatar.PresenceType != PresenceType.Npc
-                                && (UserManagementModule == null || UserManagementModule.IsLocalGridUser(avatar.UUID));
-
-                        AttachmentsModule.DeRezAttachments(avatar, saveChanged, false);
+                        AttachmentsModule.DeRezAttachments(avatar);
                     }
 
                     ForEachClient(

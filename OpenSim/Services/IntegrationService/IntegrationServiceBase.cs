@@ -161,12 +161,14 @@ namespace OpenSim.Services.IntegrationService
                 }
     
                 AddinManager.Initialize(RegistryLocation);
-                AddinManager.Registry.Update();
-
+                
                 AddinManager.AddinLoaded += on_addinloaded_;
                 AddinManager.AddinLoadError += on_addinloaderror_;
                 AddinManager.AddinUnloaded += HandleAddinManagerAddinUnloaded;
                 AddinManager.AddExtensionNodeHandler("/OpenSim/IntegrationService", OnExtensionChanged);
+
+                AddinManager.Registry.Update();
+
             }
         }
 

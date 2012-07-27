@@ -209,10 +209,12 @@ namespace OpenSim.Services.IntegrationService
         // We can do build-up and tear-down of our plugin
         void OnExtensionChanged(object s, ExtensionNodeEventArgs args)
         {
+			// This is our plugin
             IntegrationPlugin ip = (IntegrationPlugin) args.ExtensionObject;
-			string file_path = args.ExtensionNode.Addin.GetFilePath();
+			// We will need to get the name and path of the dll for the connector to
+			// be able to load the service in the refactored version...
+			// Might also use this to check for updates to alert the user
 			Addin a = m_PluginManager.Registry.GetAddin(args.ExtensionNode.Addin.Id);
-
 			m_log.InfoFormat("[INTEGRATION SERVICE]: Plugin Change {0}",a.AddinFile);
 
             switch (args.Change)

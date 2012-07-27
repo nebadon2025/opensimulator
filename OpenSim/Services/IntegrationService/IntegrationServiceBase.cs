@@ -210,7 +210,10 @@ namespace OpenSim.Services.IntegrationService
         void OnExtensionChanged(object s, ExtensionNodeEventArgs args)
         {
             IntegrationPlugin ip = (IntegrationPlugin) args.ExtensionObject;
-            m_log.Info("[INTEGRATION SERVICE]: Plugin Change");
+			string file_path = args.ExtensionNode.Addin.GetFilePath();
+			Addin a = m_PluginManager.Registry.GetAddin(args.ExtensionNode.Addin.Id);
+
+			m_log.InfoFormat("[INTEGRATION SERVICE]: Plugin Change {0}",a.AddinFile);
 
             switch (args.Change)
             {

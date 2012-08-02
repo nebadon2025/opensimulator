@@ -948,14 +948,8 @@ namespace OpenSim
                     IList agents;
                     if (showParams.Length > 1 && showParams[1] == "full")
                     {
-<<<<<<< HEAD
-                        agents = m_sceneManager.GetCurrentScenePresences();
-                    }
-                    else
-=======
                         agents = SceneManager.GetCurrentScenePresences();
                     } else
->>>>>>> a1e9964... Add experimental "OpenSim object memory churn" statistics to output of region console "show stats" command
                     {
                         agents = SceneManager.GetCurrentSceneAvatars();
                     }
@@ -1036,27 +1030,16 @@ namespace OpenSim
                         MainConsole.Instance.Output("Shared Module: " + module.Name);
                     }
 
-<<<<<<< HEAD
-                    m_sceneManager.ForEachScene(
-                        delegate(Scene scene)
-=======
                     SceneManager.ForEachScene(
                         delegate(Scene scene) {
                         m_log.Error("The currently loaded modules in " + scene.RegionInfo.RegionName + " are:");
+
                         foreach (IRegionModule module in scene.Modules.Values)
->>>>>>> a1e9964... Add experimental "OpenSim object memory churn" statistics to output of region console "show stats" command
                         {
-                            m_log.Error("The currently loaded modules in " + scene.RegionInfo.RegionName + " are:");
-                            foreach (IRegionModule module in scene.Modules.Values)
+                            if (!module.IsSharedModule)
                             {
-                                if (!module.IsSharedModule)
-                                {
-                                    m_log.Error("Region Module: " + module.Name);
-                                }
+                                m_log.Error("Region Module: " + module.Name);
                             }
-<<<<<<< HEAD
-                        });
-=======
                         }
                     }
                     );
@@ -1072,7 +1055,6 @@ namespace OpenSim
                         }
                     }
                     );
->>>>>>> a1e9964... Add experimental "OpenSim object memory churn" statistics to output of region console "show stats" command
 
                     MainConsole.Instance.Output("");
                     break;
@@ -1349,7 +1331,7 @@ namespace OpenSim
                     return;
                 }
 
-                m_sceneManager.ForEachScene(
+                SceneManager.ForEachScene(
                     delegate(Scene scene)
                     {
                         SceneObjectPart part = scene.GetSceneObjectPart(id);

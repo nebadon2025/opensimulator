@@ -109,19 +109,21 @@ namespace OpenSim.Services.Connectors
             if (ret.Count == 0)
                 return null;
 
-            List<InventoryFolderBase> folders = new List<InventoryFolderBase>();
+            Dictionary<string, object> folders = (Dictionary<string, object>)ret["FOLDERS"];
+
+            List<InventoryFolderBase> fldrs = new List<InventoryFolderBase>();
 
             try
             {
-                foreach (Object o in ret.Values)
-                    folders.Add(BuildFolder((Dictionary<string, object>)o));
+                foreach (Object o in folders.Values)
+                    fldrs.Add(BuildFolder((Dictionary<string, object>)o));
             }
             catch (Exception e)
             {
                 m_log.DebugFormat("[XINVENTORY CONNECTOR STUB]: Exception unwrapping folder list: {0}", e.Message);
             }
 
-            return folders;
+            return fldrs;
         }
 
         public InventoryFolderBase GetRootFolder(UUID principalID)

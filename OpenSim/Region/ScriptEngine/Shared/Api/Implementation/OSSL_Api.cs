@@ -775,10 +775,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                         // We will launch the teleport on a new thread so that when the script threads are terminated
                         // before teleport in ScriptInstance.GetXMLState(), we don't end up aborting the one doing the teleporting.                        
-                        Util.FireAndForget(
-                            o => World.RequestTeleportLocation(presence.ControllingClient, regionName,
-                                new Vector3((float)position.x, (float)position.y, (float)position.z),
-                                new Vector3((float)lookat.x, (float)lookat.y, (float)lookat.z), (uint)TPFlags.ViaLocation));
+                        Util.FireAndForget(o => World.RequestTeleportLocation(
+                            presence.ControllingClient, regionName, position,
+                            lookat, (uint)TPFlags.ViaLocation));
 
                         ScriptSleep(5000);
 
@@ -821,10 +820,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                         // We will launch the teleport on a new thread so that when the script threads are terminated
                         // before teleport in ScriptInstance.GetXMLState(), we don't end up aborting the one doing the teleporting.
-                        Util.FireAndForget(
-                            o => World.RequestTeleportLocation(presence.ControllingClient, regionHandle,
-                                new Vector3((float)position.x, (float)position.y, (float)position.z),
-                                new Vector3((float)lookat.x, (float)lookat.y, (float)lookat.z), (uint)TPFlags.ViaLocation));
+                        Util.FireAndForget(o => World.RequestTeleportLocation(
+                            presence.ControllingClient, regionHandle, 
+                            position, lookat, (uint)TPFlags.ViaLocation));
 
                         ScriptSleep(5000);
 
@@ -2338,7 +2336,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     ownerID = m_host.OwnerID;
                 UUID x = module.CreateNPC(firstname,
                                           lastname,
-                                          new Vector3((float) position.x, (float) position.y, (float) position.z),
+                                          position,
                                           ownerID,
                                           senseAsAgent,
                                           World,
@@ -2459,7 +2457,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             return new LSL_Vector(0, 0, 0);
         }
 
-        public void osNpcMoveTo(LSL_Key npc, LSL_Vector position)
+        public void osNpcMoveTo(LSL_Key npc, LSL_Vector pos)
         {
             CheckThreatLevel(ThreatLevel.High, "osNpcMoveTo");
             m_host.AddScriptLPS(1);
@@ -2474,7 +2472,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 if (!module.CheckPermissions(npcId, m_host.OwnerID))
                     return;
                 
-                Vector3 pos = new Vector3((float) position.x, (float) position.y, (float) position.z);
                 module.MoveToTarget(npcId, World, pos, false, true, false);
             }
         }
@@ -2494,11 +2491,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 if (!module.CheckPermissions(npcId, m_host.OwnerID))
                     return;
 
-                Vector3 pos = new Vector3((float)target.x, (float)target.y, (float)target.z);
                 module.MoveToTarget(
                     new UUID(npc.m_string),
                     World,
-                    pos,
+                    target,
                     (options & ScriptBaseClass.OS_NPC_NO_FLY) != 0,
                     (options & ScriptBaseClass.OS_NPC_LAND_AT_TARGET) != 0,
                     (options & ScriptBaseClass.OS_NPC_RUNNING) != 0);

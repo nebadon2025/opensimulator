@@ -40,7 +40,7 @@ using OpenSim.Framework.Communications;
 using OpenSim.Framework.Console;
 using OpenSim.Framework.Servers;
 using OpenSim.Framework.Servers.HttpServer;
-using OpenSim.Framework.Statistics;
+using OpenSim.Framework.Monitoring;
 using OpenSim.Region.ClientStack;
 using OpenSim.Region.CoreModules.ServiceConnectorsOut.UserAccounts;
 using OpenSim.Region.Framework;
@@ -223,7 +223,7 @@ namespace OpenSim
 
             base.StartupSpecific();
 
-            m_stats = StatsManager.StartCollectingSimExtraStats();
+            m_stats = StatsManager.SimExtraStats;
 
             // Create a ModuleLoader instance
             m_moduleLoader = new ModuleLoader(m_config.Source);
@@ -285,7 +285,7 @@ namespace OpenSim
 
         private void HandleCommanderCommand(string module, string[] cmd)
         {
-            m_sceneManager.SendCommandToPluginModules(cmd);
+            SceneManager.SendCommandToPluginModules(cmd);
         }
 
         private void HandleCommanderHelp(string module, string[] cmd)
@@ -303,7 +303,15 @@ namespace OpenSim
             // Called from base.StartUp()
 
             m_httpServerPort = m_networkServersInfo.HttpListenerPort;
-            m_sceneManager.OnRestartSim += handleRestartRegion;
+            SceneManager.OnRestartSim += handleRestartRegion;
+
+            // Only enable the watchdogs when all regions are ready.  Otherwise we get false positives when cpu is
+            // heavily used during initial startup.
+            //
+            // FIXME: It's also possible that region ready status should be flipped during an OAR load since this
+            // also makes heavy use of the CPU.
+            SceneManager.OnRegionsReadyStatusChange
+                += sm => { MemoryWatchdog.Enabled = sm.AllRegionsReady; Watchdog.Enabled = sm.AllRegionsReady; };
         }
 
         /// <summary>
@@ -412,7 +420,7 @@ namespace OpenSim
             // scripting engines.
             scene.CreateScriptInstances();
 
-            m_sceneManager.Add(scene);
+            SceneManager.Add(scene);
 
             if (m_autoCreateClientStack)
             {
@@ -432,7 +440,6 @@ namespace OpenSim
             mscene = scene;
 
             scene.Start();
-
             scene.StartScripts();
 
             return clientServer;
@@ -561,14 +568,14 @@ namespace OpenSim
         {
             // only need to check this if we are not at the
             // root level
-            if ((m_sceneManager.CurrentScene != null) &&
-                (m_sceneManager.CurrentScene.RegionInfo.RegionID == scene.RegionInfo.RegionID))
+            if ((SceneManager.CurrentScene != null) &&
+                (SceneManager.CurrentScene.RegionInfo.RegionID == scene.RegionInfo.RegionID))
             {
-                m_sceneManager.TrySetCurrentScene("..");
+                SceneManager.TrySetCurrentScene("..");
             }
 
             scene.DeleteAllSceneObjects();
-            m_sceneManager.CloseScene(scene);
+            SceneManager.CloseScene(scene);
             ShutdownClientServer(scene.RegionInfo);
             
             if (!cleanup)
@@ -610,7 +617,7 @@ namespace OpenSim
         public void RemoveRegion(string name, bool cleanUp)
         {
             Scene target;
-            if (m_sceneManager.TryGetScene(name, out target))
+            if (SceneManager.TryGetScene(name, out target))
                 RemoveRegion(target, cleanUp);
         }
 
@@ -623,13 +630,13 @@ namespace OpenSim
         {
             // only need to check this if we are not at the
             // root level
-            if ((m_sceneManager.CurrentScene != null) &&
-                (m_sceneManager.CurrentScene.RegionInfo.RegionID == scene.RegionInfo.RegionID))
+            if ((SceneManager.CurrentScene != null) &&
+                (SceneManager.CurrentScene.RegionInfo.RegionID == scene.RegionInfo.RegionID))
             {
-                m_sceneManager.TrySetCurrentScene("..");
+                SceneManager.TrySetCurrentScene("..");
             }
 
-            m_sceneManager.CloseScene(scene);
+            SceneManager.CloseScene(scene);
             ShutdownClientServer(scene.RegionInfo);
         }
         
@@ -641,7 +648,7 @@ namespace OpenSim
         public void CloseRegion(string name)
         {
             Scene target;
-            if (m_sceneManager.TryGetScene(name, out target))
+            if (SceneManager.TryGetScene(name, out target))
                 CloseRegion(target);
         }
         
@@ -698,6 +705,7 @@ namespace OpenSim
             scene.LoadWorldMap();
 
             scene.PhysicsScene = GetPhysicsScene(scene.RegionInfo.RegionName);
+            scene.PhysicsScene.RequestAssetMethod = scene.PhysicsRequestAsset;
             scene.PhysicsScene.SetTerrain(scene.Heightmap.GetFloatsSerialised());
             scene.PhysicsScene.SetWaterLevel((float) regionInfo.RegionSettings.WaterHeight);
 
@@ -897,7 +905,7 @@ namespace OpenSim
 
             try
             {
-                m_sceneManager.Close();
+                SceneManager.Close();
             }
             catch (Exception e)
             {
@@ -922,7 +930,7 @@ namespace OpenSim
         /// <param name="usernum">The first out parameter describing the number of all the avatars in the Region server</param>
         public void GetAvatarNumber(out int usernum)
         {
-            usernum = m_sceneManager.GetCurrentSceneAvatars().Count;
+            usernum = SceneManager.GetCurrentSceneAvatars().Count;
         }
 
         /// <summary>
@@ -931,7 +939,7 @@ namespace OpenSim
         /// <param name="regionnum">The first out parameter describing the number of regions</param>
         public void GetRegionNumber(out int regionnum)
         {
-            regionnum = m_sceneManager.Scenes.Count;
+            regionnum = SceneManager.Scenes.Count;
         }
         
         /// <summary>
@@ -977,13 +985,13 @@ namespace OpenSim
         /// Load the estate information for the provided RegionInfo object.
         /// </summary>
         /// <param name="regInfo"></param>
-        public void PopulateRegionEstateInfo(RegionInfo regInfo)
+        public bool PopulateRegionEstateInfo(RegionInfo regInfo)
         {
             if (EstateDataService != null)
                 regInfo.EstateSettings = EstateDataService.LoadEstateSettings(regInfo.RegionID, false);
 
             if (regInfo.EstateSettings.EstateID != 0)
-                return;
+                return false;	// estate info in the database did not change
 
             m_log.WarnFormat("[ESTATE] Region {0} is not part of an estate.", regInfo.RegionName);
             
@@ -1018,7 +1026,7 @@ namespace OpenSim
                     }
 
                     if (defaultEstateJoined)
-                        return;
+                        return true; // need to update the database
                     else
                         m_log.ErrorFormat(
                             "[OPENSIM BASE]: Joining default estate {0} failed", defaultEstateName);
@@ -1080,8 +1088,10 @@ namespace OpenSim
                         MainConsole.Instance.Output("Joining the estate failed. Please try again.");
                     }
                 }
-            }
-        }
+	    }
+
+	    return true;	// need to update the database
+	}
     }
     
     public class OpenSimConfigSource

@@ -26,6 +26,8 @@
  */
 
 using System;
+using System.Reflection;
+using log4net;
 using OpenMetaverse;
 
 namespace OpenSim.Framework
@@ -35,6 +37,8 @@ namespace OpenSim.Framework
     /// </summary>
     public class TaskInventoryItem : ICloneable
     {
+//        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
         /// <summary>
         /// XXX This should really be factored out into some constants class.
         /// </summary>
@@ -68,6 +72,9 @@ namespace OpenSim.Framework
         private UUID _loadedID = UUID.Zero;
 
         private bool _ownerChanged = false;
+
+        // This used ONLY during copy. It can't be relied on at other times!
+        private bool _scriptRunning = true;
 
         public UUID AssetID {
             get {
@@ -331,12 +338,27 @@ namespace OpenSim.Framework
             }
         }
 
-        public bool OwnerChanged {
-            get {
+        public bool OwnerChanged
+        {
+            get
+            {
                 return _ownerChanged;
             }
-            set {
+            set
+            {
                 _ownerChanged = value;
+//                m_log.DebugFormat(
+//                    "[TASK INVENTORY ITEM]: Owner changed set {0} for {1} {2} owned by {3}",
+//                    _ownerChanged, Name, ItemID, OwnerID);
+            }
+        }
+
+        public bool ScriptRunning {
+            get {
+                return _scriptRunning;
+            }
+            set {
+                _scriptRunning = value;
             }
         }
 

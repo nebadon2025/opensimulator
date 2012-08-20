@@ -91,6 +91,7 @@ what it is today.
 * Fly-Man
 * Flyte Xevious
 * Garmin Kawaguichi
+* Gryc Ueusp
 * Imaze Rhiano
 * Intimidated
 * Jeremy Bongio (IBM)
@@ -146,6 +147,7 @@ what it is today.
 * Stefan_Boom / stoehr
 * Strawberry Fride
 * Talun
+* TechplexEngineer (Blake Bourque)
 * TBG Renfold
 * tglion
 * tlaukkan/Tommil (Tommi S. E. Laukkanen, Bubble Cloud)
@@ -205,3 +207,4 @@ In addition, we would like to thank:
 * The Mono Project
 * The NANT Developers
 * Microsoft (.NET, MSSQL-Adapters)
+*x

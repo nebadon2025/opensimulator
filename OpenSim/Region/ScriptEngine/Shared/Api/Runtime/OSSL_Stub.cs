@@ -296,6 +296,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_OSSL_Functions.osForceAttachToAvatar(attachmentPoint);
         }
 
+        public void osForceAttachToAvatarFromInventory(string itemName, int attachmentPoint)
+        {
+            m_OSSL_Functions.osForceAttachToAvatarFromInventory(itemName, attachmentPoint);
+        }
+
+        public void osForceAttachToOtherAvatarFromInventory(string rawAvatarId, string itemName, int attachmentPoint)
+        {
+            m_OSSL_Functions.osForceAttachToOtherAvatarFromInventory(rawAvatarId, itemName, attachmentPoint);
+        }
+
         public void osForceDetachFromAvatar()
         {
             m_OSSL_Functions.osForceDetachFromAvatar();
@@ -621,6 +631,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_OSSL_Functions.osNpcWhisper(npc, channel, message);
         }
 
+        public void osNpcTouch(LSL_Key npcLSL_Key, LSL_Key object_key, LSL_Integer link_num)
+        {
+            m_OSSL_Functions.osNpcTouch(npcLSL_Key, object_key, link_num);
+        }
+
         public LSL_Key osOwnerSaveAppearance(string notecard)
         {
             return m_OSSL_Functions.osOwnerSaveAppearance(notecard);
@@ -914,6 +929,26 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public void osSetTerrainTextureHeight(int corner, double low, double high)
         {
             m_OSSL_Functions.osSetTerrainTextureHeight(corner, low, high);
+        }
+
+        public LSL_Integer osIsUUID(string thing)
+        {
+            return m_OSSL_Functions.osIsUUID(thing);
+        }
+
+        public LSL_Float osMin(double a, double b)
+        {
+            return m_OSSL_Functions.osMin(a, b);
+        }
+
+        public LSL_Float osMax(double a, double b)
+        {
+            return m_OSSL_Functions.osMax(a, b);
+        }
+
+        public LSL_Key osGetRezzingObject()
+        {
+            return m_OSSL_Functions.osGetRezzingObject();
         }
     }
 }

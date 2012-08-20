@@ -58,17 +58,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
     {
         internal IScriptEngine m_ScriptEngine;
         internal SceneObjectPart m_host;
-        internal uint m_localID;
-        internal UUID m_itemID;
         internal bool m_LSFunctionsEnabled = false;
         internal IScriptModuleComms m_comms = null;
 
-        public void Initialize(IScriptEngine ScriptEngine, SceneObjectPart host, uint localID, UUID itemID)
+        public void Initialize(IScriptEngine ScriptEngine, SceneObjectPart host, TaskInventoryItem item)
         {
             m_ScriptEngine = ScriptEngine;
             m_host = host;
-            m_localID = localID;
-            m_itemID = itemID;
 
             if (m_ScriptEngine.Config.GetBoolean("AllowLightShareFunctions", false))
                 m_LSFunctionsEnabled = true;
@@ -308,7 +304,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     case (int)ScriptBaseClass.WL_CLOUD_DETAIL_XY_DENSITY:
                         idx++;
                         iV = rules.GetVector3Item(idx);
-                        wl.cloudDetailXYDensity = new Vector3((float)iV.x, (float)iV.y, (float)iV.z);
+                        wl.cloudDetailXYDensity = iV;
                         break;
                     case (int)ScriptBaseClass.WL_CLOUD_SCALE:
                         idx++;
@@ -333,7 +329,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     case (int)ScriptBaseClass.WL_CLOUD_XY_DENSITY:
                         idx++;
                         iV = rules.GetVector3Item(idx);
-                        wl.cloudXYDensity = new Vector3((float)iV.x, (float)iV.y, (float)iV.z);
+                        wl.cloudXYDensity = iV;
                         break;
                     case (int)ScriptBaseClass.WL_DENSITY_MULTIPLIER:
                         idx++;
@@ -388,7 +384,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     case (int)ScriptBaseClass.WL_REFLECTION_WAVELET_SCALE:
                         idx++;
                         iV = rules.GetVector3Item(idx);
-                        wl.reflectionWaveletScale = new Vector3((float)iV.x, (float)iV.y, (float)iV.z);
+                        wl.reflectionWaveletScale = iV;
                         break;
                     case (int)ScriptBaseClass.WL_REFRACT_SCALE_ABOVE:
                         idx++;
@@ -426,7 +422,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     case (int)ScriptBaseClass.WL_WATER_COLOR:
                         idx++;
                         iV = rules.GetVector3Item(idx);
-                        wl.waterColor = new Vector3((float)iV.x, (float)iV.y, (float)iV.z);
+                        wl.waterColor = iV;
                         break;
                     case (int)ScriptBaseClass.WL_WATER_FOG_DENSITY_EXPONENT:
                         idx++;

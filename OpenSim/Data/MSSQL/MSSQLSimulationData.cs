@@ -1181,6 +1181,72 @@ VALUES
             //            }
             #endregion
         }
+
+        #region Environment Settings
+        public string LoadRegionEnvironmentSettings(UUID regionUUID)
+        {
+            string sql = "select * from [regionenvironment] where region_id = @region_id";
+            using (SqlConnection conn = new SqlConnection(m_connectionString))
+            using (SqlCommand cmd = new SqlCommand(sql, conn))
+            {
+                cmd.Parameters.Add(_Database.CreateParameter("@region_id", regionUUID));
+                conn.Open();
+                using (SqlDataReader result = cmd.ExecuteReader())
+                {
+                    if (!result.Read())
+                    {
+                        return String.Empty;
+                    }
+                    else
+                    {
+                        return Convert.ToString(result["llsd_settings"]);
+                    }
+                }
+            }
+        }
+
+        public void StoreRegionEnvironmentSettings(UUID regionUUID, string settings)
+        {
+            {
+                string sql = "DELETE FROM [regionenvironment] WHERE region_id = @region_id";
+                using (SqlConnection conn = new SqlConnection(m_connectionString))
+
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.Add(_Database.CreateParameter("@region_id", regionUUID));
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+                }
+
+                sql = "INSERT INTO [regionenvironment] (region_id, llsd_settings) VALUES (@region_id, @llsd_settings)";
+
+                using (SqlConnection conn = new SqlConnection(m_connectionString))
+
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.Add(_Database.CreateParameter("@region_id", regionUUID));
+                    cmd.Parameters.Add(_Database.CreateParameter("@llsd_settings", settings));
+
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public void RemoveRegionEnvironmentSettings(UUID regionUUID)
+        {
+            string sql = "delete from [regionenvironment] where region_id = @region_id";
+            using (SqlConnection conn = new SqlConnection(m_connectionString))
+            using (SqlCommand cmd = new SqlCommand(sql, conn))
+            {
+                cmd.Parameters.Add(_Database.CreateParameter("@region_id", regionUUID));
+
+                conn.Open();
+                cmd.ExecuteNonQuery();
+            }
+        }
+        #endregion
+
         /// <summary>
         /// Loads the settings of a region.
         /// </summary>
@@ -2135,6 +2201,19 @@ VALUES
                     cmd.ExecuteNonQuery();
                 }
             }
+        }
+
+        public void SaveExtra(UUID regionID, string name, string value)
+        {
+        }
+
+        public void RemoveExtra(UUID regionID, string name)
+        {
+        }
+
+        public Dictionary<string, string> GetExtra(UUID regionID)
+        {
+            return null;
         }
     }
 }

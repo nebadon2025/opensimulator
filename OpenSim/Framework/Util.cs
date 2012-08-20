@@ -148,6 +148,7 @@ namespace OpenSim.Framework
         }
 
         public static Encoding UTF8 = Encoding.UTF8;
+        public static Encoding UTF8NoBomEncoding = new UTF8Encoding(false);
 
         /// <value>
         /// Well known UUID for the blank texture used in the Linden SL viewer version 1.20 (and hopefully onwards) 
@@ -849,6 +850,12 @@ namespace OpenSim.Framework
             return Math.Min(Math.Max(x, min), max);
         }
 
+        public static Vector3 Clip(Vector3 vec, float min, float max)
+        {
+            return new Vector3(Clip(vec.X, min, max), Clip(vec.Y, min, max),
+                Clip(vec.Z, min, max));
+        }
+
         /// <summary>
         /// Convert an UUID to a raw uuid string.  Right now this is a string without hyphens.
         /// </summary>
@@ -1236,8 +1243,7 @@ namespace OpenSim.Framework
 
         public static string Base64ToString(string str)
         {
-            UTF8Encoding encoder = new UTF8Encoding();
-            Decoder utf8Decode = encoder.GetDecoder();
+            Decoder utf8Decode = Encoding.UTF8.GetDecoder();
 
             byte[] todecode_byte = Convert.FromBase64String(str);
             int charCount = utf8Decode.GetCharCount(todecode_byte, 0, todecode_byte.Length);

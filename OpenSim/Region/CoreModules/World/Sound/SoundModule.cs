@@ -78,11 +78,8 @@ namespace OpenSim.Region.CoreModules.World.Sound
 
                 if (grp.IsAttachment)
                 {
-                    if (grp.AttachmentPoint > 30) // HUD
-                    {
-                        if (sp.ControllingClient.AgentId != grp.OwnerID)
-                            return;
-                    }
+                    if (grp.HasPrivateAttachmentPoint && sp.ControllingClient.AgentId != grp.OwnerID)
+                        return;
 
                     if (sp.ControllingClient.AgentId == grp.OwnerID)
                         dis = 0;
@@ -122,17 +119,20 @@ namespace OpenSim.Region.CoreModules.World.Sound
             m_scene.ForEachRootScenePresence(delegate(ScenePresence sp)
             {
                 double dis = Util.GetDistanceTo(sp.AbsolutePosition, position);
+
                 if (dis > 100.0) // Max audio distance
                     return;
 
+                float thisSpGain;
+
                 // Scale by distance
                 if (radius == 0)
-                    gain = (float)((double)gain * ((100.0 - dis) / 100.0));
+                    thisSpGain = (float)((double)gain * ((100.0 - dis) / 100.0));
                 else
-                    gain = (float)((double)gain * ((radius - dis) / radius));
+                    thisSpGain = (float)((double)gain * ((radius - dis) / radius));
 
                 sp.ControllingClient.SendTriggeredSound(
-                    soundId, ownerID, objectID, parentID, handle, position, (float)gain);
+                    soundId, ownerID, objectID, parentID, handle, position, thisSpGain);
             });
         }
     }

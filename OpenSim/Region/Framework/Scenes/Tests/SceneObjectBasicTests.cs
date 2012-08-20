@@ -186,10 +186,15 @@ namespace OpenSim.Region.Framework.Scenes.Tests
             TestHelpers.InMethod();
 
             TestScene scene = new SceneHelpers().SetupScene();
-            SceneObjectPart part = SceneHelpers.AddSceneObject(scene);
-            scene.DeleteSceneObject(part.ParentGroup, false);
+            SceneObjectGroup so = SceneHelpers.AddSceneObject(scene);
 
-            SceneObjectPart retrievedPart = scene.GetSceneObjectPart(part.LocalId);
+            Assert.That(so.IsDeleted, Is.False);
+
+            scene.DeleteSceneObject(so, false);
+
+            Assert.That(so.IsDeleted, Is.True);
+
+            SceneObjectPart retrievedPart = scene.GetSceneObjectPart(so.LocalId);
             Assert.That(retrievedPart, Is.Null);
         }
         
@@ -210,18 +215,22 @@ namespace OpenSim.Region.Framework.Scenes.Tests
             AsyncSceneObjectGroupDeleter sogd = scene.SceneObjectGroupDeleter;
             sogd.Enabled = false;
 
-            SceneObjectPart part = SceneHelpers.AddSceneObject(scene);
+            SceneObjectGroup so = SceneHelpers.AddSceneObject(scene);
 
             IClientAPI client = SceneHelpers.AddScenePresence(scene, agentId).ControllingClient;
-            scene.DeRezObjects(client, new System.Collections.Generic.List<uint>() { part.LocalId }, UUID.Zero, DeRezAction.Delete, UUID.Zero);
+            scene.DeRezObjects(client, new System.Collections.Generic.List<uint>() { so.LocalId }, UUID.Zero, DeRezAction.Delete, UUID.Zero);
 
-            SceneObjectPart retrievedPart = scene.GetSceneObjectPart(part.LocalId);
+            SceneObjectPart retrievedPart = scene.GetSceneObjectPart(so.LocalId);
 
             Assert.That(retrievedPart, Is.Not.Null);
 
+            Assert.That(so.IsDeleted, Is.False);
+
             sogd.InventoryDeQueueAndDelete();
 
-            SceneObjectPart retrievedPart2 = scene.GetSceneObjectPart(part.LocalId);
+            Assert.That(so.IsDeleted, Is.True);
+
+            SceneObjectPart retrievedPart2 = scene.GetSceneObjectPart(so.LocalId);
             Assert.That(retrievedPart2, Is.Null);
         }
  

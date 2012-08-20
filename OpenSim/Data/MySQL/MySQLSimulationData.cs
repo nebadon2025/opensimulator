@@ -969,6 +969,68 @@ namespace OpenSim.Data.MySQL
             }
         }
 
+        #region RegionEnvironmentSettings
+        public string LoadRegionEnvironmentSettings(UUID regionUUID)
+        {
+            using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
+            {
+                dbcon.Open();
+
+                string command = "select * from `regionenvironment` where region_id = ?region_id";
+
+                using (MySqlCommand cmd = new MySqlCommand(command))
+                {
+                    cmd.Connection = dbcon;
+
+                    cmd.Parameters.AddWithValue("?region_id", regionUUID.ToString());
+
+                    IDataReader result = ExecuteReader(cmd);
+                    if (!result.Read())
+                    {
+                        return String.Empty;
+                    }
+                    else
+                    {
+                        return Convert.ToString(result["llsd_settings"]);
+                    }
+                }
+            }
+        }
+
+        public void StoreRegionEnvironmentSettings(UUID regionUUID, string settings)
+        {
+            using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
+            {
+                dbcon.Open();
+
+                using (MySqlCommand cmd = dbcon.CreateCommand())
+                {
+                    cmd.CommandText = "REPLACE INTO `regionenvironment` (`region_id`, `llsd_settings`) VALUES (?region_id, ?llsd_settings)";
+
+                    cmd.Parameters.AddWithValue("region_id", regionUUID);
+                    cmd.Parameters.AddWithValue("llsd_settings", settings);
+
+                    ExecuteNonQuery(cmd);
+                }
+            }
+        }
+
+        public void RemoveRegionEnvironmentSettings(UUID regionUUID)
+        {
+            using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
+            {
+                dbcon.Open();
+
+                using (MySqlCommand cmd = dbcon.CreateCommand())
+                {
+                    cmd.CommandText = "delete from `regionenvironment` where region_id = ?region_id";
+                    cmd.Parameters.AddWithValue("?region_id", regionUUID.ToString());
+                    ExecuteNonQuery(cmd);
+                }
+            }
+        }
+        #endregion
+
         public void StoreRegionSettings(RegionSettings rs)
         {
             lock (m_dbLock)
@@ -1903,6 +1965,75 @@ namespace OpenSim.Data.MySQL
                     }
                 }
             }
+        }
+
+        public void SaveExtra(UUID regionID, string name, string val)
+        {
+            lock (m_dbLock)
+            {
+                using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
+                {
+                    dbcon.Open();
+
+                    using (MySqlCommand cmd = dbcon.CreateCommand())
+                    {
+                        cmd.CommandText = "replace into regionextra values (?RegionID, ?Name, ?value)";
+                        cmd.Parameters.AddWithValue("?RegionID", regionID.ToString());
+                        cmd.Parameters.AddWithValue("?Name", name);
+                        cmd.Parameters.AddWithValue("?value", val);
+
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+
+        public void RemoveExtra(UUID regionID, string name)
+        {
+            lock (m_dbLock)
+            {
+                using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
+                {
+                    dbcon.Open();
+
+                    using (MySqlCommand cmd = dbcon.CreateCommand())
+                    {
+                        cmd.CommandText = "delete from regionextra where RegionID=?RegionID and Name=?Name";
+                        cmd.Parameters.AddWithValue("?RegionID", regionID.ToString());
+                        cmd.Parameters.AddWithValue("?Name", name);
+
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+
+        public Dictionary<string, string> GetExtra(UUID regionID)
+        {
+            Dictionary<string, string> ret = new Dictionary<string, string>();
+
+            lock (m_dbLock)
+            {
+                using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
+                {
+                    dbcon.Open();
+
+                    using (MySqlCommand cmd = dbcon.CreateCommand())
+                    {
+                        cmd.CommandText = "select * from regionextra where RegionID=?RegionID";
+                        cmd.Parameters.AddWithValue("?RegionID", regionID.ToString());
+                        using (IDataReader r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
+                                ret[r["Name"].ToString()] = r["value"].ToString();
+                            }
+                        }
+                    }
+                }
+            }
+
+            return ret;
         }
     }
 }

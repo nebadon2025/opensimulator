@@ -151,6 +151,24 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             ToOriginalXmlFormat(sceneObject, writer, doScriptStates, false);
         }
         
+        public static string ToOriginalXmlFormat(SceneObjectGroup sceneObject, string scriptedState)
+        {
+            using (StringWriter sw = new StringWriter())
+            {
+                using (XmlTextWriter writer = new XmlTextWriter(sw))
+                {
+                    writer.WriteStartElement(String.Empty, "SceneObjectGroup", String.Empty);
+
+                    ToOriginalXmlFormat(sceneObject, writer, false, true);
+
+                    writer.WriteRaw(scriptedState);
+
+                    writer.WriteEndElement();
+                }
+                return sw.ToString();
+            }
+        }
+
         /// <summary>
         /// Serialize a scene object to the original xml format
         /// </summary>
@@ -301,6 +319,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             m_SOPXmlProcessors.Add("Name", ProcessName);
             m_SOPXmlProcessors.Add("Material", ProcessMaterial);
             m_SOPXmlProcessors.Add("PassTouches", ProcessPassTouches);
+            m_SOPXmlProcessors.Add("PassCollisions", ProcessPassCollisions);
             m_SOPXmlProcessors.Add("RegionHandle", ProcessRegionHandle);
             m_SOPXmlProcessors.Add("ScriptAccessPin", ProcessScriptAccessPin);
             m_SOPXmlProcessors.Add("GroupPosition", ProcessGroupPosition);
@@ -483,6 +502,11 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         private static void ProcessPassTouches(SceneObjectPart obj, XmlTextReader reader)
         {
             obj.PassTouches = Util.ReadBoolean(reader);
+        }
+
+        private static void ProcessPassCollisions(SceneObjectPart obj, XmlTextReader reader)
+        {
+            obj.PassCollisions = Util.ReadBoolean(reader);
         }
 
         private static void ProcessRegionHandle(SceneObjectPart obj, XmlTextReader reader)
@@ -1153,6 +1177,7 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
             writer.WriteElementString("Name", sop.Name);
             writer.WriteElementString("Material", sop.Material.ToString());
             writer.WriteElementString("PassTouches", sop.PassTouches.ToString().ToLower());
+            writer.WriteElementString("PassCollisions", sop.PassCollisions.ToString().ToLower());
             writer.WriteElementString("RegionHandle", sop.RegionHandle.ToString());
             writer.WriteElementString("ScriptAccessPin", sop.ScriptAccessPin.ToString());
 
@@ -1415,51 +1440,6 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
                 writer.WriteEndElement(); // Shape
             }
-        }
-
-        //////// Read /////////
-        public static bool Xml2ToSOG(XmlTextReader reader, SceneObjectGroup sog)
-        {
-            reader.Read();
-            reader.ReadStartElement("SceneObjectGroup");
-            SceneObjectPart root = Xml2ToSOP(reader);
-            if (root != null)
-                sog.SetRootPart(root);
-            else
-            {
-                return false;
-            }
-
-            if (sog.UUID == UUID.Zero)
-                sog.UUID = sog.RootPart.UUID;
-
-            reader.Read(); // OtherParts
-
-            while (!reader.EOF)
-            {
-                switch (reader.NodeType)
-                {
-                    case XmlNodeType.Element:
-                        if (reader.Name == "SceneObjectPart")
-                        {
-                            SceneObjectPart child = Xml2ToSOP(reader);
-                            if (child != null)
-                                sog.AddPart(child);
-                        }
-                        else
-                        {
-                            //Logger.Log("Found unexpected prim XML element " + reader.Name, Helpers.LogLevel.Debug);
-                            reader.Read();
-                        }
-                        break;
-                    case XmlNodeType.EndElement:
-                    default:
-                        reader.Read();
-                        break;
-                }
-
-            }
-            return true;
         }
 
         public static SceneObjectPart Xml2ToSOP(XmlTextReader reader)

@@ -109,6 +109,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         LSL_Vector llGetAccel();
        LSL_Integer llGetAgentInfo(string id);
         LSL_String llGetAgentLanguage(string id);
+          LSL_List llGetAgentList(LSL_Integer scope, LSL_List options);
         LSL_Vector llGetAgentSize(string id);
          LSL_Float llGetAlpha(int face);
          LSL_Float llGetAndResetTime();
@@ -358,6 +359,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
               void llSetPrimitiveParams(LSL_List rules);
               void llSetLinkPrimitiveParamsFast(int linknum, LSL_List rules);
               void llSetPrimURL(string url);
+       LSL_Integer llSetRegionPos(LSL_Vector pos);
               void llSetRemoteScriptAccessPin(int pin);
               void llSetRot(LSL_Rotation rot);
               void llSetScale(LSL_Vector scale);
@@ -402,6 +404,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
               void llTargetOmega(LSL_Vector axis, double spinrate, double gain);
               void llTargetRemove(int number);
               void llTeleportAgentHome(string agent);
+              void llTeleportAgent(string agent, string simname, LSL_Vector pos, LSL_Vector lookAt);
+              void llTeleportAgentGlobalCoords(string agent, LSL_Vector global, LSL_Vector pos, LSL_Vector lookAt);
               void llTextBox(string avatar, string message, int chat_channel);
         LSL_String llToLower(string source);
         LSL_String llToUpper(string source);

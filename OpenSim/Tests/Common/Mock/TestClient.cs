@@ -963,11 +963,6 @@ namespace OpenSim.Tests.Common.Mock
         {
         }
 
-        public EndPoint GetClientEP()
-        {
-            return null;
-        }
-
         public ClientInfo GetClientInfo()
         {
             return null;
@@ -1120,10 +1115,6 @@ namespace OpenSim.Tests.Common.Mock
         }
 
         public void SendMapItemReply(mapItemReply[] replies, uint mapitemtype, uint flags)
-        {
-        }
-
-        public void KillEndDone()
         {
         }
 

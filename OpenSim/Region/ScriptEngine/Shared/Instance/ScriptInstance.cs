@@ -26,15 +26,16 @@
  */
 
 using System;
-using System.IO;
-using System.Runtime.Remoting;
-using System.Runtime.Remoting.Lifetime;
-using System.Threading;
 using System.Collections;
 using System.Collections.Generic;
-using System.Security.Policy;
-using System.Reflection;
 using System.Globalization;
+using System.IO;
+using System.Reflection;
+using System.Runtime.Remoting;
+using System.Runtime.Remoting.Lifetime;
+using System.Security.Policy;
+using System.Text;
+using System.Threading;
 using System.Xml;
 using OpenMetaverse;
 using log4net;
@@ -232,7 +233,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
             foreach (string api in am.GetApis())
             {
                 m_Apis[api] = am.CreateApi(api);
-                m_Apis[api].Initialize(engine, part, LocalID, itemID);
+                m_Apis[api].Initialize(engine, part, ScriptTask);
             }
     
             try
@@ -295,13 +296,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                         using (FileStream fs = File.Open(savedState,
                                                          FileMode.Open, FileAccess.Read, FileShare.None))
                         {
-                            System.Text.UTF8Encoding enc =
-                                new System.Text.UTF8Encoding();
-
                             Byte[] data = new Byte[size];
                             fs.Read(data, 0, size);
 
-                            xml = enc.GetString(data);
+                            xml = Encoding.UTF8.GetString(data);
 
                             ScriptSerializer.Deserialize(xml, this);
 
@@ -314,10 +312,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                             part.SetScriptEvents(ItemID,
                                     (int)m_Script.GetStateEventFlags(State));
 
-                            Running = false;
-
-                            if (ShuttingDown)
+                            if (!Running)
                                 m_startOnInit = false;
+
+                            Running = false;
 
                             // we get new rez events on sim restart, too
                             // but if there is state, then we fire the change
@@ -330,16 +328,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                     }
                     else
                     {
-                        m_log.ErrorFormat(
-                            "[SCRIPT INSTANCE]: Unable to load script state from assembly {0}: Memory limit exceeded",
-                            assembly);
+                        m_log.WarnFormat(
+                            "[SCRIPT INSTANCE]: Unable to load script state file {0} for script {1} {2} in {3} {4} (assembly {5}).  Memory limit exceeded",
+                            savedState, ScriptName, ItemID, PrimName, ObjectID, assembly);
                     }
                 }
                 catch (Exception e)
                 {
                      m_log.ErrorFormat(
-                         "[SCRIPT INSTANCE]: Unable to load script state from assembly {0}.  XML is {1}.  Exception {2}{3}",
-                         assembly, xml, e.Message, e.StackTrace);
+                         "[SCRIPT INSTANCE]: Unable to load script state file {0} for script {1} {2} in {3} {4} (assembly {5}).  XML is {6}.  Exception {7}{8}",
+                         savedState, ScriptName, ItemID, PrimName, ObjectID, assembly, xml, e.Message, e.StackTrace);
                 }
             }
 //            else
@@ -354,11 +352,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
 
         public void Init()
         {
-            if (!m_startOnInit) return;
+            if (ShuttingDown)
+                return;
 
             if (m_startedFromSavedState) 
             {
-                Start();
+                if (m_startOnInit)
+                    Start();
                 if (m_postOnRez) 
                 {
                     PostEvent(new EventParams("on_rez",
@@ -390,7 +390,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
             }
             else 
             {
-                Start();
+                if (m_startOnInit)
+                    Start();
                 PostEvent(new EventParams("state_entry",
                                           new Object[0], new DetectParams[0]));
                 if (m_postOnRez) 
@@ -944,8 +945,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                 try
                 {
                     FileStream fs = File.Create(Path.Combine(Path.GetDirectoryName(assembly), ItemID.ToString() + ".state"));
-                    System.Text.UTF8Encoding enc = new System.Text.UTF8Encoding();
-                    Byte[] buf = enc.GetBytes(xml);
+                    Byte[] buf = Util.UTF8NoBomEncoding.GetBytes(xml);
                     fs.Write(buf, 0, buf.Length);
                     fs.Close();
                 }

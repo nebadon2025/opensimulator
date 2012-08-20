@@ -26,6 +26,7 @@
  */
 
 using System;
+using System.ComponentModel;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -108,6 +109,15 @@ namespace OpenSim.Region.Framework.Scenes
         private long timeFirstChanged;
         private long timeLastChanged;
 
+        /// <summary>
+        /// This indicates whether the object has changed such that it needs to be repersisted to permenant storage
+        /// (the database).
+        /// </summary>
+        /// <remarks>
+        /// Ultimately, this should be managed such that region modules can change it at the end of a set of operations
+        /// so that either all changes are preserved or none at all.  However, currently, a large amount of internal
+        /// code will set this anyway when some object properties are changed.
+        /// </remarks>
         public bool HasGroupChanged
         {
             set
@@ -177,6 +187,22 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 IsAttachment = value != 0;
                 m_rootPart.Shape.State = (byte)value;
+            }
+        }
+
+        /// <summary>
+        /// If this scene object has an attachment point then indicate whether there is a point where
+        /// attachments are perceivable by avatars other than the avatar to which this object is attached.
+        /// </summary>
+        /// <remarks>
+        /// HUDs are not perceivable by other avatars.
+        /// </remarks>
+        public bool HasPrivateAttachmentPoint
+        {
+            get
+            {
+                return AttachmentPoint >= (uint)OpenMetaverse.AttachmentPoint.HUDCenter2
+                    && AttachmentPoint <= (uint)OpenMetaverse.AttachmentPoint.HUDBottomRight;
             }
         }
 
@@ -426,6 +452,8 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                 }
 
+                // Restuff the new GroupPosition into each SOP of the linkset.
+                //    This has the affect of resetting and tainting the physics actors.
                 SceneObjectPart[] parts = m_parts.GetArray();
                 for (int i = 0; i < parts.Length; i++)
                     parts[i].GroupPosition = val;
@@ -505,17 +533,6 @@ namespace OpenSim.Region.Framework.Scenes
             get { return true; }
         }
         
-        private bool m_passCollision;
-        public bool PassCollision
-        {
-            get { return m_passCollision; }
-            set
-            {
-                m_passCollision = value;
-                HasGroupChanged = true;
-            }
-        }
-
         public bool IsSelected
         {
             get { return m_isSelected; }
@@ -595,6 +612,14 @@ namespace OpenSim.Region.Framework.Scenes
         public UUID FromItemID { get; set; }
 
         /// <summary>
+        /// Refers to the SceneObjectPart.UUID property of the object that this object was rezzed from, if applicable.
+        /// </summary>
+        /// <remarks>
+        /// If not applicable will be UUID.Zero
+        /// </remarks>
+        public UUID FromPartID { get; set; }
+
+        /// <summary>
         /// The folder ID that this object was rezzed from, if applicable.
         /// </summary>
         /// <remarks>
@@ -624,7 +649,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// The original SceneObjectPart will be used rather than a copy, preserving
         /// its existing localID and UUID.
         /// </summary>
-        public SceneObjectGroup(SceneObjectPart part)
+        /// <param name='part'>Root part for this scene object.</param>
+        public SceneObjectGroup(SceneObjectPart part) : this()
         {
             SetRootPart(part);
         }
@@ -633,8 +659,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// Constructor.  This object is added to the scene later via AttachToScene()
         /// </summary>
         public SceneObjectGroup(UUID ownerID, Vector3 pos, Quaternion rot, PrimitiveBaseShape shape)
+            :this(new SceneObjectPart(ownerID, shape, pos, rot, Vector3.Zero))
         { 
-            SetRootPart(new SceneObjectPart(ownerID, shape, pos, rot, Vector3.Zero));
         }
 
         /// <summary>
@@ -1041,16 +1067,6 @@ namespace OpenSim.Region.Framework.Scenes
         {
             return Utils.FloatToUInt16(m_scene.TimeDilation, 0.0f, 1.0f);
         }
-
-        /// <summary>
-        /// Added as a way for the storage provider to reset the scene,
-        /// most likely a better way to do this sort of thing but for now...
-        /// </summary>
-        /// <param name="scene"></param>
-        public void SetScene(Scene scene)
-        {
-            m_scene = scene;
-        }
         
         /// <summary>
         /// Set a part to act as the root part for this scene object
@@ -1129,6 +1145,9 @@ namespace OpenSim.Region.Framework.Scenes
         
         public void ResetChildPrimPhysicsPositions()
         {
+            // Setting this SOG's absolute position also loops through and sets the positions
+            //    of the SOP's in this SOG's linkset. This has the side affect of making sure
+            //    the physics world matches the simulated world.
             AbsolutePosition = AbsolutePosition; // could someone in the know please explain how this works?
 
             // teravus: AbsolutePosition is NOT a normal property!
@@ -1200,8 +1219,9 @@ namespace OpenSim.Region.Framework.Scenes
                         part.ClearUpdateSchedule();
                         if (part == m_rootPart)
                         {
-                            if (!IsAttachment || (AttachedAvatar == avatar.ControllingClient.AgentId) || 
-                                (AttachmentPoint < 31) || (AttachmentPoint > 38))
+                            if (!IsAttachment
+                                || AttachedAvatar == avatar.ControllingClient.AgentId
+                                || !HasPrivateAttachmentPoint)
                                 avatar.ControllingClient.SendKillObject(m_regionHandle, new List<uint> { part.LocalId });
                         }
                     }
@@ -1811,8 +1831,13 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Schedule a full update for this scene object
+        /// Schedule a full update for this scene object to all interested viewers.
         /// </summary>
+        /// <remarks>
+        /// Ultimately, this should be managed such that region modules can invoke it at the end of a set of operations
+        /// so that either all changes are sent at once.  However, currently, a large amount of internal
+        /// code will set this anyway when some object properties are changed.
+        /// </remarks>
         public void ScheduleGroupForFullUpdate()
         {
 //            if (IsAttachment)
@@ -1831,8 +1856,13 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Schedule a terse update for this scene object
+        /// Schedule a terse update for this scene object to all interested viewers.
         /// </summary>
+        /// <remarks>
+        /// Ultimately, this should be managed such that region modules can invoke it at the end of a set of operations
+        /// so that either all changes are sent at once.  However, currently, a large amount of internal
+        /// code will set this anyway when some object properties are changed.
+        /// </remarks>
         public void ScheduleGroupForTerseUpdate()
         {
 //            m_log.DebugFormat("[SOG]: Scheduling terse update for {0} {1}", Name, UUID);
@@ -1972,6 +2002,8 @@ namespace OpenSim.Region.Framework.Scenes
             LinkToGroup(objectGroup, false);
         }
 
+        // Link an existing group to this group.
+        // The group being linked need not be a linkset -- it can have just one prim.
         public void LinkToGroup(SceneObjectGroup objectGroup, bool insert)
         {
 //            m_log.DebugFormat(
@@ -1982,35 +2014,51 @@ namespace OpenSim.Region.Framework.Scenes
             if (objectGroup == this)
                 return;
 
+            // 'linkPart' == the root of the group being linked into this group
             SceneObjectPart linkPart = objectGroup.m_rootPart;
 
             // physics flags from group to be applied to linked parts
             bool grpusephys = UsesPhysics;
             bool grptemporary = IsTemporary;
 
+            // Remember where the group being linked thought it was
             Vector3 oldGroupPosition = linkPart.GroupPosition;
             Quaternion oldRootRotation = linkPart.RotationOffset;
 
-            linkPart.OffsetPosition = linkPart.GroupPosition - AbsolutePosition;
-            linkPart.ParentID = m_rootPart.LocalId;
-            linkPart.GroupPosition = AbsolutePosition;
-            Vector3 axPos = linkPart.OffsetPosition;
+            // A linked SOP remembers its location and rotation relative to the root of a group. 
+            // Convert the root of the group being linked to be relative to the
+            //   root of the group being linked to.
+            // Note: Some of the assignments have complex side effects.
 
+            // First move the new group's root SOP's position to be relative to ours
+            // (radams1: Not sure if the multiple setting of OffsetPosition is required. If not,
+            //   this code can be reordered to have a more logical flow.)
+            linkPart.OffsetPosition = linkPart.GroupPosition - AbsolutePosition;
+            // Assign the new parent to the root of the old group
+            linkPart.ParentID = m_rootPart.LocalId;
+            // Now that it's a child, it's group position is our root position
+            linkPart.GroupPosition = AbsolutePosition;
+
+            Vector3 axPos = linkPart.OffsetPosition;
+            // Rotate the linking root SOP's position to be relative to the new root prim
             Quaternion parentRot = m_rootPart.RotationOffset;
             axPos *= Quaternion.Inverse(parentRot);
-
             linkPart.OffsetPosition = axPos;
+
+            // Make the linking root SOP's rotation relative to the new root prim
             Quaternion oldRot = linkPart.RotationOffset;
             Quaternion newRot = Quaternion.Inverse(parentRot) * oldRot;
             linkPart.RotationOffset = newRot;
 
-            linkPart.ParentID = m_rootPart.LocalId;
-
+            // If there is only one SOP in a SOG, the LinkNum is zero. I.e., not a linkset.
+            // Now that we know this SOG has at least two SOPs in it, the new root
+            //    SOP becomes the first in the linkset.
             if (m_rootPart.LinkNum == 0)
                 m_rootPart.LinkNum = 1;
 
             lock (m_parts.SyncRoot)
             {
+                // Calculate the new link number for the old root SOP
                 int linkNum;
                 if (insert)
                 {
@@ -2026,6 +2074,7 @@ namespace OpenSim.Region.Framework.Scenes
                     linkNum = PrimCount + 1;
                 }
 
+                // Add the old root SOP as a part in our group's list
                 m_parts.Add(linkPart.UUID, linkPart);
 
                 linkPart.SetParent(this);
@@ -2033,6 +2082,8 @@ namespace OpenSim.Region.Framework.Scenes
 
                 // let physics know preserve part volume dtc messy since UpdatePrimFlags doesn't look to parent changes for now
                 linkPart.UpdatePrimFlags(grpusephys, grptemporary, (IsPhantom || (linkPart.Flags & PrimFlags.Phantom) != 0), linkPart.VolumeDetectActive);
+
+                // If the added SOP is physical, also tell the physics engine about the link relationship.
                 if (linkPart.PhysActor != null && m_rootPart.PhysActor != null && m_rootPart.PhysActor.IsPhysical)
                 {
                     linkPart.PhysActor.link(m_rootPart.PhysActor);
@@ -2041,20 +2092,26 @@ namespace OpenSim.Region.Framework.Scenes
 
                 linkPart.LinkNum = linkNum++;
 
+                // Get a list of the SOP's in the old group in order of their linknum's.
                 SceneObjectPart[] ogParts = objectGroup.Parts;
                 Array.Sort(ogParts, delegate(SceneObjectPart a, SceneObjectPart b)
                         {
                             return a.LinkNum - b.LinkNum;
                         });
 
+                // Add each of the SOP's from the old linkset to our linkset
                 for (int i = 0; i < ogParts.Length; i++)
                 {
                     SceneObjectPart part = ogParts[i];
                     if (part.UUID != objectGroup.m_rootPart.UUID)
                     {
                         LinkNonRootPart(part, oldGroupPosition, oldRootRotation, linkNum++);
-                        // let physics know
+
+                        // Update the physics flags for the newly added SOP
+                        // (Is this necessary? LinkNonRootPart() has already called UpdatePrimFlags but with different flags!??)
                         part.UpdatePrimFlags(grpusephys, grptemporary, (IsPhantom || (part.Flags & PrimFlags.Phantom) != 0), part.VolumeDetectActive);
+
+                        // If the added SOP is physical, also tell the physics engine about the link relationship.
                         if (part.PhysActor != null && m_rootPart.PhysActor != null && m_rootPart.PhysActor.IsPhysical)
                         {
                             part.PhysActor.link(m_rootPart.PhysActor);
@@ -2065,6 +2122,7 @@ namespace OpenSim.Region.Framework.Scenes
                 }
             }
 
+            // Now that we've aquired all of the old SOG's parts, remove the old SOG from the scene.
             m_scene.UnlinkSceneObject(objectGroup, true);
             objectGroup.IsDeleted = true;
 
@@ -2137,7 +2195,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <remarks>
         /// FIXME: This method should not be called directly since it bypasses update locking, allowing a potential race
         /// condition.  But currently there is no
-        /// alternative method that does take a lonk to delink a single prim.
+        /// alternative method that does take a lock to delink a single prim.
         /// </remarks>
         /// <param name="partID"></param>
         /// <param name="sendEvents"></param>
@@ -2150,6 +2208,7 @@ namespace OpenSim.Region.Framework.Scenes
             
             linkPart.ClearUndoState();
 
+            Vector3 worldPos = linkPart.GetWorldPosition();
             Quaternion worldRot = linkPart.GetWorldRotation();
 
             // Remove the part from this object
@@ -2159,6 +2218,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                 SceneObjectPart[] parts = m_parts.GetArray();
 
+                // Rejigger the linknum's of the remaining SOP's to fill any gap
                 if (parts.Length == 1 && RootPart != null)
                 {
                     // Single prim left
@@ -2180,22 +2240,31 @@ namespace OpenSim.Region.Framework.Scenes
 
             PhysicsActor linkPartPa = linkPart.PhysActor;
 
+            // Remove the SOP from the physical scene.
+            // If the new SOG is physical, it is re-created later.
+            // (There is a problem here in that we have not yet told the physics
+            //    engine about the delink. Someday, linksets should be made first
+            //    class objects in the physics engine interface).
             if (linkPartPa != null)
                 m_scene.PhysicsScene.RemovePrim(linkPartPa);
 
             // We need to reset the child part's position
             // ready for life as a separate object after being a part of another object
+
+            /* This commented out code seems to recompute what GetWorldPosition already does.
+             * Replace with a call to GetWorldPosition (before unlinking)
             Quaternion parentRot = m_rootPart.RotationOffset;
-
             Vector3 axPos = linkPart.OffsetPosition;
-
             axPos *= parentRot;
             linkPart.OffsetPosition = new Vector3(axPos.X, axPos.Y, axPos.Z);
             linkPart.GroupPosition = AbsolutePosition + linkPart.OffsetPosition;
             linkPart.OffsetPosition = new Vector3(0, 0, 0);
-
+             */
+            linkPart.GroupPosition = worldPos;
+            linkPart.OffsetPosition = Vector3.Zero;
             linkPart.RotationOffset = worldRot;
 
+            // Create a new SOG to go around this unlinked and unattached SOP
             SceneObjectGroup objectGroup = new SceneObjectGroup(linkPart);
 
             m_scene.AddNewSceneObject(objectGroup, true);
@@ -2224,42 +2293,56 @@ namespace OpenSim.Region.Framework.Scenes
             m_isBackedUp = false;
         }
 
+        // This links an SOP from a previous linkset into my linkset.
+        // The trick is that the SOP's position and rotation are relative to the old root SOP's
+        //    so we are passed in the position and rotation of the old linkset so this can
+        //    unjigger this SOP's position and rotation from the previous linkset and
+        //    then make them relative to my linkset root.
         private void LinkNonRootPart(SceneObjectPart part, Vector3 oldGroupPosition, Quaternion oldGroupRotation, int linkNum)
         {
             Quaternion parentRot = oldGroupRotation;
             Quaternion oldRot = part.RotationOffset;
-            Quaternion worldRot = parentRot * oldRot;
 
-            parentRot = oldGroupRotation;
-
+            // Move our position to not be relative to the old parent
             Vector3 axPos = part.OffsetPosition;
-
             axPos *= parentRot;
             part.OffsetPosition = axPos;
             part.GroupPosition = oldGroupPosition + part.OffsetPosition;
             part.OffsetPosition = Vector3.Zero;
+
+            // Compution our rotation to be not relative to the old parent
+            Quaternion worldRot = parentRot * oldRot;
             part.RotationOffset = worldRot;
 
+            // Add this SOP to our linkset
             part.SetParent(this);
             part.ParentID = m_rootPart.LocalId;
-
             m_parts.Add(part.UUID, part);
 
             part.LinkNum = linkNum;
 
+            // Compute the new position of this SOP relative to the group position
             part.OffsetPosition = part.GroupPosition - AbsolutePosition;
 
-            Quaternion rootRotation = m_rootPart.RotationOffset;
+            // (radams1 20120711: I don't know why part.OffsetPosition is set multiple times.
+            //   It would have the affect of setting the physics engine position multiple 
+            //   times. In theory, that is not necessary but I don't have a good linkset
+            //   test to know that cleaning up this code wouldn't break things.)
 
+            // Rotate the relative position by the rotation of the group
+            Quaternion rootRotation = m_rootPart.RotationOffset;
             Vector3 pos = part.OffsetPosition;
             pos *= Quaternion.Inverse(rootRotation);
             part.OffsetPosition = pos;
 
+            // Compute the SOP's rotation relative to the rotation of the group.
             parentRot = m_rootPart.RotationOffset;
             oldRot = part.RotationOffset;
             Quaternion newRot = Quaternion.Inverse(parentRot) * oldRot;
             part.RotationOffset = newRot;
 
+            // Since this SOP's state has changed, push those changes into the physics engine
+            //    and the simulator.
             part.UpdatePrimFlags(UsesPhysics, IsTemporary, IsPhantom, IsVolumeDetect);
         }
 
@@ -2591,17 +2674,17 @@ namespace OpenSim.Region.Framework.Scenes
 
             RootPart.StoreUndoState(true);
 
-            scale.X = Math.Min(scale.X, Scene.m_maxNonphys);
-            scale.Y = Math.Min(scale.Y, Scene.m_maxNonphys);
-            scale.Z = Math.Min(scale.Z, Scene.m_maxNonphys);
+            scale.X = Math.Max(Scene.m_minNonphys, Math.Min(Scene.m_maxNonphys, scale.X));
+            scale.Y = Math.Max(Scene.m_minNonphys, Math.Min(Scene.m_maxNonphys, scale.Y));
+            scale.Z = Math.Max(Scene.m_minNonphys, Math.Min(Scene.m_maxNonphys, scale.Z));
 
             PhysicsActor pa = m_rootPart.PhysActor;
 
             if (pa != null && pa.IsPhysical)
             {
-                scale.X = Math.Min(scale.X, Scene.m_maxPhys);
-                scale.Y = Math.Min(scale.Y, Scene.m_maxPhys);
-                scale.Z = Math.Min(scale.Z, Scene.m_maxPhys);
+                scale.X = Math.Max(Scene.m_minPhys, Math.Min(Scene.m_maxPhys, scale.X));
+                scale.Y = Math.Max(Scene.m_minPhys, Math.Min(Scene.m_maxPhys, scale.Y));
+                scale.Z = Math.Max(Scene.m_minPhys, Math.Min(Scene.m_maxPhys, scale.Z));
             }
 
             float x = (scale.X / RootPart.Scale.X);
@@ -2633,6 +2716,14 @@ namespace OpenSim.Region.Framework.Scenes
                                 y *= a;
                                 z *= a;
                             }
+                            else if (oldSize.X * x < m_scene.m_minPhys)
+                            {
+                                f = m_scene.m_minPhys / oldSize.X;
+                                a = f / x;
+                                x *= a;
+                                y *= a;
+                                z *= a;
+                            }
 
                             if (oldSize.Y * y > m_scene.m_maxPhys)
                             {
@@ -2642,10 +2733,26 @@ namespace OpenSim.Region.Framework.Scenes
                                 y *= a;
                                 z *= a;
                             }
+                            else if (oldSize.Y * y < m_scene.m_minPhys)
+                            {
+                                f = m_scene.m_minPhys / oldSize.Y;
+                                a = f / y;
+                                x *= a;
+                                y *= a;
+                                z *= a;
+                            }
 
                             if (oldSize.Z * z > m_scene.m_maxPhys)
                             {
                                 f = m_scene.m_maxPhys / oldSize.Z;
+                                a = f / z;
+                                x *= a;
+                                y *= a;
+                                z *= a;
+                            }
+                            else if (oldSize.Z * z < m_scene.m_minPhys)
+                            {
+                                f = m_scene.m_minPhys / oldSize.Z;
                                 a = f / z;
                                 x *= a;
                                 y *= a;
@@ -2662,6 +2769,14 @@ namespace OpenSim.Region.Framework.Scenes
                                 y *= a;
                                 z *= a;
                             }
+                            else if (oldSize.X * x < m_scene.m_minNonphys)
+                            {
+                                f = m_scene.m_minNonphys / oldSize.X;
+                                a = f / x;
+                                x *= a;
+                                y *= a;
+                                z *= a;
+                            }
 
                             if (oldSize.Y * y > m_scene.m_maxNonphys)
                             {
@@ -2671,10 +2786,26 @@ namespace OpenSim.Region.Framework.Scenes
                                 y *= a;
                                 z *= a;
                             }
+                            else if (oldSize.Y * y < m_scene.m_minNonphys)
+                            {
+                                f = m_scene.m_minNonphys / oldSize.Y;
+                                a = f / y;
+                                x *= a;
+                                y *= a;
+                                z *= a;
+                            }
 
                             if (oldSize.Z * z > m_scene.m_maxNonphys)
                             {
                                 f = m_scene.m_maxNonphys / oldSize.Z;
+                                a = f / z;
+                                x *= a;
+                                y *= a;
+                                z *= a;
+                            }
+                            else if (oldSize.Z * z < m_scene.m_minNonphys)
+                            {
+                                f = m_scene.m_minNonphys / oldSize.Z;
                                 a = f / z;
                                 x *= a;
                                 y *= a;
@@ -2771,7 +2902,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             //we need to do a terse update even if the move wasn't allowed
             // so that the position is reset in the client (the object snaps back)
-            ScheduleGroupForTerseUpdate();
+            RootPart.ScheduleTerseUpdate();
         }
 
         /// <summary>
@@ -2903,6 +3034,11 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 actor.Orientation = m_rootPart.RotationOffset;
                 m_scene.PhysicsScene.AddPhysicsActorTaint(actor);
+            }
+
+            if (IsAttachment)
+            {
+                m_rootPart.AttachedPos = pos;
             }
 
             AbsolutePosition = pos;
@@ -3379,6 +3515,20 @@ namespace OpenSim.Region.Framework.Scenes
                 count += parts[i].Inventory.RunningScriptCount();
 
             return count;
+        }
+
+        /// <summary>
+        /// Gets the number of sitting avatars.
+        /// </summary>
+        /// <remarks>This applies to all sitting avatars whether there is a sit target set or not.</remarks>
+        /// <returns></returns>
+        public int GetSittingAvatarsCount()
+        {
+             int count = 0;
+
+             Array.ForEach<SceneObjectPart>(m_parts.GetArray(), p => count += p.GetSittingAvatarsCount());
+
+             return count;
         }
 
         public override string ToString()

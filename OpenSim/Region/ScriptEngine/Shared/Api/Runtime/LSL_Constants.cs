@@ -56,6 +56,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int ACTIVE = 2;
         public const int PASSIVE = 4;
         public const int SCRIPTED = 8;
+        public const int OS_NPC = 0x01000000;
 
         public const int CONTROL_FWD = 1;
         public const int CONTROL_BACK = 2;
@@ -225,6 +226,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int ATTACH_BELLY = 28;
         public const int ATTACH_RPEC = 29;
         public const int ATTACH_LPEC = 30;
+        public const int ATTACH_LEFT_PEC = 29; // Same value as ATTACH_RPEC, see https://jira.secondlife.com/browse/SVC-580
+        public const int ATTACH_RIGHT_PEC = 30; // Same value as ATTACH_LPEC, see https://jira.secondlife.com/browse/SVC-580
         public const int ATTACH_HUD_CENTER_2 = 31;
         public const int ATTACH_HUD_TOP_RIGHT = 32;
         public const int ATTACH_HUD_TOP_CENTER = 33;
@@ -325,6 +328,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int PRIM_OMEGA = 32;
         public const int PRIM_POS_LOCAL = 33;
         public const int PRIM_LINK_TARGET = 34;
+        public const int PRIM_SLICE = 35;
         public const int PRIM_TEXGEN_DEFAULT = 0;
         public const int PRIM_TEXGEN_PLANAR = 1;
 
@@ -501,6 +505,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int OBJECT_STREAMING_COST = 15;
         public const int OBJECT_PHYSICS_COST = 16;
 
+        // for llGetAgentList
+        public const int AGENT_LIST_PARCEL = 1;
+        public const int AGENT_LIST_PARCEL_OWNER = 2;
+        public const int AGENT_LIST_REGION = 4;
+
         // Can not be public const?
         public static readonly vector ZERO_VECTOR = new vector(0.0, 0.0, 0.0);
         public static readonly rotation ZERO_ROTATION = new rotation(0.0, 0.0, 0.0, 1.0);
@@ -626,6 +635,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int OS_NPC_FLY = 0;
         public const int OS_NPC_NO_FLY = 1;
         public const int OS_NPC_LAND_AT_TARGET = 2;
+        public const int OS_NPC_RUNNING = 4;
 
         public const int OS_NPC_SIT_NOW = 0;
 

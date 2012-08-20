@@ -56,10 +56,28 @@ namespace OpenSim.Framework
 
     public interface IScene
     {
+        /// <summary>
+        /// The name of this scene.
+        /// </summary>
+        string Name { get; }
+
         RegionInfo RegionInfo { get; }
         RegionStatus RegionStatus { get; set; }
 
         IConfigSource Config { get; }
+
+        /// <summary>
+        /// Are logins enabled on this simulator?
+        /// </summary>
+        bool LoginsEnabled { get; set; }
+
+        /// <summary>
+        /// Is this region ready for use?
+        /// </summary>
+        /// <remarks>
+        /// This does not mean that logins are enabled, merely that they can be.
+        /// </remarks>
+        bool Ready { get; set; }
 
         float TimeDilation { get; }
 

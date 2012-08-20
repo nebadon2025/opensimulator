@@ -51,6 +51,8 @@ namespace OpenSim.Region.Framework.Scenes
         #endregion
 
         #region Fields
+
+        public string Name { get { return RegionInfo.RegionName; } }
         
         public IConfigSource Config
         {
@@ -104,6 +106,42 @@ namespace OpenSim.Region.Framework.Scenes
         
         protected readonly ClientManager m_clientManager = new ClientManager();
 
+        public bool LoginsEnabled
+        {
+            get
+            {
+                return m_loginsEnabled;
+            }
+
+            set
+            {
+                if (m_loginsEnabled != value)
+                {
+                    m_loginsEnabled = value;
+                    EventManager.TriggerRegionLoginsStatusChange(this);
+                }
+            }
+        }
+        private bool m_loginsEnabled;
+
+        public bool Ready
+        {
+            get
+            {
+                return m_ready;
+            }
+
+            set
+            {
+                if (m_ready != value)
+                {
+                    m_ready = value;
+                    EventManager.TriggerRegionReadyStatusChange(this);
+                }
+            }
+        }
+        private bool m_ready;
+
         public float TimeDilation
         {
             get { return 1.0f; }
@@ -145,6 +183,11 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         #endregion
+
+        public SceneBase(RegionInfo regInfo)
+        {
+            RegionInfo = regInfo;
+        }
 
         #region Update Methods
 
@@ -209,10 +252,7 @@ namespace OpenSim.Region.Framework.Scenes
         ///
         /// </summary>
         /// <returns></returns>
-        public virtual RegionInfo RegionInfo
-        {
-            get { return m_regInfo; }
-        }
+        public virtual RegionInfo RegionInfo { get; private set; }
 
         #region admin stuff
         

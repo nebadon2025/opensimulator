@@ -41,7 +41,7 @@ using OpenMetaverse.Messages.Linden;
 using OpenMetaverse.StructuredData;
 using OpenSim.Framework;
 using OpenSim.Framework.Client;
-using OpenSim.Framework.Statistics;
+using OpenSim.Framework.Monitoring;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Services.Interfaces;
@@ -59,7 +59,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
     /// Handles new client connections
     /// Constructor takes a single Packet and authenticates everything
     /// </summary>
-    public class LLClientView : IClientAPI, IClientCore, IClientIM, IClientChat, IClientInventory, IClientIPEndpoint, IStatsCollector
+    public class LLClientView : IClientAPI, IClientCore, IClientIM, IClientChat, IClientInventory, IStatsCollector
     {
         /// <value>
         /// Debug packet level.  See OpenSim.RegisterConsoleCommands() for more details.
@@ -347,8 +347,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         private int m_animationSequenceNumber = 1;
         private bool m_SendLogoutPacketWhenClosing = true;
         private AgentUpdateArgs lastarg;
-        private bool m_IsActive = true;
-        private bool m_IsLoggingOut = false;
 
         protected Dictionary<PacketType, PacketProcessor> m_packetHandlers = new Dictionary<PacketType, PacketProcessor>();
         protected Dictionary<string, GenericMessage> m_genericPacketHandlers = new Dictionary<string, GenericMessage>(); //PauPaw:Local Generic Message handlers
@@ -357,7 +355,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         protected string m_lastName;
         protected Thread m_clientThread;
         protected Vector3 m_startpos;
-        protected EndPoint m_userEndPoint;
         protected UUID m_activeGroupID;
         protected string m_activeGroupName = String.Empty;
         protected ulong m_activeGroupPowers;
@@ -413,16 +410,19 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         public uint CircuitCode { get { return m_circuitCode; } }
         public int MoneyBalance { get { return m_moneyBalance; } }
         public int NextAnimationSequenceNumber { get { return m_animationSequenceNumber++; } }
-        public bool IsActive
-        {
-            get { return m_IsActive; }
-            set { m_IsActive = value; }
-        }
-        public bool IsLoggingOut
-        {
-            get { return m_IsLoggingOut; }
-            set { m_IsLoggingOut = value; }
-        }
+
+        /// <summary>
+        /// As well as it's function in IClientAPI, in LLClientView we are locking on this property in order to
+        /// prevent race conditions by different threads calling Close().
+        /// </summary>
+        public bool IsActive { get; set; }
+
+        /// <summary>
+        /// Used to synchronise threads when client is being closed.
+        /// </summary>
+        public Object CloseSyncLock { get; private set; }
+
+        public bool IsLoggingOut { get; set; }
 
         public bool DisableFacelights
         {
@@ -442,15 +442,16 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         /// <summary>
         /// Constructor
         /// </summary>
-        public LLClientView(EndPoint remoteEP, Scene scene, LLUDPServer udpServer, LLUDPClient udpClient, AuthenticateResponse sessionInfo,
+        public LLClientView(Scene scene, LLUDPServer udpServer, LLUDPClient udpClient, AuthenticateResponse sessionInfo,
             UUID agentId, UUID sessionId, uint circuitCode)
         {
 //            DebugPacketLevel = 1;
 
+            CloseSyncLock = new Object();
+
             RegisterInterface<IClientIM>(this);
             RegisterInterface<IClientInventory>(this);
             RegisterInterface<IClientChat>(this);
-            RegisterInterface<IClientIPEndpoint>(this);
 
             m_scene = scene;
             m_entityUpdates = new PriorityQueue(m_scene.Entities.Count);
@@ -467,7 +468,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             m_sessionId = sessionId;
             m_secureSessionId = sessionInfo.LoginInfo.SecureSession;
             m_circuitCode = circuitCode;
-            m_userEndPoint = remoteEP;
             m_firstName = sessionInfo.LoginInfo.First;
             m_lastName = sessionInfo.LoginInfo.Last;
             m_startpos = sessionInfo.LoginInfo.StartPos;
@@ -481,24 +481,43 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             m_prioritizer = new Prioritizer(m_scene);
 
             RegisterLocalPacketHandlers();
+
+            IsActive = true;
         }
 
         #region Client Methods
 
         /// <summary>
-        /// Shut down the client view
+        /// Close down the client view
         /// </summary>
         public void Close()
+        {
+            // We lock here to prevent race conditions between two threads calling close simultaneously (e.g.
+            // a simultaneous relog just as a client is being closed out due to no packet ack from the old connection.
+            lock (CloseSyncLock)
+            {
+                if (!IsActive)
+                    return;
+
+                IsActive = false;
+                CloseWithoutChecks();
+            }
+        }
+
+        /// <summary>
+        /// Closes down the client view without first checking whether it is active.
+        /// </summary>
+        /// <remarks>
+        /// This exists because LLUDPServer has to set IsActive = false in earlier synchronous code before calling
+        /// CloseWithoutIsActiveCheck asynchronously.
+        ///
+        /// Callers must lock ClosingSyncLock before calling.
+        /// </remarks>
+        public void CloseWithoutChecks()
         {
             m_log.DebugFormat(
                 "[CLIENT]: Close has been called for {0} attached to scene {1}",
                 Name, m_scene.RegionInfo.RegionName);
-
-            // Send the STOP packet
-            DisableSimulatorPacket disable = (DisableSimulatorPacket)PacketPool.Instance.GetPacket(PacketType.DisableSimulator);
-            OutPacket(disable, ThrottleOutPacketType.Unknown);
-
-            IsActive = false;
 
             // Shutdown the image manager
             ImageManager.Close();
@@ -2723,6 +2742,19 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             }
         }
 
+        public void SendAssetNotFound(AssetRequestToClient req)
+        {
+            TransferInfoPacket Transfer = new TransferInfoPacket();
+            Transfer.TransferInfo.ChannelType = 2;
+            Transfer.TransferInfo.Status = -2;
+            Transfer.TransferInfo.TargetType = 0;
+            Transfer.TransferInfo.Params = req.Params;
+            Transfer.TransferInfo.Size = 0;
+            Transfer.TransferInfo.TransferID = req.TransferRequestID;
+            Transfer.Header.Zerocoded = true;
+            OutPacket(Transfer, ThrottleOutPacketType.Asset);
+        }
+
         public void SendTexture(AssetBase TextureAsset)
         {
 
@@ -3561,7 +3593,9 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         public void SendCoarseLocationUpdate(List<UUID> users, List<Vector3> CoarseLocations)
         {
-            if (!IsActive) return; // We don't need to update inactive clients.
+            // We don't need to update inactive clients.
+            if (!IsActive)
+                return;
 
             CoarseLocationUpdatePacket loc = (CoarseLocationUpdatePacket)PacketPool.Instance.GetPacket(PacketType.CoarseLocationUpdate);
             loc.Header.Reliable = false;
@@ -3726,8 +3760,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                         }
                     }
     
-                    ++updatesThisCall;
-    
                     #region UpdateFlags to packet type conversion
     
                     PrimUpdateFlags updateFlags = (PrimUpdateFlags)update.Flags;
@@ -3784,20 +3816,53 @@ namespace OpenSim.Region.ClientStack.LindenUDP
     
                     if (!canUseImproved && !canUseCompressed)
                     {
+                        ObjectUpdatePacket.ObjectDataBlock updateBlock;
+
                         if (update.Entity is ScenePresence)
                         {
-                            objectUpdateBlocks.Value.Add(CreateAvatarUpdateBlock((ScenePresence)update.Entity));
-                            objectUpdates.Value.Add(update);
+                            updateBlock = CreateAvatarUpdateBlock((ScenePresence)update.Entity);
                         }
                         else
                         {
-                            objectUpdateBlocks.Value.Add(CreatePrimUpdateBlock((SceneObjectPart)update.Entity, this.m_agentId));
-                            objectUpdates.Value.Add(update);
+                            SceneObjectPart part = (SceneObjectPart)update.Entity;
+                            updateBlock = CreatePrimUpdateBlock(part, AgentId);
+
+                            // If the part has become a private hud since the update was scheduled then we do not
+                            // want to send it to other avatars.
+                            if (part.ParentGroup.IsAttachment
+                                && part.ParentGroup.HasPrivateAttachmentPoint
+                                && part.ParentGroup.AttachedAvatar != AgentId)
+                                continue;
+
+                            // If the part has since been deleted, then drop the update.  In the case of attachments,
+                            // this is to avoid spurious updates to other viewers since post-processing of attachments
+                            // has to change the IsAttachment flag for various reasons (which will end up in a pass
+                            // of the test above).
+                            //
+                            // Actual deletions (kills) happen in another method.
+                            if (part.ParentGroup.IsDeleted)
+                                continue;
                         }
+
+                        objectUpdateBlocks.Value.Add(updateBlock);
+                        objectUpdates.Value.Add(update);
                     }
                     else if (!canUseImproved)
                     {
-                        compressedUpdateBlocks.Value.Add(CreateCompressedUpdateBlock((SceneObjectPart)update.Entity, updateFlags));
+                        SceneObjectPart part = (SceneObjectPart)update.Entity;
+                        ObjectUpdateCompressedPacket.ObjectDataBlock compressedBlock
+                            = CreateCompressedUpdateBlock(part, updateFlags);
+
+                        // If the part has since been deleted, then drop the update.  In the case of attachments,
+                        // this is to avoid spurious updates to other viewers since post-processing of attachments
+                        // has to change the IsAttachment flag for various reasons (which will end up in a pass
+                        // of the test above).
+                        //
+                        // Actual deletions (kills) happen in another method.
+                        if (part.ParentGroup.IsDeleted)
+                            continue;
+
+                        compressedUpdateBlocks.Value.Add(compressedBlock);
                         compressedUpdates.Value.Add(update);
                     }
                     else
@@ -3810,15 +3875,40 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                         }
                         else
                         {
+                            ImprovedTerseObjectUpdatePacket.ObjectDataBlock terseUpdateBlock
+                                = CreateImprovedTerseBlock(update.Entity, updateFlags.HasFlag(PrimUpdateFlags.Textures));
+
                             // Everything else goes here
-                            terseUpdateBlocks.Value.Add(CreateImprovedTerseBlock(update.Entity, updateFlags.HasFlag(PrimUpdateFlags.Textures)));
+                            if (update.Entity is SceneObjectPart)
+                            {
+                                SceneObjectPart part = (SceneObjectPart)update.Entity;
+
+                                // If the part has become a private hud since the update was scheduled then we do not
+                                // want to send it to other avatars.
+                                if (part.ParentGroup.IsAttachment
+                                    && part.ParentGroup.HasPrivateAttachmentPoint
+                                    && part.ParentGroup.AttachedAvatar != AgentId)
+                                    continue;
+
+                                // If the part has since been deleted, then drop the update.  In the case of attachments,
+                                // this is to avoid spurious updates to other viewers since post-processing of attachments
+                                // has to change the IsAttachment flag for various reasons (which will end up in a pass
+                                // of the test above).
+                                //
+                                // Actual deletions (kills) happen in another method.
+                                if (part.ParentGroup.IsDeleted)
+                                    continue;
+                            }
+
+                            terseUpdateBlocks.Value.Add(terseUpdateBlock);
                             terseUpdates.Value.Add(update);
                         }
                     }
+
+                    ++updatesThisCall;
     
                     #endregion Block Construction
                 }
-                
     
                 #region Packet Sending
                 ushort timeDilation = Utils.FloatToUInt16(avgTimeDilation, 0.0f, 1.0f);
@@ -5102,7 +5192,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             AddLocalPacketHandler(PacketType.ChatFromViewer, HandleChatFromViewer);
             AddLocalPacketHandler(PacketType.AvatarPropertiesUpdate, HandlerAvatarPropertiesUpdate);
             AddLocalPacketHandler(PacketType.ScriptDialogReply, HandlerScriptDialogReply);
-            AddLocalPacketHandler(PacketType.ImprovedInstantMessage, HandlerImprovedInstantMessage, false);
+            AddLocalPacketHandler(PacketType.ImprovedInstantMessage, HandlerImprovedInstantMessage);
             AddLocalPacketHandler(PacketType.AcceptFriendship, HandlerAcceptFriendship);
             AddLocalPacketHandler(PacketType.DeclineFriendship, HandlerDeclineFriendship);
             AddLocalPacketHandler(PacketType.TerminateFriendship, HandlerTerminateFriendship);
@@ -5720,7 +5810,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 args.Channel = ch;
                 args.From = String.Empty;
                 args.Message = Utils.BytesToString(msg);
-                args.Type = ChatTypeEnum.Shout;
+                args.Type = ChatTypeEnum.Region; //Behaviour in SL is that the response can be heard from any distance
                 args.Position = new Vector3();
                 args.Scene = Scene;
                 args.Sender = this;
@@ -11654,7 +11744,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 if (DebugPacketLevel <= 100 && (packet.Type == PacketType.AvatarAnimation || packet.Type == PacketType.ViewerEffect))
                     logPacket = false;
                 
-                if (DebugPacketLevel <= 50 && packet.Type == PacketType.ImprovedTerseObjectUpdate)
+                if (DebugPacketLevel <= 50
+                    & (packet.Type == PacketType.ImprovedTerseObjectUpdate || packet.Type == PacketType.ObjectUpdate))
                     logPacket = false;
 
                 if (DebugPacketLevel <= 25 && packet.Type == PacketType.ObjectPropertiesFamily)
@@ -11767,7 +11858,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         {
             ClientInfo info = m_udpClient.GetClientInfo();
 
-            info.userEP = m_userEndPoint;
             info.proxyEP = null;
             info.agentcircuit = RequestClientInfo();
 
@@ -11777,11 +11867,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         public void SetClientInfo(ClientInfo info)
         {
             m_udpClient.SetClientInfo(info);
-        }
-
-        public EndPoint GetClientEP()
-        {
-            return m_userEndPoint;
         }
 
         #region Media Parcel Members
@@ -11862,10 +11947,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                     break;
             }
             return string.Empty;
-        }
-
-        public void KillEndDone()
-        {
         }
 
         #region IClientCore
@@ -11955,21 +12036,24 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         protected void MakeAssetRequest(TransferRequestPacket transferRequest, UUID taskID)
         {
             UUID requestID = UUID.Zero;
-            if (transferRequest.TransferInfo.SourceType == (int)SourceType.Asset)
+            int sourceType = transferRequest.TransferInfo.SourceType;
+
+            if (sourceType == (int)SourceType.Asset)
             {
                 requestID = new UUID(transferRequest.TransferInfo.Params, 0);
             }
-            else if (transferRequest.TransferInfo.SourceType == (int)SourceType.SimInventoryItem)
+            else if (sourceType == (int)SourceType.SimInventoryItem)
             {
                 requestID = new UUID(transferRequest.TransferInfo.Params, 80);
             }
-            else if (transferRequest.TransferInfo.SourceType == (int)SourceType.SimEstate)
+            else if (sourceType == (int)SourceType.SimEstate)
             {
                 requestID = taskID;
             }
 
-
-//            m_log.DebugFormat("[CLIENT]: {0} requesting asset {1}", Name, requestID);
+//            m_log.DebugFormat(
+//                "[LLCLIENTVIEW]: Received transfer request for {0} in {1} type {2} by {3}",
+//                requestID, taskID, (SourceType)sourceType, Name);
 
             m_assetService.Get(requestID.ToString(), transferRequest, AssetReceived);
         }
@@ -11982,13 +12066,26 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         /// <param name="asset"></param>
         protected void AssetReceived(string id, Object sender, AssetBase asset)
         {
-            if (asset == null)
-                return;
-
             TransferRequestPacket transferRequest = (TransferRequestPacket)sender;
 
             UUID requestID = UUID.Zero;
             byte source = (byte)SourceType.Asset;
+
+            AssetRequestToClient req = new AssetRequestToClient();
+
+            if (asset == null)
+            {
+                req.AssetInf = null;
+                req.AssetRequestSource = source;
+                req.IsTextureRequest = false;
+                req.NumPackets = 0;
+                req.Params = transferRequest.TransferInfo.Params;
+                req.RequestAssetID = requestID;
+                req.TransferRequestID = transferRequest.TransferInfo.TransferID;
+
+                SendAssetNotFound(req);
+                return;
+            }
 
             if (transferRequest.TransferInfo.SourceType == (int)SourceType.Asset)
             {
@@ -12006,7 +12103,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 return;
 
             // The asset is known to exist and is in our cache, so add it to the AssetRequests list
-            AssetRequestToClient req = new AssetRequestToClient();
             req.AssetInf = asset;
             req.AssetRequestSource = source;
             req.IsTextureRequest = false;
@@ -12041,24 +12137,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
             return numPackets;
         }
-
-        #region IClientIPEndpoint Members
-
-        public IPAddress EndPoint
-        {
-            get
-            {
-                if (m_userEndPoint is IPEndPoint)
-                {
-                    IPEndPoint ep = (IPEndPoint)m_userEndPoint;
-
-                    return ep.Address;
-                }
-                return null;
-            }
-        }
-
-        #endregion
 
         public void SendRebakeAvatarTextures(UUID textureID)
         {

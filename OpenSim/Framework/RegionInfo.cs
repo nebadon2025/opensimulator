@@ -120,7 +120,9 @@ namespace OpenSim.Framework
         public UUID lastMapUUID = UUID.Zero;
         public string lastMapRefresh = "0";
 
+        private float m_nonphysPrimMin = 0;
         private int m_nonphysPrimMax = 0;
+        private float m_physPrimMin = 0;
         private int m_physPrimMax = 0;
         private bool m_clampPrimSize = false;
         private int m_objectCapacity = 0;
@@ -285,9 +287,19 @@ namespace OpenSim.Framework
             set { m_windlight = value; }
         }
 
+        public float NonphysPrimMin
+        {
+            get { return m_nonphysPrimMin; }
+        }
+
         public int NonphysPrimMax
         {
             get { return m_nonphysPrimMax; }
+        }
+
+        public float PhysPrimMin
+        {
+            get { return m_physPrimMin; }
         }
 
         public int PhysPrimMax
@@ -480,9 +492,16 @@ namespace OpenSim.Framework
                 MainConsole.Instance.Output("=====================================\n");
 
                 if (name == String.Empty)
-                    name = MainConsole.Instance.CmdPrompt("New region name", name);
-                if (name == String.Empty)
-                    throw new Exception("Cannot interactively create region with no name");
+                {
+                    while (name.Trim() == string.Empty)
+                    {
+                        name = MainConsole.Instance.CmdPrompt("New region name", name);
+                        if (name.Trim() == string.Empty)
+                        {
+                            MainConsole.Instance.Output("Cannot interactively create region with no name");
+                        }
+                    }
+                }
 
                 source.AddConfig(name);
 
@@ -513,15 +532,20 @@ namespace OpenSim.Framework
             //
             allKeys.Remove("RegionUUID");
             string regionUUID = config.GetString("RegionUUID", string.Empty);
-            if (regionUUID == String.Empty)
+            if (!UUID.TryParse(regionUUID.Trim(), out RegionID))
             {
                 UUID newID = UUID.Random();
-
-                regionUUID = MainConsole.Instance.CmdPrompt("RegionUUID", newID.ToString());
+                while (RegionID == UUID.Zero)
+                {
+                    regionUUID = MainConsole.Instance.CmdPrompt("RegionUUID", newID.ToString());
+                    if (!UUID.TryParse(regionUUID.Trim(), out RegionID))
+                    {
+                        MainConsole.Instance.Output("RegionUUID must be a valid UUID");
+                    }
+                }
                 config.Set("RegionUUID", regionUUID);
             }
 
-            RegionID = new UUID(regionUUID);
             originRegionID = RegionID; // What IS this?! (Needed for RegionCombinerModule?)
 
             // Location
@@ -611,16 +635,28 @@ namespace OpenSim.Framework
             m_regionType = config.GetString("RegionType", String.Empty);
             allKeys.Remove("RegionType");
 
-            // Prim stuff
-            //
+            #region Prim stuff
+
+            m_nonphysPrimMin = config.GetFloat("NonphysicalPrimMin", 0);
+            allKeys.Remove("NonphysicalPrimMin");
+
             m_nonphysPrimMax = config.GetInt("NonphysicalPrimMax", 0);
             allKeys.Remove("NonphysicalPrimMax");
+
+            m_physPrimMin = config.GetFloat("PhysicalPrimMin", 0);
+            allKeys.Remove("PhysicalPrimMin");
+
             m_physPrimMax = config.GetInt("PhysicalPrimMax", 0);
             allKeys.Remove("PhysicalPrimMax");
+            
             m_clampPrimSize = config.GetBoolean("ClampPrimSize", false);
             allKeys.Remove("ClampPrimSize");
+            
             m_objectCapacity = config.GetInt("MaxPrims", 15000);
             allKeys.Remove("MaxPrims");
+            
+            #endregion
+
             m_agentCapacity = config.GetInt("MaxAgents", 100);
             allKeys.Remove("MaxAgents");
 
@@ -656,10 +692,18 @@ namespace OpenSim.Framework
 
             config.Set("ExternalHostName", m_externalHostName);
 
+            if (m_nonphysPrimMin != 0)
+                config.Set("NonphysicalPrimMax", m_nonphysPrimMin);
+
             if (m_nonphysPrimMax != 0)
                 config.Set("NonphysicalPrimMax", m_nonphysPrimMax);
+
+            if (m_physPrimMin != 0)
+                config.Set("PhysicalPrimMax", m_physPrimMin);
+            
             if (m_physPrimMax != 0)
                 config.Set("PhysicalPrimMax", m_physPrimMax);
+                        
             config.Set("ClampPrimSize", m_clampPrimSize.ToString());
 
             if (m_objectCapacity != 0)
@@ -742,8 +786,14 @@ namespace OpenSim.Framework
             configMember.addConfigurationOption("lastmap_refresh", ConfigurationOption.ConfigurationTypes.TYPE_STRING_NOT_EMPTY,
                                                 "Last Map Refresh", Util.UnixTimeSinceEpoch().ToString(), true);
 
+            configMember.addConfigurationOption("nonphysical_prim_min", ConfigurationOption.ConfigurationTypes.TYPE_FLOAT,
+                                                "Minimum size for nonphysical prims", m_nonphysPrimMin.ToString(), true);
+
             configMember.addConfigurationOption("nonphysical_prim_max", ConfigurationOption.ConfigurationTypes.TYPE_INT32,
                                                 "Maximum size for nonphysical prims", m_nonphysPrimMax.ToString(), true);
+
+            configMember.addConfigurationOption("physical_prim_min", ConfigurationOption.ConfigurationTypes.TYPE_FLOAT,
+                                                "Minimum size for nonphysical prims", m_physPrimMin.ToString(), true);
 
             configMember.addConfigurationOption("physical_prim_max", ConfigurationOption.ConfigurationTypes.TYPE_INT32,
                                                 "Maximum size for physical prims", m_physPrimMax.ToString(), true);

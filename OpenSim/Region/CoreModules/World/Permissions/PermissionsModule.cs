@@ -221,7 +221,7 @@ namespace OpenSim.Region.CoreModules.World.Permissions
                     "Force permissions on or off",
                     HandleForcePermissions);
 
-            m_scene.AddCommand("Users", this, "debug permissions",
+            m_scene.AddCommand("Debug", this, "debug permissions",
                     "debug permissions <true / false>",
                     "Turn on permissions debugging",
                     HandleDebugPermissions);                    
@@ -348,12 +348,12 @@ namespace OpenSim.Region.CoreModules.World.Permissions
             m_friendsModule = m_scene.RequestModuleInterface<IFriendsModule>();
 
             if (m_friendsModule == null)
-                m_log.Warn("[PERMISSIONS]: Friends module not found, friend permissions will not work");
+                m_log.Debug("[PERMISSIONS]: Friends module not found, friend permissions will not work");
 
             m_groupsModule = m_scene.RequestModuleInterface<IGroupsModule>();
 
             if (m_groupsModule == null)
-                m_log.Warn("[PERMISSIONS]: Groups module not found, group permissions will not work");
+                m_log.Debug("[PERMISSIONS]: Groups module not found, group permissions will not work");
             
             m_moapModule = m_scene.RequestModuleInterface<IMoapModule>();
             
@@ -450,19 +450,17 @@ namespace OpenSim.Region.CoreModules.World.Permissions
         }
 
         /// <summary>
-        /// Is the given user an administrator (in other words, a god)?
+        /// Is the user regarded as an administrator?
         /// </summary>
         /// <param name="user"></param>
         /// <returns></returns>
         protected bool IsAdministrator(UUID user)
         {
-            if (user == UUID.Zero) return false;
-        
-            if (m_scene.RegionInfo.EstateSettings.EstateOwner != UUID.Zero)
-            {
-                if (m_scene.RegionInfo.EstateSettings.EstateOwner == user && m_RegionOwnerIsGod)
-                    return true;
-            }
+            if (user == UUID.Zero)
+                return false;
+
+            if (m_scene.RegionInfo.EstateSettings.EstateOwner == user && m_RegionOwnerIsGod)
+                return true;
             
             if (IsEstateManager(user) && m_RegionManagerIsGod)
                 return true;

@@ -103,8 +103,26 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public bool CollidablePrims { get; private set; }
 
+        /// <summary>
+        /// Minimum value of the size of a non-physical prim in each axis
+        /// </summary>
+        public float m_minNonphys = 0.01f;
+
+        /// <summary>
+        /// Maximum value of the size of a non-physical prim in each axis
+        /// </summary>
         public float m_maxNonphys = 256;
+
+        /// <summary>
+        /// Minimum value of the size of a physical prim in each axis
+        /// </summary>
+        public float m_minPhys = 0.01f;
+
+        /// <summary>
+        /// Maximum value of the size of a physical prim in each axis
+        /// </summary>
         public float m_maxPhys = 10;
+
         public bool m_clampPrimSize;
         public bool m_trustBinaries;
         public bool m_allowScriptCrossings;
@@ -173,6 +191,8 @@ namespace OpenSim.Region.Framework.Scenes
         protected IDialogModule m_dialogModule;
         protected ICapabilitiesModule m_capsModule;
         protected IGroupsModule m_groupsModule;
+
+        private Dictionary<string, string> m_extraSettings;
 
         /// <summary>
         /// Current scene frame number
@@ -635,6 +655,8 @@ namespace OpenSim.Region.Framework.Scenes
             // FIXME: It shouldn't be up to the database plugins to create this data - we should do it when a new
             // region is set up and avoid these gyrations.
             RegionSettings rs = simDataService.LoadRegionSettings(RegionInfo.RegionID);
+            m_extraSettings = simDataService.GetExtra(RegionInfo.RegionID);
+
             bool updatedTerrainTextures = false;
             if (rs.TerrainTexture1 == UUID.Zero)
             {
@@ -717,14 +739,25 @@ namespace OpenSim.Region.Framework.Scenes
                 PhysicalPrims = startupConfig.GetBoolean("physical_prim", PhysicalPrims);
                 CollidablePrims = startupConfig.GetBoolean("collidable_prim", CollidablePrims);
 
+                m_minNonphys = startupConfig.GetFloat("NonphysicalPrimMin", m_minNonphys);
+                if (RegionInfo.NonphysPrimMin > 0)
+                {
+                    m_minNonphys = RegionInfo.NonphysPrimMin;
+                }
+
                 m_maxNonphys = startupConfig.GetFloat("NonphysicalPrimMax", m_maxNonphys);
                 if (RegionInfo.NonphysPrimMax > 0)
                 {
                     m_maxNonphys = RegionInfo.NonphysPrimMax;
                 }
 
-                m_maxPhys = startupConfig.GetFloat("PhysicalPrimMax", m_maxPhys);
+                m_minPhys = startupConfig.GetFloat("PhysicalPrimMin", m_minPhys);
+                if (RegionInfo.PhysPrimMin > 0)
+                {
+                    m_minPhys = RegionInfo.PhysPrimMin;
+                }
 
+                m_maxPhys = startupConfig.GetFloat("PhysicalPrimMax", m_maxPhys);
                 if (RegionInfo.PhysPrimMax > 0)
                 {
                     m_maxPhys = RegionInfo.PhysPrimMax;
@@ -4083,16 +4116,19 @@ namespace OpenSim.Region.Framework.Scenes
         /// <summary>
         /// Tell a single agent to disconnect from the region.
         /// </summary>
-        /// <param name="regionHandle"></param>
         /// <param name="agentID"></param>
-        public bool IncomingCloseAgent(UUID agentID)
+        /// <param name="force">
+        /// Force the agent to close even if it might be in the middle of some other operation.  You do not want to
+        /// force unless you are absolutely sure that the agent is dead and a normal close is not working.
+        /// </param>
+        public bool IncomingCloseAgent(UUID agentID, bool force)
         {
             //m_log.DebugFormat("[SCENE]: Processing incoming close agent for {0}", agentID);
 
             ScenePresence presence = m_sceneGraph.GetScenePresence(agentID);
             if (presence != null)
             {
-                presence.ControllingClient.Close();
+                presence.ControllingClient.Close(force);
                 return true;
             }
 
@@ -5442,6 +5478,45 @@ namespace OpenSim.Region.Framework.Scenes
             AssetReceivedDelegate callback = (AssetReceivedDelegate)sender;
 
             callback(asset);
+        }
+
+        public string GetExtraSetting(string name)
+        {
+            string val;
+
+            if (!m_extraSettings.TryGetValue(name, out val))
+                return String.Empty;
+
+            return val;
+        }
+
+        public void StoreExtraSetting(string name, string val)
+        {
+            string oldVal;
+
+            if (m_extraSettings.TryGetValue(name, out oldVal))
+            {
+                if (oldVal == val)
+                    return;
+            }
+
+            m_extraSettings[name] = val;
+
+            m_SimulationDataService.SaveExtra(RegionInfo.RegionID, name, val);
+
+            m_eventManager.TriggerExtraSettingChanged(this, name, val);
+        }
+
+        public void RemoveExtraSetting(string name)
+        {
+            if (!m_extraSettings.ContainsKey(name))
+                return;
+
+            m_extraSettings.Remove(name);
+
+            m_SimulationDataService.RemoveExtra(RegionInfo.RegionID, name);
+
+            m_eventManager.TriggerExtraSettingChanged(this, name, String.Empty);
         }
     }
 }

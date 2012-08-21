@@ -351,7 +351,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Plugins
                 q = avatar.Rotation * q;
             }
 
-            LSL_Types.Quaternion r = new LSL_Types.Quaternion(q.X, q.Y, q.Z, q.W);
+            LSL_Types.Quaternion r = new LSL_Types.Quaternion(q);
             LSL_Types.Vector3 forward_dir = (new LSL_Types.Vector3(1, 0, 0) * r);
             double mag_fwd = LSL_Types.Vector3.Mag(forward_dir);
 
@@ -428,9 +428,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Plugins
                             try
                             {
                                 Vector3 diff = toRegionPos - fromRegionPos;
-                                LSL_Types.Vector3 obj_dir = new LSL_Types.Vector3(diff.X, diff.Y, diff.Z);
-                                double dot = LSL_Types.Vector3.Dot(forward_dir, obj_dir);
-                                double mag_obj = LSL_Types.Vector3.Mag(obj_dir);
+                                double dot = LSL_Types.Vector3.Dot(forward_dir, diff);
+                                double mag_obj = LSL_Types.Vector3.Mag(diff);
                                 ang_obj = Math.Acos(dot / (mag_fwd * mag_obj));
                             }
                             catch
@@ -479,7 +478,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Plugins
                 q = avatar.Rotation * q;
             }
 
-            LSL_Types.Quaternion r = new LSL_Types.Quaternion(q.X, q.Y, q.Z, q.W);
+            LSL_Types.Quaternion r = new LSL_Types.Quaternion(q);
             LSL_Types.Vector3 forward_dir = (new LSL_Types.Vector3(1, 0, 0) * r);
             double mag_fwd = LSL_Types.Vector3.Mag(forward_dir);
             bool attached = (SensePoint.ParentGroup.AttachmentPoint != 0);
@@ -560,8 +559,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Plugins
                         double ang_obj = 0;
                         try
                         {
-                            Vector3 diff = toRegionPos - fromRegionPos;
-                            LSL_Types.Vector3 obj_dir = new LSL_Types.Vector3(diff.X, diff.Y, diff.Z);
+                            LSL_Types.Vector3 obj_dir = new LSL_Types.Vector3(
+                                toRegionPos - fromRegionPos);
                             double dot = LSL_Types.Vector3.Dot(forward_dir, obj_dir);
                             double mag_obj = LSL_Types.Vector3.Mag(obj_dir);
                             ang_obj = Math.Acos(dot / (mag_fwd * mag_obj));

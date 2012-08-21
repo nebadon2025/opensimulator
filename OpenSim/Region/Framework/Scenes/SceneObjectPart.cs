@@ -733,7 +733,7 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                     catch (Exception e)
                     {
-                        m_log.Error("[SCENEOBJECTPART]: GROUP POSITION. " + e.Message);
+                        m_log.ErrorFormat("[SCENEOBJECTPART]: GROUP POSITION. {0}", e);
                     }
                 }
                 
@@ -2368,17 +2368,16 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="scale"></param>
         public void Resize(Vector3 scale)
         {
-            scale.X = Math.Min(scale.X, ParentGroup.Scene.m_maxNonphys);
-            scale.Y = Math.Min(scale.Y, ParentGroup.Scene.m_maxNonphys);
-            scale.Z = Math.Min(scale.Z, ParentGroup.Scene.m_maxNonphys);
+            scale.X = Math.Max(ParentGroup.Scene.m_minNonphys, Math.Min(ParentGroup.Scene.m_maxNonphys, scale.X));
+            scale.Y = Math.Max(ParentGroup.Scene.m_minNonphys, Math.Min(ParentGroup.Scene.m_maxNonphys, scale.Y));
+            scale.Z = Math.Max(ParentGroup.Scene.m_minNonphys, Math.Min(ParentGroup.Scene.m_maxNonphys, scale.Z));
 
             PhysicsActor pa = PhysActor;
-
             if (pa != null && pa.IsPhysical)
             {
-                scale.X = Math.Min(scale.X, ParentGroup.Scene.m_maxPhys);
-                scale.Y = Math.Min(scale.Y, ParentGroup.Scene.m_maxPhys);
-                scale.Z = Math.Min(scale.Z, ParentGroup.Scene.m_maxPhys);
+                scale.X = Math.Max(ParentGroup.Scene.m_minPhys, Math.Min(ParentGroup.Scene.m_maxPhys, scale.X));
+                scale.Y = Math.Max(ParentGroup.Scene.m_minPhys, Math.Min(ParentGroup.Scene.m_maxPhys, scale.Y));
+                scale.Z = Math.Max(ParentGroup.Scene.m_minPhys, Math.Min(ParentGroup.Scene.m_maxPhys, scale.Z));
             }
 
 //            m_log.DebugFormat("[SCENE OBJECT PART]: Resizing {0} {1} to {2}", Name, LocalId, scale);
@@ -2852,23 +2851,32 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Set the color of prim faces
+        /// Set the color & alpha of prim faces
         /// </summary>
-        /// <param name="color"></param>
         /// <param name="face"></param>
-        public void SetFaceColor(Vector3 color, int face)
+        /// <param name="color"></param>
+        /// <param name="alpha"></param>
+        public void SetFaceColorAlpha(int face, Vector3 color, double ?alpha)
         {
+            Vector3 clippedColor = Util.Clip(color, 0.0f, 1.0f);
+            float clippedAlpha = alpha.HasValue ?
+                Util.Clip((float)alpha.Value, 0.0f, 1.0f) : 0;
+
             // The only way to get a deep copy/ If we don't do this, we can
-            // mever detect color changes further down.
+            // never detect color changes further down.
             Byte[] buf = Shape.Textures.GetBytes();
             Primitive.TextureEntry tex = new Primitive.TextureEntry(buf, 0, buf.Length);
             Color4 texcolor;
             if (face >= 0 && face < GetNumberOfSides())
             {
                 texcolor = tex.CreateFace((uint)face).RGBA;
-                texcolor.R = Util.Clip((float)color.X, 0.0f, 1.0f);
-                texcolor.G = Util.Clip((float)color.Y, 0.0f, 1.0f);
-                texcolor.B = Util.Clip((float)color.Z, 0.0f, 1.0f);
+                texcolor.R = clippedColor.X;
+                texcolor.G = clippedColor.Y;
+                texcolor.B = clippedColor.Z;
+                if (alpha.HasValue)
+                {
+                    texcolor.A = clippedAlpha;
+                }
                 tex.FaceTextures[face].RGBA = texcolor;
                 UpdateTextureEntry(tex.GetBytes());
                 return;
@@ -2880,15 +2888,23 @@ namespace OpenSim.Region.Framework.Scenes
                     if (tex.FaceTextures[i] != null)
                     {
                         texcolor = tex.FaceTextures[i].RGBA;
-                        texcolor.R = Util.Clip((float)color.X, 0.0f, 1.0f);
-                        texcolor.G = Util.Clip((float)color.Y, 0.0f, 1.0f);
-                        texcolor.B = Util.Clip((float)color.Z, 0.0f, 1.0f);
+                        texcolor.R = clippedColor.X;
+                        texcolor.G = clippedColor.Y;
+                        texcolor.B = clippedColor.Z;
+                        if (alpha.HasValue)
+                        {
+                            texcolor.A = clippedAlpha;
+                        }
                         tex.FaceTextures[i].RGBA = texcolor;
                     }
                     texcolor = tex.DefaultTexture.RGBA;
-                    texcolor.R = Util.Clip((float)color.X, 0.0f, 1.0f);
-                    texcolor.G = Util.Clip((float)color.Y, 0.0f, 1.0f);
-                    texcolor.B = Util.Clip((float)color.Z, 0.0f, 1.0f);
+                    texcolor.R = clippedColor.X;
+                    texcolor.G = clippedColor.Y;
+                    texcolor.B = clippedColor.Z;
+                    if (alpha.HasValue)
+                    {
+                        texcolor.A = clippedAlpha;
+                    }
                     tex.DefaultTexture.RGBA = texcolor;
                 }
                 UpdateTextureEntry(tex.GetBytes());
@@ -4235,6 +4251,57 @@ namespace OpenSim.Region.Framework.Scenes
             ParentGroup.HasGroupChanged = true;
             TriggerScriptChangedEvent(Changed.SHAPE);
             ScheduleFullUpdate();
+        }
+
+        public void UpdateSlice(float begin, float end)
+        {
+            if (end < begin)
+            {
+                float temp = begin;
+                begin = end;
+                end = temp;
+            }
+            end = Math.Min(1f, Math.Max(0f, end));
+            begin = Math.Min(Math.Min(1f, Math.Max(0f, begin)), end - 0.02f);
+            if (begin < 0.02f && end < 0.02f)
+            {
+                begin = 0f;
+                end = 0.02f;
+            }
+
+            ushort uBegin = (ushort)(50000.0 * begin);
+            ushort uEnd = (ushort)(50000.0 * (1f - end));
+            bool updatePossiblyNeeded = false;
+            PrimType primType = GetPrimType();
+            if (primType == PrimType.SPHERE || primType == PrimType.TORUS || primType == PrimType.TUBE || primType == PrimType.RING)
+            {
+                if (m_shape.ProfileBegin != uBegin || m_shape.ProfileEnd != uEnd)
+                {
+                    m_shape.ProfileBegin = uBegin;
+                    m_shape.ProfileEnd = uEnd;
+                    updatePossiblyNeeded = true;
+                }
+            }
+            else if (m_shape.PathBegin != uBegin || m_shape.PathEnd != uEnd)
+            {
+                m_shape.PathBegin = uBegin;
+                m_shape.PathEnd = uEnd;
+                updatePossiblyNeeded = true;
+            }
+
+            if (updatePossiblyNeeded && ParentGroup != null)
+            {
+                ParentGroup.HasGroupChanged = true;
+            }
+            if (updatePossiblyNeeded && PhysActor != null)
+            {
+                PhysActor.Shape = m_shape;
+                ParentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(PhysActor);
+            }
+            if (updatePossiblyNeeded)
+            {
+                ScheduleFullUpdate();
+            }
         }
 
         /// <summary>

@@ -982,10 +982,12 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                 return false;
             }
 
-            UUID assetID = item.AssetID;
+            m_log.DebugFormat(
+                "[XEngine] Loading script {0}.{1}, item UUID {2}, prim UUID {3} @ {4}.{5}",
+                part.ParentGroup.RootPart.Name, item.Name, itemID, part.UUID,
+                part.ParentGroup.RootPart.AbsolutePosition, part.ParentGroup.Scene.RegionInfo.RegionName);
 
-            //m_log.DebugFormat("[XEngine] Compiling script {0} ({1} on object {2})",
-            //        item.Name, itemID.ToString(), part.ParentGroup.RootPart.Name);
+            UUID assetID = item.AssetID;
 
             ScenePresence presence = m_Scene.GetScenePresence(item.OwnerID);
 
@@ -1164,10 +1166,10 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                                                   stateSource, m_MaxScriptQueue);
 
 //                    if (DebugLevel >= 1)
-                    m_log.DebugFormat(
-                        "[XEngine] Loaded script {0}.{1}, item UUID {2}, prim UUID {3} @ {4}.{5}",
-                        part.ParentGroup.RootPart.Name, item.Name, itemID, part.UUID,
-                        part.ParentGroup.RootPart.AbsolutePosition, part.ParentGroup.Scene.RegionInfo.RegionName);
+//                    m_log.DebugFormat(
+//                        "[XEngine] Loaded script {0}.{1}, item UUID {2}, prim UUID {3} @ {4}.{5}",
+//                        part.ParentGroup.RootPart.Name, item.Name, itemID, part.UUID,
+//                        part.ParentGroup.RootPart.AbsolutePosition, part.ParentGroup.Scene.RegionInfo.RegionName);
 
                     if (presence != null)
                     {
@@ -1465,9 +1467,9 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                 else if (p[i] is string)
                     lsl_p[i] = new LSL_Types.LSLString((string)p[i]);
                 else if (p[i] is Vector3)
-                    lsl_p[i] = new LSL_Types.Vector3(((Vector3)p[i]).X, ((Vector3)p[i]).Y, ((Vector3)p[i]).Z);
+                    lsl_p[i] = new LSL_Types.Vector3((Vector3)p[i]);
                 else if (p[i] is Quaternion)
-                    lsl_p[i] = new LSL_Types.Quaternion(((Quaternion)p[i]).X, ((Quaternion)p[i]).Y, ((Quaternion)p[i]).Z, ((Quaternion)p[i]).W);
+                    lsl_p[i] = new LSL_Types.Quaternion((Quaternion)p[i]);
                 else if (p[i] is float)
                     lsl_p[i] = new LSL_Types.LSLFloat((float)p[i]);
                 else
@@ -1491,9 +1493,9 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                 else if (p[i] is string)
                     lsl_p[i] = new LSL_Types.LSLString((string)p[i]);
                 else if (p[i] is Vector3)
-                    lsl_p[i] = new LSL_Types.Vector3(((Vector3)p[i]).X, ((Vector3)p[i]).Y, ((Vector3)p[i]).Z);
+                    lsl_p[i] = new LSL_Types.Vector3((Vector3)p[i]);
                 else if (p[i] is Quaternion)
-                    lsl_p[i] = new LSL_Types.Quaternion(((Quaternion)p[i]).X, ((Quaternion)p[i]).Y, ((Quaternion)p[i]).Z, ((Quaternion)p[i]).W);
+                    lsl_p[i] = new LSL_Types.Quaternion((Quaternion)p[i]);
                 else if (p[i] is float)
                     lsl_p[i] = new LSL_Types.LSLFloat((float)p[i]);
                 else

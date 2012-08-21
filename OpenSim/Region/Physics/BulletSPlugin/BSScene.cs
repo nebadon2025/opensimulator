@@ -73,15 +73,22 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
     private static readonly string LogHeader = "[BULLETS SCENE]";
 
-    public void DebugLog(string mm, params Object[] xx) { if (ShouldDebugLog) m_log.DebugFormat(mm, xx); }
+    // The name of the region we're working for.
+    public string RegionName { get; private set; }
 
     public string BulletSimVersion = "?";
 
     private Dictionary<uint, BSCharacter> m_avatars = new Dictionary<uint, BSCharacter>();
+    public Dictionary<uint, BSCharacter> Characters { get { return m_avatars; } }
+
     private Dictionary<uint, BSPrim> m_prims = new Dictionary<uint, BSPrim>();
+    public Dictionary<uint, BSPrim> Prims { get { return m_prims; } }
+
     private HashSet<BSCharacter> m_avatarsWithCollisions = new HashSet<BSCharacter>();
     private HashSet<BSPrim> m_primsWithCollisions = new HashSet<BSPrim>();
+
     private List<BSPrim> m_vehicles = new List<BSPrim>();
+
     private float[] m_heightMap;
     private float m_waterLevel;
     private uint m_worldID;
@@ -95,16 +102,11 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     private int m_detailedStatsStep = 0;
 
     public IMesher mesher;
-    private float m_meshLOD;
-    public float MeshLOD
-    {
-        get { return m_meshLOD; }
-    }
-    private float m_sculptLOD;
-    public float SculptLOD
-    {
-        get { return m_sculptLOD; }
-    }
+    // Level of Detail values kept as float because that's what the Meshmerizer wants
+    public float MeshLOD { get; private set; }
+    public float MeshMegaPrimLOD { get; private set; }
+    public float MeshMegaPrimThreshold { get; private set; }
+    public float SculptLOD { get; private set; }
 
     private BulletSim m_worldSim;
     public BulletSim World
@@ -179,8 +181,9 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     ConfigurationParameters[] m_params;
     GCHandle m_paramsHandle;
 
-    public bool ShouldDebugLog { get; private set; }
-
+    // Handle to the callback used by the unmanaged code to call into the managed code.
+    // Used for debug logging.
+    // Need to store the handle in a persistant variable so it won't be freed.
     private BulletSimAPI.DebugLogCallback m_DebugLogCallbackHandle;
 
     // Sometimes you just have to log everything.
@@ -196,6 +199,8 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     public BSScene(string identifier)
     {
         m_initialized = false;
+        // we are passed the name of the region we're working for.
+        RegionName = identifier;
     }
 
     public override void Initialise(IMesher meshmerizer, IConfigSource config)
@@ -281,10 +286,13 @@ public class BSScene : PhysicsScene, IPhysicsParameters
                 // Very detailed logging for physics debugging
                 m_physicsLoggingEnabled = pConfig.GetBoolean("PhysicsLoggingEnabled", false);
                 m_physicsLoggingDir = pConfig.GetString("PhysicsLoggingDir", ".");
-                m_physicsLoggingPrefix = pConfig.GetString("PhysicsLoggingPrefix", "physics-");
+                m_physicsLoggingPrefix = pConfig.GetString("PhysicsLoggingPrefix", "physics-%REGIONNAME%-");
                 m_physicsLoggingFileMinutes = pConfig.GetInt("PhysicsLoggingFileMinutes", 5);
                 // Very detailed logging for vehicle debugging
                 m_vehicleLoggingEnabled = pConfig.GetBoolean("VehicleLoggingEnabled", false);
+
+                // Do any replacements in the parameters
+                m_physicsLoggingPrefix = m_physicsLoggingPrefix.Replace("%REGIONNAME%", RegionName);
             }
         }
     }
@@ -413,7 +421,7 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         // prevent simulation until we've been initialized
         if (!m_initialized) return 10.0f;
 
-        long simulateStartTime = Util.EnvironmentTickCount();
+        int simulateStartTime = Util.EnvironmentTickCount();
 
         // update the prim states while we know the physics engine is not busy
         ProcessTaints();
@@ -434,8 +442,8 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         catch (Exception e)
         {
             m_log.WarnFormat("{0},PhysicsStep Exception: substeps={1}, updates={2}, colliders={3}, e={4}", LogHeader, numSubSteps, updatedEntityCount, collidersCount, e);
-            DetailLog("{0},PhysicsStepException,call, substeps={1}, updates={2}, colliders={3}", DetailLogZero, numSubSteps, updatedEntityCount, collidersCount);
-            // updatedEntityCount = 0;
+            // DetailLog("{0},PhysicsStepException,call, substeps={1}, updates={2}, colliders={3}", DetailLogZero, numSubSteps, updatedEntityCount, collidersCount);
+            updatedEntityCount = 0;
             collidersCount = 0;
         }
 
@@ -511,8 +519,13 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         // long simulateTotalTime = Util.EnvironmentTickCountSubtract(simulateStartTime);
         // return (timeStep * (float)simulateTotalTime);
 
-        // TODO: FIX THIS: fps calculation wrong. This calculation always returns about 1 in normal operation.
-        return timeStep / (numSubSteps * m_fixedTimeStep) * 1000f;
+        // TODO: FIX THIS: fps calculation possibly wrong.
+        // This calculation says 1/timeStep is the ideal frame rate. Any time added to
+        //    that by the physics simulation gives a slower frame rate.
+        long totalSimulationTime = Util.EnvironmentTickCountSubtract(simulateStartTime);
+        if (totalSimulationTime >= timeStep)
+            return 0;
+        return 1f / (timeStep + totalSimulationTime);
     }
 
     // Something has collided
@@ -528,6 +541,8 @@ public class BSScene : PhysicsScene, IPhysicsParameters
             type = ActorTypes.Ground;
         else if (m_avatars.ContainsKey(collidingWith))
             type = ActorTypes.Agent;
+
+        // DetailLog("{0},BSScene.SendCollision,collide,id={1},with={2}", DetailLogZero, localID, collidingWith);
 
         BSPrim prim;
         if (m_prims.TryGetValue(localID, out prim)) {
@@ -590,12 +605,6 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         // make sure no stepping happens while we're deleting stuff
         m_initialized = false;
 
-        if (m_constraintCollection != null)
-        {
-            m_constraintCollection.Dispose();
-            m_constraintCollection = null;
-        }
-
         foreach (KeyValuePair<uint, BSCharacter> kvp in m_avatars)
         {
             kvp.Value.Destroy();
@@ -607,6 +616,13 @@ public class BSScene : PhysicsScene, IPhysicsParameters
             kvp.Value.Destroy();
         }
         m_prims.Clear();
+
+        // Now that the prims are all cleaned up, there should be no constraints left
+        if (m_constraintCollection != null)
+        {
+            m_constraintCollection.Dispose();
+            m_constraintCollection = null;
+        }
 
         // Anything left in the unmanaged code should be cleaned out
         BulletSimAPI.Shutdown(WorldID);
@@ -891,16 +907,26 @@ public class BSScene : PhysicsScene, IPhysicsParameters
             (s) => { return s.NumericBool(s._forceSimplePrimMeshing); },
             (s,p,l,v) => { s._forceSimplePrimMeshing = s.BoolNumeric(v); } ),
 
-        new ParameterDefn("MeshLOD", "Level of detail to render meshes (32, 16, 8 or 4. 32=most detailed)",
+        new ParameterDefn("MeshLevelOfDetail", "Level of detail to render meshes (32, 16, 8 or 4. 32=most detailed)",
             8f,
-            (s,cf,p,v) => { s.m_meshLOD = cf.GetInt(p, (int)v); },
-            (s) => { return (float)s.m_meshLOD; },
-            (s,p,l,v) => { s.m_meshLOD = (int)v; } ),
-        new ParameterDefn("SculptLOD", "Level of detail to render sculpties (32, 16, 8 or 4. 32=most detailed)",
+            (s,cf,p,v) => { s.MeshLOD = (float)cf.GetInt(p, (int)v); },
+            (s) => { return s.MeshLOD; },
+            (s,p,l,v) => { s.MeshLOD = v; } ),
+        new ParameterDefn("MeshLevelOfDetailMegaPrim", "Level of detail to render meshes larger than threshold meters",
+            16f,
+            (s,cf,p,v) => { s.MeshMegaPrimLOD = (float)cf.GetInt(p, (int)v); },
+            (s) => { return s.MeshMegaPrimLOD; },
+            (s,p,l,v) => { s.MeshMegaPrimLOD = v; } ),
+        new ParameterDefn("MeshLevelOfDetailMegaPrimThreshold", "Size (in meters) of a mesh before using MeshMegaPrimLOD",
+            10f,
+            (s,cf,p,v) => { s.MeshMegaPrimThreshold = (float)cf.GetInt(p, (int)v); },
+            (s) => { return s.MeshMegaPrimThreshold; },
+            (s,p,l,v) => { s.MeshMegaPrimThreshold = v; } ),
+        new ParameterDefn("SculptLevelOfDetail", "Level of detail to render sculpties (32, 16, 8 or 4. 32=most detailed)",
             32f,
-            (s,cf,p,v) => { s.m_sculptLOD = cf.GetInt(p, (int)v); },
-            (s) => { return (float)s.m_sculptLOD; },
-            (s,p,l,v) => { s.m_sculptLOD = (int)v; } ),
+            (s,cf,p,v) => { s.SculptLOD = (float)cf.GetInt(p, (int)v); },
+            (s) => { return s.SculptLOD; },
+            (s,p,l,v) => { s.SculptLOD = v; } ),
 
         new ParameterDefn("MaxSubStep", "In simulation step, maximum number of substeps",
             10f,
@@ -1131,12 +1157,6 @@ public class BSScene : PhysicsScene, IPhysicsParameters
             (s,cf,p,v) => { s.m_detailedStatsStep = cf.GetInt(p, (int)v); },
             (s) => { return (float)s.m_detailedStatsStep; },
             (s,p,l,v) => { s.m_detailedStatsStep = (int)v; } ),
-        new ParameterDefn("ShouldDebugLog", "Enables detailed DEBUG log statements",
-            ConfigurationParameters.numericFalse,
-            (s,cf,p,v) => { s.ShouldDebugLog = cf.GetBoolean(p, s.BoolNumeric(v)); },
-            (s) => { return s.NumericBool(s.ShouldDebugLog); },
-            (s,p,l,v) => { s.ShouldDebugLog = s.BoolNumeric(v); } ),
-
     };
 
     // Convert a boolean to our numeric true and false values

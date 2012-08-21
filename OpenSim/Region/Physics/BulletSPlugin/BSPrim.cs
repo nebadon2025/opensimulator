@@ -42,8 +42,6 @@ public sealed class BSPrim : PhysicsActor
     private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
     private static readonly string LogHeader = "[BULLETS PRIM]";
 
-    private void DebugLog(string mm, params Object[] xx) { if (_scene.ShouldDebugLog) m_log.DebugFormat(mm, xx); }
-
     private IMesh _mesh;
     private PrimitiveBaseShape _pbs;
     private ShapeData.PhysicsShapeType _shapeType;
@@ -141,8 +139,8 @@ public sealed class BSPrim : PhysicsActor
         _friction = _scene.Params.defaultFriction;  // TODO: compute based on object material
         _density = _scene.Params.defaultDensity;    // TODO: compute based on object material
         _restitution = _scene.Params.defaultRestitution;
-        _linkset = new BSLinkset(_scene, this);     // a linkset of one
-        _vehicle = new BSDynamics(this);            // add vehicleness
+        _linkset = new BSLinkset(Scene, this);     // a linkset of one
+        _vehicle = new BSDynamics(Scene, this);            // add vehicleness
         _mass = CalculateMass();
         // do the actual object creation at taint time
         DetailLog("{0},BSPrim.constructor,call", LocalID);
@@ -163,13 +161,13 @@ public sealed class BSPrim : PhysicsActor
         // m_log.DebugFormat("{0}: Destroy, id={1}", LogHeader, LocalID);
 
         // Undo any links between me and any other object
-        BSPrim parentBefore = _linkset.Root;
+        BSPrim parentBefore = _linkset.LinksetRoot;
         int childrenBefore = _linkset.NumberOfChildren;
 
         _linkset = _linkset.RemoveMeFromLinkset(this);
 
         DetailLog("{0},BSPrim.Destroy,call,parentBefore={1},childrenBefore={2},parentAfter={3},childrenAfter={4}",
-            LocalID, parentBefore.LocalID, childrenBefore, _linkset.Root.LocalID, _linkset.NumberOfChildren);
+            LocalID, parentBefore.LocalID, childrenBefore, _linkset.LinksetRoot.LocalID, _linkset.NumberOfChildren);
 
         // Undo any vehicle properties
         this.VehicleType = (int)Vehicle.TYPE_NONE;
@@ -193,7 +191,7 @@ public sealed class BSPrim : PhysicsActor
             {
                 _mass = CalculateMass();   // changing size changes the mass
                 BulletSimAPI.SetObjectScaleMass(_scene.WorldID, _localID, _scale, (IsPhysical ? _mass : 0f), IsPhysical);
-                // DetailLog("{0}: BSPrim.setSize: size={1}, mass={2}, physical={3}", LocalID, _size, _mass, IsPhysical);
+                DetailLog("{0}: BSPrim.setSize: size={1}, mass={2}, physical={3}", LocalID, _size, _mass, IsPhysical);
                 RecreateGeomAndObject();
             });
         } 
@@ -232,14 +230,13 @@ public sealed class BSPrim : PhysicsActor
         BSPrim parent = obj as BSPrim;
         if (parent != null)
         {
-            DebugLog("{0}: link {1}/{2} to {3}", LogHeader, _avName, _localID, parent.LocalID);
-            BSPrim parentBefore = _linkset.Root;
+            BSPrim parentBefore = _linkset.LinksetRoot;
             int childrenBefore = _linkset.NumberOfChildren;
 
             _linkset = parent.Linkset.AddMeToLinkset(this);
 
             DetailLog("{0},BSPrim.link,call,parentBefore={1}, childrenBefore=={2}, parentAfter={3}, childrenAfter={4}", 
-                LocalID, parentBefore.LocalID, childrenBefore, _linkset.Root.LocalID, _linkset.NumberOfChildren);
+                LocalID, parentBefore.LocalID, childrenBefore, _linkset.LinksetRoot.LocalID, _linkset.NumberOfChildren);
         }
         return; 
     }
@@ -248,16 +245,14 @@ public sealed class BSPrim : PhysicsActor
     public override void delink() {
         // TODO: decide if this parent checking needs to happen at taint time
         // Race condition here: if link() and delink() in same simulation tick, the delink will not happen
-        DebugLog("{0}: delink {1}/{2}. Parent={3}", LogHeader, _avName, _localID, 
-                            _linkset.Root._avName+"/"+_linkset.Root.LocalID.ToString());
 
-        BSPrim parentBefore = _linkset.Root;
+        BSPrim parentBefore = _linkset.LinksetRoot;
         int childrenBefore = _linkset.NumberOfChildren;
         
         _linkset = _linkset.RemoveMeFromLinkset(this);
 
         DetailLog("{0},BSPrim.delink,parentBefore={1},childrenBefore={2},parentAfter={3},childrenAfter={4}, ", 
-            LocalID, parentBefore.LocalID, childrenBefore, _linkset.Root.LocalID, _linkset.NumberOfChildren);
+            LocalID, parentBefore.LocalID, childrenBefore, _linkset.LinksetRoot.LocalID, _linkset.NumberOfChildren);
         return; 
     }
 
@@ -354,7 +349,7 @@ public sealed class BSPrim : PhysicsActor
             {
                 // Done at taint time so we're sure the physics engine is not using the variables
                 // Vehicle code changes the parameters for this vehicle type.
-                _vehicle.ProcessTypeChange(type);
+                _vehicle.ProcessTypeChange(type, Scene.LastSimulatedTimestep);
                 // Tell the scene about the vehicle so it will get processing each frame.
                 _scene.VehicleInSceneTypeChanged(this, type);
             });
@@ -486,16 +481,16 @@ public sealed class BSPrim : PhysicsActor
     // No locking here because only called when it is safe
     private void SetObjectDynamic()
     {
-        // RA: remove this for the moment.
-        // The problem is that dynamic objects are hulls so if we are becoming physical
-        //    the shape has to be checked and possibly built.
-        //    Maybe a VerifyCorrectPhysicalShape() routine?
-        // RecreateGeomAndObject();
+        // If it's becoming dynamic, it will need hullness
+        VerifyCorrectPhysicalShape();
 
         // Bullet wants static objects to have a mass of zero
         float mass = IsStatic ? 0f : _mass;
 
         BulletSimAPI.SetObjectProperties(_scene.WorldID, LocalID, IsStatic, IsSolid, SubscribedEvents(), mass);
+
+        // recompute any linkset parameters
+        _linkset.Refresh(this);
 
         CollisionFlags cf = BulletSimAPI.GetCollisionFlags2(Body.Ptr);
         DetailLog("{0},BSPrim.SetObjectDynamic,taint,static={1},solid={2},mass={3}, cf={4}", LocalID, IsStatic, IsSolid, mass, cf);
@@ -504,7 +499,9 @@ public sealed class BSPrim : PhysicsActor
     // prims don't fly
     public override bool Flying { 
         get { return _flying; } 
-        set { _flying = value; } 
+        set {
+            _flying = value;
+        } 
     }
     public override bool SetAlwaysRun { 
         get { return _setAlwaysRun; } 
@@ -1039,7 +1036,14 @@ public sealed class BSPrim : PhysicsActor
     // No locking here because this is done when we know physics is not simulating
     private void CreateGeomMesh()
     {
-        float lod = _pbs.SculptEntry ? _scene.SculptLOD : _scene.MeshLOD;
+        // level of detail based on size and type of the object
+        float lod = _scene.MeshLOD;
+        if (_pbs.SculptEntry) 
+            lod = _scene.SculptLOD;
+        float maxAxis = Math.Max(_size.X, Math.Max(_size.Y, _size.Z));
+        if (maxAxis > _scene.MeshMegaPrimThreshold) 
+            lod = _scene.MeshMegaPrimLOD;
+
         ulong newMeshKey = (ulong)_pbs.GetMeshKey(_size, lod);
         // m_log.DebugFormat("{0}: CreateGeomMesh: lID={1}, oldKey={2}, newKey={3}", LogHeader, _localID, _meshKey, newMeshKey);
 
@@ -1095,28 +1099,21 @@ public sealed class BSPrim : PhysicsActor
         // if the hull hasn't changed, don't rebuild it
         if (newHullKey == _hullKey) return;
 
-        DetailLog("{0},BSPrim.CreateGeomHull,create,key={1}", LocalID, _meshKey);
+        DetailLog("{0},BSPrim.CreateGeomHull,create,oldKey={1},newKey={2}", LocalID, _hullKey, newHullKey);
         
         // Since we're recreating new, get rid of any previously generated shape
         if (_hullKey != 0)
         {
             // m_log.DebugFormat("{0}: CreateGeom: deleting old hull. Key={1}", LogHeader, _hullKey);
-            DetailLog("{0},BSPrim.CreateGeomHull,deleteOldHull,key={1}", LocalID, _meshKey);
+            DetailLog("{0},BSPrim.CreateGeomHull,deleteOldHull,key={1}", LocalID, _hullKey);
             BulletSimAPI.DestroyHull(_scene.WorldID, _hullKey);
             _hullKey = 0;
-            _hulls.Clear();
-            DetailLog("{0},BSPrim.CreateGeomHull,deleteOldMesh,key={1}", LocalID, _meshKey);
-            BulletSimAPI.DestroyMesh(_scene.WorldID, _meshKey);
-            _mesh = null;   // the mesh cannot match either
-            _meshKey = 0;
         }
 
         _hullKey = newHullKey;
-        if (_meshKey != _hullKey)
-        {
-            // if the underlying mesh has changed, rebuild it
-            CreateGeomMesh();
-        }
+
+        // Make sure the underlying mesh exists and is correct
+        CreateGeomMesh();
 
         int[] indices = _mesh.getIndexListAsInt();
         List<OMV.Vector3> vertices = _mesh.getVertexList();
@@ -1142,7 +1139,7 @@ public sealed class BSPrim : PhysicsActor
         // create the hull into the _hulls variable
         convexBuilder.process(dcomp);
 
-        // Convert the vertices and indices for passing to unmanaged
+        // Convert the vertices and indices for passing to unmanaged.
         // The hull information is passed as a large floating point array. 
         // The format is:
         //  convHulls[0] = number of hulls
@@ -1212,6 +1209,27 @@ public sealed class BSPrim : PhysicsActor
     {
         _hulls.Add(result);
         return;
+    }
+
+    private void VerifyCorrectPhysicalShape()
+    {
+        if (IsStatic)
+        {
+            // if static, we don't need a hull so, if there is one, rebuild without it
+            if (_hullKey != 0)
+            {
+                RecreateGeomAndObject();
+            }
+        }
+        else
+        {
+            // if not static, it will need a hull to efficiently collide with things
+            if (_hullKey == 0)
+            {
+                RecreateGeomAndObject();
+            }
+
+        }
     }
 
     // Create an object in Bullet if it has not already been created
@@ -1338,13 +1356,12 @@ public sealed class BSPrim : PhysicsActor
             _acceleration = entprop.Acceleration;
             _rotationalVelocity = entprop.RotationalVelocity;
 
-            // m_log.DebugFormat("{0}: RequestTerseUpdate. id={1}, ch={2}, pos={3}, rot={4}, vel={5}, acc={6}, rvel={7}", 
-            //         LogHeader, LocalID, changed, _position, _orientation, _velocity, _acceleration, _rotationalVelocity);
             DetailLog("{0},BSPrim.UpdateProperties,call,pos={1},orient={2},vel={3},accel={4},rotVel={5}",
                     LocalID, _position, _orientation, _velocity, _acceleration, _rotationalVelocity);
 
             base.RequestPhysicsterseUpdate();
         }
+            /*
         else
         {
             // For debugging, we also report the movement of children
@@ -1352,10 +1369,12 @@ public sealed class BSPrim : PhysicsActor
                     LocalID, entprop.Position, entprop.Rotation, entprop.Velocity, 
                     entprop.Acceleration, entprop.RotationalVelocity);
         }
+             */
     }
 
     // I've collided with something
-    CollisionEventUpdate collisionCollection = null;
+    // Called at taint time from within the Step() function
+    CollisionEventUpdate collisionCollection;
     public void Collide(uint collidingWith, ActorTypes type, OMV.Vector3 contactPoint, OMV.Vector3 contactNormal, float pentrationDepth)
     {
         // m_log.DebugFormat("{0}: Collide: ms={1}, id={2}, with={3}", LogHeader, _subscribedEventsMs, LocalID, collidingWith);
@@ -1365,6 +1384,17 @@ public sealed class BSPrim : PhysicsActor
         if (collidingWith == BSScene.TERRAIN_ID || collidingWith == BSScene.GROUNDPLANE_ID)
         {
             _collidingGroundStep = _scene.SimulationStep;
+        }
+
+        // DetailLog("{0},BSPrim.Collison,call,with={1}", LocalID, collidingWith);
+        BSPrim collidingWithPrim;
+        if (_scene.Prims.TryGetValue(collidingWith, out collidingWithPrim))
+        {
+            // prims in the same linkset cannot collide with each other
+            if (this.Linkset.LinksetID == collidingWithPrim.Linkset.LinksetID)
+            {
+                return;
+            }
         }
 
         // if someone is subscribed to collision events....
@@ -1387,7 +1417,9 @@ public sealed class BSPrim : PhysicsActor
         if (collisionCollection != null && collisionCollection.Count > 0)
         {
             base.SendCollisionUpdate(collisionCollection);
-            collisionCollection.Clear();
+            // The collisionCollection structure is passed around in the simulator.
+            // Make sure we don't have a handle to that one and that a new one is used next time.
+            collisionCollection = null;
         }
     }
 

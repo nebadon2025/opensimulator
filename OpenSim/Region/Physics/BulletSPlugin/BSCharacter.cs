@@ -124,10 +124,14 @@ public class BSCharacter : PhysicsActor
         // do actual create at taint time
         _scene.TaintedObject("BSCharacter.create", delegate()
         {
+            DetailLog("{0},BSCharacter.create", _localID);
             BulletSimAPI.CreateObject(parent_scene.WorldID, shapeData);
 
+            // Set the buoyancy for flying. This will be refactored when all the settings happen in C#
+            BulletSimAPI.SetObjectBuoyancy(_scene.WorldID, LocalID, _buoyancy);
+
             m_body = new BulletBody(LocalID, BulletSimAPI.GetBodyHandle2(_scene.World.Ptr, LocalID));
-            // avatars get all collisions no matter what
+            // avatars get all collisions no matter what (makes walking on ground and such work)
             BulletSimAPI.AddToCollisionFlags2(Body.Ptr, CollisionFlags.BS_SUBSCRIBE_COLLISION_EVENTS);
         });
             
@@ -137,7 +141,7 @@ public class BSCharacter : PhysicsActor
     // called when this character is being destroyed and the resources should be released
     public void Destroy()
     {
-        // DetailLog("{0},Destroy", LocalID);
+        DetailLog("{0},BSCharacter.Destroy", LocalID);
         _scene.TaintedObject("BSCharacter.destroy", delegate()
         {
             BulletSimAPI.DestroyObject(_scene.WorldID, _localID);
@@ -209,7 +213,7 @@ public class BSCharacter : PhysicsActor
 
             _scene.TaintedObject("BSCharacter.setPosition", delegate()
             {
-                DetailLog("{0},SetPosition,taint,pos={1},orient={2}", LocalID, _position, _orientation);
+                DetailLog("{0},BSCharacter.SetPosition,taint,pos={1},orient={2}", LocalID, _position, _orientation);
                 BulletSimAPI.SetObjectTranslation(_scene.WorldID, _localID, _position, _orientation);
             });
         } 
@@ -226,7 +230,7 @@ public class BSCharacter : PhysicsActor
         float terrainHeight = Scene.GetTerrainHeightAtXYZ(_position);
         if (_position.Z < terrainHeight)
         {
-            DetailLog("{0},PositionAdjustUnderGround,call,pos={1},orient={2}", LocalID, _position, _orientation);
+            DetailLog("{0},BSCharacter.PositionAdjustUnderGround,call,pos={1},orient={2}", LocalID, _position, _orientation);
             _position.Z = terrainHeight + 2.0f;
             ret = true;
         }
@@ -319,14 +323,13 @@ public class BSCharacter : PhysicsActor
     public override bool Flying { 
         get { return _flying; } 
         set {
-            if (_flying != value)
-            {
-                _flying = value;
-                // simulate flying by changing the effect of gravity
-                this.Buoyancy = ComputeBuoyancyFromFlying(_flying);
-            }
+            _flying = value;
+            // simulate flying by changing the effect of gravity
+            this.Buoyancy = ComputeBuoyancyFromFlying(_flying);
         } 
     }
+    // Flying is implimented by changing the avatar's buoyancy.
+    // Would this be done better with a vehicle type?
     private float ComputeBuoyancyFromFlying(bool ifFlying) {
         return ifFlying ? 1f : 0f;
     }
@@ -368,7 +371,7 @@ public class BSCharacter : PhysicsActor
         set { _buoyancy = value; 
             _scene.TaintedObject("BSCharacter.setBuoyancy", delegate()
             {
-                DetailLog("{0},setBuoyancy,taint,buoy={1}", LocalID, _buoyancy);
+                DetailLog("{0},BSCharacter.setBuoyancy,taint,buoy={1}", LocalID, _buoyancy);
                 BulletSimAPI.SetObjectBuoyancy(_scene.WorldID, LocalID, _buoyancy);
             });
         } 
@@ -415,7 +418,7 @@ public class BSCharacter : PhysicsActor
             // m_log.DebugFormat("{0}: AddForce. adding={1}, newForce={2}", LogHeader, force, _force);
             _scene.TaintedObject("BSCharacter.AddForce", delegate()
             {
-                DetailLog("{0},setAddForce,taint,addedForce={1}", LocalID, _force);
+                DetailLog("{0},BSCharacter.setAddForce,taint,addedForce={1}", LocalID, _force);
                 BulletSimAPI.AddObjectForce2(Body.Ptr, _force);
             });
         }
@@ -507,6 +510,7 @@ public class BSCharacter : PhysicsActor
         {
             _collidingGroundStep = _scene.SimulationStep;
         }
+        // DetailLog("{0},BSCharacter.Collison,call,with={1}", LocalID, collidingWith);
 
         // throttle collisions to the rate specified in the subscription
         if (_subscribedEventsMs != 0) {
@@ -535,7 +539,10 @@ public class BSCharacter : PhysicsActor
         if (collisionCollection == null)
             collisionCollection = new CollisionEventUpdate();
         base.SendCollisionUpdate(collisionCollection);
-        collisionCollection.Clear();
+        // If there were any collisions in the collection, make sure we don't use the
+        //    same instance next time.
+        if (collisionCollection.Count > 0)
+            collisionCollection = null;
         // End kludge
     }
 

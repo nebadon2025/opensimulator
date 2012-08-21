@@ -333,8 +333,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 if (type == typeof(OpenMetaverse.Quaternion))
                 {
-                    LSL_Rotation rot = (LSL_Rotation)lslparm;
-                    return new OpenMetaverse.Quaternion((float)rot.x,(float)rot.y,(float)rot.z,(float)rot.s);
+                    return (OpenMetaverse.Quaternion)((LSL_Rotation)lslparm);
                 }
             }
 
@@ -343,8 +342,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 if (type == typeof(OpenMetaverse.Vector3))
                 {
-                    LSL_Vector vect = (LSL_Vector)lslparm;
-                    return new OpenMetaverse.Vector3((float)vect.x,(float)vect.y,(float)vect.z);
+                    return (OpenMetaverse.Vector3)((LSL_Vector)lslparm);
                 }
             }
 
@@ -367,13 +365,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             result[i] = new UUID((LSL_Key)plist[i]);
                         else if (plist[i] is LSL_Rotation)
                         {
-                            LSL_Rotation rot = (LSL_Rotation)plist[i];
-                            result[i] = new OpenMetaverse.Quaternion((float)rot.x,(float)rot.y,(float)rot.z,(float)rot.s);
+                            result[i] = (OpenMetaverse.Quaternion)(
+                                (LSL_Rotation)plist[i]);
                         }
                         else if (plist[i] is LSL_Vector)
                         {
-                            LSL_Vector vect = (LSL_Vector)plist[i];
-                            result[i] = new OpenMetaverse.Vector3((float)vect.x,(float)vect.y,(float)vect.z);
+                            result[i] = (OpenMetaverse.Vector3)(
+                                (LSL_Vector)plist[i]);
                         }
                         else
                             MODError("unknown LSL list element type");

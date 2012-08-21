@@ -487,16 +487,20 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         #region Client Methods
 
-        /// <summary>
-        /// Close down the client view
-        /// </summary>
         public void Close()
+        {
+            Close(false);
+        }
+
+        public void Close(bool force)
         {
             // We lock here to prevent race conditions between two threads calling close simultaneously (e.g.
             // a simultaneous relog just as a client is being closed out due to no packet ack from the old connection.
             lock (CloseSyncLock)
             {
-                if (!IsActive)
+                // We still perform a force close inside the sync lock since this is intended to attempt close where
+                // there is some unidentified connection problem, not where we have issues due to deadlock
+                if (!IsActive && !force)
                     return;
 
                 IsActive = false;
@@ -5810,7 +5814,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 args.Channel = ch;
                 args.From = String.Empty;
                 args.Message = Utils.BytesToString(msg);
-                args.Type = ChatTypeEnum.Shout;
+                args.Type = ChatTypeEnum.Region; //Behaviour in SL is that the response can be heard from any distance
                 args.Position = new Vector3();
                 args.Scene = Scene;
                 args.Sender = this;
@@ -11989,7 +11993,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         {
             Kick(reason);
             Thread.Sleep(1000);
-            Close();
+            Disconnect();
         }
 
         public void Disconnect()

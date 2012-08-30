@@ -7208,7 +7208,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
 
-            setLinkPrimParams(ScriptBaseClass.LINK_THIS, rules);
+            setLinkPrimParams(ScriptBaseClass.LINK_THIS, rules, "llSetPrimitiveParams");
 
             ScriptSleep(200);
         }
@@ -7217,7 +7217,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
 
-            setLinkPrimParams(linknumber, rules);
+            setLinkPrimParams(linknumber, rules, "llSetLinkPrimitiveParams");
 
             ScriptSleep(200);
         }
@@ -7226,17 +7226,18 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
 
-            setLinkPrimParams(linknumber, rules);
+            setLinkPrimParams(linknumber, rules, "llSetLinkPrimitiveParamsFast");
         }
 
-        protected void setLinkPrimParams(int linknumber, LSL_List rules)
+        protected void setLinkPrimParams(int linknumber, LSL_List rules, string originFunc)
         {
             List<SceneObjectPart> parts = GetLinkParts(linknumber);
 
             LSL_List remaining = null;
+            uint rulesParsed = 0;
 
             foreach (SceneObjectPart part in parts)
-                remaining = SetPrimParams(part, rules);
+                remaining = SetPrimParams(part, rules, originFunc, ref rulesParsed);
 
             while (remaining != null && remaining.Length > 2)
             {
@@ -7245,13 +7246,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 parts = GetLinkParts(linknumber);
 
                 foreach (SceneObjectPart part in parts)
-                    remaining = SetPrimParams(part, rules);
+                    remaining = SetPrimParams(part, rules, originFunc, ref rulesParsed);
             }
         }
 
-        protected LSL_List SetPrimParams(SceneObjectPart part, LSL_List rules)
+        protected LSL_List SetPrimParams(SceneObjectPart part, LSL_List rules, string originFunc, ref uint rulesParsed)
         {
             int idx = 0;
+            int idxStart = 0;
 
             bool positionChanged = false;
             LSL_Vector currentPosition = GetPartLocalPos(part);
@@ -7260,9 +7262,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 while (idx < rules.Length)
                 {
+                    ++rulesParsed;
                     int code = rules.GetLSLIntegerItem(idx++);
 
                     int remain = rules.Length - idx;
+                    idxStart = idx;
 
                     int face;
                     LSL_Vector v;
@@ -7639,7 +7643,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
             catch (InvalidCastException e)
             {
-                ShoutError(e.Message);
+                ShoutError(string.Format(
+                        "{0} error running rule #{1}: arg #{2} ",
+                        originFunc, rulesParsed, idx - idxStart) + e.Message);
             }
             finally
             {
@@ -10113,31 +10119,30 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_Float llListStatistics(int operation, LSL_List src)
         {
             m_host.AddScriptLPS(1);
-            LSL_List nums = LSL_List.ToDoubleList(src);
             switch (operation)
             {
                 case ScriptBaseClass.LIST_STAT_RANGE:
-                    return nums.Range();
+                    return src.Range();
                 case ScriptBaseClass.LIST_STAT_MIN:
-                    return nums.Min();
+                    return src.Min();
                 case ScriptBaseClass.LIST_STAT_MAX:
-                    return nums.Max();
+                    return src.Max();
                 case ScriptBaseClass.LIST_STAT_MEAN:
-                    return nums.Mean();
+                    return src.Mean();
                 case ScriptBaseClass.LIST_STAT_MEDIAN:
-                    return nums.Median();
+                    return LSL_List.ToDoubleList(src).Median();
                 case ScriptBaseClass.LIST_STAT_NUM_COUNT:
-                    return nums.NumericLength();
+                    return src.NumericLength();
                 case ScriptBaseClass.LIST_STAT_STD_DEV:
-                    return nums.StdDev();
+                    return src.StdDev();
                 case ScriptBaseClass.LIST_STAT_SUM:
-                    return nums.Sum();
+                    return src.Sum();
                 case ScriptBaseClass.LIST_STAT_SUM_SQUARES:
-                    return nums.SumSqrs();
+                    return src.SumSqrs();
                 case ScriptBaseClass.LIST_STAT_GEOMETRIC_MEAN:
-                    return nums.GeometricMean();
+                    return src.GeometricMean();
                 case ScriptBaseClass.LIST_STAT_HARMONIC_MEAN:
-                    return nums.HarmonicMean();
+                    return src.HarmonicMean();
                 default:
                     return 0.0;
             }
@@ -10761,7 +10766,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             return tid.ToString();
         }
 
-        public void SetPrimitiveParamsEx(LSL_Key prim, LSL_List rules)
+        public void SetPrimitiveParamsEx(LSL_Key prim, LSL_List rules, string originFunc)
         {
             SceneObjectPart obj = World.GetSceneObjectPart(new UUID(prim));
             if (obj == null)
@@ -10770,14 +10775,15 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (obj.OwnerID != m_host.OwnerID)
                 return;
 
-            LSL_List remaining = SetPrimParams(obj, rules);
+            uint rulesParsed = 0;
+            LSL_List remaining = SetPrimParams(obj, rules, originFunc, ref rulesParsed);
 
             while ((object)remaining != null && remaining.Length > 2)
             {
                 LSL_Integer newLink = remaining.GetLSLIntegerItem(0);
                 LSL_List newrules = remaining.GetSublist(1, -1);
                 foreach(SceneObjectPart part in GetLinkParts(obj, newLink)){
-                    remaining = SetPrimParams(part, newrules);
+                    remaining = SetPrimParams(part, newrules, originFunc, ref rulesParsed);
                 }
             }
         }

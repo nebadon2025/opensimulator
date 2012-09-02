@@ -116,7 +116,7 @@ namespace OpenSim.Services.IntegrationService
                 registry.Update();
                 foreach (IntegrationPlugin cmd in AddinManager.GetExtensionObjects("/OpenSim/IntegrationService"))
                 {
-                    m_log.DebugFormat("[INTEGRATION SERVICE]: Processing _Addin {0}", cmd.PluginName);
+                    m_log.DebugFormat("[INTEGRATION SERVICE]: Processing Addin {0}", cmd.PluginName);
                     LoadingPlugin(cmd);
                 }
     

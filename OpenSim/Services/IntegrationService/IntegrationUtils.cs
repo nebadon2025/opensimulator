@@ -132,7 +132,7 @@ namespace OpenSim.Services.IntegrationService
         public static IConfigSource LoadInitialConfig(string url)
         {
             IConfigSource source = new XmlConfigSource();
-            m_log.InfoFormat("[CONFIG]: {0} is a http:// URI, fetching ...", url);
+            m_log.InfoFormat("[CONFIG]: {0} is a  http:// URI, fetching ...", url);
 
             // The ini file path is a http URI
             // Try to read it

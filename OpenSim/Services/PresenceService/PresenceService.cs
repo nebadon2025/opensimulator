@@ -158,5 +158,19 @@ namespace OpenSim.Services.PresenceService
 
             return info.ToArray();
         }
+
+        public PresenceInfo VerifyAgent(UUID s_sessionID)
+        {
+            PresenceInfo ret = new PresenceInfo();
+
+            PresenceData data = m_Database.Verify(s_sessionID);
+            if (data == null)
+                return null;
+
+            ret.UserID = data.UserID;
+            ret.RegionID = data.RegionID;
+
+            return ret;
+        }
     }
 }

@@ -260,6 +260,12 @@ namespace OpenSim.Services.Connectors.SimianGrid
             return null;
         }
 
+        public PresenceInfo VerifyAgent(UUID s_sessionID)
+        {
+            // Not implemented
+            return null;
+        }
+
         public bool LoggedOut(string userID, UUID sessionID, UUID regionID, Vector3 lastPosition, Vector3 lastLookAt)
         {
 //            m_log.DebugFormat("[SIMIAN PRESENCE CONNECTOR]: Logging out user " + userID);

@@ -125,7 +125,7 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
                 bool changed = m_openSim.PopulateRegionEstateInfo(regionsToLoad[i]);
                 m_openSim.CreateRegion(regionsToLoad[i], true, out scene);
                 if (changed)
-		  regionsToLoad[i].EstateSettings.Save();
+		            regionsToLoad[i].EstateSettings.Save();
                 
                 if (scene != null)
                 {
@@ -136,7 +136,11 @@ namespace OpenSim.ApplicationPlugins.LoadRegions
                     }
                 }
             }
-
+            
+            //[TODO]: Temporary fix for an issue after the mono-addis upgrade
+            // PostInilise can fire before the region is loaded, so need to
+            // track down the cause of that
+            Thread.Sleep(300);
             m_openSim.ModuleLoader.PostInitialise();
             m_openSim.ModuleLoader.ClearCache();
         }

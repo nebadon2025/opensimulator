@@ -79,6 +79,19 @@ namespace OpenSim.Data.Null
             return null;
         }
 
+        public PresenceData Verify(UUID s_sessionID)
+        {
+            if (Instance != this)
+                return Instance.Verify(s_sessionID);
+
+            if (m_presenceData.ContainsKey(s_sessionID))
+            {
+                return m_presenceData[s_sessionID];
+            }
+
+            return null;
+        }
+
         public void LogoutRegionAgents(UUID regionID)
         {
             if (Instance != this)

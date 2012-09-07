@@ -41,6 +41,7 @@ using OpenSim.Services.Interfaces;
 using OpenSim.Framework;
 using OpenSim.Framework.Servers.HttpServer;
 using OpenMetaverse;
+using OpenMetaverse.StructuredData;
 
 namespace OpenSim.Server.Handlers.Presence
 {
@@ -244,7 +245,7 @@ namespace OpenSim.Server.Handlers.Presence
             //m_log.DebugFormat("[GRID HANDLER]: resp string: {0}", xmlString);
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
-
+        
         private byte[] SuccessResult()
         {
             XmlDocument doc = new XmlDocument();

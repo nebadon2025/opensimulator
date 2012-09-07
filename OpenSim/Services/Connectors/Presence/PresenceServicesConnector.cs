@@ -371,6 +371,49 @@ namespace OpenSim.Services.Connectors
             return rinfos.ToArray();
         }
 
+        public PresenceInfo VerifyAgent(UUID s_sessionID)
+        {
+            Dictionary<string, object> sendData = new Dictionary<string, object>();
+            //sendData["SCOPEID"] = scopeID.ToString();
+            sendData["VERSIONMIN"] = ProtocolVersions.ClientProtocolVersionMin.ToString();
+            sendData["VERSIONMAX"] = ProtocolVersions.ClientProtocolVersionMax.ToString();
+            sendData["METHOD"] = "verifyagent";
+
+            sendData["SecureSessionID"] = s_sessionID.ToString();
+
+            string reply = string.Empty;
+            string reqString = ServerUtils.BuildQueryString(sendData);
+            string uri = m_ServerURI + "/presence";
+            // m_log.DebugFormat("[PRESENCE CONNECTOR]: queryString = {0}", reqString);
+            try
+            {
+                reply = SynchronousRestFormsRequester.MakeRequest("POST",
+                        uri,
+                        reqString);
+                if (reply == null || (reply != null && reply == string.Empty))
+                {
+                    m_log.DebugFormat("[PRESENCE CONNECTOR]: VerifyAgent received null or empty reply");
+                    return null;
+                }
+            }
+            catch (Exception e)
+            {
+                m_log.DebugFormat("[PRESENCE CONNECTOR]: Exception when contacting presence server at {0}: {1}", uri, e.Message);
+            }
+
+            Dictionary<string, object> replyData = ServerUtils.ParseXmlResponse(reply);
+            PresenceInfo pinfo = null;
+
+            if ((replyData != null) && replyData.ContainsKey("result") && (replyData["result"] != null))
+            {
+                if (replyData["result"] is Dictionary<string, object>)
+                {
+                    pinfo = new PresenceInfo((Dictionary<string, object>)replyData["result"]);
+                }
+            }
+
+            return pinfo;
+        }
 
         #endregion
 

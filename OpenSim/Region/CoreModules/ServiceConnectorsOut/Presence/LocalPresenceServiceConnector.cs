@@ -193,6 +193,11 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Presence
             return m_PresenceService.GetAgents(userIDs);
         }
 
+        public PresenceInfo VerifyAgent(UUID s_sessionID)
+        {
+            return m_PresenceService.VerifyAgent(s_sessionID);
+        }
+
         #endregion
 
     }

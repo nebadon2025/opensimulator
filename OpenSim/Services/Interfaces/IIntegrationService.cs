@@ -26,33 +26,30 @@
  */
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using OpenMetaverse;
+using OpenMetaverse.StructuredData;
 using OpenSim.Framework;
 
-namespace OpenSim.Data
+namespace OpenSim.Services.Interfaces
 {
-    // This MUST be a ref type!
-    public class PresenceData
+    public interface IIntegrationService
     {
-        public string UserID;
-        public UUID RegionID;
-        public UUID SessionID;
-        public Dictionary<string, string> Data;
-    }
-
-    /// <summary>
-    /// An interface for connecting to the presence datastore
-    /// </summary>
-    public interface IPresenceData 
-    {
-        bool Store(PresenceData data);
-
-        PresenceData Get(UUID sessionID);
-        PresenceData Verify(UUID s_sessionID);
-        void LogoutRegionAgents(UUID regionID);
-        bool ReportAgent(UUID sessionID, UUID regionID);
-        PresenceData[] Get(string field, string data);
-        bool Delete(string field, string val);
+        #region Web handlers
+        byte[] HandleWebListRepositories(OSDMap request);
+        byte[] HandleWebAddRepository(OSDMap request);
+        byte[] HandleWebRemoveRepositroy(OSDMap request);
+        byte[] HandleEnableRepository(OSDMap request);
+        byte[] HandleWebDisableRepository(OSDMap request);
+        byte[] HandleWebListPlugins(OSDMap request);
+        byte[] HandleWebPluginInfo(OSDMap request);
+        byte[] HandleWebListAvailablePlugins(OSDMap request);
+        byte[] HandleWebInstallPlugin(OSDMap request);
+        byte[] HandleWebUnInstallPlugin(OSDMap request);
+        byte[] HandleWebEnablePlugin(OSDMap request);
+        byte[] HandleWebDisablePlugin(OSDMap request);
+        #endregion
     }
 }
+

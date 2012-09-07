@@ -25,34 +25,42 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 using System;
-using System.Collections.Generic;
-using OpenMetaverse;
+using Nini.Config;
+using OpenSim.Server.Base;
+using OpenSim.Services.Interfaces;
+using OpenSim.Framework.Servers.HttpServer;
+using OpenSim.Server.Handlers.Base;
 using OpenSim.Framework;
 
-namespace OpenSim.Data
+
+namespace OpenSim.Server.Handlers.Integration
 {
-    // This MUST be a ref type!
-    public class PresenceData
+    public class IntegrationServiceConnector : ServiceConnector
     {
-        public string UserID;
-        public UUID RegionID;
-        public UUID SessionID;
-        public Dictionary<string, string> Data;
-    }
 
-    /// <summary>
-    /// An interface for connecting to the presence datastore
-    /// </summary>
-    public interface IPresenceData 
-    {
-        bool Store(PresenceData data);
+        private IIntegrationService m_IntegrationService;
+        private string m_ConfigName = "IntegrationService";
 
-        PresenceData Get(UUID sessionID);
-        PresenceData Verify(UUID s_sessionID);
-        void LogoutRegionAgents(UUID regionID);
-        bool ReportAgent(UUID sessionID, UUID regionID);
-        PresenceData[] Get(string field, string data);
-        bool Delete(string field, string val);
+        public IntegrationServiceConnector(IConfigSource config, IHttpServer server, string configName) :
+                base(config, server, configName)
+        {
+            IConfig serverConfig = config.Configs[m_ConfigName];
+            if (serverConfig == null)
+                throw new Exception(String.Format("No section {0} in config file", m_ConfigName));
+
+            string service = serverConfig.GetString("LocalServiceModule",
+                    String.Empty);
+
+            if (service == String.Empty)
+                throw new Exception("No LocalServiceModule in config file");
+
+            Object[] args = new Object[] { config, server };
+            m_IntegrationService = ServerUtils.LoadPlugin<IIntegrationService>(service, args);
+
+            server.AddStreamHandler(new IntegrationServerHandler(m_IntegrationService));
+
+        }
     }
 }

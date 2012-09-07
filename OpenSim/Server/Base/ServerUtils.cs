@@ -35,6 +35,7 @@ using System.Collections.Generic;
 using log4net;
 using OpenSim.Framework;
 using OpenMetaverse;
+using OpenMetaverse.StructuredData;
 
 namespace OpenSim.Server.Base
 {
@@ -332,6 +333,37 @@ namespace OpenSim.Server.Base
             }
 
             return ret;
+        }
+
+        public static bool ParseStringToOSDMap(string input, out OSDMap map)
+        {
+            try
+            {
+                map = null;
+                OSD tmpbuff = null;
+                try
+                {
+                    tmpbuff = OSDParser.DeserializeJson(input);
+                }
+                catch
+                {
+                    m_log.DebugFormat("[ServerUtils]: Parse Caught Error Deserializei {0} ", input);
+                    return false;
+                }
+                if (tmpbuff.Type == OSDType.Map)
+                {
+                    map = (OSDMap)tmpbuff;
+                    return true;
+                }
+                else
+                    return false;
+            }
+            catch (NullReferenceException e)
+            {
+                m_log.ErrorFormat("[ServerUtils]: exception on ParseStringToJson {0}", e.Message);
+                map = null;
+                return false;
+            }
         }
     }
 }

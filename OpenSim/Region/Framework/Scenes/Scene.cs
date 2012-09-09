@@ -123,6 +123,11 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public float m_maxPhys = 10;
 
+        /// <summary>
+        /// Max prims an object will hold
+        /// </summary>
+        public int m_linksetCapacity = 0;
+
         public bool m_clampPrimSize;
         public bool m_trustBinaries;
         public bool m_allowScriptCrossings;
@@ -770,6 +775,12 @@ namespace OpenSim.Region.Framework.Scenes
                 if (RegionInfo.ClampPrimSize)
                 {
                     m_clampPrimSize = true;
+                }
+
+                m_linksetCapacity = startupConfig.GetInt("LinksetPrims", m_linksetCapacity);
+                if (RegionInfo.LinksetCapacity > 0)
+                {
+                    m_linksetCapacity = RegionInfo.LinksetCapacity;
                 }
 
                 m_useTrashOnDelete = startupConfig.GetBoolean("UseTrashOnDelete", m_useTrashOnDelete);
@@ -4332,6 +4343,16 @@ namespace OpenSim.Region.Framework.Scenes
         public LandData GetLandData(float x, float y)
         {
             return LandChannel.GetLandObject(x, y).LandData;
+        }
+
+        /// <summary>
+        /// Get LandData by position.
+        /// </summary>
+        /// <param name="pos"></param>
+        /// <returns></returns>
+        public LandData GetLandData(Vector3 pos)
+        {
+            return GetLandData(pos.X, pos.Y);
         }
 
         public LandData GetLandData(uint x, uint y)

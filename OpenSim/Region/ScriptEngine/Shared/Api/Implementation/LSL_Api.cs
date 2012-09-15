@@ -247,7 +247,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             return GetLinkParts(m_host, linkType);
         }
 
-        private List<SceneObjectPart> GetLinkParts(SceneObjectPart part, int linkType)
+        public static List<SceneObjectPart> GetLinkParts(SceneObjectPart part, int linkType)
         {
             List<SceneObjectPart> ret = new List<SceneObjectPart>();
             ret.Add(part);
@@ -1341,11 +1341,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 scale.y = Math.Max(World.m_minPhys, Math.Min(World.m_maxPhys, scale.y));
                 scale.z = Math.Max(World.m_minPhys, Math.Min(World.m_maxPhys, scale.z));
             }
-
-            // Next we clamp the scale to the non-physical min/max
-            scale.x = Math.Max(World.m_minNonphys, Math.Min(World.m_maxNonphys, scale.x));
-            scale.y = Math.Max(World.m_minNonphys, Math.Min(World.m_maxNonphys, scale.y));
-            scale.z = Math.Max(World.m_minNonphys, Math.Min(World.m_maxNonphys, scale.z));
+            else
+            {
+                // If not physical, then we clamp the scale to the non-physical min/max
+                scale.x = Math.Max(World.m_minNonphys, Math.Min(World.m_maxNonphys, scale.x));
+                scale.y = Math.Max(World.m_minNonphys, Math.Min(World.m_maxNonphys, scale.y));
+                scale.z = Math.Max(World.m_minNonphys, Math.Min(World.m_maxNonphys, scale.z));
+            }
 
             Vector3 tmp = part.Scale;
             tmp.X = (float)scale.x;
@@ -1377,7 +1379,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (face == ScriptBaseClass.ALL_SIDES)
                 face = SceneObjectPart.ALL_SIDES;
 
-            m_host.SetFaceColor(color, face);
+            m_host.SetFaceColorAlpha(face, color, null);
         }
 
         public void SetTexGen(SceneObjectPart part, int face,int style)
@@ -1946,7 +1948,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     pos.x > (Constants.RegionSize + 10) || // return FALSE if more than 10 meters into a east-adjacent region.
                     pos.y < -10.0 || // return FALSE if more than 10 meters into a south-adjacent region.
                     pos.y > (Constants.RegionSize + 10) || // return FALSE if more than 10 meters into a north-adjacent region.
-                    pos.z > 4096 // return FALSE if altitude than 4096m
+                    pos.z > Constants.RegionHeight // return FALSE if altitude than 4096m
                 )
             )
             {
@@ -1957,8 +1959,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             // this could possibly be done in the above else-if block, but we're doing the check here to keep the code easier to read.
 
             Vector3 objectPos = m_host.ParentGroup.RootPart.AbsolutePosition;
-            LandData here = World.GetLandData((float)objectPos.X, (float)objectPos.Y);
-            LandData there = World.GetLandData((float)pos.x, (float)pos.y);
+            LandData here = World.GetLandData(objectPos);
+            LandData there = World.GetLandData(pos);
 
             // we're only checking prim limits if it's moving to a different parcel under the assumption that if the object got onto the parcel without exceeding the prim limits.
 
@@ -3572,7 +3574,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             List<SceneObjectPart> parts = GetLinkParts(linknumber);
 
             foreach (SceneObjectPart part in parts)
-                part.SetFaceColor(color, face);
+                part.SetFaceColorAlpha(face, color, null);
         }
 
         public void llCreateLink(string target, int parent)
@@ -5163,25 +5165,15 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         /// separated list. There is a space after
         /// each comma.
         /// </summary>
-
         public LSL_String llList2CSV(LSL_List src)
         {
-
-            string ret = String.Empty;
-            int    x   = 0;
-
             m_host.AddScriptLPS(1);
 
-            if (src.Data.Length > 0)
-            {
-                ret = src.Data[x++].ToString();
-                for (; x < src.Data.Length; x++)
-                {
-                    ret += ", "+src.Data[x].ToString();
-                }
-            }
-
-            return ret;
+            return string.Join(", ", 
+                    (new List<object>(src.Data)).ConvertAll<string>(o => 
+                    {
+                        return o.ToString();
+                    }).ToArray());
         }
 
         /// <summary>
@@ -5836,7 +5828,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             List<SceneObjectPart> parts = GetLinkParts(linknumber);
 
-            foreach (var part in parts)
+            foreach (SceneObjectPart part in parts)
             {
                 SetTextureAnim(part, mode, face, sizex, sizey, start, length, rate);
             }
@@ -6198,7 +6190,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             List<SceneObjectPart> parts = GetLinkParts(linknumber);
 
-            foreach (var part in parts)
+            foreach (SceneObjectPart part in parts)
             {
                 SetParticleSystem(part, rules);
             }
@@ -7216,7 +7208,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
 
-            setLinkPrimParams(ScriptBaseClass.LINK_THIS, rules);
+            setLinkPrimParams(ScriptBaseClass.LINK_THIS, rules, "llSetPrimitiveParams");
 
             ScriptSleep(200);
         }
@@ -7225,7 +7217,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
 
-            setLinkPrimParams(linknumber, rules);
+            setLinkPrimParams(linknumber, rules, "llSetLinkPrimitiveParams");
 
             ScriptSleep(200);
         }
@@ -7234,32 +7226,34 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
 
-            setLinkPrimParams(linknumber, rules);
+            setLinkPrimParams(linknumber, rules, "llSetLinkPrimitiveParamsFast");
         }
 
-        protected void setLinkPrimParams(int linknumber, LSL_List rules)
+        protected void setLinkPrimParams(int linknumber, LSL_List rules, string originFunc)
         {
             List<SceneObjectPart> parts = GetLinkParts(linknumber);
 
             LSL_List remaining = null;
+            uint rulesParsed = 0;
 
             foreach (SceneObjectPart part in parts)
-                remaining = SetPrimParams(part, rules);
+                remaining = SetPrimParams(part, rules, originFunc, ref rulesParsed);
 
-            while(remaining != null && remaining.Length > 2)
+            while (remaining != null && remaining.Length > 2)
             {
                 linknumber = remaining.GetLSLIntegerItem(0);
-                rules = remaining.GetSublist(1,-1);
+                rules = remaining.GetSublist(1, -1);
                 parts = GetLinkParts(linknumber);
 
                 foreach (SceneObjectPart part in parts)
-                    remaining = SetPrimParams(part, rules);
+                    remaining = SetPrimParams(part, rules, originFunc, ref rulesParsed);
             }
         }
 
-        protected LSL_List SetPrimParams(SceneObjectPart part, LSL_List rules)
+        protected LSL_List SetPrimParams(SceneObjectPart part, LSL_List rules, string originFunc, ref uint rulesParsed)
         {
             int idx = 0;
+            int idxStart = 0;
 
             bool positionChanged = false;
             LSL_Vector currentPosition = GetPartLocalPos(part);
@@ -7268,9 +7262,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 while (idx < rules.Length)
                 {
+                    ++rulesParsed;
                     int code = rules.GetLSLIntegerItem(idx++);
 
                     int remain = rules.Length - idx;
+                    idxStart = idx;
 
                     int face;
                     LSL_Vector v;
@@ -7484,8 +7480,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             LSL_Vector color=rules.GetVector3Item(idx++);
                             double alpha=(double)rules.GetLSLFloatItem(idx++);
 
-                            part.SetFaceColor(color, face);
-                            SetAlpha(part, alpha, face);
+                            part.SetFaceColorAlpha(face, color, alpha);
 
                             break;
 
@@ -7648,7 +7643,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
             catch (InvalidCastException e)
             {
-                ShoutError(e.Message);
+                ShoutError(string.Format(
+                        "{0} error running rule #{1}: arg #{2} ",
+                        originFunc, rulesParsed, idx - idxStart) + e.Message);
             }
             finally
             {
@@ -7919,7 +7916,22 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_List llGetPrimitiveParams(LSL_List rules)
         {
             m_host.AddScriptLPS(1);
-            return GetLinkPrimitiveParams(m_host, rules);
+
+            LSL_List result = new LSL_List();
+
+            LSL_List remaining = GetPrimParams(m_host, rules, ref result);
+
+            while (remaining != null && remaining.Length > 2)
+            {
+                int linknumber = remaining.GetLSLIntegerItem(0);
+                rules = remaining.GetSublist(1, -1);
+                List<SceneObjectPart> parts = GetLinkParts(linknumber);
+
+                foreach (SceneObjectPart part in parts)
+                    remaining = GetPrimParams(part, rules, ref result);
+            }
+
+            return result;
         }
 
         public LSL_List llGetLinkPrimitiveParams(int linknumber, LSL_List rules)
@@ -7929,19 +7941,28 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             List<SceneObjectPart> parts = GetLinkParts(linknumber);
 
             LSL_List res = new LSL_List();
+            LSL_List remaining = null;
 
-            foreach (var part in parts)
+            foreach (SceneObjectPart part in parts)
             {
-                LSL_List partRes = GetLinkPrimitiveParams(part, rules);
-                res += partRes;
+                remaining = GetPrimParams(part, rules, ref res);
+            }
+
+            while (remaining != null && remaining.Length > 2)
+            {
+                linknumber = remaining.GetLSLIntegerItem(0);
+                rules = remaining.GetSublist(1, -1);
+                parts = GetLinkParts(linknumber);
+
+                foreach (SceneObjectPart part in parts)
+                    remaining = GetPrimParams(part, rules, ref res);
             }
 
             return res;
         }
 
-        public LSL_List GetLinkPrimitiveParams(SceneObjectPart part, LSL_List rules)
+        public LSL_List GetPrimParams(SceneObjectPart part, LSL_List rules, ref LSL_List res)
         {
-            LSL_List res = new LSL_List();
             int idx=0;
             while (idx < rules.Length)
             {
@@ -8086,7 +8107,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                     case (int)ScriptBaseClass.PRIM_TEXTURE:
                         if (remain < 1)
-                            return res;
+                            return null;
 
                         int face = (int)rules.GetLSLIntegerItem(idx++);
                         Primitive.TextureEntry tex = part.Shape.Textures;
@@ -8126,7 +8147,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                     case (int)ScriptBaseClass.PRIM_COLOR:
                         if (remain < 1)
-                            return res;
+                            return null;
 
                         face=(int)rules.GetLSLIntegerItem(idx++);
 
@@ -8155,7 +8176,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                     case (int)ScriptBaseClass.PRIM_BUMP_SHINY:
                         if (remain < 1)
-                            return res;
+                            return null;
 
                         face=(int)rules.GetLSLIntegerItem(idx++);
 
@@ -8186,7 +8207,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                     case (int)ScriptBaseClass.PRIM_FULLBRIGHT:
                         if (remain < 1)
-                            return res;
+                            return null;
 
                         face=(int)rules.GetLSLIntegerItem(idx++);
 
@@ -8228,7 +8249,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                     case (int)ScriptBaseClass.PRIM_TEXGEN:
                         if (remain < 1)
-                            return res;
+                            return null;
 
                         face=(int)rules.GetLSLIntegerItem(idx++);
 
@@ -8269,7 +8290,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                     case (int)ScriptBaseClass.PRIM_GLOW:
                         if (remain < 1)
-                            return res;
+                            return null;
 
                         face=(int)rules.GetLSLIntegerItem(idx++);
 
@@ -8321,9 +8342,15 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             0
                         ));
                         break;
+                    case (int)ScriptBaseClass.PRIM_LINK_TARGET:
+                        if(remain < 3)
+                            return null;
+
+                        return rules.GetSublist(idx, -1);
                 }
             }
-            return res;
+
+            return null;
         }
 
         public LSL_List llGetPrimMediaParams(int face, LSL_List rules)
@@ -9743,20 +9770,20 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     switch ((ParcelMediaCommandEnum) aList.Data[i])
                     {
                         case ParcelMediaCommandEnum.Url:
-                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).MediaURL));
+                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition).MediaURL));
                             break;
                         case ParcelMediaCommandEnum.Desc:
-                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).Description));
+                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition).Description));
                             break;
                         case ParcelMediaCommandEnum.Texture:
-                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).MediaID.ToString()));
+                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition).MediaID.ToString()));
                             break;
                         case ParcelMediaCommandEnum.Type:
-                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).MediaType));
+                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition).MediaType));
                             break;
                         case ParcelMediaCommandEnum.Size:
-                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).MediaWidth));
-                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).MediaHeight));
+                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition).MediaWidth));
+                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition).MediaHeight));
                             break;
                         default:
                             ParcelMediaCommandEnum mediaCommandEnum = ParcelMediaCommandEnum.Url;
@@ -10092,31 +10119,30 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_Float llListStatistics(int operation, LSL_List src)
         {
             m_host.AddScriptLPS(1);
-            LSL_List nums = LSL_List.ToDoubleList(src);
             switch (operation)
             {
                 case ScriptBaseClass.LIST_STAT_RANGE:
-                    return nums.Range();
+                    return src.Range();
                 case ScriptBaseClass.LIST_STAT_MIN:
-                    return nums.Min();
+                    return src.Min();
                 case ScriptBaseClass.LIST_STAT_MAX:
-                    return nums.Max();
+                    return src.Max();
                 case ScriptBaseClass.LIST_STAT_MEAN:
-                    return nums.Mean();
+                    return src.Mean();
                 case ScriptBaseClass.LIST_STAT_MEDIAN:
-                    return nums.Median();
+                    return LSL_List.ToDoubleList(src).Median();
                 case ScriptBaseClass.LIST_STAT_NUM_COUNT:
-                    return nums.NumericLength();
+                    return src.NumericLength();
                 case ScriptBaseClass.LIST_STAT_STD_DEV:
-                    return nums.StdDev();
+                    return src.StdDev();
                 case ScriptBaseClass.LIST_STAT_SUM:
-                    return nums.Sum();
+                    return src.Sum();
                 case ScriptBaseClass.LIST_STAT_SUM_SQUARES:
-                    return nums.SumSqrs();
+                    return src.SumSqrs();
                 case ScriptBaseClass.LIST_STAT_GEOMETRIC_MEAN:
-                    return nums.GeometricMean();
+                    return src.GeometricMean();
                 case ScriptBaseClass.LIST_STAT_HARMONIC_MEAN:
-                    return nums.HarmonicMean();
+                    return src.HarmonicMean();
                 default:
                     return 0.0;
             }
@@ -10372,7 +10398,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_List llGetParcelDetails(LSL_Vector pos, LSL_List param)
         {
             m_host.AddScriptLPS(1);
-            LandData land = World.GetLandData((float)pos.x, (float)pos.y);
+            LandData land = World.GetLandData(pos);
             if (land == null)
             {
                 return new LSL_List(0);
@@ -10740,7 +10766,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             return tid.ToString();
         }
 
-        public void SetPrimitiveParamsEx(LSL_Key prim, LSL_List rules)
+        public void SetPrimitiveParamsEx(LSL_Key prim, LSL_List rules, string originFunc)
         {
             SceneObjectPart obj = World.GetSceneObjectPart(new UUID(prim));
             if (obj == null)
@@ -10749,28 +10775,41 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (obj.OwnerID != m_host.OwnerID)
                 return;
 
-            LSL_List remaining = SetPrimParams(obj, rules);
+            uint rulesParsed = 0;
+            LSL_List remaining = SetPrimParams(obj, rules, originFunc, ref rulesParsed);
 
             while ((object)remaining != null && remaining.Length > 2)
             {
                 LSL_Integer newLink = remaining.GetLSLIntegerItem(0);
                 LSL_List newrules = remaining.GetSublist(1, -1);
                 foreach(SceneObjectPart part in GetLinkParts(obj, newLink)){
-                    remaining = SetPrimParams(part, newrules);
+                    remaining = SetPrimParams(part, newrules, originFunc, ref rulesParsed);
                 }
             }
         }
 
-        public LSL_List GetLinkPrimitiveParamsEx(LSL_Key prim, LSL_List rules)
+        public LSL_List GetPrimitiveParamsEx(LSL_Key prim, LSL_List rules)
         {
             SceneObjectPart obj = World.GetSceneObjectPart(new UUID(prim));
-            if (obj == null)
-                return new LSL_List();
 
-            if (obj.OwnerID != m_host.OwnerID)
-                return new LSL_List();
+            LSL_List result = new LSL_List();
 
-            return GetLinkPrimitiveParams(obj, rules);
+            if (obj != null && obj.OwnerID != m_host.OwnerID)
+            {
+                LSL_List remaining = GetPrimParams(obj, rules, ref result);
+
+                while (remaining != null && remaining.Length > 2)
+                {
+                    int linknumber = remaining.GetLSLIntegerItem(0);
+                    rules = remaining.GetSublist(1, -1);
+                    List<SceneObjectPart> parts = GetLinkParts(linknumber);
+
+                    foreach (SceneObjectPart part in parts)
+                        remaining = GetPrimParams(part, rules, ref result);
+                }
+            }
+
+            return result;
         }
 
         public void print(string str)

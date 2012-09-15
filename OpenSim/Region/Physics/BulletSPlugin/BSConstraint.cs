@@ -48,11 +48,10 @@ public abstract class BSConstraint : IDisposable
     {
         if (m_enabled)
         {
-            // BulletSimAPI.RemoveConstraint(m_world.ID, m_body1.ID, m_body2.ID);
+            m_enabled = false;
             bool success = BulletSimAPI.DestroyConstraint2(m_world.Ptr, m_constraint.Ptr);
             m_world.scene.DetailLog("{0},BSConstraint.Dispose,taint,body1={1},body2={2},success={3}", BSScene.DetailLogZero, m_body1.ID, m_body2.ID, success);
             m_constraint.Ptr = System.IntPtr.Zero;
-            m_enabled = false;
         }
     }
 
@@ -99,6 +98,10 @@ public abstract class BSConstraint : IDisposable
             {
                 // m_world.scene.PhysicsLogging.Write("{0},BSConstraint.RecomputeConstraintVariables,taint,enabling,A={1},B={2}",
                 //                 BSScene.DetailLogZero, Body1.ID, Body2.ID);
+
+                // Setting an object's mass to zero (making it static like when it's selected)
+                //     automatically disables the constraints.
+                // If enabled, be sure to set the constraint itself to enabled.
                 BulletSimAPI.SetConstraintEnable2(m_constraint.Ptr, m_world.scene.NumericBool(true));
             }
             else

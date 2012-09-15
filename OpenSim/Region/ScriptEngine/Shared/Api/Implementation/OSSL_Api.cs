@@ -140,11 +140,15 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         internal float m_ScriptDistanceFactor = 1.0f;
         internal Dictionary<string, FunctionPerms > m_FunctionPerms = new Dictionary<string, FunctionPerms >();
 
+        protected IUrlModule m_UrlModule = null;
+
         public void Initialize(IScriptEngine ScriptEngine, SceneObjectPart host, TaskInventoryItem item)
         {
             m_ScriptEngine = ScriptEngine;
             m_host = host;
             m_item = item;
+
+            m_UrlModule = m_ScriptEngine.World.RequestModuleInterface<IUrlModule>();
 
             if (m_ScriptEngine.Config.GetBoolean("AllowOSFunctions", false))
                 m_OSFunctionsEnabled = true;
@@ -1669,6 +1673,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 return;
             }
 
+            MessageObject(objUUID, message);
+        }
+
+        private void MessageObject(UUID objUUID, string message)
+        {
             object[] resobj = new object[] { new LSL_Types.LSLString(m_host.UUID.ToString()), new LSL_Types.LSLString(message) };
 
             SceneObjectPart sceneOP = World.GetSceneObjectPart(objUUID);
@@ -2246,11 +2255,25 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             CheckThreatLevel(ThreatLevel.High, "osGetLinkPrimitiveParams");
             m_host.AddScriptLPS(1);
             InitLSL();
+            // One needs to cast m_LSL_Api because we're using functions not
+            // on the ILSL_Api interface.
+            LSL_Api LSL_Api = (LSL_Api)m_LSL_Api;
             LSL_List retVal = new LSL_List();
-            List<SceneObjectPart> parts = ((LSL_Api)m_LSL_Api).GetLinkParts(linknumber);
+            LSL_List remaining = null;
+            List<SceneObjectPart> parts = LSL_Api.GetLinkParts(linknumber);
             foreach (SceneObjectPart part in parts)
             {
-                retVal += ((LSL_Api)m_LSL_Api).GetLinkPrimitiveParams(part, rules);
+                remaining = LSL_Api.GetPrimParams(part, rules, ref retVal);
+            }
+
+            while (remaining != null && remaining.Length > 2)
+            {
+                linknumber = remaining.GetLSLIntegerItem(0);
+                rules = remaining.GetSublist(1, -1);
+                parts = LSL_Api.GetLinkParts(linknumber);
+
+                foreach (SceneObjectPart part in parts)
+                    remaining = LSL_Api.GetPrimParams(part, rules, ref retVal);
             }
             return retVal;
         }
@@ -2877,7 +2900,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 avatar.SpeedModifier = (float)SpeedModifier;
         }
         
-        public void osKickAvatar(string FirstName,string SurName,string alert)
+        public void osKickAvatar(string FirstName, string SurName, string alert)
         {
             CheckThreatLevel(ThreatLevel.Severe, "osKickAvatar");
             m_host.AddScriptLPS(1);
@@ -2891,9 +2914,20 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         sp.ControllingClient.Kick(alert);
 
                     // ...and close on our side
-                    sp.Scene.IncomingCloseAgent(sp.UUID);
+                    sp.Scene.IncomingCloseAgent(sp.UUID, false);
                 }
             });
+        }
+
+        public LSL_Float osGetHealth(string avatar)
+        {
+            CheckThreatLevel(ThreatLevel.None, "osGetHealth");
+            m_host.AddScriptLPS(1);
+
+            LSL_Float health = new LSL_Float(-1);
+            ScenePresence presence = World.GetScenePresence(new UUID(avatar));
+            if (presence != null) health = presence.Health;
+            return health;
         }
         
         public void osCauseDamage(string avatar, double damage)
@@ -2907,7 +2941,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             ScenePresence presence = World.GetScenePresence(avatarId); 
             if (presence != null)
             {
-                LandData land = World.GetLandData((float)pos.X, (float)pos.Y);
+                LandData land = World.GetLandData(pos);
                 if ((land.Flags & (uint)ParcelFlags.AllowDamage) == (uint)ParcelFlags.AllowDamage)
                 {
                     float health = presence.Health;
@@ -2954,7 +2988,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.AddScriptLPS(1);
             InitLSL();
             
-            return m_LSL_Api.GetLinkPrimitiveParamsEx(prim, rules);
+            return m_LSL_Api.GetPrimitiveParamsEx(prim, rules);
         }
 
         public void osSetPrimitiveParams(LSL_Key prim, LSL_List rules)
@@ -2963,7 +2997,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.AddScriptLPS(1);
             InitLSL();
             
-            m_LSL_Api.SetPrimitiveParamsEx(prim, rules);
+            m_LSL_Api.SetPrimitiveParamsEx(prim, rules, "osSetPrimitiveParams");
         }
         
         /// <summary>
@@ -3195,6 +3229,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
         }
 
+        #region Attachment commands
+
         public void osForceAttachToAvatar(int attachmentPoint)
         {
             CheckThreatLevel(ThreatLevel.High, "osForceAttachToAvatar");
@@ -3284,6 +3320,175 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             ((LSL_Api)m_LSL_Api).DetachFromAvatar();
         }
 
+        public LSL_List osGetNumberOfAttachments(LSL_Key avatar, LSL_List attachmentPoints)
+        {
+            CheckThreatLevel(ThreatLevel.Moderate, "osGetNumberOfAttachments");
+
+            m_host.AddScriptLPS(1);
+
+            UUID targetUUID;
+            ScenePresence target;
+            LSL_List resp = new LSL_List();
+
+            if (attachmentPoints.Length >= 1 && UUID.TryParse(avatar.ToString(), out targetUUID) && World.TryGetScenePresence(targetUUID, out target))
+            {
+                foreach (object point in attachmentPoints.Data)
+                {
+                    LSL_Integer ipoint = new LSL_Integer(
+                        (point is LSL_Integer || point is int || point is uint) ?
+                            (int)point :
+                            0
+                    );
+                    resp.Add(ipoint);
+                    if (ipoint == 0)
+                    {
+                        // indicates zero attachments
+                        resp.Add(new LSL_Integer(0));
+                    }
+                    else
+                    {
+                        // gets the number of attachments on the attachment point
+                        resp.Add(new LSL_Integer(target.GetAttachments((uint)ipoint).Count));
+                    }
+                }
+            }
+
+            return resp;
+        }
+
+        public void osMessageAttachments(LSL_Key avatar, string message, LSL_List attachmentPoints, int options)
+        {
+            CheckThreatLevel(ThreatLevel.Moderate, "osMessageAttachments");
+            m_host.AddScriptLPS(1);
+
+            UUID targetUUID;
+            ScenePresence target;
+
+            if (attachmentPoints.Length >= 1 && UUID.TryParse(avatar.ToString(), out targetUUID) && World.TryGetScenePresence(targetUUID, out target))
+            {
+                List<int> aps = new List<int>();
+                foreach (object point in attachmentPoints.Data)
+                {
+                    int ipoint;
+                    if (int.TryParse(point.ToString(), out ipoint))
+                    {
+                        aps.Add(ipoint);
+                    }
+                }
+
+                List<SceneObjectGroup> attachments = new List<SceneObjectGroup>();
+
+                bool msgAll = aps.Contains(ScriptBaseClass.OS_ATTACH_MSG_ALL);
+                bool invertPoints = (options & ScriptBaseClass.OS_ATTACH_MSG_INVERT_POINTS) != 0;
+
+                if (msgAll && invertPoints)
+                {
+                    return;
+                }
+                else if (msgAll || invertPoints)
+                {
+                    attachments = target.GetAttachments();
+                }
+                else
+                {
+                    foreach (int point in aps)
+                    {
+                        if (point > 0)
+                        {
+                            attachments.AddRange(target.GetAttachments((uint)point));
+                        }
+                    }
+                }
+
+                // if we have no attachments at this point, exit now
+                if (attachments.Count == 0)
+                {
+                    return;
+                }
+
+                List<SceneObjectGroup> ignoreThese = new List<SceneObjectGroup>();
+
+                if (invertPoints)
+                {
+                    foreach (SceneObjectGroup attachment in attachments)
+                    {
+                        if (aps.Contains((int)attachment.AttachmentPoint))
+                        {
+                            ignoreThese.Add(attachment);
+                        }
+                    }
+                }
+
+                foreach (SceneObjectGroup attachment in ignoreThese)
+                {
+                    attachments.Remove(attachment);
+                }
+                ignoreThese.Clear();
+
+                // if inverting removed all attachments to check, exit now
+                if (attachments.Count < 1)
+                {
+                    return;
+                }
+
+                if ((options & ScriptBaseClass.OS_ATTACH_MSG_OBJECT_CREATOR) != 0)
+                {
+                    foreach (SceneObjectGroup attachment in attachments)
+                    {
+                        if (attachment.RootPart.CreatorID != m_host.CreatorID)
+                        {
+                            ignoreThese.Add(attachment);
+                        }
+                    }
+
+                    foreach (SceneObjectGroup attachment in ignoreThese)
+                    {
+                        attachments.Remove(attachment);
+                    }
+                    ignoreThese.Clear();
+
+                    // if filtering by same object creator removed all
+                    //  attachments to check, exit now
+                    if (attachments.Count == 0)
+                    {
+                        return;
+                    }
+                }
+
+                if ((options & ScriptBaseClass.OS_ATTACH_MSG_SCRIPT_CREATOR) != 0)
+                {
+                    foreach (SceneObjectGroup attachment in attachments)
+                    {
+                        if (attachment.RootPart.CreatorID != m_item.CreatorID)
+                        {
+                            ignoreThese.Add(attachment);
+                        }
+                    }
+
+                    foreach (SceneObjectGroup attachment in ignoreThese)
+                    {
+                        attachments.Remove(attachment);
+                    }
+                    ignoreThese.Clear();
+
+                    // if filtering by object creator must match originating
+                    //  script creator removed all attachments to check,
+                    //  exit now
+                    if (attachments.Count == 0)
+                    {
+                        return;
+                    }
+                }
+
+                foreach (SceneObjectGroup attachment in attachments)
+                {
+                    MessageObject(attachment.RootPart.UUID, message);
+                }
+            }
+        }
+
+        #endregion
+
         /// <summary>
         /// Checks if thing is a UUID.
         /// </summary>
@@ -3333,5 +3538,17 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             return new LSL_Key(m_host.ParentGroup.FromPartID.ToString());
         }
-    }
+ 
+        /// <summary>
+        /// Sets the response type for an HTTP request/response
+        /// </summary>
+        /// <returns></returns>
+        public void osSetContentType(LSL_Key id, string type)
+        {
+            CheckThreatLevel(ThreatLevel.High,"osSetResponseType");
+            if (m_UrlModule != null)
+                m_UrlModule.HttpContentType(new UUID(id),type);
+        }
+        
+   }
 }

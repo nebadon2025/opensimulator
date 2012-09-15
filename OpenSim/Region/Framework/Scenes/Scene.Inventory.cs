@@ -93,7 +93,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         public void StartScripts()
         {
-            m_log.InfoFormat("[SCENE]: Starting scripts in {0}, please wait.", RegionInfo.RegionName);
+//            m_log.InfoFormat("[SCENE]: Starting scripts in {0}, please wait.", RegionInfo.RegionName);
 
             IScriptModule[] engines = RequestModuleInterfaces<IScriptModule>();
 
@@ -1942,6 +1942,9 @@ namespace OpenSim.Region.Framework.Scenes
 
                 deleteIDs.Add(localID);
                 deleteGroups.Add(grp);
+
+                // If child prims have invalid perms, fix them
+                grp.AdjustChildPrimPermissions();
 
                 if (remoteClient == null)
                 {

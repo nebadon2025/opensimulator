@@ -2014,6 +2014,25 @@ namespace OpenSim.Region.Framework.Scenes
             if (objectGroup == this)
                 return;
 
+            // If the configured linkset capacity is greater than zero,
+            // and the new linkset would have a prim count higher than this
+            // value, do not link it.
+            if (m_scene.m_linksetCapacity > 0 &&
+                    (PrimCount + objectGroup.PrimCount) >
+                    m_scene.m_linksetCapacity)
+            {
+                m_log.DebugFormat(
+                    "[SCENE OBJECT GROUP]: Cannot link group with root" +
+                    " part {0}, {1} ({2} prims) to group with root part" +
+                    " {3}, {4} ({5} prims) because the new linkset" +
+                    " would exceed the configured maximum of {6}",
+                    objectGroup.RootPart.Name, objectGroup.RootPart.UUID,
+                    objectGroup.PrimCount, RootPart.Name, RootPart.UUID,
+                    PrimCount, m_scene.m_linksetCapacity);
+
+                return;
+            }
+
             // 'linkPart' == the root of the group being linked into this group
             SceneObjectPart linkPart = objectGroup.m_rootPart;
 
@@ -2130,6 +2149,9 @@ namespace OpenSim.Region.Framework.Scenes
 
             // Can't do this yet since backup still makes use of the root part without any synchronization
 //            objectGroup.m_rootPart = null;
+
+            // If linking prims with different permissions, fix them
+            AdjustChildPrimPermissions();
 
             AttachToBackup();
 
@@ -2622,12 +2644,21 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        public void AdjustChildPrimPermissions()
+        {
+            ForEachPart(part =>
+            {
+                if (part != RootPart)
+                    part.ClonePermissions(RootPart);
+            });
+        }
+
         public void UpdatePermissions(UUID AgentID, byte field, uint localID,
                 uint mask, byte addRemTF)
         {
-            SceneObjectPart[] parts = m_parts.GetArray();
-            for (int i = 0; i < parts.Length; i++)
-                parts[i].UpdatePermissions(AgentID, field, localID, mask, addRemTF);
+            RootPart.UpdatePermissions(AgentID, field, localID, mask, addRemTF);
+
+            AdjustChildPrimPermissions();
 
             HasGroupChanged = true;
 

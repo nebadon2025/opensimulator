@@ -37,7 +37,7 @@ using OpenSim.Region.Physics.ConvexDecompositionDotNet;
 namespace OpenSim.Region.Physics.BulletSPlugin
 {
     [Serializable]
-public sealed class BSPrim : PhysicsActor
+public sealed class BSPrim : BSPhysObject
 {
     private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
     private static readonly string LogHeader = "[BULLETS PRIM]";
@@ -88,23 +88,16 @@ public sealed class BSPrim : PhysicsActor
     private float _buoyancy;
 
     // Membership in a linkset is controlled by this class.
-    private BSLinkset _linkset;
-    public BSLinkset Linkset
-    {
-        get { return _linkset; }
-        set { _linkset = value; }
-    }
+    public override BSLinkset Linkset { get; set; }
 
     private int _subscribedEventsMs = 0;
     private int _nextCollisionOkTime = 0;
     long _collidingStep;
     long _collidingGroundStep;
+    CollisionFlags m_currentCollisionFlags = 0;
 
-    private BulletBody m_body;
-    public BulletBody Body { 
-        get { return m_body; }
-        set { m_body = value; }
-    }
+    public override BulletBody BSBody { get; set; }
+    public override BulletShape BSShape { get; set; }
 
     private BSDynamics _vehicle;
 
@@ -122,6 +115,7 @@ public sealed class BSPrim : PhysicsActor
         // m_log.DebugFormat("{0}: BSPrim creation of {1}, id={2}", LogHeader, primName, localID);
         _localID = localID;
         _avName = primName;
+        _physicsActorType = (int)ActorTypes.Prim;
         _scene = parent_scene;
         _position = pos;
         _size = size;
@@ -139,7 +133,7 @@ public sealed class BSPrim : PhysicsActor
         _friction = _scene.Params.defaultFriction;  // TODO: compute based on object material
         _density = _scene.Params.defaultDensity;    // TODO: compute based on object material
         _restitution = _scene.Params.defaultRestitution;
-        _linkset = new BSLinkset(Scene, this);     // a linkset of one
+        Linkset = new BSLinkset(Scene, this);     // a linkset of one
         _vehicle = new BSDynamics(Scene, this);            // add vehicleness
         _mass = CalculateMass();
         // do the actual object creation at taint time
@@ -151,23 +145,25 @@ public sealed class BSPrim : PhysicsActor
             // Get the pointer to the physical body for this object.
             // At the moment, we're still letting BulletSim manage the creation and destruction
             //    of the object. Someday we'll move that into the C# code.
-            m_body = new BulletBody(LocalID, BulletSimAPI.GetBodyHandle2(_scene.World.Ptr, LocalID));
+            BSBody = new BulletBody(LocalID, BulletSimAPI.GetBodyHandle2(_scene.World.Ptr, LocalID));
+            BSShape = new BulletShape(BulletSimAPI.GetCollisionShape2(BSBody.Ptr));
+            m_currentCollisionFlags = BulletSimAPI.GetCollisionFlags2(BSBody.Ptr);
         });
     }
 
     // called when this prim is being destroyed and we should free all the resources
-    public void Destroy()
+    public override void Destroy()
     {
         // m_log.DebugFormat("{0}: Destroy, id={1}", LogHeader, LocalID);
 
         // Undo any links between me and any other object
-        BSPrim parentBefore = _linkset.LinksetRoot;
-        int childrenBefore = _linkset.NumberOfChildren;
+        BSPhysObject parentBefore = Linkset.LinksetRoot;
+        int childrenBefore = Linkset.NumberOfChildren;
 
-        _linkset = _linkset.RemoveMeFromLinkset(this);
+        Linkset = Linkset.RemoveMeFromLinkset(this);
 
         DetailLog("{0},BSPrim.Destroy,call,parentBefore={1},childrenBefore={2},parentAfter={3},childrenAfter={4}",
-            LocalID, parentBefore.LocalID, childrenBefore, _linkset.LinksetRoot.LocalID, _linkset.NumberOfChildren);
+            LocalID, parentBefore.LocalID, childrenBefore, Linkset.LinksetRoot.LocalID, Linkset.NumberOfChildren);
 
         // Undo any vehicle properties
         this.VehicleType = (int)Vehicle.TYPE_NONE;
@@ -230,13 +226,13 @@ public sealed class BSPrim : PhysicsActor
         BSPrim parent = obj as BSPrim;
         if (parent != null)
         {
-            BSPrim parentBefore = _linkset.LinksetRoot;
-            int childrenBefore = _linkset.NumberOfChildren;
+            BSPhysObject parentBefore = Linkset.LinksetRoot;
+            int childrenBefore = Linkset.NumberOfChildren;
 
-            _linkset = parent.Linkset.AddMeToLinkset(this);
+            Linkset = parent.Linkset.AddMeToLinkset(this);
 
             DetailLog("{0},BSPrim.link,call,parentBefore={1}, childrenBefore=={2}, parentAfter={3}, childrenAfter={4}", 
-                LocalID, parentBefore.LocalID, childrenBefore, _linkset.LinksetRoot.LocalID, _linkset.NumberOfChildren);
+                LocalID, parentBefore.LocalID, childrenBefore, Linkset.LinksetRoot.LocalID, Linkset.NumberOfChildren);
         }
         return; 
     }
@@ -246,13 +242,13 @@ public sealed class BSPrim : PhysicsActor
         // TODO: decide if this parent checking needs to happen at taint time
         // Race condition here: if link() and delink() in same simulation tick, the delink will not happen
 
-        BSPrim parentBefore = _linkset.LinksetRoot;
-        int childrenBefore = _linkset.NumberOfChildren;
+        BSPhysObject parentBefore = Linkset.LinksetRoot;
+        int childrenBefore = Linkset.NumberOfChildren;
         
-        _linkset = _linkset.RemoveMeFromLinkset(this);
+        Linkset = Linkset.RemoveMeFromLinkset(this);
 
         DetailLog("{0},BSPrim.delink,parentBefore={1},childrenBefore={2},parentAfter={3},childrenAfter={4}, ", 
-            LocalID, parentBefore.LocalID, childrenBefore, _linkset.LinksetRoot.LocalID, _linkset.NumberOfChildren);
+            LocalID, parentBefore.LocalID, childrenBefore, Linkset.LinksetRoot.LocalID, Linkset.NumberOfChildren);
         return; 
     }
 
@@ -260,17 +256,17 @@ public sealed class BSPrim : PhysicsActor
     // Do it to the properties so the values get set in the physics engine.
     // Push the setting of the values to the viewer.
     // Called at taint time!
-    public void ZeroMotion()
+    public override void ZeroMotion()
     {
         _velocity = OMV.Vector3.Zero;
         _acceleration = OMV.Vector3.Zero;
         _rotationalVelocity = OMV.Vector3.Zero;
 
         // Zero some other properties directly into the physics engine
-        BulletSimAPI.SetVelocity2(Body.Ptr, OMV.Vector3.Zero);
-        BulletSimAPI.SetAngularVelocity2(Body.Ptr, OMV.Vector3.Zero);
-        BulletSimAPI.SetInterpolation2(Body.Ptr, OMV.Vector3.Zero, OMV.Vector3.Zero);
-        BulletSimAPI.ClearForces2(Body.Ptr);
+        BulletSimAPI.SetLinearVelocity2(BSBody.Ptr, OMV.Vector3.Zero);
+        BulletSimAPI.SetAngularVelocity2(BSBody.Ptr, OMV.Vector3.Zero);
+        BulletSimAPI.SetInterpolationVelocity2(BSBody.Ptr, OMV.Vector3.Zero, OMV.Vector3.Zero);
+        BulletSimAPI.ClearForces2(BSBody.Ptr);
     }
 
     public override void LockAngularMotion(OMV.Vector3 axis)
@@ -281,7 +277,7 @@ public sealed class BSPrim : PhysicsActor
 
     public override OMV.Vector3 Position { 
         get { 
-            if (!_linkset.IsRoot(this))
+            if (!Linkset.IsRoot(this))
                 // child prims move around based on their parent. Need to get the latest location
                 _position = BulletSimAPI.GetObjectPosition(_scene.WorldID, _localID);
 
@@ -306,23 +302,23 @@ public sealed class BSPrim : PhysicsActor
     { 
         get
         {
-            return _linkset.LinksetMass;
+            return Linkset.LinksetMass;
         }
     }
 
     // used when we only want this prim's mass and not the linkset thing
-    public float MassRaw { get { return _mass; } }
+    public override float MassRaw { get { return _mass; }  }
 
     // Is this used?
     public override OMV.Vector3 CenterOfMass
     {
-        get { return _linkset.CenterOfMass; }
+        get { return Linkset.CenterOfMass; }
     }
 
     // Is this used?
     public override OMV.Vector3 GeometricCenter
     {
-        get { return _linkset.GeometricCenter; }
+        get { return Linkset.GeometricCenter; }
     }
 
     public override OMV.Vector3 Force { 
@@ -333,7 +329,7 @@ public sealed class BSPrim : PhysicsActor
             {
                 DetailLog("{0},BSPrim.setForce,taint,force={1}", LocalID, _force);
                 // BulletSimAPI.SetObjectForce(_scene.WorldID, _localID, _force);
-                BulletSimAPI.SetObjectForce2(Body.Ptr, _force);
+                BulletSimAPI.SetObjectForce2(BSBody.Ptr, _force);
             });
         } 
     }
@@ -386,7 +382,7 @@ public sealed class BSPrim : PhysicsActor
 
     // Called each simulation step to advance vehicle characteristics.
     // Called from Scene when doing simulation step so we're in taint processing time.
-    public void StepVehicle(float timeStep)
+    public override void StepVehicle(float timeStep)
     {
         if (IsPhysical)
             _vehicle.Step(timeStep);
@@ -431,7 +427,7 @@ public sealed class BSPrim : PhysicsActor
     }
     public override OMV.Quaternion Orientation { 
         get {
-            if (!_linkset.IsRoot(this))
+            if (!Linkset.IsRoot(this))
             {
                 // Children move around because tied to parent. Get a fresh value.
                 _orientation = BulletSimAPI.GetObjectOrientation(_scene.WorldID, LocalID);
@@ -451,8 +447,7 @@ public sealed class BSPrim : PhysicsActor
     }
     public override int PhysicsActorType { 
         get { return _physicsActorType; } 
-        set { _physicsActorType = value; 
-        } 
+        set { _physicsActorType = value; } 
     }
     public override bool IsPhysical { 
         get { return _isPhysical; } 
@@ -479,6 +474,11 @@ public sealed class BSPrim : PhysicsActor
 
     // Make gravity work if the object is physical and not selected
     // No locking here because only called when it is safe
+    // There are four flags we're interested in:
+    //     IsStatic: Object does not move, otherwise the object has mass and moves
+    //     isSolid: other objects bounce off of this object
+    //     isVolumeDetect: other objects pass through but can generate collisions
+    //     collisionEvents: whether this object returns collision events
     private void SetObjectDynamic()
     {
         // If it's becoming dynamic, it will need hullness
@@ -488,12 +488,66 @@ public sealed class BSPrim : PhysicsActor
         float mass = IsStatic ? 0f : _mass;
 
         BulletSimAPI.SetObjectProperties(_scene.WorldID, LocalID, IsStatic, IsSolid, SubscribedEvents(), mass);
+        /*
+        BulletSimAPI.RemoveObjectFromWorld2(Scene.World.Ptr, BSBody.Ptr);
 
-        // recompute any linkset parameters
-        _linkset.Refresh(this);
+        // Set up the object physicalness (static or dynamic)
+        MakeDynamic();
 
-        CollisionFlags cf = BulletSimAPI.GetCollisionFlags2(Body.Ptr);
-        DetailLog("{0},BSPrim.SetObjectDynamic,taint,static={1},solid={2},mass={3}, cf={4}", LocalID, IsStatic, IsSolid, mass, cf);
+        // Make solid or not and arrange for collisions, etc
+        MakeSolid();
+
+        m_currentCollisionFlags = BulletSimAPI.GetCollisionFlags2(BSBody.Ptr);
+
+        BulletSimAPI.AddObjectToWorld2(Scene.World.Ptr, BSBody.Ptr);
+         */
+
+        // Recompute any linkset parameters.
+        // When going from non-physical to physical, this re-enables the constraints that
+        //     had been automatically disabled when the mass was set to zero.
+        Linkset.Refresh(this);
+
+        DetailLog("{0},BSPrim.SetObjectDynamic,taint,static={1},solid={2},mass={3}, cf={4}", LocalID, IsStatic, IsSolid, mass, m_currentCollisionFlags);
+    }
+
+    // "Making dynamic" means changing to and from static.
+    // When static, gravity does not effect the object and it is fixed in space.
+    // When dynamic, the object can fall and be pushed by others.
+    // This is independent of its 'solidness' which controls what passes through
+    //    this object and what interacts with it.
+    private void MakeDynamic()
+    {
+        if (IsStatic)
+        {
+            // Become a Bullet 'static' object type
+            BulletSimAPI.AddToCollisionFlags2(BSBody.Ptr, CollisionFlags.CF_STATIC_OBJECT);
+            // Stop all movement
+            BulletSimAPI.ClearAllForces2(BSBody.Ptr);
+            // Mass is zero which disables a bunch of physics stuff in Bullet
+            BulletSimAPI.SetMassProps2(BSBody.Ptr, 0f, OMV.Vector3.Zero);
+            // There is no inertia in a static object
+            BulletSimAPI.UpdateInertiaTensor2(BSBody.Ptr);
+            // The activation state is 'sleeping' so Bullet will not try to act on it
+            BulletSimAPI.ForceActivationState2(BSBody.Ptr, ActivationState.ISLAND_SLEEPING);
+        }
+        else
+        {
+            // Not a Bullet static object
+            BulletSimAPI.RemoveFromCollisionFlags2(BSBody.Ptr, CollisionFlags.CF_STATIC_OBJECT);
+            // A dynamic object has mass
+            BulletSimAPI.SetMassProps2(BSBody.Ptr, _mass, OMV.Vector3.Zero);
+            // The shape is interesting and has mass and a center of gravity
+            IntPtr collisionShapePtr = BulletSimAPI.GetCollisionShape2(BSBody.Ptr);
+            BulletSimAPI.CalculateLocalInertia2(collisionShapePtr, _mass, OMV.Vector3.Zero);
+            // Inertia is based on our new mass
+            BulletSimAPI.UpdateInertiaTensor2(BSBody.Ptr);
+            // Force activation of the object so Bullet will act on it.
+            BulletSimAPI.Activate2(BSBody.Ptr, true);
+        }
+    }
+
+    private void MakeSolid()
+    {
     }
 
     // prims don't fly
@@ -618,7 +672,7 @@ public sealed class BSPrim : PhysicsActor
         }
         else
         {
-            m_log.WarnFormat("{0}: Got a NaN force applied to a Character", LogHeader);
+            m_log.WarnFormat("{0}: Got a NaN force applied to a prim. LocalID={1}", LogHeader, LocalID);
             return;
         }
         _scene.TaintedObject("BSPrim.AddForce", delegate()
@@ -633,7 +687,8 @@ public sealed class BSPrim : PhysicsActor
                 m_accumulatedForces.Clear();
             }
             DetailLog("{0},BSPrim.AddObjectForce,taint,force={1}", LocalID, _force);
-            BulletSimAPI.AddObjectForce2(Body.Ptr, fSum);
+            // For unknown reason, "ApplyCentralForce" is really additive.
+            BulletSimAPI.ApplyCentralForce2(BSBody.Ptr, fSum);
         });
     }
 
@@ -653,7 +708,7 @@ public sealed class BSPrim : PhysicsActor
 
             Scene.TaintedObject("BSPrim.SubscribeEvents", delegate()
             {
-                BulletSimAPI.AddToCollisionFlags2(Body.Ptr, CollisionFlags.BS_SUBSCRIBE_COLLISION_EVENTS);
+                m_currentCollisionFlags = BulletSimAPI.AddToCollisionFlags2(BSBody.Ptr, CollisionFlags.BS_SUBSCRIBE_COLLISION_EVENTS);
             });
         }
     }
@@ -661,7 +716,7 @@ public sealed class BSPrim : PhysicsActor
         _subscribedEventsMs = 0;
         Scene.TaintedObject("BSPrim.UnSubscribeEvents", delegate()
         {
-            BulletSimAPI.RemoveFromCollisionFlags2(Body.Ptr, CollisionFlags.BS_SUBSCRIBE_COLLISION_EVENTS);
+            m_currentCollisionFlags = BulletSimAPI.RemoveFromCollisionFlags2(BSBody.Ptr, CollisionFlags.BS_SUBSCRIBE_COLLISION_EVENTS);
         });
     }
     public override bool SubscribedEvents() { 
@@ -1246,7 +1301,7 @@ public sealed class BSPrim : PhysicsActor
         bool ret = BulletSimAPI.CreateObject(_scene.WorldID, shape);
 
         // the CreateObject() may have recreated the rigid body. Make sure we have the latest.
-        Body = new BulletBody(LocalID, BulletSimAPI.GetBodyHandle2(_scene.World.Ptr, LocalID));
+        BSBody = new BulletBody(LocalID, BulletSimAPI.GetBodyHandle2(_scene.World.Ptr, LocalID));
 
         return ret;
     }
@@ -1299,7 +1354,7 @@ public sealed class BSPrim : PhysicsActor
     const float ACCELERATION_TOLERANCE = 0.01f;
     const float ROTATIONAL_VELOCITY_TOLERANCE = 0.01f;
 
-    public void UpdateProperties(EntityProperties entprop)
+    public override void UpdateProperties(EntityProperties entprop)
     {
         /*
         UpdatedProperties changed = 0;
@@ -1347,7 +1402,7 @@ public sealed class BSPrim : PhysicsActor
         // Don't check for damping here -- it's done in BulletSim and SceneObjectPart.
 
         // Updates only for individual prims and for the root object of a linkset.
-        if (_linkset.IsRoot(this))
+        if (Linkset.IsRoot(this))
         {
             // Assign to the local variables so the normal set action does not happen
             _position = entprop.Position;
@@ -1375,7 +1430,7 @@ public sealed class BSPrim : PhysicsActor
     // I've collided with something
     // Called at taint time from within the Step() function
     CollisionEventUpdate collisionCollection;
-    public void Collide(uint collidingWith, ActorTypes type, OMV.Vector3 contactPoint, OMV.Vector3 contactNormal, float pentrationDepth)
+    public override void Collide(uint collidingWith, BSPhysObject collidee, ActorTypes type, OMV.Vector3 contactPoint, OMV.Vector3 contactNormal, float pentrationDepth)
     {
         // m_log.DebugFormat("{0}: Collide: ms={1}, id={2}, with={3}", LogHeader, _subscribedEventsMs, LocalID, collidingWith);
 
@@ -1387,18 +1442,15 @@ public sealed class BSPrim : PhysicsActor
         }
 
         // DetailLog("{0},BSPrim.Collison,call,with={1}", LocalID, collidingWith);
-        BSPrim collidingWithPrim;
-        if (_scene.Prims.TryGetValue(collidingWith, out collidingWithPrim))
+
+        // prims in the same linkset cannot collide with each other
+        if (collidee != null && (this.Linkset.LinksetID == collidee.Linkset.LinksetID))
         {
-            // prims in the same linkset cannot collide with each other
-            if (this.Linkset.LinksetID == collidingWithPrim.Linkset.LinksetID)
-            {
-                return;
-            }
+            return;
         }
 
-        // if someone is subscribed to collision events....
-        if (_subscribedEventsMs != 0) {
+        // if someone has subscribed for collision events....
+        if (SubscribedEvents()) {
             // throttle the collisions to the number of milliseconds specified in the subscription
             int nowTime = _scene.SimulationNowTime;
             if (nowTime >= _nextCollisionOkTime) {
@@ -1412,7 +1464,7 @@ public sealed class BSPrim : PhysicsActor
     }
 
     // The scene is telling us it's time to pass our collected collisions into the simulator
-    public void SendCollisions()
+    public override void SendCollisions()
     {
         if (collisionCollection != null && collisionCollection.Count > 0)
         {

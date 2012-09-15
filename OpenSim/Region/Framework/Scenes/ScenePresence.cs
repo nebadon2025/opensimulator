@@ -891,7 +891,9 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 if (wasChild && HasAttachments())
                 {
-                    m_log.DebugFormat("[SCENE PRESENCE]: Restarting scripts in attachments...");
+                    m_log.DebugFormat(
+                        "[SCENE PRESENCE]: Restarting scripts in attachments for {0} in {1}", Name, Scene.Name);
+                    
                     // Resume scripts
                     foreach (SceneObjectGroup sog in m_attachments)
                     {
@@ -3416,13 +3418,16 @@ namespace OpenSim.Region.Framework.Scenes
         public List<SceneObjectGroup> GetAttachments(uint attachmentPoint)
         {
             List<SceneObjectGroup> attachments = new List<SceneObjectGroup>();
-            
-            lock (m_attachments)
+
+            if (attachmentPoint >= 0)
             {
-                foreach (SceneObjectGroup so in m_attachments)
+                lock (m_attachments)
                 {
-                    if (attachmentPoint == so.AttachmentPoint)
-                        attachments.Add(so);
+                    foreach (SceneObjectGroup so in m_attachments)
+                    {
+                        if (attachmentPoint == so.AttachmentPoint)
+                            attachments.Add(so);
+                    }
                 }
             }
             

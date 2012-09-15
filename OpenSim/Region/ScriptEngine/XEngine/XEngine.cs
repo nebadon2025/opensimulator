@@ -589,7 +589,19 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                     if (m_Assemblies.ContainsKey(instance.AssetID))
                     {
                         string assembly = m_Assemblies[instance.AssetID];
-                        instance.SaveState(assembly);
+
+                        try
+                        {
+                            instance.SaveState(assembly);
+                        }
+                        catch (Exception e)
+                        {
+                            m_log.Error(
+                                string.Format(
+                                    "[XEngine]: Failed final state save for script {0}.{1}, item UUID {2}, prim UUID {3} in {4}.  Exception ",
+                                    instance.PrimName, instance.ScriptName, instance.ItemID, instance.ObjectID, World.Name)
+                                , e);
+                        }
                     }
 
                     // Clear the event queue and abort the instance thread
@@ -707,7 +719,18 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                     assembly = m_Assemblies[i.AssetID];
                 }
 
-                i.SaveState(assembly);
+                try
+                {
+                    i.SaveState(assembly);
+                }
+                catch (Exception e)
+                {
+                    m_log.Error(
+                        string.Format(
+                            "[XEngine]: Failed to save state of script {0}.{1}, item UUID {2}, prim UUID {3} in {4}.  Exception ",
+                            i.PrimName, i.ScriptName, i.ItemID, i.ObjectID, World.Name)
+                        , e);
+                }
             }
 
             instances.Clear();
@@ -900,6 +923,8 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                 // This delay exists to stop mono problems where script compilation and startup would stop the sim
                 // working properly for the session.
                 System.Threading.Thread.Sleep(m_StartDelay);
+
+                m_log.InfoFormat("[XEngine]: Performing initial script startup on {0}", m_Scene.Name);
             }
 
             object[] o;
@@ -915,13 +940,13 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                     if (m_InitialStartup)
                         if (scriptsStarted % 50 == 0)
                             m_log.InfoFormat(
-                                "[XEngine]: Started {0} scripts in {1}", scriptsStarted, m_Scene.RegionInfo.RegionName);
+                                "[XEngine]: Started {0} scripts in {1}", scriptsStarted, m_Scene.Name);
                 }
             }
 
             if (m_InitialStartup)
                 m_log.InfoFormat(
-                    "[XEngine]: Completed starting {0} scripts on {1}", scriptsStarted, m_Scene.RegionInfo.RegionName);
+                    "[XEngine]: Completed starting {0} scripts on {1}", scriptsStarted, m_Scene.Name);
 
             // NOTE: Despite having a lockless queue, this lock is required
             // to make sure there is never no compile thread while there

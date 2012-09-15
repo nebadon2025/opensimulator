@@ -35,6 +35,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Timers;
 using log4net;
+using NDesk.Options;
 using Nini.Config;
 using OpenMetaverse;
 using OpenSim.Framework;
@@ -291,7 +292,7 @@ namespace OpenSim
 
             m_console.Commands.AddCommand("Archiving", false, "save oar",
                                           //"save oar [-v|--version=<N>] [-p|--profile=<url>] [<OAR path>]",
-                                          "save oar [-h|--home=<url>] [--noassets] [--publish] [--perm=<permissions>] [<OAR path>]",
+                                          "save oar [-h|--home=<url>] [--noassets] [--publish] [--perm=<permissions>] [--all] [<OAR path>]",
                                           "Save a region's data to an OAR archive.",
 //                                          "-v|--version=<N> generates scene objects as per older versions of the serialization (e.g. -v=0)" + Environment.NewLine
                                           "-h|--home=<url> adds the url of the profile service to the saved user information.\n"
@@ -301,6 +302,7 @@ namespace OpenSim
                                           + "   this is useful if you're making oars generally available that might be reloaded to the same grid from which you published\n"
                                           + "--perm=<permissions> stops objects with insufficient permissions from being saved to the OAR.\n"
                                           + "   <permissions> can contain one or more of these characters: \"C\" = Copy, \"T\" = Transfer\n"
+                                          + "--all saves all the regions in the simulator, instead of just the current region.\n"
                                           + "The OAR path must be a filesystem path."
                                           + " If this is not given then the oar is saved to region.oar in the current directory.",
                                           SaveOar);
@@ -310,8 +312,11 @@ namespace OpenSim
                                           "Change the scale of a named prim", HandleEditScale);
 
             m_console.Commands.AddCommand("Users", false, "kick user",
-                                          "kick user <first> <last> [message]",
-                                          "Kick a user off the simulator", KickUserCommand);
+                                          "kick user <first> <last> [--force] [message]",
+                                          "Kick a user off the simulator",
+                                          "The --force option will kick the user without any checks to see whether it's already in the process of closing\n"
+                                          + "Only use this option if you are sure the avatar is inactive and a normal kick user operation does not removed them",
+                                          KickUserCommand);
 
             m_console.Commands.AddCommand("Users", false, "show users",
                                           "show users [full]",
@@ -327,10 +332,6 @@ namespace OpenSim
             m_console.Commands.AddCommand("Comms", false, "show circuits",
                                           "show circuits",
                                           "Show agent circuit data", HandleShow);
-
-            m_console.Commands.AddCommand("Comms", false, "show http-handlers",
-                                          "show http-handlers",
-                                          "Show all registered http handlers", HandleShow);
 
             m_console.Commands.AddCommand("Comms", false, "show pending-objects",
                                           "show pending-objects",
@@ -416,6 +417,7 @@ namespace OpenSim
             {
                 RunCommandScript(m_shutdownCommandsFile);
             }
+            
             base.ShutdownSpecific();
         }
 
@@ -453,11 +455,17 @@ namespace OpenSim
         /// <param name="cmdparams">name of avatar to kick</param>
         private void KickUserCommand(string module, string[] cmdparams)
         {
-            if (cmdparams.Length < 4)
+            bool force = false;
+            
+            OptionSet options = new OptionSet().Add("f|force", delegate (string v) { force = v != null; });
+
+            List<string> mainParams = options.Parse(cmdparams);
+
+            if (mainParams.Count < 4)
                 return;
 
             string alert = null;
-            if (cmdparams.Length > 4)
+            if (mainParams.Count > 4)
                 alert = String.Format("\n{0}\n", String.Join(" ", cmdparams, 4, cmdparams.Length - 4));
 
             IList agents = SceneManager.GetCurrentSceneAvatars();
@@ -466,8 +474,8 @@ namespace OpenSim
             {
                 RegionInfo regionInfo = presence.Scene.RegionInfo;
 
-                if (presence.Firstname.ToLower().Contains(cmdparams[2].ToLower()) &&
-                    presence.Lastname.ToLower().Contains(cmdparams[3].ToLower()))
+                if (presence.Firstname.ToLower().Contains(mainParams[2].ToLower()) &&
+                    presence.Lastname.ToLower().Contains(mainParams[3].ToLower()))
                 {
                     MainConsole.Instance.Output(
                         String.Format(
@@ -480,7 +488,7 @@ namespace OpenSim
                     else
                         presence.ControllingClient.Kick("\nThe OpenSim manager kicked you out.\n");
 
-                    presence.Scene.IncomingCloseAgent(presence.UUID);
+                    presence.Scene.IncomingCloseAgent(presence.UUID, force);
                 }
             }
 
@@ -1000,33 +1008,6 @@ namespace OpenSim
 
                 case "circuits":
                     HandleShowCircuits();
-                    break;
-
-                case "http-handlers":
-                    System.Text.StringBuilder handlers = new System.Text.StringBuilder("Registered HTTP Handlers:\n");
-
-                    handlers.AppendFormat("* XMLRPC:\n");
-                    foreach (String s in HttpServer.GetXmlRpcHandlerKeys())
-                        handlers.AppendFormat("\t{0}\n", s);
-
-                    handlers.AppendFormat("* HTTP:\n");
-                    List<String> poll = HttpServer.GetPollServiceHandlerKeys();
-                    foreach (String s in HttpServer.GetHTTPHandlerKeys())
-                        handlers.AppendFormat("\t{0} {1}\n", s, (poll.Contains(s) ? "(poll service)" : string.Empty));
-
-                    handlers.AppendFormat("* Agent:\n");
-                    foreach (String s in HttpServer.GetAgentHandlerKeys())
-                        handlers.AppendFormat("\t{0}\n", s);
-
-                    handlers.AppendFormat("* LLSD:\n");
-                    foreach (String s in HttpServer.GetLLSDHandlerKeys())
-                        handlers.AppendFormat("\t{0}\n", s);
-
-                    handlers.AppendFormat("* StreamHandlers ({0}):\n", HttpServer.GetStreamHandlerKeys().Count);
-                    foreach (String s in HttpServer.GetStreamHandlerKeys())
-                        handlers.AppendFormat("\t{0}\n", s);
-
-                    MainConsole.Instance.Output(handlers.ToString());
                     break;
 
                 case "modules":

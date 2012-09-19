@@ -493,9 +493,10 @@ namespace OpenSim.Region.Framework.Scenes
         public event AvatarKillData OnAvatarKilled;
         public delegate void AvatarKillData(uint KillerLocalID, ScenePresence avatar);
 
-//        public delegate void ScriptTimerEvent(uint localID, double timerinterval);
-
-//        public event ScriptTimerEvent OnScriptTimerEvent;
+        /*
+        public delegate void ScriptTimerEvent(uint localID, double timerinterval);
+        public event ScriptTimerEvent OnScriptTimerEvent;
+         */
 
         public delegate void EstateToolsSunUpdate(ulong regionHandle, bool FixedTime, bool EstateSun, float LindenHour);
         public delegate void GetScriptRunning(IClientAPI controllingClient, UUID objectID, UUID itemID);
@@ -721,7 +722,9 @@ namespace OpenSim.Region.Framework.Scenes
             public UUID sender;
             public UUID receiver;
 
-            // Always false. The SL protocol sucks.
+            /// <summary>
+            /// Always false. The SL protocol sucks.
+            /// </summary>
             public bool authenticated = false;
 
             public int amount;

@@ -817,6 +817,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             // FIXME: Ultimately this should be in a module.
+            SendPeriodicAppearanceUpdates = true;
+            
             IConfig appearanceConfig = m_config.Configs["Appearance"];
             if (appearanceConfig != null)
             {

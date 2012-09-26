@@ -2674,27 +2674,23 @@ namespace OpenSim.Region.Framework.Scenes
 
             RootPart.StoreUndoState(true);
 
-            scale.X = Math.Min(scale.X, Scene.m_maxNonphys);
-            scale.Y = Math.Min(scale.Y, Scene.m_maxNonphys);
-            scale.Z = Math.Min(scale.Z, Scene.m_maxNonphys);
-
-            PhysicsActor pa = m_rootPart.PhysActor;
-
-            if (pa != null && pa.IsPhysical)
+            if (Scene != null)
             {
                 scale.X = Math.Min(scale.X, Scene.m_maxPhys);
                 scale.Y = Math.Min(scale.Y, Scene.m_maxPhys);
                 scale.Z = Math.Min(scale.Z, Scene.m_maxPhys);
             }
 
+            PhysicsActor pa = m_rootPart.PhysActor;
+
             float x = (scale.X / RootPart.Scale.X);
             float y = (scale.Y / RootPart.Scale.Y);
             float z = (scale.Z / RootPart.Scale.Z);
 
-            SceneObjectPart[] parts;
-            if (x > 1.0f || y > 1.0f || z > 1.0f)
+            SceneObjectPart[] parts = m_parts.GetArray();
+
+            if (Scene != null & (x > 1.0f || y > 1.0f || z > 1.0f))
             {
-                parts = m_parts.GetArray();
                 for (int i = 0; i < parts.Length; i++)
                 {
                     SceneObjectPart obPart = parts[i];
@@ -2708,7 +2704,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                         if (pa != null && pa.IsPhysical)
                         {
-                            if (oldSize.X * x > m_scene.m_maxPhys)
+                            if (oldSize.X * x > Scene.m_maxPhys)
                             {
                                 f = m_scene.m_maxPhys / oldSize.X;
                                 a = f / x;
@@ -2717,7 +2713,7 @@ namespace OpenSim.Region.Framework.Scenes
                                 z *= a;
                             }
 
-                            if (oldSize.Y * y > m_scene.m_maxPhys)
+                            if (oldSize.Y * y > Scene.m_maxPhys)
                             {
                                 f = m_scene.m_maxPhys / oldSize.Y;
                                 a = f / y;
@@ -2726,7 +2722,7 @@ namespace OpenSim.Region.Framework.Scenes
                                 z *= a;
                             }
 
-                            if (oldSize.Z * z > m_scene.m_maxPhys)
+                            if (oldSize.Z * z > Scene.m_maxPhys)
                             {
                                 f = m_scene.m_maxPhys / oldSize.Z;
                                 a = f / z;
@@ -2737,7 +2733,7 @@ namespace OpenSim.Region.Framework.Scenes
                         }
                         else
                         {
-                            if (oldSize.X * x > m_scene.m_maxNonphys)
+                            if (oldSize.X * x > Scene.m_maxNonphys)
                             {
                                 f = m_scene.m_maxNonphys / oldSize.X;
                                 a = f / x;
@@ -2746,7 +2742,7 @@ namespace OpenSim.Region.Framework.Scenes
                                 z *= a;
                             }
 
-                            if (oldSize.Y * y > m_scene.m_maxNonphys)
+                            if (oldSize.Y * y > Scene.m_maxNonphys)
                             {
                                 f = m_scene.m_maxNonphys / oldSize.Y;
                                 a = f / y;
@@ -2755,7 +2751,7 @@ namespace OpenSim.Region.Framework.Scenes
                                 z *= a;
                             }
 
-                            if (oldSize.Z * z > m_scene.m_maxNonphys)
+                            if (oldSize.Z * z > Scene.m_maxNonphys)
                             {
                                 f = m_scene.m_maxNonphys / oldSize.Z;
                                 a = f / z;
@@ -2779,7 +2775,6 @@ namespace OpenSim.Region.Framework.Scenes
             RootPart.Resize(prevScale);
 //            RootPart.IgnoreUndoUpdate = false;
 
-            parts = m_parts.GetArray();
             for (int i = 0; i < parts.Length; i++)
             {
                 SceneObjectPart obPart = parts[i];

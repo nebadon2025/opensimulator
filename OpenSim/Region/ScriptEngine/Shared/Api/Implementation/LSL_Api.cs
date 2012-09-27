@@ -1979,8 +1979,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             // this could possibly be done in the above else-if block, but we're doing the check here to keep the code easier to read.
 
             Vector3 objectPos = m_host.ParentGroup.RootPart.AbsolutePosition;
-            LandData here = World.GetLandData(objectPos);
-            LandData there = World.GetLandData(pos);
+            LandData here = World.GetLandData((float)objectPos.X, (float)objectPos.Y);
+            LandData there = World.GetLandData((float)pos.x, (float)pos.y);
 
             // we're only checking prim limits if it's moving to a different parcel under the assumption that if the object got onto the parcel without exceeding the prim limits.
 
@@ -9699,20 +9699,20 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     switch ((ParcelMediaCommandEnum) aList.Data[i])
                     {
                         case ParcelMediaCommandEnum.Url:
-                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition).MediaURL));
+                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).MediaURL));
                             break;
                         case ParcelMediaCommandEnum.Desc:
-                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition).Description));
+                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).Description));
                             break;
                         case ParcelMediaCommandEnum.Texture:
-                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition).MediaID.ToString()));
+                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).MediaID.ToString()));
                             break;
                         case ParcelMediaCommandEnum.Type:
-                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition).MediaType));
+                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).MediaType));
                             break;
                         case ParcelMediaCommandEnum.Size:
-                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition).MediaWidth));
-                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition).MediaHeight));
+                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).MediaWidth));
+                            list.Add(new LSL_String(World.GetLandData(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).MediaHeight));
                             break;
                         default:
                             ParcelMediaCommandEnum mediaCommandEnum = ParcelMediaCommandEnum.Url;
@@ -10329,7 +10329,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_List llGetParcelDetails(LSL_Vector pos, LSL_List param)
         {
             m_host.AddScriptLPS(1);
-            LandData land = World.GetLandData(pos);
+            LandData land = World.GetLandData((float)pos.x, (float)pos.y);
             if (land == null)
             {
                 return new LSL_List(0);

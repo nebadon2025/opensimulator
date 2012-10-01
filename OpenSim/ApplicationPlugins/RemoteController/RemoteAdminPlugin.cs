@@ -572,7 +572,7 @@ namespace OpenSim.ApplicationPlugins.RemoteController
 
                 region.ExternalHostName = (string) requestData["external_address"];
 
-                bool persist = Convert.ToBoolean((string) requestData["persist"]);
+                bool persist = Convert.ToBoolean(requestData["persist"]);
                 if (persist)
                 {
                     // default place for region configuration files is in the
@@ -728,7 +728,6 @@ namespace OpenSim.ApplicationPlugins.RemoteController
                 responseData["success"] = true;
                 responseData["region_name"] = region.RegionName;
                 responseData["region_id"] = region.RegionID.ToString();
-                responseData["region_uuid"] = region.RegionID.ToString(); //Deprecate July 2012
 
                 m_log.Info("[RADMIN]: CreateRegion: request complete");
             }
@@ -982,8 +981,8 @@ namespace OpenSim.ApplicationPlugins.RemoteController
                     string lastName = (string) requestData["user_lastname"];
                     string password = (string) requestData["user_password"];
 
-                    uint regionXLocation = Convert.ToUInt32((Int32) requestData["start_region_x"]);
-                    uint regionYLocation = Convert.ToUInt32((Int32) requestData["start_region_y"]);
+                    uint regionXLocation = Convert.ToUInt32(requestData["start_region_x"]);
+                    uint regionYLocation = Convert.ToUInt32(requestData["start_region_y"]);
 
                     string email = ""; // empty string for email
                     if (requestData.Contains("user_email"))
@@ -1180,9 +1179,9 @@ namespace OpenSim.ApplicationPlugins.RemoteController
 
                     if (requestData.ContainsKey("user_password")) password = (string) requestData["user_password"];
                     if (requestData.ContainsKey("start_region_x"))
-                        regionXLocation = Convert.ToUInt32((Int32) requestData["start_region_x"]);
+                        regionXLocation = Convert.ToUInt32(requestData["start_region_x"]);
                     if (requestData.ContainsKey("start_region_y"))
-                        regionYLocation = Convert.ToUInt32((Int32) requestData["start_region_y"]);
+                        regionYLocation = Convert.ToUInt32(requestData["start_region_y"]);
 
             //        if (requestData.ContainsKey("start_lookat_x"))
             //            ulaX = Convert.ToUInt32((Int32) requestData["start_lookat_x"]);
@@ -1881,29 +1880,6 @@ namespace OpenSim.ApplicationPlugins.RemoteController
             {
                 return;
             }
-            #region Deprecate July 2012
-            //region_ID, regionid, region_uuid will be deprecated in July 2012!!!!!!
-            else if (requestData.ContainsKey("regionid") &&
-                !String.IsNullOrEmpty((string)requestData["regionid"]))
-            {
-                m_log.WarnFormat("[RADMIN]: Use of parameter regionid will be deprecated as of July 2012. Use region_id instead");
-            }
-            else if (requestData.ContainsKey("region_ID") &&
-                !String.IsNullOrEmpty((string)requestData["region_ID"]))
-            {
-                m_log.WarnFormat("[RADMIN]: Use of parameter region_ID will be deprecated as of July 2012. Use region_id instead");
-            }
-            else if (requestData.ContainsKey("regionID") &&
-                !String.IsNullOrEmpty((string)requestData["regionID"]))
-            {
-                m_log.WarnFormat("[RADMIN]: Use of parameter regionID will be deprecated as of July 2012. Use region_id instead");
-            }
-            else if (requestData.ContainsKey("region_uuid") &&
-                !String.IsNullOrEmpty((string)requestData["region_uuid"]))
-            {
-                m_log.WarnFormat("[RADMIN]: Use of parameter region_uuid will be deprecated as of July 2012. Use region_id instead");
-            }
-            #endregion
             else
             {
                 responseData["accepted"] = false;
@@ -1925,56 +1901,6 @@ namespace OpenSim.ApplicationPlugins.RemoteController
                     throw new Exception(String.Format("Region ID {0} not found", regionID));
                 }
             }
-            #region Deprecate July 2012
-            else if (requestData.ContainsKey("regionid") &&
-                !String.IsNullOrEmpty((string)requestData["regionid"]))
-            {
-                m_log.WarnFormat("[RADMIN]: Use of parameter regionid will be deprecated as of July 2012. Use region_id instead");
-
-                UUID regionID = (UUID)(string)requestData["regionid"];
-                if (!m_application.SceneManager.TryGetScene(regionID, out scene))
-                {
-                    responseData["error"] = String.Format("Region ID {0} not found", regionID);
-                    throw new Exception(String.Format("Region ID {0} not found", regionID));
-                }
-            }
-            else if (requestData.ContainsKey("region_ID") &&
-                !String.IsNullOrEmpty((string)requestData["region_ID"]))
-            {
-                m_log.WarnFormat("[RADMIN]: Use of parameter region_ID will be deprecated as of July 2012. Use region_id instead");
-
-                UUID regionID = (UUID)(string)requestData["region_ID"];
-                if (!m_application.SceneManager.TryGetScene(regionID, out scene))
-                {
-                    responseData["error"] = String.Format("Region ID {0} not found", regionID);
-                    throw new Exception(String.Format("Region ID {0} not found", regionID));
-                }
-            }
-            else if (requestData.ContainsKey("regionID") &&
-                !String.IsNullOrEmpty((string)requestData["regionID"]))
-            {
-                m_log.WarnFormat("[RADMIN]: Use of parameter regionID will be deprecated as of July 2012. Use region_id instead");
-
-                UUID regionID = (UUID)(string)requestData["regionID"];
-                if (!m_application.SceneManager.TryGetScene(regionID, out scene))
-                {
-                    responseData["error"] = String.Format("Region ID {0} not found", regionID);
-                    throw new Exception(String.Format("Region ID {0} not found", regionID));
-                }
-            }
-            else if (requestData.ContainsKey("region_uuid") &&
-                !String.IsNullOrEmpty((string)requestData["region_uuid"]))
-            {
-                m_log.WarnFormat("[RADMIN]: Use of parameter region_uuid will be deprecated as of July 2012. Use region_id instead");
-
-                UUID regionID = (UUID)(string)requestData["region_uuid"];
-                if (!m_application.SceneManager.TryGetScene(regionID, out scene))
-                {
-                    responseData["error"] = String.Format("Region ID {0} not found", regionID);
-                    throw new Exception(String.Format("Region ID {0} not found", regionID));
-                }
-            }
-            #endregion
             else if (requestData.ContainsKey("region_name") &&
                 !String.IsNullOrEmpty((string)requestData["region_name"]))
             {

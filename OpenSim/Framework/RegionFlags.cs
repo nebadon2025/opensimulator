@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -26,46 +26,28 @@
  */
 
 using System;
-using System.Diagnostics;
-using System.Text;
-using OpenMetaverse;
-using OpenMetaverse.StructuredData;
 
-namespace OpenSim.Framework.Monitoring
+namespace OpenSim.Framework
 {
     /// <summary>
-    /// Statistics which all collectors are interested in reporting
+    /// Region flags used internally by OpenSimulator to store installation specific information about regions.
     /// </summary>
-    public class BaseStatsCollector : IStatsCollector
+    /// <remarks>
+    /// Don't confuse with OpenMetaverse.RegionFlags which are client facing flags (i.e. they go over the wire).
+    /// Returned by IGridService.GetRegionFlags()
+    /// </remarks>
+    [Flags]
+    public enum RegionFlags : int
     {
-        public virtual string Report()
-        {
-            StringBuilder sb = new StringBuilder(Environment.NewLine);
-            sb.Append("MEMORY STATISTICS");
-            sb.Append(Environment.NewLine);
-
-            sb.AppendFormat(
-                "Allocated to OpenSim objects: {0} MB\n",
-                Math.Round(GC.GetTotalMemory(false) / 1024.0 / 1024.0));
-
-            sb.AppendFormat(
-                "OpenSim last object memory churn    : {0} MB/s\n",
-                Math.Round((MemoryWatchdog.LastMemoryChurn * 1000) / 1024.0 / 1024, 3));
-
-            sb.AppendFormat(
-                "OpenSim average object memory churn : {0} MB/s\n",
-                Math.Round((MemoryWatchdog.AverageMemoryChurn * 1000) / 1024.0 / 1024, 3));
-
-            sb.AppendFormat(
-                "Process memory              : {0} MB\n",
-                Math.Round(Process.GetCurrentProcess().WorkingSet64 / 1024.0 / 1024.0));
-
-            return sb.ToString();
-        }
-        
-        public virtual string XReport(string uptime, string version)
-        {
-            return (string) Math.Round(GC.GetTotalMemory(false) / 1024.0 / 1024.0).ToString() ;
-        }
+        DefaultRegion = 1, // Used for new Rez. Random if multiple defined
+        FallbackRegion = 2, // Regions we redirect to when the destination is down
+        RegionOnline = 4, // Set when a region comes online, unset when it unregisters and DeleteOnUnregister is false
+        NoDirectLogin = 8, // Region unavailable for direct logins (by name)
+        Persistent = 16, // Don't remove on unregister
+        LockedOut = 32, // Don't allow registration
+        NoMove = 64, // Don't allow moving this region
+        Reservation = 128, // This is an inactive reservation
+        Authenticate = 256, // Require authentication
+        Hyperlink = 512 // Record represents a HG link
     }
 }

@@ -336,6 +336,7 @@ namespace OpenSim.Region.Physics.OdePlugin
 
         public int geomContactPointsStartthrottle = 3;
         public int geomUpdatesPerThrottledUpdate = 15;
+        private const int avatarExpectedContacts = 3;
 
         public float bodyPIDD = 35f;
         public float bodyPIDG = 25;
@@ -474,6 +475,8 @@ namespace OpenSim.Region.Physics.OdePlugin
         private OdePrim cp1;
         private OdeCharacter cc2;
         private OdePrim cp2;
+        private int p1ExpectedPoints = 0;
+        private int p2ExpectedPoints = 0;
         //private int cStartStop = 0;
         //private string cDictKey = "";
 
@@ -497,6 +500,9 @@ namespace OpenSim.Region.Physics.OdePlugin
         public bool physics_logging = false;
         public int physics_logging_interval = 0;
         public bool physics_logging_append_existing_logfile = false;
+
+        private bool avplanted = false;
+        private bool av_av_collisions_off = false;
 
         public d.Vector3 xyz = new d.Vector3(128.1640f, 128.3079f, 25.7600f);
         public d.Vector3 hpr = new d.Vector3(125.5000f, -17.0000f, 0.0000f);
@@ -640,11 +646,14 @@ namespace OpenSim.Region.Physics.OdePlugin
                     avMovementDivisorWalk = physicsconfig.GetFloat("av_movement_divisor_walk", 1.3f);
                     avMovementDivisorRun = physicsconfig.GetFloat("av_movement_divisor_run", 0.8f);
                     avCapRadius = physicsconfig.GetFloat("av_capsule_radius", 0.37f);
+                    avplanted = physicsconfig.GetBoolean("av_planted", false);
+                    av_av_collisions_off = physicsconfig.GetBoolean("av_av_collisions_off", false);
+
                     IsAvCapsuleTilted = physicsconfig.GetBoolean("av_capsule_tilted", false);
 
                     contactsPerCollision = physicsconfig.GetInt("contacts_per_collision", 80);
 
-                    geomContactPointsStartthrottle = physicsconfig.GetInt("geom_contactpoints_start_throttling", 3);
+                    geomContactPointsStartthrottle = physicsconfig.GetInt("geom_contactpoints_start_throttling", 5);
                     geomUpdatesPerThrottledUpdate = physicsconfig.GetInt("geom_updates_before_throttled_update", 15);
                     geomCrossingFailuresBeforeOutofbounds = physicsconfig.GetInt("geom_crossing_failures_before_outofbounds", 5);
 
@@ -659,6 +668,8 @@ namespace OpenSim.Region.Physics.OdePlugin
                     meshSculptLOD = physicsconfig.GetFloat("mesh_lod", 32f);
                     MeshSculptphysicalLOD = physicsconfig.GetFloat("mesh_physical_lod", 16f);
                     m_filterCollisions = physicsconfig.GetBoolean("filter_collisions", false);
+                    
+                    
 
                     if (Environment.OSVersion.Platform == PlatformID.Unix)
                     {
@@ -1064,7 +1075,10 @@ namespace OpenSim.Region.Physics.OdePlugin
 
             PhysicsActor p1;
             PhysicsActor p2;
-
+            
+            p1ExpectedPoints = 0;
+            p2ExpectedPoints = 0;
+            
             if (!actor_name_map.TryGetValue(g1, out p1))
             {
                 p1 = PANull;
@@ -1121,9 +1135,13 @@ namespace OpenSim.Region.Physics.OdePlugin
                 switch (p1.PhysicsActorType)
                 {
                     case (int)ActorTypes.Agent:
+                        p1ExpectedPoints = avatarExpectedContacts;
                         p2.CollidingObj = true;
                         break;
                     case (int)ActorTypes.Prim:
+                        if (p1 != null && p1 is OdePrim)
+                            p1ExpectedPoints = ((OdePrim) p1).ExpectedCollisionContacts;
+
                         if (p2.Velocity.LengthSquared() > 0.0f)
                             p2.CollidingObj = true;
                         break;
@@ -1298,6 +1316,10 @@ namespace OpenSim.Region.Physics.OdePlugin
                 if ((p1 is OdePrim) && (((OdePrim)p1).m_isVolumeDetect))
                     skipThisContact = true;   // No collision on volume detect prims
 
+                if (av_av_collisions_off)
+                    if ((p1 is OdeCharacter) && (p2 is OdeCharacter))
+                        skipThisContact = true;
+
                 if (!skipThisContact && (p2 is OdePrim) && (((OdePrim)p2).m_isVolumeDetect))
                     skipThisContact = true;   // No collision on volume detect prims
 
@@ -1319,6 +1341,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                         if ((p2.PhysicsActorType == (int) ActorTypes.Agent) &&
                             (Math.Abs(p2.Velocity.X) > 0.01f || Math.Abs(p2.Velocity.Y) > 0.01f))
                         {
+                            p2ExpectedPoints = avatarExpectedContacts;
                             // Avatar is moving on terrain, use the movement terrain contact
                             AvatarMovementTerrainContact.geom = curContact;
 
@@ -1332,6 +1355,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                         {
                             if (p2.PhysicsActorType == (int)ActorTypes.Agent)
                             {
+                                p2ExpectedPoints = avatarExpectedContacts;
                                 // Avatar is standing on terrain, use the non moving terrain contact
                                 TerrainContact.geom = curContact;
 
@@ -1356,9 +1380,18 @@ namespace OpenSim.Region.Physics.OdePlugin
                                     }
 
                                     if (p2 is OdePrim)
-                                        material = ((OdePrim)p2).m_material;
-
+                                    {
+                                        material = ((OdePrim) p2).m_material;
+                                        p2ExpectedPoints = ((OdePrim)p2).ExpectedCollisionContacts;
+                                    }
+                                   
+                                    // Unnessesary because p1 is defined above
+                                    //if (p1 is OdePrim)
+                                    // { 
+                                    //     p1ExpectedPoints = ((OdePrim)p1).ExpectedCollisionContacts;
+                                    // }
                                     //m_log.DebugFormat("Material: {0}", material);
+
                                     m_materialContacts[material, movintYN].geom = curContact;
 
                                     if (m_global_contactcount < maxContactsbeforedeath)
@@ -1379,7 +1412,10 @@ namespace OpenSim.Region.Physics.OdePlugin
                                     int material = (int)Material.Wood;
 
                                     if (p2 is OdePrim)
+                                    {
                                         material = ((OdePrim)p2).m_material;
+                                        p2ExpectedPoints = ((OdePrim)p2).ExpectedCollisionContacts;
+                                    }
 
                                     //m_log.DebugFormat("Material: {0}", material);
                                     m_materialContacts[material, movintYN].geom = curContact;
@@ -1429,6 +1465,7 @@ namespace OpenSim.Region.Physics.OdePlugin
                     {
                         if ((p2.PhysicsActorType == (int)ActorTypes.Agent))
                         {
+                            p2ExpectedPoints = avatarExpectedContacts;
                             if ((Math.Abs(p2.Velocity.X) > 0.01f || Math.Abs(p2.Velocity.Y) > 0.01f))
                             {
                                 // Avatar is moving on a prim, use the Movement prim contact
@@ -1458,7 +1495,10 @@ namespace OpenSim.Region.Physics.OdePlugin
                             int material = (int)Material.Wood;
 
                             if (p2 is OdePrim)
+                            {
                                 material = ((OdePrim)p2).m_material;
+                                p2ExpectedPoints = ((OdePrim)p2).ExpectedCollisionContacts;
+                            }
                             
                             //m_log.DebugFormat("Material: {0}", material);
                             m_materialContacts[material, 0].geom = curContact;
@@ -1479,8 +1519,8 @@ namespace OpenSim.Region.Physics.OdePlugin
                 }
 
                 collision_accounting_events(p1, p2, maxDepthContact);
-
-                if (count > geomContactPointsStartthrottle)
+                
+                if (count > ((p1ExpectedPoints + p2ExpectedPoints) * 0.25) + (geomContactPointsStartthrottle))
                 {
                     // If there are more then 3 contact points, it's likely
                     // that we've got a pile of objects, so ...
@@ -1943,7 +1983,8 @@ namespace OpenSim.Region.Physics.OdePlugin
 
             newAv.Flying = isFlying;
             newAv.MinimumGroundFlightOffset = minimumGroundFlightOffset;
-            
+            newAv.m_avatarplanted = avplanted;
+
             return newAv;
         }
 
@@ -1958,6 +1999,7 @@ namespace OpenSim.Region.Physics.OdePlugin
 
         internal void AddCharacter(OdeCharacter chr)
         {
+            chr.m_avatarplanted = avplanted;
             if (!_characters.Contains(chr))
             {
                 _characters.Add(chr);

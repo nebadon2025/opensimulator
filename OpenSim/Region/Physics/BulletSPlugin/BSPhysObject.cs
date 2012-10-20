@@ -81,6 +81,14 @@ public abstract class BSPhysObject : PhysicsActor
     // Tell the object to clean up.
     public abstract void Destroy();
 
+    public abstract OMV.Vector3 ForcePosition { get; set; }
+
+    public abstract OMV.Quaternion ForceOrientation { get; set; }
+
+    public abstract OMV.Vector3 ForceVelocity { get; set; }
+
+    public abstract OMV.Vector3 ForceRotationalVelocity { get; set; }
+
     #region Collisions
 
     // Requested number of milliseconds between collision events. Zero means disabled.
@@ -203,7 +211,8 @@ public abstract class BSPhysObject : PhysicsActor
     // High performance detailed logging routine used by the physical objects.
     protected void DetailLog(string msg, params Object[] args)
     {
-        PhysicsScene.PhysicsLogging.Write(msg, args);
+        if (PhysicsScene.PhysicsLogging.Enabled)
+            PhysicsScene.DetailLog(msg, args);
     }
 }
 }

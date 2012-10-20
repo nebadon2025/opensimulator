@@ -486,6 +486,8 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             if (sp.ParentID != (uint)0)
                 sp.StandUp();
 
+            // At least on LL 3.3.4, this is not strictly necessary - a teleport will succeed without sending this to
+            // the viewer.  However, it might mean that the viewer does not see the black teleport screen (untested).
             sp.ControllingClient.SendTeleportStart(teleportFlags);
 
             // the avatar.Close below will clear the child region list. We need this below for (possibly)
@@ -561,8 +563,11 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                     // So let's wait
                     Thread.Sleep(200);
 
+                    // At least on LL 3.3.4 for teleports between different regions on the same simulator this appears
+                    // unnecessary - teleport will succeed and SEED caps will be requested without it (though possibly
+                    // only on TeleportFinish).  This is untested for region teleport between different simulators
+                    // though this probably also works.
                     m_eqModule.EstablishAgentCommunication(sp.UUID, endPoint, capsPath);
-
                 }
                 else
                 {
@@ -1068,6 +1073,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             Scene initiatingScene)
         {
             Thread.Sleep(10000);
+            
             IMessageTransferModule im = initiatingScene.RequestModuleInterface<IMessageTransferModule>();
             if (im != null)
             {
@@ -1080,11 +1086,22 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                     (uint)(int)position.X,
                     (uint)(int)position.Y,
                     (uint)(int)position.Z);
-                GridInstantMessage m = new GridInstantMessage(initiatingScene, UUID.Zero,
-                "Region", agent.UUID,
-                (byte)InstantMessageDialog.GodLikeRequestTeleport, false,
-                "", gotoLocation, false, new Vector3(127, 0, 0),
-                new Byte[0]);
+
+                GridInstantMessage m
+                    = new GridInstantMessage(
+                        initiatingScene,
+                        UUID.Zero,
+                        "Region",
+                        agent.UUID,
+                        (byte)InstantMessageDialog.GodLikeRequestTeleport,
+                        false,
+                        "",
+                        gotoLocation,
+                        false,
+                        new Vector3(127, 0, 0),
+                        new Byte[0],
+                        false);
+
                 im.SendInstantMessage(m, delegate(bool success)
                 {
                     m_log.DebugFormat("[ENTITY TRANSFER MODULE]: Client Initiating Teleport sending IM success = {0}", success);

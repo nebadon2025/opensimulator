@@ -56,6 +56,7 @@ using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using PresenceInfo = OpenSim.Services.Interfaces.PresenceInfo;
 using PrimType = OpenSim.Region.Framework.Scenes.PrimType;
 using AssetLandmark = OpenSim.Framework.AssetLandmark;
+using RegionFlags = OpenSim.Framework.RegionFlags;
 
 using LSL_Float = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLFloat;
 using LSL_Integer = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLInteger;
@@ -3772,6 +3773,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         }
 
         /// <summary>
+        /// Returns the name of the child prim or seated avatar matching the
+        /// specified link number.
+        /// </summary>
+        /// <param name="linknum">
+        /// The number of a link in the linkset or a link-related constant.
+        /// </param>
+        /// <returns>
+        /// The name determined to match the specified link number.
+        /// </returns>
+        /// <remarks>
         /// The rules governing the returned name are not simple. The only
         /// time a blank name is returned is if the target prim has a blank
         /// name. If no prim with the given link number can be found then
@@ -3799,10 +3810,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         /// Mentions NULL_KEY being returned
         /// http://wiki.secondlife.com/wiki/LlGetLinkName
         /// Mentions using the LINK_* constants, some of which are negative
-        /// </summary>
+        /// </remarks>
         public LSL_String llGetLinkName(int linknum)
         {
             m_host.AddScriptLPS(1);
+            // simplest case, this prims link number
+            if (linknum == m_host.LinkNum || linknum == ScriptBaseClass.LINK_THIS)
+                return m_host.Name;
+
             // parse for sitting avatare-names
             List<String> nametable = new List<String>();
             World.ForEachRootScenePresence(delegate(ScenePresence presence)
@@ -3825,10 +3840,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 if (linknum > m_host.ParentGroup.PrimCount && linknum <= totalprims)
                     return nametable[totalprims - linknum];
             }
-
-            // simplest case, this prims link number
-            if (m_host.LinkNum == linknum)
-                return m_host.Name;
 
             // Single prim
             if (m_host.LinkNum == 0)
@@ -3978,7 +3989,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             World.RegionInfo.RegionName+" "+
                             m_host.AbsolutePosition.ToString(),
                             agentItem.ID, true, m_host.AbsolutePosition,
-                            bucket);
+                            bucket, true); // TODO: May actually send no timestamp
 
                     m_TransferModule.SendInstantMessage(msg, delegate(bool success) {});
                 }
@@ -4006,7 +4017,18 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
             Vector3 av3 = Util.Clip(color, 0.0f, 1.0f);
-            m_host.SetText(text.Length > 254 ? text.Remove(254) : text, av3, Util.Clip((float)alpha, 0.0f, 1.0f));
+            if (text.Length > 254)
+                text = text.Remove(254);
+
+            byte[] data;
+            do
+            {
+                data = Util.UTF8.GetBytes(text);
+                if (data.Length > 254)
+                    text = text.Substring(0, text.Length - 1);
+            } while (data.Length > 254);
+
+            m_host.SetText(text, av3, Util.Clip((float)alpha, 0.0f, 1.0f));
             //m_host.ParentGroup.HasGroupChanged = true;
             //m_host.ParentGroup.ScheduleGroupForFullUpdate();
         }
@@ -6441,16 +6463,17 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (m_TransferModule != null)
             {
                 byte[] bucket = new byte[] { (byte)AssetType.Folder };
-    
+
+                Vector3 pos = m_host.AbsolutePosition;
+
                 GridInstantMessage msg = new GridInstantMessage(World,
-                        m_host.UUID, m_host.Name + ", an object owned by " +
-                        resolveName(m_host.OwnerID) + ",", destID,
+                        m_host.OwnerID, m_host.Name, destID,
                         (byte)InstantMessageDialog.TaskInventoryOffered,
-                        false, category + "\n" + m_host.Name + " is located at " +
-                        World.RegionInfo.RegionName + " " +
-                        m_host.AbsolutePosition.ToString(),
-                        folderID, true, m_host.AbsolutePosition,
-                        bucket);
+                        false, string.Format("'{0}'", category),
+// We won't go so far as to add a SLURL, but this is the format used by LL as of 2012-10-06                                       
+// false, string.Format("'{0}'  ( http://slurl.com/secondlife/{1}/{2}/{3}/{4} )", category, World.Name, (int)pos.X, (int)pos.Y, (int)pos.Z),
+                        folderID, false, pos,
+                        bucket, false);
 
                 m_TransferModule.SendInstantMessage(msg, delegate(bool success) {});
             }
@@ -9301,11 +9324,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                 GridRegion info;
 
-                if (m_ScriptEngine.World.RegionInfo.RegionName == simulator) //Det data for this simulator?
-
-                    info = new GridRegion(m_ScriptEngine.World.RegionInfo);
+                if (World.RegionInfo.RegionName == simulator)
+                    info = new GridRegion(World.RegionInfo);
                 else
-                    info = m_ScriptEngine.World.GridService.GetRegionByName(m_ScriptEngine.World.RegionInfo.ScopeID, simulator);
+                    info = World.GridService.GetRegionByName(m_ScriptEngine.World.RegionInfo.ScopeID, simulator);
 
                 switch (data)
                 {
@@ -9315,9 +9337,24 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             ScriptSleep(1000);
                             return UUID.Zero.ToString();
                         }
-                        if (m_ScriptEngine.World.RegionInfo.RegionName != simulator)
+
+                        bool isHypergridRegion = false;
+
+                        if (World.RegionInfo.RegionName != simulator && info.RegionSecret != "")
                         {
-                            //Hypergrid Region co-ordinates
+                            // Hypergrid is currently placing real destination region co-ords into RegionSecret.
+                            // But other code can also use this field for a genuine RegionSecret!  Therefore, if
+                            // anything is present we need to disambiguate.
+                            //
+                            // FIXME: Hypergrid should be storing this data in a different field.
+                            RegionFlags regionFlags
+                                = (RegionFlags)m_ScriptEngine.World.GridService.GetRegionFlags(
+                                    info.ScopeID, info.RegionID);
+                            isHypergridRegion = (regionFlags & RegionFlags.Hyperlink) != 0;
+                        }
+
+                        if (isHypergridRegion)
+                        {
                             uint rx = 0, ry = 0;
                             Utils.LongToUInts(Convert.ToUInt64(info.RegionSecret), out rx, out ry);
 
@@ -9328,7 +9365,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         }
                         else
                         {
-                            //Local-cooridnates
+                            // Local grid co-oridnates
                             reply = new LSL_Vector(
                                 info.RegionLocX,
                                 info.RegionLocY,

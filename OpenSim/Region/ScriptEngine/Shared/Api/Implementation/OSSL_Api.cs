@@ -2325,10 +2325,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         appearance = new AvatarAppearance();
                         appearance.Unpack(appearanceOsd);
                     }
+                    else
+                    {
+                        OSSLError(string.Format("osNpcCreate: Notecard reference '{0}' not found.", notecard));
+                    }
                 }
-
-                if (appearance == null)
-                    return new LSL_Key(UUID.Zero.ToString());
 
                 UUID ownerID = UUID.Zero;
                 if (owned)
@@ -2394,8 +2395,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 string appearanceSerialized = LoadNotecard(notecard);
 
                 if (appearanceSerialized == null)
-                    return;
-                
+                    OSSLError(string.Format("osNpcCreate: Notecard reference '{0}' not found.", notecard));
+
                 OSDMap appearanceOsd = (OSDMap)OSDParser.DeserializeLLSDXml(appearanceSerialized);
 //                OSD a = OSDParser.DeserializeLLSDXml(appearanceSerialized);
 //                Console.WriteLine("appearanceSerialized {0}", appearanceSerialized);

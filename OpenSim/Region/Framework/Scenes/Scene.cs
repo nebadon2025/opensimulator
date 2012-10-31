@@ -1692,12 +1692,19 @@ namespace OpenSim.Region.Framework.Scenes
 
         private void CheckAtTargets()
         {
-            Dictionary<UUID, SceneObjectGroup>.ValueCollection objs;
-            lock (m_groupsWithTargets)
-                objs = m_groupsWithTargets.Values;
+            List<SceneObjectGroup> objs = null;
 
-            foreach (SceneObjectGroup entry in objs)
-                entry.checkAtTargets();
+            lock (m_groupsWithTargets)
+            {
+                if (m_groupsWithTargets.Count != 0)
+                    objs = new List<SceneObjectGroup>(m_groupsWithTargets.Values);
+            }
+
+            if (objs != null)
+            {
+                foreach (SceneObjectGroup entry in objs)
+                    entry.checkAtTargets();
+            }
         }
 
         /// <summary>
@@ -3381,9 +3388,10 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 else
                 {
-                    // We remove the acd up here to avoid later raec conditions if two RemoveClient() calls occurred
+                    // We remove the acd up here to avoid later race conditions if two RemoveClient() calls occurred
                     // simultaneously.
-                    m_authenticateHandler.RemoveCircuit(acd.circuitcode);
+                    // We also need to remove by agent ID since NPCs will have no circuit code.
+                    m_authenticateHandler.RemoveCircuit(agentID);
                 }
             }
 

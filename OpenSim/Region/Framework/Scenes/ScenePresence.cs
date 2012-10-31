@@ -74,8 +74,9 @@ namespace OpenSim.Region.Framework.Scenes
     {
 //        ~ScenePresence()
 //        {
-//            m_log.Debug("[SCENE PRESENCE] Destructor called");
+//            m_log.DebugFormat("[SCENE PRESENCE]: Destructor called on {0}", Name);
 //        }
+
         private void TriggerScenePresenceUpdated()
         {
             if (m_scene != null)
@@ -3074,6 +3075,8 @@ namespace OpenSim.Region.Framework.Scenes
                 cAgent.Anims = Animator.Animations.ToArray();
             }
             catch { }
+            cAgent.DefaultAnim = Animator.Animations.DefaultAnimation;
+            cAgent.AnimState = Animator.Animations.ImplicitDefaultAnimation;
 
             if (Scene.AttachmentsModule != null)
                 Scene.AttachmentsModule.CopyAttachments(this, cAgent);
@@ -3145,6 +3148,10 @@ namespace OpenSim.Region.Framework.Scenes
             // FIXME: Why is this null check necessary?  Where are the cases where we get a null Anims object?
             if (cAgent.Anims != null)
                 Animator.Animations.FromArray(cAgent.Anims);
+            if (cAgent.DefaultAnim != null)
+                Animator.Animations.SetDefaultAnimation(cAgent.DefaultAnim.AnimID, cAgent.DefaultAnim.SequenceNum, UUID.Zero);
+            if (cAgent.AnimState != null)
+                Animator.Animations.SetImplicitDefaultAnimation(cAgent.AnimState.AnimID, cAgent.AnimState.SequenceNum, UUID.Zero);
 
             if (Scene.AttachmentsModule != null)
                 Scene.AttachmentsModule.CopyAttachments(cAgent, this);

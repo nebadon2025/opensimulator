@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -538,7 +538,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     try
                     {
-                        PhysicsActor.Velocity = value;
+                        PhysicsActor.TargetVelocity = value;
                     }
                     catch (Exception e)
                     {

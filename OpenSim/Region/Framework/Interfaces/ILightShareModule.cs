@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -25,29 +25,9 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-using Nini.Config;
-using OpenSim.Region.Framework.Scenes;
-
 namespace OpenSim.Region.Framework.Interfaces
 {
-    /// <summary>
-    /// DEPRECATED! Use INonSharedRegionModule or ISharedRegionModule instead
-    /// </summary>
-    public interface IRegionModule
+    public interface ILightShareModule
     {
-        /// <summary>
-        /// Initialize the module.
-        /// </summary>
-        /// <remarks>
-        /// For a shared module this can be called multiple times - once per scene.
-        /// </remarks>
-        /// <param name="scene"></param>
-        /// <param name="source">Configuration information.  For a shared module this will be identical on every scene call</param>
-        void Initialise(Scene scene, IConfigSource source);
-        
-        void PostInitialise();
-        void Close();
-        string Name { get; }
-        bool IsSharedModule { get; }
     }
 }

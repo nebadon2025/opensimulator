@@ -1,17 +1,16 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Mono.Addins;
 
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("OpenSim.Region.CoreModules")]
-[assembly: AssemblyDescription("Core modules for OpenSim")]
+[assembly: AssemblyTitle("OpenSim.Capabilities")]
+[assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("OpenSim.Region.CoreModules.Properties")]
-[assembly: AssemblyCopyright("Copyright ©  2012")]
+[assembly: AssemblyCompany("http://opensimulator.org")]
+[assembly: AssemblyProduct("OpenSim")]
+[assembly: AssemblyCopyright("OpenSimulator developers")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -21,7 +20,7 @@ using Mono.Addins;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("94f62dd1-bcf3-4218-9844-9a3996286e3e")]
+[assembly: Guid("7d1a55b1-8fab-42ff-9c83-066a9cc34d76")]
 
 // Version information for an assembly consists of the following four values:
 //
@@ -32,7 +31,3 @@ using Mono.Addins;
 //
 [assembly: AssemblyVersion("0.7.5.*")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
-
-[assembly: Addin("OpenSim.Region.CoreModules", "0.1")]
-[assembly: AddinDependency("OpenSim", "0.5")]
-

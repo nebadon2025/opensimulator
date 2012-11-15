@@ -1366,7 +1366,6 @@ namespace OpenSim.Data.SQLite
             createCol(land, "UserLookAtZ", typeof(Double));
             createCol(land, "AuthbuyerID", typeof(String));
             createCol(land, "OtherCleanTime", typeof(Int32));
-            createCol(land, "Dwell", typeof(Int32));
             createCol(land, "MediaType", typeof(String));
             createCol(land, "MediaDescription", typeof(String));
             createCol(land, "MediaSize", typeof(String));
@@ -1788,7 +1787,6 @@ namespace OpenSim.Data.SQLite
             newData.PassHours = Convert.ToSingle(row["PassHours"]);
             newData.PassPrice = Convert.ToInt32(row["PassPrice"]);
             newData.SnapshotID = (UUID)(String)row["SnapshotUUID"];
-            newData.Dwell = Convert.ToInt32(row["Dwell"]);
             newData.MediaType = (String)row["MediaType"];
             newData.MediaDescription = (String)row["MediaDescription"];
             newData.MediaWidth = Convert.ToInt32((((string)row["MediaSize"]).Split(','))[0]);
@@ -2209,7 +2207,6 @@ namespace OpenSim.Data.SQLite
             row["UserLookAtZ"] = land.UserLookAt.Z;
             row["AuthbuyerID"] = land.AuthBuyerID.ToString();
             row["OtherCleanTime"] = land.OtherCleanTime;
-            row["Dwell"] = land.Dwell;
             row["MediaType"] = land.MediaType;
             row["MediaDescription"] = land.MediaDescription;
             row["MediaSize"] = String.Format("{0},{1}", land.MediaWidth, land.MediaHeight);

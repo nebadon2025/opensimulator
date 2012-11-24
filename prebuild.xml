@@ -2713,10 +2713,11 @@
       </Configuration>
 
       <ReferencePath>../../bin/</ReferencePath>
-      <Reference name="OpenSim.Framework"/>
       <Reference name="Nini" path="../../bin/"/>
       <Reference name="nunit.framework" path="../../bin/"/>
       <Reference name="OpenSim"/>
+      <Reference name="OpenSim.Framework"/>
+      <Reference name="OpenSim.Tests.Common"/>
       <Files>
         <Match pattern="*.cs" recurse="false"/>
       </Files>
@@ -3289,6 +3290,7 @@
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Region.Physics.Manager"/>
       <Reference name="OpenSim.Region.Physics.OdePlugin" path="../../../../../bin/Physics/"/>
+      <Reference name="OpenSim.Tests.Common"/>
       <Reference name="Ode.NET" path="../../../../../bin/"/>
       <Reference name="nunit.framework" path="../../../../../bin/"/>
       <Reference name="log4net" path="../../../../../bin/"/>

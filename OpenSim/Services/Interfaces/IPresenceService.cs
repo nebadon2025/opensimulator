@@ -98,7 +98,6 @@ namespace OpenSim.Services.Interfaces
         /// <returns></returns>
         /// <param name='sessionID'></param>
         PresenceInfo GetAgent(UUID sessionID);
-        PresenceInfo VerifyAgent(UUID s_sessionID);
 
         /// <summary>
         /// Get session information for a collection of users.

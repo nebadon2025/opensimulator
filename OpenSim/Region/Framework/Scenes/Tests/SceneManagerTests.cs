@@ -28,55 +28,31 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using Nini.Config;
+using System.Threading;
+using NUnit.Framework;
+using OpenMetaverse;
 using OpenSim.Framework;
-using OpenSim.Data;
+using OpenSim.Framework.Communications;
+using OpenSim.Region.Framework.Scenes;
 using OpenSim.Services.Interfaces;
-using OpenSim.Services.Base;
+using OpenSim.Tests.Common;
+using OpenSim.Tests.Common.Mock;
 
-namespace OpenSim.Services.InventoryService
+namespace OpenSim.Region.Framework.Scenes.Tests
 {
-    public class InventoryServiceBase : ServiceBase
+    [TestFixture]
+    public class SceneManagerTests : OpenSimTestCase
     {
-        protected IInventoryDataPlugin m_Database = null;
-
-        public InventoryServiceBase(IConfigSource config) : base(config)
+        [Test]
+        public void TestClose()
         {
-            string dllName = String.Empty;
-            string connString = String.Empty;
+            TestHelpers.InMethod();
 
-            //
-            // Try reading the [DatabaseService] section first, if it exists
-            //
-            IConfig dbConfig = config.Configs["DatabaseService"];
-            if (dbConfig != null)
-            {
-                dllName = dbConfig.GetString("StorageProvider", String.Empty);
-                connString = dbConfig.GetString("ConnectionString", String.Empty);
-            }
+            SceneHelpers sh = new SceneHelpers();
+            Scene scene = sh.SetupScene();
 
-            //
-            // Try reading the more specific [InventoryService] section, if it exists
-            //
-            IConfig inventoryConfig = config.Configs["InventoryService"];
-            if (inventoryConfig != null)
-            {
-                dllName = inventoryConfig.GetString("StorageProvider", dllName);
-                connString = inventoryConfig.GetString("ConnectionString", connString);
-            }
-
-            //
-            // We tried, but this doesn't exist. We can't proceed.
-            //
-            if (dllName.Equals(String.Empty))
-                throw new Exception("No InventoryService configuration");
-
-            m_Database = LoadPlugin<IInventoryDataPlugin>(dllName);
-            if (m_Database == null)
-                throw new Exception("Could not find a storage interface in the given module");
-
-            m_Database.Initialise(connString);
+            sh.SceneManager.Close();
+            Assert.That(scene.ShuttingDown, Is.True);
         }
-
     }
 }

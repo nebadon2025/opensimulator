@@ -445,9 +445,9 @@ namespace OpenSim.Region.Physics.BulletSPlugin
                     m_flags &= ~(VehicleFlag.HOVER_TERRAIN_ONLY
                                     | VehicleFlag.HOVER_GLOBAL_HEIGHT
                                     | VehicleFlag.LIMIT_ROLL_ONLY
+                                    | VehicleFlag.LIMIT_MOTOR_UP
                                     | VehicleFlag.HOVER_UP_ONLY);
                     m_flags |= (VehicleFlag.NO_DEFLECTION_UP
-                                    | VehicleFlag.LIMIT_MOTOR_UP
                                     | VehicleFlag.HOVER_WATER_ONLY);
                     break;
                 case Vehicle.TYPE_AIRPLANE:
@@ -713,7 +713,7 @@ namespace OpenSim.Region.Physics.BulletSPlugin
                 // We should hover, get the target height
                 if ((m_flags & VehicleFlag.HOVER_WATER_ONLY) != 0)
                 {
-                    m_VhoverTargetHeight = Prim.PhysicsScene.GetWaterLevelAtXYZ(pos) + m_VhoverHeight;
+                    m_VhoverTargetHeight = Prim.PhysicsScene.TerrainManager.GetWaterLevelAtXYZ(pos) + m_VhoverHeight;
                 }
                 if ((m_flags & VehicleFlag.HOVER_TERRAIN_ONLY) != 0)
                 {
@@ -730,6 +730,7 @@ namespace OpenSim.Region.Physics.BulletSPlugin
                     if (pos.Z > m_VhoverTargetHeight)
                         m_VhoverTargetHeight = pos.Z;
                 }
+                
                 if ((m_flags & VehicleFlag.LOCK_HOVER_HEIGHT) != 0)
                 {
                     if (Math.Abs(pos.Z - m_VhoverTargetHeight) > 0.2f)
@@ -804,6 +805,13 @@ namespace OpenSim.Region.Physics.BulletSPlugin
             return changed;
         }
 
+        // From http://wiki.secondlife.com/wiki/LlSetVehicleFlags :
+        //    Prevent ground vehicles from motoring into the sky.This flag has a subtle effect when
+        //    used with conjunction with banking: the strength of the banking will decay when the
+        //    vehicle no longer experiences collisions. The decay timescale is the same as
+        //    VEHICLE_BANKING_TIMESCALE. This is to help prevent ground vehicles from steering
+        //    when they are in mid jump. 
+        // TODO: this code is wrong. Also, what should it do for boats?
         public Vector3 ComputeLinearMotorUp(float pTimestep, Vector3 pos, float terrainHeight)
         {
             Vector3 ret = Vector3.Zero;
@@ -817,10 +825,11 @@ namespace OpenSim.Region.Physics.BulletSPlugin
                     // downForce = new Vector3(0, 0, -distanceAboveGround / m_bankingTimescale);
                     ret = new Vector3(0, 0, -distanceAboveGround);
                 }
-                // TODO: this calculation is all wrong. From the description at
+                // TODO: this calculation is wrong. From the description at
                 //     (http://wiki.secondlife.com/wiki/Category:LSL_Vehicle), the downForce
                 //     has a decay factor. This says this force should
                 //     be computed with a motor.
+                // TODO: add interaction with banking.
                 VDetailLog("{0},MoveLinear,limitMotorUp,distAbove={1},downForce={2}",
                                     Prim.LocalID, distanceAboveGround, ret);
             }
@@ -863,7 +872,11 @@ namespace OpenSim.Region.Physics.BulletSPlugin
             Vector3 angularMotorContribution = m_angularMotor.Step(pTimestep);
 
             // ==================================================================
-            // NO_DEFLECTION_UP says angular motion should not add any pitch or roll movement
+            // From http://wiki.secondlife.com/wiki/LlSetVehicleFlags :
+            //    This flag prevents linear deflection parallel to world z-axis. This is useful
+            //    for preventing ground vehicles with large linear deflection, like bumper cars,
+            //    from climbing their linear deflection into the sky. 
+            // That is, NO_DEFLECTION_UP says angular motion should not add any pitch or roll movement
             if ((m_flags & (VehicleFlag.NO_DEFLECTION_UP)) != 0)
             {
                 angularMotorContribution.X = 0f;
@@ -883,8 +896,8 @@ namespace OpenSim.Region.Physics.BulletSPlugin
             // Sum velocities
             m_lastAngularVelocity = angularMotorContribution
                                     + verticalAttractionContribution
-                                    + bankingContribution
-                                    + deflectionContribution;
+                                    + deflectionContribution
+                                    + bankingContribution;
 
             // ==================================================================
             //Offset section
@@ -921,8 +934,9 @@ namespace OpenSim.Region.Physics.BulletSPlugin
             if (m_lastAngularVelocity.ApproxEquals(Vector3.Zero, 0.01f))
             {
                 m_lastAngularVelocity = Vector3.Zero; // Reduce small value to zero.
-                Prim.ZeroAngularMotion(true);
+                // TODO: zeroing is good but it also sets values in unmanaged code. Remove the stores when idle.
                 VDetailLog("{0},MoveAngular,zeroAngularMotion,lastAngular={1}", Prim.LocalID, m_lastAngularVelocity);
+                Prim.ZeroAngularMotion(true);
             }
             else
             {

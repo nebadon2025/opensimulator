@@ -144,7 +144,7 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
                 if (sp != null && !sp.IsChildAgent)
                 {
                     // Local message
-                    m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to root agent {0} {1}", sp.Name, toAgentID);
+//                    m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to root agent {0} {1}", sp.Name, toAgentID);
 
                     sp.ControllingClient.SendInstantMessage(im);
 
@@ -164,7 +164,7 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
                 if (sp != null)
                 {
                     // Local message
-                    m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to child agent {0} {1}", sp.Name, toAgentID);
+//                    m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to child agent {0} {1}", sp.Name, toAgentID);
 
                     sp.ControllingClient.SendInstantMessage(im);
 
@@ -174,7 +174,7 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
                 }
             }
 
-            m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to {0} via XMLRPC", im.toAgentID);
+//            m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to {0} via XMLRPC", im.toAgentID);
 
             SendGridInstantMessageViaXMLRPC(im, result);
         }

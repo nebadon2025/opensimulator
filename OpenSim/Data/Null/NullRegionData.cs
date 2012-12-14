@@ -112,11 +112,14 @@ namespace OpenSim.Data.Null
             // Find region data
             List<RegionData> ret = new List<RegionData>();
 
-            foreach (RegionData r in m_regionData.Values)
+            lock (m_regionData)
             {
-//                    m_log.DebugFormat("[NULL REGION DATA]: comparing {0} to {1}", cleanName, r.RegionName.ToLower());
+                foreach (RegionData r in m_regionData.Values)
+                {
+                    // m_log.DebugFormat("[NULL REGION DATA]: comparing {0} to {1}", cleanName, r.RegionName.ToLower());
                     if (queryMatch(r.RegionName.ToLower()))
                         ret.Add(r);
+                }
             }
 
             if (ret.Count > 0)
@@ -132,10 +135,13 @@ namespace OpenSim.Data.Null
 
             List<RegionData> ret = new List<RegionData>();
 
-            foreach (RegionData r in m_regionData.Values)
+            lock (m_regionData)
             {
-                if (r.posX == posX && r.posY == posY)
-                    ret.Add(r);
+                foreach (RegionData r in m_regionData.Values)
+                {
+                    if (r.posX == posX && r.posY == posY)
+                        ret.Add(r);
+                }
             }
 
             if (ret.Count > 0)
@@ -149,8 +155,11 @@ namespace OpenSim.Data.Null
             if (m_useStaticInstance && Instance != this)
                 return Instance.Get(regionID, scopeID);
 
-            if (m_regionData.ContainsKey(regionID))
-                return m_regionData[regionID];
+            lock (m_regionData)
+            {
+                if (m_regionData.ContainsKey(regionID))
+                    return m_regionData[regionID];
+            }
 
             return null;
         }
@@ -162,10 +171,13 @@ namespace OpenSim.Data.Null
 
             List<RegionData> ret = new List<RegionData>();
 
-            foreach (RegionData r in m_regionData.Values)
+            lock (m_regionData)
             {
-                if (r.posX >= startX && r.posX <= endX && r.posY >= startY && r.posY <= endY)
-                    ret.Add(r);
+                foreach (RegionData r in m_regionData.Values)
+                {
+                    if (r.posX >= startX && r.posX <= endX && r.posY >= startY && r.posY <= endY)
+                        ret.Add(r);
+                }
             }
 
             return ret;
@@ -179,7 +191,10 @@ namespace OpenSim.Data.Null
 //            m_log.DebugFormat(
 //                "[NULL REGION DATA]: Storing region {0} {1}, scope {2}", data.RegionName, data.RegionID, data.ScopeID);
 
-            m_regionData[data.RegionID] = data;
+            lock (m_regionData)
+            {
+                m_regionData[data.RegionID] = data;
+            }
 
             return true;
         }
@@ -189,10 +204,13 @@ namespace OpenSim.Data.Null
             if (m_useStaticInstance && Instance != this)
                 return Instance.SetDataItem(regionID, item, value);
 
-            if (!m_regionData.ContainsKey(regionID))
-                return false;
+            lock (m_regionData)
+            {
+                if (!m_regionData.ContainsKey(regionID))
+                    return false;
 
-            m_regionData[regionID].Data[item] = value;
+                m_regionData[regionID].Data[item] = value;
+            }
 
             return true;
         }
@@ -204,10 +222,13 @@ namespace OpenSim.Data.Null
 
 //            m_log.DebugFormat("[NULL REGION DATA]: Deleting region {0}", regionID);
 
-            if (!m_regionData.ContainsKey(regionID))
-                return false;
+            lock (m_regionData)
+            {
+                if (!m_regionData.ContainsKey(regionID))
+                    return false;
 
-            m_regionData.Remove(regionID);
+                m_regionData.Remove(regionID);
+            }
 
             return true;
         }
@@ -237,10 +258,13 @@ namespace OpenSim.Data.Null
 
             List<RegionData> ret = new List<RegionData>();
 
-            foreach (RegionData r in m_regionData.Values)
+            lock (m_regionData)
             {
-                if ((Convert.ToInt32(r.Data["flags"]) & regionFlags) != 0)
-                    ret.Add(r);
+                foreach (RegionData r in m_regionData.Values)
+                {
+                    if ((Convert.ToInt32(r.Data["flags"]) & regionFlags) != 0)
+                        ret.Add(r);
+                }
             }
 
             return ret;

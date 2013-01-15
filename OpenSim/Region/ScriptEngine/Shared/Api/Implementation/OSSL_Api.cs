@@ -140,11 +140,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         internal float m_ScriptDistanceFactor = 1.0f;
         internal Dictionary<string, FunctionPerms > m_FunctionPerms = new Dictionary<string, FunctionPerms >();
 
-        public void Initialize(IScriptEngine ScriptEngine, SceneObjectPart host, TaskInventoryItem item)
+        public void Initialize(IScriptInstance scriptInstance)
         {
-            m_ScriptEngine = ScriptEngine;
-            m_host = host;
-            m_item = item;
+            m_ScriptEngine = scriptInstance.Engine;
+            m_host = scriptInstance.Part;
+            m_item = scriptInstance.ScriptTask;
 
             if (m_ScriptEngine.Config.GetBoolean("AllowOSFunctions", false))
                 m_OSFunctionsEnabled = true;

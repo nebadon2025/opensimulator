@@ -107,11 +107,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         protected Dictionary<UUID, UserInfoCacheEntry> m_userInfoCache = new Dictionary<UUID, UserInfoCacheEntry>();
         protected int EMAIL_PAUSE_TIME = 20;  // documented delay value for smtp.
 
-        public void Initialize(IScriptEngine ScriptEngine, SceneObjectPart host, TaskInventoryItem item)
+        public void Initialize(IScriptInstance scriptInstance)
         {
-            m_ScriptEngine = ScriptEngine;
-            m_host = host;
-            m_item = item;
+            m_ScriptEngine = scriptInstance.Engine;
+            m_host = scriptInstance.Part;
+            m_item = scriptInstance.ScriptTask;
 
             LoadLimits();  // read script limits from config.
 
@@ -119,10 +119,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     m_ScriptEngine.World.RequestModuleInterface<IMessageTransferModule>();
             m_UrlModule = m_ScriptEngine.World.RequestModuleInterface<IUrlModule>();
 
-            AsyncCommands = new AsyncCommandManager(ScriptEngine);
+            AsyncCommands = new AsyncCommandManager(m_ScriptEngine);
         }
 
-        /* load configuration items that affect script, object and run-time behavior. */
+        /// <summary>
+        /// Load configuration items that affect script, object and run-time behavior. */
+        /// </summary>
         private void LoadLimits()
         {
             m_ScriptDelayFactor =
@@ -137,6 +139,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 m_ScriptEngine.Config.GetInt("NotecardLineReadCharsMax", 255);
             if (m_notecardLineReadCharsMax > 65535)
                 m_notecardLineReadCharsMax = 65535;
+
             // load limits for particular subsystems.
             IConfig SMTPConfig;
             if ((SMTPConfig = m_ScriptEngine.ConfigSource.Configs["SMTP"]) != null) {

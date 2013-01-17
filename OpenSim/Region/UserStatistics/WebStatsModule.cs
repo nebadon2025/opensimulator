@@ -43,21 +43,31 @@ using OpenSim.Framework.Servers.HttpServer;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using Mono.Data.SqliteClient;
+using Mono.Addins;
 
 using Caps = OpenSim.Framework.Capabilities.Caps;
 
 using OSD = OpenMetaverse.StructuredData.OSD;
 using OSDMap = OpenMetaverse.StructuredData.OSDMap;
 
+[assembly: Addin("WebStats", "1.0")]
+[assembly: AddinDependency("OpenSim", "0.5")]
+
 namespace OpenSim.Region.UserStatistics
 {
-    public class WebStatsModule : IRegionModule
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "WebStatsModule")]
+    public class WebStatsModule : ISharedRegionModule
     {
         private static readonly ILog m_log =
             LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         
         private static SqliteConnection dbConn;
-        private Dictionary<UUID, UserSessionID> m_sessions = new Dictionary<UUID, UserSessionID>();
+
+        /// <summary>
+        /// User statistics sessions keyed by agent ID
+        /// </summary>
+        private Dictionary<UUID, UserSession> m_sessions = new Dictionary<UUID, UserSession>();
+
         private List<Scene> m_scenes = new List<Scene>();
         private Dictionary<string, IStatsController> reports = new Dictionary<string, IStatsController>();
         private Dictionary<UUID, USimStatsData> m_simstatsCounters = new Dictionary<UUID, USimStatsData>(); 
@@ -69,74 +79,126 @@ namespace OpenSim.Region.UserStatistics
         private string m_loglines = String.Empty;
         private volatile int lastHit = 12000;
 
-        public virtual void Initialise(Scene scene, IConfigSource config)
+        #region ISharedRegionModule
+
+        public virtual void Initialise(IConfigSource config)
         {
             IConfig cnfg = config.Configs["WebStats"];
 
             if (cnfg != null)
                 enabled = cnfg.GetBoolean("enabled", false);
-            
+        }
+
+        public virtual void PostInitialise()
+        {
+            if (!enabled)
+                return;
+
+            if (Util.IsWindows())
+                Util.LoadArchSpecificWindowsDll("sqlite3.dll");
+
+            //IConfig startupConfig = config.Configs["Startup"];
+
+            dbConn = new SqliteConnection("URI=file:LocalUserStatistics.db,version=3");
+            dbConn.Open();
+            CreateTables(dbConn);
+
+            Prototype_distributor protodep = new Prototype_distributor();
+            Updater_distributor updatedep = new Updater_distributor();
+            ActiveConnectionsAJAX ajConnections = new ActiveConnectionsAJAX();
+            SimStatsAJAX ajSimStats = new SimStatsAJAX();
+            LogLinesAJAX ajLogLines = new LogLinesAJAX();
+            Default_Report defaultReport = new Default_Report();
+            Clients_report clientReport = new Clients_report();
+            Sessions_Report sessionsReport = new Sessions_Report();
+
+            reports.Add("prototype.js", protodep);
+            reports.Add("updater.js", updatedep);
+            reports.Add("activeconnectionsajax.html", ajConnections);
+            reports.Add("simstatsajax.html", ajSimStats);
+            reports.Add("activelogajax.html", ajLogLines);
+            reports.Add("default.report", defaultReport);
+            reports.Add("clients.report", clientReport);
+            reports.Add("sessions.report", sessionsReport);
+
+            ////
+            // Add Your own Reports here (Do Not Modify Lines here Devs!)
+            ////
+
+            ////
+            // End Own reports section
+            ////
+
+            MainServer.Instance.AddHTTPHandler("/SStats/", HandleStatsRequest);
+            MainServer.Instance.AddHTTPHandler("/CAPS/VS/", HandleUnknownCAPSRequest);
+        }
+
+        public virtual void AddRegion(Scene scene)
+        {
             if (!enabled)
                 return;
 
             lock (m_scenes)
             {
-                if (m_scenes.Count == 0)
-                {
-                    if (Util.IsWindows())
-                        Util.LoadArchSpecificWindowsDll("sqlite3.dll");
-                    
-                    //IConfig startupConfig = config.Configs["Startup"];
-
-                    dbConn = new SqliteConnection("URI=file:LocalUserStatistics.db,version=3");
-                    dbConn.Open();
-                    CreateTables(dbConn);
-
-                    Prototype_distributor protodep = new Prototype_distributor();
-                    Updater_distributor updatedep = new Updater_distributor();
-                    ActiveConnectionsAJAX ajConnections = new ActiveConnectionsAJAX();
-                    SimStatsAJAX ajSimStats = new SimStatsAJAX();
-                    LogLinesAJAX ajLogLines = new LogLinesAJAX();
-                    Default_Report defaultReport = new Default_Report();
-                    Clients_report clientReport = new Clients_report();
-                    Sessions_Report sessionsReport = new Sessions_Report();
-
-                    reports.Add("prototype.js", protodep);
-                    reports.Add("updater.js", updatedep);
-                    reports.Add("activeconnectionsajax.html", ajConnections);
-                    reports.Add("simstatsajax.html", ajSimStats);
-                    reports.Add("activelogajax.html", ajLogLines);
-                    reports.Add("default.report", defaultReport);
-                    reports.Add("clients.report", clientReport);
-                    reports.Add("sessions.report", sessionsReport);
-
-                    ////
-                    // Add Your own Reports here (Do Not Modify Lines here Devs!)
-                    ////
-
-                    ////
-                    // End Own reports section
-                    ////
-
-                    MainServer.Instance.AddHTTPHandler("/SStats/", HandleStatsRequest);
-                    MainServer.Instance.AddHTTPHandler("/CAPS/VS/", HandleUnknownCAPSRequest);
-                }
-                
                 m_scenes.Add(scene);
-                if (m_simstatsCounters.ContainsKey(scene.RegionInfo.RegionID))
-                    m_simstatsCounters.Remove(scene.RegionInfo.RegionID);
+                updateLogMod = m_scenes.Count * 2;
 
                 m_simstatsCounters.Add(scene.RegionInfo.RegionID, new USimStatsData(scene.RegionInfo.RegionID));
+
+                scene.EventManager.OnRegisterCaps += OnRegisterCaps;
+                scene.EventManager.OnDeregisterCaps += OnDeRegisterCaps;
+                scene.EventManager.OnClientClosed += OnClientClosed;
+                scene.EventManager.OnMakeRootAgent += OnMakeRootAgent;
                 scene.StatsReporter.OnSendStatsResult += ReceiveClassicSimStatsPacket;
             }
         }
 
+        public void RegionLoaded(Scene scene)
+        {
+        }
+
+        public void RemoveRegion(Scene scene)
+        {
+            if (!enabled)
+                return;
+
+            lock (m_scenes)
+            {
+                m_scenes.Remove(scene);
+                updateLogMod = m_scenes.Count * 2;
+                m_simstatsCounters.Remove(scene.RegionInfo.RegionID);
+            }
+        }
+
+        public virtual void Close()
+        {
+            if (!enabled)
+                return;
+
+            dbConn.Close();
+            dbConn.Dispose();
+            m_sessions.Clear();
+            m_scenes.Clear();
+            reports.Clear();
+            m_simstatsCounters.Clear();
+        }
+
+        public virtual string Name
+        {
+            get { return "ViewerStatsModule"; }
+        }
+
+        public Type ReplaceableInterface
+        {
+            get { return null; }
+        }
+
+        #endregion
+
         private void ReceiveClassicSimStatsPacket(SimStats stats)
         {
             if (!enabled)
-            {
                 return;
-            }
 
             try
             {
@@ -145,17 +207,25 @@ namespace OpenSim.Region.UserStatistics
                 if (concurrencyCounter > 0 || System.Environment.TickCount - lastHit > 30000)
                     return;
 
-                if ((updateLogCounter++ % updateLogMod) == 0)
+                // We will conduct this under lock so that fields such as updateLogCounter do not potentially get
+                // confused if a scene is removed.
+                // XXX: Possibly the scope of this lock could be reduced though it's not critical.
+                lock (m_scenes)
                 {
-                    m_loglines = readLogLines(10);
-                    if (updateLogCounter > 10000) updateLogCounter = 1;
-                }
+                    if (updateLogMod != 0 && updateLogCounter++ % updateLogMod == 0)
+                    {
+                        m_loglines = readLogLines(10);
 
-                USimStatsData ss = m_simstatsCounters[stats.RegionUUID];
+                        if (updateLogCounter > 10000) 
+                            updateLogCounter = 1;
+                    }
 
-                if ((++ss.StatsCounter % updateStatsMod) == 0)
-                {
-                    ss.ConsumeSimStats(stats);
+                    USimStatsData ss = m_simstatsCounters[stats.RegionUUID];
+
+                    if ((++ss.StatsCounter % updateStatsMod) == 0)
+                    {
+                        ss.ConsumeSimStats(stats);
+                    }
                 }
             } 
             catch (KeyNotFoundException)
@@ -246,37 +316,6 @@ namespace OpenSim.Region.UserStatistics
             }
         }
 
-        public virtual void PostInitialise()
-        {
-            if (!enabled)
-                return;
-
-            AddHandlers();
-        }
-
-        public virtual void Close()
-        {
-            if (!enabled)
-                return;
-
-            dbConn.Close();
-            dbConn.Dispose();
-            m_sessions.Clear();
-            m_scenes.Clear();
-            reports.Clear();
-            m_simstatsCounters.Clear(); 
-        }
-
-        public virtual string Name
-        {
-            get { return "ViewerStatsModule"; }
-        }
-
-        public bool IsSharedModule
-        {
-            get { return true; }
-        }
-
         private void OnRegisterCaps(UUID agentID, Caps caps)
         {
 //            m_log.DebugFormat("[WEB STATS MODULE]: OnRegisterCaps: agentID {0} caps {1}", agentID, caps);
@@ -297,7 +336,7 @@ namespace OpenSim.Region.UserStatistics
         {
         }
 
-        protected virtual void AddHandlers()
+        protected virtual void AddEventHandlers()
         {
             lock (m_scenes)
             {
@@ -308,49 +347,45 @@ namespace OpenSim.Region.UserStatistics
                     scene.EventManager.OnDeregisterCaps += OnDeRegisterCaps;
                     scene.EventManager.OnClientClosed += OnClientClosed;
                     scene.EventManager.OnMakeRootAgent += OnMakeRootAgent;
-                    scene.EventManager.OnMakeChildAgent += OnMakeChildAgent;
                 }
             }
         }
 
         private void OnMakeRootAgent(ScenePresence agent)
         {
-            UUID regionUUID = GetRegionUUIDFromHandle(agent.RegionHandle);
+//            m_log.DebugFormat(
+//                "[WEB STATS MODULE]: Looking for session {0} for {1} in {2}",
+//                agent.ControllingClient.SessionId, agent.Name, agent.Scene.Name);
 
             lock (m_sessions)
             {
+                UserSession uid;
+
                 if (!m_sessions.ContainsKey(agent.UUID))
                 {
                     UserSessionData usd = UserSessionUtil.newUserSessionData();
-
-                    UserSessionID uid = new UserSessionID();
+                    uid = new UserSession();
                     uid.name_f = agent.Firstname;
                     uid.name_l = agent.Lastname;
-                    uid.region_id = regionUUID;
-                    uid.session_id = agent.ControllingClient.SessionId;
                     uid.session_data = usd;
 
                     m_sessions.Add(agent.UUID, uid);
                 }
                 else
                 {
-                    UserSessionID uid = m_sessions[agent.UUID];
-                    uid.region_id = regionUUID;
-                    uid.session_id = agent.ControllingClient.SessionId;
-                    m_sessions[agent.UUID] = uid;
+                    uid = m_sessions[agent.UUID];
                 }
-            }
-        }
 
-        private void OnMakeChildAgent(ScenePresence agent)
-        {
+                uid.region_id = agent.Scene.RegionInfo.RegionID;
+                uid.session_id = agent.ControllingClient.SessionId;
+            }
         }
 
         private void OnClientClosed(UUID agentID, Scene scene)
         {
             lock (m_sessions)
             {
-                if (m_sessions.ContainsKey(agentID))
+                if (m_sessions.ContainsKey(agentID) && m_sessions[agentID].region_id == scene.RegionInfo.RegionID)
                 {
                     m_sessions.Remove(agentID);
                 }
@@ -395,20 +430,6 @@ namespace OpenSim.Region.UserStatistics
             return encoding.GetString(buffer);
         }
 
-        private UUID GetRegionUUIDFromHandle(ulong regionhandle)
-        {
-            lock (m_scenes)
-            {
-                foreach (Scene scene in m_scenes)
-                {
-                    if (scene.RegionInfo.RegionHandle == regionhandle)
-                        return scene.RegionInfo.RegionID;
-                }
-            }
-
-            return UUID.Zero;
-        }
-
         /// <summary>
         /// Callback for a viewerstats cap
         /// </summary>
@@ -428,9 +449,9 @@ namespace OpenSim.Region.UserStatistics
             return String.Empty;
         }
 
-        private UserSessionID ParseViewerStats(string request, UUID agentID)
+        private UserSession ParseViewerStats(string request, UUID agentID)
         {
-            UserSessionID uid = new UserSessionID();
+            UserSession uid = new UserSession();
             UserSessionData usd;
             OSD message = OSDParser.DeserializeLLSDXml(request);
             OSDMap mmap;
@@ -442,22 +463,25 @@ namespace OpenSim.Region.UserStatistics
                     if (!m_sessions.ContainsKey(agentID))
                     {
                         m_log.WarnFormat("[WEB STATS MODULE]: no session for stat disclosure for agent {0}", agentID);
-                        return new UserSessionID();
+                        return new UserSession();
                     }
+
                     uid = m_sessions[agentID];
+
+//                    m_log.DebugFormat("[WEB STATS MODULE]: Got session {0} for {1}", uid.session_id, agentID);
                 }
                 else
                 {
                     // parse through the beginning to locate the session
                     if (message.Type != OSDType.Map)
-                        return new UserSessionID();
+                        return new UserSession();
 
                     mmap = (OSDMap)message;
                     {
                         UUID sessionID = mmap["session_id"].AsUUID();
 
                         if (sessionID == UUID.Zero)
-                            return new UserSessionID();
+                            return new UserSession();
 
 
                         // search through each session looking for the owner
@@ -476,7 +500,7 @@ namespace OpenSim.Region.UserStatistics
                         // can't find a session
                         if (agentID == UUID.Zero)
                         {
-                            return new UserSessionID();
+                            return new UserSession();
                         }
                     }
                 }
@@ -485,12 +509,12 @@ namespace OpenSim.Region.UserStatistics
             usd = uid.session_data;
 
             if (message.Type != OSDType.Map)
-                return new UserSessionID();
+                return new UserSession();
 
             mmap = (OSDMap)message;
             {
                 if (mmap["agent"].Type != OSDType.Map)
-                    return new UserSessionID();
+                    return new UserSession();
                 OSDMap agent_map = (OSDMap)mmap["agent"];
                 usd.agent_id = agentID;
                 usd.name_f = uid.name_f;
@@ -510,17 +534,18 @@ namespace OpenSim.Region.UserStatistics
                                                  (float)agent_map["fps"].AsReal());
 
                 if (mmap["downloads"].Type != OSDType.Map)
-                    return new UserSessionID();
+                    return new UserSession();
                 OSDMap downloads_map = (OSDMap)mmap["downloads"];
                 usd.d_object_kb = (float)downloads_map["object_kbytes"].AsReal();
                 usd.d_texture_kb = (float)downloads_map["texture_kbytes"].AsReal();
                 usd.d_world_kb = (float)downloads_map["workd_kbytes"].AsReal();
 
+//                m_log.DebugFormat("[WEB STATS MODULE]: mmap[\"session_id\"] = [{0}]", mmap["session_id"].AsUUID());
 
                 usd.session_id = mmap["session_id"].AsUUID();
 
                 if (mmap["system"].Type != OSDType.Map)
-                    return new UserSessionID();
+                    return new UserSession();
                 OSDMap system_map = (OSDMap)mmap["system"];
 
                 usd.s_cpu = system_map["cpu"].AsString();
@@ -529,13 +554,13 @@ namespace OpenSim.Region.UserStatistics
                 usd.s_ram = system_map["ram"].AsInteger();
 
                 if (mmap["stats"].Type != OSDType.Map)
-                    return new UserSessionID();
+                    return new UserSession();
 
                 OSDMap stats_map = (OSDMap)mmap["stats"];
                 {
 
                     if (stats_map["failures"].Type != OSDType.Map)
-                        return new UserSessionID();
+                        return new UserSession();
                     OSDMap stats_failures = (OSDMap)stats_map["failures"];
                     usd.f_dropped = stats_failures["dropped"].AsInteger();
                     usd.f_failed_resends = stats_failures["failed_resends"].AsInteger();
@@ -544,18 +569,18 @@ namespace OpenSim.Region.UserStatistics
                     usd.f_send_packet = stats_failures["send_packet"].AsInteger();
 
                     if (stats_map["net"].Type != OSDType.Map)
-                        return new UserSessionID();
+                        return new UserSession();
                     OSDMap stats_net = (OSDMap)stats_map["net"];
                     {
                         if (stats_net["in"].Type != OSDType.Map)
-                            return new UserSessionID();
+                            return new UserSession();
 
                         OSDMap net_in = (OSDMap)stats_net["in"];
                         usd.n_in_kb = (float)net_in["kbytes"].AsReal();
                         usd.n_in_pk = net_in["packets"].AsInteger();
 
                         if (stats_net["out"].Type != OSDType.Map)
-                            return new UserSessionID();
+                            return new UserSession();
                         OSDMap net_out = (OSDMap)stats_net["out"];
 
                         usd.n_out_kb = (float)net_out["kbytes"].AsReal();
@@ -566,11 +591,18 @@ namespace OpenSim.Region.UserStatistics
 
             uid.session_data = usd;
             m_sessions[agentID] = uid;
+
+//            m_log.DebugFormat(
+//                "[WEB STATS MODULE]: Parse data for {0} {1}, session {2}", uid.name_f, uid.name_l, uid.session_id);
+
             return uid;
         }
 
-        private void UpdateUserStats(UserSessionID uid, SqliteConnection db)
+        private void UpdateUserStats(UserSession uid, SqliteConnection db)
         {
+//            m_log.DebugFormat(
+//                "[WEB STATS MODULE]: Updating user stats for {0} {1}, session {2}", uid.name_f, uid.name_l, uid.session_id);
+
             if (uid.session_id == UUID.Zero)
                 return;
 
@@ -757,7 +789,6 @@ VALUES
             s.min_ping = ArrayMin_f(__ping);
             s.max_ping = ArrayMax_f(__ping);
             s.mode_ping = ArrayMode_f(__ping);
-
         }
 
         #region Statistics
@@ -1002,7 +1033,7 @@ VALUES
     }
     #region structs
 
-    public struct UserSessionID
+    public class UserSession
     {
         public UUID session_id;
         public UUID region_id;

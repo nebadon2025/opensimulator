@@ -148,6 +148,7 @@ namespace OpenSim.Framework
         }
 
         public static Encoding UTF8 = Encoding.UTF8;
+        public static Encoding UTF8NoBomEncoding = new UTF8Encoding(false);
 
         /// <value>
         /// Well known UUID for the blank texture used in the Linden SL viewer version 1.20 (and hopefully onwards) 
@@ -296,6 +297,13 @@ namespace OpenSim.Framework
             return x.CompareTo(max) > 0 ? max :
                 x.CompareTo(min) < 0 ? min :
                 x;
+        }
+
+        // Inclusive, within range test (true if equal to the endpoints)
+        public static bool InRange<T>(T x, T min, T max)
+            where T : IComparable<T>
+        {
+            return x.CompareTo(max) <= 0 && x.CompareTo(min) >= 0;
         }
 
         public static uint GetNextXferID()
@@ -530,6 +538,19 @@ namespace OpenSim.Framework
             int min = Math.Min(x, y);
 
             return (x + y - (min >> 1) - (min >> 2) + (min >> 4));
+        }
+
+        /// <summary>
+        /// Determines whether a point is inside a bounding box.
+        /// </summary>
+        /// <param name='v'></param>
+        /// <param name='min'></param>
+        /// <param name='max'></param>
+        /// <returns></returns>
+        public static bool IsInsideBox(Vector3 v, Vector3 min, Vector3 max)
+        {
+            return v.X >= min.X & v.Y >= min.Y && v.Z >= min.Z
+                && v.X <= max.X && v.Y <= max.Y && v.Z <= max.Z;
         }
 
         /// <summary>
@@ -849,6 +870,12 @@ namespace OpenSim.Framework
             return Math.Min(Math.Max(x, min), max);
         }
 
+        public static Vector3 Clip(Vector3 vec, float min, float max)
+        {
+            return new Vector3(Clip(vec.X, min, max), Clip(vec.Y, min, max),
+                Clip(vec.Z, min, max));
+        }
+
         /// <summary>
         /// Convert an UUID to a raw uuid string.  Right now this is a string without hyphens.
         /// </summary>
@@ -998,6 +1025,38 @@ namespace OpenSim.Framework
 
                 return Util.UTF8.GetString(buffer);
             }
+        }
+
+        /// <summary>
+        /// Copy data from one stream to another, leaving the read position of both streams at the beginning.
+        /// </summary>
+        /// <param name='inputStream'>
+        /// Input stream.  Must be seekable.
+        /// </param>
+        /// <exception cref='ArgumentException'>
+        /// Thrown if the input stream is not seekable.
+        /// </exception>
+        public static Stream Copy(Stream inputStream)
+        {
+            if (!inputStream.CanSeek)
+                throw new ArgumentException("Util.Copy(Stream inputStream) must receive an inputStream that can seek");
+
+            const int readSize = 256;
+            byte[] buffer = new byte[readSize];
+            MemoryStream ms = new MemoryStream();
+        
+            int count = inputStream.Read(buffer, 0, readSize);
+
+            while (count > 0)
+            {
+                ms.Write(buffer, 0, count);
+                count = inputStream.Read(buffer, 0, readSize);
+            }
+
+            ms.Position = 0;
+            inputStream.Position = 0;
+
+            return ms;
         }
 
         public static XmlRpcResponse XmlRpcCommand(string url, string methodName, params object[] args)
@@ -1236,8 +1295,7 @@ namespace OpenSim.Framework
 
         public static string Base64ToString(string str)
         {
-            UTF8Encoding encoder = new UTF8Encoding();
-            Decoder utf8Decode = encoder.GetDecoder();
+            Decoder utf8Decode = Encoding.UTF8.GetDecoder();
 
             byte[] todecode_byte = Convert.FromBase64String(str);
             int charCount = utf8Decode.GetCharCount(todecode_byte, 0, todecode_byte.Length);
@@ -1589,6 +1647,7 @@ namespace OpenSim.Framework
                 throw new InvalidOperationException("SmartThreadPool is already initialized");
 
             m_ThreadPool = new SmartThreadPool(2000, maxThreads, 2);
+            m_ThreadPool.Name = "Util";
         }
 
         public static int FireAndForgetCount()
@@ -1661,7 +1720,7 @@ namespace OpenSim.Framework
                     break;
                 case FireAndForgetMethod.SmartThreadPool:
                     if (m_ThreadPool == null)
-                        m_ThreadPool = new SmartThreadPool(2000, 15, 2);
+                        InitThreadPool(15); 
                     m_ThreadPool.QueueWorkItem(SmartThreadPoolCallback, new object[] { realCallback, obj });
                     break;
                 case FireAndForgetMethod.Thread:
@@ -1690,12 +1749,16 @@ namespace OpenSim.Framework
             StringBuilder sb = new StringBuilder();
             if (FireAndForgetMethod == FireAndForgetMethod.SmartThreadPool)
             {
-                threadPoolUsed = "SmartThreadPool";
-                maxThreads = m_ThreadPool.MaxThreads;
-                minThreads = m_ThreadPool.MinThreads;
-                inUseThreads = m_ThreadPool.InUseThreads;
-                allocatedThreads = m_ThreadPool.ActiveThreads;
-                waitingCallbacks = m_ThreadPool.WaitingCallbacks;
+                // ROBUST currently leaves this the FireAndForgetMethod but never actually initializes the threadpool.
+                if (m_ThreadPool != null)
+                {
+                    threadPoolUsed = "SmartThreadPool";
+                    maxThreads = m_ThreadPool.MaxThreads;
+                    minThreads = m_ThreadPool.MinThreads;
+                    inUseThreads = m_ThreadPool.InUseThreads;
+                    allocatedThreads = m_ThreadPool.ActiveThreads;
+                    waitingCallbacks = m_ThreadPool.WaitingCallbacks;
+                }
             }
             else if (
                 FireAndForgetMethod == FireAndForgetMethod.UnsafeQueueUserWorkItem
@@ -1800,6 +1863,12 @@ namespace OpenSim.Framework
         /// </summary>
         public static void PrintCallStack()
         {
+            PrintCallStack(m_log.DebugFormat);
+        }
+
+        public delegate void DebugPrinter(string msg, params Object[] parm);
+        public static void PrintCallStack(DebugPrinter printer)
+        {
             StackTrace stackTrace = new StackTrace(true);           // get call stack
             StackFrame[] stackFrames = stackTrace.GetFrames();  // get method calls (frames)
 
@@ -1807,7 +1876,7 @@ namespace OpenSim.Framework
             foreach (StackFrame stackFrame in stackFrames)
             {
                 MethodBase mb = stackFrame.GetMethod();
-                m_log.DebugFormat("{0}.{1}:{2}", mb.DeclaringType, mb.Name, stackFrame.GetFileLineNumber()); // write method name
+                printer("{0}.{1}:{2}", mb.DeclaringType, mb.Name, stackFrame.GetFileLineNumber()); // write method name
             }
         }
 
@@ -2033,5 +2102,16 @@ namespace OpenSim.Framework
             return firstName + "." + lastName + " " + "@" + uri.Authority;
         }
         #endregion
+
+        /// <summary>
+        /// Escapes the special characters used in "LIKE".
+        /// </summary>
+        /// <remarks>
+        /// For example: EscapeForLike("foo_bar%baz") = "foo\_bar\%baz"
+        /// </remarks>
+        public static string EscapeForLike(string str)
+        {
+            return str.Replace("_", "\\_").Replace("%", "\\%");
+        }
     }
 }

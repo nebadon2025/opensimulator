@@ -96,8 +96,8 @@ namespace OpenSim.Region.ClientStack.Linden
         //        private static readonly string m_fetchInventoryPath = "0006/";
         private static readonly string m_copyFromNotecardPath = "0007/";
         // private static readonly string m_remoteParcelRequestPath = "0009/";// This is in the LandManagementModule.
-
-
+        private static readonly string m_UpdateAgentInformationPath = "0500/";
+        
         // These are callbacks which will be setup by the scene so that we can update scene data when we
         // receive capability calls
         public NewInventoryItem AddNewInventoryItem = null;
@@ -123,8 +123,13 @@ namespace OpenSim.Region.ClientStack.Linden
                 IConfig sconfig = config.Configs["Startup"];
                 if (sconfig != null)
                 {
-                    m_persistBakedTextures = sconfig.GetBoolean("PersistBakedTextures", m_persistBakedTextures);
                     m_levelUpload = sconfig.GetInt("LevelUpload", 0);
+                }
+
+                IConfig appearanceConfig = config.Configs["Appearance"];
+                if (appearanceConfig != null)
+                {
+                    m_persistBakedTextures = appearanceConfig.GetBoolean("PersistBakedTextures", m_persistBakedTextures);
                 }
             }
 
@@ -158,8 +163,8 @@ namespace OpenSim.Region.ClientStack.Linden
                 m_HostCapsObj.RegisterHandler(
                     "SEED", new RestStreamHandler("POST", capsBase + m_requestPath, SeedCapRequest, "SEED", null));
 
-                m_log.DebugFormat(
-                    "[CAPS]: Registered seed capability {0} for {1}", capsBase + m_requestPath, m_HostCapsObj.AgentID);
+//                m_log.DebugFormat(
+//                    "[CAPS]: Registered seed capability {0} for {1}", capsBase + m_requestPath, m_HostCapsObj.AgentID);
 
                 //m_capsHandlers["MapLayer"] =
                 //    new LLSDStreamhandler<OSDMapRequest, OSDMapLayerResponse>("POST",
@@ -199,6 +204,8 @@ namespace OpenSim.Region.ClientStack.Linden
                 m_HostCapsObj.RegisterHandler("UpdateNotecardAgentInventory", req);
                 m_HostCapsObj.RegisterHandler("UpdateScriptAgentInventory", req);
                 m_HostCapsObj.RegisterHandler("UpdateScriptAgent", req);
+                IRequestHandler UpdateAgentInformationHandler = new RestStreamHandler("POST", capsBase + m_UpdateAgentInformationPath, UpdateAgentInformation);
+                m_HostCapsObj.RegisterHandler("UpdateAgentInformation", UpdateAgentInformationHandler);
 
                 m_HostCapsObj.RegisterHandler(
                     "CopyInventoryFromNotecard",
@@ -249,11 +256,12 @@ namespace OpenSim.Region.ClientStack.Linden
         public string SeedCapRequest(string request, string path, string param,
                                   IOSHttpRequest httpRequest, IOSHttpResponse httpResponse)
         {
-//            m_log.Debug("[CAPS]: Seed Caps Request in region: " + m_regionName);
+            m_log.DebugFormat(
+                "[CAPS]: Received SEED caps request in {0} for agent {1}", m_regionName, m_HostCapsObj.AgentID);
 
             if (!m_Scene.CheckClient(m_HostCapsObj.AgentID, httpRequest.RemoteIPEndPoint))
             {
-                m_log.DebugFormat(
+                m_log.WarnFormat(
                     "[CAPS]: Unauthorized CAPS client {0} from {1}",
                     m_HostCapsObj.AgentID, httpRequest.RemoteIPEndPoint);
 
@@ -309,7 +317,7 @@ namespace OpenSim.Region.ClientStack.Linden
 
                 m_HostCapsObj.HttpListener.AddStreamHandler(
                     new BinaryStreamHandler(
-                        "POST", capsBase + uploaderPath, uploader.uploaderCaps, "BunchOfCaps", null));
+                        "POST", capsBase + uploaderPath, uploader.uploaderCaps, "TaskInventoryScriptUpdater", null));
 
                 string protocol = "http://";
 
@@ -848,6 +856,22 @@ namespace OpenSim.Region.ClientStack.Linden
 
             response["int_response_code"] = 200;
             return LLSDHelpers.SerialiseLLSDReply(response);
+        }
+
+        public string UpdateAgentInformation(string request, string path,
+                string param, IOSHttpRequest httpRequest,
+                IOSHttpResponse httpResponse)
+        {
+            OSDMap req = (OSDMap)OSDParser.DeserializeLLSDXml(request);
+            OSDMap resp = new OSDMap();
+
+            OSDMap accessPrefs = new OSDMap();
+            accessPrefs["max"] = "A";
+
+            resp["access_prefs"] = accessPrefs;
+
+            string response = OSDParser.SerializeLLSDXmlString(resp);
+            return response; 
         }
     }
 

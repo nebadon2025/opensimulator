@@ -56,6 +56,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int ACTIVE = 2;
         public const int PASSIVE = 4;
         public const int SCRIPTED = 8;
+        public const int OS_NPC = 0x01000000;
 
         public const int CONTROL_FWD = 1;
         public const int CONTROL_BACK = 2;
@@ -225,6 +226,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int ATTACH_BELLY = 28;
         public const int ATTACH_RPEC = 29;
         public const int ATTACH_LPEC = 30;
+        public const int ATTACH_LEFT_PEC = 29; // Same value as ATTACH_RPEC, see https://jira.secondlife.com/browse/SVC-580
+        public const int ATTACH_RIGHT_PEC = 30; // Same value as ATTACH_LPEC, see https://jira.secondlife.com/browse/SVC-580
         public const int ATTACH_HUD_CENTER_2 = 31;
         public const int ATTACH_HUD_TOP_RIGHT = 32;
         public const int ATTACH_HUD_TOP_CENTER = 33;
@@ -233,6 +236,58 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int ATTACH_HUD_BOTTOM_LEFT = 36;
         public const int ATTACH_HUD_BOTTOM = 37;
         public const int ATTACH_HUD_BOTTOM_RIGHT = 38;
+
+        #region osMessageAttachments constants
+
+        /// <summary>
+        /// Instructs osMessageAttachements to send the message to attachments
+        ///     on every point.
+        /// </summary>
+        /// <remarks>
+        /// One might expect this to be named OS_ATTACH_ALL, but then one might
+        ///     also expect functions designed to attach or detach or get
+        ///     attachments to work with it too. Attaching a no-copy item to
+        ///     many attachments could be dangerous.
+        /// when combined with OS_ATTACH_MSG_INVERT_POINTS, will prevent the
+        ///     message from being sent.
+        /// if combined with OS_ATTACH_MSG_OBJECT_CREATOR or
+        ///     OS_ATTACH_MSG_SCRIPT_CREATOR, could result in no message being
+        ///     sent- this is expected behaviour.
+        /// </remarks>
+        public const int OS_ATTACH_MSG_ALL = -65535;
+
+        /// <summary>
+        /// Instructs osMessageAttachements to invert how the attachment points
+        ///     list should be treated (e.g. go from inclusive operation to
+        ///     exclusive operation).
+        /// </summary>
+        /// <remarks>
+        /// This might be used if you want to deliver a message to one set of
+        ///     attachments and a different message to everything else. With
+        ///     this flag, you only need to build one explicit list for both calls.
+        /// </remarks>
+        public const int OS_ATTACH_MSG_INVERT_POINTS = 1;
+
+        /// <summary>
+        /// Instructs osMessageAttachments to only send the message to
+        ///     attachments with a CreatorID that matches the host object CreatorID
+        /// </summary>
+        /// <remarks>
+        /// This would be used if distributed in an object vendor/updater server.
+        /// </remarks>
+        public const int OS_ATTACH_MSG_OBJECT_CREATOR = 2;
+
+        /// <summary>
+        /// Instructs osMessageAttachments to only send the message to
+        ///     attachments with a CreatorID that matches the sending script CreatorID
+        /// </summary>
+        /// <remarks>
+        /// This might be used if the script is distributed independently of a
+        ///     containing object.
+        /// </remarks>
+        public const int OS_ATTACH_MSG_SCRIPT_CREATOR = 4;
+
+        #endregion
 
         public const int LAND_LEVEL = 0;
         public const int LAND_RAISE = 1;
@@ -325,6 +380,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int PRIM_OMEGA = 32;
         public const int PRIM_POS_LOCAL = 33;
         public const int PRIM_LINK_TARGET = 34;
+        public const int PRIM_SLICE = 35;
         public const int PRIM_TEXGEN_DEFAULT = 0;
         public const int PRIM_TEXGEN_PLANAR = 1;
 
@@ -501,6 +557,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int OBJECT_STREAMING_COST = 15;
         public const int OBJECT_PHYSICS_COST = 16;
 
+        // for llGetAgentList
+        public const int AGENT_LIST_PARCEL = 1;
+        public const int AGENT_LIST_PARCEL_OWNER = 2;
+        public const int AGENT_LIST_REGION = 4;
+
         // Can not be public const?
         public static readonly vector ZERO_VECTOR = new vector(0.0, 0.0, 0.0);
         public static readonly rotation ZERO_ROTATION = new rotation(0.0, 0.0, 0.0, 1.0);
@@ -551,6 +612,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int CLICK_ACTION_OPEN = 4;
         public const int CLICK_ACTION_PLAY = 5;
         public const int CLICK_ACTION_OPEN_MEDIA = 6;
+        public const int CLICK_ACTION_ZOOM = 7;
 
         // constants for the llDetectedTouch* functions
         public const int TOUCH_INVALID_FACE = -1;
@@ -626,6 +688,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int OS_NPC_FLY = 0;
         public const int OS_NPC_NO_FLY = 1;
         public const int OS_NPC_LAND_AT_TARGET = 2;
+        public const int OS_NPC_RUNNING = 4;
 
         public const int OS_NPC_SIT_NOW = 0;
 
@@ -653,5 +716,15 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public static readonly LSLInteger RCERR_UNKNOWN = -1;        
         public static readonly LSLInteger RCERR_SIM_PERF_LOW = -2;
         public static readonly LSLInteger RCERR_CAST_TIME_EXCEEDED = 3;
+
+        /// <summary>
+        /// process name parameter as regex
+        /// </summary>
+        public const int OS_LISTEN_REGEX_NAME = 0x1;
+
+        /// <summary>
+        /// process message parameter as regex
+        /// </summary>
+        public const int OS_LISTEN_REGEX_MESSAGE = 0x2;
     }
 }

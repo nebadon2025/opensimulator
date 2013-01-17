@@ -389,6 +389,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llGetAgentLanguage(id);
         }
 
+        public LSL_List llGetAgentList(LSL_Integer scope, LSL_List options)
+        {
+            return m_LSL_Functions.llGetAgentList(scope, options);
+        }
+
         public LSL_Vector llGetAgentSize(string id)
         {
             return m_LSL_Functions.llGetAgentSize(id);
@@ -949,6 +954,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llRequestDisplayName(id);
         }
 
+        public LSL_List llCastRay(LSL_Vector start, LSL_Vector end, LSL_List options)
+        {
+            return m_LSL_Functions.llCastRay(start, end, options);
+        }
+
         public void llLinkParticleSystem(int linknum, LSL_List rules)
         {
             m_LSL_Functions.llLinkParticleSystem(linknum, rules);
@@ -1488,6 +1498,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llSetCameraEyeOffset(offset);
         }
 
+        public void llSetLinkCamera(LSL_Integer link, LSL_Vector eye, LSL_Vector at)
+        {
+            m_LSL_Functions.llSetLinkCamera(link, eye, at);
+        }
+
         public void llSetCameraParams(LSL_List rules)
         {
             m_LSL_Functions.llSetCameraParams(rules);
@@ -1606,6 +1621,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public void llSetPrimURL(string url)
         {
             m_LSL_Functions.llSetPrimURL(url);
+        }
+
+        public LSL_Integer llSetRegionPos(LSL_Vector pos)
+        {
+            return m_LSL_Functions.llSetRegionPos(pos);
         }
 
         public void llSetRemoteScriptAccessPin(int pin)
@@ -1826,6 +1846,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public void llTargetRemove(int number)
         {
             m_LSL_Functions.llTargetRemove(number);
+        }
+
+        public void llTeleportAgent(string agent, string simname, LSL_Vector pos, LSL_Vector lookAt)
+        {
+            m_LSL_Functions.llTeleportAgent(agent, simname, pos, lookAt);
+        }
+
+        public void llTeleportAgentGlobalCoords(string agent, LSL_Vector global, LSL_Vector pos, LSL_Vector lookAt)
+        {
+            m_LSL_Functions.llTeleportAgentGlobalCoords(agent, global, pos, lookAt);
         }
 
         public void llTeleportAgentHome(string agent)

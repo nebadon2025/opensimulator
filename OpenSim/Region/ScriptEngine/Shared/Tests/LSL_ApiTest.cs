@@ -33,6 +33,7 @@ using OpenSim.Region.ScriptEngine.Shared;
 using OpenSim.Region.Framework.Scenes;
 using Nini.Config;
 using OpenSim.Region.ScriptEngine.Shared.Api;
+using OpenSim.Region.ScriptEngine.Shared.Instance;
 using OpenSim.Region.ScriptEngine.Shared.ScriptBase;
 using OpenMetaverse;
 using System;
@@ -59,15 +60,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Tests
             config.Set("Enabled", "true");
 
             Scene scene = new SceneHelpers().SetupScene();
-            SceneObjectPart part = SceneHelpers.AddSceneObject(scene);
+            SceneObjectPart part = SceneHelpers.AddSceneObject(scene).RootPart;
 
             XEngine.XEngine engine = new XEngine.XEngine();
             engine.Initialise(initConfigSource);
             engine.AddRegion(scene);
 
             m_lslApi = new LSL_Api();
-            m_lslApi.Initialize(engine, part, part.LocalId, part.UUID);
-
+            m_lslApi.Initialize(engine, part, null, null);
         }
 
         [Test]

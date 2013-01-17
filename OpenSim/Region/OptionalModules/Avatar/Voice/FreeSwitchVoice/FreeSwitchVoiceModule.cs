@@ -447,7 +447,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.Voice.FreeSwitchVoice
                 // settings allow voice, then whether parcel allows
                 // voice, if all do retrieve or obtain the parcel
                 // voice channel
-                LandData land = scene.GetLandData(avatar.AbsolutePosition.X, avatar.AbsolutePosition.Y);
+                LandData land = scene.GetLandData(avatar.AbsolutePosition);
 
                 //m_log.DebugFormat("[FreeSwitchVoice][PARCELVOICE]: region \"{0}\": Parcel \"{1}\" ({2}): avatar \"{3}\": request: {4}, path: {5}, param: {6}",
                 //                  scene.RegionInfo.RegionName, land.Name, land.LocalID, avatarName, request, path, param);
@@ -823,11 +823,10 @@ namespace OpenSim.Region.OptionalModules.Avatar.Voice.FreeSwitchVoice
                 m_log.DebugFormat("[FreeSwitchVoice]: Region:Parcel \"{0}\": parcel id {1}: using channel name {2}",
                                   landName, land.LocalID, landUUID);
             }
-            System.Text.ASCIIEncoding encoding = new System.Text.ASCIIEncoding();
 
             // slvoice handles the sip address differently if it begins with confctl, hiding it from the user in the friends list. however it also disables
             // the personal speech indicators as well unless some siren14-3d codec magic happens. we dont have siren143d so we'll settle for the personal speech indicator.
-            channelUri = String.Format("sip:conf-{0}@{1}", "x" + Convert.ToBase64String(encoding.GetBytes(landUUID)), m_freeSwitchRealm);
+            channelUri = String.Format("sip:conf-{0}@{1}", "x" + Convert.ToBase64String(Encoding.ASCII.GetBytes(landUUID)), m_freeSwitchRealm);
 
             lock (m_ParcelAddress)
             {

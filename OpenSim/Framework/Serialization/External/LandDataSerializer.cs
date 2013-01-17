@@ -42,9 +42,7 @@ namespace OpenSim.Framework.Serialization.External
     /// </summary>
     public class LandDataSerializer
     {
-        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
-        protected static UTF8Encoding m_utf8Encoding = new UTF8Encoding();
+//        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private static Dictionary<string, Action<LandData, XmlTextReader>> m_ldProcessors
             = new Dictionary<string, Action<LandData, XmlTextReader>>();
@@ -95,6 +93,8 @@ namespace OpenSim.Framework.Serialization.External
                 "MediaURL",         (ld, xtr) => ld.MediaURL = xtr.ReadElementString("MediaURL"));
             m_ldProcessors.Add(
                 "MusicURL",         (ld, xtr) => ld.MusicURL = xtr.ReadElementString("MusicURL"));
+            m_ldProcessors.Add(
+                "OwnerID",          (ld, xtr) => ld.OwnerID  = UUID.Parse(xtr.ReadElementString("OwnerID")));
 
             m_ldProcessors.Add(
                 "ParcelAccessList", ProcessParcelAccessList);
@@ -163,7 +163,7 @@ namespace OpenSim.Framework.Serialization.External
         /// <exception cref="System.Xml.XmlException"></exception>
         public static LandData Deserialize(byte[] serializedLandData)
         {
-            return Deserialize(m_utf8Encoding.GetString(serializedLandData, 0, serializedLandData.Length));
+            return Deserialize(Encoding.UTF8.GetString(serializedLandData, 0, serializedLandData.Length));
         }
 
         /// <summary>
@@ -188,7 +188,16 @@ namespace OpenSim.Framework.Serialization.External
             return landData;
         }
 
-        public static string Serialize(LandData landData)
+        /// <summary>
+        /// Serialize land data
+        /// </summary>
+        /// <param name='landData'></param>
+        /// <param name='options'>
+        /// Serialization options.
+        /// Can be null if there are no options.
+        /// "wipe-owners" will write UUID.Zero rather than the ownerID so that a later reload loads all parcels with the estate owner as the owner
+        /// </param>
+        public static string Serialize(LandData landData, Dictionary<string, object> options)
         {
             StringWriter sw = new StringWriter();
             XmlTextWriter xtw = new XmlTextWriter(sw);
@@ -217,7 +226,14 @@ namespace OpenSim.Framework.Serialization.External
             xtw.WriteElementString("MediaID",        landData.MediaID.ToString());
             xtw.WriteElementString("MediaURL",       landData.MediaURL);
             xtw.WriteElementString("MusicURL",       landData.MusicURL);
-            xtw.WriteElementString("OwnerID",        landData.OwnerID.ToString());
+
+            UUID ownerIdToWrite;
+            if (options != null && options.ContainsKey("wipe-owners"))
+                ownerIdToWrite = UUID.Zero;                
+            else
+                ownerIdToWrite = landData.OwnerID;
+
+            xtw.WriteElementString("OwnerID",        ownerIdToWrite.ToString());
 
             xtw.WriteStartElement("ParcelAccessList");
             foreach (LandAccessEntry pal in landData.ParcelAccessList)

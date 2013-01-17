@@ -38,7 +38,18 @@ namespace OpenSim.Region.Framework.Scenes
 {
     public partial class Scene
     {
-
+        /// <summary>
+        /// Send chat to listeners.
+        /// </summary>
+        /// <param name='message'></param>
+        /// <param name='type'>/param>
+        /// <param name='channel'></param>
+        /// <param name='fromPos'></param>
+        /// <param name='fromName'></param>
+        /// <param name='fromID'></param>
+        /// <param name='targetID'></param>
+        /// <param name='fromAgent'></param>
+        /// <param name='broadcast'></param>
         protected void SimChat(byte[] message, ChatTypeEnum type, int channel, Vector3 fromPos, string fromName,
                                UUID fromID, UUID targetID, bool fromAgent, bool broadcast)
         {
@@ -65,6 +76,10 @@ namespace OpenSim.Region.Framework.Scenes
 
             args.From = fromName;
             args.TargetUUID = targetID;
+
+//            m_log.DebugFormat(
+//                "[SCENE]: Sending message {0} on channel {1}, type {2} from {3}, broadcast {4}",
+//                args.Message.Replace("\n", "\\n"), args.Channel, args.Type, fromName, broadcast);
 
             if (broadcast)
                 EventManager.TriggerOnChatBroadcast(this, args);
@@ -468,7 +483,7 @@ namespace OpenSim.Region.Framework.Scenes
             if (!InventoryService.AddFolder(folder))
             {
                 m_log.WarnFormat(
-                     "[AGENT INVENTORY]: Failed to move create folder for user {0} {1}",
+                     "[AGENT INVENTORY]: Failed to create folder for user {0} {1}",
                      remoteClient.Name, remoteClient.AgentId);
             }
         }

@@ -29,6 +29,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using log4net;
+using Mono.Addins;
 using Nini.Config;
 using OpenMetaverse;
 using OpenSim.Framework;
@@ -39,6 +40,7 @@ using OpenSim.Services.Interfaces;
 
 namespace OpenSim.Region.CoreModules.World
 {
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AccessModule")]
     public class AccessModule : ISharedRegionModule
     {
 //        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
@@ -129,18 +131,18 @@ namespace OpenSim.Region.CoreModules.World
             switch (cmd[1])
             {
             case "enable":
-                scene.LoginsDisabled = false;
+                scene.LoginsEnabled = true;
                 MainConsole.Instance.Output(String.Format("Logins are enabled for region {0}", scene.RegionInfo.RegionName));
                 break;
             case "disable":
-                scene.LoginsDisabled = true;
+                scene.LoginsEnabled = false;
                 MainConsole.Instance.Output(String.Format("Logins are disabled for region {0}", scene.RegionInfo.RegionName));
                 break;
             case "status":
-                if (scene.LoginsDisabled)
-                    MainConsole.Instance.Output(String.Format("Login in {0} are disabled", scene.RegionInfo.RegionName));
-                else
+                if (scene.LoginsEnabled)
                     MainConsole.Instance.Output(String.Format("Login in {0} are enabled", scene.RegionInfo.RegionName));
+                else
+                    MainConsole.Instance.Output(String.Format("Login in {0} are disabled", scene.RegionInfo.RegionName));
                 break;
             default:
                 MainConsole.Instance.Output("Syntax: login enable|disable|status");

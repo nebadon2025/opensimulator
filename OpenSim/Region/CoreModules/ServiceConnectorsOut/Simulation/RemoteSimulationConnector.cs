@@ -32,6 +32,7 @@ using System.Net;
 using System.Reflection;
 using System.Text;
 using log4net;
+using Mono.Addins;
 using Nini.Config;
 using OpenMetaverse;
 using OpenMetaverse.StructuredData;
@@ -46,6 +47,7 @@ using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 
 namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Simulation
 {
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "RemoteSimulationConnectorModule")]
     public class RemoteSimulationConnectorModule : ISharedRegionModule, ISimulationService
     {
         private bool initialized = false;
@@ -60,7 +62,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Simulation
         protected bool m_safemode;
         protected IPAddress m_thisIP;
 
-        #region IRegionModule
+        #region Region Module interface
 
         public virtual void Initialise(IConfigSource config)
         {
@@ -147,13 +149,13 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Simulation
             m_thisIP = Util.GetHostFromDNS(scene.RegionInfo.ExternalHostName);
         }
 
-        #endregion /* IRegionModule */
+        #endregion
 
         #region IInterregionComms
 
-        public IScene GetScene(ulong handle)
+        public IScene GetScene(UUID regionId)
         {
-            return m_localBackend.GetScene(handle);
+            return m_localBackend.GetScene(regionId);
         }
 
         public ISimulationService GetInnerService()
@@ -226,13 +228,13 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Simulation
                 return m_remoteConnector.RetrieveAgent(destination, id, out agent);
 
             return false;
-
         }
 
         public bool QueryAccess(GridRegion destination, UUID id, Vector3 position, out string version, out string reason)
         {
             reason = "Communications failure";
             version = "Unknown";
+
             if (destination == null)
                 return false;
 
@@ -245,7 +247,6 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Simulation
                 return m_remoteConnector.QueryAccess(destination, id, position, out version, out reason);
 
             return false;
-
         }
 
         public bool ReleaseAgent(UUID origin, UUID id, string uri)
@@ -301,13 +302,6 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Simulation
             return false;
         }
 
-        public bool CreateObject(GridRegion destination, UUID userID, UUID itemID)
-        {
-            // Not Implemented
-            return false;
-        }
-
         #endregion /* IInterregionComms */
-
     }
 }

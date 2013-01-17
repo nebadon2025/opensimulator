@@ -47,20 +47,69 @@ using OpenSim.Services.Interfaces;
 
 namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
 {
-    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule")]
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "XmlRpcGroupsServicesConnectorModule")]
     public class XmlRpcGroupsServicesConnectorModule : ISharedRegionModule, IGroupsServicesConnector
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private bool m_debugEnabled = false;
 
-        public const GroupPowers m_DefaultEveryonePowers = GroupPowers.AllowSetHome | 
-            GroupPowers.Accountable | 
-            GroupPowers.JoinChat | 
-            GroupPowers.AllowVoiceChat | 
-            GroupPowers.ReceiveNotices | 
-            GroupPowers.StartProposal | 
-            GroupPowers.VoteOnProposal;
+        public const GroupPowers DefaultEveryonePowers 
+            = GroupPowers.AllowSetHome 
+                | GroupPowers.Accountable 
+                | GroupPowers.JoinChat 
+                | GroupPowers.AllowVoiceChat 
+                | GroupPowers.ReceiveNotices 
+                | GroupPowers.StartProposal 
+                | GroupPowers.VoteOnProposal;
+
+        // Would this be cleaner as (GroupPowers)ulong.MaxValue?
+        public const GroupPowers DefaultOwnerPowers 
+            = GroupPowers.Accountable
+                | GroupPowers.AllowEditLand
+                | GroupPowers.AllowFly
+                | GroupPowers.AllowLandmark
+                | GroupPowers.AllowRez
+                | GroupPowers.AllowSetHome
+                | GroupPowers.AllowVoiceChat
+                | GroupPowers.AssignMember
+                | GroupPowers.AssignMemberLimited
+                | GroupPowers.ChangeActions
+                | GroupPowers.ChangeIdentity
+                | GroupPowers.ChangeMedia
+                | GroupPowers.ChangeOptions
+                | GroupPowers.CreateRole
+                | GroupPowers.DeedObject
+                | GroupPowers.DeleteRole
+                | GroupPowers.Eject
+                | GroupPowers.FindPlaces
+                | GroupPowers.Invite
+                | GroupPowers.JoinChat
+                | GroupPowers.LandChangeIdentity
+                | GroupPowers.LandDeed
+                | GroupPowers.LandDivideJoin
+                | GroupPowers.LandEdit
+                | GroupPowers.LandEjectAndFreeze
+                | GroupPowers.LandGardening
+                | GroupPowers.LandManageAllowed
+                | GroupPowers.LandManageBanned
+                | GroupPowers.LandManagePasses
+                | GroupPowers.LandOptions
+                | GroupPowers.LandRelease
+                | GroupPowers.LandSetSale
+                | GroupPowers.ModerateChat
+                | GroupPowers.ObjectManipulate
+                | GroupPowers.ObjectSetForSale
+                | GroupPowers.ReceiveNotices
+                | GroupPowers.RemoveMember
+                | GroupPowers.ReturnGroupOwned
+                | GroupPowers.ReturnGroupSet
+                | GroupPowers.ReturnNonGroup
+                | GroupPowers.RoleProperties
+                | GroupPowers.SendNotices
+                | GroupPowers.SetLandingPoint
+                | GroupPowers.StartProposal
+                | GroupPowers.VoteOnProposal;
 
         private bool m_connectorEnabled = false;
 
@@ -83,7 +132,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
         private Dictionary<UUID, List<UUID>> m_groupsAgentsDroppedFromChatSession = new Dictionary<UUID, List<UUID>>();
         private Dictionary<UUID, List<UUID>> m_groupsAgentsInvitedToChatSession = new Dictionary<UUID, List<UUID>>();
 
-        #region IRegionModuleBase Members
+        #region Region Module interfaceBase Members
 
         public string Name
         {
@@ -201,8 +250,8 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
         /// <summary>
         /// Create a Group, including Everyone and Owners Role, place FounderID in both groups, select Owner as selected role, and newly created group as agent's active role.
         /// </summary>
-        public UUID CreateGroup(UUID requestingAgentID, string name, string charter, bool showInList, UUID insigniaID, 
-                                int membershipFee, bool openEnrollment, bool allowPublish, 
+        public UUID CreateGroup(UUID requestingAgentID, string name, string charter, bool showInList, UUID insigniaID,
+                                int membershipFee, bool openEnrollment, bool allowPublish,
                                 bool maturePublish, UUID founderID)
         {
             UUID GroupID = UUID.Random();
@@ -214,64 +263,14 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
             param["Charter"] = charter;
             param["ShowInList"] = showInList == true ? 1 : 0;
             param["InsigniaID"] = insigniaID.ToString();
-            param["MembershipFee"] = 0;
+            param["MembershipFee"] = membershipFee;
             param["OpenEnrollment"] = openEnrollment == true ? 1 : 0;
             param["AllowPublish"] = allowPublish == true ? 1 : 0;
             param["MaturePublish"] = maturePublish == true ? 1 : 0;
             param["FounderID"] = founderID.ToString();
-            param["EveryonePowers"] = ((ulong)m_DefaultEveryonePowers).ToString();
+            param["EveryonePowers"] = ((ulong)DefaultEveryonePowers).ToString();
             param["OwnerRoleID"] = OwnerRoleID.ToString();
-
-            // Would this be cleaner as (GroupPowers)ulong.MaxValue;
-            GroupPowers OwnerPowers = GroupPowers.Accountable
-                                    | GroupPowers.AllowEditLand
-                                    | GroupPowers.AllowFly
-                                    | GroupPowers.AllowLandmark
-                                    | GroupPowers.AllowRez
-                                    | GroupPowers.AllowSetHome
-                                    | GroupPowers.AllowVoiceChat
-                                    | GroupPowers.AssignMember
-                                    | GroupPowers.AssignMemberLimited
-                                    | GroupPowers.ChangeActions
-                                    | GroupPowers.ChangeIdentity
-                                    | GroupPowers.ChangeMedia
-                                    | GroupPowers.ChangeOptions
-                                    | GroupPowers.CreateRole
-                                    | GroupPowers.DeedObject
-                                    | GroupPowers.DeleteRole
-                                    | GroupPowers.Eject
-                                    | GroupPowers.FindPlaces
-                                    | GroupPowers.Invite
-                                    | GroupPowers.JoinChat
-                                    | GroupPowers.LandChangeIdentity
-                                    | GroupPowers.LandDeed
-                                    | GroupPowers.LandDivideJoin
-                                    | GroupPowers.LandEdit
-                                    | GroupPowers.LandEjectAndFreeze
-                                    | GroupPowers.LandGardening
-                                    | GroupPowers.LandManageAllowed
-                                    | GroupPowers.LandManageBanned
-                                    | GroupPowers.LandManagePasses
-                                    | GroupPowers.LandOptions
-                                    | GroupPowers.LandRelease
-                                    | GroupPowers.LandSetSale
-                                    | GroupPowers.ModerateChat
-                                    | GroupPowers.ObjectManipulate
-                                    | GroupPowers.ObjectSetForSale
-                                    | GroupPowers.ReceiveNotices
-                                    | GroupPowers.RemoveMember
-                                    | GroupPowers.ReturnGroupOwned
-                                    | GroupPowers.ReturnGroupSet
-                                    | GroupPowers.ReturnNonGroup
-                                    | GroupPowers.RoleProperties
-                                    | GroupPowers.SendNotices
-                                    | GroupPowers.SetLandingPoint
-                                    | GroupPowers.StartProposal
-                                    | GroupPowers.VoteOnProposal;
-            param["OwnersPowers"] = ((ulong)OwnerPowers).ToString();
-
-
-
+            param["OwnersPowers"] = ((ulong)DefaultOwnerPowers).ToString();
 
             Hashtable respData = XmlRpcCall(requestingAgentID, "groups.createGroup", param);
 
@@ -285,8 +284,8 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
             return UUID.Parse((string)respData["GroupID"]);
         }
 
-        public void UpdateGroup(UUID requestingAgentID, UUID groupID, string charter, bool showInList, 
-                                UUID insigniaID, int membershipFee, bool openEnrollment, 
+        public void UpdateGroup(UUID requestingAgentID, UUID groupID, string charter, bool showInList,
+                                UUID insigniaID, int membershipFee, bool openEnrollment,
                                 bool allowPublish, bool maturePublish)
         {
             Hashtable param = new Hashtable();
@@ -302,7 +301,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
             XmlRpcCall(requestingAgentID, "groups.updateGroup", param);
         }
 
-        public void AddGroupRole(UUID requestingAgentID, UUID groupID, UUID roleID, string name, string description, 
+        public void AddGroupRole(UUID requestingAgentID, UUID groupID, UUID roleID, string name, string description,
                                  string title, ulong powers)
         {
             Hashtable param = new Hashtable();
@@ -325,7 +324,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
             XmlRpcCall(requestingAgentID, "groups.removeRoleFromGroup", param);
         }
 
-        public void UpdateGroupRole(UUID requestingAgentID, UUID groupID, UUID roleID, string name, string description, 
+        public void UpdateGroupRole(UUID requestingAgentID, UUID groupID, UUID roleID, string name, string description,
                                     string title, ulong powers)
         {
             Hashtable param = new Hashtable();
@@ -580,7 +579,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
                     memberships.Add(HashTableToGroupMembershipData((Hashtable)membership));
                 }
             }
-            
+
             return memberships;
         }
 
@@ -612,8 +611,6 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
             }
 
             return Roles;
-
-
         }
 
         public List<GroupRolesData> GetGroupRoles(UUID requestingAgentID, UUID GroupID)
@@ -676,7 +673,6 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
             }
 
             return members;
-
         }
 
         public List<GroupRoleMembersData> GetGroupRoleMembers(UUID requestingAgentID, UUID GroupID)
@@ -727,16 +723,16 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
                     values.Add(data);
                 }
             }
-            return values;
 
+            return values;
         }
+
         public GroupNoticeInfo GetGroupNotice(UUID requestingAgentID, UUID noticeID)
         {
             Hashtable param = new Hashtable();
             param["NoticeID"] = noticeID.ToString();
 
             Hashtable respData = XmlRpcCall(requestingAgentID, "groups.getGroupNotice", param);
-
 
             if (respData.Contains("error"))
             {
@@ -761,6 +757,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
 
             return data;
         }
+
         public void AddGroupNotice(UUID requestingAgentID, UUID groupID, UUID noticeID, string fromName, string subject, string message, byte[] binaryBucket)
         {
             string binBucket = OpenMetaverse.Utils.BytesToHexString(binaryBucket, "");
@@ -776,8 +773,6 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
 
             XmlRpcCall(requestingAgentID, "groups.addGroupNotice", param);
         }
-
-
 
         #endregion
 
@@ -800,9 +795,9 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
 
         public bool hasAgentDroppedGroupChatSession(UUID agentID, UUID groupID)
         {
-            // If we're tracking drops for this group, 
+            // If we're tracking drops for this group,
             // and we find them, well... then they've dropped
-            return m_groupsAgentsDroppedFromChatSession.ContainsKey(groupID) 
+            return m_groupsAgentsDroppedFromChatSession.ContainsKey(groupID)
                 && m_groupsAgentsDroppedFromChatSession[groupID].Contains(agentID);
         }
 
@@ -888,7 +883,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
 
             return group;
         }
-        
+
         private static GroupMembershipData HashTableToGroupMembershipData(Hashtable respData)
         {
             GroupMembershipData data = new GroupMembershipData();
@@ -921,7 +916,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
             data.MembershipFee = int.Parse((string)respData["MembershipFee"]);
             data.OpenEnrollment = ((string)respData["OpenEnrollment"] == "1");
             data.ShowInList = ((string)respData["ShowInList"] == "1");
-            
+
             return data;
         }
 
@@ -958,7 +953,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
                     m_memoryCache.TryGetValue(CacheKey, out resp);
                 }
             }
-            
+
             if (resp == null)
             {
                 if (m_debugEnabled)
@@ -967,7 +962,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
                 string UserService;
                 UUID SessionID;
                 GetClientGroupRequestID(requestingAgentID, out UserService, out SessionID);
-                
+
                 param.Add("RequestingAgentID", requestingAgentID.ToString());
                 param.Add("RequestingAgentUserService", UserService);
                 param.Add("RequestingSessionID", SessionID.ToString());
@@ -992,9 +987,9 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
                 catch (Exception e)
                 {
                     m_log.ErrorFormat(
-                        "[XMLRPC-GROUPS-CONNECTOR]: An error has occured while attempting to access the XmlRpcGroups server method {0} at {1}", 
+                        "[XMLRPC-GROUPS-CONNECTOR]: An error has occured while attempting to access the XmlRpcGroups server method {0} at {1}",
                         function, m_groupsServerURI);
-                    
+
                     m_log.ErrorFormat("[XMLRPC-GROUPS-CONNECTOR]: {0}{1}", e.Message, e.StackTrace);
 
                     foreach (string ResponseLine in req.RequestResponse.Split(new string[] { Environment.NewLine }, StringSplitOptions.None))
@@ -1061,9 +1056,9 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
                 }
             }
         }
-        
+
         /// <summary>
-        /// Group Request Tokens are an attempt to allow the groups service to authenticate 
+        /// Group Request Tokens are an attempt to allow the groups service to authenticate
         /// requests.
         /// TODO: This broke after the big grid refactor, either find a better way, or discard this
         /// </summary>
@@ -1103,7 +1098,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.XmlRpcGroups
             }
             */
         }
-        
+
     }
 }
 
@@ -1120,7 +1115,6 @@ namespace Nwc.XmlRpc
     /// <summary>Class supporting the request side of an XML-RPC transaction.</summary>
     public class ConfigurableKeepAliveXmlRpcRequest : XmlRpcRequest
     {
-        private Encoding _encoding = new ASCIIEncoding();
         private XmlRpcRequestSerializer _serializer = new XmlRpcRequestSerializer();
         private XmlRpcResponseDeserializer _deserializer = new XmlRpcResponseDeserializer();
         private bool _disableKeepAlive = true;
@@ -1153,7 +1147,7 @@ namespace Nwc.XmlRpc
             request.KeepAlive = !_disableKeepAlive;
 
             Stream stream = request.GetRequestStream();
-            XmlTextWriter xml = new XmlTextWriter(stream, _encoding);
+            XmlTextWriter xml = new XmlTextWriter(stream, Encoding.ASCII);
             _serializer.Serialize(xml, this);
             xml.Flush();
             xml.Close();

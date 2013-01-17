@@ -109,6 +109,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         LSL_Vector llGetAccel();
        LSL_Integer llGetAgentInfo(string id);
         LSL_String llGetAgentLanguage(string id);
+          LSL_List llGetAgentList(LSL_Integer scope, LSL_List options);
         LSL_Vector llGetAgentSize(string id);
          LSL_Float llGetAlpha(int face);
          LSL_Float llGetAndResetTime();
@@ -332,6 +333,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
               void llSetBuoyancy(double buoyancy);
               void llSetCameraAtOffset(LSL_Vector offset);
               void llSetCameraEyeOffset(LSL_Vector offset);
+              void llSetLinkCamera(LSL_Integer link, LSL_Vector eye, LSL_Vector at);
               void llSetCameraParams(LSL_List rules);
               void llSetClickAction(int action);
               void llSetColor(LSL_Vector color, int face);
@@ -358,6 +360,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
               void llSetPrimitiveParams(LSL_List rules);
               void llSetLinkPrimitiveParamsFast(int linknum, LSL_List rules);
               void llSetPrimURL(string url);
+       LSL_Integer llSetRegionPos(LSL_Vector pos);
               void llSetRemoteScriptAccessPin(int pin);
               void llSetRot(LSL_Rotation rot);
               void llSetScale(LSL_Vector scale);
@@ -402,6 +405,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
               void llTargetOmega(LSL_Vector axis, double spinrate, double gain);
               void llTargetRemove(int number);
               void llTeleportAgentHome(string agent);
+              void llTeleportAgent(string agent, string simname, LSL_Vector pos, LSL_Vector lookAt);
+              void llTeleportAgentGlobalCoords(string agent, LSL_Vector global, LSL_Vector pos, LSL_Vector lookAt);
               void llTextBox(string avatar, string message, int chat_channel);
         LSL_String llToLower(string source);
         LSL_String llToUpper(string source);
@@ -420,7 +425,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         LSL_String llXorBase64StringsCorrect(string str1, string str2);
               void print(string str);
 
-              void SetPrimitiveParamsEx(LSL_Key prim, LSL_List rules);
-          LSL_List GetLinkPrimitiveParamsEx(LSL_Key prim, LSL_List rules);
+              void SetPrimitiveParamsEx(LSL_Key prim, LSL_List rules, string originFunc);
+          LSL_List GetPrimitiveParamsEx(LSL_Key prim, LSL_List rules);
     }
 }

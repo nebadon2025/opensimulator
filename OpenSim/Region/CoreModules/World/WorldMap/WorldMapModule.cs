@@ -40,8 +40,10 @@ using Nini.Config;
 using OpenMetaverse;
 using OpenMetaverse.Imaging;
 using OpenMetaverse.StructuredData;
+using Mono.Addins;
 using OpenSim.Framework;
 using OpenSim.Framework.Capabilities;
+using OpenSim.Framework.Monitoring;
 using OpenSim.Framework.Servers;
 using OpenSim.Framework.Servers.HttpServer;
 using OpenSim.Region.Framework.Interfaces;
@@ -54,6 +56,7 @@ using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 
 namespace OpenSim.Region.CoreModules.World.WorldMap
 {
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "WorldMapModule")]
     public class WorldMapModule : INonSharedRegionModule, IWorldMapModule
     {
         private static readonly ILog m_log =
@@ -730,7 +733,7 @@ namespace OpenSim.Region.CoreModules.World.WorldMap
                 {
                     if (Environment.TickCount > (m_blacklistedregions[regionhandle] + blacklistTimeout))
                     {
-                        m_log.DebugFormat("[WORLDMAP]: Unblock blacklisted region {0}", regionhandle);
+                        m_log.DebugFormat("[WORLD MAP]: Unblock blacklisted region {0}", regionhandle);
 
                         m_blacklistedregions.Remove(regionhandle);
                     }
@@ -781,7 +784,7 @@ namespace OpenSim.Region.CoreModules.World.WorldMap
                 {
                     if (Environment.TickCount > (m_blacklistedurls[httpserver] + blacklistTimeout))
                     {
-                        m_log.DebugFormat("[WORLDMAP]: Unblock blacklisted URL {0}", httpserver);
+                        m_log.DebugFormat("[WORLD MAP]: Unblock blacklisted URL {0}", httpserver);
 
                         m_blacklistedurls.Remove(httpserver);
                     }
@@ -1343,13 +1346,13 @@ namespace OpenSim.Region.CoreModules.World.WorldMap
             if (terrain == null)
                 return;
 
+            m_log.DebugFormat("[WORLD MAP]: Generating map image for {0}", m_scene.RegionInfo.RegionName);
+
             byte[] data = terrain.WriteJpeg2000Image();
             if (data == null)
                 return;
 
             byte[] overlay = GenerateOverlay();
-
-            m_log.Debug("[WORLDMAP]: STORING MAPTILE IMAGE");
 
             UUID terrainImageID = UUID.Random();
             UUID parcelImageID = UUID.Zero;
@@ -1365,7 +1368,8 @@ namespace OpenSim.Region.CoreModules.World.WorldMap
             asset.Flags = AssetFlags.Maptile;
 
             // Store the new one
-            m_log.DebugFormat("[WORLDMAP]: Storing map tile {0}", asset.ID);
+            m_log.DebugFormat("[WORLD MAP]: Storing map tile {0} for {1}", asset.ID, m_scene.RegionInfo.RegionName);
+            
             m_scene.AssetService.Store(asset);
 
             if (overlay != null)

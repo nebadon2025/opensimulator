@@ -46,6 +46,7 @@ using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 
 namespace OpenSim.Region.CoreModules.Avatar.Friends
 {
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "HGFriendsModule")]
     public class HGFriendsModule : FriendsModule, ISharedRegionModule, IFriendsModule, IFriendsSimConnector
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
@@ -415,12 +416,13 @@ namespace OpenSim.Region.CoreModules.Avatar.Friends
 
         protected override void StoreBackwards(UUID friendID, UUID agentID)
         {
-            Boolean agentIsLocal = true;
-            Boolean friendIsLocal = true;
+            bool agentIsLocal = true;
+//            bool friendIsLocal = true;
+
             if (UserManagementModule != null)
             {
                 agentIsLocal = UserManagementModule.IsLocalGridUser(agentID);
-                friendIsLocal = UserManagementModule.IsLocalGridUser(friendID);
+//                friendIsLocal = UserManagementModule.IsLocalGridUser(friendID);
             }
 
             // Is the requester a local user?
@@ -507,7 +509,11 @@ namespace OpenSim.Region.CoreModules.Avatar.Friends
                             {
                                 friendUUI = finfo.Friend;
                                 theFriendUUID = friendUUI;
-                                UUID utmp = UUID.Zero; String url = String.Empty; String first = String.Empty, last = String.Empty, tmp = String.Empty;
+                                UUID utmp = UUID.Zero;
+                                string url = String.Empty;
+                                string first = String.Empty;
+                                string last = String.Empty;
+
                                 // If it's confirming the friendship, we already have the full UUI with the secret
                                 if (Util.ParseUniversalUserIdentifier(theFriendUUID, out utmp, out url, out first, out last, out secret))
                                 {

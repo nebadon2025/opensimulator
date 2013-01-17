@@ -39,9 +39,12 @@ using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Services.Interfaces;
 
+using Mono.Addins;
+
 namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
 {
-    public class AvatarFactoryModule : IAvatarFactoryModule, IRegionModule
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AvatarFactoryModule")]
+    public class AvatarFactoryModule : IAvatarFactoryModule, INonSharedRegionModule
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -59,26 +62,42 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
 
         private object m_setAppearanceLock = new object();
 
-        #region IRegionModule
+        #region Region Module interface
 
-        public void Initialise(Scene scene, IConfigSource config)
+        public void Initialise(IConfigSource config)
         {
-            scene.RegisterModuleInterface<IAvatarFactoryModule>(this);
-            scene.EventManager.OnNewClient += SubscribeToClientEvents;
 
-            IConfig sconfig = config.Configs["Startup"];
-            if (sconfig != null)
+            IConfig appearanceConfig = config.Configs["Appearance"];
+            if (appearanceConfig != null)
             {
-                m_savetime = Convert.ToInt32(sconfig.GetString("DelayBeforeAppearanceSave",Convert.ToString(m_savetime)));
-                m_sendtime = Convert.ToInt32(sconfig.GetString("DelayBeforeAppearanceSend",Convert.ToString(m_sendtime)));
+                m_savetime = Convert.ToInt32(appearanceConfig.GetString("DelayBeforeAppearanceSave",Convert.ToString(m_savetime)));
+                m_sendtime = Convert.ToInt32(appearanceConfig.GetString("DelayBeforeAppearanceSend",Convert.ToString(m_sendtime)));
                 // m_log.InfoFormat("[AVFACTORY] configured for {0} save and {1} send",m_savetime,m_sendtime);
             }
 
-            if (m_scene == null)
-                m_scene = scene;          
         }
 
-        public void PostInitialise()
+        public void AddRegion(Scene scene)
+        {
+            if (m_scene == null)
+                m_scene = scene;
+
+            scene.RegisterModuleInterface<IAvatarFactoryModule>(this);
+            scene.EventManager.OnNewClient += SubscribeToClientEvents;
+        }
+
+        public void RemoveRegion(Scene scene)
+        {
+            if (scene == m_scene)
+            {
+                scene.UnregisterModuleInterface<IAvatarFactoryModule>(this);
+                scene.EventManager.OnNewClient -= SubscribeToClientEvents;
+            }
+
+            m_scene = null;
+        }
+
+        public void RegionLoaded(Scene scene)
         {
             m_updateTimer.Enabled = false;
             m_updateTimer.AutoReset = true;
@@ -99,6 +118,12 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
         {
             get { return false; }
         }
+
+        public Type ReplaceableInterface
+        {
+            get { return null; }
+        }
+
 
         private void SubscribeToClientEvents(IClientAPI client)
         {
@@ -128,7 +153,9 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
         /// <param name="visualParam"></param>
         public void SetAppearance(IScenePresence sp, Primitive.TextureEntry textureEntry, byte[] visualParams)
         {
-            //            m_log.InfoFormat("[AVFACTORY]: start SetAppearance for {0}", client.AgentId);
+//            m_log.DebugFormat(
+//                "[AVFACTORY]: start SetAppearance for {0}, te {1}, visualParams {2}",
+//                sp.Name, textureEntry, visualParams);
 
             // TODO: This is probably not necessary any longer, just assume the
             // textureEntry set implies that the appearance transaction is complete
@@ -260,6 +287,9 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
 
                 if (asset != null)
                 {
+                    // Replace an HG ID with the simple asset ID so that we can persist textures for foreign HG avatars
+                    asset.ID = asset.FullID.ToString();
+
                     asset.Temporary = false;
                     asset.Local = false;
                     m_scene.AssetService.Store(asset);
@@ -371,11 +401,21 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                 if (missingTexturesOnly)
                 {
                     if (m_scene.AssetService.Get(face.TextureID.ToString()) != null)
+                    {
                         continue;
+                    }
                     else
+                    {
+                        // On inter-simulator teleports, this occurs if baked textures are not being stored by the
+                        // grid asset service (which means that they are not available to the new region and so have
+                        // to be re-requested from the client).
+                        //
+                        // The only available core OpenSimulator behaviour right now
+                        // is not to store these textures, temporarily or otherwise.
                         m_log.DebugFormat(
                             "[AVFACTORY]: Missing baked texture {0} ({1}) for {2}, requesting rebake.",
                             face.TextureID, idx, sp.Name);
+                    }
                 }
                 else
                 {
@@ -513,7 +553,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
             {
                 for (int i = 0; i < AvatarWearable.MAX_WEARABLES; i++)
                 {
-                    for (int j = 0; j < appearance.Wearables[j].Count; j++)
+                    for (int j = 0; j < appearance.Wearables[i].Count; j++)
                     {
                         if (appearance.Wearables[i][j].ItemID == UUID.Zero)
                             continue;
@@ -521,6 +561,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                         // Ignore ruth's assets
                         if (appearance.Wearables[i][j].ItemID == AvatarWearable.DefaultWearables[i][0].ItemID)
                             continue;
+
                         InventoryItemBase baseItem = new InventoryItemBase(appearance.Wearables[i][j].ItemID, userID);
                         baseItem = invService.GetItem(baseItem);
 

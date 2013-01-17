@@ -44,14 +44,23 @@ using OpenSim.Tests.Common.Mock;
 namespace OpenSim.Region.ClientStack.Linden.Tests
 {
     [TestFixture]
-    public class EventQueueTests
+    public class EventQueueTests : OpenSimTestCase
     {
         private TestScene m_scene;
 
         [SetUp]
         public void SetUp()
         {
-            MainServer.Instance = new BaseHttpServer(9999, false, 9998, "");
+            uint port = 9999;
+            uint sslPort = 9998;
+
+            // This is an unfortunate bit of clean up we have to do because MainServer manages things through static
+            // variables and the VM is not restarted between tests.
+            MainServer.RemoveHttpServer(port);
+
+            BaseHttpServer server = new BaseHttpServer(port, false, sslPort, "");
+            MainServer.AddHttpServer(server);
+            MainServer.Instance = server;
 
             IConfigSource config = new IniConfigSource();
             config.AddConfig("Startup");
@@ -85,7 +94,7 @@ namespace OpenSim.Region.ClientStack.Linden.Tests
             UUID spId = TestHelpers.ParseTail(0x1);
 
             SceneHelpers.AddScenePresence(m_scene, spId);
-            m_scene.IncomingCloseAgent(spId);
+            m_scene.IncomingCloseAgent(spId, false);
 
             // TODO: Add more assertions for the other aspects of event queues
             Assert.That(MainServer.Instance.GetPollServiceHandlerKeys().Count, Is.EqualTo(0));

@@ -26,9 +26,10 @@
  */
 
 using System;
-using System.Threading;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using System.Threading;
 using log4net;
 using OpenMetaverse;
 using OpenSim.Framework;
@@ -112,6 +113,8 @@ namespace OpenSim.Region.Framework.Scenes.Animation
         {
             if (m_scenePresence.IsChildAgent)
                 return;
+
+//            m_log.DebugFormat("[SCENE PRESENCE ANIMATOR]: Removing animation {0} for {1}", animID, m_scenePresence.Name);
 
             if (m_animations.Remove(animID))
                 SendAnimPack();
@@ -408,13 +411,19 @@ namespace OpenSim.Region.Framework.Scenes.Animation
         {
             lock (m_animations)
             {
-                CurrentMovementAnimation = DetermineMovementAnimation();
+                string newMovementAnimation = DetermineMovementAnimation();
+                if (CurrentMovementAnimation != newMovementAnimation)
+                {
+                    CurrentMovementAnimation = DetermineMovementAnimation();
 
-//                m_log.DebugFormat(
-//                    "[SCENE PRESENCE ANIMATOR]: Determined animation {0} for {1} in UpdateMovementAnimations()",
-//                    CurrentMovementAnimation, m_scenePresence.Name);
+//                    m_log.DebugFormat(
+//                        "[SCENE PRESENCE ANIMATOR]: Determined animation {0} for {1} in UpdateMovementAnimations()",
+//                        CurrentMovementAnimation, m_scenePresence.Name);
 
-                TrySetMovementAnimation(CurrentMovementAnimation);
+                    // Only set it if it's actually changed, give a script
+                    // a chance to stop a default animation
+                    TrySetMovementAnimation(CurrentMovementAnimation);
+                }
             }
         }
 
@@ -497,6 +506,12 @@ namespace OpenSim.Region.Framework.Scenes.Animation
             if (m_scenePresence.IsChildAgent)
                 return;
 
+//            m_log.DebugFormat(
+//                "[SCENE PRESENCE ANIMATOR]: Sending anim pack with animations '{0}', sequence '{1}', uuids '{2}'", 
+//                string.Join(",", Array.ConvertAll<UUID, string>(animations, a => a.ToString())), 
+//                string.Join(",", Array.ConvertAll<int, string>(seqs, s => s.ToString())),
+//                string.Join(",", Array.ConvertAll<UUID, string>(objectIDs, o => o.ToString())));
+
             m_scenePresence.Scene.ForEachClient(
                 delegate(IClientAPI client) 
                 { 
@@ -534,12 +549,6 @@ namespace OpenSim.Region.Framework.Scenes.Animation
             m_animations.GetArrays(out animIDs, out sequenceNums, out objectIDs);
 
             SendAnimPack(animIDs, sequenceNums, objectIDs);
-        }
-
-        public void Close()
-        {
-            m_animations = null;
-            m_scenePresence = null;
         }
     }
 }

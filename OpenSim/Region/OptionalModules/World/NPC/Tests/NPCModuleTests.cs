@@ -48,7 +48,7 @@ using OpenSim.Tests.Common.Mock;
 namespace OpenSim.Region.OptionalModules.World.NPC.Tests
 {
     [TestFixture]
-    public class NPCModuleTests
+    public class NPCModuleTests : OpenSimTestCase
     {
         private TestScene m_scene;
         private AvatarFactoryModule m_afMod;
@@ -117,6 +117,12 @@ namespace OpenSim.Region.OptionalModules.World.NPC.Tests
             Assert.That(npc, Is.Not.Null);
             Assert.That(npc.Appearance.Texture.FaceTextures[8].TextureID, Is.EqualTo(originalFace8TextureId));
             Assert.That(m_umMod.GetUserName(npc.UUID), Is.EqualTo(string.Format("{0} {1}", npc.Firstname, npc.Lastname)));
+
+            IClientAPI client;
+            Assert.That(m_scene.TryGetClient(npcId, out client), Is.True);
+
+            // Have to account for both SP and NPC.
+            Assert.That(m_scene.AuthenticateHandler.GetAgentCircuits().Count, Is.EqualTo(2));
         }
 
         [Test]
@@ -136,6 +142,11 @@ namespace OpenSim.Region.OptionalModules.World.NPC.Tests
             ScenePresence deletedNpc = m_scene.GetScenePresence(npcId);
 
             Assert.That(deletedNpc, Is.Null);
+            IClientAPI client;
+            Assert.That(m_scene.TryGetClient(npcId, out client), Is.False);
+
+            // Have to account for SP still present.
+            Assert.That(m_scene.AuthenticateHandler.GetAgentCircuits().Count, Is.EqualTo(1));
         }
 
         [Test]
@@ -242,7 +253,7 @@ namespace OpenSim.Region.OptionalModules.World.NPC.Tests
             Assert.That(npc.AbsolutePosition, Is.EqualTo(startPos));
 
             Vector3 targetPos = startPos + new Vector3(0, 10, 0);
-            m_npcMod.MoveToTarget(npc.UUID, m_scene, targetPos, false, false);
+            m_npcMod.MoveToTarget(npc.UUID, m_scene, targetPos, false, false, false);
 
             Assert.That(npc.AbsolutePosition, Is.EqualTo(startPos));
             //Assert.That(npc.Rotation, Is.EqualTo(new Quaternion(0, 0, 0.7071068f, 0.7071068f)));
@@ -267,7 +278,7 @@ namespace OpenSim.Region.OptionalModules.World.NPC.Tests
             // Try a second movement
             startPos = npc.AbsolutePosition;
             targetPos = startPos + new Vector3(10, 0, 0);
-            m_npcMod.MoveToTarget(npc.UUID, m_scene, targetPos, false, false);
+            m_npcMod.MoveToTarget(npc.UUID, m_scene, targetPos, false, false, false);
 
             Assert.That(npc.AbsolutePosition, Is.EqualTo(startPos));
 //            Assert.That(npc.Rotation, Is.EqualTo(new Quaternion(0, 0, 0, 1)));
@@ -301,7 +312,7 @@ namespace OpenSim.Region.OptionalModules.World.NPC.Tests
             UUID npcId = m_npcMod.CreateNPC("John", "Smith", startPos, UUID.Zero, true, m_scene, sp.Appearance);
 
             ScenePresence npc = m_scene.GetScenePresence(npcId);
-            SceneObjectPart part = SceneHelpers.AddSceneObject(m_scene);
+            SceneObjectPart part = SceneHelpers.AddSceneObject(m_scene).RootPart;
 
             part.SitTargetPosition = new Vector3(0, 0, 1);
             m_npcMod.Sit(npc.UUID, part.UUID, m_scene);
@@ -333,7 +344,7 @@ namespace OpenSim.Region.OptionalModules.World.NPC.Tests
             UUID npcId = m_npcMod.CreateNPC("John", "Smith", startPos, UUID.Zero, true, m_scene, sp.Appearance);
 
             ScenePresence npc = m_scene.GetScenePresence(npcId);
-            SceneObjectPart part = SceneHelpers.AddSceneObject(m_scene);
+            SceneObjectPart part = SceneHelpers.AddSceneObject(m_scene).RootPart;
 
             m_npcMod.Sit(npc.UUID, part.UUID, m_scene);
 

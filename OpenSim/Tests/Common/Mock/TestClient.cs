@@ -528,13 +528,9 @@ namespace OpenSim.Tests.Common.Mock
         {
         }
 
-        public virtual void SendChatMessage(string message, byte type, Vector3 fromPos, string fromName,
-                                            UUID fromAgentID, byte source, byte audible)
-        {
-        }
-
-        public virtual void SendChatMessage(byte[] message, byte type, Vector3 fromPos, string fromName,
-                                            UUID fromAgentID, byte source, byte audible)
+        public virtual void SendChatMessage(
+            string message, byte type, Vector3 fromPos, string fromName,
+            UUID fromAgentID, UUID ownerID, byte source, byte audible)
         {
         }
 
@@ -934,6 +930,11 @@ namespace OpenSim.Tests.Common.Mock
 
         public void Close()
         {
+            Close(false);
+        }
+
+        public void Close(bool force)
+        {
             // Fire the callback for this connection closing
             // This is necesary to get the presence detector to notice that a client has logged out.
             if (OnConnectionClosed != null)
@@ -961,11 +962,6 @@ namespace OpenSim.Tests.Common.Mock
 
         public void Terminate()
         {
-        }
-
-        public EndPoint GetClientEP()
-        {
-            return null;
         }
 
         public ClientInfo GetClientInfo()
@@ -1120,10 +1116,6 @@ namespace OpenSim.Tests.Common.Mock
         }
 
         public void SendMapItemReply(mapItemReply[] replies, uint mapitemtype, uint flags)
-        {
-        }
-
-        public void KillEndDone()
         {
         }
 

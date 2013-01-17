@@ -30,6 +30,7 @@ using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.Remoting.Lifetime;
+using System.Threading;
 using OpenMetaverse;
 using Nini.Config;
 using OpenSim;
@@ -57,17 +58,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
     {
         internal IScriptEngine m_ScriptEngine;
         internal SceneObjectPart m_host;
-        internal uint m_localID;
-        internal UUID m_itemID;
+        internal TaskInventoryItem m_item;
         internal bool m_MODFunctionsEnabled = false;
         internal IScriptModuleComms m_comms = null;
 
-        public void Initialize(IScriptEngine ScriptEngine, SceneObjectPart host, uint localID, UUID itemID)
+        public void Initialize(
+            IScriptEngine scriptEngine, SceneObjectPart host, TaskInventoryItem item, EventWaitHandle coopSleepHandle)
         {
-            m_ScriptEngine = ScriptEngine;
+            m_ScriptEngine = scriptEngine;
             m_host = host;
-            m_localID = localID;
-            m_itemID = itemID;
+            m_item = item;
 
             if (m_ScriptEngine.Config.GetBoolean("AllowMODFunctions", false))
                 m_MODFunctionsEnabled = true;
@@ -97,13 +97,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         internal void MODError(string msg)
         {
-            throw new Exception("MOD Runtime Error: " + msg);
+            throw new ScriptException("MOD Runtime Error: " + msg);
         }
 
-        //
-        //Dumps an error message on the debug console.
-        //
-
+        /// <summary>
+        /// Dumps an error message on the debug console.
+        /// </summary>
+        /// <param name='message'></param>
         internal void MODShoutError(string message) 
         {
             if (message.Length > 1023)
@@ -202,24 +202,34 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             for (int i = 0; i < result.Length; i++)
             {
                 if (result[i] is string)
+                {
                     llist[i] = new LSL_String((string)result[i]);
+                }
                 else if (result[i] is int)
+                {
                     llist[i] = new LSL_Integer((int)result[i]);
+                }
                 else if (result[i] is float)
+                {
                     llist[i] = new LSL_Float((float)result[i]);
+                }
+                else if (result[i] is UUID)
+                {
+                    llist[i] = new LSL_Key(result[i].ToString());
+                }
                 else if (result[i] is OpenMetaverse.Vector3)
                 {
                     OpenMetaverse.Vector3 vresult = (OpenMetaverse.Vector3)result[i];
-                    llist[i] = new LSL_Vector(vresult.X,vresult.Y,vresult.Z);
+                    llist[i] = new LSL_Vector(vresult.X, vresult.Y, vresult.Z);
                 }
                 else if (result[i] is OpenMetaverse.Quaternion)
                 {
                     OpenMetaverse.Quaternion qresult = (OpenMetaverse.Quaternion)result[i];
-                    llist[i] = new LSL_Rotation(qresult.X,qresult.Y,qresult.Z,qresult.W);
+                    llist[i] = new LSL_Rotation(qresult.X, qresult.Y, qresult.Z, qresult.W);
                 }
                 else
                 {
-                    MODError(String.Format("unknown list element returned by {0}",fname));
+                    MODError(String.Format("unknown list element {1} returned by {0}", fname, result[i].GetType().Name));
                 }
             }
 
@@ -246,13 +256,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             
             object[] convertedParms = new object[parms.Length];
             for (int i = 0; i < parms.Length; i++)
-                convertedParms[i] = ConvertFromLSL(parms[i],signature[i]);
+                convertedParms[i] = ConvertFromLSL(parms[i],signature[i], fname);
 
             // now call the function, the contract with the function is that it will always return
             // non-null but don't trust it completely
             try 
             {
-                object result = m_comms.InvokeOperation(m_host.UUID, m_itemID, fname, convertedParms);
+                object result = m_comms.InvokeOperation(m_host.UUID, m_item.ItemID, fname, convertedParms);
                 if (result != null)
                     return result;
 
@@ -279,14 +289,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             UUID req = UUID.Random();
 
-            m_comms.RaiseEvent(m_itemID, req.ToString(), module, command, k);
+            m_comms.RaiseEvent(m_item.ItemID, req.ToString(), module, command, k);
 
             return req.ToString();
         }
 
         /// <summary>
         /// </summary>
-        protected object ConvertFromLSL(object lslparm, Type type)
+        protected object ConvertFromLSL(object lslparm, Type type, string fname)
         {
             // ---------- String ----------
             if (lslparm is LSL_String)
@@ -302,7 +312,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             // ---------- Integer ----------
             else if (lslparm is LSL_Integer)
             {
-                if (type == typeof(int))
+                if (type == typeof(int) || type == typeof(float))
                     return (int)(LSL_Integer)lslparm;
             }
 
@@ -325,8 +335,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 if (type == typeof(OpenMetaverse.Quaternion))
                 {
-                    LSL_Rotation rot = (LSL_Rotation)lslparm;
-                    return new OpenMetaverse.Quaternion((float)rot.x,(float)rot.y,(float)rot.z,(float)rot.s);
+                    return (OpenMetaverse.Quaternion)((LSL_Rotation)lslparm);
                 }
             }
 
@@ -335,8 +344,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 if (type == typeof(OpenMetaverse.Vector3))
                 {
-                    LSL_Vector vect = (LSL_Vector)lslparm;
-                    return new OpenMetaverse.Vector3((float)vect.x,(float)vect.y,(float)vect.z);
+                    return (OpenMetaverse.Vector3)((LSL_Vector)lslparm);
                 }
             }
 
@@ -353,29 +361,27 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             result[i] = (string)(LSL_String)plist[i];                            
                         else if (plist[i] is LSL_Integer)
                             result[i] = (int)(LSL_Integer)plist[i];
+                        // The int check exists because of the many plain old int script constants in ScriptBase which
+                        // are not LSL_Integers.
+                        else if (plist[i] is int)
+                            result[i] = plist[i];
                         else if (plist[i] is LSL_Float)
                             result[i] = (float)(LSL_Float)plist[i];
                         else if (plist[i] is LSL_Key)
                             result[i] = new UUID((LSL_Key)plist[i]);
                         else if (plist[i] is LSL_Rotation)
-                        {
-                            LSL_Rotation rot = (LSL_Rotation)plist[i];
-                            result[i] = new OpenMetaverse.Quaternion((float)rot.x,(float)rot.y,(float)rot.z,(float)rot.s);
-                        }
+                            result[i] = (Quaternion)((LSL_Rotation)plist[i]);
                         else if (plist[i] is LSL_Vector)
-                        {
-                            LSL_Vector vect = (LSL_Vector)plist[i];
-                            result[i] = new OpenMetaverse.Vector3((float)vect.x,(float)vect.y,(float)vect.z);
-                        }
+                            result[i] = (Vector3)((LSL_Vector)plist[i]);
                         else
-                            MODError("unknown LSL list element type");
+                            MODError(String.Format("{0}: unknown LSL list element type", fname));
                     }
 
                     return result;
                 }
             }
             
-            MODError(String.Format("parameter type mismatch; expecting {0}",type.Name));
+            MODError(String.Format("{1}: parameter type mismatch; expecting {0}",type.Name, fname));
             return null;
         }
 

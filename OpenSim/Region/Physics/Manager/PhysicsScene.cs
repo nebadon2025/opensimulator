@@ -43,6 +43,9 @@ namespace OpenSim.Region.Physics.Manager
     public delegate void JointDeactivated(PhysicsJoint joint);
     public delegate void JointErrorMessage(PhysicsJoint joint, string message); // this refers to an "error message due to a problem", not "amount of joint constraint violation"
 
+    public delegate void RequestAssetDelegate(UUID assetID, AssetReceivedDelegate callback);
+    public delegate void AssetReceivedDelegate(AssetBase asset);
+
     /// <summary>
     /// Contact result from a raycast.
     /// </summary>
@@ -59,19 +62,28 @@ namespace OpenSim.Region.Physics.Manager
 //        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         /// <summary>
-        /// Name of this scene.  Useful in debug messages to distinguish one OdeScene instance from another.
+        /// A unique identifying string for this instance of the physics engine.
+        /// Useful in debug messages to distinguish one OdeScene instance from another.
+        /// Usually set to include the region name that the physics engine is acting for.
         /// </summary>
         public string Name { get; protected set; }
 
+        /// <summary>
+        /// A string identifying the family of this physics engine. Most common values returned
+        /// are "OpenDynamicsEngine" and "BulletSim" but others are possible.
+        /// </summary>
+        public string EngineType { get; protected set; }
+
         // The only thing that should register for this event is the SceneGraph
         // Anything else could cause problems.
-
         public event physicsCrash OnPhysicsCrash;
 
         public static PhysicsScene Null
         {
             get { return new NullPhysicsScene(); }
         }
+
+        public RequestAssetDelegate RequestAssetMethod { get; set; }
 
         public virtual void TriggerPhysicsBasedRestart()
         {
@@ -192,7 +204,21 @@ namespace OpenSim.Region.Physics.Manager
 
         public abstract void AddPhysicsActorTaint(PhysicsActor prim);
 
+        /// <summary>
+        /// Perform a simulation of the current physics scene over the given timestep.
+        /// </summary>
+        /// <param name="timeStep"></param>
+        /// <returns>The number of frames simulated over that period.</returns>
         public abstract float Simulate(float timeStep);
+
+        /// <summary>
+        /// Get statistics about this scene.
+        /// </summary>
+        /// <remarks>This facility is currently experimental and subject to change.</remarks>
+        /// <returns>
+        /// A dictionary where the key is the statistic name.  If no statistics are supplied then returns null.
+        /// </returns>
+        public virtual Dictionary<string, float> GetStats() { return null; }
 
         public abstract void GetResults();
 

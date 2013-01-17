@@ -740,14 +740,21 @@ namespace OpenSim.Framework
         /// </summary>
         string Name { get; }
 
-        /// <value>
-        /// Determines whether the client thread is doing anything or not.
-        /// </value>
+        /// <summary>
+        /// True if the client is active (sending and receiving new UDP messages).  False if the client is being closed.
+        /// </summary>
         bool IsActive { get; set; }
 
-        /// <value>
-        /// Determines whether the client is or has been removed from a given scene
-        /// </value>
+        /// <summary>
+        /// Set if the client is closing due to a logout request
+        /// </summary>
+        /// <remarks>
+        /// Do not use this flag if you want to know if the client is closing, since it will not be set in other
+        /// circumstances (e.g. if a child agent is closed or the agent is kicked off the simulator).  Use IsActive
+        /// instead with a IClientAPI.SceneAgent.IsChildAgent check if necessary.
+        ///
+        /// Only set for root agents.
+        /// </remarks>
         bool IsLoggingOut { get; set; }
         
         bool SendLogoutPacketWhenClosing { set; }
@@ -798,8 +805,23 @@ namespace OpenSim.Framework
         event Action<IClientAPI> OnRegionHandShakeReply;
         event GenericCall1 OnRequestWearables;
         event Action<IClientAPI, bool> OnCompleteMovementToRegion;
+
+        /// <summary>
+        /// Called when an AgentUpdate message is received and before OnAgentUpdate.
+        /// </summary>
+        /// <remarks>
+        /// Listeners must not retain a reference to AgentUpdateArgs since this object may be reused for subsequent AgentUpdates.
+        /// </remarks>
         event UpdateAgent OnPreAgentUpdate;
+
+        /// <summary>
+        /// Called when an AgentUpdate message is received and after OnPreAgentUpdate.
+        /// </summary>
+        /// <remarks>
+        /// Listeners must not retain a reference to AgentUpdateArgs since this object may be reused for subsequent AgentUpdates.
+        /// </remarks>
         event UpdateAgent OnAgentUpdate;
+
         event AgentRequestSit OnAgentRequestSit;
         event AgentSit OnAgentSit;
         event AvatarPickerRequest OnAvatarPickerRequest;
@@ -1026,7 +1048,21 @@ namespace OpenSim.Framework
 
         void InPacket(object NewPack);
         void ProcessInPacket(Packet NewPack);
+
+        /// <summary>
+        /// Close this client
+        /// </summary>
         void Close();
+
+        /// <summary>
+        /// Close this client
+        /// </summary>
+        /// <param name='force'>
+        /// If true, attempts the close without checking active status.  You do not want to try this except as a last
+        /// ditch attempt where Active == false but the ScenePresence still exists.
+        /// </param>
+        void Close(bool force);
+
         void Kick(string message);
         
         /// <summary>
@@ -1063,8 +1099,20 @@ namespace OpenSim.Framework
         void SendAnimations(UUID[] animID, int[] seqs, UUID sourceAgentId, UUID[] objectIDs);
         void SendRegionHandshake(RegionInfo regionInfo, RegionHandshakeArgs args);
 
-        void SendChatMessage(string message, byte type, Vector3 fromPos, string fromName, UUID fromAgentID, byte source,
-                             byte audible);
+        /// <summary>
+        /// Send chat to the viewer.
+        /// </summary>
+        /// <param name='message'></param>
+        /// <param name='type'></param>
+        /// <param name='fromPos'></param>
+        /// <param name='fromName'></param>
+        /// <param name='fromAgentID'></param>
+        /// <param name='ownerID'></param>
+        /// <param name='source'></param>
+        /// <param name='audible'></param>
+        void SendChatMessage(
+            string message, byte type, Vector3 fromPos, string fromName, UUID fromAgentID, UUID ownerID, byte source,
+            byte audible);
 
         void SendInstantMessage(GridInstantMessage im);
 
@@ -1346,7 +1394,6 @@ namespace OpenSim.Framework
         void SendBlueBoxMessage(UUID FromAvatarID, String FromAvatarName, String Message);
 
         void SendLogoutPacket();
-        EndPoint GetClientEP();
 
         // WARNING WARNING WARNING
         //
@@ -1406,8 +1453,6 @@ namespace OpenSim.Framework
         void SendGroupActiveProposals(UUID groupID, UUID transactionID, GroupActiveProposals[] Proposals);
 
         void SendGroupVoteHistory(UUID groupID, UUID transactionID, GroupVoteHistory[] Votes);
-
-        void KillEndDone();
 
         bool AddGenericPacketHandler(string MethodName, GenericMessage handler);
 

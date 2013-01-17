@@ -81,13 +81,18 @@ namespace OpenSim.Region.Framework.Interfaces
         /// <summary>
         /// Start all the scripts contained in this entity's inventory
         /// </summary>
-        void CreateScriptInstances(int startParam, bool postOnRez, string engine, int stateSource);
+        /// <param name="startParam"></param>
+        /// <param name="postOnRez"></param>
+        /// <param name="engine"></param>
+        /// <param name="stateSource"></param>
+        /// <returns>Number of scripts started.</returns>
+        int CreateScriptInstances(int startParam, bool postOnRez, string engine, int stateSource);
         
         ArrayList GetScriptErrors(UUID itemID);
         void ResumeScripts();
 
         /// <summary>
-        /// Stop all the scripts in this entity.
+        /// Stop and remove all the scripts in this entity from the scene.
         /// </summary>
         /// <param name="sceneObjectBeingDeleted">
         /// Should be true if these scripts are being removed because the scene
@@ -96,13 +101,22 @@ namespace OpenSim.Region.Framework.Interfaces
         void RemoveScriptInstances(bool sceneObjectBeingDeleted);
 
         /// <summary>
+        /// Stop all the scripts in this entity.
+        /// </summary>
+        void StopScriptInstances();
+
+        /// <summary>
         /// Start a script which is in this entity's inventory.
         /// </summary>
         /// <param name="item"></param>
         /// <param name="postOnRez"></param>
         /// <param name="engine"></param>
         /// <param name="stateSource"></param>
-        void CreateScriptInstance(
+        /// <returns>
+        /// true if the script instance was valid for starting, false otherwise.  This does not guarantee
+        /// that the script was actually started, just that the script was valid (i.e. its asset data could be found, etc.)
+        /// </returns>
+        bool CreateScriptInstance(
             TaskInventoryItem item, int startParam, bool postOnRez, string engine, int stateSource);
 
         /// <summary>
@@ -113,10 +127,14 @@ namespace OpenSim.Region.Framework.Interfaces
         /// <param name="postOnRez"></param>
         /// <param name="engine"></param>
         /// <param name="stateSource"></param>
-        void CreateScriptInstance(UUID itemId, int startParam, bool postOnRez, string engine, int stateSource);
+        /// <returns>
+        /// true if the script instance was valid for starting, false otherwise.  This does not guarantee
+        /// that the script was actually started, just that the script was valid (i.e. its asset data could be found, etc.)
+        /// </returns>
+        bool CreateScriptInstance(UUID itemId, int startParam, bool postOnRez, string engine, int stateSource);
 
         /// <summary>
-        /// Stop a script which is in this prim's inventory.
+        /// Stop and remove a script which is in this prim's inventory from the scene.
         /// </summary>
         /// <param name="itemId"></param>
         /// <param name="sceneObjectBeingDeleted">
@@ -124,6 +142,25 @@ namespace OpenSim.Region.Framework.Interfaces
         /// object is being deleted.  This will prevent spurious updates to the client.
         /// </param>
         void RemoveScriptInstance(UUID itemId, bool sceneObjectBeingDeleted);
+
+        /// <summary>
+        /// Stop a script which is in this prim's inventory.
+        /// </summary>
+        /// <param name="itemId"></param>
+        void StopScriptInstance(UUID itemId);
+
+        /// <summary>
+        /// Try to get the script running status.
+        /// </summary>
+        /// <returns>
+        /// Returns true if a script for the item was found in one of the simulator's script engines.  In this case,
+        /// the running parameter will reflect the running status.
+        /// Returns false if the item could not be found, if the item is not a script or if a script instance for the
+        /// item was not found in any of the script engines.  In this case, running status is irrelevant.
+        /// </returns>
+        /// <param name='itemId'></param>
+        /// <param name='running'></param>
+        bool TryGetScriptInstanceRunning(UUID itemId, out bool running);
 
         /// <summary>
         /// Add an item to this entity's inventory.  If an item with the same name already exists, then an alternative
@@ -162,6 +199,19 @@ namespace OpenSim.Region.Framework.Interfaces
         /// If there are no inventory items then an empty list is returned.
         /// </returns>
         List<TaskInventoryItem> GetInventoryItems();
+
+        /// <summary>
+        /// Gets an inventory item by name
+        /// </summary>
+        /// <remarks>
+        /// This method returns the first inventory item that matches the given name.  In SL this is all you need
+        /// since each item in a prim inventory must have a unique name.
+        /// </remarks>
+        /// <param name='name'></param>
+        /// <returns>
+        /// The inventory item.  Null if no such item was found.
+        /// </returns>
+        TaskInventoryItem GetInventoryItem(string name);
 
         /// <summary>
         /// Get inventory items by name.
@@ -231,17 +281,25 @@ namespace OpenSim.Region.Framework.Interfaces
         void ApplyGodPermissions(uint perms);
 
         /// <summary>
+        /// Number of items in this inventory.
+        /// </summary>
+        int Count { get; }
+
+        /// <summary>
         /// Returns true if this inventory contains any scripts
         /// </summary></returns>
         bool ContainsScripts();
 
         /// <summary>
-        /// Returns the count of scripts contained
-        /// </summary></returns>
+        /// Number of scripts in this inventory.
+        /// </summary>
+        /// <remarks>
+        /// Includes both running and non running scripts.
+        /// </remarks>
         int ScriptCount();
 
         /// <summary>
-        /// Returns the count of running scripts contained
+        /// Number of running scripts in this inventory.
         /// </summary></returns>
         int RunningScriptCount();
 

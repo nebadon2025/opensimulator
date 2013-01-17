@@ -61,6 +61,7 @@ namespace OpenSim.Data.SQLite
         private const string regionbanListSelect = "select * from regionban";
         private const string regionSettingsSelect = "select * from regionsettings";
         private const string regionWindlightSelect = "select * from regionwindlight";
+        private const string regionEnvironmentSelect = "select * from regionenvironment";
         private const string regionSpawnPointsSelect = "select * from spawn_points";
 
         private DataSet ds;
@@ -72,6 +73,7 @@ namespace OpenSim.Data.SQLite
         private SqliteDataAdapter landAccessListDa;
         private SqliteDataAdapter regionSettingsDa;
         private SqliteDataAdapter regionWindlightDa;
+        private SqliteDataAdapter regionEnvironmentDa;
         private SqliteDataAdapter regionSpawnPointsDa;
 
         private SqliteConnection m_conn;
@@ -146,6 +148,9 @@ namespace OpenSim.Data.SQLite
                 SqliteCommand regionWindlightSelectCmd = new SqliteCommand(regionWindlightSelect, m_conn);
                 regionWindlightDa = new SqliteDataAdapter(regionWindlightSelectCmd);
 
+                SqliteCommand regionEnvironmentSelectCmd = new SqliteCommand(regionEnvironmentSelect, m_conn);
+                regionEnvironmentDa = new SqliteDataAdapter(regionEnvironmentSelectCmd);
+
                 SqliteCommand regionSpawnPointsSelectCmd = new SqliteCommand(regionSpawnPointsSelect, m_conn);
                 regionSpawnPointsDa = new SqliteDataAdapter(regionSpawnPointsSelectCmd);
 
@@ -178,6 +183,9 @@ namespace OpenSim.Data.SQLite
 
                     ds.Tables.Add(createRegionWindlightTable());
                     setupRegionWindlightCommands(regionWindlightDa, m_conn);
+
+                    ds.Tables.Add(createRegionEnvironmentTable());
+                    setupRegionEnvironmentCommands(regionEnvironmentDa, m_conn);
 
                     ds.Tables.Add(createRegionSpawnPointsTable());
                     setupRegionSpawnPointsCommands(regionSpawnPointsDa, m_conn);
@@ -260,6 +268,15 @@ namespace OpenSim.Data.SQLite
 
                     try
                     {
+                        regionEnvironmentDa.Fill(ds.Tables["regionenvironment"]);
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat("[SQLITE REGION DB]: Caught fill error on regionenvironment table :{0}", e.Message);
+                    }
+
+                    try
+                    {
                         regionSpawnPointsDa.Fill(ds.Tables["spawn_points"]);
                     }
                     catch (Exception e)
@@ -278,12 +295,13 @@ namespace OpenSim.Data.SQLite
                     CreateDataSetMapping(landAccessListDa, "landaccesslist");
                     CreateDataSetMapping(regionSettingsDa, "regionsettings");
                     CreateDataSetMapping(regionWindlightDa, "regionwindlight");
+                    CreateDataSetMapping(regionEnvironmentDa, "regionenvironment");
                     CreateDataSetMapping(regionSpawnPointsDa, "spawn_points");
                 }
             }
             catch (Exception e)
             {
-                m_log.ErrorFormat("[SQLITE REGION DB]: ", e);
+                m_log.ErrorFormat("[SQLITE REGION DB]: {0} - {1}", e.Message, e.StackTrace);
                 Environment.Exit(23);
             }
             return;
@@ -340,6 +358,11 @@ namespace OpenSim.Data.SQLite
             {
                 regionWindlightDa.Dispose();
                 regionWindlightDa = null;
+            }
+            if (regionEnvironmentDa != null)
+            {
+                regionEnvironmentDa.Dispose();
+                regionEnvironmentDa = null;
             }
             if (regionSpawnPointsDa != null)
             {
@@ -473,6 +496,63 @@ namespace OpenSim.Data.SQLite
                 Commit();
             }
         }
+
+        #region Region Environment Settings
+        public string LoadRegionEnvironmentSettings(UUID regionUUID)
+        {
+            lock (ds)
+            {
+                DataTable environmentTable = ds.Tables["regionenvironment"];
+                DataRow row = environmentTable.Rows.Find(regionUUID.ToString());
+                if (row == null)
+                {
+                    return String.Empty;
+                }
+
+                return (String)row["llsd_settings"];
+            }
+        }
+
+        public void StoreRegionEnvironmentSettings(UUID regionUUID, string settings)
+        {
+            lock (ds)
+            {
+                DataTable environmentTable = ds.Tables["regionenvironment"];
+                DataRow row = environmentTable.Rows.Find(regionUUID.ToString());
+
+                if (row == null)
+                {
+                    row = environmentTable.NewRow();
+                    row["region_id"] = regionUUID.ToString();
+                    row["llsd_settings"] = settings;
+                    environmentTable.Rows.Add(row);
+                }
+                else
+                {
+                    row["llsd_settings"] = settings;
+                }
+
+                regionEnvironmentDa.Update(ds, "regionenvironment");
+            }
+        }
+
+        public void RemoveRegionEnvironmentSettings(UUID regionUUID)
+        {
+            lock (ds)
+            {
+                DataTable environmentTable = ds.Tables["regionenvironment"];
+                DataRow row = environmentTable.Rows.Find(regionUUID.ToString());
+
+                if (row != null)
+                {
+                    row.Delete();
+                }
+
+                regionEnvironmentDa.Update(ds, "regionenvironment");
+            }
+        }
+
+        #endregion
 
         public RegionSettings LoadRegionSettings(UUID regionUUID)
         {
@@ -1286,6 +1366,13 @@ namespace OpenSim.Data.SQLite
             createCol(land, "UserLookAtZ", typeof(Double));
             createCol(land, "AuthbuyerID", typeof(String));
             createCol(land, "OtherCleanTime", typeof(Int32));
+            createCol(land, "Dwell", typeof(Int32));
+            createCol(land, "MediaType", typeof(String));
+            createCol(land, "MediaDescription", typeof(String));
+            createCol(land, "MediaSize", typeof(String));
+            createCol(land, "MediaLoop", typeof(Boolean));
+            createCol(land, "ObscureMedia", typeof(Boolean));
+            createCol(land, "ObscureMusic", typeof(Boolean));
 
             land.PrimaryKey = new DataColumn[] { land.Columns["UUID"] };
 
@@ -1428,6 +1515,17 @@ namespace OpenSim.Data.SQLite
 
             regionwindlight.PrimaryKey = new DataColumn[] { regionwindlight.Columns["region_id"] };
             return regionwindlight;
+        }
+
+        private static DataTable createRegionEnvironmentTable()
+        {
+            DataTable regionEnvironment = new DataTable("regionenvironment");
+            createCol(regionEnvironment, "region_id", typeof(String));
+            createCol(regionEnvironment, "llsd_settings", typeof(String));
+
+            regionEnvironment.PrimaryKey = new DataColumn[] { regionEnvironment.Columns["region_id"] };
+
+            return regionEnvironment;
         }
 
         private static DataTable createRegionSpawnPointsTable()
@@ -1690,9 +1788,16 @@ namespace OpenSim.Data.SQLite
             newData.PassHours = Convert.ToSingle(row["PassHours"]);
             newData.PassPrice = Convert.ToInt32(row["PassPrice"]);
             newData.SnapshotID = (UUID)(String)row["SnapshotUUID"];
+            newData.Dwell = Convert.ToInt32(row["Dwell"]);
+            newData.MediaType = (String)row["MediaType"];
+            newData.MediaDescription = (String)row["MediaDescription"];
+            newData.MediaWidth = Convert.ToInt32((((string)row["MediaSize"]).Split(','))[0]);
+            newData.MediaHeight = Convert.ToInt32((((string)row["MediaSize"]).Split(','))[1]);
+            newData.MediaLoop = Convert.ToBoolean(row["MediaLoop"]);
+            newData.ObscureMedia = Convert.ToBoolean(row["ObscureMedia"]);
+            newData.ObscureMusic = Convert.ToBoolean(row["ObscureMusic"]);
             try
             {
-
                 newData.UserLocation =
                     new Vector3(Convert.ToSingle(row["UserLocationX"]), Convert.ToSingle(row["UserLocationY"]),
                                   Convert.ToSingle(row["UserLocationZ"]));
@@ -2104,12 +2209,13 @@ namespace OpenSim.Data.SQLite
             row["UserLookAtZ"] = land.UserLookAt.Z;
             row["AuthbuyerID"] = land.AuthBuyerID.ToString();
             row["OtherCleanTime"] = land.OtherCleanTime;
+            row["Dwell"] = land.Dwell;
             row["MediaType"] = land.MediaType;
             row["MediaDescription"] = land.MediaDescription;
-            row["MediaSize"] = land.MediaWidth.ToString() + "," + land.MediaHeight.ToString();
-            row["MediaLoop"] = land.MediaLoop.ToString();
-            row["ObscureMusic"] = land.ObscureMusic.ToString();
-            row["ObscureMedia"] = land.ObscureMedia.ToString();
+            row["MediaSize"] = String.Format("{0},{1}", land.MediaWidth, land.MediaHeight);
+            row["MediaLoop"] = land.MediaLoop;
+            row["ObscureMusic"] = land.ObscureMusic;
+            row["ObscureMedia"] = land.ObscureMedia;
         }
 
         /// <summary>
@@ -2691,6 +2797,14 @@ namespace OpenSim.Data.SQLite
             da.UpdateCommand.Connection = conn;
         }
 
+        private void setupRegionEnvironmentCommands(SqliteDataAdapter da, SqliteConnection conn)
+        {
+            da.InsertCommand = createInsertCommand("regionenvironment", ds.Tables["regionenvironment"]);
+            da.InsertCommand.Connection = conn;
+            da.UpdateCommand = createUpdateCommand("regionenvironment", "region_id=:region_id", ds.Tables["regionenvironment"]);
+            da.UpdateCommand.Connection = conn;
+        }
+
         private void setupRegionSpawnPointsCommands(SqliteDataAdapter da, SqliteConnection conn)
         {
             da.InsertCommand = createInsertCommand("spawn_points", ds.Tables["spawn_points"]);
@@ -2791,5 +2905,17 @@ namespace OpenSim.Data.SQLite
             }
         }
 
+        public void SaveExtra(UUID regionID, string name, string value)
+        {
+        }
+
+        public void RemoveExtra(UUID regionID, string name)
+        {
+        }
+
+        public Dictionary<string, string> GetExtra(UUID regionID)
+        {
+            return null;
+        }
     }
 }

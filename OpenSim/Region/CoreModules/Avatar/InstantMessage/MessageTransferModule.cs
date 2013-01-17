@@ -30,6 +30,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Reflection;
 using log4net;
+using Mono.Addins;
 using Nini.Config;
 using Nwc.XmlRpc;
 using OpenMetaverse;
@@ -43,6 +44,7 @@ using OpenSim.Services.Interfaces;
 
 namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
 {
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "MessageTransferModule")]
     public class MessageTransferModule : ISharedRegionModule, IMessageTransferModule
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
@@ -137,13 +139,15 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
             foreach (Scene scene in m_Scenes)
             {
 //                m_log.DebugFormat(
-//                    "[INSTANT MESSAGE]: Looking for root agent {0} in {1}", 
+//                    "[INSTANT MESSAGE]: Looking for root agent {0} in {1}",
 //                    toAgentID.ToString(), scene.RegionInfo.RegionName);
+
                 ScenePresence sp = scene.GetScenePresence(toAgentID);
                 if (sp != null && !sp.IsChildAgent)
                 {
                     // Local message
-//                    m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to root agent {0} {1}", user.Name, toAgentID);
+//                    m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to root agent {0} {1}", sp.Name, toAgentID);
+
                     sp.ControllingClient.SendInstantMessage(im);
 
                     // Message sent
@@ -157,11 +161,13 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
             {
 //                m_log.DebugFormat(
 //                    "[INSTANT MESSAGE]: Looking for child of {0} in {1}", toAgentID, scene.RegionInfo.RegionName);
+
                 ScenePresence sp = scene.GetScenePresence(toAgentID);
                 if (sp != null)
                 {
                     // Local message
-//                    m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to child agent {0} {1}", user.Name, toAgentID);
+//                    m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to child agent {0} {1}", sp.Name, toAgentID);
+
                     sp.ControllingClient.SendInstantMessage(im);
 
                     // Message sent
@@ -171,9 +177,8 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
             }
 
 //            m_log.DebugFormat("[INSTANT MESSAGE]: Delivering IM to {0} via XMLRPC", im.toAgentID);
-            SendGridInstantMessageViaXMLRPC(im, result);
 
-            return;
+            SendGridInstantMessageViaXMLRPC(im, result);
         }
 
         private void HandleUndeliveredMessage(GridInstantMessage im, MessageResultNotification result)

@@ -124,7 +124,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
             SaveAssets = true;
         }
 
-        protected void ReceivedAllAssets(ICollection<UUID> assetsFoundUuids, ICollection<UUID> assetsNotFoundUuids)
+        protected void ReceivedAllAssets(ICollection<UUID> assetsFoundUuids, ICollection<UUID> assetsNotFoundUuids, bool timedOut)
         {
             Exception reportedException = null;
             bool succeeded = true;
@@ -141,6 +141,12 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
             finally
             {
                 m_saveStream.Close();
+            }
+
+            if (timedOut)
+            {
+                succeeded = false;
+                reportedException = new Exception("Loading assets timed out");
             }
 
             m_module.TriggerInventoryArchiveSaved(
@@ -166,7 +172,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
 
             if (options.ContainsKey("verbose"))
                 m_log.InfoFormat(
-                    "[INVENTORY ARCHIVER]: Saving item {0} {1} with asset {2}",
+                    "[INVENTORY ARCHIVER]: Saving item {0} {1} (asset UUID {2})",
                     inventoryItem.ID, inventoryItem.Name, inventoryItem.AssetID);
 
             string filename = path + CreateArchiveItemName(inventoryItem);
@@ -337,17 +343,20 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
                 {
                     m_log.DebugFormat("[INVENTORY ARCHIVER]: Saving {0} assets for items", m_assetUuids.Count);
 
-                    new AssetsRequest(
-                        new AssetsArchiver(m_archiveWriter),
-                        m_assetUuids, m_scene.AssetService,
-                        m_scene.UserAccountService, m_scene.RegionInfo.ScopeID,
-                        options, ReceivedAllAssets).Execute();
+                    AssetsRequest ar
+                        = new AssetsRequest(
+                            new AssetsArchiver(m_archiveWriter),
+                            m_assetUuids, m_scene.AssetService,
+                            m_scene.UserAccountService, m_scene.RegionInfo.ScopeID,
+                            options, ReceivedAllAssets);
+
+                    Util.FireAndForget(o => ar.Execute());
                 }
                 else
                 {
                     m_log.DebugFormat("[INVENTORY ARCHIVER]: Not saving assets since --noassets was specified");
 
-                    ReceivedAllAssets(new List<UUID>(), new List<UUID>());
+                    ReceivedAllAssets(new List<UUID>(), new List<UUID>(), false);
                 }
             }
             catch (Exception)

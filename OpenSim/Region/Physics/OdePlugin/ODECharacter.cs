@@ -100,7 +100,7 @@ namespace OpenSim.Region.Physics.OdePlugin
         private bool m_hackSentFly = false;
         private int m_requestedUpdateFrequency = 0;
         private Vector3 m_taintPosition;
-
+        internal bool m_avatarplanted = false;
         /// <summary>
         /// Hold set forces so we can process them outside physics calculations.  This prevents race conditions if we set force
         /// while calculatios are going on
@@ -413,7 +413,7 @@ namespace OpenSim.Region.Physics.OdePlugin
             set
             {
                 m_iscollidingObj = value;
-                if (value)
+                if (value && !m_avatarplanted)
                     m_pidControllerActive = false;
                 else
                     m_pidControllerActive = true;
@@ -660,6 +660,20 @@ namespace OpenSim.Region.Physics.OdePlugin
         {
             set { return; }
         }
+
+        public override Vector3 TargetVelocity
+        {
+            get
+            {
+                return m_taintTargetVelocity;
+            }
+
+            set
+            {
+                Velocity = value;
+            }
+        }
+
 
         public override Vector3 Velocity
         {
@@ -1261,14 +1275,20 @@ namespace OpenSim.Region.Physics.OdePlugin
         {
             m_requestedUpdateFrequency = ms;
             m_eventsubscription = ms;
-            CollisionEventsThisFrame.Clear();
+
+            // Don't clear collision event reporting here.  This is called directly from scene code and so can lead
+            // to a race condition with the simulate loop
+
             _parent_scene.AddCollisionEventReporting(this);
         }
 
         public override void UnSubscribeEvents()
         {
-            CollisionEventsThisFrame.Clear();
             _parent_scene.RemoveCollisionEventReporting(this);
+
+            // Don't clear collision event reporting here.  This is called directly from scene code and so can lead
+            // to a race condition with the simulate loop
+
             m_requestedUpdateFrequency = 0;
             m_eventsubscription = 0;
         }

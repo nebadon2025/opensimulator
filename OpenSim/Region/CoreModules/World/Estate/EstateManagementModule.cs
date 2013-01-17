@@ -39,6 +39,7 @@ using OpenMetaverse;
 using OpenSim.Framework;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
+using RegionFlags = OpenMetaverse.RegionFlags;
 
 namespace OpenSim.Region.CoreModules.World.Estate
 {
@@ -52,6 +53,11 @@ namespace OpenSim.Region.CoreModules.World.Estate
         
         protected EstateManagementCommands m_commands;                
 
+        /// <summary>
+        /// If false, region restart requests from the client are blocked even if they are otherwise legitimate.
+        /// </summary>
+        public bool AllowRegionRestartFromClient { get; set; }
+
         private EstateTerrainXferHandler TerrainUploader;
         public TelehubManager m_Telehub;
 
@@ -59,13 +65,60 @@ namespace OpenSim.Region.CoreModules.World.Estate
         public event ChangeDelegate OnEstateInfoChange;
         public event MessageDelegate OnEstateMessage;
 
+        #region Region Module interface
+        
+        public string Name { get { return "EstateManagementModule"; } }
+        
+        public Type ReplaceableInterface { get { return null; } }        
+
+        public void Initialise(IConfigSource source) 
+        {
+            AllowRegionRestartFromClient = true;
+
+            IConfig config = source.Configs["EstateManagement"];
+
+            if (config != null)
+                AllowRegionRestartFromClient = config.GetBoolean("AllowRegionRestartFromClient", true);
+        }
+        
+        public void AddRegion(Scene scene)
+        {
+            Scene = scene;
+            Scene.RegisterModuleInterface<IEstateModule>(this);
+            Scene.EventManager.OnNewClient += EventManager_OnNewClient;
+            Scene.EventManager.OnRequestChangeWaterHeight += changeWaterHeight;
+
+            m_Telehub = new TelehubManager(scene);
+
+            m_commands = new EstateManagementCommands(this);
+            m_commands.Initialise();
+        }
+        
+        public void RemoveRegion(Scene scene) {}            
+        
+        public void RegionLoaded(Scene scene)
+        {
+            // Sets up the sun module based no the saved Estate and Region Settings
+            // DO NOT REMOVE or the sun will stop working
+            scene.TriggerEstateSunUpdate();
+            
+            UserManager = scene.RequestModuleInterface<IUserManagement>();            
+        }
+
+        public void Close() 
+        {
+            m_commands.Close();
+        }
+
+        #endregion
+
         #region Packet Data Responders
 
         private void sendDetailedEstateData(IClientAPI remote_client, UUID invoice)
         {
             uint sun = 0;
 
-            if (!Scene.RegionInfo.EstateSettings.UseGlobalTime)
+            if (Scene.RegionInfo.EstateSettings.FixedSun)
                 sun = (uint)(Scene.RegionInfo.EstateSettings.SunPosition * 1024.0) + 0x1800;
             UUID estateOwner;
             estateOwner = Scene.RegionInfo.EstateSettings.EstateOwner;
@@ -183,6 +236,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                     Scene.RegionInfo.RegionSettings.TerrainTexture4 = texture;
                     break;
             }
+
             Scene.RegionInfo.RegionSettings.Save();
             TriggerRegionInfoChange();
             sendRegionInfoPacketToAll();
@@ -214,6 +268,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
                     Scene.RegionInfo.RegionSettings.Elevation2NE = highValue;
                     break;
             }
+
             Scene.RegionInfo.RegionSettings.Save();
             TriggerRegionInfoChange();
             sendRegionHandshakeToAll();
@@ -254,6 +309,12 @@ namespace OpenSim.Region.CoreModules.World.Estate
 
         private void handleEstateRestartSimRequest(IClientAPI remoteClient, int timeInSeconds)
         {
+            if (!AllowRegionRestartFromClient)
+            {
+                remoteClient.SendAlertMessage("Region restart has been disabled on this simulator.");
+                return;
+            }
+
             IRestartModule restartModule = Scene.RequestModuleInterface<IRestartModule>();
             if (restartModule != null)
             {
@@ -270,6 +331,10 @@ namespace OpenSim.Region.CoreModules.World.Estate
                 }
 
                 restartModule.ScheduleRestart(UUID.Zero, "Region will restart in {0}", times.ToArray(), true);
+
+                m_log.InfoFormat(
+                    "User {0} requested restart of region {1} in {2} seconds", 
+                    remoteClient.Name, Scene.Name, times.Count != 0 ? times[0] : 0);
             }
         }
 
@@ -294,7 +359,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
 
             if ((estateAccessType & 4) != 0) // User add
             {
-                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, true) || Scene.Permissions.BypassPermissions())
+                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, true))
                 {
                     if ((estateAccessType & 1) != 0) // All estates
                     {
@@ -324,9 +389,10 @@ namespace OpenSim.Region.CoreModules.World.Estate
                 }
 
             }
+
             if ((estateAccessType & 8) != 0) // User remove
             {
-                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, true) || Scene.Permissions.BypassPermissions())
+                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, true))
                 {
                     if ((estateAccessType & 1) != 0) // All estates
                     {
@@ -355,9 +421,10 @@ namespace OpenSim.Region.CoreModules.World.Estate
                     remote_client.SendAlertMessage("Method EstateAccessDelta Failed, you don't have permissions");
                 }
             }
+
             if ((estateAccessType & 16) != 0) // Group add
             {
-                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, true) || Scene.Permissions.BypassPermissions())
+                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, true))
                 {
                     if ((estateAccessType & 1) != 0) // All estates
                     {
@@ -386,9 +453,10 @@ namespace OpenSim.Region.CoreModules.World.Estate
                     remote_client.SendAlertMessage("Method EstateAccessDelta Failed, you don't have permissions");
                 }
             }
+
             if ((estateAccessType & 32) != 0) // Group remove
             {
-                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, true) || Scene.Permissions.BypassPermissions())
+                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, true))
                 {
                     if ((estateAccessType & 1) != 0) // All estates
                     {
@@ -417,9 +485,10 @@ namespace OpenSim.Region.CoreModules.World.Estate
                     remote_client.SendAlertMessage("Method EstateAccessDelta Failed, you don't have permissions");
                 }
             }
+
             if ((estateAccessType & 64) != 0) // Ban add
             {
-                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, false) || Scene.Permissions.BypassPermissions())
+                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, false))
                 {
                     EstateBan[] banlistcheck = Scene.RegionInfo.EstateSettings.EstateBans;
 
@@ -494,9 +563,10 @@ namespace OpenSim.Region.CoreModules.World.Estate
                     remote_client.SendAlertMessage("Method EstateAccessDelta Failed, you don't have permissions");
                 }
             }
+
             if ((estateAccessType & 128) != 0) // Ban remove
             {
-                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, false) || Scene.Permissions.BypassPermissions())
+                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, false))
                 {
                     EstateBan[] banlistcheck = Scene.RegionInfo.EstateSettings.EstateBans;
 
@@ -549,9 +619,10 @@ namespace OpenSim.Region.CoreModules.World.Estate
                     remote_client.SendAlertMessage("Method EstateAccessDelta Failed, you don't have permissions");
                 }
             }
+
             if ((estateAccessType & 256) != 0) // Manager add
             {
-                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, true) || Scene.Permissions.BypassPermissions())
+                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, true))
                 {
                     if ((estateAccessType & 1) != 0) // All estates
                     {
@@ -580,9 +651,10 @@ namespace OpenSim.Region.CoreModules.World.Estate
                     remote_client.SendAlertMessage("Method EstateAccessDelta Failed, you don't have permissions");
                 }
             }
+
             if ((estateAccessType & 512) != 0) // Manager remove
             {
-                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, true) || Scene.Permissions.BypassPermissions())
+                if (Scene.Permissions.CanIssueEstateCommand(remote_client.AgentId, true))
                 {
                     if ((estateAccessType & 1) != 0) // All estates
                     {
@@ -613,7 +685,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
             }
         }
 
-        public void handleOnEstateManageTelehub (IClientAPI client, UUID invoice, UUID senderID, string cmd, uint param1)
+        public void handleOnEstateManageTelehub(IClientAPI client, UUID invoice, UUID senderID, string cmd, uint param1)
         {
             SceneObjectPart part;
 
@@ -681,13 +753,18 @@ namespace OpenSim.Region.CoreModules.World.Estate
             Scene.RegionInfo.RegionSettings.Save();
             TriggerRegionInfoChange();
 
-            Scene.SetSceneCoreDebug(
-                new Dictionary<string, string>() {
-                    { "scripting", (!disableScripts).ToString() },
-                    { "collisions", (!disableCollisions).ToString() },
-                    { "physics", (!disablePhysics).ToString() }
-                }
-            );
+            ISceneCommandsModule scm = Scene.RequestModuleInterface<ISceneCommandsModule>();
+
+            if (scm != null)
+            {
+                scm.SetSceneDebugOptions(
+                    new Dictionary<string, string>() {
+                        { "scripting", (!disableScripts).ToString() },
+                        { "collisions", (!disableCollisions).ToString() },
+                        { "physics", (!disablePhysics).ToString() }
+                    }
+                );
+            }
         }
 
         private void handleEstateTeleportOneUserHomeRequest(IClientAPI remover_client, UUID invoice, UUID senderID, UUID prey)
@@ -1019,6 +1096,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
             {
                 Scene.RegionInfo.EstateSettings.UseGlobalTime = false;
                 Scene.RegionInfo.EstateSettings.SunPosition = (parms2 - 0x1800)/1024.0;
+                // Warning: FixedSun should be set to True, otherwise this sun position won't be used.
             }
 
             if ((parms1 & 0x00000010) != 0)
@@ -1067,45 +1145,6 @@ namespace OpenSim.Region.CoreModules.World.Estate
             Scene.TriggerEstateSunUpdate();
 
             sendDetailedEstateData(remoteClient, invoice);
-        }
-
-        #endregion
-
-        #region IRegionModule Members
-        
-        public string Name { get { return "EstateManagementModule"; } }
-        
-        public Type ReplaceableInterface { get { return null; } }        
-
-        public void Initialise(IConfigSource source) {}
-        
-        public void AddRegion(Scene scene)
-        {
-            Scene = scene;
-            Scene.RegisterModuleInterface<IEstateModule>(this);
-            Scene.EventManager.OnNewClient += EventManager_OnNewClient;
-            Scene.EventManager.OnRequestChangeWaterHeight += changeWaterHeight;
-
-            m_Telehub = new TelehubManager(scene);
-
-            m_commands = new EstateManagementCommands(this);
-            m_commands.Initialise();
-        }
-        
-        public void RemoveRegion(Scene scene) {}            
-        
-        public void RegionLoaded(Scene scene)
-        {
-            // Sets up the sun module based no the saved Estate and Region Settings
-            // DO NOT REMOVE or the sun will stop working
-            scene.TriggerEstateSunUpdate();
-            
-            UserManager = scene.RequestModuleInterface<IUserManagement>();            
-        }
-
-        public void Close() 
-        {
-            m_commands.Close();
         }
 
         #endregion

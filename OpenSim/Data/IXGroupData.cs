@@ -64,8 +64,6 @@ namespace OpenSim.Data
     {
         bool StoreGroup(XGroup group);
         XGroup[] GetGroups(string field, string val);
-        XGroup[] GetGroups(string[] fields, string[] vals);
         bool DeleteGroups(string field, string val);
-        bool DeleteGroups(string[] fields, string[] vals);
     }
 }

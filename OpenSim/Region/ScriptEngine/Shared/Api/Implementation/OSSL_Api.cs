@@ -142,9 +142,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         protected IUrlModule m_UrlModule = null;
 
-        public void Initialize(IScriptEngine ScriptEngine, SceneObjectPart host, TaskInventoryItem item)
+        public void Initialize(
+            IScriptEngine scriptEngine, SceneObjectPart host, TaskInventoryItem item, EventWaitHandle coopSleepHandle)
         {
-            m_ScriptEngine = ScriptEngine;
+            m_ScriptEngine = scriptEngine;
             m_host = host;
             m_item = item;
 
@@ -245,11 +246,23 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             wComm.DeliverMessage(ChatTypeEnum.Shout, ScriptBaseClass.DEBUG_CHANNEL, m_host.Name, m_host.UUID, message);
         }
 
+        // Returns of the function is allowed. Throws a script exception if not allowed.
         public void CheckThreatLevel(ThreatLevel level, string function)
         {
             if (!m_OSFunctionsEnabled)
                 OSSLError(String.Format("{0} permission denied.  All OS functions are disabled.", function)); // throws
 
+            string reasonWhyNot = CheckThreatLevelTest(level, function);
+            if (!String.IsNullOrEmpty(reasonWhyNot))
+            {
+                OSSLError(reasonWhyNot);
+            }
+        }
+
+        // Check to see if function is allowed. Returns an empty string if function permitted
+        //     or a string explaining why this function can't be used.
+        private string CheckThreatLevelTest(ThreatLevel level, string function)
+        {
             if (!m_FunctionPerms.ContainsKey(function))
             {
                 FunctionPerms perms = new FunctionPerms();
@@ -329,10 +342,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 // Allow / disallow by threat level
                 if (level > m_MaxThreatLevel)
-                    OSSLError(
+                    return
                         String.Format(
                             "{0} permission denied.  Allowed threat level is {1} but function threat level is {2}.",
-                            function, m_MaxThreatLevel, level));
+                            function, m_MaxThreatLevel, level);
             }
             else
             {
@@ -342,7 +355,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     if (m_FunctionPerms[function].AllowedOwners.Contains(m_host.OwnerID))
                     {
                         // prim owner is in the list of allowed owners
-                        return;
+                        return String.Empty;
                     }
 
                     UUID ownerID = m_item.OwnerID;
@@ -354,7 +367,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                         if (land.LandData.GroupID == m_item.GroupID && land.LandData.GroupID != UUID.Zero)
                         {
-                            return;
+                            return String.Empty;
                         }
                     }
 
@@ -365,7 +378,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                         if (land.LandData.OwnerID == ownerID)
                         {
-                            return;
+                            return String.Empty;
                         }
                     }
 
@@ -375,7 +388,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         //Only Estate Managers may use the function
                         if (World.RegionInfo.EstateSettings.IsEstateManagerOrOwner(ownerID) && World.RegionInfo.EstateSettings.EstateOwner != ownerID)
                         {
-                            return;
+                            return String.Empty;
                         }
                     }
 
@@ -384,25 +397,24 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     {
                         if (World.RegionInfo.EstateSettings.EstateOwner == ownerID)
                         {
-                            return;
+                            return String.Empty;
                         }
                     }
 
                     if (!m_FunctionPerms[function].AllowedCreators.Contains(m_item.CreatorID))
-                        OSSLError(
+                        return(
                             String.Format("{0} permission denied. Script creator is not in the list of users allowed to execute this function and prim owner also has no permission.",
                             function));
 
                     if (m_item.CreatorID != ownerID)
                     {
                         if ((m_item.CurrentPermissions & (uint)PermissionMask.Modify) != 0)
-                            OSSLError(
-                                String.Format("{0} permission denied. Script permissions error.",
-                                function));
+                            return String.Format("{0} permission denied. Script permissions error.", function);
 
                     }
                 }
             }
+            return String.Empty;
         }
 
         internal void OSSLDeprecated(string function, string replacement)
@@ -1205,12 +1217,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 sunHour += 24.0;
 
             World.RegionInfo.RegionSettings.UseEstateSun = useEstateSun;
-            World.RegionInfo.RegionSettings.SunPosition  = sunHour + 6; // LL Region Sun Hour is 6 to 30
-            World.RegionInfo.RegionSettings.FixedSun     = sunFixed;
+            World.RegionInfo.RegionSettings.SunPosition = sunHour + 6; // LL Region Sun Hour is 6 to 30
+            World.RegionInfo.RegionSettings.FixedSun = sunFixed;
             World.RegionInfo.RegionSettings.Save();
 
-            World.EventManager.TriggerEstateToolsSunUpdate(
-                World.RegionInfo.RegionHandle, sunFixed, useEstateSun, (float)sunHour);
+            World.EventManager.TriggerEstateToolsSunUpdate(World.RegionInfo.RegionHandle);
         }
 
         /// <summary>
@@ -1235,8 +1246,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             World.RegionInfo.EstateSettings.FixedSun = sunFixed;
             World.RegionInfo.EstateSettings.Save();
 
-            World.EventManager.TriggerEstateToolsSunUpdate(
-                World.RegionInfo.RegionHandle, sunFixed, World.RegionInfo.RegionSettings.UseEstateSun, (float)sunHour);
+            World.EventManager.TriggerEstateToolsSunUpdate(World.RegionInfo.RegionHandle);
         }
 
         /// <summary>
@@ -1558,6 +1568,32 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 return String.Empty;
             }
+        }
+
+        public string osGetPhysicsEngineType()
+        {
+            // High because it can be used to target attacks to known weaknesses
+            // This would allow a new class of griefer scripts that don't even
+            // require their user to know what they are doing (see script
+            // kiddie)
+            // Because it would be nice if scripts didn't blow up if the information
+            //    about the physics engine, this function returns an empty string if
+            //    the user does not have permission to see it. This as opposed to
+            //    throwing an exception.
+            m_host.AddScriptLPS(1);
+            string ret = String.Empty;
+            if (String.IsNullOrEmpty(CheckThreatLevelTest(ThreatLevel.High, "osGetPhysicsEngineType")))
+            {
+                if (m_ScriptEngine.World.PhysicsScene != null)
+                {
+                    ret = m_ScriptEngine.World.PhysicsScene.EngineType;
+                    // An old physics engine might have an uninitialized engine type
+                    if (ret == null)
+                        ret = "unknown";
+                }
+            }
+
+            return ret;
         }
 
         public string osGetSimulatorVersion()

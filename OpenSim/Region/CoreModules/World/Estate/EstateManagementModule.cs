@@ -65,7 +65,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
         {
             uint sun = 0;
 
-            if (!Scene.RegionInfo.EstateSettings.UseGlobalTime)
+            if (Scene.RegionInfo.EstateSettings.FixedSun)
                 sun = (uint)(Scene.RegionInfo.EstateSettings.SunPosition * 1024.0) + 0x1800;
             UUID estateOwner;
             estateOwner = Scene.RegionInfo.EstateSettings.EstateOwner;
@@ -681,13 +681,18 @@ namespace OpenSim.Region.CoreModules.World.Estate
             Scene.RegionInfo.RegionSettings.Save();
             TriggerRegionInfoChange();
 
-            Scene.SetSceneCoreDebug(
-                new Dictionary<string, string>() {
-                    { "scripting", (!disableScripts).ToString() },
-                    { "collisions", (!disableCollisions).ToString() },
-                    { "physics", (!disablePhysics).ToString() }
-                }
-            );
+            ISceneCommandsModule scm = Scene.RequestModuleInterface<ISceneCommandsModule>();
+
+            if (scm != null)
+            {
+                scm.SetSceneDebugOptions(
+                    new Dictionary<string, string>() {
+                        { "scripting", (!disableScripts).ToString() },
+                        { "collisions", (!disableCollisions).ToString() },
+                        { "physics", (!disablePhysics).ToString() }
+                    }
+                );
+            }
         }
 
         private void handleEstateTeleportOneUserHomeRequest(IClientAPI remover_client, UUID invoice, UUID senderID, UUID prey)
@@ -1019,6 +1024,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
             {
                 Scene.RegionInfo.EstateSettings.UseGlobalTime = false;
                 Scene.RegionInfo.EstateSettings.SunPosition = (parms2 - 0x1800)/1024.0;
+                // Warning: FixedSun should be set to True, otherwise this sun position won't be used.
             }
 
             if ((parms1 & 0x00000010) != 0)

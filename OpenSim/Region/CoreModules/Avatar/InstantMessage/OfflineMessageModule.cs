@@ -213,7 +213,7 @@ namespace OpenSim.Region.CoreModules.Avatar.InstantMessage
             if (!m_ForwardOfflineGroupMessages)
             {
                 if (im.dialog == (byte)InstantMessageDialog.GroupNotice ||
-                    im.dialog != (byte)InstantMessageDialog.GroupInvitation)
+                    im.dialog == (byte)InstantMessageDialog.GroupInvitation)
                     return;
             }
 

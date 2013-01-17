@@ -75,9 +75,39 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
             m_scene.RegisterModuleInterface<IAttachmentsModule>(this);
 
             if (Enabled)
+            {
                 m_scene.EventManager.OnNewClient += SubscribeToClientEvents;
+                m_scene.EventManager.OnStartScript += (localID, itemID) => HandleScriptStateChange(localID, true);
+                m_scene.EventManager.OnStopScript += (localID, itemID) => HandleScriptStateChange(localID, false);
+            }
 
             // TODO: Should probably be subscribing to CloseClient too, but this doesn't yet give us IClientAPI
+        }
+
+        /// <summary>
+        /// Listen for client triggered running state changes so that we can persist the script's object if necessary.
+        /// </summary>
+        /// <param name='localID'></param>
+        /// <param name='itemID'></param>
+        private void HandleScriptStateChange(uint localID, bool started)
+        {
+            SceneObjectGroup sog = m_scene.GetGroupByPrim(localID);
+            if (sog != null && sog.IsAttachment) 
+            {
+                if (!started)
+                {
+                    // FIXME: This is a convoluted way for working out whether the script state has changed to stop
+                    // because it has been manually stopped or because the stop was called in UpdateDetachedObject() below
+                    // This needs to be handled in a less tangled way.
+                    ScenePresence sp = m_scene.GetScenePresence(sog.AttachedAvatar);
+                    if (sp.ControllingClient.IsActive)
+                        sog.HasGroupChanged = true;
+                }
+                else
+                {
+                    sog.HasGroupChanged = true;
+                }
+            }
         }
         
         public void RemoveRegion(Scene scene) 
@@ -631,15 +661,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
 
             if (!silent)
             {
-                // Killing it here will cause the client to deselect it
-                // It then reappears on the avatar, deselected
-                // through the full update below
-                //
-                if (so.IsSelected)
-                {
-                    m_scene.SendKillObject(new List<uint> { so.RootPart.LocalId });
-                }
-                else if (so.HasPrivateAttachmentPoint)
+                if (so.HasPrivateAttachmentPoint)
                 {
 //                    m_log.DebugFormat(
 //                        "[ATTACHMENTS MODULE]: Killing private HUD {0} for avatars other than {1} at attachment point {2}",
@@ -654,7 +676,10 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                             });
                 }
 
-                so.IsSelected = false; // fudge....
+                // Fudge below is an extremely unhelpful comment.  It's probably here so that the scheduled full update
+                // will succeed, as that will not update if an attachment is selected.
+                so.IsSelected = false; // fudge.... 
+
                 so.ScheduleGroupForFullUpdate();
             }
 

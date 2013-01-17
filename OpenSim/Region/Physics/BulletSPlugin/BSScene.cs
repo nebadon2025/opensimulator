@@ -26,6 +26,7 @@
  */
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -38,6 +39,7 @@ using Nini.Config;
 using log4net;
 using OpenMetaverse;
 
+<<<<<<< HEAD
 // TODOs for BulletSim (for BSScene, BSPrim, BSCharacter and BulletSim)
 // Adjust character capsule size when height is adjusted (ScenePresence.SetHeight)
 // Test sculpties
@@ -61,28 +63,35 @@ using OpenMetaverse;
 // Check terrain size. 128 or 127?
 // Raycast
 // 
+=======
+>>>>>>> upstream/master
 namespace OpenSim.Region.Physics.BulletSPlugin
 {
 public class BSScene : PhysicsScene, IPhysicsParameters
 {
-    private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-    private static readonly string LogHeader = "[BULLETS SCENE]";
+    internal static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+    internal static readonly string LogHeader = "[BULLETS SCENE]";
 
     // The name of the region we're working for.
     public string RegionName { get; private set; }
 
     public string BulletSimVersion = "?";
 
+<<<<<<< HEAD
     public Dictionary<uint, BSPhysObject> PhysObjects = new Dictionary<uint, BSPhysObject>();
+=======
+    // The handle to the underlying managed or unmanaged version of Bullet being used.
+    public string BulletEngineName { get; private set; }
+    public BSAPITemplate PE;
+
+    public Dictionary<uint, BSPhysObject> PhysObjects;
+    public BSShapeCollection Shapes;
+>>>>>>> upstream/master
 
     private HashSet<BSPhysObject> m_objectsWithCollisions = new HashSet<BSPhysObject>();
     // Following is a kludge and can  be removed when avatar animation updating is
     //    moved to a better place.
     private HashSet<BSPhysObject> m_avatarsWithCollisions = new HashSet<BSPhysObject>();
-
-    // List of all the objects that have vehicle properties and should be called
-    //    to update each physics step.
-    private List<BSPhysObject> m_vehicles = new List<BSPhysObject>();
 
     // let my minuions use my logger
     public ILog Logger { get { return m_log; } }
@@ -92,23 +101,29 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     private int m_detailedStatsStep = 0;
 
     public IMesher mesher;
-    // Level of Detail values kept as float because that's what the Meshmerizer wants
-    public float MeshLOD { get; private set; }
-    public float MeshMegaPrimLOD { get; private set; }
-    public float MeshMegaPrimThreshold { get; private set; }
-    public float SculptLOD { get; private set; }
-
     public uint WorldID { get; private set; }
-    public BulletSim World { get; private set; }
+    public BulletWorld World { get; private set; }
 
     // All the constraints that have been allocated in this instance.
     public BSConstraintCollection Constraints { get; private set; }
 
     // Simulation parameters
-    private int m_maxSubSteps;
-    private float m_fixedTimeStep;
-    private long m_simulationStep = 0;
+    internal int m_maxSubSteps;
+    internal float m_fixedTimeStep;
+    internal long m_simulationStep = 0;
+    internal float NominalFrameRate { get; set; }
     public long SimulationStep { get { return m_simulationStep; } }
+<<<<<<< HEAD
+=======
+    internal int m_taintsToProcessPerStep;
+    internal float LastTimeStep { get; private set; }
+
+    // Physical objects can register for prestep or poststep events
+    public delegate void PreStepAction(float timeStep);
+    public delegate void PostStepAction(float timeStep);
+    public event PreStepAction BeforeStep;
+    public event PreStepAction AfterStep;
+>>>>>>> upstream/master
 
     // A value of the time now so all the collision and update routines do not have to get their own
     // Set to 'now' just before all the prims and actors are called for collisions and updates
@@ -118,10 +133,10 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     private bool m_initialized = false;
 
     // Pinned memory used to pass step information between managed and unmanaged
-    private int m_maxCollisionsPerFrame;
-    private CollisionDesc[] m_collisionArray;
-    private GCHandle m_collisionArrayPinnedHandle;
+    internal int m_maxCollisionsPerFrame;
+    internal CollisionDesc[] m_collisionArray;
 
+<<<<<<< HEAD
     private int m_maxUpdatesPerFrame;
     private EntityProperties[] m_updateArray;
     private GCHandle m_updateArrayPinnedHandle;
@@ -131,6 +146,10 @@ public class BSScene : PhysicsScene, IPhysicsParameters
 
     public float PID_D { get; private set; }    // derivative
     public float PID_P { get; private set; }    // proportional
+=======
+    internal int m_maxUpdatesPerFrame;
+    internal EntityProperties[] m_updateArray;
+>>>>>>> upstream/master
 
     public const uint TERRAIN_ID = 0;       // OpenSim senses terrain with a localID of zero
     public const uint GROUNDPLANE_ID = 1;
@@ -141,7 +160,7 @@ public class BSScene : PhysicsScene, IPhysicsParameters
 
     public ConfigurationParameters Params
     {
-        get { return m_params[0]; }
+        get { return UnmanagedParams[0]; }
     }
     public Vector3 DefaultGravity
     {
@@ -152,8 +171,6 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     {
         get { return Params.gravity; }
     }
-
-    public float MaximumObjectMass { get; private set; }
 
     // When functions in the unmanaged code must be called, it is only
     //   done at a known time just before the simulation step. The taint
@@ -175,13 +192,7 @@ public class BSScene : PhysicsScene, IPhysicsParameters
 
     // A pointer to an instance if this structure is passed to the C++ code
     // Used to pass basic configuration values to the unmanaged code.
-    ConfigurationParameters[] m_params;
-    GCHandle m_paramsHandle;
-
-    // Handle to the callback used by the unmanaged code to call into the managed code.
-    // Used for debug logging.
-    // Need to store the handle in a persistant variable so it won't be freed.
-    private BulletSimAPI.DebugLogCallback m_DebugLogCallbackHandle;
+    internal ConfigurationParameters[] UnmanagedParams;
 
     // Sometimes you just have to log everything.
     public Logging.LogWriter PhysicsLogging;
@@ -189,31 +200,39 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     private string m_physicsLoggingDir;
     private string m_physicsLoggingPrefix;
     private int m_physicsLoggingFileMinutes;
+<<<<<<< HEAD
+=======
+    private bool m_physicsLoggingDoFlush;
+    private bool m_physicsPhysicalDumpEnabled;
+    public float PhysicsMetricDumpFrames { get; set; }
+>>>>>>> upstream/master
     // 'true' of the vehicle code is to log lots of details
     public bool VehicleLoggingEnabled { get; private set; }
+    public bool VehiclePhysicalLoggingEnabled { get; private set; }
 
     #region Construction and Initialization
-    public BSScene(string identifier)
+    public BSScene(string engineType, string identifier)
     {
         m_initialized = false;
-        // we are passed the name of the region we're working for.
+
+        // The name of the region we're working for is passed to us. Keep for identification.
         RegionName = identifier;
+
+        // Set identifying variables in the PhysicsScene interface.
+        EngineType = engineType;
+        Name = EngineType + "/" + RegionName;
     }
 
     public override void Initialise(IMesher meshmerizer, IConfigSource config)
     {
         // Allocate pinned memory to pass parameters.
-        m_params = new ConfigurationParameters[1];
-        m_paramsHandle = GCHandle.Alloc(m_params, GCHandleType.Pinned);
+        UnmanagedParams = new ConfigurationParameters[1];
 
         // Set default values for physics parameters plus any overrides from the ini file
         GetInitialParameterValues(config);
 
-        // allocate more pinned memory close to the above in an attempt to get the memory all together
-        m_collisionArray = new CollisionDesc[m_maxCollisionsPerFrame];
-        m_collisionArrayPinnedHandle = GCHandle.Alloc(m_collisionArray, GCHandleType.Pinned);
-        m_updateArray = new EntityProperties[m_maxUpdatesPerFrame];
-        m_updateArrayPinnedHandle = GCHandle.Alloc(m_updateArray, GCHandleType.Pinned);
+        // Get the connection to the physics engine (could be native or one of many DLLs)
+        PE = SelectUnderlyingBulletEngine(BulletEngineName);
 
         mesher = meshmerizer;
         _taintedObjects = new List<TaintCallbackEntry>();
@@ -230,22 +249,9 @@ public class BSScene : PhysicsScene, IPhysicsParameters
             PhysicsLogging = new Logging.LogWriter();
         }
 
-        // If Debug logging level, enable logging from the unmanaged code
-        m_DebugLogCallbackHandle = null;
-        if (m_log.IsDebugEnabled || PhysicsLogging.Enabled)
-        {
-            m_log.DebugFormat("{0}: Initialize: Setting debug callback for unmanaged code", LogHeader);
-            if (PhysicsLogging.Enabled)
-                // The handle is saved in a variable to make sure it doesn't get freed after this call
-                m_DebugLogCallbackHandle = new BulletSimAPI.DebugLogCallback(BulletLoggerPhysLog);
-            else
-                m_DebugLogCallbackHandle = new BulletSimAPI.DebugLogCallback(BulletLogger);
-        }
-
-        // Get the version of the DLL
-        // TODO: this doesn't work yet. Something wrong with marshaling the returned string.
-        // BulletSimVersion = BulletSimAPI.GetVersion();
-        // m_log.WarnFormat("{0}: BulletSim.dll version='{1}'", LogHeader, BulletSimVersion);
+        // Allocate memory for returning of the updates and collisions from the physics engine
+        m_collisionArray = new CollisionDesc[m_maxCollisionsPerFrame];
+        m_updateArray = new EntityProperties[m_maxUpdatesPerFrame];
 
         // The bounding box for the simulated world. The origin is 0,0,0 unless we're
         //    a child in a mega-region.
@@ -253,6 +259,7 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         //    area. It tracks active objects no matter where they are.
         Vector3 worldExtent = new Vector3(Constants.RegionSize, Constants.RegionSize, 8192f);
 
+<<<<<<< HEAD
         // m_log.DebugFormat("{0}: Initialize: Calling BulletSimAPI.Initialize.", LogHeader);
         WorldID = BulletSimAPI.Initialize(worldExtent, m_paramsHandle.AddrOfPinnedObject(),
                                         m_maxCollisionsPerFrame, m_collisionArrayPinnedHandle.AddrOfPinnedObject(),
@@ -262,12 +269,21 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         // Initialization to support the transition to a new API which puts most of the logic
         //   into the C# code so it is easier to modify and add to.
         World = new BulletSim(WorldID, this, BulletSimAPI.GetSimHandle2(WorldID));
+=======
+        World = PE.Initialize(worldExtent, Params, m_maxCollisionsPerFrame, ref m_collisionArray, m_maxUpdatesPerFrame, ref m_updateArray);
+>>>>>>> upstream/master
 
         Constraints = new BSConstraintCollection(World);
 
         TerrainManager = new BSTerrainManager(this);
         TerrainManager.CreateInitialGroundPlaneAndTerrain();
 
+<<<<<<< HEAD
+=======
+        m_log.WarnFormat("{0} Linksets implemented with {1}", LogHeader, (BSLinkset.LinksetImplementation)BSParam.LinksetImplementation);
+
+        InTaintTime = false;
+>>>>>>> upstream/master
         m_initialized = true;
     }
 
@@ -276,9 +292,9 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     private void GetInitialParameterValues(IConfigSource config)
     {
         ConfigurationParameters parms = new ConfigurationParameters();
-        m_params[0] = parms;
+        UnmanagedParams[0] = parms;
 
-        SetParameterDefaultValues();
+        BSParam.SetParameterDefaultValues(this);
 
         if (config != null)
         {
@@ -286,19 +302,40 @@ public class BSScene : PhysicsScene, IPhysicsParameters
             IConfig pConfig = config.Configs["BulletSim"];
             if (pConfig != null)
             {
-                SetParameterConfigurationValues(pConfig);
+                BSParam.SetParameterConfigurationValues(this, pConfig);
+
+                // There are two Bullet implementations to choose from
+                BulletEngineName = pConfig.GetString("BulletEngine", "BulletUnmanaged");
 
                 // Very detailed logging for physics debugging
+                // TODO: the boolean values can be moved to the normal parameter processing.
                 m_physicsLoggingEnabled = pConfig.GetBoolean("PhysicsLoggingEnabled", false);
                 m_physicsLoggingDir = pConfig.GetString("PhysicsLoggingDir", ".");
                 m_physicsLoggingPrefix = pConfig.GetString("PhysicsLoggingPrefix", "physics-%REGIONNAME%-");
                 m_physicsLoggingFileMinutes = pConfig.GetInt("PhysicsLoggingFileMinutes", 5);
+<<<<<<< HEAD
+=======
+                m_physicsLoggingDoFlush = pConfig.GetBoolean("PhysicsLoggingDoFlush", false);
+                m_physicsPhysicalDumpEnabled = pConfig.GetBoolean("PhysicsPhysicalDumpEnabled", false);
+>>>>>>> upstream/master
                 // Very detailed logging for vehicle debugging
                 VehicleLoggingEnabled = pConfig.GetBoolean("VehicleLoggingEnabled", false);
+                VehiclePhysicalLoggingEnabled = pConfig.GetBoolean("VehiclePhysicalLoggingEnabled", false);
 
                 // Do any replacements in the parameters
                 m_physicsLoggingPrefix = m_physicsLoggingPrefix.Replace("%REGIONNAME%", RegionName);
             }
+<<<<<<< HEAD
+=======
+
+            // The material characteristics.
+            BSMaterials.InitializeFromDefaults(Params);
+            if (pConfig != null)
+            {
+                // Let the user add new and interesting material property values.
+                BSMaterials.InitializefromParameters(pConfig);
+            }
+>>>>>>> upstream/master
         }
     }
 
@@ -317,9 +354,13 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         return ret;
     }
 
-    // Called directly from unmanaged code so don't do much
-    private void BulletLogger(string msg)
+    // Select the connection to the actual Bullet implementation.
+    // The main engine selection is the engineName up to the first hypen.
+    // So "Bullet-2.80-OpenCL-Intel" specifies the 'bullet' class here and the whole name
+    //     is passed to the engine to do its special selection, etc.
+    private BSAPITemplate SelectUnderlyingBulletEngine(string engineName)
     {
+<<<<<<< HEAD
         m_log.Debug("[BULLETS UNMANAGED]:" + msg);
     }
     
@@ -327,6 +368,37 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     private void BulletLoggerPhysLog(string msg)
     {
         PhysicsLogging.Write("[BULLETS UNMANAGED]:" + msg);
+=======
+        // For the moment, do a simple switch statement.
+        // Someday do fancyness with looking up the interfaces in the assembly.
+        BSAPITemplate ret = null;
+
+        string selectionName = engineName.ToLower();
+        int hyphenIndex = engineName.IndexOf("-");
+        if (hyphenIndex > 0)
+            selectionName = engineName.ToLower().Substring(0, hyphenIndex - 1);
+
+        switch (selectionName)
+        {
+            case "bulletunmanaged":
+                ret = new BSAPIUnman(engineName, this);
+                break;
+            case "bulletxna":
+                ret = new BSAPIXNA(engineName, this);
+                break;
+        }
+
+        if (ret == null)
+        {
+            m_log.ErrorFormat("{0) COULD NOT SELECT BULLET ENGINE: '[BulletSim]PhysicsEngine' must be either 'BulletUnmanaged-*' or 'BulletXNA-*'", LogHeader);
+        }
+        else
+        {
+            m_log.WarnFormat("{0} Selected bullet engine {1} -> {2}/{3}", LogHeader, engineName, ret.BulletEngineName, ret.BulletEngineVersion);
+        }
+
+        return ret;
+>>>>>>> upstream/master
     }
 
     public override void Dispose()
@@ -335,8 +407,6 @@ public class BSScene : PhysicsScene, IPhysicsParameters
 
         // make sure no stepping happens while we're deleting stuff
         m_initialized = false;
-
-        TerrainManager.ReleaseGroundPlaneAndTerrain();
 
         foreach (KeyValuePair<uint, BSPhysObject> kvp in PhysObjects)
         {
@@ -351,8 +421,26 @@ public class BSScene : PhysicsScene, IPhysicsParameters
             Constraints = null;
         }
 
+<<<<<<< HEAD
         // Anything left in the unmanaged code should be cleaned out
         BulletSimAPI.Shutdown(WorldID);
+=======
+        if (Shapes != null)
+        {
+            Shapes.Dispose();
+            Shapes = null;
+        }
+
+        if (TerrainManager != null)
+        {
+            TerrainManager.ReleaseGroundPlaneAndTerrain();
+            TerrainManager.Dispose();
+            TerrainManager = null;
+        }
+
+        // Anything left in the unmanaged code should be cleaned out
+        PE.Shutdown(World);
+>>>>>>> upstream/master
 
         // Not logging any more
         PhysicsLogging.Close();
@@ -374,12 +462,18 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         if (!m_initialized) return null;
 
         BSCharacter actor = new BSCharacter(localID, avName, this, position, size, isFlying);
-        lock (PhysObjects) PhysObjects.Add(localID, actor);
+        lock (PhysObjects)
+            PhysObjects.Add(localID, actor);
 
         // TODO: Remove kludge someday.
         // We must generate a collision for avatars whether they collide or not.
         // This is required by OpenSim to update avatar animations, etc.
+<<<<<<< HEAD
         lock (m_avatarsWithCollisions) m_avatarsWithCollisions.Add(actor);
+=======
+        lock (m_avatars)
+            m_avatars.Add(actor);
+>>>>>>> upstream/master
 
         return actor;
     }
@@ -395,9 +489,15 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         {
             try
             {
-                lock (PhysObjects) PhysObjects.Remove(actor.LocalID);
+                lock (PhysObjects)
+                    PhysObjects.Remove(bsactor.LocalID);
                 // Remove kludge someday
+<<<<<<< HEAD
                 lock (m_avatarsWithCollisions) m_avatarsWithCollisions.Remove(bsactor);
+=======
+                lock (m_avatars)
+                    m_avatars.Remove(bsactor);
+>>>>>>> upstream/master
             }
             catch (Exception e)
             {
@@ -405,6 +505,11 @@ public class BSScene : PhysicsScene, IPhysicsParameters
             }
             bsactor.Destroy();
             // bsactor.dispose();
+        }
+        else
+        {
+            m_log.ErrorFormat("{0}: Requested to remove avatar that is not a BSCharacter. ID={1}, type={2}",
+                                        LogHeader, actor.LocalID, actor.GetType().Name);
         }
     }
 
@@ -459,11 +564,15 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     // Simulate one timestep
     public override float Simulate(float timeStep)
     {
-        int updatedEntityCount = 0;
-        IntPtr updatedEntitiesPtr;
-        int collidersCount = 0;
-        IntPtr collidersPtr;
+        // prevent simulation until we've been initialized
+        if (!m_initialized) return 5.0f;
 
+        LastTimeStep = timeStep;
+
+        int updatedEntityCount = 0;
+        int collidersCount = 0;
+
+<<<<<<< HEAD
         // prevent simulation until we've been initialized
         if (!m_initialized) return 5.0f;
 
@@ -475,16 +584,57 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         ProcessVehicles(timeStep);
         numTaints += _taintedObjects.Count;
         ProcessTaints();    // the vehicles might have added taints
+=======
+        int beforeTime = 0;
+        int simTime = 0;
+
+        // update the prim states while we know the physics engine is not busy
+        int numTaints = _taintOperations.Count;
+
+        InTaintTime = true; // Only used for debugging so locking is not necessary.
+
+        ProcessTaints();
+
+        // Some of the physical objects requre individual, pre-step calls
+        //      (vehicles and avatar movement, in particular)
+        TriggerPreStepEvent(timeStep);
+
+        // the prestep actions might have added taints
+        numTaints += _taintOperations.Count;
+        ProcessTaints();
+
+        InTaintTime = false; // Only used for debugging so locking is not necessary.
+
+        // The following causes the unmanaged code to output ALL the values found in ALL the objects in the world.
+        // Only enable this in a limited test world with few objects.
+        if (m_physicsPhysicalDumpEnabled)
+            PE.DumpAllInfo(World);
+>>>>>>> upstream/master
 
         // step the physical world one interval
         m_simulationStep++;
         int numSubSteps = 0;
         try
         {
+<<<<<<< HEAD
             numSubSteps = BulletSimAPI.PhysicsStep(WorldID, timeStep, m_maxSubSteps, m_fixedTimeStep,
                         out updatedEntityCount, out updatedEntitiesPtr, out collidersCount, out collidersPtr);
             DetailLog("{0},Simulate,call, nTaints= {1}, substeps={2}, updates={3}, colliders={4}", 
                         DetailLogZero, numTaints, numSubSteps, updatedEntityCount, collidersCount); 
+=======
+            if (PhysicsLogging.Enabled)
+                beforeTime = Util.EnvironmentTickCount();
+
+            numSubSteps = PE.PhysicsStep(World, timeStep, m_maxSubSteps, m_fixedTimeStep, out updatedEntityCount, out collidersCount);
+
+            if (PhysicsLogging.Enabled)
+            {
+                simTime = Util.EnvironmentTickCountSubtract(beforeTime);
+                DetailLog("{0},Simulate,call, frame={1}, nTaints={2}, simTime={3}, substeps={4}, updates={5}, colliders={6}, objWColl={7}",
+                                        DetailLogZero, m_simulationStep, numTaints, simTime, numSubSteps,
+                                        updatedEntityCount, collidersCount, ObjectsWithCollisions.Count);
+            }
+>>>>>>> upstream/master
         }
         catch (Exception e)
         {
@@ -496,6 +646,11 @@ public class BSScene : PhysicsScene, IPhysicsParameters
             collidersCount = 0;
         }
 
+<<<<<<< HEAD
+=======
+        if ((m_simulationStep % PhysicsMetricDumpFrames) == 0)
+            PE.DumpPhysicsStatistics(World);
+>>>>>>> upstream/master
 
         // Don't have to use the pointers passed back since we know it is the same pinned memory we passed in
 
@@ -525,9 +680,42 @@ public class BSScene : PhysicsScene, IPhysicsParameters
 
         // The above SendCollision's batch up the collisions on the objects.
         //      Now push the collisions into the simulator.
+<<<<<<< HEAD
         foreach (BSPhysObject bsp in m_objectsWithCollisions)
             bsp.SendCollisions();
         m_objectsWithCollisions.Clear();
+=======
+        if (ObjectsWithCollisions.Count > 0)
+        {
+            foreach (BSPhysObject bsp in ObjectsWithCollisions)
+                if (!bsp.SendCollisions())
+                {
+                    // If the object is done colliding, see that it's removed from the colliding list
+                    ObjectsWithNoMoreCollisions.Add(bsp);
+                }
+        }
+
+        // This is a kludge to get avatar movement updates.
+        // The simulator expects collisions for avatars even if there are have been no collisions.
+        //    The event updates avatar animations and stuff.
+        // If you fix avatar animation updates, remove this overhead and let normal collision processing happen.
+        foreach (BSPhysObject bsp in m_avatars)
+            if (!ObjectsWithCollisions.Contains(bsp))   // don't call avatars twice
+                bsp.SendCollisions();
+
+        // Objects that are done colliding are removed from the ObjectsWithCollisions list.
+        // Not done above because it is inside an iteration of ObjectWithCollisions.
+        // This complex collision processing is required to create an empty collision
+        //     event call after all real collisions have happened on an object. This enables
+        //     the simulator to generate the 'collision end' event.
+        if (ObjectsWithNoMoreCollisions.Count > 0)
+        {
+            foreach (BSPhysObject po in ObjectsWithNoMoreCollisions)
+                ObjectsWithCollisions.Remove(po);
+            ObjectsWithNoMoreCollisions.Clear();
+        }
+        // Done with collisions.
+>>>>>>> upstream/master
 
         // If any of the objects had updated properties, tell the object it has been changed by the physics engine
         if (updatedEntityCount > 0)
@@ -543,6 +731,7 @@ public class BSScene : PhysicsScene, IPhysicsParameters
             }
         }
 
+<<<<<<< HEAD
         // If enabled, call into the physics engine to dump statistics
         if (m_detailedStatsStep > 0)
         {
@@ -556,6 +745,19 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         // These are summed and normalized to one second and divided by 1000 to give the reported physics FPS.
         // Since Bullet normally does 5 or 6 substeps, this will normally sum to about 60 FPS.
         return numSubSteps * m_fixedTimeStep;
+=======
+        TriggerPostStepEvent(timeStep);
+
+        // The following causes the unmanaged code to output ALL the values found in ALL the objects in the world.
+        // Only enable this in a limited test world with few objects.
+        if (m_physicsPhysicalDumpEnabled)
+            PE.DumpAllInfo(World);
+
+        // The physics engine returns the number of milliseconds it simulated this call.
+        // These are summed and normalized to one second and divided by 1000 to give the reported physics FPS.
+        // Multiply by a fixed nominal frame rate to give a rate similar to the simulator (usually 55).
+        return (float)numSubSteps * m_fixedTimeStep * 1000f * NominalFrameRate;
+>>>>>>> upstream/master
     }
 
     // Something has collided
@@ -642,6 +844,20 @@ public class BSScene : PhysicsScene, IPhysicsParameters
 
     public override bool IsThreaded { get { return false;  } }
 
+<<<<<<< HEAD
+=======
+    #region Taints
+    // The simulation execution order is:
+    // Simulate()
+    //    DoOneTimeTaints
+    //    TriggerPreStepEvent
+    //    DoOneTimeTaints
+    //    Step()
+    //       ProcessAndForwardCollisions
+    //       ProcessAndForwardPropertyUpdates
+    //    TriggerPostStepEvent
+
+>>>>>>> upstream/master
     // Calls to the PhysicsActors can't directly call into the physics engine
     // because it might be busy. We delay changes to a known time.
     // We rely on C#'s closure to save and restore the context for the delegate.
@@ -657,12 +873,51 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         return;
     }
 
+<<<<<<< HEAD
+=======
+    // Sometimes a potentially tainted operation can be used in and out of taint time.
+    // This routine executes the command immediately if in taint-time otherwise it is queued.
+    public void TaintedObject(bool inTaintTime, string ident, TaintCallback callback)
+    {
+        if (inTaintTime)
+            callback();
+        else
+            TaintedObject(ident, callback);
+    }
+
+    private void TriggerPreStepEvent(float timeStep)
+    {
+        PreStepAction actions = BeforeStep;
+        if (actions != null)
+            actions(timeStep);
+
+    }
+
+    private void TriggerPostStepEvent(float timeStep)
+    {
+        PreStepAction actions = AfterStep;
+        if (actions != null)
+            actions(timeStep);
+
+    }
+
+>>>>>>> upstream/master
     // When someone tries to change a property on a BSPrim or BSCharacter, the object queues
     // a callback into itself to do the actual property change. That callback is called
     // here just before the physics engine is called to step the simulation.
     public void ProcessTaints()
     {
+<<<<<<< HEAD
         if (_taintedObjects.Count > 0)  // save allocating new list if there is nothing to process
+=======
+        ProcessRegularTaints();
+        ProcessPostTaintTaints();
+    }
+
+    private void ProcessRegularTaints()
+    {
+        if (_taintOperations.Count > 0)  // save allocating new list if there is nothing to process
+>>>>>>> upstream/master
         {
             // swizzle a new list into the list location so we can process what's there
             List<TaintCallbackEntry> oldList;
@@ -687,6 +942,7 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         }
     }
 
+<<<<<<< HEAD
     #region Vehicles
 
     public void VehicleInSceneTypeChanged(BSPrim vehic, Vehicle newType)
@@ -1136,12 +1392,72 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     }
 
 
+=======
+    // Schedule an update to happen after all the regular taints are processed.
+    // Note that new requests for the same operation ("ident") for the same object ("ID")
+    //     will replace any previous operation by the same object.
+    public void PostTaintObject(String ident, uint ID, TaintCallback callback)
+    {
+        string uniqueIdent = ident + "-" + ID.ToString();
+        lock (_taintLock)
+        {
+            _postTaintOperations[uniqueIdent] = new TaintCallbackEntry(uniqueIdent, callback);
+        }
+
+        return;
+    }
+
+    // Taints that happen after the normal taint processing but before the simulation step.
+    private void ProcessPostTaintTaints()
+    {
+        if (_postTaintOperations.Count > 0)
+        {
+            Dictionary<string, TaintCallbackEntry> oldList;
+            lock (_taintLock)
+            {
+                oldList = _postTaintOperations;
+                _postTaintOperations = new Dictionary<string, TaintCallbackEntry>();
+            }
+
+            foreach (KeyValuePair<string,TaintCallbackEntry> kvp in oldList)
+            {
+                try
+                {
+                    DetailLog("{0},BSScene.ProcessPostTaintTaints,doTaint,id={1}", DetailLogZero, kvp.Key); // DEBUG DEBUG DEBUG
+                    kvp.Value.callback();
+                }
+                catch (Exception e)
+                {
+                    m_log.ErrorFormat("{0}: ProcessPostTaintTaints: {1}: Exception: {2}", LogHeader, kvp.Key, e);
+                }
+            }
+            oldList.Clear();
+        }
+    }
+
+    // Only used for debugging. Does not change state of anything so locking is not necessary.
+    public bool AssertInTaintTime(string whereFrom)
+    {
+        if (!InTaintTime)
+        {
+            DetailLog("{0},BSScene.AssertInTaintTime,NOT IN TAINT TIME,Region={1},Where={2}", DetailLogZero, RegionName, whereFrom);
+            m_log.ErrorFormat("{0} NOT IN TAINT TIME!! Region={1}, Where={2}", LogHeader, RegionName, whereFrom);
+            Util.PrintCallStack(DetailLog);
+        }
+        return InTaintTime;
+    }
+
+    #endregion // Taints
+
+    #region INI and command line parameter processing
+
+>>>>>>> upstream/master
     #region IPhysicsParameters
     // Get the list of parameters this physics engine supports
     public PhysParameterEntry[] GetParameterList()
     {
-        BuildParameterTable();
-        return SettableParameters;
+        BSParam.BuildParameterTable();
+        return BSParam.SettableParameters;
     }
 
     // Set parameter on a specific or all instances.
@@ -1153,8 +1469,8 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     public bool SetPhysicsParameter(string parm, float val, uint localID)
     {
         bool ret = false;
-        ParameterDefn theParam;
-        if (TryGetParameter(parm, out theParam))
+        BSParam.ParameterDefn theParam;
+        if (BSParam.TryGetParameter(parm, out theParam))
         {
             theParam.setter(this, parm, localID, val);
             ret = true;
@@ -1174,11 +1490,17 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     // If the local ID is APPLY_TO_NONE, just change the default value
     // If the localID is APPLY_TO_ALL change the default value and apply the new value to all the lIDs
     // If the localID is a specific object, apply the parameter change to only that object
+<<<<<<< HEAD
     protected void UpdateParameterSet(List<uint> lIDs, ref float defaultLoc, string parm, uint localID, float val)
+=======
+    internal delegate void AssignVal(float x);
+    internal void UpdateParameterObject(AssignVal setDefault, string parm, uint localID, float val)
+>>>>>>> upstream/master
     {
         switch (localID)
         {
             case PhysParameterEntry.APPLY_TO_NONE:
+<<<<<<< HEAD
                 defaultLoc = val;   // setting only the default value
                 break;
             case PhysParameterEntry.APPLY_TO_ALL:
@@ -1192,6 +1514,17 @@ public class BSScene : PhysicsScene, IPhysicsParameters
                         BulletSimAPI.UpdateParameter(WorldID, lID, xparm, xval);
                     }
                 });
+=======
+                setDefault(val);            // setting only the default value
+                // This will cause a call into the physical world if some operation is specified (SetOnObject).
+                objectIDs.Add(TERRAIN_ID);
+                TaintedUpdateParameter(parm, objectIDs, val);
+                break;
+            case PhysParameterEntry.APPLY_TO_ALL:
+                setDefault(val);  // setting ALL also sets the default value
+                lock (PhysObjects) objectIDs = new List<uint>(PhysObjects.Keys);
+                TaintedUpdateParameter(parm, objectIDs, val);
+>>>>>>> upstream/master
                 break;
             default: 
                 // setting only one localID
@@ -1206,8 +1539,27 @@ public class BSScene : PhysicsScene, IPhysicsParameters
         uint xlocalID = localID;
         string xparm = parm.ToLower();
         float xval = val;
+<<<<<<< HEAD
         TaintedObject("BSScene.TaintedUpdateParameter", delegate() {
             BulletSimAPI.UpdateParameter(WorldID, xlocalID, xparm, xval);
+=======
+        List<uint> xlIDs = lIDs;
+        string xparm = parm;
+        TaintedObject("BSScene.UpdateParameterSet", delegate() {
+            BSParam.ParameterDefn thisParam;
+            if (BSParam.TryGetParameter(xparm, out thisParam))
+            {
+                if (thisParam.onObject != null)
+                {
+                    foreach (uint lID in xlIDs)
+                    {
+                        BSPhysObject theObject = null;
+                        PhysObjects.TryGetValue(lID, out theObject);
+                        thisParam.onObject(this, theObject, xval);
+                    }
+                }
+            }
+>>>>>>> upstream/master
         });
     }
 
@@ -1217,8 +1569,8 @@ public class BSScene : PhysicsScene, IPhysicsParameters
     {
         float val = 0f;
         bool ret = false;
-        ParameterDefn theParam;
-        if (TryGetParameter(parm, out theParam))
+        BSParam.ParameterDefn theParam;
+        if (BSParam.TryGetParameter(parm, out theParam))
         {
             val = theParam.getter(this);
             ret = true;

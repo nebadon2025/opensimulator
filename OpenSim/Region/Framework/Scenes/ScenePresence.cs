@@ -211,8 +211,6 @@ namespace OpenSim.Region.Framework.Scenes
 
         private Quaternion m_headrotation = Quaternion.Identity;
 
-        private string m_nextSitAnimation = String.Empty;
-
         //PauPaw:Proper PID Controler for autopilot************
         public bool MovingToTarget { get; private set; }
         public Vector3 MoveToPositionTarget { get; private set; }
@@ -561,6 +559,10 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 m_bodyRot = value;
+                if (PhysicsActor != null)
+                {
+                    PhysicsActor.Orientation = m_bodyRot;
+                }
 //                m_log.DebugFormat("[SCENE PRESENCE]: Body rot for {0} set to {1}", Name, m_bodyRot);
             }
         }
@@ -1934,28 +1936,17 @@ namespace OpenSim.Region.Framework.Scenes
         {
             if (ParentID != 0)
             {
+                var targetPart = m_scene.GetSceneObjectPart(targetID);
+                if (targetPart != null && targetPart.LocalId == ParentID)
+                    return; // already sitting here, ignore
+
                 StandUp();
             }
 
-//            if (!String.IsNullOrEmpty(sitAnimation))
-//            {
-//                m_nextSitAnimation = sitAnimation;
-//            }
-//            else
-//            {
-            m_nextSitAnimation = "SIT";
-//            }
-
-            //SceneObjectPart part = m_scene.GetSceneObjectPart(targetID);
             SceneObjectPart part = FindNextAvailableSitTarget(targetID);
 
             if (part != null)
             {
-                if (!String.IsNullOrEmpty(part.SitAnimation))
-                {
-                    m_nextSitAnimation = part.SitAnimation;
-                }
-
                 m_requestedSitTargetID = part.LocalId;
                 m_requestedSitTargetUUID = targetID;
 
@@ -2170,18 +2161,6 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void HandleAgentSit(IClientAPI remoteClient, UUID agentID)
         {
-            if (!String.IsNullOrEmpty(m_nextSitAnimation))
-            {
-                HandleAgentSit(remoteClient, agentID, m_nextSitAnimation);
-            }
-            else
-            {
-                HandleAgentSit(remoteClient, agentID, "SIT");
-            }
-        }
-
-        public void HandleAgentSit(IClientAPI remoteClient, UUID agentID, string sitAnimation)
-        {
             SceneObjectPart part = m_scene.GetSceneObjectPart(m_requestedSitTargetID);
 
             if (part != null)
@@ -2228,7 +2207,12 @@ namespace OpenSim.Region.Framework.Scenes
 
                 Velocity = Vector3.Zero;
                 RemoveFromPhysicalScene();
-        
+
+                String sitAnimation = "SIT";
+                if (!String.IsNullOrEmpty(part.SitAnimation))
+                {
+                    sitAnimation = part.SitAnimation;
+                }
                 Animator.TrySetMovementAnimation(sitAnimation);
                 SendAvatarDataToAllAgents();
             }
@@ -2341,9 +2325,14 @@ namespace OpenSim.Region.Framework.Scenes
                 // storing a requested force instead of an actual traveling velocity
 
                 // Throw away duplicate or insignificant updates
-                if (!Rotation.ApproxEquals(m_lastRotation, ROTATION_TOLERANCE) ||
-                    !Velocity.ApproxEquals(m_lastVelocity, VELOCITY_TOLERANCE) ||
-                    !m_pos.ApproxEquals(m_lastPosition, POSITION_TOLERANCE))
+                if (
+                    // If the velocity has become zero, send it no matter what.
+                       (Velocity != m_lastVelocity && Velocity == Vector3.Zero)
+                    // otherwise, if things have changed reasonably, send the update
+                    || (!Rotation.ApproxEquals(m_lastRotation, ROTATION_TOLERANCE)
+                        || !Velocity.ApproxEquals(m_lastVelocity, VELOCITY_TOLERANCE)
+                        || !m_pos.ApproxEquals(m_lastPosition, POSITION_TOLERANCE)))
+
                 {
                     SendTerseUpdateToAllClients();
 

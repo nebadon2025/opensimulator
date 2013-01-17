@@ -99,6 +99,15 @@ namespace OpenSim.Region.Framework.Scenes
     /// </summary>
     public partial class SceneObjectGroup : EntityBase, ISceneObject
     {
+        // Axis selection bitmask used by SetAxisRotation()
+        // Just happen to be the same bits used by llSetStatus() and defined in ScriptBaseClass.
+        public enum axisSelect : int
+        {
+            STATUS_ROTATE_X = 0x002,
+            STATUS_ROTATE_Y = 0x004,
+            STATUS_ROTATE_Z = 0x008,
+        }
+
         // private PrimCountTaintedDelegate handlerPrimCountTainted = null;
 
         /// <summary>
@@ -430,8 +439,19 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if (Scene != null)
                 {
-                    if ((Scene.TestBorderCross(val - Vector3.UnitX, Cardinals.E) || Scene.TestBorderCross(val + Vector3.UnitX, Cardinals.W)
-                        || Scene.TestBorderCross(val - Vector3.UnitY, Cardinals.N) || Scene.TestBorderCross(val + Vector3.UnitY, Cardinals.S)) 
+                    if (
+                        // (Scene.TestBorderCross(val - Vector3.UnitX, Cardinals.E)
+                        //     || Scene.TestBorderCross(val + Vector3.UnitX, Cardinals.W)
+                        //     || Scene.TestBorderCross(val - Vector3.UnitY, Cardinals.N)
+                        //     || Scene.TestBorderCross(val + Vector3.UnitY, Cardinals.S))
+                        // Experimental change for better border crossings.
+                        //    The commented out original lines above would, it seems, trigger
+                        //    a border crossing a little early or late depending on which
+                        //    direction the object was moving.
+                        (Scene.TestBorderCross(val, Cardinals.E)
+                            || Scene.TestBorderCross(val, Cardinals.W)
+                            || Scene.TestBorderCross(val, Cardinals.N)
+                            || Scene.TestBorderCross(val, Cardinals.S))
                         && !IsAttachmentCheckFull() && (!Scene.LoadingPrims))
                     {
                         m_scene.CrossPrimGroupIntoNewRegion(val, this, true);
@@ -626,6 +646,18 @@ namespace OpenSim.Region.Framework.Scenes
         /// If not applicable will be UUID.Zero
         /// </remarks>
         public UUID FromFolderID { get; set; }
+
+        /// <summary>
+        /// IDs of all avatars sat on this scene object.
+        /// </summary>
+        /// <remarks>
+        /// We need this so that we can maintain a linkset wide ordering of avatars sat on different parts.
+        /// This must be locked before it is read or written.
+        /// SceneObjectPart sitting avatar add/remove code also locks on this object to avoid race conditions.
+        /// No avatar should appear more than once in this list.
+        /// Do not manipulate this list directly - use the Add/Remove sitting avatar methods on SceneObjectPart.
+        /// </remarks>
+        protected internal List<UUID> m_sittingAvatars = new List<UUID>();
 
         #endregion
 
@@ -3549,17 +3581,28 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
+        /// Get a copy of the list of sitting avatars on all prims of this object.
+        /// </summary>
+        /// <remarks>
+        /// This is sorted by the order in which avatars sat down.  If an avatar stands up then all avatars that sat
+        /// down after it move one place down the list.
+        /// </remarks>
+        /// <returns>A list of the sitting avatars.  Returns an empty list if there are no sitting avatars.</returns>
+        public List<UUID> GetSittingAvatars()
+        {
+            lock (m_sittingAvatars)
+                return new List<UUID>(m_sittingAvatars);
+        }
+
+        /// <summary>
         /// Gets the number of sitting avatars.
         /// </summary>
         /// <remarks>This applies to all sitting avatars whether there is a sit target set or not.</remarks>
         /// <returns></returns>
         public int GetSittingAvatarsCount()
         {
-             int count = 0;
-
-             Array.ForEach<SceneObjectPart>(m_parts.GetArray(), p => count += p.GetSittingAvatarsCount());
-
-             return count;
+            lock (m_sittingAvatars)
+                return m_sittingAvatars.Count;
         }
 
         public override string ToString()
@@ -3568,7 +3611,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         #region ISceneObject
-        
+
         public virtual ISceneObject CloneForNewScene()
         {
             SceneObjectGroup sog = Copy(false);

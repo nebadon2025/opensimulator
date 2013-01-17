@@ -82,8 +82,15 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
     public class LSL_Api : MarshalByRefObject, ILSL_Api, IScriptApi
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
         protected IScriptEngine m_ScriptEngine;
         protected SceneObjectPart m_host;
+
+        /// <summary>
+        /// Used for script sleeps when we are using co-operative script termination.
+        /// </summary>
+        /// <remarks>null if co-operative script termination is not active</remarks>  
+        EventWaitHandle m_coopSleepHandle;       
 
         /// <summary>
         /// The item that hosts this script
@@ -95,6 +102,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         protected float m_ScriptDelayFactor = 1.0f;
         protected float m_ScriptDistanceFactor = 1.0f;
         protected float m_MinTimerInterval = 0.5f;
+        protected float m_recoilScaleFactor = 0.0f;
 
         protected DateTime m_timer = DateTime.Now;
         protected bool m_waitingForScriptAnswer = false;
@@ -107,23 +115,27 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         protected Dictionary<UUID, UserInfoCacheEntry> m_userInfoCache = new Dictionary<UUID, UserInfoCacheEntry>();
         protected int EMAIL_PAUSE_TIME = 20;  // documented delay value for smtp.
 
-        public void Initialize(IScriptEngine ScriptEngine, SceneObjectPart host, TaskInventoryItem item)
+        public void Initialize(
+            IScriptEngine scriptEngine, SceneObjectPart host, TaskInventoryItem item, EventWaitHandle coopSleepHandle)
         {
-            m_ScriptEngine = ScriptEngine;
+            m_ScriptEngine = scriptEngine;
             m_host = host;
             m_item = item;
+            m_coopSleepHandle = coopSleepHandle;
 
-            LoadLimits();  // read script limits from config.
+            LoadConfig();
 
             m_TransferModule =
                     m_ScriptEngine.World.RequestModuleInterface<IMessageTransferModule>();
             m_UrlModule = m_ScriptEngine.World.RequestModuleInterface<IUrlModule>();
 
-            AsyncCommands = new AsyncCommandManager(ScriptEngine);
+            AsyncCommands = new AsyncCommandManager(m_ScriptEngine);
         }
 
-        /* load configuration items that affect script, object and run-time behavior. */
-        private void LoadLimits()
+        /// <summary>
+        /// Load configuration items that affect script, object and run-time behavior. */
+        /// </summary>
+        private void LoadConfig()
         {
             m_ScriptDelayFactor =
                 m_ScriptEngine.Config.GetFloat("ScriptDelayFactor", 1.0f);
@@ -137,12 +149,18 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 m_ScriptEngine.Config.GetInt("NotecardLineReadCharsMax", 255);
             if (m_notecardLineReadCharsMax > 65535)
                 m_notecardLineReadCharsMax = 65535;
+
             // load limits for particular subsystems.
             IConfig SMTPConfig;
             if ((SMTPConfig = m_ScriptEngine.ConfigSource.Configs["SMTP"]) != null) {
                 // there's an smtp config, so load in the snooze time.
                 EMAIL_PAUSE_TIME = SMTPConfig.GetInt("email_pause_time", EMAIL_PAUSE_TIME);
             }
+
+            // Rezzing an object with a velocity can create recoil. This feature seems to have been
+            //    removed from recent versions of SL. The code computes recoil (vel*mass) and scales
+            //    it by this factor. May be zero to turn off recoil all together.
+            m_recoilScaleFactor = m_ScriptEngine.Config.GetFloat("RecoilScaleFactor", m_recoilScaleFactor);
         }
 
         public override Object InitializeLifetimeService()
@@ -163,7 +181,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             delay = (int)((float)delay * m_ScriptDelayFactor);
             if (delay == 0)
                 return;
-            System.Threading.Thread.Sleep(delay);
+
+            Sleep(delay);
+        }
+
+        protected virtual void Sleep(int delay)
+        {
+            if (m_coopSleepHandle == null)
+                System.Threading.Thread.Sleep(delay);
+            else if (m_coopSleepHandle.WaitOne(delay))
+                throw new ScriptCoopStopException();
         }
 
         public Scene World
@@ -1295,19 +1322,20 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         return 0;
 
                 case ScriptBaseClass.STATUS_ROTATE_X:
-                    if (m_host.GetAxisRotation(2) == 2)
+                    // if (m_host.GetAxisRotation(2) != 0)
+                    if (m_host.GetAxisRotation((int)SceneObjectGroup.axisSelect.STATUS_ROTATE_X) != 0)
                         return 1;
                     else
                         return 0;
 
                 case ScriptBaseClass.STATUS_ROTATE_Y:
-                    if (m_host.GetAxisRotation(4) == 4)
+                    if (m_host.GetAxisRotation((int)SceneObjectGroup.axisSelect.STATUS_ROTATE_Y) != 0)
                         return 1;
                     else
                         return 0;
 
                 case ScriptBaseClass.STATUS_ROTATE_Z:
-                    if (m_host.GetAxisRotation(8) == 8)
+                    if (m_host.GetAxisRotation((int)SceneObjectGroup.axisSelect.STATUS_ROTATE_Z) != 0)
                         return 1;
                     else
                         return 0;
@@ -2843,10 +2871,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                 PhysicsActor pa = new_group.RootPart.PhysActor;
 
+                //Recoil.
                 if (pa != null && pa.IsPhysical && (Vector3)vel != Vector3.Zero)
                 {
-                    //Recoil.
-                    llApplyImpulse(vel * groupmass, 0);
+                    Vector3 recoil = -vel * groupmass * m_recoilScaleFactor;
+                    if (recoil != Vector3.Zero)
+                    {
+                        llApplyImpulse(recoil, 0);
+                    }
                 }
                 // Variable script delay? (see (http://wiki.secondlife.com/wiki/LSL_Delay)
             });
@@ -2915,7 +2947,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
 //            m_log.Info("llSleep snoozing " + sec + "s.");
             m_host.AddScriptLPS(1);
-            Thread.Sleep((int)(sec * 1000));
+
+            Sleep((int)(sec * 1000));
         }
 
         public LSL_Float llGetMass()
@@ -3012,7 +3045,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         /// <summary>
         /// Attach the object containing this script to the avatar that owns it.
         /// </summary>
-        /// <param name='attachment'>The attachment point (e.g. ATTACH_CHEST)</param>
+        /// <param name='attachmentPoint'>
+        /// The attachment point (e.g. <see cref="OpenSim.Region.ScriptEngine.Shared.ScriptBase.ScriptBaseClass.ATTACH_CHEST">ATTACH_CHEST</see>)
+        /// </param>
         /// <returns>true if the attach suceeded, false if it did not</returns>
         public bool AttachToAvatar(int attachmentPoint)
         {
@@ -3415,21 +3450,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
             else
             {
-                bool sitting = false;
-                if (m_host.SitTargetAvatar == agentID)
-                {
-                    sitting = true;
-                }
-                else
-                {
-                    foreach (SceneObjectPart p in m_host.ParentGroup.Parts)
-                    {
-                        if (p.SitTargetAvatar == agentID)
-                            sitting = true;
-                    }
-                }
-
-                if (sitting)
+                if (m_host.ParentGroup.GetSittingAvatars().Contains(agentID))
                 {
                     // When agent is sitting, certain permissions are implicit if requested from sitting agent
                     implicitPerms = ScriptBaseClass.PERMISSION_TRIGGER_ANIMATION |
@@ -3468,7 +3489,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 INPCModule npcModule = World.RequestModuleInterface<INPCModule>();
                 if (npcModule != null && npcModule.IsNPC(agentID, World))
                 {
-                    if (agentID == m_host.ParentGroup.OwnerID || npcModule.GetOwner(agentID) == m_host.ParentGroup.OwnerID)
+                    if (npcModule.CheckPermissions(agentID, m_host.OwnerID))
                     {
                         lock (m_host.TaskInventory)
                         {
@@ -3741,33 +3762,47 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_String llGetLinkKey(int linknum)
         {
             m_host.AddScriptLPS(1);
-            List<UUID> keytable = new List<UUID>();
-            // parse for sitting avatare-uuids
-            World.ForEachRootScenePresence(delegate(ScenePresence presence)
-            {
-                if (presence.ParentID != 0 && m_host.ParentGroup.ContainsPart(presence.ParentID))
-                    keytable.Add(presence.UUID);
-            });
 
-            int totalprims = m_host.ParentGroup.PrimCount + keytable.Count;
-            if (linknum > m_host.ParentGroup.PrimCount && linknum <= totalprims)
+            if (linknum < 0)
             {
-                return keytable[totalprims - linknum].ToString();
+                if (linknum == ScriptBaseClass.LINK_THIS)
+                    return m_host.UUID.ToString();
+                else
+                    return ScriptBaseClass.NULL_KEY;
             }
 
-            if (linknum == 1 && m_host.ParentGroup.PrimCount == 1 && keytable.Count == 1)
-            {
-                return m_host.UUID.ToString();
-            }
+            int actualPrimCount = m_host.ParentGroup.PrimCount;
+            List<UUID> sittingAvatarIds = m_host.ParentGroup.GetSittingAvatars();
+            int adjustedPrimCount = actualPrimCount + sittingAvatarIds.Count;
 
-            SceneObjectPart part = m_host.ParentGroup.GetLinkNumPart(linknum);
-            if (part != null)
+            // Special case for a single prim.  In this case the linknum is zero.  However, this will not match a single
+            // prim that has any avatars sat upon it (in which case the root prim is link 1).
+            if (linknum == 0)
             {
-                return part.UUID.ToString();
+                if (actualPrimCount == 1 && sittingAvatarIds.Count == 0)
+                    return m_host.UUID.ToString();
+
+                return ScriptBaseClass.NULL_KEY;
+            }
+            // Special case to handle a single prim with sitting avatars.  GetLinkPart() would only match zero but
+            // here we must match 1 (ScriptBaseClass.LINK_ROOT).
+            else if (linknum == 1 && actualPrimCount == 1)
+            {
+                if (sittingAvatarIds.Count > 0)
+                    return m_host.ParentGroup.RootPart.UUID.ToString();
+                else
+                    return ScriptBaseClass.NULL_KEY;
+            }
+            else if (linknum <= adjustedPrimCount)
+            {
+                if (linknum <= actualPrimCount)
+                    return m_host.ParentGroup.GetLinkNumPart(linknum).UUID.ToString();
+                else
+                    return sittingAvatarIds[linknum - actualPrimCount - 1].ToString();
             }
             else
             {
-                return UUID.Zero.ToString();
+                return ScriptBaseClass.NULL_KEY;
             }
         }
 
@@ -3803,62 +3838,71 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_String llGetLinkName(int linknum)
         {
             m_host.AddScriptLPS(1);
+<<<<<<< HEAD
             // parse for sitting avatare-names
             List<String> nametable = new List<String>();
             World.ForEachRootScenePresence(delegate(ScenePresence presence)
-            {
-                SceneObjectPart sitPart = presence.ParentPart;
-                if (sitPart != null && m_host.ParentGroup.ContainsPart(sitPart.LocalId))
-                    nametable.Add(presence.ControllingClient.Name);
-            });
+=======
 
-            int totalprims = m_host.ParentGroup.PrimCount + nametable.Count;
-            if (totalprims > m_host.ParentGroup.PrimCount)
+            if (linknum < 0)
+>>>>>>> upstream/master
             {
-                // sitting Avatar-Name with negativ linknum / SinglePrim
-                if (linknum < 0 && m_host.ParentGroup.PrimCount == 1 && nametable.Count == 1)
-                    return nametable[0];
-                // Prim-Name / SinglePrim Sitting Avatar
-                if (linknum == 1 && m_host.ParentGroup.PrimCount == 1 && nametable.Count == 1)
+                if (linknum == ScriptBaseClass.LINK_THIS)
                     return m_host.Name;
-                // LinkNumber > of Real PrimSet = AvatarName
-                if (linknum > m_host.ParentGroup.PrimCount && linknum <= totalprims)
-                    return nametable[totalprims - linknum];
+                else
+                    return ScriptBaseClass.NULL_KEY;
             }
 
+<<<<<<< HEAD
             // simplest case, this prims link number
             if (m_host.LinkNum == linknum)
                 return m_host.Name;
 
             // Single prim
             if (m_host.LinkNum == 0)
-            {
-                if (linknum == 0 || linknum == ScriptBaseClass.LINK_ROOT)
-                    return m_host.Name;
-                else
-                    return UUID.Zero.ToString();
-            }
+=======
+            int actualPrimCount = m_host.ParentGroup.PrimCount;
+            List<UUID> sittingAvatarIds = m_host.ParentGroup.GetSittingAvatars();
+            int adjustedPrimCount = actualPrimCount + sittingAvatarIds.Count;
 
-            // Link set
-            SceneObjectPart part = null;
-            if (m_host.LinkNum == 1) // this is the Root prim
+            // Special case for a single prim.  In this case the linknum is zero.  However, this will not match a single
+            // prim that has any avatars sat upon it (in which case the root prim is link 1).
+            if (linknum == 0)
+>>>>>>> upstream/master
             {
-                if (linknum < 0)
-                    part = m_host.ParentGroup.GetLinkNumPart(2);
-                else
-                    part = m_host.ParentGroup.GetLinkNumPart(linknum);
+                if (actualPrimCount == 1 && sittingAvatarIds.Count == 0)
+                    return m_host.Name;
+
+                return ScriptBaseClass.NULL_KEY;
             }
-            else // this is a child prim
+            // Special case to handle a single prim with sitting avatars.  GetLinkPart() would only match zero but
+            // here we must match 1 (ScriptBaseClass.LINK_ROOT).
+            else if (linknum == 1 && actualPrimCount == 1)
             {
-                if (linknum < 2)
-                    part = m_host.ParentGroup.GetLinkNumPart(1);
+                if (sittingAvatarIds.Count > 0)
+                    return m_host.ParentGroup.RootPart.Name;
                 else
-                    part = m_host.ParentGroup.GetLinkNumPart(linknum);
+                    return ScriptBaseClass.NULL_KEY;
             }
-            if (part != null)
-                return part.Name;
+            else if (linknum <= adjustedPrimCount)
+            {
+                if (linknum <= actualPrimCount)
+                {
+                    return m_host.ParentGroup.GetLinkNumPart(linknum).Name;
+                }
+                else
+                {
+                    ScenePresence sp = World.GetScenePresence(sittingAvatarIds[linknum - actualPrimCount - 1]);
+                    if (sp != null)
+                        return sp.Name;
+                    else
+                        return ScriptBaseClass.NULL_KEY;
+                }
+            }
             else
-                return UUID.Zero.ToString();
+            {
+                return ScriptBaseClass.NULL_KEY;
+            }
         }
 
         public LSL_Integer llGetInventoryNumber(int type)
@@ -5411,9 +5455,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         }
 
         /// <summary>
-        /// Insert the list identified by <src> into the
-        /// list designated by <dest> such that the first
-        /// new element has the index specified by <index>
+        /// Insert the list identified by <paramref name="src"/> into the
+        /// list designated by <paramref name="dest"/> such that the first
+        /// new element has the index specified by <paramref name="index"/>
         /// </summary>
 
         public LSL_List llListInsertList(LSL_List dest, LSL_List src, int index)
@@ -6181,6 +6225,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             ps.BurstSpeedMax = 1.0f;
             ps.BurstRate = 0.1f;
             ps.PartMaxAge = 10.0f;
+            ps.BurstPartCount = 1;
             return ps;
         }
 
@@ -6202,9 +6247,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             SetParticleSystem(m_host, rules);
         }
 
-        private void SetParticleSystem(SceneObjectPart part, LSL_List rules) {
-
-
+        private void SetParticleSystem(SceneObjectPart part, LSL_List rules) 
+        {
             if (rules.Length == 0)
             {
                 part.RemoveParticleSystem();
@@ -6818,6 +6862,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public void llCloseRemoteDataChannel(string channel)
         {
             m_host.AddScriptLPS(1);
+
+            IXmlRpcRouter xmlRpcRouter = m_ScriptEngine.World.RequestModuleInterface<IXmlRpcRouter>();
+            if (xmlRpcRouter != null)
+            {
+                xmlRpcRouter.UnRegisterReceiver(channel, m_item.ItemID);
+            }
+
             IXMLRPC xmlrpcMod = m_ScriptEngine.World.RequestModuleInterface<IXMLRPC>();
             xmlrpcMod.CloseXMLRPCChannel((UUID)channel);
             ScriptSleep(1000);
@@ -7826,14 +7877,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_Integer llGetNumberOfPrims()
         {
             m_host.AddScriptLPS(1);
-            int avatarCount = 0;
-            World.ForEachRootScenePresence(delegate(ScenePresence presence)
-            {
-                if (presence.ParentID != 0 && m_host.ParentGroup.ContainsPart(presence.ParentID))
-                    avatarCount++;
-            });
 
-            return m_host.ParentGroup.PrimCount + avatarCount;
+            return m_host.ParentGroup.PrimCount + m_host.ParentGroup.GetSittingAvatarsCount();
         }
 
         /// <summary>
@@ -11451,7 +11496,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         /// Get a notecard line.
         /// </summary>
         /// <param name="assetID"></param>
-        /// <param name="line">Lines start at index 0</param>
+        /// <param name="lineNumber">Lines start at index 0</param>
         /// <returns></returns>
         public static string GetLine(UUID assetID, int lineNumber)
         {
@@ -11480,9 +11525,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         /// Get a notecard line.
         /// </summary>
         /// <param name="assetID"></param>
-        /// <param name="line">Lines start at index 0</param>
-        /// <param name="maxLength">Maximum length of the returned line.  Longer lines will be truncated</para>
-        /// <returns></returns>
+        /// <param name="lineNumber">Lines start at index 0</param>
+        /// <param name="maxLength">
+        /// Maximum length of the returned line.
+        /// </param>
+        /// <returns>
+        /// If the line length is longer than <paramref name="maxLength"/>,
+        /// the return string will be truncated.
+        /// </returns>
         public static string GetLine(UUID assetID, int lineNumber, int maxLength)
         {
             string line = GetLine(assetID, lineNumber);

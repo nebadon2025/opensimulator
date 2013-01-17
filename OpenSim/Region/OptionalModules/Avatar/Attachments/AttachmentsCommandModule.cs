@@ -97,6 +97,7 @@ namespace OpenSim.Region.OptionalModules.Avatar.Attachments
                 "Users", this, "attachments show",
                 "attachments show [<first-name> <last-name>]",
                 "Show attachment information for avatars in this simulator.",
+                "If no name is supplied then information for all avatars is shown.",
                 HandleShowAttachmentsCommand);
         }
 

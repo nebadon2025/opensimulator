@@ -80,7 +80,58 @@ namespace OpenSim.Region.UserStatistics
 
             if (cnfg != null)
                 enabled = cnfg.GetBoolean("enabled", false);
+<<<<<<< HEAD
             
+=======
+        }
+
+        public virtual void PostInitialise()
+        {
+            if (!enabled)
+                return;
+
+            if (Util.IsWindows())
+                Util.LoadArchSpecificWindowsDll("sqlite3.dll");
+
+            //IConfig startupConfig = config.Configs["Startup"];
+
+            dbConn = new SqliteConnection("URI=file:LocalUserStatistics.db,version=3");
+            dbConn.Open();
+            CreateTables(dbConn);
+
+            Prototype_distributor protodep = new Prototype_distributor();
+            Updater_distributor updatedep = new Updater_distributor();
+            ActiveConnectionsAJAX ajConnections = new ActiveConnectionsAJAX();
+            SimStatsAJAX ajSimStats = new SimStatsAJAX();
+            LogLinesAJAX ajLogLines = new LogLinesAJAX();
+            Default_Report defaultReport = new Default_Report();
+            Clients_report clientReport = new Clients_report();
+            Sessions_Report sessionsReport = new Sessions_Report();
+
+            reports.Add("prototype.js", protodep);
+            reports.Add("updater.js", updatedep);
+            reports.Add("activeconnectionsajax.html", ajConnections);
+            reports.Add("simstatsajax.html", ajSimStats);
+            reports.Add("activelogajax.html", ajLogLines);
+            reports.Add("default.report", defaultReport);
+            reports.Add("clients.report", clientReport);
+            reports.Add("sessions.report", sessionsReport);
+
+            ////
+            // Add Your own Reports here (Do Not Modify Lines here Devs!)
+            ////
+
+            ////
+            // End Own reports section
+            ////
+
+            MainServer.Instance.AddHTTPHandler("/SStats/", HandleStatsRequest);
+            MainServer.Instance.AddHTTPHandler("/CAPS/VS/", HandleUnknownCAPSRequest);
+        }
+
+        public virtual void AddRegion(Scene scene)
+        {
+>>>>>>> upstream/master
             if (!enabled)
                 return;
 
@@ -128,20 +179,67 @@ namespace OpenSim.Region.UserStatistics
                 }
                 
                 m_scenes.Add(scene);
-                if (m_simstatsCounters.ContainsKey(scene.RegionInfo.RegionID))
-                    m_simstatsCounters.Remove(scene.RegionInfo.RegionID);
+                updateLogMod = m_scenes.Count * 2;
 
                 m_simstatsCounters.Add(scene.RegionInfo.RegionID, new USimStatsData(scene.RegionInfo.RegionID));
+
+                scene.EventManager.OnRegisterCaps += OnRegisterCaps;
+                scene.EventManager.OnDeregisterCaps += OnDeRegisterCaps;
+                scene.EventManager.OnClientClosed += OnClientClosed;
+                scene.EventManager.OnMakeRootAgent += OnMakeRootAgent;
                 scene.StatsReporter.OnSendStatsResult += ReceiveClassicSimStatsPacket;
             }
         }
 
+<<<<<<< HEAD
+=======
+        public void RegionLoaded(Scene scene)
+        {
+        }
+
+        public void RemoveRegion(Scene scene)
+        {
+            if (!enabled)
+                return;
+
+            lock (m_scenes)
+            {
+                m_scenes.Remove(scene);
+                updateLogMod = m_scenes.Count * 2;
+                m_simstatsCounters.Remove(scene.RegionInfo.RegionID);
+            }
+        }
+
+        public virtual void Close()
+        {
+            if (!enabled)
+                return;
+
+            dbConn.Close();
+            dbConn.Dispose();
+            m_sessions.Clear();
+            m_scenes.Clear();
+            reports.Clear();
+            m_simstatsCounters.Clear();
+        }
+
+        public virtual string Name
+        {
+            get { return "ViewerStatsModule"; }
+        }
+
+        public Type ReplaceableInterface
+        {
+            get { return null; }
+        }
+
+        #endregion
+
+>>>>>>> upstream/master
         private void ReceiveClassicSimStatsPacket(SimStats stats)
         {
             if (!enabled)
-            {
                 return;
-            }
 
             try
             {
@@ -150,17 +248,25 @@ namespace OpenSim.Region.UserStatistics
                 if (concurrencyCounter > 0 || System.Environment.TickCount - lastHit > 30000)
                     return;
 
-                if ((updateLogCounter++ % updateLogMod) == 0)
+                // We will conduct this under lock so that fields such as updateLogCounter do not potentially get
+                // confused if a scene is removed.
+                // XXX: Possibly the scope of this lock could be reduced though it's not critical.
+                lock (m_scenes)
                 {
-                    m_loglines = readLogLines(10);
-                    if (updateLogCounter > 10000) updateLogCounter = 1;
-                }
+                    if (updateLogMod != 0 && updateLogCounter++ % updateLogMod == 0)
+                    {
+                        m_loglines = readLogLines(10);
 
-                USimStatsData ss = m_simstatsCounters[stats.RegionUUID];
+                        if (updateLogCounter > 10000) 
+                            updateLogCounter = 1;
+                    }
 
-                if ((++ss.StatsCounter % updateStatsMod) == 0)
-                {
-                    ss.ConsumeSimStats(stats);
+                    USimStatsData ss = m_simstatsCounters[stats.RegionUUID];
+
+                    if ((++ss.StatsCounter % updateStatsMod) == 0)
+                    {
+                        ss.ConsumeSimStats(stats);
+                    }
                 }
             } 
             catch (KeyNotFoundException)

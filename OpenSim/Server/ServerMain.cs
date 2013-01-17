@@ -34,6 +34,7 @@ using OpenSim.Framework.Servers;
 using OpenSim.Framework.Servers.HttpServer;
 using OpenSim.Server.Base;
 using OpenSim.Server.Handlers.Base;
+using Mono.Addins;
 
 namespace OpenSim.Server
 {
@@ -48,9 +49,13 @@ namespace OpenSim.Server
         protected static List<IServiceConnector> m_ServiceConnectors =
                 new List<IServiceConnector>();
 
+        protected static PluginLoader loader;
+
         public static int Main(string[] args)
         {
             m_Server = new HttpServerBase("R.O.B.U.S.T.", args);
+            
+            string registryLocation;
 
             IConfig serverConfig = m_Server.Config.Configs["Startup"];
             if (serverConfig == null)
@@ -60,7 +65,31 @@ namespace OpenSim.Server
             }
 
             string connList = serverConfig.GetString("ServiceConnectors", String.Empty);
+<<<<<<< HEAD
             string[] conns = connList.Split(new char[] {',', ' '});
+=======
+            
+            registryLocation = serverConfig.GetString("RegistryLocation",".");
+
+            IConfig servicesConfig = m_Server.Config.Configs["ServiceList"];
+            if (servicesConfig != null)
+            {
+                List<string> servicesList = new List<string>();
+                if (connList != String.Empty)
+                    servicesList.Add(connList);
+
+                foreach (string k in servicesConfig.GetKeys())
+                {
+                    string v = servicesConfig.GetString(k);
+                    if (v != String.Empty)
+                        servicesList.Add(v);
+                }
+
+                connList = String.Join(",", servicesList.ToArray());
+            }
+
+            string[] conns = connList.Split(new char[] {',', ' ', '\n', '\r', '\t'});
+>>>>>>> upstream/master
 
 //            int i = 0;
             foreach (string c in conns)
@@ -123,6 +152,9 @@ namespace OpenSim.Server
                     m_log.InfoFormat("[SERVER]: Failed to load {0}", conn);
                 }
             }
+
+            loader = new PluginLoader(m_Server.Config, registryLocation);
+
             int res = m_Server.Run();
 
             Environment.Exit(res);

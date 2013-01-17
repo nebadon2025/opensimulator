@@ -55,6 +55,7 @@ namespace OpenSim.Server.Base
         //
         protected string[] m_Arguments;
 
+<<<<<<< HEAD
         // Configuration
         //
         protected IConfigSource m_Config = null;
@@ -62,6 +63,12 @@ namespace OpenSim.Server.Base
         public IConfigSource Config
         {
             get { return m_Config; }
+=======
+        public string ConfigDirectory
+        {
+            get;
+            private set;
+>>>>>>> upstream/master
         }
 
         // Run flag
@@ -152,6 +159,8 @@ namespace OpenSim.Server.Base
             {
                 startupConfig = m_Config.Configs["Startup"];
             }
+
+            ConfigDirectory = startupConfig.GetString("ConfigDirectory", ".");
 
             prompt = startupConfig.GetString("Prompt", prompt);
 

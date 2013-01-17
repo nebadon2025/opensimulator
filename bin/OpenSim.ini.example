@@ -185,11 +185,18 @@
     ;; Choose one of the physics engines below
     ;# {physics} {} {Select physics engine} {OpenDynamicsEngine BulletSim basicphysics POS} OpenDynamicsEngine
     ;; OpenDynamicsEngine is by some distance the most developed physics engine
+<<<<<<< HEAD
     ;; BulletSim is incomplete and experimental but in active development
     ;; basicphysics effectively does not model physics at all, making all objects phantom
+=======
+    ;; BulletSim is incomplete and experimental but in active development.  BulletSimN is a purely C# version of BulletSim.
+    ;; basicphysics effectively does not model physics at all, making all
+    ;; objects phantom.   
+>>>>>>> upstream/master
     ;; Default is OpenDynamicsEngine
     ; physics = OpenDynamicsEngine
     ; physics = BulletSim
+    ; physics = BulletSimN
     ; physics = basicphysics
     ; physics = POS
 
@@ -735,8 +742,9 @@
     ;; Allow the use of os* functions (some are dangerous)
     ; AllowOSFunctions = false
 
-    ;# {AllowLightShareFunctions} {Enabled:true [LightShare]enable_windlight:true} {Allow LightShare functions?} {true false} true
-    ; Allow the user of LightShare functions
+    ;# {AllowLightShareFunctions} {Enabled:false [LightShare]enable_windlight:true} {Allow LightShare functions?} {true false} false
+    ; Allow the use of LightShare functions.
+    ; The setting enable_windlight = true must also be enabled in the [LightShare] section.
     ; AllowLightShareFunctions = false
 
     ;# {OSFunctionThreatLevel} {Enabled:true AllowOSFunctions:true} {OSFunction threat level? (DANGEROUS!)} {None VeryLow Low Moderate High VeryHigh Severe} VeryLow

@@ -90,7 +90,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         /// Used for script sleeps when we are using co-operative script termination.
         /// </summary>
         /// <remarks>null if co-operative script termination is not active</remarks>  
-        EventWaitHandle m_coopSleepHandle;       
+        WaitHandle m_coopSleepHandle;       
 
         /// <summary>
         /// The item that hosts this script
@@ -115,7 +115,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         protected int EMAIL_PAUSE_TIME = 20;  // documented delay value for smtp.
 
         public void Initialize(
-            IScriptEngine scriptEngine, SceneObjectPart host, TaskInventoryItem item, EventWaitHandle coopSleepHandle)
+            IScriptEngine scriptEngine, SceneObjectPart host, TaskInventoryItem item, WaitHandle coopSleepHandle)
         {
             m_ScriptEngine = scriptEngine;
             m_host = host;

@@ -163,12 +163,6 @@ namespace OpenSim.Region.OptionalModules.Avatar.Animations
                 "Default anim", 
                 string.Format("{0}, {1}", defaultAnimId, sp.Animator.GetAnimName(defaultAnimId)));
 
-            UUID implicitDefaultAnimId = anims.ImplicitDefaultAnimation.AnimID;
-            cdl.AddRow(
-                "Implicit default anim", 
-                string.Format("{0}, {1}", 
-                    implicitDefaultAnimId, sp.Animator.GetAnimName(implicitDefaultAnimId)));
-
             cdl.AddToStringBuilder(sb);
 
             ConsoleDisplayTable cdt = new ConsoleDisplayTable() { Indent = 2 };

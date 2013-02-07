@@ -103,13 +103,6 @@ namespace OpenSim.Region.OptionalModules.Scripting.JsonStore
             return PathExpressionToKey(ParsePathExpression(path));
         }
         
-        // -----------------------------------------------------------------
-        /// <summary>
-        /// 
-        /// </summary>
-        // -----------------------------------------------------------------
-        public JsonStore() : this("") {}
-        
         public JsonStore(string value)
         {
             m_TakeStore = new List<TakeValueCallbackClass>();

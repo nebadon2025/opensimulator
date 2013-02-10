@@ -3905,6 +3905,8 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         case "random":
 
+                            if (spawnPoints.Length == 0)
+                                return;
                             do
                             {
                                 index = Util.RandomClass.Next(spawnPoints.Length - 1);
@@ -3916,8 +3918,8 @@ namespace OpenSim.Region.Framework.Scenes
                                 // SpawnPoint sp = spawnPoints[index];
 
                                 ILandObject land = m_scene.LandChannel.GetLandObject(spawnPosition.X, spawnPosition.Y);
-                        if (spawnPoints.Length == 0)
-                        return;        if (land == null || land.IsEitherBannedOrRestricted(UUID))
+
+                                if (land == null || land.IsEitherBannedOrRestricted(UUID))
                                     selected = false;
                                 else
                                     selected = true;

@@ -320,9 +320,9 @@ namespace OpenSim.Region.OptionalModules.Scripting.JsonStore
         /// </summary>
         // -----------------------------------------------------------------
         [ScriptInvocation]
-        public int JsonPathType(UUID hostID, UUID scriptID, UUID storeID, string path)
+        public int JsonGetPathType(UUID hostID, UUID scriptID, UUID storeID, string path)
         {
-            return (int)m_store.PathType(storeID,path);
+            return (int)m_store.GetPathType(storeID,path);
         }
 
         [ScriptInvocation]
@@ -371,9 +371,9 @@ namespace OpenSim.Region.OptionalModules.Scripting.JsonStore
         /// </summary>
         // -----------------------------------------------------------------
         [ScriptInvocation]
-        public int JsonArrayLength(UUID hostID, UUID scriptID, UUID storeID, string path)
+        public int JsonGetArrayLength(UUID hostID, UUID scriptID, UUID storeID, string path)
         {
-            return m_store.ArrayLength(storeID,path);
+            return m_store.GetArrayLength(storeID,path);
         }
         
         // -----------------------------------------------------------------

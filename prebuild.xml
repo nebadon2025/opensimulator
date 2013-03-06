@@ -2719,6 +2719,7 @@
       <Reference name="Nini" path="../../../bin/"/>
       <Reference name="nunit.framework" path="../../../bin/"/>
       <Reference name="OpenMetaverse" path="../../../bin/"/>
+      <Reference name="OpenMetaverse.StructuredData" path="../../../bin/"/>
       <Reference name="OpenMetaverseTypes" path="../../../bin/"/>
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Communications"/>

@@ -2269,7 +2269,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="vec">The vector in which to move.  This is relative to the rotation argument</param>
         public void AddNewMovement(Vector3 vec)
         {
-//            m_log.DebugFormat("[SCENE PRESENCE]: Adding new movement {0} for {1}", vec, Name);
+//            m_log.DebugFormat(
+//                "[SCENE PRESENCE]: Adding new movement {0} with rotation {1} for {2}", vec, Rotation, Name);
 
             Vector3 direc = vec * Rotation;
             direc.Normalize();
@@ -2288,6 +2289,8 @@ namespace OpenSim.Region.Framework.Scenes
                 direc.Z = 0f; // Prevent camera WASD up.
 
             direc *= 0.03f * 128f * SpeedModifier;
+
+//            m_log.DebugFormat("[SCENE PRESENCE]: Force to apply before modification was {0} for {1}", direc, Name);
 
             if (PhysicsActor != null)
             {
@@ -2321,6 +2324,8 @@ namespace OpenSim.Region.Framework.Scenes
                     }
                 }
             }
+
+//            m_log.DebugFormat("[SCENE PRESENCE]: Setting force to apply to {0} for {1}", direc, Name);
 
             // TODO: Add the force instead of only setting it to support multiple forces per frame?
             m_forceToApply = direc;

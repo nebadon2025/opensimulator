@@ -234,7 +234,7 @@ namespace OpenSim.Region.OptionalModules.Scripting.JsonStore
         /// 
         /// </summary>
         // -----------------------------------------------------------------
-        public JsonStoreNodeType GetPathType(UUID storeID, string path)
+        public JsonStoreNodeType GetNodeType(UUID storeID, string path)
         {
             if (! m_enabled) return JsonStoreNodeType.Undefined;
 
@@ -251,7 +251,7 @@ namespace OpenSim.Region.OptionalModules.Scripting.JsonStore
             try
             {
                 lock (map)
-                    return map.PathType(path);
+                    return map.GetNodeType(path);
             }
             catch (Exception e)
             {
@@ -259,6 +259,38 @@ namespace OpenSim.Region.OptionalModules.Scripting.JsonStore
             }
 
             return JsonStoreNodeType.Undefined;
+        }
+
+        // -----------------------------------------------------------------
+        /// <summary>
+        /// 
+        /// </summary>
+        // -----------------------------------------------------------------
+        public JsonStoreValueType GetValueType(UUID storeID, string path)
+        {
+            if (! m_enabled) return JsonStoreValueType.Undefined;
+
+            JsonStore map = null;
+            lock (m_JsonValueStore)
+            {
+                if (! m_JsonValueStore.TryGetValue(storeID,out map))
+                {
+                    m_log.InfoFormat("[JsonStore] Missing store {0}",storeID);
+                    return JsonStoreValueType.Undefined;
+                }
+            }
+            
+            try
+            {
+                lock (map)
+                    return map.GetValueType(path);
+            }
+            catch (Exception e)
+            {
+                m_log.Error(string.Format("[JsonStore]: Path test failed for {0} in {1}", path, storeID), e);
+            }
+
+            return JsonStoreValueType.Undefined;
         }
 
         // -----------------------------------------------------------------

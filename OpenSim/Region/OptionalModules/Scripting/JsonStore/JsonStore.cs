@@ -130,7 +130,7 @@ namespace OpenSim.Region.OptionalModules.Scripting.JsonStore
         /// 
         /// </summary>
         // -----------------------------------------------------------------
-        public JsonStoreNodeType PathType(string expr)
+        public JsonStoreNodeType GetNodeType(string expr)
         {
             Stack<string> path;
             if (! ParsePathExpression(expr,out path))
@@ -151,6 +151,43 @@ namespace OpenSim.Region.OptionalModules.Scripting.JsonStore
                 return JsonStoreNodeType.Value;
             
             return JsonStoreNodeType.Undefined;
+        }
+        
+        // -----------------------------------------------------------------
+        /// <summary>
+        /// 
+        /// </summary>
+        // -----------------------------------------------------------------
+        public JsonStoreValueType GetValueType(string expr)
+        {
+            Stack<string> path;
+            if (! ParsePathExpression(expr,out path))
+                return JsonStoreValueType.Undefined;
+            
+            OSD result = ProcessPathExpression(ValueStore,path);
+
+            if (result == null)
+                return JsonStoreValueType.Undefined;
+            
+            if (result is OSDMap)
+                return JsonStoreValueType.Undefined;
+            
+            if (result is OSDArray)
+                return JsonStoreValueType.Undefined;
+            
+            if (result is OSDBoolean)
+                return JsonStoreValueType.Boolean;
+
+            if (result is OSDInteger)
+                return JsonStoreValueType.Integer;
+
+            if (result is OSDReal)
+                return JsonStoreValueType.Float;
+
+            if (result is OSDString)
+                return JsonStoreValueType.String;
+
+            return JsonStoreValueType.Undefined;
         }
         
         // -----------------------------------------------------------------

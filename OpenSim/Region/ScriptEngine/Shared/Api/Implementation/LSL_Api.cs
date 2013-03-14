@@ -5703,8 +5703,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
 
             ILandObject land;
-            Vector3 pos;
             UUID id = UUID.Zero;
+
             if (parcel || parcelOwned)
             {
                 land = World.LandChannel.GetLandObject(m_host.ParentGroup.RootPart.GetWorldPosition());
@@ -10815,7 +10815,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             World.ForEachScenePresence(delegate(ScenePresence sp)
             {
                 Vector3 ac = sp.AbsolutePosition - rayStart;
-                Vector3 bc = sp.AbsolutePosition - rayEnd;
+//                Vector3 bc = sp.AbsolutePosition - rayEnd;
 
                 double d = Math.Abs(Vector3.Mag(Vector3.Cross(ab, ac)) / Vector3.Distance(rayStart, rayEnd));
 
@@ -10905,7 +10905,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     radius = Math.Abs(maxZ);
 
                 Vector3 ac = group.AbsolutePosition - rayStart;
-                Vector3 bc = group.AbsolutePosition - rayEnd;
+//                Vector3 bc = group.AbsolutePosition - rayEnd;
 
                 double d = Math.Abs(Vector3.Mag(Vector3.Cross(ab, ac)) / Vector3.Distance(rayStart, rayEnd));
 

@@ -7786,7 +7786,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
             else
                 q = m_host.ParentGroup.GroupRotation; // just the group rotation
-            return new LSL_Rotation(q.X, q.Y, q.Z, q.W);
+
+            return new LSL_Rotation(q);
         }
 
         public LSL_String llGetObjectDesc()

@@ -6569,7 +6569,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
             UUID key;
-            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
+            Vector3 pos = m_host.AbsolutePosition;
+
+            ILandObject land = World.LandChannel.GetLandObject(pos.X, pos.Y);
             if (World.Permissions.CanEditParcelProperties(m_host.OwnerID, land, GroupPowers.LandManageBanned))
             {
                 int expires = 0;
@@ -7727,7 +7729,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
 
-            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
+            Vector3 pos = m_host.AbsolutePosition;
+            ILandObject land = World.LandChannel.GetLandObject(pos.X, pos.Y);
 
             if (land.LandData.OwnerID != m_host.OwnerID)
                 return;
@@ -7741,7 +7744,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
 
-            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
+            Vector3 pos = m_host.AbsolutePosition;
+            ILandObject land = World.LandChannel.GetLandObject(pos.X, pos.Y);
 
             if (land.LandData.OwnerID != m_host.OwnerID)
                 return String.Empty;

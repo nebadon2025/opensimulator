@@ -4225,13 +4225,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 if (presence != null)
                 {
                     // agent must be over the owners land
-                    if (m_host.OwnerID == World.LandChannel.GetLandObject(
-                            presence.AbsolutePosition.X, presence.AbsolutePosition.Y).LandData.OwnerID)
+                    if (m_host.OwnerID == World.LandChannel.GetLandObject(presence.AbsolutePosition).LandData.OwnerID)
                     {
                         World.TeleportClientHome(agentId, presence.ControllingClient);
                     }
                 }
             }
+
             ScriptSleep(5000);
         }
 
@@ -4251,10 +4251,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     if (destination == String.Empty)
                         destination = World.RegionInfo.RegionName;
 
-                    Vector3 pos = presence.AbsolutePosition;
-
                     // agent must be over the owners land
-                    if (m_host.OwnerID == World.LandChannel.GetLandObject(pos.X, pos.Y).LandData.OwnerID)
+                    if (m_host.OwnerID == World.LandChannel.GetLandObject(presence.AbsolutePosition).LandData.OwnerID)
                     {
                         DoLLTeleport(presence, destination, targetPos, targetLookAt);
                     }
@@ -4284,10 +4282,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     // agent must not be a god
                     if (presence.GodLevel >= 200) return;
 
-                    Vector3 pos = presence.AbsolutePosition;
-
                     // agent must be over the owners land
-                    if (m_host.OwnerID == World.LandChannel.GetLandObject(pos.X, pos.Y).LandData.OwnerID)
+                    if (m_host.OwnerID == World.LandChannel.GetLandObject(presence.AbsolutePosition).LandData.OwnerID)
                     {
                         World.RequestTeleportLocation(presence.ControllingClient, regionHandle, targetPos, targetLookAt, (uint)TeleportFlags.ViaLocation);
                     }
@@ -4491,7 +4487,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 if (pushrestricted)
                 {
-                    ILandObject targetlandObj = World.LandChannel.GetLandObject(PusheePos.X, PusheePos.Y);
+                    ILandObject targetlandObj = World.LandChannel.GetLandObject(PusheePos);
 
                     // We didn't find the parcel but region is push restricted so assume it is NOT ok
                     if (targetlandObj == null)
@@ -4506,7 +4502,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 }
                 else
                 {
-                    ILandObject targetlandObj = World.LandChannel.GetLandObject(PusheePos.X, PusheePos.Y);
+                    ILandObject targetlandObj = World.LandChannel.GetLandObject(PusheePos);
                     if (targetlandObj == null)
                     {
                         // We didn't find the parcel but region isn't push restricted so assume it's ok
@@ -5711,8 +5707,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             UUID id = UUID.Zero;
             if (parcel || parcelOwned)
             {
-                pos = m_host.ParentGroup.RootPart.GetWorldPosition();
-                land = World.LandChannel.GetLandObject(pos.X, pos.Y);
+                land = World.LandChannel.GetLandObject(m_host.ParentGroup.RootPart.GetWorldPosition());
                 if (land == null)
                 {
                     id = UUID.Zero;
@@ -5738,8 +5733,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     {
                         if (!regionWide)
                         {
-                            pos = ssp.AbsolutePosition;
-                            land = World.LandChannel.GetLandObject(pos.X, pos.Y);
+                            land = World.LandChannel.GetLandObject(ssp.AbsolutePosition);
                             if (land != null)
                             {
                                 if (parcelOwned && land.LandData.OwnerID == id ||
@@ -5862,10 +5856,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 ScenePresence presence = World.GetScenePresence(agentID);
                 if (presence != null)
                 {
-                    Vector3 pos = presence.AbsolutePosition;
-
                     // agent must be over the owners land
-                    ILandObject land = World.LandChannel.GetLandObject(pos.X, pos.Y);
+                    ILandObject land = World.LandChannel.GetLandObject(presence.AbsolutePosition);
                     if (land == null)
                         return;
 
@@ -5887,9 +5879,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 ScenePresence presence = World.GetScenePresence(key);
                 if (presence != null) // object is an avatar
                 {
-                    Vector3 pos = presence.AbsolutePosition;
-
-                    if (m_host.OwnerID == World.LandChannel.GetLandObject(pos.X, pos.Y).LandData.OwnerID)
+                    if (m_host.OwnerID == World.LandChannel.GetLandObject(presence.AbsolutePosition).LandData.OwnerID)
                         return 1;
                 }
                 else // object is not an avatar
@@ -5898,9 +5888,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                     if (obj != null)
                     {
-                        Vector3 pos = obj.AbsolutePosition;
-
-                        if (m_host.OwnerID == World.LandChannel.GetLandObject(pos.X, pos.Y).LandData.OwnerID)
+                        if (m_host.OwnerID == World.LandChannel.GetLandObject(obj.AbsolutePosition).LandData.OwnerID)
                             return 1;
                     }
                 }
@@ -5980,10 +5968,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         // if the land is group owned and the object is group owned by the same group
                         // or
                         // if the object is owned by a person with estate access.
-
-                        Vector3 pos = av.AbsolutePosition;
-
-                        ILandObject parcel = World.LandChannel.GetLandObject(pos.X, pos.Y);
+                        ILandObject parcel = World.LandChannel.GetLandObject(av.AbsolutePosition);
                         if (parcel != null)
                         {
                             if (m_host.OwnerID == parcel.LandData.OwnerID ||
@@ -6569,9 +6554,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
             UUID key;
-            Vector3 pos = m_host.AbsolutePosition;
+            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition);
 
-            ILandObject land = World.LandChannel.GetLandObject(pos.X, pos.Y);
             if (World.Permissions.CanEditParcelProperties(m_host.OwnerID, land, GroupPowers.LandManageBanned))
             {
                 int expires = 0;
@@ -7729,8 +7713,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
 
-            Vector3 pos = m_host.AbsolutePosition;
-            ILandObject land = World.LandChannel.GetLandObject(pos.X, pos.Y);
+            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition);
 
             if (land.LandData.OwnerID != m_host.OwnerID)
                 return;
@@ -7744,8 +7727,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
 
-            Vector3 pos = m_host.AbsolutePosition;
-            ILandObject land = World.LandChannel.GetLandObject(pos.X, pos.Y);
+            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition);
 
             if (land.LandData.OwnerID != m_host.OwnerID)
                 return String.Empty;
@@ -9469,9 +9451,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             // according to the docs, this command only works if script owner and land owner are the same
             // lets add estate owners and gods, too, and use the generic permission check.
-            Vector3 pos = m_host.AbsolutePosition;
-
-            ILandObject landObject = World.LandChannel.GetLandObject(pos.X, pos.Y);
+            ILandObject landObject = World.LandChannel.GetLandObject(m_host.AbsolutePosition);
             if (!World.Permissions.CanEditParcelProperties(m_host.OwnerID, landObject, GroupPowers.ChangeMedia)) return;
 
             bool update = false; // send a ParcelMediaUpdate (and possibly change the land's media URL)?
@@ -9896,7 +9876,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
             UUID key;
-            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
+            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition);
             if (World.Permissions.CanEditParcelProperties(m_host.OwnerID, land, GroupPowers.LandManageBanned))
             {
                 int expires = 0;
@@ -9937,7 +9917,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
             UUID key;
-            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
+            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition);
             if (World.Permissions.CanEditParcelProperties(m_host.OwnerID, land, GroupPowers.LandManageAllowed))
             {
                 if (UUID.TryParse(avatar, out key))
@@ -9964,7 +9944,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
             UUID key;
-            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
+            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition);
             if (World.Permissions.CanEditParcelProperties(m_host.OwnerID, land, GroupPowers.LandManageBanned))
             {
                 if (UUID.TryParse(avatar, out key))
@@ -10227,7 +10207,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public void llResetLandBanList()
         {
             m_host.AddScriptLPS(1);
-            LandData land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).LandData;
+            LandData land = World.LandChannel.GetLandObject(m_host.AbsolutePosition).LandData;
             if (land.OwnerID == m_host.OwnerID)
             {
                 foreach (LandAccessEntry entry in land.ParcelAccessList)
@@ -10244,7 +10224,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public void llResetLandPassList()
         {
             m_host.AddScriptLPS(1);
-            LandData land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y).LandData;
+            LandData land = World.LandChannel.GetLandObject(m_host.AbsolutePosition).LandData;
             if (land.OwnerID == m_host.OwnerID)
             {
                 foreach (LandAccessEntry entry in land.ParcelAccessList)

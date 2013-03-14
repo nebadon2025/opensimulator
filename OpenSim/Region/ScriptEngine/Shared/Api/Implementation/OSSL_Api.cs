@@ -348,7 +348,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     //OSSL only may be used if object is in the same group as the parcel
                     if (m_FunctionPerms[function].AllowedOwnerClasses.Contains("PARCEL_GROUP_MEMBER"))
                     {
-                        ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
+                        ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition);
 
                         if (land.LandData.GroupID == m_item.GroupID && land.LandData.GroupID != UUID.Zero)
                         {
@@ -359,7 +359,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     //Only Parcelowners may use the function
                     if (m_FunctionPerms[function].AllowedOwnerClasses.Contains("PARCEL_OWNER"))
                     {
-                        ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
+                        ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition);
 
                         if (land.LandData.OwnerID == ownerID)
                         {
@@ -1490,8 +1490,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             m_host.AddScriptLPS(1);
 
-            ILandObject land
-                = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
+            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition);
 
             if (land.LandData.OwnerID != m_host.OwnerID)
                 return;
@@ -1507,8 +1506,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             m_host.AddScriptLPS(1);
 
-            ILandObject land
-                = World.LandChannel.GetLandObject(m_host.AbsolutePosition.X, m_host.AbsolutePosition.Y);
+            ILandObject land = World.LandChannel.GetLandObject(m_host.AbsolutePosition);
 
             if (land.LandData.OwnerID != m_host.OwnerID)
             {

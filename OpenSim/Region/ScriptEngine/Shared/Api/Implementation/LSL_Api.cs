@@ -274,6 +274,80 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
         }
 
+        /// <summary>
+        /// Get a given link entity from a linkset (linked objects and any sitting avatars).
+        /// </summary>
+        /// <remarks>
+        /// If there are any ScenePresence's in the linkset (i.e. because they are sat upon one of the prims), then
+        /// these are counted as extra entities that correspond to linknums beyond the number of prims in the linkset.
+        /// The ScenePresences receive linknums in the order in which they sat.
+        /// </remarks>
+        /// <returns>
+        /// The link entity.  null if not found.
+        /// </returns>
+        /// <param name='linknum'>
+        /// Can be either a non-negative integer or ScriptBaseClass.LINK_THIS (-4).
+        /// If ScriptBaseClass.LINK_THIS then the entity containing the script is returned.
+        /// If the linkset has one entity and a linknum of zero is given, then the single entity is returned.  If any
+        /// positive integer is given in this case then null is returned.
+        /// If the linkset has more than one entity and a linknum greater than zero but equal to or less than the number
+        /// of entities, then the entity which corresponds to that linknum is returned.
+        /// Otherwise, if a positive linknum is given which is greater than the number of entities in the linkset, then
+        /// null is returned.       
+        /// </param>
+        public ISceneEntity GetLinkEntity(int linknum)
+        {
+            if (linknum < 0)
+            {
+                if (linknum == ScriptBaseClass.LINK_THIS)
+                    return m_host;
+                else
+                    return null;
+            }
+
+            int actualPrimCount = m_host.ParentGroup.PrimCount;
+            List<UUID> sittingAvatarIds = m_host.ParentGroup.GetSittingAvatars();
+            int adjustedPrimCount = actualPrimCount + sittingAvatarIds.Count;
+
+            // Special case for a single prim.  In this case the linknum is zero.  However, this will not match a single
+            // prim that has any avatars sat upon it (in which case the root prim is link 1).
+            if (linknum == 0)
+            {
+                if (actualPrimCount == 1 && sittingAvatarIds.Count == 0)
+                    return m_host;
+
+                return null;
+            }
+            // Special case to handle a single prim with sitting avatars.  GetLinkPart() would only match zero but
+            // here we must match 1 (ScriptBaseClass.LINK_ROOT).
+            else if (linknum == ScriptBaseClass.LINK_ROOT && actualPrimCount == 1)
+            {
+                if (sittingAvatarIds.Count > 0)
+                    return m_host.ParentGroup.RootPart;
+                else
+                    return null;
+            }
+            else if (linknum <= adjustedPrimCount)
+            {
+                if (linknum <= actualPrimCount)
+                {
+                    return m_host.ParentGroup.GetLinkNumPart(linknum);
+                }
+                else
+                {
+                    ScenePresence sp = World.GetScenePresence(sittingAvatarIds[linknum - actualPrimCount - 1]);
+                    if (sp != null)
+                        return sp;
+                    else
+                        return null;
+                }
+            }
+            else
+            {
+                return null;
+            }
+        }
+
         public List<SceneObjectPart> GetLinkParts(int linkType)
         {
             return GetLinkParts(m_host, linkType);
@@ -3765,47 +3839,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
 
-            if (linknum < 0)
-            {
-                if (linknum == ScriptBaseClass.LINK_THIS)
-                    return m_host.UUID.ToString();
-                else
-                    return ScriptBaseClass.NULL_KEY;
-            }
+            ISceneEntity entity = GetLinkEntity(linknum);
 
-            int actualPrimCount = m_host.ParentGroup.PrimCount;
-            List<UUID> sittingAvatarIds = m_host.ParentGroup.GetSittingAvatars();
-            int adjustedPrimCount = actualPrimCount + sittingAvatarIds.Count;
-
-            // Special case for a single prim.  In this case the linknum is zero.  However, this will not match a single
-            // prim that has any avatars sat upon it (in which case the root prim is link 1).
-            if (linknum == 0)
-            {
-                if (actualPrimCount == 1 && sittingAvatarIds.Count == 0)
-                    return m_host.UUID.ToString();
-
-                return ScriptBaseClass.NULL_KEY;
-            }
-            // Special case to handle a single prim with sitting avatars.  GetLinkPart() would only match zero but
-            // here we must match 1 (ScriptBaseClass.LINK_ROOT).
-            else if (linknum == 1 && actualPrimCount == 1)
-            {
-                if (sittingAvatarIds.Count > 0)
-                    return m_host.ParentGroup.RootPart.UUID.ToString();
-                else
-                    return ScriptBaseClass.NULL_KEY;
-            }
-            else if (linknum <= adjustedPrimCount)
-            {
-                if (linknum <= actualPrimCount)
-                    return m_host.ParentGroup.GetLinkNumPart(linknum).UUID.ToString();
-                else
-                    return sittingAvatarIds[linknum - actualPrimCount - 1].ToString();
-            }
+            if (entity != null)
+                return entity.UUID.ToString();
             else
-            {
                 return ScriptBaseClass.NULL_KEY;
-            }
         }
 
         /// <summary>
@@ -3859,53 +3898,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     nametable.Add(presence.ControllingClient.Name);
             });
 
-            int totalprims = m_host.ParentGroup.PrimCount + nametable.Count;
-            if (totalprims > m_host.ParentGroup.PrimCount)
-            {
-                // sitting Avatar-Name with negativ linknum / SinglePrim
-                if (linknum < 0 && m_host.ParentGroup.PrimCount == 1 && nametable.Count == 1)
-                    return nametable[0];
-                // Prim-Name / SinglePrim Sitting Avatar
-                if (linknum == 1 && m_host.ParentGroup.PrimCount == 1 && nametable.Count == 1)
-                    return m_host.Name;
-                // LinkNumber > of Real PrimSet = AvatarName
-                if (linknum > m_host.ParentGroup.PrimCount && linknum <= totalprims)
-                    return nametable[totalprims - linknum];
-            }
+            ISceneEntity entity = GetLinkEntity(linknum);
 
-            // simplest case, this prims link number
-            if (linknum == m_host.LinkNum)
-                return m_host.Name;
-
-            // Single prim
-            if (m_host.LinkNum == 0)
-            {
-                if (linknum == 0 || linknum == ScriptBaseClass.LINK_ROOT)
-                    return m_host.Name;
-                else
-                    return UUID.Zero.ToString();
-            }
-
-            // Link set
-            SceneObjectPart part = null;
-            if (m_host.LinkNum == 1) // this is the Root prim
-            {
-                if (linknum < 0)
-                    part = m_host.ParentGroup.GetLinkNumPart(2);
-                else
-                    part = m_host.ParentGroup.GetLinkNumPart(linknum);
-            }
-            else // this is a child prim
-            {
-                if (linknum < 2)
-                    part = m_host.ParentGroup.GetLinkNumPart(1);
-                else
-                    part = m_host.ParentGroup.GetLinkNumPart(linknum);
-            }
-            if (part != null)
-                return part.Name;
+            if (entity != null)
+                return entity.Name;
             else
-                return UUID.Zero.ToString();
+                return ScriptBaseClass.NULL_KEY;
         }
 
         public LSL_Integer llGetInventoryNumber(int type)

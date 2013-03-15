@@ -120,7 +120,7 @@ namespace OpenSim.Server
                 }
                 else
                 {
-                    m_log.InfoFormat("[SERVER]: Failed to load {0}", conn);
+                    m_log.ErrorFormat("[SERVER]: Failed to load {0}", conn);
                 }
             }
             int res = m_Server.Run();

@@ -439,9 +439,9 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     m_pos = PhysicsActor.Position;
 
-                    //m_log.DebugFormat(
-                    //    "[SCENE PRESENCE]: Set position {0} for {1} in {2} via getting AbsolutePosition!",
-                    //    m_pos, Name, Scene.RegionInfo.RegionName);
+//                    m_log.DebugFormat(
+//                        "[SCENE PRESENCE]: Set position of {0} in {1} to {2} via getting AbsolutePosition!",
+//                        Name, Scene.Name, m_pos);
                 }
                 else
                 {
@@ -468,6 +468,9 @@ namespace OpenSim.Region.Framework.Scenes
             }
             set
             {
+//                m_log.DebugFormat("[SCENE PRESENCE]: Setting position of {0} in {1} to {2}", Name, Scene.Name, value);
+//                Util.PrintCallStack();
+
                 if (PhysicsActor != null)
                 {
                     try
@@ -831,6 +834,7 @@ namespace OpenSim.Region.Framework.Scenes
             // before the inventory is processed in MakeRootAgent. This fixes a race condition
             // related to the handling of attachments
             //m_scene.GetAvatarAppearance(ControllingClient, out Appearance);
+
             if (m_scene.TestBorderCross(pos, Cardinals.E))
             {
                 Border crossedBorder = m_scene.GetCrossedBorder(pos, Cardinals.E);
@@ -2747,6 +2751,10 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if (!IsInTransit)
                 {
+//                    m_log.DebugFormat(
+//                        "[SCENE PRESENCE]: Testing border check for projected position {0} of {1} in {2}", 
+//                        pos2, Name, Scene.Name);
+
                     // Checks if where it's headed exists a region
                     bool needsTransit = false;
                     if (m_scene.TestBorderCross(pos2, Cardinals.W))

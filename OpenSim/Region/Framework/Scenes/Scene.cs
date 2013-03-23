@@ -2462,7 +2462,6 @@ namespace OpenSim.Region.Framework.Scenes
 
                 }
             }
-            
 
             return null;
         }

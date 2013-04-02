@@ -369,7 +369,8 @@ namespace OpenSim.Region.Framework.Scenes.Tests
             // for a callback from the destination scene before removing its avatar data.
             config.Configs["EntityTransfer"].Set("wait_for_callback", false);
 
-//            config.AddConfig("Startup");
+            // Needed in 0.7.4-extended as permissions config expectations are different
+            config.AddConfig("Startup");
 //            config.Configs["Startup"].Set("serverside_object_permissions", true);
 
             SceneHelpers sh = new SceneHelpers();

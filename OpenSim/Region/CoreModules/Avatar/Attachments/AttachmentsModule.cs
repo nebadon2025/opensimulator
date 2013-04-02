@@ -241,12 +241,27 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
 
 //            m_log.DebugFormat("[ATTACHMENTS MODULE]: Saving changed attachments for {0}", sp.Name);
 
+            List<SceneObjectGroup> attachments = sp.GetAttachments();
+
+            if (attachments.Count <= 0)
+                return;
+
+            Dictionary<SceneObjectGroup, string> scriptStates = new Dictionary<SceneObjectGroup, string>();
+
+            foreach (SceneObjectGroup so in attachments)
+            {
+                // Scripts MUST be snapshotted before the object is
+                // removed from the scene because doing otherwise will
+                // clobber the run flag
+                // This must be done outside the sp.AttachmentSyncLock so that there is no risk of a deadlock from
+                // scripts performing attachment operations at the same time.  Getting object states stops the scripts.
+                scriptStates[so] = PrepareScriptInstanceForSave(so, false);
+            }
+
             lock (sp.AttachmentsSyncLock)
             {
-                foreach (SceneObjectGroup so in sp.GetAttachments())
-                {
-                    UpdateDetachedObject(sp, so);
-                }
+                foreach (SceneObjectGroup so in attachments)
+                    UpdateDetachedObject(sp, so, scriptStates[so]);
     
                 sp.ClearAttachments();
             }
@@ -268,69 +283,105 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
 
             sp.ClearAttachments();
         }
-        
+
         public bool AttachObject(IScenePresence sp, SceneObjectGroup group, uint attachmentPt, bool silent)
         {
-            lock (sp.AttachmentsSyncLock)
+            if (!Enabled)
+                return false;
+
+            return AttachObjectInternal(sp, group, attachmentPt, silent, false);
+        }
+
+        /// <summary>
+        /// Internal method which actually does all the work for attaching an object.
+        /// </summary>
+        /// <returns>The object attached.</returns>
+        /// <param name='sp'></param>
+        /// <param name='group'>The object to attach.</param>
+        /// <param name='attachmentPt'></param>
+        /// <param name='silent'></param>
+        /// <param name='resumeScripts'>If true then scripts are resumed on the attached object.</param>
+        private bool AttachObjectInternal(
+            IScenePresence sp, SceneObjectGroup group, uint attachmentPt, bool silent, bool resumeScripts)
+        {
+            if (sp.GetAttachments().Contains(group))
             {
+//                m_log.WarnFormat(
+//                    "[ATTACHMENTS MODULE]: Ignoring request to attach {0} {1} to {2} on {3} since it's already attached",
+//                    group.Name, group.LocalId, sp.Name, AttachmentPt);
+
+                return false;
+            }
+
 //                m_log.DebugFormat(
 //                    "[ATTACHMENTS MODULE]: Attaching object {0} {1} to {2} point {3} from ground (silent = {4})",
 //                    group.Name, group.LocalId, sp.Name, attachmentPt, silent);
 
-                if (group.GetSittingAvatarsCount() != 0)
-                {
+            if (group.GetSittingAvatarsCount() != 0)
+            {
 //                    m_log.WarnFormat(
 //                        "[ATTACHMENTS MODULE]: Ignoring request to attach {0} {1} to {2} on {3} since {4} avatars are still sitting on it",
 //                        group.Name, group.LocalId, sp.Name, attachmentPt, group.GetSittingAvatarsCount());
-    
-                    return false;
-                }
-    
-                if (sp.GetAttachments(attachmentPt).Contains(group))
-                {
-    //                m_log.WarnFormat(
-    //                    "[ATTACHMENTS MODULE]: Ignoring request to attach {0} {1} to {2} on {3} since it's already attached",
-    //                    group.Name, group.LocalId, sp.Name, AttachmentPt);
-    
-                    return false;
-                }
-    
-                Vector3 attachPos = group.AbsolutePosition;
-    
-                // TODO: this short circuits multiple attachments functionality  in  LL viewer 2.1+ and should
-                // be removed when that functionality is implemented in opensim
-                attachmentPt &= 0x7f;
-                
-                // If the attachment point isn't the same as the one previously used
-                // set it's offset position = 0 so that it appears on the attachment point
-                // and not in a weird location somewhere unknown.
-                if (attachmentPt != 0 && attachmentPt != group.AttachmentPoint)
-                {
-                    attachPos = Vector3.Zero;
-                }
-    
-                // AttachmentPt 0 means the client chose to 'wear' the attachment.
-                if (attachmentPt == 0)
-                {
-                    // Check object for stored attachment point
-                    attachmentPt = group.AttachmentPoint;
-                }
-    
-                // if we still didn't find a suitable attachment point.......
-                if (attachmentPt == 0)
-                {
-                    // Stick it on left hand with Zero Offset from the attachment point.
-                    attachmentPt = (uint)AttachmentPoint.LeftHand;
-                    attachPos = Vector3.Zero;
-                }
-    
+
+                return false;
+            }
+
+            Vector3 attachPos = group.AbsolutePosition;
+
+            // TODO: this short circuits multiple attachments functionality  in  LL viewer 2.1+ and should
+            // be removed when that functionality is implemented in opensim
+            attachmentPt &= 0x7f;
+            
+            // If the attachment point isn't the same as the one previously used
+            // set it's offset position = 0 so that it appears on the attachment point
+            // and not in a weird location somewhere unknown.
+            if (attachmentPt != (uint)AttachmentPoint.Default && attachmentPt != group.AttachmentPoint)
+            {
+                attachPos = Vector3.Zero;
+            }
+
+            // AttachmentPt 0 (default) means the client chose to 'wear' the attachment.
+            if (attachmentPt == (uint)AttachmentPoint.Default)
+            {
+                // Check object for stored attachment point
+                attachmentPt = group.AttachmentPoint;
+            }
+
+            // if we still didn't find a suitable attachment point.......
+            if (attachmentPt == 0)
+            {
+                // Stick it on left hand with Zero Offset from the attachment point.
+                attachmentPt = (uint)AttachmentPoint.LeftHand;
+                attachPos = Vector3.Zero;
+            }
+
+            // Remove any previous attachments
+            List<SceneObjectGroup> existingAttachments = sp.GetAttachments(attachmentPt);
+
+            // At the moment we can only deal with a single attachment
+            if (existingAttachments.Count != 0 && existingAttachments[0].FromItemID != UUID.Zero)
+                DetachSingleAttachmentToInv(sp, existingAttachments[0]);
+
+            lock (sp.AttachmentsSyncLock)
+            {
                 group.AttachmentPoint = attachmentPt;
                 group.AbsolutePosition = attachPos;
 
                 if (sp.PresenceType != PresenceType.Npc)
                     UpdateUserInventoryWithAttachment(sp, group, attachmentPt);
-    
+
                 AttachToAgent(sp, group, attachmentPt, attachPos, silent);
+
+                if (resumeScripts)
+                {
+                    // Fire after attach, so we don't get messy perms dialogs
+                    // 4 == AttachedRez
+                    group.CreateScriptInstances(0, true, m_scene.DefaultScriptEngine, 4);
+                    group.ResumeScripts();
+                }
+
+                // Do this last so that event listeners have access to all the effects of the attachment
+                m_scene.EventManager.TriggerOnAttach(group.LocalId, group.FromItemID, sp.UUID);
             }
 
             return true;
@@ -338,21 +389,6 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
 
         private void UpdateUserInventoryWithAttachment(IScenePresence sp, SceneObjectGroup group, uint attachmentPt)
         {
-            // Remove any previous attachments
-            List<SceneObjectGroup> attachments = sp.GetAttachments(attachmentPt);
-
-            // At the moment we can only deal with a single attachment
-            if (attachments.Count != 0)
-            {
-                if (attachments[0].FromItemID != UUID.Zero)
-                    DetachSingleAttachmentToInvInternal(sp, attachments[0]);
-                else
-                    m_log.WarnFormat(
-                        "[ATTACHMENTS MODULE]: When detaching existing attachment {0} {1} at point {2} to make way for {3} {4} for {5}, couldn't find the associated item ID to adjust inventory attachment record!",
-                        attachments[0].Name, attachments[0].LocalId, attachmentPt, group.Name, group.LocalId, sp.Name);
-            }
-
-            // Add the new attachment to inventory if we don't already have it.
             UUID newAttachmentItemID = group.FromItemID;
             if (newAttachmentItemID == UUID.Zero)
                 newAttachmentItemID = AddSceneObjectAsNewAttachmentInInv(sp, group).ID;
@@ -366,8 +402,8 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                 return null;
 
 //            m_log.DebugFormat(
-//                "[ATTACHMENTS MODULE]: RezSingleAttachmentFromInventory to point {0} from item {1} for {2}",
-//                (AttachmentPoint)AttachmentPt, itemID, sp.Name);
+//                "[ATTACHMENTS MODULE]: RezSingleAttachmentFromInventory to point {0} from item {1} for {2} in {3}",
+//                (AttachmentPoint)AttachmentPt, itemID, sp.Name, m_scene.Name);
 
             // TODO: this short circuits multiple attachments functionality  in  LL viewer 2.1+ and should
             // be removed when that functionality is implemented in opensim
@@ -408,16 +444,19 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                 return;
 
             //                m_log.DebugFormat("[ATTACHMENTS MODULE]: Rezzing multiple attachments from inventory for {0}", sp.Name);
-            lock (sp.AttachmentsSyncLock)
+
+            foreach (KeyValuePair<UUID, uint> rez in rezlist)
             {
-                foreach (KeyValuePair<UUID, uint> rez in rezlist)
-                {
-                    RezSingleAttachmentFromInventory(sp, rez.Key, rez.Value);
-                }
+                RezSingleAttachmentFromInventory(sp, rez.Key, rez.Value);
             }
         }
 
         public void DetachSingleAttachmentToGround(IScenePresence sp, uint soLocalId)
+        {
+            DetachSingleAttachmentToGround(sp, soLocalId, sp.AbsolutePosition, Quaternion.Identity);
+        }
+
+        public void DetachSingleAttachmentToGround(IScenePresence sp, uint soLocalId, Vector3 absolutePos, Quaternion absoluteRot)
         {
             if (!Enabled)
                 return;
@@ -436,6 +475,10 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
 
             UUID inventoryID = so.FromItemID;
 
+            // As per Linden spec, drop is disabled for temp attachs
+            if (inventoryID == UUID.Zero)
+                return;
+
 //            m_log.DebugFormat(
 //                "[ATTACHMENTS MODULE]: In DetachSingleAttachmentToGround(), object is {0} {1}, associated item is {2}",
 //                so.Name, so.LocalId, inventoryID);
@@ -446,7 +489,9 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                     so.PrimCount, sp.UUID, sp.AbsolutePosition))
                     return;
 
-                bool changed = sp.Appearance.DetachAttachment(inventoryID);
+                bool changed = false;
+                if (inventoryID != UUID.Zero)
+                    changed = sp.Appearance.DetachAttachment(inventoryID);
                 if (changed && m_scene.AvatarFactory != null)
                     m_scene.AvatarFactory.QueueAppearanceSave(sp.UUID);
 
@@ -454,7 +499,11 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                 so.FromItemID = UUID.Zero;
 
                 SceneObjectPart rootPart = so.RootPart;
-                so.AbsolutePosition = sp.AbsolutePosition;
+                so.AbsolutePosition = absolutePos;
+                if (absoluteRot != Quaternion.Identity)
+                {
+                    so.UpdateGroupRotationR(absoluteRot);
+                }
                 so.AttachedAvatar = UUID.Zero;
                 rootPart.SetParentLocalId(0);
                 so.ClearPartAttachmentData();
@@ -478,25 +527,37 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
 
         public void DetachSingleAttachmentToInv(IScenePresence sp, SceneObjectGroup so)
         {
+            if (so.AttachedAvatar != sp.UUID)
+            {
+                m_log.WarnFormat(
+                    "[ATTACHMENTS MODULE]: Tried to detach object {0} from {1} {2} but attached avatar id was {3} in {4}",
+                    so.Name, sp.Name, sp.UUID, so.AttachedAvatar, m_scene.RegionInfo.RegionName);
+
+                return;
+            }
+
+//            m_log.DebugFormat(
+//                "[ATTACHMENTS MODULE]: Detaching object {0} {1} for {2} in {3}", 
+//                so.Name, so.LocalId, sp.Name, m_scene.Name);
+
+            // Scripts MUST be snapshotted before the object is
+            // removed from the scene because doing otherwise will
+            // clobber the run flag
+            // This must be done outside the sp.AttachmentSyncLock so that there is no risk of a deadlock from
+            // scripts performing attachment operations at the same time.  Getting object states stops the scripts.
+            string scriptedState = PrepareScriptInstanceForSave(so, true);
+
             lock (sp.AttachmentsSyncLock)
             {
                 // Save avatar attachment information
 //                m_log.Debug("[ATTACHMENTS MODULE]: Detaching from UserID: " + sp.UUID + ", ItemID: " + itemID);
 
-                if (so.AttachedAvatar != sp.UUID)
-                {
-                    m_log.WarnFormat(
-                        "[ATTACHMENTS MODULE]: Tried to detach object {0} from {1} {2} but attached avatar id was {3} in {4}",
-                        so.Name, sp.Name, sp.UUID, so.AttachedAvatar, m_scene.RegionInfo.RegionName);
-
-                    return;
-                }
-
                 bool changed = sp.Appearance.DetachAttachment(so.FromItemID);
                 if (changed && m_scene.AvatarFactory != null)
                     m_scene.AvatarFactory.QueueAppearanceSave(sp.UUID);
 
-                DetachSingleAttachmentToInvInternal(sp, so);
+                sp.RemoveAttachment(so);
+                UpdateDetachedObject(sp, so, scriptedState);
             }
         }
         
@@ -551,6 +612,13 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
         /// <param name="saveAllScripted"></param>
         private void UpdateKnownItem(IScenePresence sp, SceneObjectGroup grp, string scriptedState)
         {
+            if (grp.FromItemID == UUID.Zero)
+            {
+                // We can't save temp attachments
+                grp.HasGroupChanged = false;
+                return;
+            }
+
             // Saving attachments for NPCs messes them up for the real owner!
             INPCModule module = m_scene.RequestModuleInterface<INPCModule>();
             if (module != null)
@@ -644,15 +712,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
 
             if (!silent)
             {
-                // Killing it here will cause the client to deselect it
-                // It then reappears on the avatar, deselected
-                // through the full update below
-                //
-                if (so.IsSelected)
-                {
-                    m_scene.SendKillObject(new List<uint> { so.RootPart.LocalId });
-                }
-                else if (so.HasPrivateAttachmentPoint)
+                if (so.HasPrivateAttachmentPoint)
                 {
 //                    m_log.DebugFormat(
 //                        "[ATTACHMENTS MODULE]: Killing private HUD {0} for avatars other than {1} at attachment point {2}",
@@ -707,8 +767,27 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
             return newItem;
         }
 
-        private string GetObjectScriptStates(SceneObjectGroup grp)
+        /// <summary>
+        /// Prepares the script instance for save.
+        /// </summary>
+        /// <remarks>
+        /// This involves triggering the detach event and getting the script state (which also stops the script)
+        /// This MUST be done outside sp.AttachmentsSyncLock, since otherwise there is a chance of deadlock if a 
+        /// running script is performing attachment operations.
+        /// </remarks>
+        /// <returns>
+        /// The script state ready for persistence.
+        /// </returns>
+        /// <param name='grp'>
+        /// </param>
+        /// <param name='fireDetachEvent'>
+        /// If true, then fire the script event before we save its state.
+        /// </param>
+        private string PrepareScriptInstanceForSave(SceneObjectGroup grp, bool fireDetachEvent)
         {
+            if (fireDetachEvent)
+                m_scene.EventManager.TriggerOnAttach(grp.LocalId, grp.FromItemID, UUID.Zero);
+
             using (StringWriter sw = new StringWriter())
             {
                 using (XmlTextWriter writer = new XmlTextWriter(sw))
@@ -720,7 +799,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
             }
         }
 
-        private void UpdateDetachedObject(IScenePresence sp, SceneObjectGroup so)
+        private void UpdateDetachedObject(IScenePresence sp, SceneObjectGroup so, string scriptedState)
         {
             // Don't save attachments for HG visitors, it
             // messes up their inventory. When a HG visitor logs
@@ -732,11 +811,6 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                     = sp.PresenceType != PresenceType.Npc
                     && (m_scene.UserManagementModule == null
                     || m_scene.UserManagementModule.IsLocalGridUser(sp.UUID));
-
-            // Scripts MUST be snapshotted before the object is
-            // removed from the scene because doing otherwise will
-            // clobber the run flag
-            string scriptedState = GetObjectScriptStates(so);
 
             // Remove the object from the scene so no more updates
             // are sent. Doing this before the below changes will ensure
@@ -761,91 +835,68 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
             so.RemoveScriptInstances(true);
         }
 
-        private void DetachSingleAttachmentToInvInternal(IScenePresence sp, SceneObjectGroup so)
-        {
-            //            m_log.DebugFormat("[ATTACHMENTS MODULE]: Detaching item {0} to inventory for {1}", itemID, sp.Name);
-
-            m_scene.EventManager.TriggerOnAttach(so.LocalId, so.FromItemID, UUID.Zero);
-            sp.RemoveAttachment(so);
-
-            UpdateDetachedObject(sp, so);
-        }
-
         private SceneObjectGroup RezSingleAttachmentFromInventoryInternal(
             IScenePresence sp, UUID itemID, UUID assetID, uint attachmentPt)
         {
             if (m_invAccessModule == null)
                 return null;
 
-            lock (sp.AttachmentsSyncLock)
+            SceneObjectGroup objatt;
+
+            if (itemID != UUID.Zero)
+                objatt = m_invAccessModule.RezObject(sp.ControllingClient,
+                    itemID, Vector3.Zero, Vector3.Zero, UUID.Zero, (byte)1, true,
+                    false, false, sp.UUID, true);
+            else
+                objatt = m_invAccessModule.RezObject(sp.ControllingClient,
+                    null, assetID, Vector3.Zero, Vector3.Zero, UUID.Zero, (byte)1, true,
+                    false, false, sp.UUID, true);
+
+            if (objatt == null)
             {
-                SceneObjectGroup objatt;
+                m_log.WarnFormat(
+                    "[ATTACHMENTS MODULE]: Could not retrieve item {0} for attaching to avatar {1} at point {2}",
+                    itemID, sp.Name, attachmentPt);
 
-                if (itemID != UUID.Zero)
-                    objatt = m_invAccessModule.RezObject(sp.ControllingClient,
-                        itemID, Vector3.Zero, Vector3.Zero, UUID.Zero, (byte)1, true,
-                        false, false, sp.UUID, true);
-                else
-                    objatt = m_invAccessModule.RezObject(sp.ControllingClient,
-                        null, assetID, Vector3.Zero, Vector3.Zero, UUID.Zero, (byte)1, true,
-                        false, false, sp.UUID, true);
+                return null;
+            }
 
-                if (objatt != null)
-                {
 //                    m_log.DebugFormat(
 //                        "[ATTACHMENTS MODULE]: Rezzed single object {0} for attachment to {1} on point {2} in {3}",
 //                        objatt.Name, sp.Name, attachmentPt, m_scene.Name);
 
-                    // HasGroupChanged is being set from within RezObject.  Ideally it would be set by the caller.
-                    objatt.HasGroupChanged = false;
-                    bool tainted = false;
-                    if (attachmentPt != 0 && attachmentPt != objatt.AttachmentPoint)
-                        tainted = true;
+            // HasGroupChanged is being set from within RezObject.  Ideally it would be set by the caller.
+            objatt.HasGroupChanged = false;
+            bool tainted = false;
+            if (attachmentPt != 0 && attachmentPt != objatt.AttachmentPoint)
+                tainted = true;
 
-                    // FIXME: Detect whether it's really likely for AttachObject to throw an exception in the normal
-                    // course of events.  If not, then it's probably not worth trying to recover the situation
-                    // since this is more likely to trigger further exceptions and confuse later debugging.  If
-                    // exceptions can be thrown in expected error conditions (not NREs) then make this consistent
-                    // since other normal error conditions will simply return false instead.
-                    // This will throw if the attachment fails
-                    try
-                    {
-                        AttachObject(sp, objatt, attachmentPt, false);
-                    }
-                    catch (Exception e)
-                    {
-                        m_log.ErrorFormat(
-                            "[ATTACHMENTS MODULE]: Failed to attach {0} {1} for {2}, exception {3}{4}",
-                            objatt.Name, objatt.UUID, sp.Name, e.Message, e.StackTrace);
+            // FIXME: Detect whether it's really likely for AttachObject to throw an exception in the normal
+            // course of events.  If not, then it's probably not worth trying to recover the situation
+            // since this is more likely to trigger further exceptions and confuse later debugging.  If
+            // exceptions can be thrown in expected error conditions (not NREs) then make this consistent
+            // since other normal error conditions will simply return false instead.
+            // This will throw if the attachment fails
+            try
+            {
+                AttachObjectInternal(sp, objatt, attachmentPt, false, true);
+            }
+            catch (Exception e)
+            {
+                m_log.ErrorFormat(
+                    "[ATTACHMENTS MODULE]: Failed to attach {0} {1} for {2}, exception {3}{4}",
+                    objatt.Name, objatt.UUID, sp.Name, e.Message, e.StackTrace);
 
-                        // Make sure the object doesn't stick around and bail
-                        sp.RemoveAttachment(objatt);
-                        m_scene.DeleteSceneObject(objatt, false);
-                        return null;
-                    }
-
-                    if (tainted)
-                        objatt.HasGroupChanged = true;
-
-                    // Fire after attach, so we don't get messy perms dialogs
-                    // 4 == AttachedRez
-                    objatt.CreateScriptInstances(0, true, m_scene.DefaultScriptEngine, 4);
-                    objatt.ResumeScripts();
-
-                    // Do this last so that event listeners have access to all the effects of the attachment
-                    m_scene.EventManager.TriggerOnAttach(objatt.LocalId, itemID, sp.UUID);
-
-                    return objatt;
-                }
-                else
-                {
-                    m_log.WarnFormat(
-                        "[ATTACHMENTS MODULE]: Could not retrieve item {0} for attaching to avatar {1} at point {2}",
-                        itemID, sp.Name, attachmentPt);
-                }
+                // Make sure the object doesn't stick around and bail
+                sp.RemoveAttachment(objatt);
+                m_scene.DeleteSceneObject(objatt, false);
+                return null;
             }
 
-            return null;
+            if (tainted)
+                objatt.HasGroupChanged = true;
+
+            return objatt;
         }
 
         /// <summary>
@@ -875,6 +926,9 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
 
             InventoryItemBase item = new InventoryItemBase(itemID, sp.UUID);
             item = m_scene.InventoryService.GetItem(item);
+            if (item == null)
+                return;
+
             bool changed = sp.Appearance.SetAttachment((int)AttachmentPt, itemID, item.AssetID);
             if (changed && m_scene.AvatarFactory != null)
             {
@@ -964,15 +1018,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                 AttachmentPt &= 0x7f;
 
                 // Calls attach with a Zero position
-                if (AttachObject(sp, part.ParentGroup, AttachmentPt, false))
-                {
-//                    m_log.Debug(
-//                        "[ATTACHMENTS MODULE]: Saving avatar attachment. AgentID: " + remoteClient.AgentId
-//                        + ", AttachmentPoint: " + AttachmentPt);
-
-                    // Save avatar attachment information
-                    m_scene.EventManager.TriggerOnAttach(objectLocalID, part.ParentGroup.FromItemID, remoteClient.AgentId);
-                }
+                AttachObject(sp, part.ParentGroup, AttachmentPt, false);
             }
             catch (Exception e)
             {
@@ -988,7 +1034,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
             ScenePresence sp = m_scene.GetScenePresence(remoteClient.AgentId);
             SceneObjectGroup group = m_scene.GetGroupByPrim(objectLocalID);
 
-            if (sp != null && group != null)
+            if (sp != null && group != null && group.FromItemID != UUID.Zero)
                 DetachSingleAttachmentToInv(sp, group);
         }
 
@@ -1000,17 +1046,14 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
             ScenePresence sp = m_scene.GetScenePresence(remoteClient.AgentId);
             if (sp != null)
             {
-                lock (sp.AttachmentsSyncLock)
+                List<SceneObjectGroup> attachments = sp.GetAttachments();
+
+                foreach (SceneObjectGroup group in attachments)
                 {
-                    List<SceneObjectGroup> attachments = sp.GetAttachments();
-    
-                    foreach (SceneObjectGroup group in attachments)
+                    if (group.FromItemID == itemID && group.FromItemID != UUID.Zero)
                     {
-                        if (group.FromItemID == itemID)
-                        {
-                            DetachSingleAttachmentToInv(sp, group);
-                            return;
-                        }
+                        DetachSingleAttachmentToInv(sp, group);
+                        return;
                     }
                 }
             }

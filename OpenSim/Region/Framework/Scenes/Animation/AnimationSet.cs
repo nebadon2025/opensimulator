@@ -41,12 +41,18 @@ namespace OpenSim.Region.Framework.Scenes.Animation
     {
 //        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
+        private OpenSim.Framework.Animation m_implicitDefaultAnimation = new OpenSim.Framework.Animation();
         private OpenSim.Framework.Animation m_defaultAnimation = new OpenSim.Framework.Animation();
         private List<OpenSim.Framework.Animation> m_animations = new List<OpenSim.Framework.Animation>();
 
         public OpenSim.Framework.Animation DefaultAnimation 
         {
             get { return m_defaultAnimation; } 
+        }
+        
+        public OpenSim.Framework.Animation ImplicitDefaultAnimation 
+        {
+            get { return m_implicitDefaultAnimation; } 
         }
         
         public AnimationSet()
@@ -81,13 +87,24 @@ namespace OpenSim.Region.Framework.Scenes.Animation
             return false;
         }
 
-        public bool Remove(UUID animID)
+        /// <summary>
+        /// Remove the specified animation
+        /// </summary>
+        /// <param name='animID'></param>
+        /// <param name='allowNoDefault'>
+        /// If true, then the default animation can be entirely removed. 
+        /// If false, then removing the default animation will reset it to the simulator default (currently STAND).
+        /// </param>
+        public bool Remove(UUID animID, bool allowNoDefault)
         {
             lock (m_animations)
             {
                 if (m_defaultAnimation.AnimID == animID)
                 {
-                    ResetDefaultAnimation();
+                    if (allowNoDefault)
+                        m_defaultAnimation = new OpenSim.Framework.Animation(UUID.Zero, 1, UUID.Zero);
+                    else
+                        ResetDefaultAnimation();
                 }
                 else if (HasAnimation(animID))
                 {
@@ -119,9 +136,16 @@ namespace OpenSim.Region.Framework.Scenes.Animation
             if (m_defaultAnimation.AnimID != animID)
             {
                 m_defaultAnimation = new OpenSim.Framework.Animation(animID, sequenceNum, objectID);
+                m_implicitDefaultAnimation = m_defaultAnimation;
                 return true;
             }
             return false;
+        }
+
+        // Called from serialization only
+        public void SetImplicitDefaultAnimation(UUID animID, int sequenceNum, UUID objectID)
+        {
+            m_implicitDefaultAnimation = new OpenSim.Framework.Animation(animID, sequenceNum, objectID);
         }
 
         protected bool ResetDefaultAnimation()
@@ -149,19 +173,26 @@ namespace OpenSim.Region.Framework.Scenes.Animation
         {
             lock (m_animations)
             {
-                animIDs = new UUID[m_animations.Count + 1];
-                sequenceNums = new int[m_animations.Count + 1];
-                objectIDs = new UUID[m_animations.Count + 1];
+                int defaultSize = 0;
+                if (m_defaultAnimation.AnimID != UUID.Zero)
+                    defaultSize++;
 
-                animIDs[0] = m_defaultAnimation.AnimID;
-                sequenceNums[0] = m_defaultAnimation.SequenceNum;
-                objectIDs[0] = m_defaultAnimation.ObjectID;
+                animIDs = new UUID[m_animations.Count + defaultSize];
+                sequenceNums = new int[m_animations.Count + defaultSize];
+                objectIDs = new UUID[m_animations.Count + defaultSize];
+
+                if (m_defaultAnimation.AnimID != UUID.Zero)
+                {
+                    animIDs[0] = m_defaultAnimation.AnimID;
+                    sequenceNums[0] = m_defaultAnimation.SequenceNum;
+                    objectIDs[0] = m_defaultAnimation.ObjectID;
+                }
 
                 for (int i = 0; i < m_animations.Count; ++i)
                 {
-                    animIDs[i + 1] = m_animations[i].AnimID;
-                    sequenceNums[i + 1] = m_animations[i].SequenceNum;
-                    objectIDs[i + 1] = m_animations[i].ObjectID;
+                    animIDs[i + defaultSize] = m_animations[i].AnimID;
+                    sequenceNums[i + defaultSize] = m_animations[i].SequenceNum;
+                    objectIDs[i + defaultSize] = m_animations[i].ObjectID;
                 }
             }
         }

@@ -44,8 +44,10 @@ namespace OpenSim.Tests
         /// Set up a test directory.
         /// </summary>
         [SetUp]
-        public void SetUp()
+        public override void SetUp()
         {
+            base.SetUp();
+
             m_basePath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
             string path = Path.Combine(m_basePath, m_testSubdirectory);
             Directory.CreateDirectory(path);

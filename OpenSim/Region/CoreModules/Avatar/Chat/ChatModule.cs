@@ -30,6 +30,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using log4net;
 using Nini.Config;
+using Mono.Addins;
 using OpenMetaverse;
 using OpenSim.Framework;
 using OpenSim.Region.Framework.Interfaces;
@@ -37,6 +38,7 @@ using OpenSim.Region.Framework.Scenes;
 
 namespace OpenSim.Region.CoreModules.Avatar.Chat
 {
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "ChatModule")]
     public class ChatModule : ISharedRegionModule
     {
         private static readonly ILog m_log =
@@ -48,7 +50,6 @@ namespace OpenSim.Region.CoreModules.Avatar.Chat
         private int m_saydistance = 20;
         private int m_shoutdistance = 100;
         private int m_whisperdistance = 10;
-        private List<Scene> m_scenes = new List<Scene>();
 
         internal object m_syncy = new object();
 
@@ -80,18 +81,12 @@ namespace OpenSim.Region.CoreModules.Avatar.Chat
 
         public virtual void AddRegion(Scene scene)
         {
-            if (!m_enabled) return;
+            if (!m_enabled) 
+                return;
 
-            lock (m_syncy)
-            {
-                if (!m_scenes.Contains(scene))
-                {
-                    m_scenes.Add(scene);
-                    scene.EventManager.OnNewClient += OnNewClient;
-                    scene.EventManager.OnChatFromWorld += OnChatFromWorld;
-                    scene.EventManager.OnChatBroadcast += OnChatBroadcast;
-                }
-            }
+            scene.EventManager.OnNewClient += OnNewClient;
+            scene.EventManager.OnChatFromWorld += OnChatFromWorld;
+            scene.EventManager.OnChatBroadcast += OnChatBroadcast;
 
             m_log.InfoFormat("[CHAT]: Initialized for {0} w:{1} s:{2} S:{3}", scene.RegionInfo.RegionName,
                              m_whisperdistance, m_saydistance, m_shoutdistance);
@@ -103,18 +98,12 @@ namespace OpenSim.Region.CoreModules.Avatar.Chat
 
         public virtual void RemoveRegion(Scene scene)
         {
-            if (!m_enabled) return;
+            if (!m_enabled) 
+                return;
 
-            lock (m_syncy)
-            {
-                if (m_scenes.Contains(scene))
-                {
-                    scene.EventManager.OnNewClient -= OnNewClient;
-                    scene.EventManager.OnChatFromWorld -= OnChatFromWorld;
-                    scene.EventManager.OnChatBroadcast -= OnChatBroadcast;
-                    m_scenes.Remove(scene);
-                }
-            }
+            scene.EventManager.OnNewClient -= OnNewClient;
+            scene.EventManager.OnChatFromWorld -= OnChatFromWorld;
+            scene.EventManager.OnChatBroadcast -= OnChatBroadcast;
         }
         
         public virtual void Close()
@@ -186,9 +175,10 @@ namespace OpenSim.Region.CoreModules.Avatar.Chat
         {
             string fromName = c.From;
             UUID fromID = UUID.Zero;
+            UUID ownerID = UUID.Zero;
             UUID targetID = c.TargetUUID;
             string message = c.Message;
-            IScene scene = c.Scene;
+            Scene scene = (Scene)c.Scene;
             Vector3 fromPos = c.Position;
             Vector3 regionPos = new Vector3(scene.RegionInfo.RegionLocX * Constants.RegionSize,
                                             scene.RegionInfo.RegionLocY * Constants.RegionSize, 0);
@@ -198,21 +188,19 @@ namespace OpenSim.Region.CoreModules.Avatar.Chat
             switch (sourceType) 
             {
             case ChatSourceType.Agent:
-                if (!(scene is Scene))
-                {
-                    m_log.WarnFormat("[CHAT]: scene {0} is not a Scene object, cannot obtain scene presence for {1}",
-                                     scene.RegionInfo.RegionName, c.Sender.AgentId);
-                    return;
-                }
-                ScenePresence avatar = (scene as Scene).GetScenePresence(c.Sender.AgentId);
+                ScenePresence avatar = scene.GetScenePresence(c.Sender.AgentId);
                 fromPos = avatar.AbsolutePosition;
                 fromName = avatar.Name;
                 fromID = c.Sender.AgentId;
+                ownerID = c.Sender.AgentId;
 
                 break;
 
             case ChatSourceType.Object:
                 fromID = c.SenderUUID;
+
+                if (c.SenderObject != null && c.SenderObject is SceneObjectPart)
+                    ownerID = ((SceneObjectPart)c.SenderObject).OwnerID;
 
                 break;
             }
@@ -227,34 +215,33 @@ namespace OpenSim.Region.CoreModules.Avatar.Chat
 
             HashSet<UUID> receiverIDs = new HashSet<UUID>();
 
-            foreach (Scene s in m_scenes)
+            if (targetID == UUID.Zero)
             {
-                if (targetID == UUID.Zero)
-                {
-                    // This should use ForEachClient, but clients don't have a position.
-                    // If camera is moved into client, then camera position can be used
-                    s.ForEachRootScenePresence(
-                        delegate(ScenePresence presence)
-                        {
-                            if (TrySendChatMessage(presence, fromPos, regionPos, fromID, fromName, c.Type, message, sourceType, false))
-                                receiverIDs.Add(presence.UUID);
-                        }
-                    );
-                }
-                else
-                {
-                    // This is a send to a specific client eg from llRegionSayTo
-                    // no need to check distance etc, jand send is as say
-                    ScenePresence presence = s.GetScenePresence(targetID);
-                    if (presence != null && !presence.IsChildAgent)
+                // This should use ForEachClient, but clients don't have a position.
+                // If camera is moved into client, then camera position can be used
+                scene.ForEachScenePresence(
+                    delegate(ScenePresence presence)
                     {
-                        if (TrySendChatMessage(presence, fromPos, regionPos, fromID, fromName, ChatTypeEnum.Say, message, sourceType, true))
-                                receiverIDs.Add(presence.UUID);
+                        if (TrySendChatMessage(
+                            presence, fromPos, regionPos, fromID, ownerID, fromName, c.Type, message, sourceType, false))
+                            receiverIDs.Add(presence.UUID);
                     }
+                );
+            }
+            else
+            {
+                // This is a send to a specific client eg from llRegionSayTo
+                // no need to check distance etc, jand send is as say
+                ScenePresence presence = scene.GetScenePresence(targetID);
+                if (presence != null && !presence.IsChildAgent)
+                {
+                    if (TrySendChatMessage(
+                        presence, fromPos, regionPos, fromID, ownerID, fromName, ChatTypeEnum.Say, message, sourceType, true))
+                        receiverIDs.Add(presence.UUID);
                 }
             }
 
-            (scene as Scene).EventManager.TriggerOnChatToClients(
+            scene.EventManager.TriggerOnChatToClients(
                 fromID, receiverIDs, message, c.Type, fromPos, fromName, sourceType, ChatAudibleLevel.Fully);
         }
 
@@ -305,9 +292,11 @@ namespace OpenSim.Region.CoreModules.Avatar.Chat
                         (null != c.SenderObject) &&
                         (((SceneObjectPart)c.SenderObject).OwnerID != client.AgentId))
                         return;
-                    
-                    client.SendChatMessage(c.Message, (byte)cType, CenterOfRegion, fromName, fromID, 
-                                            (byte)sourceType, (byte)ChatAudibleLevel.Fully);
+
+                    client.SendChatMessage(
+                        c.Message, (byte)cType, CenterOfRegion, fromName, fromID, fromID,
+                        (byte)sourceType, (byte)ChatAudibleLevel.Fully);
+
                     receiverIDs.Add(client.AgentId);
                 });
             
@@ -322,19 +311,21 @@ namespace OpenSim.Region.CoreModules.Avatar.Chat
         /// <param name="fromPos"></param>
         /// <param name="regionPos">/param>
         /// <param name="fromAgentID"></param>
+        /// <param name='ownerID'>
+        /// Owner of the message.  For at least some messages from objects, this has to be correctly filled with the owner's UUID.
+        /// This is the case for script error messages in viewer 3 since LLViewer change EXT-7762
+        /// </param>
         /// <param name="fromName"></param>
         /// <param name="type"></param>
         /// <param name="message"></param>
         /// <param name="src"></param>
         /// <returns>true if the message was sent to the receiver, false if it was not sent due to failing a 
         /// precondition</returns>
-        protected virtual bool TrySendChatMessage(ScenePresence presence, Vector3 fromPos, Vector3 regionPos,
-                                                  UUID fromAgentID, string fromName, ChatTypeEnum type,
-                                                  string message, ChatSourceType src, bool ignoreDistance)
+        protected virtual bool TrySendChatMessage(
+            ScenePresence presence, Vector3 fromPos, Vector3 regionPos,
+            UUID fromAgentID, UUID ownerID, string fromName, ChatTypeEnum type,
+            string message, ChatSourceType src, bool ignoreDistance)
         {
-            // don't send stuff to child agents
-            if (presence.IsChildAgent) return false;
-
             Vector3 fromRegionPos = fromPos + regionPos;
             Vector3 toRegionPos = presence.AbsolutePosition +
                 new Vector3(presence.Scene.RegionInfo.RegionLocX * Constants.RegionSize,
@@ -353,8 +344,9 @@ namespace OpenSim.Region.CoreModules.Avatar.Chat
             }
 
             // TODO: should change so the message is sent through the avatar rather than direct to the ClientView
-            presence.ControllingClient.SendChatMessage(message, (byte) type, fromPos, fromName,
-                                                       fromAgentID, (byte)src, (byte)ChatAudibleLevel.Fully);
+            presence.ControllingClient.SendChatMessage(
+                message, (byte) type, fromPos, fromName,
+                fromAgentID, ownerID, (byte)src, (byte)ChatAudibleLevel.Fully);
             
             return true;
         }

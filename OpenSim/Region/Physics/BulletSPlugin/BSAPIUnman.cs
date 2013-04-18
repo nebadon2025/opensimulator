@@ -259,12 +259,12 @@ public override BulletShape CreateHullShape(BulletWorld world, int hullCount, fl
                     BSPhysicsShapeType.SHAPE_HULL);
 }
 
-public override BulletShape BuildHullShapeFromMesh(BulletWorld world, BulletShape meshShape)
+public override BulletShape BuildHullShapeFromMesh(BulletWorld world, BulletShape meshShape, HACDParams parms)
 {
     BulletWorldUnman worldu = world as BulletWorldUnman;
     BulletShapeUnman shapeu = meshShape as BulletShapeUnman;
     return new BulletShapeUnman(
-                    BSAPICPP.BuildHullShapeFromMesh2(worldu.ptr, shapeu.ptr),
+                    BSAPICPP.BuildHullShapeFromMesh2(worldu.ptr, shapeu.ptr, parms),
                     BSPhysicsShapeType.SHAPE_HULL);
 }
 
@@ -286,7 +286,7 @@ public override void SetShapeCollisionMargin(BulletShape shape, float margin)
 {
     BulletShapeUnman shapeu = shape as BulletShapeUnman;
     if (shapeu != null && shapeu.HasPhysicalShape)
-        BSAPICPP.SetShapeCollisionMargin2(shapeu.ptr, margin);
+        BSAPICPP.SetShapeCollisionMargin(shapeu.ptr, margin);
 }
 
 public override BulletShape BuildCapsuleShape(BulletWorld world, float radius, float height, Vector3 scale)
@@ -438,6 +438,28 @@ public override BulletConstraint Create6DofConstraintToPoint(BulletWorld world, 
                     joinPoint, useLinearReferenceFrameA, disableCollisionsBetweenLinkedBodies));
 }
 
+public override BulletConstraint Create6DofConstraintFixed(BulletWorld world, BulletBody obj1,
+                    Vector3 frameInBloc, Quaternion frameInBrot,
+                    bool useLinearReferenceFrameB, bool disableCollisionsBetweenLinkedBodies)
+{
+    BulletWorldUnman worldu = world as BulletWorldUnman;
+    BulletBodyUnman bodyu1 = obj1 as BulletBodyUnman;
+    return new BulletConstraintUnman(BSAPICPP.Create6DofConstraintFixed2(worldu.ptr, bodyu1.ptr,
+                    frameInBloc, frameInBrot, useLinearReferenceFrameB, disableCollisionsBetweenLinkedBodies));
+}
+
+public override BulletConstraint Create6DofSpringConstraint(BulletWorld world, BulletBody obj1, BulletBody obj2,
+                    Vector3 frame1loc, Quaternion frame1rot,
+                    Vector3 frame2loc, Quaternion frame2rot,
+                    bool useLinearReferenceFrameA, bool disableCollisionsBetweenLinkedBodies)
+{
+    BulletWorldUnman worldu = world as BulletWorldUnman;
+    BulletBodyUnman bodyu1 = obj1 as BulletBodyUnman;
+    BulletBodyUnman bodyu2 = obj2 as BulletBodyUnman;
+    return new BulletConstraintUnman(BSAPICPP.Create6DofSpringConstraint2(worldu.ptr, bodyu1.ptr, bodyu2.ptr, frame1loc, frame1rot,
+                    frame2loc, frame2rot, useLinearReferenceFrameA, disableCollisionsBetweenLinkedBodies));
+}
+
 public override BulletConstraint CreateHingeConstraint(BulletWorld world, BulletBody obj1, BulletBody obj2,
                     Vector3 pivotinA, Vector3 pivotinB,
                     Vector3 axisInA, Vector3 axisInB,
@@ -448,6 +470,52 @@ public override BulletConstraint CreateHingeConstraint(BulletWorld world, Bullet
     BulletBodyUnman bodyu2 = obj2 as BulletBodyUnman;
     return new BulletConstraintUnman(BSAPICPP.CreateHingeConstraint2(worldu.ptr, bodyu1.ptr, bodyu2.ptr,
                     pivotinA, pivotinB, axisInA, axisInB, useLinearReferenceFrameA, disableCollisionsBetweenLinkedBodies));
+}
+
+public override BulletConstraint CreateSliderConstraint(BulletWorld world, BulletBody obj1, BulletBody obj2,
+                    Vector3 frame1loc, Quaternion frame1rot,
+                    Vector3 frame2loc, Quaternion frame2rot,
+                    bool useLinearReferenceFrameA, bool disableCollisionsBetweenLinkedBodies)
+{
+    BulletWorldUnman worldu = world as BulletWorldUnman;
+    BulletBodyUnman bodyu1 = obj1 as BulletBodyUnman;
+    BulletBodyUnman bodyu2 = obj2 as BulletBodyUnman;
+    return new BulletConstraintUnman(BSAPICPP.CreateSliderConstraint2(worldu.ptr, bodyu1.ptr, bodyu2.ptr, frame1loc, frame1rot,
+                    frame2loc, frame2rot, useLinearReferenceFrameA, disableCollisionsBetweenLinkedBodies));
+}
+
+public override BulletConstraint CreateConeTwistConstraint(BulletWorld world, BulletBody obj1, BulletBody obj2,
+                    Vector3 frame1loc, Quaternion frame1rot,
+                    Vector3 frame2loc, Quaternion frame2rot,
+                    bool disableCollisionsBetweenLinkedBodies)
+{
+    BulletWorldUnman worldu = world as BulletWorldUnman;
+    BulletBodyUnman bodyu1 = obj1 as BulletBodyUnman;
+    BulletBodyUnman bodyu2 = obj2 as BulletBodyUnman;
+    return new BulletConstraintUnman(BSAPICPP.CreateConeTwistConstraint2(worldu.ptr, bodyu1.ptr, bodyu2.ptr, frame1loc, frame1rot,
+                                        frame2loc, frame2rot, disableCollisionsBetweenLinkedBodies));
+}
+
+public override BulletConstraint CreateGearConstraint(BulletWorld world, BulletBody obj1, BulletBody obj2,
+                    Vector3 axisInA, Vector3 axisInB,
+                    float ratio, bool disableCollisionsBetweenLinkedBodies)
+{
+    BulletWorldUnman worldu = world as BulletWorldUnman;
+    BulletBodyUnman bodyu1 = obj1 as BulletBodyUnman;
+    BulletBodyUnman bodyu2 = obj2 as BulletBodyUnman;
+    return new BulletConstraintUnman(BSAPICPP.CreateGearConstraint2(worldu.ptr, bodyu1.ptr, bodyu2.ptr, axisInA, axisInB,
+                                        ratio, disableCollisionsBetweenLinkedBodies));
+}
+
+public override BulletConstraint CreatePoint2PointConstraint(BulletWorld world, BulletBody obj1, BulletBody obj2,
+                    Vector3 pivotInA, Vector3 pivotInB,
+                    bool disableCollisionsBetweenLinkedBodies)
+{
+    BulletWorldUnman worldu = world as BulletWorldUnman;
+    BulletBodyUnman bodyu1 = obj1 as BulletBodyUnman;
+    BulletBodyUnman bodyu2 = obj2 as BulletBodyUnman;
+    return new BulletConstraintUnman(BSAPICPP.CreatePoint2PointConstraint2(worldu.ptr, bodyu1.ptr, bodyu2.ptr, pivotInA, pivotInB,
+                                        disableCollisionsBetweenLinkedBodies));
 }
 
 public override void SetConstraintEnable(BulletConstraint constrain, float numericTrueFalse)
@@ -1343,7 +1411,7 @@ public static extern IntPtr CreateHullShape2(IntPtr world,
                 int hullCount, [MarshalAs(UnmanagedType.LPArray)] float[] hulls);
 
 [DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
-public static extern IntPtr BuildHullShapeFromMesh2(IntPtr world, IntPtr meshShape);
+public static extern IntPtr BuildHullShapeFromMesh2(IntPtr world, IntPtr meshShape, HACDParams parms);
 
 [DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
 public static extern IntPtr BuildNativeShape2(IntPtr world, ShapeData shapeData);
@@ -1352,7 +1420,7 @@ public static extern IntPtr BuildNativeShape2(IntPtr world, ShapeData shapeData)
 public static extern bool IsNativeShape2(IntPtr shape);
 
 [DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
-public static extern void SetShapeCollisionMargin2(IntPtr shape, float margin);
+public static extern void SetShapeCollisionMargin(IntPtr shape, float margin);
 
 [DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
 public static extern IntPtr BuildCapsuleShape2(IntPtr world, float radius, float height, Vector3 scale);
@@ -1426,10 +1494,44 @@ public static extern IntPtr Create6DofConstraintToPoint2(IntPtr world, IntPtr ob
                     bool useLinearReferenceFrameA, bool disableCollisionsBetweenLinkedBodies);
 
 [DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
+public static extern IntPtr Create6DofConstraintFixed2(IntPtr world, IntPtr obj1,
+                    Vector3 frameInBloc, Quaternion frameInBrot,
+                    bool useLinearReferenceFrameB, bool disableCollisionsBetweenLinkedBodies);
+
+[DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
+public static extern IntPtr Create6DofSpringConstraint2(IntPtr world, IntPtr obj1, IntPtr obj2,
+                    Vector3 frame1loc, Quaternion frame1rot,
+                    Vector3 frame2loc, Quaternion frame2rot,
+                    bool useLinearReferenceFrameA, bool disableCollisionsBetweenLinkedBodies);
+
+[DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
 public static extern IntPtr CreateHingeConstraint2(IntPtr world, IntPtr obj1, IntPtr obj2,
                     Vector3 pivotinA, Vector3 pivotinB,
                     Vector3 axisInA, Vector3 axisInB,
                     bool useLinearReferenceFrameA, bool disableCollisionsBetweenLinkedBodies);
+
+[DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
+public static extern IntPtr CreateSliderConstraint2(IntPtr world, IntPtr obj1, IntPtr obj2,
+                    Vector3 frameInAloc, Quaternion frameInArot,
+                    Vector3 frameInBloc, Quaternion frameInBrot,
+                    bool useLinearReferenceFrameA, bool disableCollisionsBetweenLinkedBodies);
+
+[DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
+public static extern IntPtr CreateConeTwistConstraint2(IntPtr world, IntPtr obj1, IntPtr obj2,
+                    Vector3 frameInAloc, Quaternion frameInArot,
+                    Vector3 frameInBloc, Quaternion frameInBrot,
+                    bool disableCollisionsBetweenLinkedBodies);
+
+[DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
+public static extern IntPtr CreateGearConstraint2(IntPtr world, IntPtr obj1, IntPtr obj2,
+                    Vector3 axisInA, Vector3 axisInB,
+                    float ratio, bool disableCollisionsBetweenLinkedBodies);
+
+[DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
+public static extern IntPtr CreatePoint2PointConstraint2(IntPtr world, IntPtr obj1, IntPtr obj2,
+                    Vector3 pivotInA, Vector3 pivotInB,
+                    bool disableCollisionsBetweenLinkedBodies);
+
 
 [DllImport("BulletSim", CallingConvention = CallingConvention.Cdecl), SuppressUnmanagedCodeSecurity]
 public static extern void SetConstraintEnable2(IntPtr constrain, float numericTrueFalse);

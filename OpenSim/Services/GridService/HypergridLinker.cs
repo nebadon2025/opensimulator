@@ -128,7 +128,10 @@ namespace OpenSim.Services.GridService
 
             m_MapTileDirectory = gridConfig.GetString("MapTileDirectory", "maptiles");
 
-            m_ThisGatekeeper = gridConfig.GetString("Gatekeeper", string.Empty);
+            m_ThisGatekeeper = Util.GetConfigVarFromSections<string>(config, "GatekeeperURI",
+                new string[] { "Startup", "Hypergrid", "GridService" }, String.Empty);
+            // Legacy. Remove soon!
+            m_ThisGatekeeper = gridConfig.GetString("Gatekeeper", m_ThisGatekeeper);
             try
             {
                 m_ThisGatekeeperURI = new Uri(m_ThisGatekeeper);

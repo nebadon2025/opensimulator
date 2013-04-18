@@ -36,6 +36,7 @@ using OpenSim.Framework;
 using OpenSim.Services.Interfaces;
 using OpenSim.Framework.Console;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
+using PermissionMask = OpenSim.Framework.PermissionMask;
 
 namespace OpenSim.Services.UserAccountService
 {
@@ -545,7 +546,7 @@ namespace OpenSim.Services.UserAccountService
             return account;
         }
 
-        private void CreateDefaultAppearanceEntries(UUID principalID)
+        protected void CreateDefaultAppearanceEntries(UUID principalID)
         {
             m_log.DebugFormat("[USER ACCOUNT SERVICE]: Creating default appearance items for {0}", principalID);
 

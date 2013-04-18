@@ -142,7 +142,8 @@ namespace OpenSim.Data.MySQL
                         }
                         catch (Exception e)
                         {
-                            m_log.Error("[ASSETS DB]: MySql failure fetching asset " + assetID + ": " + e.Message);
+                            m_log.Error(
+                                string.Format("[ASSETS DB]: MySql failure fetching asset {0}.  Exception  ", assetID), e);
                         }
                     }
                 }
@@ -173,14 +174,18 @@ namespace OpenSim.Data.MySQL
                         if (asset.Name.Length > 64)
                         {
                             assetName = asset.Name.Substring(0, 64);
-                            m_log.Warn("[ASSET DB]: Name field truncated from " + asset.Name.Length + " to " + assetName.Length + " characters on add");
+                            m_log.WarnFormat(
+                                "[ASSET DB]: Name '{0}' for asset {1} truncated from {2} to {3} characters on add", 
+                                asset.Name, asset.ID, asset.Name.Length, assetName.Length);
                         }
     
                         string assetDescription = asset.Description;
                         if (asset.Description.Length > 64)
                         {
                             assetDescription = asset.Description.Substring(0, 64);
-                            m_log.Warn("[ASSET DB]: Description field truncated from " + asset.Description.Length + " to " + assetDescription.Length + " characters on add");
+                            m_log.WarnFormat(
+                                "[ASSET DB]: Description '{0}' for asset {1} truncated from {2} to {3} characters on add", 
+                                asset.Description, asset.ID, asset.Description.Length, assetDescription.Length);
                         }
     
                         try
@@ -205,8 +210,11 @@ namespace OpenSim.Data.MySQL
                         }
                         catch (Exception e)
                         {
-                            m_log.ErrorFormat("[ASSET DB]: MySQL failure creating asset {0} with name \"{1}\". Error: {2}",
-                                asset.FullID, asset.Name, e.Message);
+                            m_log.Error(
+                                string.Format(
+                                    "[ASSET DB]: MySQL failure creating asset {0} with name {1}.  Exception  ",
+                                    asset.FullID, asset.Name)
+                                , e);
                         }
                     }
                 }
@@ -237,10 +245,11 @@ namespace OpenSim.Data.MySQL
                         }
                         catch (Exception e)
                         {
-                            m_log.ErrorFormat(
-                                "[ASSETS DB]: " +
-                                "MySql failure updating access_time for asset {0} with name {1}" + Environment.NewLine + e.ToString()
-                                + Environment.NewLine + "Attempting reconnection", asset.FullID, asset.Name);
+                            m_log.Error(
+                                string.Format(
+                                    "[ASSETS DB]: Failure updating access_time for asset {0} with name {1}.  Exception  ", 
+                                    asset.FullID, asset.Name), 
+                                e);
                         }
                     }
                 }
@@ -280,8 +289,8 @@ namespace OpenSim.Data.MySQL
                         }
                         catch (Exception e)
                         {
-                            m_log.ErrorFormat(
-                                "[ASSETS DB]: MySql failure fetching asset {0}" + Environment.NewLine + e.ToString(), uuid);
+                            m_log.Error(
+                                string.Format("[ASSETS DB]: MySql failure fetching asset {0}.  Exception  ", uuid), e);
                         }
                     }
                 }
@@ -340,7 +349,11 @@ namespace OpenSim.Data.MySQL
                         }
                         catch (Exception e)
                         {
-                            m_log.Error("[ASSETS DB]: MySql failure fetching asset set" + Environment.NewLine + e.ToString());
+                            m_log.Error(
+                                string.Format(
+                                    "[ASSETS DB]: MySql failure fetching asset set from {0}, count {1}.  Exception  ", 
+                                    start, count), 
+                                e);
                         }
                     }
                 }

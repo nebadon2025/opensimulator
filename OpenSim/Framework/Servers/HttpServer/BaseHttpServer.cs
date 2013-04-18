@@ -54,7 +54,32 @@ namespace OpenSim.Framework.Servers.HttpServer
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         private HttpServerLogWriter httpserverlog = new HttpServerLogWriter();
 
+
+        /// <summary>
+        /// This is a pending websocket request before it got an sucessful upgrade response.
+        /// The consumer must call handler.HandshakeAndUpgrade() to signal to the handler to 
+        /// start the connection and optionally provide an origin authentication method.
+        /// </summary>
+        /// <param name="servicepath"></param>
+        /// <param name="handler"></param>
+        public delegate void WebSocketRequestDelegate(string servicepath, WebSocketHttpServerHandler handler);
+
+        /// <summary>
+        /// Gets or sets the debug level.
+        /// </summary>
+        /// <value>
+        /// See MainServer.DebugLevel.
+        /// </value>
         public int DebugLevel { get; set; }
+
+        /// <summary>
+        /// Request number for diagnostic purposes.
+        /// </summary>
+        /// <remarks>
+        /// This is an internal number.  In some debug situations an external number may also be supplied in the
+        /// opensim-request-id header but we are not currently logging this.
+        /// </remarks>
+        public int RequestNumber { get; private set; }
 
         private volatile int NotSocketErrors = 0;
         public volatile bool HTTPDRunning = false;
@@ -68,9 +93,12 @@ namespace OpenSim.Framework.Servers.HttpServer
         protected Dictionary<string, LLSDMethod> m_llsdHandlers         = new Dictionary<string, LLSDMethod>();
         protected Dictionary<string, IRequestHandler> m_streamHandlers  = new Dictionary<string, IRequestHandler>();
         protected Dictionary<string, GenericHTTPMethod> m_HTTPHandlers  = new Dictionary<string, GenericHTTPMethod>();
-        protected Dictionary<string, IHttpAgentHandler> m_agentHandlers = new Dictionary<string, IHttpAgentHandler>();
+//        protected Dictionary<string, IHttpAgentHandler> m_agentHandlers = new Dictionary<string, IHttpAgentHandler>();
         protected Dictionary<string, PollServiceEventArgs> m_pollHandlers =
             new Dictionary<string, PollServiceEventArgs>();
+
+        protected Dictionary<string, WebSocketRequestDelegate> m_WebSocketHandlers =
+            new Dictionary<string, WebSocketRequestDelegate>(); 
 
         protected uint m_port;
         protected uint m_sslport;
@@ -153,6 +181,22 @@ namespace OpenSim.Framework.Servers.HttpServer
                     m_streamHandlers.Add(handlerKey, handler);
                 }
             }
+        }
+
+        public void AddWebSocketHandler(string servicepath, WebSocketRequestDelegate handler)
+        {
+            lock (m_WebSocketHandlers)
+            {
+                if (!m_WebSocketHandlers.ContainsKey(servicepath))
+                    m_WebSocketHandlers.Add(servicepath, handler);
+            }
+        }
+
+        public void RemoveWebSocketHandler(string servicepath)
+        {
+            lock (m_WebSocketHandlers)
+                if (m_WebSocketHandlers.ContainsKey(servicepath))
+                    m_WebSocketHandlers.Remove(servicepath);
         }
 
         public List<string> GetStreamHandlerKeys()
@@ -277,29 +321,29 @@ namespace OpenSim.Framework.Servers.HttpServer
                 return new List<string>(m_pollHandlers.Keys);
         }
 
-        // Note that the agent string is provided simply to differentiate
-        // the handlers - it is NOT required to be an actual agent header
-        // value.
-        public bool AddAgentHandler(string agent, IHttpAgentHandler handler)
-        {
-            lock (m_agentHandlers)
-            {
-                if (!m_agentHandlers.ContainsKey(agent))
-                {
-                    m_agentHandlers.Add(agent, handler);
-                    return true;
-                }
-            }
-
-            //must already have a handler for that path so return false
-            return false;
-        }
-
-        public List<string> GetAgentHandlerKeys()
-        {
-            lock (m_agentHandlers)
-                return new List<string>(m_agentHandlers.Keys);
-        }
+//        // Note that the agent string is provided simply to differentiate
+//        // the handlers - it is NOT required to be an actual agent header
+//        // value.
+//        public bool AddAgentHandler(string agent, IHttpAgentHandler handler)
+//        {
+//            lock (m_agentHandlers)
+//            {
+//                if (!m_agentHandlers.ContainsKey(agent))
+//                {
+//                    m_agentHandlers.Add(agent, handler);
+//                    return true;
+//                }
+//            }
+//
+//            //must already have a handler for that path so return false
+//            return false;
+//        }
+//
+//        public List<string> GetAgentHandlerKeys()
+//        {
+//            lock (m_agentHandlers)
+//                return new List<string>(m_agentHandlers.Keys);
+//        }
 
         public bool AddLLSDHandler(string path, LLSDMethod handler)
         {
@@ -328,6 +372,8 @@ namespace OpenSim.Framework.Servers.HttpServer
 
         private void OnRequest(object source, RequestEventArgs args)
         {
+            RequestNumber++;
+
             try
             {
                 IHttpClientContext context = (IHttpClientContext)source;
@@ -392,9 +438,24 @@ namespace OpenSim.Framework.Servers.HttpServer
 
         public void OnHandleRequestIOThread(IHttpClientContext context, IHttpRequest request)
         {
+
             OSHttpRequest req = new OSHttpRequest(context, request);
+            WebSocketRequestDelegate dWebSocketRequestDelegate = null;
+            lock (m_WebSocketHandlers)
+            {
+                if (m_WebSocketHandlers.ContainsKey(req.RawUrl))
+                    dWebSocketRequestDelegate = m_WebSocketHandlers[req.RawUrl];
+            }
+            if (dWebSocketRequestDelegate != null)
+            {
+                dWebSocketRequestDelegate(req.Url.AbsolutePath, new WebSocketHttpServerHandler(req, context, 8192));
+                return;
+            }
+            
             OSHttpResponse resp = new OSHttpResponse(new HttpResponse(context, request),context);
+            resp.ReuseContext = true;
             HandleRequest(req, resp);
+           
 
             // !!!HACK ALERT!!!
             // There seems to be a bug in the underlying http code that makes subsequent requests
@@ -425,7 +486,9 @@ namespace OpenSim.Framework.Servers.HttpServer
             {
                 try
                 {
-                    SendHTML500(response);
+                    byte[] buffer500 = SendHTML500(response);
+                    response.Body.Write(buffer500,0,buffer500.Length);
+                    response.Body.Close();
                 }
                 catch
                 {
@@ -437,7 +500,6 @@ namespace OpenSim.Framework.Servers.HttpServer
             string requestMethod = request.HttpMethod;
             string uriString = request.RawUrl;
 
-//            string reqnum = "unknown";
             int requestStartTick = Environment.TickCount;
 
             // Will be adjusted later on.
@@ -454,22 +516,22 @@ namespace OpenSim.Framework.Servers.HttpServer
 
                 Culture.SetCurrentCulture();
 
-                //  This is the REST agent interface. We require an agent to properly identify
-                //  itself. If the REST handler recognizes the prefix it will attempt to
-                //  satisfy the request. If it is not recognizable, and no damage has occurred
-                //  the request can be passed through to the other handlers. This is a low
-                //  probability event; if a request is matched it is normally expected to be
-                //  handled
-                IHttpAgentHandler agentHandler;
-
-                if (TryGetAgentHandler(request, response, out agentHandler))
-                {
-                    if (HandleAgentRequest(agentHandler, request, response))
-                    {
-                        requestEndTick = Environment.TickCount;
-                        return;
-                    }
-                }
+//                //  This is the REST agent interface. We require an agent to properly identify
+//                //  itself. If the REST handler recognizes the prefix it will attempt to
+//                //  satisfy the request. If it is not recognizable, and no damage has occurred
+//                //  the request can be passed through to the other handlers. This is a low
+//                //  probability event; if a request is matched it is normally expected to be
+//                //  handled
+//                IHttpAgentHandler agentHandler;
+//
+//                if (TryGetAgentHandler(request, response, out agentHandler))
+//                {
+//                    if (HandleAgentRequest(agentHandler, request, response))
+//                    {
+//                        requestEndTick = Environment.TickCount;
+//                        return;
+//                    }
+//                }
 
                 //response.KeepAlive = true;
                 response.SendChunked = false;
@@ -484,7 +546,7 @@ namespace OpenSim.Framework.Servers.HttpServer
                         LogIncomingToStreamHandler(request, requestHandler);
 
                     response.ContentType = requestHandler.ContentType; // Lets do this defaulting before in case handler has varying content type.
-
+                    
                     if (requestHandler is IStreamedRequestHandler)
                     {
                         IStreamedRequestHandler streamedRequestHandler = requestHandler as IStreamedRequestHandler;
@@ -558,11 +620,8 @@ namespace OpenSim.Framework.Servers.HttpServer
                     {
                         case null:
                         case "text/html":
-    
                             if (DebugLevel >= 3)
-                                m_log.DebugFormat(
-                                    "[BASE HTTP SERVER]: Found a {0} content type handler for {1} {2}",
-                                    request.ContentType, request.HttpMethod, request.Url.PathAndQuery);
+                                LogIncomingToContentTypeHandler(request);
     
                             buffer = HandleHTTPRequest(request, response);
                             break;
@@ -570,11 +629,8 @@ namespace OpenSim.Framework.Servers.HttpServer
                         case "application/llsd+xml":
                         case "application/xml+llsd":
                         case "application/llsd+json":
-    
                             if (DebugLevel >= 3)
-                                m_log.DebugFormat(
-                                    "[BASE HTTP SERVER]: Found a {0} content type handler for {1} {2}",
-                                    request.ContentType, request.HttpMethod, request.Url.PathAndQuery);
+                                LogIncomingToContentTypeHandler(request);
     
                             buffer = HandleLLSDRequests(request, response);
                             break;
@@ -660,27 +716,44 @@ namespace OpenSim.Framework.Servers.HttpServer
             }
             catch (IOException e)
             {
-                m_log.Error(String.Format("[BASE HTTP SERVER]: HandleRequest() threw {0} ", e.Message), e);
+                m_log.Error(String.Format("[BASE HTTP SERVER]: HandleRequest() threw {0} ", e.StackTrace), e);
             }
             catch (Exception e)
             {
-                m_log.Error(String.Format("[BASE HTTP SERVER]: HandleRequest() threw {0} ", e.Message), e);
-                SendHTML500(response);
+                m_log.Error(String.Format("[BASE HTTP SERVER]: HandleRequest() threw {0} ", e.StackTrace), e);
+                try
+                {
+                    byte[] buffer500 = SendHTML500(response);
+                    response.Body.Write(buffer500, 0, buffer500.Length);
+                    response.Body.Close();
+                }
+                catch
+                {
+                }
             }
             finally
             {
                 // Every month or so this will wrap and give bad numbers, not really a problem
                 // since its just for reporting
                 int tickdiff = requestEndTick - requestStartTick;
-                if (tickdiff > 3000)
+                if (tickdiff > 3000 && requestHandler != null && requestHandler.Name != "GetTexture")
                 {
                     m_log.InfoFormat(
-                        "[BASE HTTP SERVER]: Slow handling of {0} {1} {2} {3} from {4} took {5}ms",
+                        "[BASE HTTP SERVER]: Slow handling of {0} {1} {2} {3} {4} from {5} took {6}ms",
+                        RequestNumber,
                         requestMethod,
                         uriString,
                         requestHandler != null ? requestHandler.Name : "",
                         requestHandler != null ? requestHandler.Description : "",
-                        request.RemoteIPEndPoint.ToString(),
+                        request.RemoteIPEndPoint,
+                        tickdiff);
+                }
+                else if (DebugLevel >= 4)
+                {
+                    m_log.DebugFormat(
+                        "[BASE HTTP SERVER]: HTTP IN {0} :{1} took {2}ms",
+                        RequestNumber,
+                        Port,
                         tickdiff);
                 }
             }
@@ -689,30 +762,45 @@ namespace OpenSim.Framework.Servers.HttpServer
         private void LogIncomingToStreamHandler(OSHttpRequest request, IRequestHandler requestHandler)
         {
             m_log.DebugFormat(
-                "[BASE HTTP SERVER]: Found stream handler for {0} {1} {2} {3}",
-                request.HttpMethod, request.Url.PathAndQuery, requestHandler.Name, requestHandler.Description);
+                "[BASE HTTP SERVER]: HTTP IN {0} :{1} stream handler {2} {3} {4} {5} from {6}",
+                RequestNumber,
+                Port,
+                request.HttpMethod,
+                request.Url.PathAndQuery,
+                requestHandler.Name,
+                requestHandler.Description,
+                request.RemoteIPEndPoint);
 
-            if (DebugLevel >= 4)
+            if (DebugLevel >= 5)
                 LogIncomingInDetail(request);
         }
 
         private void LogIncomingToContentTypeHandler(OSHttpRequest request)
         {
             m_log.DebugFormat(
-                "[BASE HTTP SERVER]: Found a {0} content type handler for {1} {2}",
-                request.ContentType, request.HttpMethod, request.Url.PathAndQuery);
+                "[BASE HTTP SERVER]: HTTP IN {0} :{1} {2} content type handler {3} {4} from {5}",
+                RequestNumber,
+                Port,
+                (request.ContentType == null || request.ContentType == "") ? "not set" : request.ContentType,
+                request.HttpMethod,
+                request.Url.PathAndQuery,
+                request.RemoteIPEndPoint);
 
-            if (DebugLevel >= 4)
+            if (DebugLevel >= 5)
                 LogIncomingInDetail(request);
         }
 
         private void LogIncomingToXmlRpcHandler(OSHttpRequest request)
         {
             m_log.DebugFormat(
-                "[BASE HTTP SERVER]: Assuming a generic XMLRPC request for {0} {1}",
-                request.HttpMethod, request.Url.PathAndQuery);
+                "[BASE HTTP SERVER]: HTTP IN {0} :{1} assumed generic XMLRPC request {2} {3} from {4}",
+                RequestNumber,
+                Port,
+                request.HttpMethod,
+                request.Url.PathAndQuery,
+                request.RemoteIPEndPoint);
 
-            if (DebugLevel >= 4)
+            if (DebugLevel >= 5)
                 LogIncomingInDetail(request);
         }
 
@@ -722,19 +810,22 @@ namespace OpenSim.Framework.Servers.HttpServer
             {
                 string output;
 
-                if (DebugLevel == 4)
+                if (DebugLevel == 5)
                 {
                     const int sampleLength = 80;
-                    char[] sampleChars = new char[sampleLength];
+                    char[] sampleChars = new char[sampleLength + 3];
                     reader.Read(sampleChars, 0, sampleLength);
-                    output = string.Format("[BASE HTTP SERVER]: {0}...", new string(sampleChars).Replace("\n", @"\n"));
+                    sampleChars[80] = '.';
+                    sampleChars[81] = '.';
+                    sampleChars[82] = '.';
+                    output = new string(sampleChars);
                 }
                 else
                 {
-                    output = string.Format("[BASE HTTP SERVER]: {0}", reader.ReadToEnd());
+                    output = reader.ReadToEnd();
                 }
 
-                m_log.Debug(output);
+                m_log.DebugFormat("[BASE HTTP SERVER]: {0}", output.Replace("\n", @"\n"));
             }
         }
 
@@ -830,24 +921,24 @@ namespace OpenSim.Framework.Servers.HttpServer
             }
         }
 
-        private bool TryGetAgentHandler(OSHttpRequest request, OSHttpResponse response, out IHttpAgentHandler agentHandler)
-        {
-            agentHandler = null;
-            
-            lock (m_agentHandlers)
-            {
-                foreach (IHttpAgentHandler handler in m_agentHandlers.Values)
-                {
-                    if (handler.Match(request, response))
-                    {
-                        agentHandler = handler;
-                        return true;
-                    }
-                }
-            }
-
-            return false;
-        }
+//        private bool TryGetAgentHandler(OSHttpRequest request, OSHttpResponse response, out IHttpAgentHandler agentHandler)
+//        {
+//            agentHandler = null;
+//            
+//            lock (m_agentHandlers)
+//            {
+//                foreach (IHttpAgentHandler handler in m_agentHandlers.Values)
+//                {
+//                    if (handler.Match(request, response))
+//                    {
+//                        agentHandler = handler;
+//                        return true;
+//                    }
+//                }
+//            }
+//
+//            return false;
+//        }
 
         /// <summary>
         /// Try all the registered xmlrpc handlers when an xmlrpc request is received.
@@ -988,7 +1079,8 @@ namespace OpenSim.Framework.Servers.HttpServer
             return buffer;
         }
 
-        // JsonRpc (v2.0 only)
+        // JsonRpc (v2.0 only) 
+        // Batch requests not yet supported
         private byte[] HandleJsonRpcRequests(OSHttpRequest request, OSHttpResponse response)
         {
             Stream requestStream = request.InputStream;
@@ -1028,8 +1120,26 @@ namespace OpenSim.Framework.Servers.HttpServer
                         {
                             jsonRpcHandlers.TryGetValue(methodname, out method);
                         }
-
-                        method(jsonRpcRequest, ref jsonRpcResponse);
+                        bool res = false;
+                        try
+                        {
+                            res = method(jsonRpcRequest, ref jsonRpcResponse);
+                            if(!res)
+                            {
+                                // The handler sent back an unspecified error
+                                if(jsonRpcResponse.Error.Code == 0)
+                                {
+                                    jsonRpcResponse.Error.Code = ErrorCode.InternalError;
+                                }
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            string ErrorMessage = string.Format("[BASE HTTP SERVER]: Json-Rpc Handler Error method {0} - {1}", methodname, e.Message);
+                            m_log.Error(ErrorMessage);
+                            jsonRpcResponse.Error.Code = ErrorCode.InternalError;
+                            jsonRpcResponse.Error.Message = ErrorMessage;
+                        }
                     }
                     else // Error no hanlder defined for requested method
                     {
@@ -1353,59 +1463,6 @@ namespace OpenSim.Framework.Servers.HttpServer
             map["login"] = OSD.FromString("false");
             return map;
         }
-        /// <summary>
-        /// A specific agent handler was provided. Such a handler is expecetd to have an
-        /// intimate, and highly specific relationship with the client. Consequently,
-        /// nothing is done here.
-        /// </summary>
-        /// <param name="handler"></param>
-        /// <param name="request"></param>
-        /// <param name="response"></param>
-
-        private bool HandleAgentRequest(IHttpAgentHandler handler, OSHttpRequest request, OSHttpResponse response)
-        {
-            // In the case of REST, then handler is responsible for ALL aspects of
-            // the request/response handling. Nothing is done here, not even encoding.
-
-            try
-            {
-                return handler.Handle(request, response);
-            }
-            catch (Exception e)
-            {
-                // If the handler did in fact close the stream, then this will blow
-                // chunks. So that that doesn't disturb anybody we throw away any
-                // and all exceptions raised. We've done our best to release the
-                // client.
-                try
-                {
-                    m_log.Warn("[HTTP-AGENT]: Error - " + e.Message);
-                    response.SendChunked   = false;
-                    response.KeepAlive     = true;
-                    response.StatusCode    = (int)OSHttpStatusCode.ServerErrorInternalError;
-                    //response.OutputStream.Close();
-                    try
-                    {
-                        response.Send();
-                        //response.FreeContext();
-                    }
-                    catch (SocketException f)
-                    {
-                        // This has to be here to prevent a Linux/Mono crash
-                        m_log.Warn(
-                            String.Format("[BASE HTTP SERVER]: XmlRpcRequest issue {0}.\nNOTE: this may be spurious on Linux. ", f.Message), f);
-                    }
-                }
-                catch(Exception)
-                {
-                }
-            }
-
-            // Indicate that the request has been "handled"
-
-            return true;
-
-        }
 
         public byte[] HandleHTTPRequest(OSHttpRequest request, OSHttpResponse response)
         {
@@ -1699,7 +1756,8 @@ namespace OpenSim.Framework.Servers.HttpServer
             response.SendChunked = false;
             response.ContentLength64 = buffer.Length;
             response.ContentEncoding = Encoding.UTF8;
-
+            
+                
             return buffer;
         }
 
@@ -1747,6 +1805,7 @@ namespace OpenSim.Framework.Servers.HttpServer
 
                 // Long Poll Service Manager with 3 worker threads a 25 second timeout for no events
                 m_PollServiceManager = new PollServiceRequestManager(this, 3, 25000);
+                m_PollServiceManager.Start();
                 HTTPDRunning = true;
 
                 //HttpListenerContext context;
@@ -1797,6 +1856,8 @@ namespace OpenSim.Framework.Servers.HttpServer
             HTTPDRunning = false;
             try
             {
+                m_PollServiceManager.Stop();
+
                 m_httpListener2.ExceptionThrown -= httpServerException;
                 //m_httpListener2.DisconnectHandler = null;
 
@@ -1840,26 +1901,32 @@ namespace OpenSim.Framework.Servers.HttpServer
                 m_pollHandlers.Remove(path);
         }
 
-        public bool RemoveAgentHandler(string agent, IHttpAgentHandler handler)
-        {
-            lock (m_agentHandlers)
-            {
-                IHttpAgentHandler foundHandler;
-
-                if (m_agentHandlers.TryGetValue(agent, out foundHandler) && foundHandler == handler)
-                {
-                    m_agentHandlers.Remove(agent);
-                    return true;
-                }
-            }
-
-            return false;
-        }
+//        public bool RemoveAgentHandler(string agent, IHttpAgentHandler handler)
+//        {
+//            lock (m_agentHandlers)
+//            {
+//                IHttpAgentHandler foundHandler;
+//
+//                if (m_agentHandlers.TryGetValue(agent, out foundHandler) && foundHandler == handler)
+//                {
+//                    m_agentHandlers.Remove(agent);
+//                    return true;
+//                }
+//            }
+//
+//            return false;
+//        }
 
         public void RemoveXmlRPCHandler(string method)
         {
             lock (m_rpcHandlers)
                 m_rpcHandlers.Remove(method);
+        }
+
+        public void RemoveJsonRPCHandler(string method)
+        {
+            lock(jsonRpcHandlers)
+                jsonRpcHandlers.Remove(method);
         }
 
         public bool RemoveLLSDHandler(string path, LLSDMethod handler)

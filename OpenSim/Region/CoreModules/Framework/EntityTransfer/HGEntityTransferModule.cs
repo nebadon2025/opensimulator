@@ -169,7 +169,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
 
         public override void RemoveRegion(Scene scene)
         {
-            base.AddRegion(scene);
+            base.RemoveRegion(scene);
 
             if (m_Enabled)
                 scene.UnregisterModuleInterface<IUserAgentVerificationModule>(this);

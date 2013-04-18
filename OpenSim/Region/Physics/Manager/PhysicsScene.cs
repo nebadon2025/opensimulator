@@ -43,6 +43,35 @@ namespace OpenSim.Region.Physics.Manager
     public delegate void JointDeactivated(PhysicsJoint joint);
     public delegate void JointErrorMessage(PhysicsJoint joint, string message); // this refers to an "error message due to a problem", not "amount of joint constraint violation"
 
+    public enum RayFilterFlags : ushort
+    {
+        // the flags
+        water = 0x01,
+        land = 0x02,
+        agent = 0x04,
+        nonphysical = 0x08,
+        physical = 0x10,
+        phantom = 0x20,
+        volumedtc = 0x40,
+
+        // ray cast colision control (may only work for meshs)
+        ContactsUnImportant = 0x2000,
+        BackFaceCull = 0x4000,
+        ClosestHit = 0x8000,
+
+        // some combinations
+        LSLPhantom = phantom | volumedtc,
+        PrimsNonPhantom = nonphysical | physical,
+        PrimsNonPhantomAgents = nonphysical | physical | agent,
+
+        AllPrims = nonphysical | phantom | volumedtc | physical,
+        AllButLand = agent | nonphysical | physical | phantom | volumedtc,
+
+        ClosestAndBackCull = ClosestHit | BackFaceCull,
+
+        All = 0x3f
+    }
+
     public delegate void RequestAssetDelegate(UUID assetID, AssetReceivedDelegate callback);
     public delegate void AssetReceivedDelegate(AssetBase asset);
 
@@ -136,6 +165,12 @@ namespace OpenSim.Region.Physics.Manager
 
         public abstract PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, Vector3 position,
                                                   Vector3 size, Quaternion rotation, bool isPhysical, uint localid);
+
+        public virtual PhysicsActor AddPrimShape(string primName, PrimitiveBaseShape pbs, Vector3 position,
+                                                  Vector3 size, Quaternion rotation, bool isPhysical, bool isPhantom, byte shapetype, uint localid)
+        {
+            return AddPrimShape(primName, pbs, position, size, rotation, isPhysical, localid);
+        }
 
         public virtual float TimeDilation
         {
@@ -285,6 +320,16 @@ namespace OpenSim.Region.Physics.Manager
         public virtual List<ContactResult> RaycastWorld(Vector3 position, Vector3 direction, float length, int Count)
         {
             return new List<ContactResult>();
+        }
+
+        public virtual object RaycastWorld(Vector3 position, Vector3 direction, float length, int Count, RayFilterFlags filter)
+        {
+            return null;
+        }
+
+        public virtual bool SupportsRaycastWorldFiltered()
+        {
+            return false;
         }
     }
 }

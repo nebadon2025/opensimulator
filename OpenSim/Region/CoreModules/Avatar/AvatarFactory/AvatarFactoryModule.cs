@@ -39,9 +39,13 @@ using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenSim.Services.Interfaces;
 
+using Mono.Addins;
+using PermissionMask = OpenSim.Framework.PermissionMask;
+
 namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
 {
-    public class AvatarFactoryModule : IAvatarFactoryModule, IRegionModule
+    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "AvatarFactoryModule")]
+    public class AvatarFactoryModule : IAvatarFactoryModule, INonSharedRegionModule
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -59,12 +63,10 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
 
         private object m_setAppearanceLock = new object();
 
-        #region IRegionModule
+        #region Region Module interface
 
-        public void Initialise(Scene scene, IConfigSource config)
+        public void Initialise(IConfigSource config)
         {
-            scene.RegisterModuleInterface<IAvatarFactoryModule>(this);
-            scene.EventManager.OnNewClient += SubscribeToClientEvents;
 
             IConfig appearanceConfig = config.Configs["Appearance"];
             if (appearanceConfig != null)
@@ -74,11 +76,29 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                 // m_log.InfoFormat("[AVFACTORY] configured for {0} save and {1} send",m_savetime,m_sendtime);
             }
 
-            if (m_scene == null)
-                m_scene = scene;          
         }
 
-        public void PostInitialise()
+        public void AddRegion(Scene scene)
+        {
+            if (m_scene == null)
+                m_scene = scene;
+
+            scene.RegisterModuleInterface<IAvatarFactoryModule>(this);
+            scene.EventManager.OnNewClient += SubscribeToClientEvents;
+        }
+
+        public void RemoveRegion(Scene scene)
+        {
+            if (scene == m_scene)
+            {
+                scene.UnregisterModuleInterface<IAvatarFactoryModule>(this);
+                scene.EventManager.OnNewClient -= SubscribeToClientEvents;
+            }
+
+            m_scene = null;
+        }
+
+        public void RegionLoaded(Scene scene)
         {
             m_updateTimer.Enabled = false;
             m_updateTimer.AutoReset = true;
@@ -99,6 +119,12 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
         {
             get { return false; }
         }
+
+        public Type ReplaceableInterface
+        {
+            get { return null; }
+        }
+
 
         private void SubscribeToClientEvents(IClientAPI client)
         {
@@ -301,7 +327,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
 
         public void QueueAppearanceSave(UUID agentid)
         {
-            // m_log.WarnFormat("[AVFACTORY]: Queue appearance save for {0}", agentid);
+//            m_log.DebugFormat("[AVFACTORY]: Queueing appearance save for {0}", agentid);
 
             // 10000 ticks per millisecond, 1000 milliseconds per second
             long timestamp = DateTime.Now.Ticks + Convert.ToInt64(m_savetime * 1000 * 10000);
@@ -504,7 +530,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                 return;
             }
 
-            // m_log.WarnFormat("[AVFACTORY] avatar {0} save appearance",agentid);
+//            m_log.DebugFormat("[AVFACTORY]: Saving appearance for avatar {0}", agentid);
 
             // This could take awhile since it needs to pull inventory
             // We need to do it at the point of save so that there is a sufficient delay for any upload of new body part/shape
@@ -512,6 +538,14 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
             // I don't think we need to worry about doing this within m_setAppearanceLock since the queueing avoids
             // multiple save requests.
             SetAppearanceAssets(sp.UUID, sp.Appearance);
+
+//            List<AvatarAttachment> attachments = sp.Appearance.GetAttachments();
+//            foreach (AvatarAttachment att in attachments)
+//            {
+//                m_log.DebugFormat(
+//                    "[AVFACTORY]: For {0} saving attachment {1} at point {2}",
+//                    sp.Name, att.ItemID, att.AttachPoint);
+//            }
 
             m_scene.AvatarService.SetAppearance(agentid, sp.Appearance);
 
@@ -528,7 +562,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
             {
                 for (int i = 0; i < AvatarWearable.MAX_WEARABLES; i++)
                 {
-                    for (int j = 0; j < appearance.Wearables[j].Count; j++)
+                    for (int j = 0; j < appearance.Wearables[i].Count; j++)
                     {
                         if (appearance.Wearables[i][j].ItemID == UUID.Zero)
                             continue;
@@ -536,6 +570,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
                         // Ignore ruth's assets
                         if (appearance.Wearables[i][j].ItemID == AvatarWearable.DefaultWearables[i][0].ItemID)
                             continue;
+
                         InventoryItemBase baseItem = new InventoryItemBase(appearance.Wearables[i][j].ItemID, userID);
                         baseItem = invService.GetItem(baseItem);
 
@@ -667,7 +702,7 @@ namespace OpenSim.Region.CoreModules.Avatar.AvatarFactory
             }
 
             bool bakedTextureValid = m_scene.AvatarFactory.ValidateBakedTextureCache(sp);
-            outputAction("{0} baked appearance texture is {1}", sp.Name, bakedTextureValid ? "OK" : "corrupt");
+            outputAction("{0} baked appearance texture is {1}", sp.Name, bakedTextureValid ? "OK" : "incomplete");
         }
     }
 }

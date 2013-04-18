@@ -49,6 +49,7 @@ using OpenSim.Services.Interfaces;
 using Caps = OpenSim.Framework.Capabilities.Caps;
 using OSDArray = OpenMetaverse.StructuredData.OSDArray;
 using OSDMap = OpenMetaverse.StructuredData.OSDMap;
+using PermissionMask = OpenSim.Framework.PermissionMask;
 
 namespace OpenSim.Region.ClientStack.Linden
 {
@@ -96,6 +97,8 @@ namespace OpenSim.Region.ClientStack.Linden
         //        private static readonly string m_fetchInventoryPath = "0006/";
         private static readonly string m_copyFromNotecardPath = "0007/";
         // private static readonly string m_remoteParcelRequestPath = "0009/";// This is in the LandManagementModule.
+        private static readonly string m_getObjectPhysicsDataPath = "0101/";
+        /* 0102 - 0103 RESERVED */
         private static readonly string m_UpdateAgentInformationPath = "0500/";
         
         // These are callbacks which will be setup by the scene so that we can update scene data when we
@@ -204,6 +207,8 @@ namespace OpenSim.Region.ClientStack.Linden
                 m_HostCapsObj.RegisterHandler("UpdateNotecardAgentInventory", req);
                 m_HostCapsObj.RegisterHandler("UpdateScriptAgentInventory", req);
                 m_HostCapsObj.RegisterHandler("UpdateScriptAgent", req);
+                IRequestHandler getObjectPhysicsDataHandler = new RestStreamHandler("POST", capsBase + m_getObjectPhysicsDataPath, GetObjectPhysicsData);
+                m_HostCapsObj.RegisterHandler("GetObjectPhysicsData", getObjectPhysicsDataHandler);
                 IRequestHandler UpdateAgentInformationHandler = new RestStreamHandler("POST", capsBase + m_UpdateAgentInformationPath, UpdateAgentInformation);
                 m_HostCapsObj.RegisterHandler("UpdateAgentInformation", UpdateAgentInformationHandler);
 
@@ -616,7 +621,7 @@ namespace OpenSim.Region.ClientStack.Linden
                         = new SceneObjectPart(owner_id, pbs, position, Quaternion.Identity, Vector3.Zero);
 
                     prim.Scale = scale;
-                    prim.OffsetPosition = position;
+                    //prim.OffsetPosition = position;
                     rotations.Add(rotation);
                     positions.Add(position);
                     prim.UUID = UUID.Random();
@@ -640,25 +645,40 @@ namespace OpenSim.Region.ClientStack.Linden
                         grp.AddPart(prim);
                 }
 
-                // Fix first link number
+                Vector3 rootPos = positions[0];
+
                 if (grp.Parts.Length > 1)
+                {
+                    // Fix first link number
                     grp.RootPart.LinkNum++;
 
-                Vector3 rootPos = positions[0];
-                grp.AbsolutePosition = rootPos;
-                for (int i = 0; i < positions.Count; i++)
+                    Quaternion rootRotConj = Quaternion.Conjugate(rotations[0]);
+                    Quaternion tmprot;
+                    Vector3 offset;
+
+                    // fix children rotations and positions
+                    for (int i = 1; i < rotations.Count; i++)
+                    {
+                        tmprot = rotations[i];
+                        tmprot = rootRotConj * tmprot;
+
+                        grp.Parts[i].RotationOffset = tmprot;
+
+                        offset = positions[i] - rootPos;
+
+                        offset *= rootRotConj;
+                        grp.Parts[i].OffsetPosition = offset;
+                    }
+
+                    grp.AbsolutePosition = rootPos;
+                    grp.UpdateGroupRotationR(rotations[0]);
+                }
+                else
                 {
-                    Vector3 offset = positions[i] - rootPos;
-                    grp.Parts[i].OffsetPosition = offset;
+                    grp.AbsolutePosition = rootPos;
+                    grp.UpdateGroupRotationR(rotations[0]);
                 }
 
-                for (int i = 0; i < rotations.Count; i++)
-                {
-                    if (i != 0)
-                        grp.Parts[i].RotationOffset = rotations[i];
-                }
-
-                grp.UpdateGroupRotationR(rotations[0]);
                 data = ASCIIEncoding.ASCII.GetBytes(SceneObjectSerializer.ToOriginalXmlFormat(grp));
             }
 
@@ -685,9 +705,9 @@ namespace OpenSim.Region.ClientStack.Linden
             // If we set PermissionMask.All then when we rez the item the next permissions will replace the current
             // (owner) permissions.  This becomes a problem if next permissions are changed.
             item.CurrentPermissions
-                = (uint)(PermissionMask.Move | PermissionMask.Copy | PermissionMask.Modify | PermissionMask.Transfer);
+                = (uint)(PermissionMask.Move | PermissionMask.Copy | PermissionMask.Modify | PermissionMask.Transfer | PermissionMask.Export);
 
-            item.BasePermissions = (uint)PermissionMask.All;
+            item.BasePermissions = (uint)PermissionMask.All | (uint)PermissionMask.Export;
             item.EveryOnePermissions = 0;
             item.NextPermissions = (uint)PermissionMask.All;
             item.CreationDate = Util.UnixTimeSinceEpoch();
@@ -857,11 +877,42 @@ namespace OpenSim.Region.ClientStack.Linden
             return LLSDHelpers.SerialiseLLSDReply(response);
         }
 
-        public string UpdateAgentInformation(string request, string path,
+        public string GetObjectPhysicsData(string request, string path,
                 string param, IOSHttpRequest httpRequest,
                 IOSHttpResponse httpResponse)
         {
             OSDMap req = (OSDMap)OSDParser.DeserializeLLSDXml(request);
+            OSDMap resp = new OSDMap();
+            OSDArray object_ids = (OSDArray)req["object_ids"];
+
+            for (int i = 0 ; i < object_ids.Count ; i++)
+            {
+                UUID uuid = object_ids[i].AsUUID();
+
+                SceneObjectPart obj = m_Scene.GetSceneObjectPart(uuid);
+                if (obj != null)
+                {
+                    OSDMap object_data = new OSDMap();
+
+                    object_data["PhysicsShapeType"] = obj.PhysicsShapeType;
+                    object_data["Density"] = obj.Density;
+                    object_data["Friction"] = obj.Friction;
+                    object_data["Restitution"] = obj.Restitution;
+                    object_data["GravityMultiplier"] = obj.GravityModifier;
+
+                    resp[uuid.ToString()] = object_data;
+                }
+            }
+
+            string response = OSDParser.SerializeLLSDXmlString(resp);
+            return response;
+        }
+
+        public string UpdateAgentInformation(string request, string path,
+                string param, IOSHttpRequest httpRequest,
+                IOSHttpResponse httpResponse)
+        {
+//            OSDMap req = (OSDMap)OSDParser.DeserializeLLSDXml(request);
             OSDMap resp = new OSDMap();
 
             OSDMap accessPrefs = new OSDMap();

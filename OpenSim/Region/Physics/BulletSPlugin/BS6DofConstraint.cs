@@ -32,37 +32,82 @@ using OpenMetaverse;
 namespace OpenSim.Region.Physics.BulletSPlugin
 {
 
-public class BS6DofConstraint : BSConstraint
+public sealed class BSConstraint6Dof : BSConstraint
 {
+    private static string LogHeader = "[BULLETSIM 6DOF CONSTRAINT]";
+
+    public override ConstraintType Type { get { return ConstraintType.D6_CONSTRAINT_TYPE; } }
+
     // Create a btGeneric6DofConstraint
-    public BS6DofConstraint(BulletSim world, BulletBody obj1, BulletBody obj2,
+    public BSConstraint6Dof(BulletWorld world, BulletBody obj1, BulletBody obj2,
                     Vector3 frame1, Quaternion frame1rot,
                     Vector3 frame2, Quaternion frame2rot,
                     bool useLinearReferenceFrameA, bool disableCollisionsBetweenLinkedBodies)
+        : base(world)
     {
-        m_world = world;
         m_body1 = obj1;
         m_body2 = obj2;
-        m_constraint = new BulletConstraint(
-                            BulletSimAPI.Create6DofConstraint2(m_world.Ptr, m_body1.Ptr, m_body2.Ptr,
+        m_constraint = PhysicsScene.PE.Create6DofConstraint(m_world, m_body1, m_body2,
                                 frame1, frame1rot,
                                 frame2, frame2rot,
-                                useLinearReferenceFrameA, disableCollisionsBetweenLinkedBodies));
+                                useLinearReferenceFrameA, disableCollisionsBetweenLinkedBodies);
         m_enabled = true;
+        world.physicsScene.DetailLog("{0},BS6DofConstraint,createFrame,wID={1}, rID={2}, rBody={3}, cID={4}, cBody={5}",
+                            BSScene.DetailLogZero, world.worldID,
+                            obj1.ID, obj1.AddrString, obj2.ID, obj2.AddrString);
     }
 
-    public BS6DofConstraint(BulletSim world, BulletBody obj1, BulletBody obj2,
+    // 6 Dof constraint based on a midpoint between the two constrained bodies
+    public BSConstraint6Dof(BulletWorld world, BulletBody obj1, BulletBody obj2,
                     Vector3 joinPoint,
                     bool useLinearReferenceFrameA, bool disableCollisionsBetweenLinkedBodies)
+        : base(world)
     {
-        m_world = world;
         m_body1 = obj1;
         m_body2 = obj2;
-        m_constraint = new BulletConstraint(
-                            BulletSimAPI.Create6DofConstraintToPoint2(m_world.Ptr, m_body1.Ptr, m_body2.Ptr,
-                                joinPoint,
-                                useLinearReferenceFrameA, disableCollisionsBetweenLinkedBodies));
+        if (!obj1.HasPhysicalBody || !obj2.HasPhysicalBody)
+        {
+            world.physicsScene.DetailLog("{0},BS6DOFConstraint,badBodyPtr,wID={1}, rID={2}, rBody={3}, cID={4}, cBody={5}",
+                            BSScene.DetailLogZero, world.worldID,
+                            obj1.ID, obj1.AddrString, obj2.ID, obj2.AddrString);
+            world.physicsScene.Logger.ErrorFormat("{0} Attempt to build 6DOF constraint with missing bodies: wID={1}, rID={2}, rBody={3}, cID={4}, cBody={5}",
+                            LogHeader, world.worldID, obj1.ID, obj1.AddrString, obj2.ID, obj2.AddrString);
+            m_enabled = false;
+        }
+        else
+        {
+            m_constraint = PhysicsScene.PE.Create6DofConstraintToPoint(m_world, m_body1, m_body2,
+                                    joinPoint,
+                                    useLinearReferenceFrameA, disableCollisionsBetweenLinkedBodies);
+            PhysicsScene.DetailLog("{0},BS6DofConstraint,createMidPoint,wID={1}, csrt={2}, rID={3}, rBody={4}, cID={5}, cBody={6}",
+                                BSScene.DetailLogZero, world.worldID, m_constraint.AddrString,
+                                obj1.ID, obj1.AddrString, obj2.ID, obj2.AddrString);
+            if (!m_constraint.HasPhysicalConstraint)
+            {
+                world.physicsScene.Logger.ErrorFormat("{0} Failed creation of 6Dof constraint. rootID={1}, childID={2}",
+                                LogHeader, obj1.ID, obj2.ID);
+                m_enabled = false;
+            }
+            else
+            {
+                m_enabled = true;
+            }
+        }
+    }
+
+    // A 6 Dof constraint that is fixed in the world and constrained to a on-the-fly created static object
+    public BSConstraint6Dof(BulletWorld world, BulletBody obj1, Vector3 frameInBloc, Quaternion frameInBrot,
+                    bool useLinearReferenceFrameB, bool disableCollisionsBetweenLinkedBodies)
+        : base(world)
+    {
+        m_body1 = obj1;
+        m_body2 = obj1; // Look out for confusion down the road
+        m_constraint = PhysicsScene.PE.Create6DofConstraintFixed(m_world, m_body1,
+                                frameInBloc, frameInBrot,
+                                useLinearReferenceFrameB, disableCollisionsBetweenLinkedBodies);
         m_enabled = true;
+        world.physicsScene.DetailLog("{0},BS6DofConstraint,createFixed,wID={1},rID={2},rBody={3}",
+                            BSScene.DetailLogZero, world.worldID, obj1.ID, obj1.AddrString);
     }
 
     public bool SetFrames(Vector3 frameA, Quaternion frameArot, Vector3 frameB, Quaternion frameBrot)
@@ -70,7 +115,7 @@ public class BS6DofConstraint : BSConstraint
         bool ret = false;
         if (m_enabled)
         {
-            BulletSimAPI.SetFrames2(m_constraint.Ptr, frameA, frameArot, frameB, frameBrot);
+            PhysicsScene.PE.SetFrames(m_constraint, frameA, frameArot, frameB, frameBrot);
             ret = true;
         }
         return ret;
@@ -81,9 +126,9 @@ public class BS6DofConstraint : BSConstraint
         bool ret = false;
         if (m_enabled)
         {
-            BulletSimAPI.SetConstraintParam2(m_constraint.Ptr, ConstraintParams.BT_CONSTRAINT_STOP_CFM, cfm, ConstraintParamAxis.AXIS_ALL);
-            BulletSimAPI.SetConstraintParam2(m_constraint.Ptr, ConstraintParams.BT_CONSTRAINT_STOP_ERP, erp, ConstraintParamAxis.AXIS_ALL);
-            BulletSimAPI.SetConstraintParam2(m_constraint.Ptr, ConstraintParams.BT_CONSTRAINT_CFM, cfm, ConstraintParamAxis.AXIS_ALL);
+            PhysicsScene.PE.SetConstraintParam(m_constraint, ConstraintParams.BT_CONSTRAINT_STOP_CFM, cfm, ConstraintParamAxis.AXIS_ALL);
+            PhysicsScene.PE.SetConstraintParam(m_constraint, ConstraintParams.BT_CONSTRAINT_STOP_ERP, erp, ConstraintParamAxis.AXIS_ALL);
+            PhysicsScene.PE.SetConstraintParam(m_constraint, ConstraintParams.BT_CONSTRAINT_CFM, cfm, ConstraintParamAxis.AXIS_ALL);
             ret = true;
         }
         return ret;
@@ -94,7 +139,7 @@ public class BS6DofConstraint : BSConstraint
         bool ret = false;
         float onOff = useOffset ? ConfigurationParameters.numericTrue : ConfigurationParameters.numericFalse;
         if (m_enabled)
-            ret = BulletSimAPI.UseFrameOffset2(m_constraint.Ptr, onOff);
+            ret = PhysicsScene.PE.UseFrameOffset(m_constraint, onOff);
         return ret;
     }
 
@@ -103,7 +148,11 @@ public class BS6DofConstraint : BSConstraint
         bool ret = false;
         float onOff = enable ? ConfigurationParameters.numericTrue : ConfigurationParameters.numericFalse;
         if (m_enabled)
-            ret = BulletSimAPI.TranslationalLimitMotor2(m_constraint.Ptr, onOff, targetVelocity, maxMotorForce);
+        {
+            ret = PhysicsScene.PE.TranslationalLimitMotor(m_constraint, onOff, targetVelocity, maxMotorForce);
+            m_world.physicsScene.DetailLog("{0},BS6DOFConstraint,TransLimitMotor,enable={1},vel={2},maxForce={3}",
+                            BSScene.DetailLogZero, enable, targetVelocity, maxMotorForce);
+        }
         return ret;
     }
 
@@ -111,7 +160,7 @@ public class BS6DofConstraint : BSConstraint
     {
         bool ret = false;
         if (m_enabled)
-            ret = BulletSimAPI.SetBreakingImpulseThreshold2(m_constraint.Ptr, threshold);
+            ret = PhysicsScene.PE.SetBreakingImpulseThreshold(m_constraint, threshold);
         return ret;
     }
 }

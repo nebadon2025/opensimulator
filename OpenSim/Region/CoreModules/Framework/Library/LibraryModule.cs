@@ -42,6 +42,7 @@ using OpenSim.Server.Base;
 using OpenMetaverse;
 using log4net;
 using Nini.Config;
+using PermissionMask = OpenSim.Framework.PermissionMask;
 
 namespace OpenSim.Region.CoreModules.Framework.Library
 {

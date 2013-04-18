@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -34,21 +34,6 @@ using OpenSim.Region.Physics.Manager;
 
 namespace OpenSim.Region.Physics.BulletSPlugin
 {
-<<<<<<< HEAD
-// Class to wrap all objects.
-// The rest of BulletSim doesn't need to keep checking for avatars or prims
-// unless the difference is significant.
-public abstract class BSPhysObject : PhysicsActor
-{
-    public abstract BSLinkset Linkset { get; set; }
-
-    public abstract bool Collide(uint collidingWith, BSPhysObject collidee,
-            OMV.Vector3 contactPoint, OMV.Vector3 contactNormal, float pentrationDepth);
-    public abstract void SendCollisions();
-
-    // Return the object mass without calculating it or side effects
-    public abstract float MassRaw { get; }
-=======
 /*
  * Class to wrap all objects.
  * The rest of BulletSim doesn't need to keep checking for avatars or prims
@@ -58,7 +43,7 @@ public abstract class BSPhysObject : PhysicsActor
  *      VariableName: used by the simulator and performs taint operations, etc
  *      RawVariableName: direct reference to the BulletSim storage for the variable value
  *      ForceVariableName: direct reference (store and fetch) to the value in the physics engine.
- *  The last two (and certainly the last one) should be referenced only in taint-time.
+ *  The last one should only be referenced in taint-time.
  */
 
 /*
@@ -70,6 +55,16 @@ public abstract class BSPhysObject : PhysicsActor
  * BS.ApplyCentralForce BS.ApplyTorque              
  */
 
+// Flags used to denote which properties updates when making UpdateProperties calls to linksets, etc.
+public enum UpdatedProperties : uint
+{
+    Position                = 1 << 0,
+    Orientation             = 1 << 1,
+    Velocity                = 1 << 2,
+    Acceleration            = 1 << 3,
+    RotationalVelocity      = 1 << 4,
+    EntPropUpdates          = Position | Orientation | Velocity | Acceleration | RotationalVelocity,
+}
 public abstract class BSPhysObject : PhysicsActor
 {
     protected BSPhysObject()
@@ -80,32 +75,47 @@ public abstract class BSPhysObject : PhysicsActor
         PhysicsScene = parentScene;
         LocalID = localID;
         PhysObjectName = name;
+        Name = name;    // PhysicsActor also has the name of the object. Someday consolidate.
         TypeName = typeName;
+
+        // The collection of things that push me around
+        PhysicalActors = new BSActorCollection(PhysicsScene);
+
+        // Initialize variables kept in base.
+        GravModifier = 1.0f;
+        Gravity = new OMV.Vector3(0f, 0f, BSParam.Gravity);
+        HoverActive = false;
 
         // We don't have any physical representation yet.
         PhysBody = new BulletBody(localID);
         PhysShape = new BulletShape();
 
-        // A linkset of just me
-        Linkset = BSLinkset.Factory(PhysicsScene, this);
-        PositionDisplacement = OMV.Vector3.Zero;
+        PrimAssetState = PrimAssetCondition.Unknown;
 
-        LastAssetBuildFailed = false;
-
-        // Default material type
-        Material = MaterialAttributes.Material.Wood;
+        // Default material type. Also sets Friction, Restitution and Density.
+        SetMaterial((int)MaterialAttributes.Material.Wood);
 
         CollisionCollection = new CollisionEventUpdate();
         CollisionsLastTick = CollisionCollection;
         SubscribedEventsMs = 0;
         CollidingStep = 0;
         CollidingGroundStep = 0;
+        CollisionAccumulation = 0;
+        ColliderIsMoving = false;
+        CollisionScore = 0;
+
+        // All axis free.
+        LockedAxis = LockedAxisFree;
     }
 
     // Tell the object to clean up.
     public virtual void Destroy()
     {
-        UnRegisterAllPreStepActions();
+        PhysicalActors.Enable(false);
+        PhysicsScene.TaintedObject("BSPhysObject.Destroy", delegate()
+        {
+            PhysicalActors.Dispose();
+        });
     }
 
     public BSScene PhysicsScene { get; protected set; }
@@ -113,8 +123,6 @@ public abstract class BSPhysObject : PhysicsActor
     public string PhysObjectName { get; protected set; }
     public string TypeName { get; protected set; }
 
-    public BSLinkset Linkset { get; set; }
-    public BSLinksetInfo LinksetInfo { get; set; }
 
     // Return the object mass without calculating it or having side effects
     public abstract float RawMass { get; }
@@ -122,19 +130,48 @@ public abstract class BSPhysObject : PhysicsActor
     // 'inWorld' true if the object has already been added to the dynamic world.
     public abstract void UpdatePhysicalMassProperties(float mass, bool inWorld);
 
+    // The gravity being applied to the object. A function of default grav, GravityModifier and Buoyancy.
+    public virtual OMV.Vector3 Gravity { get; set; }
     // The last value calculated for the prim's inertia
     public OMV.Vector3 Inertia { get; set; }
->>>>>>> upstream/master
 
     // Reference to the physical body (btCollisionObject) of this object
-    public abstract BulletBody BSBody { get; set; }
+    public BulletBody PhysBody;
     // Reference to the physical shape (btCollisionShape) of this object
-    public abstract BulletShape BSShape { get; set; }
+    public BulletShape PhysShape;
 
-<<<<<<< HEAD
-    public abstract void ZeroMotion();
-=======
+    // The physical representation of the prim might require an asset fetch.
+    // The asset state is first 'Unknown' then 'Waiting' then either 'Failed' or 'Fetched'.
+    public enum PrimAssetCondition
+    {
+        Unknown, Waiting, Failed, Fetched
+    }
+    public PrimAssetCondition PrimAssetState { get; set; }
+
+    // The objects base shape information. Null if not a prim type shape.
+    public PrimitiveBaseShape BaseShape { get; protected set; }
+
+    // Some types of objects have preferred physical representations.
+    // Returns SHAPE_UNKNOWN if there is no preference.
+    public virtual BSPhysicsShapeType PreferredPhysicalShape
+    {
+        get { return BSPhysicsShapeType.SHAPE_UNKNOWN; }
+    }
+
+    // When the physical properties are updated, an EntityProperty holds the update values.
+    // Keep the current and last EntityProperties to enable computation of differences
+    //      between the current update and the previous values.
+    public EntityProperties CurrentEntityProperties { get; set; }
+    public EntityProperties LastEntityProperties { get; set; }
+
     public virtual OMV.Vector3 Scale { get; set; }
+
+    // It can be confusing for an actor to know if it should move or update an object
+    //    depeneding on the setting of 'selected', 'physical, ...
+    // This flag is the true test -- if true, the object is being acted on in the physical world
+    public abstract bool IsPhysicallyActive { get; }
+
+    // Detailed state of the object.
     public abstract bool IsSolid { get; }
     public abstract bool IsStatic { get; }
     public abstract bool IsSelected { get; }
@@ -144,52 +181,38 @@ public abstract class BSPhysObject : PhysicsActor
     public override void SetMaterial(int material)
     {
         Material = (MaterialAttributes.Material)material;
+
+        // Setting the material sets the material attributes also.
+        MaterialAttributes matAttrib = BSMaterials.GetAttributes(Material, false);
+        Friction = matAttrib.friction;
+        Restitution = matAttrib.restitution;
+        Density = matAttrib.density / BSParam.DensityScaleFactor;
+        // DetailLog("{0},{1}.SetMaterial,Mat={2},frict={3},rest={4},den={5}", LocalID, TypeName, Material, Friction, Restitution, Density);
     }
->>>>>>> upstream/master
 
-    public virtual void StepVehicle(float timeStep) { }
+    // Stop all physical motion.
+    public abstract void ZeroMotion(bool inTaintTime);
+    public abstract void ZeroAngularMotion(bool inTaintTime);
 
+    // Update the physical location and motion of the object. Called with data from Bullet.
     public abstract void UpdateProperties(EntityProperties entprop);
 
-<<<<<<< HEAD
-    public abstract void Destroy();
-=======
     public abstract OMV.Vector3 RawPosition { get; set; }
     public abstract OMV.Vector3 ForcePosition { get; set; }
-
-    // Position is what the simulator thinks the positions of the prim is.
-    // Because Bullet needs the zero coordinate to be the center of mass of the linkset,
-    //     sometimes it is necessary to displace the position the physics engine thinks
-    //     the position is. PositionDisplacement must be added and removed from the
-    //     position as the simulator position is stored and fetched from the physics
-    //     engine. 
-    public virtual OMV.Vector3 PositionDisplacement { get; set; }
 
     public abstract OMV.Quaternion RawOrientation { get; set; }
     public abstract OMV.Quaternion ForceOrientation { get; set; }
 
-    // The system is telling us the velocity it wants to move at.
-    // Velocity in world coordinates.
-    // protected OMV.Vector3 m_targetVelocity;  // use the definition in PhysicsActor
-    public override OMV.Vector3 TargetVelocity
-    {
-        get { return m_targetVelocity; }
-        set
-        {
-            m_targetVelocity = value;
-            Velocity = value;
-        }
-    }
-    public virtual float TargetSpeed
-    {
-        get
-        {
-            OMV.Vector3 characterOrientedVelocity = TargetVelocity * OMV.Quaternion.Inverse(OMV.Quaternion.Normalize(RawOrientation));
-            return characterOrientedVelocity.X;
-        }
-    }
-    public abstract OMV.Vector3 RawVelocity { get; set; }
+    public OMV.Vector3 RawVelocity { get; set; }
     public abstract OMV.Vector3 ForceVelocity { get; set; }
+
+    public OMV.Vector3 RawForce { get; set; }
+    public OMV.Vector3 RawTorque { get; set; }
+    public override void AddAngularForce(OMV.Vector3 force, bool pushforce)
+    {
+        AddAngularForce(force, pushforce, false);
+    }
+    public abstract void AddAngularForce(OMV.Vector3 force, bool pushforce, bool inTaintTime);
 
     public abstract OMV.Vector3 ForceRotationalVelocity { get; set; }
 
@@ -197,12 +220,99 @@ public abstract class BSPhysObject : PhysicsActor
 
     public virtual bool ForceBodyShapeRebuild(bool inTaintTime) { return false; }
 
+    public override bool PIDActive { set { MoveToTargetActive = value; } }
+    public override OMV.Vector3 PIDTarget { set { MoveToTargetTarget = value; } }
+    public override float PIDTau { set { MoveToTargetTau = value; } }
+
+    public bool MoveToTargetActive { get; set; }
+    public OMV.Vector3 MoveToTargetTarget { get; set; }
+    public float MoveToTargetTau { get; set; }
+
+    // Used for llSetHoverHeight and maybe vehicle height. Hover Height will override MoveTo target's Z
+    public override bool PIDHoverActive { set { HoverActive = value; } }
+    public override float PIDHoverHeight { set { HoverHeight = value; } }
+    public override PIDHoverType PIDHoverType { set { HoverType = value; } }
+    public override float PIDHoverTau { set { HoverTau = value; } }
+
+    public bool HoverActive { get; set; }
+    public float HoverHeight { get;  set; }
+    public PIDHoverType HoverType { get;  set; }
+    public float HoverTau { get; set; }
+
+    // For RotLookAt
+    public override OMV.Quaternion APIDTarget { set { return; } }
+    public override bool APIDActive { set { return; } }
+    public override float APIDStrength { set { return; } }
+    public override float APIDDamping { set { return; } }
+
+    // The current velocity forward
     public virtual float ForwardSpeed
     {
         get
         {
             OMV.Vector3 characterOrientedVelocity = RawVelocity * OMV.Quaternion.Inverse(OMV.Quaternion.Normalize(RawOrientation));
             return characterOrientedVelocity.X;
+        }
+    }
+    // The forward speed we are trying to achieve (TargetVelocity)
+    public virtual float TargetVelocitySpeed
+    {
+        get
+        {
+            OMV.Vector3 characterOrientedVelocity = TargetVelocity * OMV.Quaternion.Inverse(OMV.Quaternion.Normalize(RawOrientation));
+            return characterOrientedVelocity.X;
+        }
+    }
+
+    // The user can optionally set the center of mass. The user's setting will override any
+    //    computed center-of-mass (like in linksets).
+    public OMV.Vector3? UserSetCenterOfMass { get; set; }
+
+    public OMV.Vector3 LockedAxis { get; set; } // zero means locked. one means free.
+    public readonly OMV.Vector3 LockedAxisFree = new OMV.Vector3(1f, 1f, 1f);  // All axis are free
+
+    // Enable physical actions. Bullet will keep sleeping non-moving physical objects so
+    //     they need waking up when parameters are changed.
+    // Called in taint-time!!
+    public void ActivateIfPhysical(bool forceIt)
+    {
+        if (IsPhysical && PhysBody.HasPhysicalBody)
+            PhysicsScene.PE.Activate(PhysBody, forceIt);
+    }
+
+    // 'actors' act on the physical object to change or constrain its motion. These can range from
+    //       hovering to complex vehicle motion.
+    // May be called at non-taint time as this just adds the actor to the action list and the real
+    //    work is done during the simulation step.
+    // Note that, if the actor is already in the list and we are disabling same, the actor is just left
+    //    in the list disabled.
+    public delegate BSActor CreateActor();
+    public void EnableActor(bool enableActor, string actorName, CreateActor creator)
+    {
+        lock (PhysicalActors)
+        {
+            BSActor theActor;
+            if (PhysicalActors.TryGetActor(actorName, out theActor))
+            {
+                // The actor already exists so just turn it on or off
+                DetailLog("{0},BSPhysObject.EnableActor,enablingExistingActor,name={1},enable={2}", LocalID, actorName, enableActor);
+                theActor.Enabled = enableActor;
+            }
+            else
+            {
+                // The actor does not exist. If it should, create it.
+                if (enableActor)
+                {
+                    DetailLog("{0},BSPhysObject.EnableActor,creatingActor,name={1}", LocalID, actorName);
+                    theActor = creator();
+                    PhysicalActors.Add(actorName, theActor);
+                    theActor.Enabled = true;
+                }
+                else
+                {
+                    DetailLog("{0},BSPhysObject.EnableActor,notCreatingActorSinceNotEnabled,name={1}", LocalID, actorName);
+                }
+            }
         }
     }
 
@@ -220,6 +330,14 @@ public abstract class BSPhysObject : PhysicsActor
     protected long CollidingObjectStep { get; set; }
     // The collision flags we think are set in Bullet
     protected CollisionFlags CurrentCollisionFlags { get; set; }
+    // On a collision, check the collider and remember if the last collider was moving
+    //    Used to modify the standing of avatars (avatars on stationary things stand still)
+    public bool ColliderIsMoving;
+    // Used by BSCharacter to manage standing (and not slipping)
+    public bool IsStationary;
+
+    // Count of collisions for this object
+    protected long CollisionAccumulation { get; set; }
 
     public override bool IsColliding {
         get { return (CollidingStep == PhysicsScene.SimulationStep); }
@@ -254,7 +372,7 @@ public abstract class BSPhysObject : PhysicsActor
     protected CollisionEventUpdate CollisionCollection;
     // Remember collisions from last tick for fancy collision based actions
     //     (like a BSCharacter walking up stairs).
-    protected CollisionEventUpdate CollisionsLastTick;
+    public CollisionEventUpdate CollisionsLastTick;
 
     // The simulation step is telling this object about a collision.
     // Return 'true' if a collision was processed and should be sent up.
@@ -276,17 +394,16 @@ public abstract class BSPhysObject : PhysicsActor
             CollidingObjectStep = PhysicsScene.SimulationStep;
         }
 
-        // prims in the same linkset cannot collide with each other
-        if (collidee != null && (this.Linkset.LinksetID == collidee.Linkset.LinksetID))
-        {
-            return ret;
-        }
+        CollisionAccumulation++;
 
-        // if someone has subscribed for collision events....
+        // For movement tests, remember if we are colliding with an object that is moving.
+        ColliderIsMoving = collidee != null ? (collidee.RawVelocity != OMV.Vector3.Zero) : false;
+
+        // If someone has subscribed for collision events log the collision so it will be reported up
         if (SubscribedEvents()) {
             CollisionCollection.AddCollider(collidingWith, new ContactPoint(contactPoint, contactNormal, pentrationDepth));
-            DetailLog("{0},{1}.Collison.AddCollider,call,with={2},point={3},normal={4},depth={5}",
-                            LocalID, TypeName, collidingWith, contactPoint, contactNormal, pentrationDepth);
+            DetailLog("{0},{1}.Collison.AddCollider,call,with={2},point={3},normal={4},depth={5},colliderMoving={6}",
+                            LocalID, TypeName, collidingWith, contactPoint, contactNormal, pentrationDepth, ColliderIsMoving);
 
             ret = true;
         }
@@ -300,8 +417,9 @@ public abstract class BSPhysObject : PhysicsActor
     public virtual bool SendCollisions()
     {
         bool ret = true;
+
         // If the 'no collision' call, force it to happen right now so quick collision_end
-        bool force = (CollisionCollection.Count == 0);
+        bool force = (CollisionCollection.Count == 0 && CollisionsLastTick.Count != 0);
 
         // throttle the collisions to the number of milliseconds specified in the subscription
         if (force || (PhysicsScene.SimulationNowTime >= NextCollisionOkTime))
@@ -316,7 +434,7 @@ public abstract class BSPhysObject : PhysicsActor
                 ret = false;
             }
 
-            // DetailLog("{0},{1}.SendCollisionUpdate,call,numCollisions={2}", LocalID, TypeName, CollisionCollection.Count);
+            DetailLog("{0},{1}.SendCollisionUpdate,call,numCollisions={2}", LocalID, TypeName, CollisionCollection.Count);
             base.SendCollisionUpdate(CollisionCollection);
 
             // Remember the collisions from this tick for some collision specific processing.
@@ -367,61 +485,35 @@ public abstract class BSPhysObject : PhysicsActor
     public override bool SubscribedEvents() {
         return (SubscribedEventsMs > 0);
     }
+    // Because 'CollisionScore' is called many times while sorting, it should not be recomputed
+    //    each time called. So this is built to be light weight for each collision and to do
+    //    all the processing when the user asks for the info.
+    public void ComputeCollisionScore()
+    {
+        // Scale the collision count by the time since the last collision.
+        // The "+1" prevents dividing by zero.
+        long timeAgo = PhysicsScene.SimulationStep - CollidingStep + 1;
+        CollisionScore = CollisionAccumulation / timeAgo;
+    }
+    public override float CollisionScore { get; set; }
 
     #endregion // Collisions
 
     #region Per Simulation Step actions
-    // There are some actions that must be performed for a physical object before each simulation step.
-    // These actions are optional so, rather than scanning all the physical objects and asking them
-    //     if they have anything to do, a physical object registers for an event call before the step is performed.
-    // This bookkeeping makes it easy to add, remove and clean up after all these registrations.
-    private Dictionary<string, BSScene.PreStepAction> RegisteredActions = new Dictionary<string, BSScene.PreStepAction>();
-    protected void RegisterPreStepAction(string op, uint id, BSScene.PreStepAction actn)
+
+    public BSActorCollection PhysicalActors;
+
+    // When an update to the physical properties happens, this event is fired to let
+    //    different actors to modify the update before it is passed around
+    public delegate void PreUpdatePropertyAction(ref EntityProperties entprop);
+    public event PreUpdatePropertyAction OnPreUpdateProperty;
+    protected void TriggerPreUpdatePropertyAction(ref EntityProperties entprop)
     {
-        string identifier = op + "-" + id.ToString();
-
-        lock (RegisteredActions)
-        {
-            // Clean out any existing action
-            UnRegisterPreStepAction(op, id);
-
-            RegisteredActions[identifier] = actn;
-        }
-        PhysicsScene.BeforeStep += actn;
-        DetailLog("{0},BSPhysObject.RegisterPreStepAction,id={1}", LocalID, identifier);
+        PreUpdatePropertyAction actions = OnPreUpdateProperty;
+        if (actions != null)
+            actions(ref entprop);
     }
 
-    // Unregister a pre step action. Safe to call if the action has not been registered.
-    protected void UnRegisterPreStepAction(string op, uint id)
-    {
-        string identifier = op + "-" + id.ToString();
-        bool removed = false;
-        lock (RegisteredActions)
-        {
-            if (RegisteredActions.ContainsKey(identifier))
-            {
-                PhysicsScene.BeforeStep -= RegisteredActions[identifier];
-                RegisteredActions.Remove(identifier);
-                removed = true;
-            }
-        }
-        DetailLog("{0},BSPhysObject.UnRegisterPreStepAction,id={1},removed={2}", LocalID, identifier, removed);
-    }
-
-    protected void UnRegisterAllPreStepActions()
-    {
-        lock (RegisteredActions)
-        {
-            foreach (KeyValuePair<string, BSScene.PreStepAction> kvp in RegisteredActions)
-            {
-                PhysicsScene.BeforeStep -= kvp.Value;
-            }
-            RegisteredActions.Clear();
-        }
-        DetailLog("{0},BSPhysObject.UnRegisterAllPreStepActions,", LocalID);
-    }
-
-    
     #endregion // Per Simulation Step actions
 
     // High performance detailed logging routine used by the physical objects.
@@ -431,6 +523,5 @@ public abstract class BSPhysObject : PhysicsActor
             PhysicsScene.DetailLog(msg, args);
     }
 
->>>>>>> upstream/master
 }
 }

@@ -223,7 +223,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         private void ActOnEmptyQueue()
         {
-            while (IsConnected)
+            while (true)
             {
                 m_queueEmptyEvent.WaitOne();
                 FireQueueEmpty(m_categories);

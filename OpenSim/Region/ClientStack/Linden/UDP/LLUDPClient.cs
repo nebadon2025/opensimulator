@@ -31,6 +31,7 @@ using System.Net;
 using System.Threading;
 using log4net;
 using OpenSim.Framework;
+using OpenSim.Framework.Monitoring;
 using OpenMetaverse;
 using OpenMetaverse.Packets;
 
@@ -141,6 +142,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             get { return m_throttleClient; }
         }
 
+        private AutoResetEvent m_queueEmptyEvent = new AutoResetEvent(false);
+
         /// <summary>Throttle bucket for this agent's connection</summary>
         private readonly TokenBucket m_throttleCategory;
         /// <summary>Throttle buckets for each packet category</summary>
@@ -213,6 +216,19 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
             // Initialize this to a sane value to prevent early disconnects
             TickLastPacketReceived = Environment.TickCount & Int32.MaxValue;
+
+            Watchdog.StartThread(
+                ActOnEmptyQueue, string.Format("ActOnEmptyQueue {0}", AgentID), ThreadPriority.Normal, false, false);
+        }
+
+        private void ActOnEmptyQueue()
+        {
+            while (true)
+            {
+                m_queueEmptyEvent.WaitOne();
+                FireQueueEmpty(m_categories);
+                Watchdog.UpdateThread();
+            }
         }
 
         /// <summary>
@@ -546,7 +562,9 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             }
 
             if (emptyCategories != 0)
+            {
                 BeginFireQueueEmpty(emptyCategories);
+            }
 
             //m_log.Info("[LLUDPCLIENT]: Queues: " + queueDebugOutput); // Serious debug business
             return packetSent;
@@ -606,6 +624,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             RTO = Math.Min(RTO * 2, m_maxRTO);
         }
 
+        private ThrottleOutPacketTypeFlags m_categories = 0;
+
         /// <summary>
         /// Does an early check to see if this queue empty callback is already
         /// running, then asynchronously firing the event
@@ -617,9 +637,19 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             {
                 // Use a value of 0 to signal that FireQueueEmpty is running
                 m_nextOnQueueEmpty = 0;
+                m_categories = categories;
+                m_queueEmptyEvent.Set();
                 // Asynchronously run the callback
-                Util.FireAndForget(FireQueueEmpty, categories);
+                //Util.FireAndForget(FireQueueEmpty, categories);
             }
+
+//            if (m_nextOnQueueEmpty != 0 && (Environment.TickCount & Int32.MaxValue) >= m_nextOnQueueEmpty)
+//            {
+//                // Use a value of 0 to signal that FireQueueEmpty is running
+//                m_nextOnQueueEmpty = 0;
+//                // Asynchronously run the callback
+//                Util.FireAndForget(FireQueueEmpty, categories);
+//            }
         }
 
         /// <summary>
@@ -631,6 +661,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         /// signature</param>
         private void FireQueueEmpty(object o)
         {
+//            m_log.DebugFormat("[LLUDPCLIENT]: Firing outbound UDP queue empty for {0}", AgentID);
+
             const int MIN_CALLBACK_MS = 30;
 
             ThrottleOutPacketTypeFlags categories = (ThrottleOutPacketTypeFlags)o;

@@ -572,6 +572,14 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 "debug lludp status",
                 "Return status of LLUDP packet processing.",
                 HandleStatusCommand);
+
+            MainConsole.Instance.Commands.AddCommand(
+                "Debug",
+                false,
+                "debug lludp toggle agentupdate",
+                "debug lludp toggle agentupdate",
+                "Toggle whether agentupdate packets are processed or simply discarded.",
+                HandleAgentUpdateCommand);
         }
 
         private void HandlePacketCommand(string module, string[] args)
@@ -704,6 +712,19 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             {
                 MainConsole.Instance.Output("Usage: debug lludp pool <on|off>");
             }
+        }
+
+        bool m_discardAgentUpdates;
+
+        private void HandleAgentUpdateCommand(string module, string[] args)
+        {
+            if (SceneManager.Instance.CurrentScene != null && SceneManager.Instance.CurrentScene != m_scene)
+                return;
+
+            m_discardAgentUpdates = !m_discardAgentUpdates;
+
+            MainConsole.Instance.OutputFormat(
+                "Discard AgentUpdates now {0} for {1}", m_discardAgentUpdates, m_scene.Name);
         }
 
         private void HandleStatusCommand(string module, string[] args)
@@ -1286,6 +1307,22 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             LogPacketHeader(true, udpClient.CircuitCode, 0, packet.Type, (ushort)packet.Length);
             #endregion BinaryStats
 
+            if (packet.Type == PacketType.AgentUpdate)
+            {
+                if (m_discardAgentUpdates)
+                    return;
+
+                AgentUpdatePacket agentUpdate = (AgentUpdatePacket)packet;
+
+                if (agentUpdate.AgentData.SessionID != client.SessionId 
+                    || agentUpdate.AgentData.AgentID != client.AgentId
+                    || !((LLClientView)client).CheckAgentUpdateSignificance(agentUpdate.AgentData))
+                {
+                    PacketPool.Instance.ReturnPacket(packet);
+                    return;
+                }
+            }
+
             #region Ping Check Handling
 
             if (packet.Type == PacketType.StartPingCheck)
@@ -1662,8 +1699,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             // Action generic every round
             Action<IClientAPI> clientPacketHandler = ClientOutgoingPacketHandler;
 
-            while (true)
-//            while (base.IsRunningOutbound)
+            while (base.IsRunningOutbound)
             {
                 try
                 {

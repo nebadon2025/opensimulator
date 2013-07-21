@@ -283,6 +283,8 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                 // and place an entry in m_assetMap
 
             m_log.Debug("[HG ASSET MAPPER]: Posting object " + assetID + " to asset server " + userAssetURL);
+            Util.PrintCallStack();
+
             AssetBase asset = m_scene.AssetService.Get(assetID.ToString());
             if (asset != null)
             {

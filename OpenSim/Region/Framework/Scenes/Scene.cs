@@ -4203,11 +4203,7 @@ namespace OpenSim.Region.Framework.Scenes
             if (childAgentUpdate != null)
             {
                 if (cAgentData.SessionID != childAgentUpdate.ControllingClient.SessionId)
-                {
                     m_log.WarnFormat("[SCENE]: Attempt to update agent {0} with invalid session id {1} (possibly from simulator in older version; tell them to update).", childAgentUpdate.UUID, cAgentData.SessionID);
-                    Console.WriteLine(String.Format("[SCENE]: Attempt to update agent {0} ({1}) with invalid session id {2}", 
-                        childAgentUpdate.UUID, childAgentUpdate.ControllingClient.SessionId, cAgentData.SessionID));
-                }
 
                 childAgentUpdate.ChildAgentDataUpdate(cAgentData);
                 return true;

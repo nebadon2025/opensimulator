@@ -3370,7 +3370,8 @@ namespace OpenSim.Region.Framework.Scenes
 //                "[SCENE PRESENCE]: Set callback for {0} in {1} to {2} in CopyFrom()",
 //                Name, m_scene.RegionInfo.RegionName, m_callbackURI);
 
-            m_pos = cAgent.Position;
+            //m_pos = cAgent.Position;
+            AbsolutePosition = cAgent.Position;
             m_velocity = cAgent.Velocity;
             CameraPosition = cAgent.Center;
             CameraAtAxis = cAgent.AtAxis;

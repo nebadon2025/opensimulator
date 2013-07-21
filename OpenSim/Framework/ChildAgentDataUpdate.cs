@@ -634,17 +634,17 @@ namespace OpenSim.Framework
             // The code to unpack textures, visuals, wearables and attachments
             // should be removed; packed appearance contains the full appearance
             // This is retained for backward compatibility only
-            if (args["texture_entry"] != null)
+            if (args.ContainsKey("texture_entry") && args["texture_entry"] != null)
             {
                 byte[] rawtextures = args["texture_entry"].AsBinary();
                 Primitive.TextureEntry textures = new Primitive.TextureEntry(rawtextures,0,rawtextures.Length);
                 Appearance.SetTextureEntries(textures);
             }
 
-            if (args["visual_params"] != null)
+            if (args.ContainsKey("visual_params") && args["visual_params"] != null)
                 Appearance.SetVisualParams(args["visual_params"].AsBinary());
 
-            if ((args["wearables"] != null) && (args["wearables"]).Type == OSDType.Array)
+            if (args.ContainsKey("wearables") && (args["wearables"] != null) && (args["wearables"]).Type == OSDType.Array)
             {
                 OSDArray wears = (OSDArray)(args["wearables"]);
                 for (int i = 0; i < wears.Count / 2; i++) 
@@ -654,7 +654,7 @@ namespace OpenSim.Framework
                 }
             }
 
-            if ((args["attachments"] != null) && (args["attachments"]).Type == OSDType.Array)
+            if (args.ContainsKey("attachments") && (args["attachments"] != null) && (args["attachments"]).Type == OSDType.Array)
             {
                 OSDArray attachs = (OSDArray)(args["attachments"]);
                 foreach (OSD o in attachs)

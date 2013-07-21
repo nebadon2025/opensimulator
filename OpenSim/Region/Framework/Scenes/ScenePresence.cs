@@ -1328,9 +1328,8 @@ namespace OpenSim.Region.Framework.Scenes
             }
 
             bool flying = ((m_AgentControlFlags & AgentManager.ControlFlags.AGENT_CONTROL_FLY) != 0);
-            ControllingClient.MoveAgentIntoRegion(m_scene.RegionInfo, AbsolutePosition, look);
             MakeRootAgent(AbsolutePosition, flying);
-
+            ControllingClient.MoveAgentIntoRegion(m_scene.RegionInfo, AbsolutePosition, look);
             // Remember in HandleUseCircuitCode, we delayed this to here
             // This will also send the initial data to clients when TP to a neighboring region. 
             // Not ideal, but until we know we're TP-ing from a neighboring region, there's not much we can do

@@ -1359,9 +1359,10 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
                 AgentUpdatePacket agentUpdate = (AgentUpdatePacket)packet;
 
+                LLClientView llClient = client as LLClientView;
                 if (agentUpdate.AgentData.SessionID != client.SessionId 
                     || agentUpdate.AgentData.AgentID != client.AgentId
-                    || !((LLClientView)client).CheckAgentUpdateSignificance(agentUpdate.AgentData))
+                    || !(llClient == null || llClient.CheckAgentUpdateSignificance(agentUpdate.AgentData)) )
                 {
                     PacketPool.Instance.ReturnPacket(packet);
                     return;

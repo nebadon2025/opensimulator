@@ -744,30 +744,30 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                 #endregion
                 capsPath = finalDestination.ServerURI + CapsUtil.GetCapsSeedPath(agentCircuit.CapsPath);
 
-                //if (m_eqModule != null)
-                //{
-                //    // The EnableSimulator message makes the client establish a connection with the destination
-                //    // simulator by sending the initial UseCircuitCode UDP packet to the destination containing the
-                //    // correct circuit code.
-                //    m_eqModule.EnableSimulator(destinationHandle, endPoint, sp.UUID);
+                if (m_eqModule != null)
+                {
+                    // The EnableSimulator message makes the client establish a connection with the destination
+                    // simulator by sending the initial UseCircuitCode UDP packet to the destination containing the
+                    // correct circuit code.
+                    m_eqModule.EnableSimulator(destinationHandle, endPoint, sp.UUID);
 
-                //    // XXX: Is this wait necessary?  We will always end up waiting on UpdateAgent for the destination
-                //    // simulator to confirm that it has established communication with the viewer.
-                //    Thread.Sleep(200);
+                    // XXX: Is this wait necessary?  We will always end up waiting on UpdateAgent for the destination
+                    // simulator to confirm that it has established communication with the viewer.
+                    Thread.Sleep(200);
 
-                //    // At least on LL 3.3.4 for teleports between different regions on the same simulator this appears
-                //    // unnecessary - teleport will succeed and SEED caps will be requested without it (though possibly
-                //    // only on TeleportFinish).  This is untested for region teleport between different simulators
-                //    // though this probably also works.
-                //    m_eqModule.EstablishAgentCommunication(sp.UUID, endPoint, capsPath);
-                //}
-                //else
-                //{
-                //    // XXX: This is a little misleading since we're information the client of its avatar destination,
-                //    // which may or may not be a neighbour region of the source region.  This path is probably little
-                //    // used anyway (with EQ being the one used).  But it is currently being used for test code.
-                //    sp.ControllingClient.InformClientOfNeighbour(destinationHandle, endPoint);
-                //}
+                    // At least on LL 3.3.4 for teleports between different regions on the same simulator this appears
+                    // unnecessary - teleport will succeed and SEED caps will be requested without it (though possibly
+                    // only on TeleportFinish).  This is untested for region teleport between different simulators
+                    // though this probably also works.
+                    m_eqModule.EstablishAgentCommunication(sp.UUID, endPoint, capsPath);
+                }
+                else
+                {
+                    // XXX: This is a little misleading since we're information the client of its avatar destination,
+                    // which may or may not be a neighbour region of the source region.  This path is probably little
+                    // used anyway (with EQ being the one used).  But it is currently being used for test code.
+                    sp.ControllingClient.InformClientOfNeighbour(destinationHandle, endPoint);
+                }
             }
             else
             {

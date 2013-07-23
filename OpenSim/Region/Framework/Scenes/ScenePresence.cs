@@ -1361,8 +1361,6 @@ namespace OpenSim.Region.Framework.Scenes
             // Tell the client that we're totally ready
             ControllingClient.MoveAgentIntoRegion(m_scene.RegionInfo, AbsolutePosition, look);
 
-            ValidateAndSendAppearanceAndAgentData();
-
             // Remember in HandleUseCircuitCode, we delayed this to here
             if (m_teleportFlags > 0)
                 SendInitialDataToMe();
@@ -1391,6 +1389,8 @@ namespace OpenSim.Region.Framework.Scenes
 //                    "[SCENE PRESENCE]: No callback provided on CompleteMovement of {0} {1} to {2}",
 //                    client.Name, client.AgentId, m_scene.RegionInfo.RegionName);
 //            }
+
+            ValidateAndSendAppearanceAndAgentData();
 
             // Create child agents in neighbouring regions
             if (openChildAgents && !IsChildAgent)

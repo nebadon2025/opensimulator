@@ -1627,6 +1627,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
                 bool ready = false;
                 while (!ready && count-- > 0)
                 {
+                    // Let's make sure there is an active client attached to a scene presence,
+                    // otherwise there won't be any handlers for this packet
                     if (m_scene.TryGetClient(endPoint, out client) && client.IsActive && client.SceneAgent != null)
                     {
                         LLClientView llClientView = (LLClientView)client;

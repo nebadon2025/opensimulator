@@ -1189,6 +1189,7 @@ namespace OpenSim.Framework.Servers.HttpServer
             OSD llsdResponse = null;
 
             bool LegacyLLSDLoginLibOMV = (requestBody.Contains("passwd") && requestBody.Contains("mac") && requestBody.Contains("viewer_digest"));
+            bool nohandler = false;
 
             if (requestBody.Length == 0)
             // Get Request
@@ -1227,17 +1228,19 @@ namespace OpenSim.Framework.Servers.HttpServer
                     {
                         // Oops, no handler for this..   give em the failed message
                         llsdResponse = GenerateNoLLSDHandlerResponse();
+                        nohandler = true;
                     }
                 }
             }
             else
             {
                 llsdResponse = GenerateNoLLSDHandlerResponse();
+                nohandler = true;
             }
 
             byte[] buffer = new byte[0];
 
-            if (llsdResponse.ToString() == "shutdown404!")
+            if (llsdResponse.ToString() == "shutdown404!" || nohandler)
             {
                 response.ContentType = "text/plain";
                 response.StatusCode = 404;

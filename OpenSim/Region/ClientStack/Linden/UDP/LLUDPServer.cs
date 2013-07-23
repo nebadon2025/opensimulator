@@ -69,15 +69,56 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
             StatsManager.RegisterStat(
                 new Stat(
+                    "IncomingUDPReceivesCount",
+                    "Number of UDP receives performed",
+                    "Number of UDP receives performed",
+                    "",
+                    "clientstack",
+                    scene.Name,
+                    StatType.Pull,
+                    MeasuresOfInterest.AverageChangeOverTime,
+                    stat => stat.Value = m_udpServer.UdpReceives,
+                    StatVerbosity.Debug));
+
+            StatsManager.RegisterStat(
+                new Stat(
                     "IncomingPacketsProcessedCount",
-                    "Number of inbound UDP packets processed",
-                    "Number of inbound UDP packets processed",
+                    "Number of inbound LL protocol packets processed",
+                    "Number of inbound LL protocol packets processed",
                     "",
                     "clientstack",
                     scene.Name,
                     StatType.Pull,
                     MeasuresOfInterest.AverageChangeOverTime,
                     stat => stat.Value = m_udpServer.IncomingPacketsProcessed,
+                    StatVerbosity.Debug));
+
+            StatsManager.RegisterStat(
+                new Stat(
+                    "OutgoingUDPSendsCount",
+                    "Number of UDP sends performed",
+                    "Number of UDP sends performed",
+                    "",
+                    "clientstack",
+                    scene.Name,
+                    StatType.Pull,
+                    MeasuresOfInterest.AverageChangeOverTime,
+                    stat => stat.Value = m_udpServer.UdpSends,
+                    StatVerbosity.Debug));
+
+            StatsManager.RegisterStat(
+                new Stat(
+                    "AverageUDPProcessTime",
+                    "Average number of milliseconds taken to process each incoming UDP packet in a sample.",
+                    "This is for initial receive processing which is separate from the later client LL packet processing stage.",
+                    "ms",
+                    "clientstack",
+                    scene.Name,
+                    StatType.Pull,
+                    MeasuresOfInterest.None,
+                    stat => stat.Value = m_udpServer.AverageReceiveTicksForLastSamplePeriod / TimeSpan.TicksPerMillisecond,
+//                    stat => 
+//                        stat.Value = Math.Round(m_udpServer.AverageReceiveTicksForLastSamplePeriod / TimeSpan.TicksPerMillisecond, 7),
                     StatVerbosity.Debug));
         }
 
@@ -459,6 +500,19 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             m_scene = (Scene)scene;
             m_location = new Location(m_scene.RegionInfo.RegionHandle);
 
+            StatsManager.RegisterStat(
+                new Stat(
+                    "InboxPacketsCount",
+                    "Number of LL protocol packets waiting for the second stage of processing after initial receive.",
+                    "Number of LL protocol packets waiting for the second stage of processing after initial receive.",
+                    "",
+                    "clientstack",
+                    scene.Name,
+                    StatType.Pull,
+                    MeasuresOfInterest.AverageChangeOverTime,
+                    stat => stat.Value = packetInbox.Count,
+                    StatVerbosity.Debug));
+
             // XXX: These stats are also pool stats but we register them separately since they are currently not
             // turned on and off by EnablePools()/DisablePools()
             StatsManager.RegisterStat(
@@ -828,7 +882,6 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
             PacketPool.Instance.ReturnPacket(packet);
             m_dataPresentEvent.Set();
-
         }
 
         private AutoResetEvent m_dataPresentEvent = new AutoResetEvent(false);
@@ -1331,9 +1384,10 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
                 AgentUpdatePacket agentUpdate = (AgentUpdatePacket)packet;
 
+                LLClientView llClient = client as LLClientView;
                 if (agentUpdate.AgentData.SessionID != client.SessionId 
                     || agentUpdate.AgentData.AgentID != client.AgentId
-                    || !((LLClientView)client).CheckAgentUpdateSignificance(agentUpdate.AgentData))
+                    || !(llClient == null || llClient.CheckAgentUpdateSignificance(agentUpdate.AgentData)) )
                 {
                     PacketPool.Instance.ReturnPacket(packet);
                     return;

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (c) Contributors, http://opensimulator.org/
  * See CONTRIBUTORS.TXT for a full list of copyright holders.
  *
@@ -97,6 +97,9 @@ public sealed class BSScene : PhysicsScene, IPhysicsParameters
 
     internal long m_simulationStep = 0; // The current simulation step.
     public long SimulationStep { get { return m_simulationStep; } }
+    // A number to use for SimulationStep that is probably not any step value
+    // Used by the collision code (which remembers the step when a collision happens) to remember not any simulation step.
+    public static long NotASimulationStep = -1234;
 
     internal float LastTimeStep { get; private set; }   // The simulation time from the last invocation of Simulate()
 
@@ -636,7 +639,8 @@ public sealed class BSScene : PhysicsScene, IPhysicsParameters
                     BSPhysObject pobj;
                     if (PhysObjects.TryGetValue(entprop.ID, out pobj))
                     {
-                        pobj.UpdateProperties(entprop);
+                        if (pobj.IsInitialized)
+                            pobj.UpdateProperties(entprop);
                     }
                 }
             }
@@ -648,7 +652,7 @@ public sealed class BSScene : PhysicsScene, IPhysicsParameters
         simTime = Util.EnvironmentTickCountSubtract(beforeTime);
         if (PhysicsLogging.Enabled)
         {
-            DetailLog("{0},DoPhysicsStep,call, frame={1}, nTaints={2}, simTime={3}, substeps={4}, updates={5}, colliders={6}, objWColl={7}",
+            DetailLog("{0},DoPhysicsStep,complete,frame={1}, nTaints={2}, simTime={3}, substeps={4}, updates={5}, colliders={6}, objWColl={7}",
                                     DetailLogZero, m_simulationStep, numTaints, simTime, numSubSteps,
                                     updatedEntityCount, collidersCount, ObjectsWithCollisions.Count);
         }
@@ -763,10 +767,13 @@ public sealed class BSScene : PhysicsScene, IPhysicsParameters
 
         // DetailLog("{0},BSScene.SendCollision,collide,id={1},with={2}", DetailLogZero, localID, collidingWith);
 
-        if (collider.Collide(collidingWith, collidee, collidePoint, collideNormal, penetration))
+        if (collider.IsInitialized)
         {
-            // If a collision was 'good', remember to send it to the simulator
-            ObjectsWithCollisions.Add(collider);
+            if (collider.Collide(collidingWith, collidee, collidePoint, collideNormal, penetration))
+            {
+                // If a collision was 'good', remember to send it to the simulator
+                ObjectsWithCollisions.Add(collider);
+            }
         }
 
         return;
@@ -785,7 +792,6 @@ public sealed class BSScene : PhysicsScene, IPhysicsParameters
             {
                 // The simulation of the time interval took less than realtime.
                 // Do a sleep for the rest of realtime.
-                DetailLog("{0},BulletSPluginPhysicsThread,sleeping={1}", BSScene.DetailLogZero, simulationTimeVsRealtimeDifferenceMS);
                 Thread.Sleep(simulationTimeVsRealtimeDifferenceMS);
             }
             else
@@ -860,6 +866,23 @@ public sealed class BSScene : PhysicsScene, IPhysicsParameters
 
     public override bool IsThreaded { get { return false;  } }
 
+    #region Extensions
+    // =============================================================
+    // Per scene functions. See below.
+
+    // Per avatar functions. See BSCharacter.
+
+    // Per prim functions. See BSPrim.
+    public const string PhysFunctGetLinksetType = "BulletSim.GetLinksetType";
+    public const string PhysFunctSetLinksetType = "BulletSim.SetLinksetType";
+    // =============================================================
+
+    public override object Extension(string pFunct, params object[] pParams)
+    {
+        return base.Extension(pFunct, pParams);
+    }
+    #endregion // Extensions
+
     #region Taints
     // The simulation execution order is:
     // Simulate()
@@ -923,7 +946,7 @@ public sealed class BSScene : PhysicsScene, IPhysicsParameters
 
     private void ProcessRegularTaints()
     {
-        if (_taintOperations.Count > 0)  // save allocating new list if there is nothing to process
+        if (m_initialized && _taintOperations.Count > 0)  // save allocating new list if there is nothing to process
         {
             // swizzle a new list into the list location so we can process what's there
             List<TaintCallbackEntry> oldList;
@@ -966,7 +989,7 @@ public sealed class BSScene : PhysicsScene, IPhysicsParameters
     // Taints that happen after the normal taint processing but before the simulation step.
     private void ProcessPostTaintTaints()
     {
-        if (_postTaintOperations.Count > 0)
+        if (m_initialized && _postTaintOperations.Count > 0)
         {
             Dictionary<string, TaintCallbackEntry> oldList;
             lock (_taintLock)

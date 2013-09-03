@@ -825,6 +825,8 @@ namespace OpenSim.Framework
         /// </remarks>
         event UpdateAgent OnAgentUpdate;
 
+        event UpdateAgent OnAgentCameraUpdate;
+
         event AgentRequestSit OnAgentRequestSit;
         event AgentSit OnAgentSit;
         event AvatarPickerRequest OnAvatarPickerRequest;
@@ -1474,7 +1476,7 @@ namespace OpenSim.Framework
         void SendChangeUserRights(UUID agentID, UUID friendID, int rights);
         void SendTextBoxRequest(string message, int chatChannel, string objectname, UUID ownerID, string ownerFirstName, string ownerLastName, UUID objectId);
 
-        void StopFlying(ISceneEntity presence);
+        void SendAgentTerseUpdate(ISceneEntity presence);
 
         void SendPlacesReply(UUID queryID, UUID transactionID, PlacesReplyData[] data);
     }

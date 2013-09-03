@@ -184,10 +184,6 @@
     ;; if the first change occurred this number of seconds ago.
     ; MaximumTimeBeforePersistenceConsidered = 600
 
-    ;# {see_into_this_sim_from_neighbor} {} {Should avatars in neighbor sims see objects in this sim?} {true false} true
-    ;; Should avatars in neighbor sims see objects in this sim?
-    ; see_into_this_sim_from_neighbor = true
-
     ;# {physical_prim} {} {Allow prims to be physical?} {true false} true
     ;; if you would like to allow prims to be physical and move by physics
     ;; with the physical checkbox in the client set this to true.
@@ -268,7 +264,7 @@
     ; AllowedClients =
 
     ;# {BannedClients} {} {Bar (|) separated list of banned clients} {}
-    ;# Bar (|) separated list of viewers which may not gain access to the regions.
+    ;; Bar (|) separated list of viewers which may not gain access to the regions.
     ;; One can use a Substring of the viewer name to disable only certain
     ;; versions
     ;; Example: Agent uses the viewer "Imprudence 1.3.2.0"
@@ -287,7 +283,7 @@
     ;; both to set this to false and comment out the [Modules] MapImageServiceModule setting in config-include/
     ; GenerateMaptiles = true
 
-    ;# {MapImageModule} [] {The map image module to use} {MapImageModule Warp3DImageModule} MapImageModule
+    ;# {MapImageModule} {} {The map image module to use} {MapImageModule Warp3DImageModule} MapImageModule
     ;; The module to use in order to generate map images.
     ;; MapImageModule is the default.  Warp3DImageModule is an alternative experimental module that can 
     ;; generate better images.
@@ -474,7 +470,10 @@
     ;# {XmlRpcPort} {} {Port for incoming llRemoteData xmlrpc calls} {} 20800
     ;XmlRpcPort = 20800
 
-    ;# {XmlRpcHubURI} {XmlRpcRouterModule} {URI for external service used to register xmlrpc channels created in the simulator. This depends on XmlRpcRouterModule being set to XmlRpcGridRouterModule} http://example.com
+
+;;    {option} {depends on} {question to ask} {choices} default value
+
+    ;# {XmlRpcHubURI} {XmlRpcRouterModule} {URI for external service used to register xmlrpc channels created in the simulator. This depends on XmlRpcRouterModule being set to XmlRpcGridRouterModule} {} http://example.com
     ;; If XmlRpcRouterModule is set to XmlRpcGridRouterModule, the simulator
     ;; will use this address to register xmlrpc channels on the external
     ;; service 
@@ -538,7 +537,7 @@
     ;; Distance in meters that ordinary chat should travel.
     ; say_distance = 20
 
-    ;# {shout_distance} {Distance at which a shout is heard, in meters?} {} 100
+    ;# {shout_distance} {} {Distance at which a shout is heard, in meters?} {} 100
     ;; Distance in meters that shouts should travel.
     ; shout_distance = 100
 
@@ -576,9 +575,9 @@
     ;; must be set to allow offline messaging to work.
     ; MuteListURL = http://yourserver/Mute.php
 
-    ;; Control whether group messages are forwarded to offline users.
+    ;; Control whether group invites and notices are stored for offline users.
     ;; Default is true.
-    ;; This applies to the core groups module (Flotsam) only.
+    ;; This applies to both core groups module.
     ; ForwardOfflineGroupMessages = true
 
 
@@ -613,7 +612,8 @@
     ;; the "password" parameter)
     ; access_password = ""
 
-    ;# List the IP addresses allowed to call RemoteAdmin
+    ;# {access_ip_addresses} {enabled:true} {List the IP addresses allowed to call RemoteAdmin?} {}
+    ;; List the IP addresses allowed to call RemoteAdmin
     ;; If access_ip_addresses isn't set, then all IP addresses can access RemoteAdmin.
     ;; access_ip_addresses = 0.0.0.0, 0.0.0.0 ...
     ; access_ip_addresses =
@@ -798,7 +798,7 @@
     ; ScriptStopStrategy = abort
     
 
-    ;# {DeleteScriptsOnStartup} {} {Delete previously compiled script DLLs on startup?} (true false) true
+    ;# {DeleteScriptsOnStartup} {} {Delete previously compiled script DLLs on startup?} {true false} true
     ;; Controls whether previously compiled scripts DLLs are deleted on sim restart. If you set this to false
     ;; then startup will be considerably faster since scripts won't need to be recompiled. However, then it becomes your responsibility to delete the
     ;; compiled scripts if you're recompiling OpenSim from source code and internal interfaces used
@@ -951,6 +951,10 @@
     ;; Enables the groups module
     ; Enabled = false
 
+    ;# {LevelGroupCreate} {Enabled:true} {User level for creating groups} {} 0
+    ;; Minimum user level required to create groups
+    ; LevelGroupCreate = 0
+
     ;# {Module} {Enabled:true} {Groups module to use? (Use GroupsModule to use Flotsam/Simian)} {Default "Groups Module V2"} Default
     ;; The default module can use a PHP XmlRpc server from the Flotsam project at
     ;; http://code.google.com/p/flotsam/
@@ -1001,6 +1005,12 @@
     ;# {NoticesEnabled} {Module:GroupsModule Module:Groups Module V2} {Enable group notices?} {true false} true
     ;; Enable Group Notices
     ; NoticesEnabled = true
+
+    ;# {MessageOnlineUsersOnly} {Module:GroupsModule Module} {Message online users only?} {true false} false
+    ; Experimental option to only message online users rather than all users
+    ; Should make large groups with few online members messaging faster, as the expense of more calls to presence service
+    ; Applies Flotsam Group only. V2 has this always on, no other option
+    ; MessageOnlineUsersOnly = false
 
     ;; This makes the Groups modules very chatty on the console.
     ; DebugEnabled = false

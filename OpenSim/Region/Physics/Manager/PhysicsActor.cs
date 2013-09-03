@@ -313,6 +313,13 @@ namespace OpenSim.Region.Physics.Manager
         public abstract void SubscribeEvents(int ms);
         public abstract void UnSubscribeEvents();
         public abstract bool SubscribedEvents();
+
+        // Extendable interface for new, physics engine specific operations
+        public virtual object Extension(string pFunct, params object[] pParams)
+        {
+            // A NOP of the physics engine does not implement this feature
+            return null;
+        }
     }
 
     public class NullPhysicsActor : PhysicsActor

@@ -387,6 +387,8 @@ namespace OpenSim.Framework.Servers.HttpServer
 
                 if (TryGetPollServiceHTTPHandler(request.UriPath.ToString(), out psEvArgs))
                 {
+                    psEvArgs.RequestsReceived++;
+
                     PollServiceHttpRequest psreq = new PollServiceHttpRequest(psEvArgs, context, request);
 
                     if (psEvArgs.Request != null)
@@ -688,7 +690,7 @@ namespace OpenSim.Framework.Servers.HttpServer
 
                 if (buffer != null)
                 {
-                    if (!response.SendChunked)
+                    if (!response.SendChunked && response.ContentLength64 <= 0)
                         response.ContentLength64 = buffer.LongLength;
 
                     response.OutputStream.Write(buffer, 0, buffer.Length);

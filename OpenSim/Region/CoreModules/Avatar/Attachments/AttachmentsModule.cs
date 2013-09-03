@@ -29,6 +29,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.IO;
+using System.Threading;
 using System.Xml;
 using log4net;
 using Mono.Addins;
@@ -50,6 +51,15 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         public int DebugLevel { get; set; }
+
+        /// <summary>
+        /// Period to sleep per 100 prims in order to avoid CPU spikes when an avatar with many attachments logs in/changes
+        /// outfit or many avatars with a medium levels of attachments login/change outfit simultaneously.
+        /// </summary>
+        /// <remarks>
+        /// A value of 0 will apply no pause.  The pause is specified in milliseconds.
+        /// </remarks>
+        public int ThrottlePer100PrimsRezzed { get; set; }
         
         private Scene m_scene;
         private IInventoryAccessModule m_invAccessModule;
@@ -66,18 +76,26 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
         {
             IConfig config = source.Configs["Attachments"];
             if (config != null)
+            {
                 Enabled = config.GetBoolean("Enabled", true);
+
+                ThrottlePer100PrimsRezzed = config.GetInt("ThrottlePer100PrimsRezzed", 0);
+            }
             else
+            {
                 Enabled = true;
+            }
         }
         
         public void AddRegion(Scene scene)
         {
             m_scene = scene;
-            m_scene.RegisterModuleInterface<IAttachmentsModule>(this);
-
             if (Enabled)
             {
+                // Only register module with scene if it is enabled. All callers check for a null attachments module.
+                // Ideally, there should be a null attachments module for when this core attachments module has been 
+                // disabled. Registering only when enabled allows for other attachments module implementations.
+                m_scene.RegisterModuleInterface<IAttachmentsModule>(this);
                 m_scene.EventManager.OnNewClient += SubscribeToClientEvents;
                 m_scene.EventManager.OnStartScript += (localID, itemID) => HandleScriptStateChange(localID, true);
                 m_scene.EventManager.OnStopScript += (localID, itemID) => HandleScriptStateChange(localID, false);
@@ -85,24 +103,43 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                 MainConsole.Instance.Commands.AddCommand(
                     "Debug",
                     false,
-                    "debug attachments",
-                    "debug attachments [0|1]",
-                    "Turn on attachments debugging\n"
-                        + "  <= 0 - turns off debugging\n"
-                        + "  >= 1 - turns on attachment message logging\n",
-                    HandleDebugAttachments);
+                    "debug attachments log",
+                    "debug attachments log [0|1]",
+                    "Turn on attachments debug logging",
+                    "  <= 0 - turns off debug logging\n"
+                        + "  >= 1 - turns on attachment message debug logging",
+                    HandleDebugAttachmentsLog);
+
+                MainConsole.Instance.Commands.AddCommand(
+                    "Debug",
+                    false,
+                    "debug attachments throttle",
+                    "debug attachments throttle <ms>",
+                    "Turn on attachments throttling.",
+                    "This requires a millisecond value.  " +
+                    "  == 0 - disable throttling.\n"
+                        + "  > 0 - sleeps for this number of milliseconds per 100 prims rezzed.",
+                    HandleDebugAttachmentsThrottle);
+
+                MainConsole.Instance.Commands.AddCommand(
+                    "Debug",
+                    false,
+                    "debug attachments status",
+                    "debug attachments status",
+                    "Show current attachments debug status",
+                    HandleDebugAttachmentsStatus);
             }
 
             // TODO: Should probably be subscribing to CloseClient too, but this doesn't yet give us IClientAPI
         }
 
-        private void HandleDebugAttachments(string module, string[] args)
+        private void HandleDebugAttachmentsLog(string module, string[] args)
         {
             int debugLevel;
 
-            if (!(args.Length == 3 && int.TryParse(args[2], out debugLevel)))
+            if (!(args.Length == 4 && int.TryParse(args[3], out debugLevel)))
             {
-                MainConsole.Instance.OutputFormat("Usage: debug attachments [0|1]");
+                MainConsole.Instance.OutputFormat("Usage: debug attachments log [0|1]");
             }
             else
             {
@@ -110,6 +147,29 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                 MainConsole.Instance.OutputFormat(
                     "Set event queue debug level to {0} in {1}", DebugLevel, m_scene.Name);
             }
+        }
+
+        private void HandleDebugAttachmentsThrottle(string module, string[] args)
+        {
+            int ms;
+
+            if (args.Length == 4 && int.TryParse(args[3], out ms))
+            {
+                ThrottlePer100PrimsRezzed = ms;
+                MainConsole.Instance.OutputFormat(
+                    "Attachments rez throttle per 100 prims is now {0} in {1}", ThrottlePer100PrimsRezzed, m_scene.Name);
+
+                return;
+            }
+
+            MainConsole.Instance.OutputFormat("Usage: debug attachments throttle <ms>");
+        }
+
+        private void HandleDebugAttachmentsStatus(string module, string[] args)
+        {
+            MainConsole.Instance.OutputFormat("Settings for {0}", m_scene.Name);
+            MainConsole.Instance.OutputFormat("Debug logging level: {0}", DebugLevel);
+            MainConsole.Instance.OutputFormat("Throttle per 100 prims: {0}ms", ThrottlePer100PrimsRezzed);
         }
 
         /// <summary>
@@ -238,7 +298,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
             List<AvatarAttachment> attachments = sp.Appearance.GetAttachments();
             foreach (AvatarAttachment attach in attachments)
             {
-                uint p = (uint)attach.AttachPoint;
+                uint attachmentPt = (uint)attach.AttachPoint;
 
 //                m_log.DebugFormat(
 //                    "[ATTACHMENTS MODULE]: Doing initial rez of attachment with itemID {0}, assetID {1}, point {2} for {3} in {4}",
@@ -257,13 +317,13 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
                     // If we're an NPC then skip all the item checks and manipulations since we don't have an
                     // inventory right now.
                     RezSingleAttachmentFromInventoryInternal(
-                        sp, sp.PresenceType == PresenceType.Npc ? UUID.Zero : attach.ItemID, attach.AssetID, p, true);
+                        sp, sp.PresenceType == PresenceType.Npc ? UUID.Zero : attach.ItemID, attach.AssetID, attachmentPt, true);
                 }
                 catch (Exception e)
                 {
                     UUID agentId = (sp.ControllingClient == null) ? (UUID)null : sp.ControllingClient.AgentId;
                     m_log.ErrorFormat("[ATTACHMENTS MODULE]: Unable to rez attachment with itemID {0}, assetID {1}, point {2} for {3}: {4}\n{5}",
-                        attach.ItemID, attach.AssetID, p, agentId, e.Message, e.StackTrace);
+                        attach.ItemID, attach.AssetID, attachmentPt, agentId, e.Message, e.StackTrace);
                 }
             }
         }
@@ -917,8 +977,8 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
 
             if (DebugLevel > 0)
                 m_log.DebugFormat(
-                    "[ATTACHMENTS MODULE]: Rezzed single object {0} for attachment to {1} on point {2} in {3}",
-                    objatt.Name, sp.Name, attachmentPt, m_scene.Name);
+                    "[ATTACHMENTS MODULE]: Rezzed single object {0} with {1} prims for attachment to {2} on point {3} in {4}",
+                    objatt.Name, objatt.PrimCount, sp.Name, attachmentPt, m_scene.Name);
 
             // HasGroupChanged is being set from within RezObject.  Ideally it would be set by the caller.
             objatt.HasGroupChanged = false;
@@ -949,7 +1009,19 @@ namespace OpenSim.Region.CoreModules.Avatar.Attachments
             }
 
             if (tainted)
-                objatt.HasGroupChanged = true;
+                objatt.HasGroupChanged = true;           
+
+            if (ThrottlePer100PrimsRezzed > 0)
+            {
+                int throttleMs = (int)Math.Round((float)objatt.PrimCount / 100 * ThrottlePer100PrimsRezzed);
+
+                if (DebugLevel > 0)
+                    m_log.DebugFormat(
+                        "[ATTACHMENTS MODULE]: Throttling by {0}ms after rez of {1} with {2} prims for attachment to {3} on point {4} in {5}",
+                        throttleMs, objatt.Name, objatt.PrimCount, sp.Name, attachmentPt, m_scene.Name);
+
+                Thread.Sleep(throttleMs);
+            }
 
             return objatt;
         }

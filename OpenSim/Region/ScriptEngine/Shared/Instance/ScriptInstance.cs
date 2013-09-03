@@ -241,7 +241,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
             if (Engine.Config.GetString("ScriptStopStrategy", "abort") == "co-op")
             {
                 m_coopTermination = true;
-                m_coopSleepHandle = new AutoResetEvent(false);
+                m_coopSleepHandle = new XEngineEventWaitHandle(false, EventResetMode.AutoReset);
             }
         }
 
@@ -525,7 +525,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                 m_log.Warn(
                     string.Format(
                         "[SCRIPT INSTANCE]: Could not delete script state {0} for script {1} (id {2}) in part {3} (id {4}) in object {5} in {6}.  Exception  ", 
-                        ScriptTask.Name, ScriptTask.ItemID, Part.Name, Part.UUID, Part.ParentGroup.Name, Engine.World.Name), 
+                        savedState, ScriptTask.Name, ScriptTask.ItemID, Part.Name, Part.UUID, Part.ParentGroup.Name, Engine.World.Name), 
                     e);
             }
         }
@@ -1199,6 +1199,25 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
         public void Resume()
         {
             Suspended = false;
+        }
+    }
+
+    /// <summary>
+    /// Xengine event wait handle.
+    /// </summary>
+    /// <remarks>
+    /// This class exists becase XEngineScriptBase gets a reference to this wait handle.  We need to make sure that
+    /// when scripts are running in different AppDomains the lease does not expire.
+    /// FIXME: Like LSL_Api, etc., this effectively leaks memory since the GC will never collect it.  To avoid this,
+    /// proper remoting sponsorship needs to be implemented across the board.
+    /// </remarks>
+    public class XEngineEventWaitHandle : EventWaitHandle
+    {
+        public XEngineEventWaitHandle(bool initialState, EventResetMode mode) : base(initialState, mode) {}
+
+        public override Object InitializeLifetimeService()
+        {
+            return null;
         }
     }
 }

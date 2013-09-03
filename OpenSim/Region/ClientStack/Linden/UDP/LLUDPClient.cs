@@ -31,6 +31,7 @@ using System.Net;
 using System.Threading;
 using log4net;
 using OpenSim.Framework;
+using OpenSim.Framework.Monitoring;
 using OpenMetaverse;
 using OpenMetaverse.Packets;
 
@@ -80,6 +81,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         /// <summary>Fired when the queue for a packet category is empty. This event can be
         /// hooked to put more data on the empty queue</summary>
         public event QueueEmpty OnQueueEmpty;
+
+        public event Func<ThrottleOutPacketTypeFlags, bool> HasUpdates;
 
         /// <summary>AgentID for this client</summary>
         public readonly UUID AgentID;
@@ -158,6 +161,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
 
         private int m_defaultRTO = 1000; // 1sec is the recommendation in the RFC
         private int m_maxRTO = 60000;
+
+        private ClientInfo m_info = new ClientInfo();
 
         /// <summary>
         /// Default constructor
@@ -240,20 +245,17 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             // TODO: This data structure is wrong in so many ways. Locking and copying the entire lists
             // of pending and needed ACKs for every client every time some method wants information about
             // this connection is a recipe for poor performance
-            ClientInfo info = new ClientInfo();
-            info.pendingAcks = new Dictionary<uint, uint>();
-            info.needAck = new Dictionary<uint, byte[]>();
 
-            info.resendThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Resend].DripRate;
-            info.landThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Land].DripRate;
-            info.windThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Wind].DripRate;
-            info.cloudThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Cloud].DripRate;
-            info.taskThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Task].DripRate;
-            info.assetThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Asset].DripRate;
-            info.textureThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Texture].DripRate;
-            info.totalThrottle = (int)m_throttleCategory.DripRate;
+            m_info.resendThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Resend].DripRate;
+            m_info.landThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Land].DripRate;
+            m_info.windThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Wind].DripRate;
+            m_info.cloudThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Cloud].DripRate;
+            m_info.taskThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Task].DripRate;
+            m_info.assetThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Asset].DripRate;
+            m_info.textureThrottle = (int)m_throttleCategories[(int)ThrottleOutPacketType.Texture].DripRate;
+            m_info.totalThrottle = (int)m_throttleCategory.DripRate;
 
-            return info;
+            return m_info;
         }
 
         /// <summary>
@@ -614,14 +616,37 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         /// <param name="categories">Throttle categories to fire the callback for</param>
         private void BeginFireQueueEmpty(ThrottleOutPacketTypeFlags categories)
         {
-            if (m_nextOnQueueEmpty != 0 && (Environment.TickCount & Int32.MaxValue) >= m_nextOnQueueEmpty)
+//            if (m_nextOnQueueEmpty != 0 && (Environment.TickCount & Int32.MaxValue) >= m_nextOnQueueEmpty)
+            if (!m_isQueueEmptyRunning && (Environment.TickCount & Int32.MaxValue) >= m_nextOnQueueEmpty)
             {
+                m_isQueueEmptyRunning = true;
+
+                int start = Environment.TickCount & Int32.MaxValue;
+                const int MIN_CALLBACK_MS = 30;
+
+                m_nextOnQueueEmpty = start + MIN_CALLBACK_MS;
+                if (m_nextOnQueueEmpty == 0)
+                    m_nextOnQueueEmpty = 1;
+
                 // Use a value of 0 to signal that FireQueueEmpty is running
-                m_nextOnQueueEmpty = 0;
-                // Asynchronously run the callback
-                Util.FireAndForget(FireQueueEmpty, categories);
+//                m_nextOnQueueEmpty = 0;
+
+                m_categories = categories;
+
+                if (HasUpdates(m_categories))
+                {
+                    // Asynchronously run the callback
+                    Util.FireAndForget(FireQueueEmpty, categories);
+                }
+                else
+                {
+                    m_isQueueEmptyRunning = false;
+                }
             }
         }
+
+        private bool m_isQueueEmptyRunning;
+        private ThrottleOutPacketTypeFlags m_categories = 0;
 
         /// <summary>
         /// Fires the OnQueueEmpty callback and sets the minimum time that it
@@ -632,22 +657,31 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         /// signature</param>
         private void FireQueueEmpty(object o)
         {
-            const int MIN_CALLBACK_MS = 30;
+//            int start = Environment.TickCount & Int32.MaxValue;
+//            const int MIN_CALLBACK_MS = 30;
 
-            ThrottleOutPacketTypeFlags categories = (ThrottleOutPacketTypeFlags)o;
-            QueueEmpty callback = OnQueueEmpty;
-            
-            int start = Environment.TickCount & Int32.MaxValue;
+//            if (m_udpServer.IsRunningOutbound)
+//            {        
+                ThrottleOutPacketTypeFlags categories = (ThrottleOutPacketTypeFlags)o;
+                QueueEmpty callback = OnQueueEmpty;                      
 
-            if (callback != null)
-            {
-                try { callback(categories); }
-                catch (Exception e) { m_log.Error("[LLUDPCLIENT]: OnQueueEmpty(" + categories + ") threw an exception: " + e.Message, e); }
-            }
+                if (callback != null)
+                {
+//                    if (m_udpServer.IsRunningOutbound)
+//                    {                
+                        try { callback(categories); }
+                        catch (Exception e) { m_log.Error("[LLUDPCLIENT]: OnQueueEmpty(" + categories + ") threw an exception: " + e.Message, e); }
+//                    }
+                }
+//            }
 
-            m_nextOnQueueEmpty = start + MIN_CALLBACK_MS;
-            if (m_nextOnQueueEmpty == 0)
-                m_nextOnQueueEmpty = 1;
+//            m_nextOnQueueEmpty = start + MIN_CALLBACK_MS;
+//            if (m_nextOnQueueEmpty == 0)
+//                m_nextOnQueueEmpty = 1;
+
+//            }
+
+            m_isQueueEmptyRunning = false;
         }
 
         /// <summary>

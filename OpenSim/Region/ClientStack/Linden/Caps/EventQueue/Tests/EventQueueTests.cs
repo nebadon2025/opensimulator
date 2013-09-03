@@ -76,7 +76,7 @@ namespace OpenSim.Region.ClientStack.Linden.Tests
         }
 
         [Test]
-        public void AddForClient()
+        public void TestAddForClient()
         {
             TestHelpers.InMethod();
 //            log4net.Config.XmlConfigurator.Configure();
@@ -88,10 +88,10 @@ namespace OpenSim.Region.ClientStack.Linden.Tests
         }
 
         [Test]
-        public void RemoveForClient()
+        public void TestRemoveForClient()
         {
             TestHelpers.InMethod();
-//            log4net.Config.XmlConfigurator.Configure();
+//            TestHelpers.EnableLogging();
 
             UUID spId = TestHelpers.ParseTail(0x1);
 

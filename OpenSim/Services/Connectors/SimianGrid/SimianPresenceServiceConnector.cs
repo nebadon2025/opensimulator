@@ -65,7 +65,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
         public void PostInitialise() { }
         public void Close() { }
 
-        public SimianPresenceServiceConnector() { m_activityDetector = new SimianActivityDetector(this); }
+        public SimianPresenceServiceConnector() { }
         public string Name { get { return "SimianPresenceServiceConnector"; } }
         public void AddRegion(Scene scene)
         {
@@ -121,6 +121,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
                     if (!serviceUrl.EndsWith("/") && !serviceUrl.EndsWith("="))
                         serviceUrl = serviceUrl + '/';
                     m_serverUrl = serviceUrl;
+                    m_activityDetector = new SimianActivityDetector(this); 
                     m_Enabled = true;
                 }
             }
@@ -148,7 +149,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
                 requestArgs["SecureSessionID"] = secureSessionID.ToString();
             }
 
-            OSDMap response = WebUtil.PostToService(m_serverUrl, requestArgs);
+            OSDMap response = SimianGrid.PostToService(m_serverUrl, requestArgs);
             bool success = response["Success"].AsBoolean();
 
             if (!success)
@@ -167,7 +168,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
                         { "SessionID", sessionID.ToString() }
                 };
 
-            OSDMap response = WebUtil.PostToService(m_serverUrl, requestArgs);
+            OSDMap response = SimianGrid.PostToService(m_serverUrl, requestArgs);
             bool success = response["Success"].AsBoolean();
 
             if (!success)
@@ -186,7 +187,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
                         { "SceneID", regionID.ToString() }
                 };
 
-            OSDMap response = WebUtil.PostToService(m_serverUrl, requestArgs);
+            OSDMap response = SimianGrid.PostToService(m_serverUrl, requestArgs);
             bool success = response["Success"].AsBoolean();
 
             if (!success)
@@ -231,7 +232,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
                 { "UserIDList", String.Join(",",userIDs) }
             };
 
-            OSDMap sessionListResponse = WebUtil.PostToService(m_serverUrl, requestArgs);
+            OSDMap sessionListResponse = SimianGrid.PostToService(m_serverUrl, requestArgs);
             if (! sessionListResponse["Success"].AsBoolean())
             {
                 m_log.WarnFormat("[SIMIAN PRESENCE CONNECTOR]: Failed to retrieve sessions: {0}",sessionListResponse["Message"].AsString());
@@ -274,7 +275,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
                         { "LastLocation", SerializeLocation(regionID, lastPosition, lastLookAt) }
                 };
 
-            OSDMap response = WebUtil.PostToService(m_serverUrl, requestArgs);
+            OSDMap response = SimianGrid.PostToService(m_serverUrl, requestArgs);
             bool success = response["Success"].AsBoolean();
 
             if (!success)
@@ -294,7 +295,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
                         { "HomeLocation", SerializeLocation(regionID, position, lookAt) }
                 };
 
-            OSDMap response = WebUtil.PostToService(m_serverUrl, requestArgs);
+            OSDMap response = SimianGrid.PostToService(m_serverUrl, requestArgs);
             bool success = response["Success"].AsBoolean();
 
             if (!success)
@@ -314,11 +315,15 @@ namespace OpenSim.Services.Connectors.SimianGrid
 
             UUID userID = new UUID(user);
             OSDMap userResponse = GetUserData(userID);
-            if (userResponse != null)
-                return ResponseToGridUserInfo(userResponse);
 
-            m_log.WarnFormat("[SIMIAN PRESENCE CONNECTOR]: Failed to retrieve user data for {0}: {1}",userID,userResponse["Message"].AsString());
-            return null;
+            if (userResponse == null)
+            {
+                m_log.WarnFormat("[SIMIAN PRESENCE CONNECTOR]: Failed to retrieve user data for {0}", userID);
+            }
+
+            // Note that ResponseToGridUserInfo properly checks for and returns a null if passed a null.
+            return ResponseToGridUserInfo(userResponse);
+
         }
 
         #endregion
@@ -335,7 +340,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
                         { "UserID", userID.ToString() }
                 };
 
-            OSDMap response = WebUtil.PostToService(m_serverUrl, requestArgs);
+            OSDMap response = SimianGrid.PostToService(m_serverUrl, requestArgs);
             if (response["Success"].AsBoolean() && response["User"] is OSDMap)
                 return response;
 
@@ -351,7 +356,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
                         { "SessionID", sessionID.ToString() }
                 };
 
-            OSDMap response = WebUtil.PostToService(m_serverUrl, requestArgs);
+            OSDMap response = SimianGrid.PostToService(m_serverUrl, requestArgs);
             if (response["Success"].AsBoolean())
                 return response;
 
@@ -371,7 +376,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
                         { "SceneLookAt", lastLookAt.ToString() }
                 };
 
-            OSDMap response = WebUtil.PostToService(m_serverUrl, requestArgs);
+            OSDMap response = SimianGrid.PostToService(m_serverUrl, requestArgs);
             bool success = response["Success"].AsBoolean();
 
             if (!success)

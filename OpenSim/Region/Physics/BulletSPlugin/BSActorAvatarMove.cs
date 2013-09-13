@@ -69,7 +69,9 @@ public class BSActorAvatarMove : BSActor
     // BSActor.Dispose()
     public override void Dispose()
     {
-        Enabled = false;
+        base.SetEnabled(false);
+        // Now that turned off, remove any state we have in the scene.
+        Refresh();
     }
 
     // Called when physical parameters (properties set in Bullet) need to be re-applied.
@@ -103,7 +105,7 @@ public class BSActorAvatarMove : BSActor
     //     into the movement motor.
     public void SetVelocityAndTarget(OMV.Vector3 vel, OMV.Vector3 targ, bool inTaintTime)
     {
-        m_physicsScene.TaintedObject(inTaintTime, "BSActorAvatarMove.setVelocityAndTarget", delegate()
+        m_physicsScene.TaintedObject(inTaintTime, m_controllingPrim.LocalID, "BSActorAvatarMove.setVelocityAndTarget", delegate()
         {
             if (m_velocityMotor != null)
             {
@@ -130,6 +132,7 @@ public class BSActorAvatarMove : BSActor
             SetVelocityAndTarget(m_controllingPrim.RawVelocity, m_controllingPrim.TargetVelocity, true /* inTaintTime */);
 
             m_physicsScene.BeforeStep += Mover;
+            m_controllingPrim.OnPreUpdateProperty += Process_OnPreUpdateProperty;
 
             m_walkingUpStairs = 0;
         }
@@ -139,6 +142,7 @@ public class BSActorAvatarMove : BSActor
     {
         if (m_velocityMotor != null)
         {
+            m_controllingPrim.OnPreUpdateProperty -= Process_OnPreUpdateProperty;
             m_physicsScene.BeforeStep -= Mover;
             m_velocityMotor = null;
         }
@@ -179,7 +183,7 @@ public class BSActorAvatarMove : BSActor
             if (m_controllingPrim.IsColliding)
             {
                 // If we are colliding with a stationary object, presume we're standing and don't move around
-                if (!m_controllingPrim.ColliderIsMoving)
+                if (!m_controllingPrim.ColliderIsMoving && !m_controllingPrim.ColliderIsVolumeDetect)
                 {
                     m_physicsScene.DetailLog("{0},BSCharacter.MoveMotor,collidingWithStationary,zeroingMotion", m_controllingPrim.LocalID);
                     m_controllingPrim.IsStationary = true;
@@ -197,7 +201,7 @@ public class BSActorAvatarMove : BSActor
             {
                 if (m_controllingPrim.Flying)
                 {
-                    // Flying and not collising and velocity nearly zero.
+                    // Flying and not colliding and velocity nearly zero.
                     m_controllingPrim.ZeroMotion(true /* inTaintTime */);
                 }
             }
@@ -266,6 +270,19 @@ public class BSActorAvatarMove : BSActor
         }
     }
 
+    // Called just as the property update is received from the physics engine.
+    // Do any mode necessary for avatar movement.
+    private void Process_OnPreUpdateProperty(ref EntityProperties entprop)
+    {
+        // Don't change position if standing on a stationary object.
+        if (m_controllingPrim.IsStationary)
+        {
+            entprop.Position = m_controllingPrim.RawPosition;
+            m_physicsScene.PE.SetTranslation(m_controllingPrim.PhysBody, entprop.Position, entprop.Rotation);
+        }
+
+    }
+
     // Decide if the character is colliding with a low object and compute a force to pop the
     //    avatar up so it can walk up and over the low objects.
     private OMV.Vector3 WalkUpStairs()
@@ -296,21 +313,28 @@ public class BSActorAvatarMove : BSActor
                 // Don't care about collisions with the terrain
                 if (kvp.Key > m_physicsScene.TerrainManager.HighestTerrainID)
                 {
-                    OMV.Vector3 touchPosition = kvp.Value.Position;
-                    m_physicsScene.DetailLog("{0},BSCharacter.WalkUpStairs,min={1},max={2},touch={3}",
-                                    m_controllingPrim.LocalID, nearFeetHeightMin, nearFeetHeightMax, touchPosition);
-                    if (touchPosition.Z >= nearFeetHeightMin && touchPosition.Z <= nearFeetHeightMax)
+                    BSPhysObject collisionObject;
+                    if (m_physicsScene.PhysObjects.TryGetValue(kvp.Key, out collisionObject))
                     {
-                        // This contact is within the 'near the feet' range.
-                        // The normal should be our contact point to the object so it is pointing away
-                        //    thus the difference between our facing orientation and the normal should be small.
-                        OMV.Vector3 directionFacing = OMV.Vector3.UnitX * m_controllingPrim.RawOrientation;
-                        OMV.Vector3 touchNormal = OMV.Vector3.Normalize(kvp.Value.SurfaceNormal);
-                        float diff = Math.Abs(OMV.Vector3.Distance(directionFacing, touchNormal));
-                        if (diff < BSParam.AvatarStepApproachFactor)
+                        if (!collisionObject.IsVolumeDetect)
                         {
-                            if (highestTouchPosition.Z < touchPosition.Z)
-                                highestTouchPosition = touchPosition;
+                            OMV.Vector3 touchPosition = kvp.Value.Position;
+                            m_physicsScene.DetailLog("{0},BSCharacter.WalkUpStairs,min={1},max={2},touch={3}",
+                                            m_controllingPrim.LocalID, nearFeetHeightMin, nearFeetHeightMax, touchPosition);
+                            if (touchPosition.Z >= nearFeetHeightMin && touchPosition.Z <= nearFeetHeightMax)
+                            {
+                                // This contact is within the 'near the feet' range.
+                                // The normal should be our contact point to the object so it is pointing away
+                                //    thus the difference between our facing orientation and the normal should be small.
+                                OMV.Vector3 directionFacing = OMV.Vector3.UnitX * m_controllingPrim.RawOrientation;
+                                OMV.Vector3 touchNormal = OMV.Vector3.Normalize(kvp.Value.SurfaceNormal);
+                                float diff = Math.Abs(OMV.Vector3.Distance(directionFacing, touchNormal));
+                                if (diff < BSParam.AvatarStepApproachFactor)
+                                {
+                                    if (highestTouchPosition.Z < touchPosition.Z)
+                                        highestTouchPosition = touchPosition;
+                                }
+                            }
                         }
                     }
                 }

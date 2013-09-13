@@ -57,6 +57,8 @@ public class BasicVehicles : OpenSimTestCase
     public void Init()
     {
         Dictionary<string, string> engineParams = new Dictionary<string, string>();
+        engineParams.Add("VehicleEnableAngularVerticalAttraction", "true");
+        engineParams.Add("VehicleAngularVerticalAttractionAlgorithm", "1");
         PhysicsScene = BulletSimTestsUtil.CreateBasicPhysicsEngine(engineParams);
 
         PrimitiveBaseShape pbs = PrimitiveBaseShape.CreateSphere();
@@ -114,12 +116,12 @@ public class BasicVehicles : OpenSimTestCase
         //    Instead the appropriate values are set and calls are made just the parts of the
         //    controller we want to exercise. Stepping the physics engine then applies
         //    the actions of that one feature.
-        BSDynamics vehicleActor = TestVehicle.GetVehicleActor();
+        BSDynamics vehicleActor = TestVehicle.GetVehicleActor(true /* createIfNone */);
         if (vehicleActor != null)
         {
             vehicleActor.ProcessFloatVehicleParam(Vehicle.VERTICAL_ATTRACTION_EFFICIENCY, efficiency);
             vehicleActor.ProcessFloatVehicleParam(Vehicle.VERTICAL_ATTRACTION_TIMESCALE, timeScale);
-            vehicleActor.enableAngularVerticalAttraction = true;
+            // vehicleActor.enableAngularVerticalAttraction = true;
 
             TestVehicle.IsPhysical = true;
             PhysicsScene.ProcessTaints();

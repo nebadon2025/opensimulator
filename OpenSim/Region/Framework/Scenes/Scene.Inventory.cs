@@ -139,7 +139,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     userlevel = 1;
                 }
-                EventManager.TriggerOnNewInventoryItemUploadComplete(item.Owner, item.AssetID, item.Name, userlevel);
+                EventManager.TriggerOnNewInventoryItemUploadComplete(item.Owner, (AssetType)item.AssetType, item.AssetID, item.Name, userlevel);
 
                 return true;
             }
@@ -178,7 +178,7 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     userlevel = 1;
                 }
-                EventManager.TriggerOnNewInventoryItemUploadComplete(item.Owner, item.AssetID, item.Name, userlevel);
+                EventManager.TriggerOnNewInventoryItemUploadComplete(item.Owner, (AssetType)item.AssetType, item.AssetID, item.Name, userlevel);
 
                 if (originalFolder != UUID.Zero)
                 {
@@ -416,6 +416,8 @@ namespace OpenSim.Region.Framework.Scenes
 //                        itemUpd.NextPermissions, itemUpd.GroupPermissions, itemUpd.EveryOnePermissions, item.Flags,
 //                        item.NextPermissions, item.GroupPermissions, item.EveryOnePermissions, item.CurrentPermissions);
 
+                bool sendUpdate = false;
+
                 if (itemUpd.NextPermissions != 0) // Use this to determine validity. Can never be 0 if valid
                 {
                     // Create a set of base permissions that will not include export if the user
@@ -489,11 +491,13 @@ namespace OpenSim.Region.Framework.Scenes
                     item.SalePrice = itemUpd.SalePrice;
                     item.SaleType = itemUpd.SaleType;
 
-                    InventoryService.UpdateItem(item);
+                    if (item.InvType == (int)InventoryType.Wearable && (item.Flags & 0xf) == 0 && (itemUpd.Flags & 0xf) != 0)
+                    {
+                        item.Flags = (uint)(item.Flags & 0xfffffff0) | (itemUpd.Flags & 0xf);
+                        sendUpdate = true;
+                    }
 
-                    // We cannot send out a bulk update here, since this will cause editing of clothing to start 
-                    // failing frequently.  Possibly this is a race with a separate transaction that uploads the asset.
-//                    remoteClient.SendBulkUpdateInventory(item);
+                    InventoryService.UpdateItem(item);
                 }
 
                 if (UUID.Zero != transactionID)
@@ -502,6 +506,14 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         AgentTransactionsModule.HandleItemUpdateFromTransaction(remoteClient, transactionID, item);
                     }
+                }
+                else
+                {
+                    // This MAY be problematic, if it is, another solution
+                    // needs to be found. If inventory item flags are updated
+                    // the viewer's notion of the item needs to be refreshed.
+                    if (sendUpdate)
+                        remoteClient.SendBulkUpdateInventory(item);
                 }
             }
             else
@@ -555,6 +567,9 @@ namespace OpenSim.Region.Framework.Scenes
             UUID recipient, UUID senderId, UUID itemId, UUID recipientFolderId)
         {
             //Console.WriteLine("Scene.Inventory.cs: GiveInventoryItem");
+
+            if (!Permissions.CanTransferUserInventory(itemId, senderId, recipient))
+                return null;
 
             InventoryItemBase item = new InventoryItemBase(itemId, senderId);
             item = InventoryService.GetItem(item);
@@ -2068,7 +2083,10 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 // If we don't have permission, stop right here
                 if (!permissionToTakeCopy)
+                {
+                    remoteClient.SendAlertMessage("You don't have permission to take the object");
                     return;
+                }
 
                 permissionToTake = true;
                 // Don't delete

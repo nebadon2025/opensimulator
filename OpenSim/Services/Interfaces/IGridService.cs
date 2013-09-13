@@ -97,6 +97,7 @@ namespace OpenSim.Services.Interfaces
         List<GridRegion> GetRegionRange(UUID scopeID, int xmin, int xmax, int ymin, int ymax);
 
         List<GridRegion> GetDefaultRegions(UUID scopeID);
+        List<GridRegion> GetDefaultHypergridRegions(UUID scopeID);
         List<GridRegion> GetFallbackRegions(UUID scopeID, int x, int y);
         List<GridRegion> GetHyperlinks(UUID scopeID);
 
@@ -137,7 +138,10 @@ namespace OpenSim.Services.Interfaces
                 if ( m_serverURI != string.Empty ) {
                     return m_serverURI;
                 } else {
-                    return "http://" + m_externalHostName + ":" + m_httpPort + "/";
+                    if (m_httpPort == 0)
+                        return "http://" + m_externalHostName + "/";
+                    else
+                        return "http://" + m_externalHostName + ":" + m_httpPort + "/";
                 }
             }
             set { 

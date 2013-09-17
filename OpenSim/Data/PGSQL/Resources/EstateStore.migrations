@@ -284,5 +284,13 @@ Alter table Tmp_estate_map
 
 COMMIT;
 
+:VERSION 10
+
+BEGIN TRANSACTION;
+ALTER TABLE estate_settings ADD COLUMN AllowLandmark boolean NOT NULL default true;
+ALTER TABLE estate_settings ADD COLUMN AllowParcelChanges boolean NOT NULL default true;
+ALTER TABLE estate_settings ADD COLUMN AllowSetHome boolean NOT NULL default true;
+COMMIT;
+
 
 

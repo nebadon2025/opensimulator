@@ -278,7 +278,7 @@ namespace OpenSim.Data.PGSQL
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
-                NpgsqlParameter idParameter = new NpgsqlParameter("EstateID", SqlDbType.Int);
+                NpgsqlParameter idParameter = new NpgsqlParameter("EstateID", DbType.Int32);
                 idParameter.Value = es.EstateID;
                 cmd.Parameters.Add(idParameter);
                 conn.Open();

@@ -2180,7 +2180,7 @@ telehubobject = :telehubobject, parcel_tile_id = :ParcelImageID
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
-                cmd.Parameters.Add(_Database.CreateParameter("RegionUUID", rs.RegionUUID.ToString()));
+                cmd.Parameters.Add(_Database.CreateParameter("RegionUUID", rs.RegionUUID));
                 conn.Open();
                 using (NpgsqlDataReader reader = cmd.ExecuteReader())
                 {

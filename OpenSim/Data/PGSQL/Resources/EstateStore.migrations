@@ -226,7 +226,7 @@ BEGIN TRANSACTION;
 
 CREATE TABLE Tmp_estate_settings
 	(
-	EstateID int NOT NULL,
+	EstateID serial NOT NULL,
 	EstateName varchar(64) NULL DEFAULT (NULL),
 	AbuseEmailToEstateOwner boolean NOT NULL,
 	DenyAnonymous boolean NOT NULL,

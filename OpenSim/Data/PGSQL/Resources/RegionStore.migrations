@@ -1070,7 +1070,7 @@ COMMIT;
 
 BEGIN TRANSACTION;
 
-CREATE TABLE Spawn_Points(
+CREATE TABLE spawn_points(
 	RegionUUID uuid NOT NULL PRIMARY KEY,
 	Yaw double precision NOT NULL,
 	Pitch double precision NOT NULL,

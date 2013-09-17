@@ -122,7 +122,7 @@ namespace OpenSim.Data.PGSQL
                             object v = reader[name];
                             if (f.FieldType == typeof(bool))
                             {
-                                f.SetValue(es, Convert.ToInt32(v) != 0);
+                                f.SetValue(es, v);
                             }
                             else if (f.FieldType == typeof(UUID))
                             {
@@ -190,13 +190,13 @@ namespace OpenSim.Data.PGSQL
 
             names.Remove("EstateID");
 
-            string sql = string.Format("insert into estate_settings ({0}) values ( :{1})", String.Join(",", names.ToArray()), String.Join(", :", names.ToArray()));
+            string sql = string.Format("insert into estate_settings ({0}) values ( :{1} )", String.Join(",", names.ToArray()), String.Join(", :", names.ToArray()));
 
-            //_Log.Debug("[DB ESTATE]: SQL: " + sql);
+            m_log.Debug("[DB ESTATE]: SQL: " + sql);
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand insertCommand = new NpgsqlCommand(sql, conn))
             {
-                insertCommand.CommandText = sql + "; Select ID = lastval() ;";
+                insertCommand.CommandText = sql + "; Select cast(lastval() as int) as ID ;";
 
                 foreach (string name in names)
                 {

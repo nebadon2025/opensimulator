@@ -108,7 +108,7 @@ namespace OpenSim.Data.PGSQL
             SceneObjectGroup grp = null;
 
             string sql = "SELECT *, " +
-                           "sort = CASE WHEN prims.UUID = prims.SceneGroupID THEN 0 ELSE 1 END " +
+                           "CASE WHEN prims.UUID = prims.SceneGroupID THEN 0 ELSE 1 END as sort" +
                            "FROM prims " +
                            "LEFT JOIN primshapes ON prims.UUID = primshapes.UUID " +
                            "WHERE RegionUUID = :RegionUUID " +
@@ -221,7 +221,7 @@ namespace OpenSim.Data.PGSQL
                 foreach (SceneObjectPart objectPart in allPrimsWithInventory)
                 {
                     command.Parameters.Clear();
-                    command.Parameters.Add(_Database.CreateParameter(":PrimID", objectPart.UUID));
+                    command.Parameters.Add(_Database.CreateParameter("PrimID", objectPart.UUID));
 
                     List<TaskInventoryItem> inventory = new List<TaskInventoryItem>();
 

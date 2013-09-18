@@ -69,7 +69,7 @@ namespace OpenSim.Data.PGSQL
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
-                cmd.Parameters.Add(m_database.CreateParameter(":principalID", principalID));
+                cmd.Parameters.Add(m_database.CreateParameter("principalID", principalID));
                 conn.Open();
                 using (NpgsqlDataReader result = cmd.ExecuteReader())
                 {

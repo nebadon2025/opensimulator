@@ -70,15 +70,15 @@ namespace OpenSim.Data.PGSQL
         //    UserAccountData ret = new UserAccountData();
         //    ret.Data = new Dictionary<string, string>();
 
-        //    string sql = string.Format("select * from {0} where UUID = @principalID", m_Realm);
+        //    string sql = string.Format("select * from {0} where UUID = :principalID", m_Realm);
         //    if (scopeID != UUID.Zero)
-        //        sql += " and ScopeID = @scopeID";
+        //        sql += " and ScopeID = :scopeID";
 
         //    using (SqlConnection conn = new SqlConnection(m_ConnectionString))
         //    using (SqlCommand cmd = new SqlCommand(sql, conn))
         //    {
-        //        cmd.Parameters.Add(m_database.CreateParameter("@principalID", principalID));
-        //        cmd.Parameters.Add(m_database.CreateParameter("@scopeID", scopeID));
+        //        cmd.Parameters.Add(m_database.CreateParameter("principalID", principalID));
+        //        cmd.Parameters.Add(m_database.CreateParameter("scopeID", scopeID));
                 
         //        conn.Open();
         //        using (SqlDataReader result = cmd.ExecuteReader())
@@ -134,21 +134,21 @@ namespace OpenSim.Data.PGSQL
         //        {
         //            if (!first)
         //                updateBuilder.Append(", ");
-        //            updateBuilder.AppendFormat("{0} = @{0}", field);
+        //            updateBuilder.AppendFormat("{0} = :{0}", field);
 
         //            first = false;
-        //            cmd.Parameters.Add(m_database.CreateParameter("@" + field, data.Data[field]));
+        //            cmd.Parameters.Add(m_database.CreateParameter("" + field, data.Data[field]));
         //        }
 
-        //        updateBuilder.Append(" where UUID = @principalID");
+        //        updateBuilder.Append(" where UUID = :principalID");
 
         //        if (data.ScopeID != UUID.Zero)
-        //            updateBuilder.Append(" and ScopeID = @scopeID");
+        //            updateBuilder.Append(" and ScopeID = :scopeID");
 
         //        cmd.CommandText = updateBuilder.ToString();
         //        cmd.Connection = conn;
-        //        cmd.Parameters.Add(m_database.CreateParameter("@principalID", data.PrincipalID));
-        //        cmd.Parameters.Add(m_database.CreateParameter("@scopeID", data.ScopeID));
+        //        cmd.Parameters.Add(m_database.CreateParameter("principalID", data.PrincipalID));
+        //        cmd.Parameters.Add(m_database.CreateParameter("scopeID", data.ScopeID));
         //        conn.Open();
 
         //        if (cmd.ExecuteNonQuery() < 1)
@@ -156,8 +156,8 @@ namespace OpenSim.Data.PGSQL
         //            StringBuilder insertBuilder = new StringBuilder();
         //            insertBuilder.AppendFormat("insert into {0} (UUID, ScopeID, ", m_Realm);
         //            insertBuilder.Append(String.Join(", ", fields));
-        //            insertBuilder.Append(") values (@principalID, @scopeID, @");
-        //            insertBuilder.Append(String.Join(", @", fields));
+        //            insertBuilder.Append(") values (:principalID, :scopeID, :");
+        //            insertBuilder.Append(String.Join(", :", fields));
         //            insertBuilder.Append(")");
 
         //            cmd.CommandText = insertBuilder.ToString();
@@ -178,12 +178,12 @@ namespace OpenSim.Data.PGSQL
 
         //public bool SetDataItem(UUID principalID, string item, string value)
         //{
-        //    string sql = string.Format("update {0} set {1} = @{1} where UUID = @UUID", m_Realm, item);
+        //    string sql = string.Format("update {0} set {1} = :{1} where UUID = :UUID", m_Realm, item);
         //    using (SqlConnection conn = new SqlConnection(m_ConnectionString))
         //    using (SqlCommand cmd = new SqlCommand(sql, conn))
         //    {
-        //        cmd.Parameters.Add(m_database.CreateParameter("@" + item, value));
-        //        cmd.Parameters.Add(m_database.CreateParameter("@UUID", principalID));
+        //        cmd.Parameters.Add(m_database.CreateParameter("" + item, value));
+        //        cmd.Parameters.Add(m_database.CreateParameter("UUID", principalID));
 
         //        conn.Open();
 

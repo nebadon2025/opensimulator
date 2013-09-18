@@ -58,7 +58,7 @@ namespace OpenSim.Data.PGSQL
             {
 
                 cmd.CommandText = String.Format("DELETE FROM {0} where PrincipalID = :PrincipalID and Name = :Name", m_Realm);
-                cmd.Parameters.Add(m_database.CreateParameter("PrincipalID", principalID.ToString()));
+                cmd.Parameters.Add(m_database.CreateParameter("PrincipalID", principalID));
                 cmd.Parameters.Add(m_database.CreateParameter("Name", name));
                 cmd.Connection = conn;
                 conn.Open();

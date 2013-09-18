@@ -76,7 +76,8 @@ namespace OpenSim.Data.PGSQL
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
                 cmd.Parameters.Add(m_database.CreateParameter("regionName", regionName));
-                cmd.Parameters.Add(m_database.CreateParameter("scopeID", scopeID));
+                if (scopeID != UUID.Zero) 
+                    cmd.Parameters.Add(m_database.CreateParameter("scopeID", scopeID));
                 conn.Open();
                 return RunCommand(cmd);
             }
@@ -93,7 +94,8 @@ namespace OpenSim.Data.PGSQL
             {
                 cmd.Parameters.Add(m_database.CreateParameter("posX", posX.ToString()));
                 cmd.Parameters.Add(m_database.CreateParameter("posY", posY.ToString()));
-                cmd.Parameters.Add(m_database.CreateParameter("scopeID", scopeID));
+                if (scopeID != UUID.Zero) 
+                    cmd.Parameters.Add(m_database.CreateParameter("scopeID", scopeID));
                 conn.Open();
                 List<RegionData> ret = RunCommand(cmd);
                 if (ret.Count == 0)
@@ -112,7 +114,8 @@ namespace OpenSim.Data.PGSQL
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
                 cmd.Parameters.Add(m_database.CreateParameter("regionID", regionID));
-                cmd.Parameters.Add(m_database.CreateParameter("scopeID", scopeID));
+                if (scopeID != UUID.Zero) 
+                    cmd.Parameters.Add(m_database.CreateParameter("scopeID", scopeID));
                 conn.Open();
                 List<RegionData> ret = RunCommand(cmd);
                 if (ret.Count == 0)

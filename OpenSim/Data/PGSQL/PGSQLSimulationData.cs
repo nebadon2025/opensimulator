@@ -526,7 +526,8 @@ namespace OpenSim.Data.PGSQL
             double[,] terrain = new double[(int)Constants.RegionSize, (int)Constants.RegionSize];
             terrain.Initialize();
 
-            string sql = "select top 1 RegionUUID, Revision, Heightfield from terrain where RegionUUID = :RegionUUID order by Revision desc";
+            string sql = "select RegionUUID, Revision, Heightfield from terrain " +
+                         " where RegionUUID = :RegionUUID order by Revision desc limit 1; ";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -580,6 +581,8 @@ namespace OpenSim.Data.PGSQL
                 conn.Open();
                 cmd.ExecuteNonQuery();
             }
+
+            _Log.Info("[REGION DB]: Deleted terrain revision r " + revision);
 
             sql = "insert into terrain(RegionUUID, Revision, Heightfield) values(:RegionUUID, :Revision, :Heightfield)";
 

@@ -250,8 +250,7 @@ namespace OpenSim.Data.PGSQL
         public override List<AssetMetadata> FetchAssetMetadataSet(int start, int count)
         {
             List<AssetMetadata> retList = new List<AssetMetadata>(count);
-            string sql = @" SELECT id, name, description, assetType, temporary, creatorid,
-                                   RowNumber = ROW_NUMBER()
+            string sql = @" SELECT id, name, description, assetType, temporary, creatorid
                               FROM assets 
                              order by id
                              limit :stop

@@ -168,9 +168,9 @@ namespace OpenSim.Services.UserAccountService
             else
                 u.UserTitle = string.Empty;
             if (d.Data.ContainsKey("UserLevel") && d.Data["UserLevel"] != null)
-                Int32.TryParse(d.Data["UserLevel"], out u.UserLevel);
+                Int32.TryParse(d.Data["UserLevel"].ToString(), out u.UserLevel);
             if (d.Data.ContainsKey("UserFlags") && d.Data["UserFlags"] != null)
-                Int32.TryParse(d.Data["UserFlags"], out u.UserFlags);
+                Int32.TryParse(d.Data["UserFlags"].ToString(), out u.UserFlags);
 
             if (d.Data.ContainsKey("ServiceURLs") && d.Data["ServiceURLs"] != null)
             {
@@ -258,9 +258,9 @@ namespace OpenSim.Services.UserAccountService
 
         public bool StoreUserAccount(UserAccount data)
         {
-//            m_log.DebugFormat(
-//                "[USER ACCOUNT SERVICE]: Storing user account for {0} {1} {2}, scope {3}",
-//                data.FirstName, data.LastName, data.PrincipalID, data.ScopeID);
+            m_log.DebugFormat(
+                "[USER ACCOUNT SERVICE]: Storing user account for {0} {1} {2}, scope {3}",
+                data.FirstName, data.LastName, data.PrincipalID, data.ScopeID);
 
             UserAccountData d = new UserAccountData();
 
@@ -268,11 +268,11 @@ namespace OpenSim.Services.UserAccountService
             d.LastName = data.LastName;
             d.PrincipalID = data.PrincipalID;
             d.ScopeID = data.ScopeID;
-            d.Data = new Dictionary<string, string>();
+            d.Data = new Dictionary<string, object>();
             d.Data["Email"] = data.Email;
-            d.Data["Created"] = data.Created.ToString();
-            d.Data["UserLevel"] = data.UserLevel.ToString();
-            d.Data["UserFlags"] = data.UserFlags.ToString();
+            d.Data["Created"] = data.Created;
+            d.Data["UserLevel"] = data.UserLevel;
+            d.Data["UserFlags"] = data.UserFlags;
             if (data.UserTitle != null)
                 d.Data["UserTitle"] = data.UserTitle.ToString();
 
@@ -469,9 +469,14 @@ namespace OpenSim.Services.UserAccountService
         public UserAccount CreateUser(UUID scopeID, UUID principalID, string firstName, string lastName, string password, string email)
         {
             UserAccount account = GetUserAccount(UUID.Zero, firstName, lastName);
+
             if (null == account)
             {
+                m_log.InfoFormat("[USER ACCOUNT SERVICE]: Account {0} {1} not exist. Trying to create",
+                        firstName, lastName);
+
                 account = new UserAccount(UUID.Zero, principalID, firstName, lastName, email);
+
                 if (account.ServiceURLs == null || (account.ServiceURLs != null && account.ServiceURLs.Count == 0))
                 {
                     account.ServiceURLs = new Dictionary<string, object>();
@@ -491,6 +496,9 @@ namespace OpenSim.Services.UserAccountService
                             m_log.WarnFormat("[USER ACCOUNT SERVICE]: Unable to set password for account {0} {1}.",
                                 firstName, lastName);
                     }
+                    
+                    m_log.InfoFormat( "[USER ACCOUNT SERVICE]: Account {0} {1} {2} Trying GridRegion",
+                        firstName, lastName, account.PrincipalID);
 
                     GridRegion home = null;
                     if (m_GridService != null)
@@ -510,6 +518,9 @@ namespace OpenSim.Services.UserAccountService
                         m_log.WarnFormat("[USER ACCOUNT SERVICE]: Unable to retrieve home region for account {0} {1}.",
                            firstName, lastName);
                     }
+
+                    m_log.InfoFormat("[USER ACCOUNT SERVICE]: Account {0} {1} {2} Trying Inventory",
+                        firstName, lastName, account.PrincipalID);
 
                     if (m_InventoryService != null)
                     {

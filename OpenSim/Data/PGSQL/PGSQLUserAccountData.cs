@@ -33,11 +33,15 @@ using OpenMetaverse;
 using OpenSim.Framework;
 using System.Text;
 using Npgsql;
+using log4net;
+using System.Reflection;
 
 namespace OpenSim.Data.PGSQL
 {
     public class PGSQLUserAccountData : PGSQLGenericTableHandler<UserAccountData>,IUserAccountData
     {
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
         public PGSQLUserAccountData(string connectionString, string realm) :
             base(connectionString, realm, "UserAccount")
         {
@@ -46,19 +50,20 @@ namespace OpenSim.Data.PGSQL
         //private List<string> m_ColumnNames = null;
         //private PGSQLManager m_database;
 
-        //public PGSQLUserAccountData(string connectionString, string realm)
-        //{
-        //    m_Realm = realm;
-        //    m_ConnectionString = connectionString;
-        //    m_database = new PGSQLManager(connectionString);
+        /*public PGSQLUserAccountData(string connectionString, string realm) :
+            base(connectionString, realm, "UserAccount")
+        {
+            m_Realm = realm;
+            m_ConnectionString = connectionString;
+            m_database = new PGSQLManager(connectionString);
 
-        //    using (SqlConnection conn = new SqlConnection(m_ConnectionString))
-        //    {
-        //        conn.Open();
-        //        Migration m = new Migration(conn, GetType().Assembly, "UserStore");
-        //        m.Update();
-        //    }
-        //}
+            using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
+            {
+                conn.Open();
+                Migration m = new Migration(conn, GetType().Assembly, "UserStore");
+                m.Update();
+            }
+        }*/
 
         //public List<UserAccountData> Query(UUID principalID, UUID scopeID, string query)
         //{
@@ -70,15 +75,15 @@ namespace OpenSim.Data.PGSQL
         //    UserAccountData ret = new UserAccountData();
         //    ret.Data = new Dictionary<string, string>();
 
-        //    string sql = string.Format("select * from {0} where UUID = @principalID", m_Realm);
+        //    string sql = string.Format("select * from {0} where UUID = :principalID", m_Realm);
         //    if (scopeID != UUID.Zero)
-        //        sql += " and ScopeID = @scopeID";
+        //        sql += " and ScopeID = :scopeID";
 
         //    using (SqlConnection conn = new SqlConnection(m_ConnectionString))
         //    using (SqlCommand cmd = new SqlCommand(sql, conn))
         //    {
-        //        cmd.Parameters.Add(m_database.CreateParameter("@principalID", principalID));
-        //        cmd.Parameters.Add(m_database.CreateParameter("@scopeID", scopeID));
+        //        cmd.Parameters.Add(m_database.CreateParameter("principalID", principalID));
+        //        cmd.Parameters.Add(m_database.CreateParameter("scopeID", scopeID));
                 
         //        conn.Open();
         //        using (SqlDataReader result = cmd.ExecuteReader())
@@ -115,61 +120,85 @@ namespace OpenSim.Data.PGSQL
         //    return null;
         //}
 
-        //public bool Store(UserAccountData data)
-        //{
-        //    if (data.Data.ContainsKey("UUID"))
-        //        data.Data.Remove("UUID");
-        //    if (data.Data.ContainsKey("ScopeID"))
-        //        data.Data.Remove("ScopeID");
+        /*
+        public override bool Store(UserAccountData data)
+        {
+            if (data.Data.ContainsKey("principalID"))
+                data.Data.Remove("principalID");
+            if (data.Data.ContainsKey("ScopeID"))
+                data.Data.Remove("ScopeID");
 
-        //    string[] fields = new List<string>(data.Data.Keys).ToArray();
+            string[] fields = new List<string>(data.Data.Keys).ToArray();
 
-        //    using (SqlConnection conn = new SqlConnection(m_ConnectionString))
-        //    using (SqlCommand cmd = new SqlCommand())
-        //    {
-        //        StringBuilder updateBuilder = new StringBuilder();
-        //        updateBuilder.AppendFormat("update {0} set ", m_Realm);
-        //        bool first = true;
-        //        foreach (string field in fields)
-        //        {
-        //            if (!first)
-        //                updateBuilder.Append(", ");
-        //            updateBuilder.AppendFormat("{0} = @{0}", field);
+            using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
+            using (NpgsqlCommand cmd = new NpgsqlCommand())
+            {
+                m_log.DebugFormat("[USER]: Try to update user {0} {1}", data.FirstName, data.LastName);
 
-        //            first = false;
-        //            cmd.Parameters.Add(m_database.CreateParameter("@" + field, data.Data[field]));
-        //        }
+                StringBuilder updateBuilder = new StringBuilder();
+                updateBuilder.AppendFormat("update {0} set ", m_Realm);
+                bool first = true;
+                foreach (string field in fields)
+                {
+                    if (!first)
+                        updateBuilder.Append(", ");
+                    updateBuilder.AppendFormat("{0} = :{0}", field);
 
-        //        updateBuilder.Append(" where UUID = @principalID");
+                    first = false;
+                    cmd.Parameters.Add(m_database.CreateParameter("" + field, data.Data[field]));
+                }
 
-        //        if (data.ScopeID != UUID.Zero)
-        //            updateBuilder.Append(" and ScopeID = @scopeID");
+                updateBuilder.Append(" where principalid = :principalID");
 
-        //        cmd.CommandText = updateBuilder.ToString();
-        //        cmd.Connection = conn;
-        //        cmd.Parameters.Add(m_database.CreateParameter("@principalID", data.PrincipalID));
-        //        cmd.Parameters.Add(m_database.CreateParameter("@scopeID", data.ScopeID));
-        //        conn.Open();
+                if (data.ScopeID != UUID.Zero)
+                    updateBuilder.Append(" and ScopeID = :scopeID");
 
-        //        if (cmd.ExecuteNonQuery() < 1)
-        //        {
-        //            StringBuilder insertBuilder = new StringBuilder();
-        //            insertBuilder.AppendFormat("insert into {0} (UUID, ScopeID, ", m_Realm);
-        //            insertBuilder.Append(String.Join(", ", fields));
-        //            insertBuilder.Append(") values (@principalID, @scopeID, @");
-        //            insertBuilder.Append(String.Join(", @", fields));
-        //            insertBuilder.Append(")");
+                cmd.CommandText = updateBuilder.ToString();
+                cmd.Connection = conn;
+                cmd.Parameters.Add(m_database.CreateParameter("principalID", data.PrincipalID));
+                cmd.Parameters.Add(m_database.CreateParameter("scopeID", data.ScopeID));
 
-        //            cmd.CommandText = insertBuilder.ToString();
+                m_log.DebugFormat("[USER]: SQL update user {0} ", cmd.CommandText);
 
-        //            if (cmd.ExecuteNonQuery() < 1)
-        //            {
-        //                return false;
-        //            }
-        //        }
-        //    }
-        //    return true;
-        //}
+                conn.Open();
+
+                m_log.DebugFormat("[USER]: CON opened update user {0} ", cmd.CommandText);
+
+                int conta = 0;
+                try
+                {
+                    conta = cmd.ExecuteNonQuery();
+                }
+                catch (Exception e){
+                    m_log.ErrorFormat("[USER]: ERROR opened update user {0} ", e.Message);
+                }
+                
+
+                if (conta < 1)
+                {
+                    
+                    m_log.DebugFormat("[USER]: Try to insert user {0} {1}", data.FirstName, data.LastName);
+
+                    StringBuilder insertBuilder = new StringBuilder();
+                    insertBuilder.AppendFormat("insert into {0} (principalid, ScopeID, ", m_Realm);
+                    insertBuilder.Append(String.Join(", ", fields));
+                    insertBuilder.Append(") values (:principalID, :scopeID, :");
+                    insertBuilder.Append(String.Join(", :", fields));
+                    insertBuilder.Append(")");
+                           
+                    cmd.CommandText = insertBuilder.ToString();
+
+                    if (cmd.ExecuteNonQuery() < 1)
+                    {
+                        return false;
+                    }
+                }
+                else
+                    m_log.DebugFormat("[USER]: User {0} {1} exists", data.FirstName, data.LastName);
+            }
+            return true;
+        }
+         * */
 
         //public bool Store(UserAccountData data, UUID principalID, string token)
         //{
@@ -178,12 +207,12 @@ namespace OpenSim.Data.PGSQL
 
         //public bool SetDataItem(UUID principalID, string item, string value)
         //{
-        //    string sql = string.Format("update {0} set {1} = @{1} where UUID = @UUID", m_Realm, item);
+        //    string sql = string.Format("update {0} set {1} = :{1} where UUID = :UUID", m_Realm, item);
         //    using (SqlConnection conn = new SqlConnection(m_ConnectionString))
         //    using (SqlCommand cmd = new SqlCommand(sql, conn))
         //    {
-        //        cmd.Parameters.Add(m_database.CreateParameter("@" + item, value));
-        //        cmd.Parameters.Add(m_database.CreateParameter("@UUID", principalID));
+        //        cmd.Parameters.Add(m_database.CreateParameter("" + item, value));
+        //        cmd.Parameters.Add(m_database.CreateParameter("UUID", principalID));
 
         //        conn.Open();
 

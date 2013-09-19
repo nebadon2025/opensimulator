@@ -1893,6 +1893,8 @@ namespace OpenSim.Region.Framework.Scenes
         {
             try
             {
+                m_log.InfoFormat("[TERRAIN]: Loading Terrain ID {0}.", RegionInfo.RegionID);
+
                 double[,] map = SimulationDataService.LoadTerrain(RegionInfo.RegionID);
                 if (map == null)
                 {

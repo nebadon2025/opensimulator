@@ -183,8 +183,8 @@ namespace OpenSim.Data.PGSQL
                 using (NpgsqlCommand cmd = new NpgsqlCommand())
                 {
                     cmd.CommandText = String.Format("select bit_or(inventoryCurrentPermissions) as inventoryCurrentPermissions from inventoryitems where avatarID = :PrincipalID and assetID = :AssetID group by assetID", m_Realm);
-                    cmd.Parameters.Add(m_database.CreateParameter("@PrincipalID", principalID.ToString()));
-                    cmd.Parameters.Add(m_database.CreateParameter("@AssetID", assetID.ToString()));
+                    cmd.Parameters.Add(m_database.CreateParameter("PrincipalID", principalID.ToString()));
+                    cmd.Parameters.Add(m_database.CreateParameter("AssetID", assetID.ToString()));
                     cmd.Connection = conn;
                     conn.Open();
                     using (NpgsqlDataReader reader = cmd.ExecuteReader())

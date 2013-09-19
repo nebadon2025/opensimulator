@@ -40,8 +40,8 @@ namespace OpenSim.Data.PGSQL
 {
     public class PGSQLGenericTableHandler<T> where T : class, new()
     {
-//        private static readonly ILog m_log =
-//            LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog m_log =
+            LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         protected string m_ConnectionString;
         protected PGSQLManager m_database; //used for parameter type translation
@@ -110,13 +110,27 @@ namespace OpenSim.Data.PGSQL
         private List<string> GetConstraints()
         {
             List<string> constraints = new List<string>();
-            string query = string.Format(@"SELECT 
-                            COL_NAME(ic.object_id,ic.column_id) AS column_name
-                            FROM sys.indexes AS i
-                            INNER JOIN sys.index_columns AS ic 
-                              ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-                            WHERE i.is_primary_key = 1 
-                            AND i.object_id = OBJECT_ID('{0}');", m_Realm);
+            string query = string.Format(@"SELECT kcu.column_name
+                        FROM information_schema.table_constraints tc
+                        LEFT JOIN information_schema.key_column_usage kcu
+                        ON tc.constraint_catalog = kcu.constraint_catalog
+                        AND tc.constraint_schema = kcu.constraint_schema
+                        AND tc.constraint_name = kcu.constraint_name
+
+                        LEFT JOIN information_schema.referential_constraints rc
+                        ON tc.constraint_catalog = rc.constraint_catalog
+                        AND tc.constraint_schema = rc.constraint_schema
+                        AND tc.constraint_name = rc.constraint_name
+
+                        LEFT JOIN information_schema.constraint_column_usage ccu
+                        ON rc.unique_constraint_catalog = ccu.constraint_catalog
+                        AND rc.unique_constraint_schema = ccu.constraint_schema
+                        AND rc.unique_constraint_name = ccu.constraint_name
+
+                        where tc.table_name = '{0}' 
+                        and lower(tc.constraint_type) in ('primary key')
+                        and kcu.column_name is not null
+                        ;", m_Realm);
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(query, conn))
@@ -262,7 +276,7 @@ namespace OpenSim.Data.PGSQL
                 foreach (FieldInfo fi in m_Fields.Values)
                 {
                     names.Add(fi.Name);
-                    values.Add("" + fi.Name);
+                    values.Add(":" + fi.Name);
                     // Temporarily return more information about what field is unexpectedly null for
                     // http://opensimulator.org/mantis/view.php?id=5403.  This might be due to a bug in the 
                     // InventoryTransferModule or we may be required to substitute a DBNull here.
@@ -281,17 +295,17 @@ namespace OpenSim.Data.PGSQL
 
                 if (m_DataField != null)
                 {
-                    Dictionary<string, string> data =
-                            (Dictionary<string, string>)m_DataField.GetValue(row);
+                    Dictionary<string, object> data =
+                            (Dictionary<string, object>)m_DataField.GetValue(row);
 
-                    foreach (KeyValuePair<string, string> kvp in data)
+                    foreach (KeyValuePair<string, object> kvp in data)
                     {
                         if (constraintFields.Count > 0 && constraintFields.Contains(kvp.Key))
                         {
                             constraints.Add(new KeyValuePair<string, string>(kvp.Key, kvp.Key));
                         }
                         names.Add(kvp.Key);
-                        values.Add("" + kvp.Key);
+                        values.Add(":" + kvp.Key);
 
                         cmd.Parameters.Add(m_database.CreateParameter("" + kvp.Key, kvp.Value));
                     }
@@ -302,9 +316,9 @@ namespace OpenSim.Data.PGSQL
                 int i = 0;
                 for (i = 0; i < names.Count - 1; i++)
                 {
-                    query.AppendFormat("[{0}] = {1}, ", names[i], values[i]);
+                    query.AppendFormat("{0} = {1}, ", names[i], values[i]);
                 }
-                query.AppendFormat("[{0}] = {1} ", names[i], values[i]);
+                query.AppendFormat("{0} = {1} ", names[i], values[i]);
                 if (constraints.Count > 0)
                 {
                     List<string> terms = new List<string>();
@@ -322,7 +336,7 @@ namespace OpenSim.Data.PGSQL
                 conn.Open();
                 if (cmd.ExecuteNonQuery() > 0)
                 {
-                    //m_log.WarnFormat("[PGSQLGenericTable]: Updating {0}", m_Realm);
+                    m_log.WarnFormat("[PGSQLGenericTable]: Updating {0}", m_Realm);
                     return true;
                 }
                 else
@@ -332,10 +346,10 @@ namespace OpenSim.Data.PGSQL
                     query = new StringBuilder();
                     query.AppendFormat("INSERT INTO {0} (", m_Realm);
                     query.Append(String.Join(",", names.ToArray()));
-                    query.Append(") values (" + String.Join(",", values.ToArray()) + ")");
+                    query.Append(") values (:" + String.Join(",", values.ToArray()) + ")");
                     cmd.Connection = conn;
                     cmd.CommandText = query.ToString();
-                    //m_log.WarnFormat("[PGSQLGenericTable]: Inserting into {0}", m_Realm);
+                    m_log.WarnFormat("[PGSQLGenericTable]: Inserting into {0} sql {1}", m_Realm, cmd.CommandText);
                     if (conn.State != ConnectionState.Open)
                         conn.Open();
                     if (cmd.ExecuteNonQuery() > 0)

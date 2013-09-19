@@ -52,8 +52,7 @@ namespace OpenSim.Data.PGSQL
 
         public PresenceData Get(UUID sessionID)
         {
-            PresenceData[] ret = Get("SessionID",
-                    sessionID.ToString());
+            PresenceData[] ret = Get("SessionID", sessionID.ToString());
 
             if (ret.Length == 0)
                 return null;
@@ -69,7 +68,7 @@ namespace OpenSim.Data.PGSQL
 
                 cmd.CommandText = String.Format("DELETE FROM {0} WHERE RegionID=:RegionID", m_Realm);
 
-                cmd.Parameters.Add(m_database.CreateParameter("RegionID", regionID.ToString()));
+                cmd.Parameters.Add(m_database.CreateParameter("RegionID", regionID));
                 cmd.Connection = conn;
                 conn.Open();
                 cmd.ExecuteNonQuery();
@@ -90,8 +89,8 @@ namespace OpenSim.Data.PGSQL
                                                 RegionID = :RegionID
                                         WHERE SessionID = :SessionID", m_Realm);
 
-                cmd.Parameters.Add(m_database.CreateParameter("SessionID", sessionID.ToString()));
-                cmd.Parameters.Add(m_database.CreateParameter("RegionID", regionID.ToString()));
+                cmd.Parameters.Add(m_database.CreateParameter("SessionID", sessionID));
+                cmd.Parameters.Add(m_database.CreateParameter("RegionID", regionID));
                 cmd.Connection = conn;
                 conn.Open();
                 if (cmd.ExecuteNonQuery() == 0)
@@ -102,8 +101,7 @@ namespace OpenSim.Data.PGSQL
 
         public bool VerifyAgent(UUID agentId, UUID secureSessionID)
         {
-            PresenceData[] ret = Get("SecureSessionID",
-                    secureSessionID.ToString());
+            PresenceData[] ret = Get("SecureSessionID", secureSessionID.ToString());
             
             if (ret.Length == 0)
                 return false;

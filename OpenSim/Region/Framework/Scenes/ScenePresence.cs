@@ -1354,7 +1354,10 @@ namespace OpenSim.Region.Framework.Scenes
 
         private bool WaitForUpdateAgent(IClientAPI client)
         {
-            // Before UpdateAgent, m_originRegionID is UUID.Zero; after, it's non-Zero
+            // Before the source region executes UpdateAgent
+            // (which triggers Scene.IncomingUpdateChildAgent(AgentData cAgentData) here in the destination, 
+            // m_originRegionID is UUID.Zero; after, it's non-Zero.  The CompleteMovement sequence initiated from the
+            // viewer (in turn triggered by the source region sending it a TeleportFinish event) waits until it's non-zero
             int count = 50;
             while (m_originRegionID.Equals(UUID.Zero) && count-- > 0)
             {
@@ -3338,7 +3341,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         #region Child Agent Updates
 
-        public void ChildAgentDataUpdate(AgentData cAgentData)
+        public void UpdateChildAgent(AgentData cAgentData)
         {
 //            m_log.Debug("   >>> ChildAgentDataUpdate <<< " + Scene.RegionInfo.RegionName);
             if (!IsChildAgent)
@@ -3348,11 +3351,12 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         private static Vector3 marker = new Vector3(-1f, -1f, -1f);
+
         /// <summary>
         /// This updates important decision making data about a child agent
         /// The main purpose is to figure out what objects to send to a child agent that's in a neighboring region
         /// </summary>
-        public void ChildAgentDataUpdate(AgentPosition cAgentData, uint tRegionX, uint tRegionY, uint rRegionX, uint rRegionY)
+        public void UpdateChildAgent(AgentPosition cAgentData, uint tRegionX, uint tRegionY, uint rRegionX, uint rRegionY)
         {
             if (!IsChildAgent)
                 return;

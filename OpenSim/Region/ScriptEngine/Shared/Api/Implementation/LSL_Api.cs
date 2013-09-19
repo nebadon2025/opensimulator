@@ -8190,12 +8190,19 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             while (true)
             {
+//                m_log.DebugFormat(
+//                    "[LSL API]: GetEntityParams has {0} rules with scene entity named {1}", 
+//                    rules.Length, entity != null ? entity.Name : "NULL");
+
+                if (entity == null)
+                    return result;
+
                 if (entity is SceneObjectPart)
                     remaining = GetPrimParams((SceneObjectPart)entity, rules, ref result);
                 else
                     remaining = GetAgentParams((ScenePresence)entity, rules, ref result);
 
-                if (remaining == null || remaining.Length <= 2)
+                if (remaining == null || remaining.Length < 2)
                     return result;
 
                 int linknumber = remaining.GetLSLIntegerItem(0);
@@ -8400,7 +8407,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             while (idx < rules.Length)
             {
                 int code = (int)rules.GetLSLIntegerItem(idx++);
-                int remain = rules.Length-idx;
+                int remain = rules.Length - idx;
 
                 switch (code)
                 {
@@ -8777,7 +8784,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         ));
                         break;
                     case (int)ScriptBaseClass.PRIM_LINK_TARGET:
-                        if(remain < 3)
+
+                        // TODO: Should be issuing a runtime script warning in this case.
+                        if (remain < 2)
                             return null;
 
                         return rules.GetSublist(idx, -1);

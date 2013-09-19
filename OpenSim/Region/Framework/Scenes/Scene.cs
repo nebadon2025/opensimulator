@@ -4296,7 +4296,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="cAgentData">Agent that contains all of the relevant things about an agent.
         /// Appearance, animations, position, etc.</param>
         /// <returns>true if we handled it.</returns>
-        public virtual bool IncomingChildAgentDataUpdate(AgentData cAgentData)
+        public virtual bool IncomingUpdateChildAgent(AgentData cAgentData)
         {
             m_log.DebugFormat(
                 "[SCENE]: Incoming child agent update for {0} in {1}", cAgentData.AgentID, RegionInfo.RegionName);
@@ -4330,7 +4330,7 @@ namespace OpenSim.Region.Framework.Scenes
                         sp.UUID, sp.ControllingClient.SessionId, cAgentData.SessionID));
                 }
 
-                sp.ChildAgentDataUpdate(cAgentData);
+                sp.UpdateChildAgent(cAgentData);
 
                 int ntimes = 20;
                 if (cAgentData.SenderWantsToWaitForRoot)
@@ -4338,9 +4338,14 @@ namespace OpenSim.Region.Framework.Scenes
                     while (sp.IsChildAgent && ntimes-- > 0)
                         Thread.Sleep(1000);
 
-                    m_log.DebugFormat(
-                        "[SCENE]: Found presence {0} {1} {2} in {3} after {4} waits",
-                        sp.Name, sp.UUID, sp.IsChildAgent ? "child" : "root", Name, 20 - ntimes);
+                    if (sp.IsChildAgent)
+                        m_log.DebugFormat(
+                            "[SCENE]: Found presence {0} {1} unexpectedly still child in {2}",
+                            sp.Name, sp.UUID, Name);
+                    else
+                        m_log.DebugFormat(
+                            "[SCENE]: Found presence {0} {1} as root in {2} after {3} waits",
+                                sp.Name, sp.UUID, Name, 20 - ntimes);
 
                     if (sp.IsChildAgent)
                         return false;
@@ -4358,7 +4363,7 @@ namespace OpenSim.Region.Framework.Scenes
         /// </summary>
         /// <param name="cAgentData">AgentPosition that contains agent positional data so we can know what to send</param>
         /// <returns>true if we handled it.</returns>
-        public virtual bool IncomingChildAgentDataUpdate(AgentPosition cAgentData)
+        public virtual bool IncomingUpdateChildAgent(AgentPosition cAgentData)
         {
             //m_log.Debug(" XXX Scene IncomingChildAgentDataUpdate POSITION in " + RegionInfo.RegionName);
             ScenePresence childAgentUpdate = GetScenePresence(cAgentData.AgentID);
@@ -4378,7 +4383,7 @@ namespace OpenSim.Region.Framework.Scenes
                     uint tRegionX = RegionInfo.RegionLocX;
                     uint tRegionY = RegionInfo.RegionLocY;
                     //Send Data to ScenePresence
-                    childAgentUpdate.ChildAgentDataUpdate(cAgentData, tRegionX, tRegionY, rRegionX, rRegionY);
+                    childAgentUpdate.UpdateChildAgent(cAgentData, tRegionX, tRegionY, rRegionX, rRegionY);
                     // Not Implemented:
                     //TODO: Do we need to pass the message on to one of our neighbors?
                 }

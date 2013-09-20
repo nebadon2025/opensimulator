@@ -731,6 +731,7 @@ namespace OpenSim.Region.Framework.Scenes
             m_config = config;
             MinFrameTime = 0.089f;
             MinMaintenanceTime = 1;
+            SeeIntoRegion = true;
 
             Random random = new Random();
 
@@ -841,7 +842,7 @@ namespace OpenSim.Region.Framework.Scenes
                 //Animation states
                 m_useFlySlow = startupConfig.GetBoolean("enableflyslow", false);
 
-                SeeIntoRegion = startupConfig.GetBoolean("see_into_region", true);
+                SeeIntoRegion = startupConfig.GetBoolean("see_into_region", SeeIntoRegion);
 
                 MaxUndoCount = startupConfig.GetInt("MaxPrimUndos", 20);
 
@@ -3862,19 +3863,6 @@ namespace OpenSim.Region.Framework.Scenes
                     // Let the SP know how we got here. This has a lot of interesting
                     // uses down the line.
                     sp.TeleportFlags = (TPFlags)teleportFlags;
-
-                    // We must carry out a further authorization check if there's an 
-                    // attempt to make a child agent into a root agent, since SeeIntoRegion may have allowed a child
-                    // agent to login to a region where a full avatar would not be allowed.
-                    //
-                    // We determine whether this is a CreateAgent for a future non-child agent by inspecting 
-                    // TeleportFlags, which will be default for a child connection.  This relies on input from the source
-                    // region.
-                    if (sp.TeleportFlags != TPFlags.Default)
-                    {
-                        if (!AuthorizeUser(acd, false, out reason))
-                            return false;
-                    }
     
                     if (sp.IsChildAgent)
                     {
@@ -4307,7 +4295,7 @@ namespace OpenSim.Region.Framework.Scenes
             ILandObject nearestParcel = GetNearestAllowedParcel(cAgentData.AgentID, Constants.RegionSize / 2, Constants.RegionSize / 2);
             if (nearestParcel == null)
             {
-                m_log.DebugFormat(
+                m_log.InfoFormat(
                     "[SCENE]: Denying root agent entry to {0} in {1}: no allowed parcel",
                     cAgentData.AgentID, RegionInfo.RegionName);
 
@@ -4341,11 +4329,11 @@ namespace OpenSim.Region.Framework.Scenes
                         Thread.Sleep(1000);
 
                     if (sp.IsChildAgent)
-                        m_log.DebugFormat(
+                        m_log.WarnFormat(
                             "[SCENE]: Found presence {0} {1} unexpectedly still child in {2}",
                             sp.Name, sp.UUID, Name);
                     else
-                        m_log.DebugFormat(
+                        m_log.InfoFormat(
                             "[SCENE]: Found presence {0} {1} as root in {2} after {3} waits",
                                 sp.Name, sp.UUID, Name, 20 - ntimes);
 

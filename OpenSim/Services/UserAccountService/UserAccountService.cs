@@ -268,11 +268,11 @@ namespace OpenSim.Services.UserAccountService
             d.LastName = data.LastName;
             d.PrincipalID = data.PrincipalID;
             d.ScopeID = data.ScopeID;
-            d.Data = new Dictionary<string, object>();
+            d.Data = new Dictionary<string, string>();
             d.Data["Email"] = data.Email;
-            d.Data["Created"] = data.Created;
-            d.Data["UserLevel"] = data.UserLevel;
-            d.Data["UserFlags"] = data.UserFlags;
+            d.Data["Created"] = data.Created.ToString();
+            d.Data["UserLevel"] = data.UserLevel.ToString();
+            d.Data["UserFlags"] = data.UserFlags.ToString();
             if (data.UserTitle != null)
                 d.Data["UserTitle"] = data.UserTitle.ToString();
 

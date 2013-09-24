@@ -38,7 +38,7 @@ namespace OpenSim.Data
         public UUID ScopeID;
         public string FirstName;
         public string LastName;
-        public Dictionary<string, object> Data;
+        public Dictionary<string, string> Data;
     }
 
     /// <summary>

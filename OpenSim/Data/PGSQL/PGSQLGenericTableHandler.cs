@@ -48,6 +48,8 @@ namespace OpenSim.Data.PGSQL
         protected Dictionary<string, FieldInfo> m_Fields =
                 new Dictionary<string, FieldInfo>();
 
+        protected Dictionary<string, string> m_FieldTypes = new Dictionary<string, string>();
+
         protected List<string> m_ColumnNames = null;
         protected string m_Realm;
         protected FieldInfo m_DataField = null;
@@ -76,6 +78,8 @@ namespace OpenSim.Data.PGSQL
                                              BindingFlags.Instance |
                                              BindingFlags.DeclaredOnly);
 
+            LoadFieldTypes();
+
             if (fields.Length == 0)
                 return;
 
@@ -87,6 +91,30 @@ namespace OpenSim.Data.PGSQL
                     m_DataField = f;
             }
 
+        }
+
+        private void LoadFieldTypes()
+        {
+            m_FieldTypes = new Dictionary<string, string>();
+
+            string query = string.Format(@"select column_name,data_type
+                        from INFORMATION_SCHEMA.COLUMNS 
+                       where table_name = lower('{0}');
+
+                ", m_Realm);
+            using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
+            using (NpgsqlCommand cmd = new NpgsqlCommand(query, conn))
+            {
+                conn.Open();
+                using (NpgsqlDataReader rdr = cmd.ExecuteReader())
+                {
+                    while (rdr.Read())
+                    {
+                        // query produces 0 to many rows of single column, so always add the first item in each row
+                        m_FieldTypes.Add((string)rdr[0], (string)rdr[1]);
+                    }
+                }
+            }
         }
 
         private void CheckColumnNames(NpgsqlDataReader reader)
@@ -166,7 +194,11 @@ namespace OpenSim.Data.PGSQL
 
                 for (int i = 0; i < fields.Length; i++)
                 {
-                    cmd.Parameters.Add(m_database.CreateParameter(fields[i], keys[i]));
+                    if ( m_FieldTypes.ContainsKey(fields[i].ToLower()) )
+                        cmd.Parameters.Add(m_database.CreateParameter(fields[i], keys[i], m_FieldTypes[fields[i].ToLower() ]));
+                    else
+                        cmd.Parameters.Add(m_database.CreateParameter(fields[i], keys[i]));
+
                     terms.Add(" " + fields[i] + " = :" + fields[i]);
                 }
 
@@ -229,6 +261,7 @@ namespace OpenSim.Data.PGSQL
                         foreach (string col in m_ColumnNames)
                         {
                             data[col] = reader[col].ToString();
+
                             if (data[col] == null)
                                 data[col] = String.Empty;
                         }
@@ -288,17 +321,20 @@ namespace OpenSim.Data.PGSQL
 
                     if (constraintFields.Count > 0 && constraintFields.Contains(fi.Name))
                     {
-                        constraints.Add(new KeyValuePair<string, string>(fi.Name, fi.GetValue(row).ToString()));
+                        constraints.Add(new KeyValuePair<string, string>(fi.Name, fi.GetValue(row).ToString() ));
                     }
-                    cmd.Parameters.Add(m_database.CreateParameter(fi.Name, fi.GetValue(row).ToString()));
+                    if (m_FieldTypes.ContainsKey(fi.Name.ToLower()))
+                        cmd.Parameters.Add(m_database.CreateParameter(fi.Name, fi.GetValue(row), m_FieldTypes[fi.Name.ToLower()]));
+                    else
+                        cmd.Parameters.Add(m_database.CreateParameter(fi.Name, fi.GetValue(row)));
                 }
 
                 if (m_DataField != null)
                 {
-                    Dictionary<string, object> data =
-                            (Dictionary<string, object>)m_DataField.GetValue(row);
+                    Dictionary<string, string> data =
+                            (Dictionary<string, string>)m_DataField.GetValue(row);
 
-                    foreach (KeyValuePair<string, object> kvp in data)
+                    foreach (KeyValuePair<string, string> kvp in data)
                     {
                         if (constraintFields.Count > 0 && constraintFields.Contains(kvp.Key))
                         {
@@ -307,7 +343,10 @@ namespace OpenSim.Data.PGSQL
                         names.Add(kvp.Key);
                         values.Add(":" + kvp.Key);
 
-                        cmd.Parameters.Add(m_database.CreateParameter("" + kvp.Key, kvp.Value));
+                        if (m_FieldTypes.ContainsKey(kvp.Key.ToLower()))
+                            cmd.Parameters.Add(m_database.CreateParameter("" + kvp.Key, kvp.Value, m_FieldTypes[kvp.Key.ToLower()]));
+                        else
+                            cmd.Parameters.Add(m_database.CreateParameter("" + kvp.Key, kvp.Value));
                     }
 
                 }
@@ -346,7 +385,7 @@ namespace OpenSim.Data.PGSQL
                     query = new StringBuilder();
                     query.AppendFormat("INSERT INTO {0} (", m_Realm);
                     query.Append(String.Join(",", names.ToArray()));
-                    query.Append(") values (:" + String.Join(",", values.ToArray()) + ")");
+                    query.Append(") values (" + String.Join(",", values.ToArray()) + ")");
                     cmd.Connection = conn;
                     cmd.CommandText = query.ToString();
                     m_log.WarnFormat("[PGSQLGenericTable]: Inserting into {0} sql {1}", m_Realm, cmd.CommandText);
@@ -377,7 +416,11 @@ namespace OpenSim.Data.PGSQL
             {
                 for (int i = 0; i < fields.Length; i++)
                 {
-                    cmd.Parameters.Add(m_database.CreateParameter(fields[i], keys[i]));
+                    if (m_FieldTypes.ContainsKey(fields[i].ToLower()))
+                        cmd.Parameters.Add(m_database.CreateParameter(fields[i], keys[i], m_FieldTypes[fields[i].ToLower()]));
+                    else
+                        cmd.Parameters.Add(m_database.CreateParameter(fields[i], keys[i]));
+
                     terms.Add(" " + fields[i] + " = :" + fields[i]);
                 }
 

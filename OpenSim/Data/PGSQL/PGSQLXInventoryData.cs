@@ -54,6 +54,15 @@ namespace OpenSim.Data.PGSQL
                     conn, "inventoryitems", String.Empty);
         }
 
+        public static UUID str2UUID(string strUUID)
+        {
+            UUID newUUID = UUID.Zero;
+
+            UUID.TryParse(strUUID, out newUUID);
+
+            return newUUID;
+        }
+
         public XInventoryFolder[] GetFolders(string[] fields, string[] vals)
         {
             return m_Folders.Get(fields, vals);
@@ -113,7 +122,7 @@ namespace OpenSim.Data.PGSQL
 
         public XInventoryItem[] GetActiveGestures(UUID principalID)
         {
-            return m_Items.GetActiveGestures(principalID);
+            return m_Items.GetActiveGestures(principalID.ToString());
         }
 
         public int GetAssetPermissions(UUID principalID, UUID assetID)
@@ -143,8 +152,8 @@ namespace OpenSim.Data.PGSQL
                 {
 
                     cmd.CommandText = String.Format("update {0} set parentFolderID = :ParentFolderID where inventoryID = :InventoryID", m_Realm);
-                    cmd.Parameters.Add(m_database.CreateParameter("ParentFolderID", newParent));
-                    cmd.Parameters.Add(m_database.CreateParameter("InventoryID", id));
+                    cmd.Parameters.Add(m_database.CreateParameter("ParentFolderID", newParent ));
+                    cmd.Parameters.Add(m_database.CreateParameter("InventoryID", id ));
                     cmd.Connection = conn;
                     conn.Open();
 
@@ -159,15 +168,15 @@ namespace OpenSim.Data.PGSQL
             return true;
         }
 
-        public XInventoryItem[] GetActiveGestures(UUID principalID)
+        public XInventoryItem[] GetActiveGestures(string principalID)
         {
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             {
                 using (NpgsqlCommand cmd = new NpgsqlCommand())
                 {
-                    cmd.CommandText = String.Format("select * from inventoryitems where avatarId = :uuid and assetType = :type and flags = 1", m_Realm);
+                    cmd.CommandText = String.Format("select * from inventoryitems where avatarId = ':uuid' and assetType = :type and flags = 1", m_Realm);
 
-                    cmd.Parameters.Add(m_database.CreateParameter("uuid", principalID));
+                    cmd.Parameters.Add(m_database.CreateParameter("uuid", principalID ));
                     cmd.Parameters.Add(m_database.CreateParameter("type", (int)AssetType.Gesture));
                     cmd.Connection = conn;
                     conn.Open();
@@ -182,9 +191,9 @@ namespace OpenSim.Data.PGSQL
             {
                 using (NpgsqlCommand cmd = new NpgsqlCommand())
                 {
-                    cmd.CommandText = String.Format("select bit_or(inventoryCurrentPermissions) as inventoryCurrentPermissions from inventoryitems where avatarID = :PrincipalID and assetID = :AssetID group by assetID", m_Realm);
+                    cmd.CommandText = String.Format("select bit_or(inventoryCurrentPermissions) as inventoryCurrentPermissions from inventoryitems where avatarID = ':PrincipalID' and assetID = ':AssetID' group by assetID", m_Realm);
                     cmd.Parameters.Add(m_database.CreateParameter("PrincipalID", principalID));
-                    cmd.Parameters.Add(m_database.CreateParameter("AssetID", assetID.ToString()));
+                    cmd.Parameters.Add(m_database.CreateParameter("AssetID", assetID));
                     cmd.Connection = conn;
                     conn.Open();
                     using (NpgsqlDataReader reader = cmd.ExecuteReader())

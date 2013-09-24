@@ -42,15 +42,18 @@ namespace OpenSim.Data.PGSQL
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
+        
         public PGSQLUserAccountData(string connectionString, string realm) :
             base(connectionString, realm, "UserAccount")
         {
         }
-        //private string m_Realm;
-        //private List<string> m_ColumnNames = null;
-        //private PGSQLManager m_database;
+        
+        /* 
+        private string m_Realm;
+        private List<string> m_ColumnNames = null;
+        private PGSQLManager m_database;
 
-        /*public PGSQLUserAccountData(string connectionString, string realm) :
+        public PGSQLUserAccountData(string connectionString, string realm) :
             base(connectionString, realm, "UserAccount")
         {
             m_Realm = realm;
@@ -60,66 +63,67 @@ namespace OpenSim.Data.PGSQL
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             {
                 conn.Open();
-                Migration m = new Migration(conn, GetType().Assembly, "UserStore");
+                Migration m = new Migration(conn, GetType().Assembly, "UserAccount");
                 m.Update();
             }
-        }*/
-
+        }
+        */
         //public List<UserAccountData> Query(UUID principalID, UUID scopeID, string query)
         //{
         //    return null;
         //}
 
-        //public UserAccountData Get(UUID principalID, UUID scopeID)
-        //{
-        //    UserAccountData ret = new UserAccountData();
-        //    ret.Data = new Dictionary<string, string>();
+        /*
+        public UserAccountData Get(UUID principalID, UUID scopeID)
+        {
+            UserAccountData ret = new UserAccountData();
+            ret.Data = new Dictionary<string, string>();
 
-        //    string sql = string.Format("select * from {0} where UUID = :principalID", m_Realm);
-        //    if (scopeID != UUID.Zero)
-        //        sql += " and ScopeID = :scopeID";
+            string sql = string.Format("select * from {0} where UUID = :principalID", m_Realm);
+            if (scopeID != UUID.Zero)
+                sql += " and ScopeID = :scopeID";
 
-        //    using (SqlConnection conn = new SqlConnection(m_ConnectionString))
-        //    using (SqlCommand cmd = new SqlCommand(sql, conn))
-        //    {
-        //        cmd.Parameters.Add(m_database.CreateParameter("principalID", principalID));
-        //        cmd.Parameters.Add(m_database.CreateParameter("scopeID", scopeID));
+            using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
+            using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
+            {
+                cmd.Parameters.Add(m_database.CreateParameter("principalID", principalID));
+                cmd.Parameters.Add(m_database.CreateParameter("scopeID", scopeID));
                 
-        //        conn.Open();
-        //        using (SqlDataReader result = cmd.ExecuteReader())
-        //        {
-        //            if (result.Read())
-        //            {
-        //                ret.PrincipalID = principalID;
-        //                UUID scope;
-        //                UUID.TryParse(result["ScopeID"].ToString(), out scope);
-        //                ret.ScopeID = scope;
+                conn.Open();
+                using (NpgsqlDataReader result = cmd.ExecuteReader())
+                {
+                    if (result.Read())
+                    {
+                        ret.PrincipalID = principalID;
+                        UUID scope;
+                        UUID.TryParse(result["ScopeID"].ToString(), out scope);
+                        ret.ScopeID = scope;
 
-        //                if (m_ColumnNames == null)
-        //                {
-        //                    m_ColumnNames = new List<string>();
+                        if (m_ColumnNames == null)
+                        {
+                            m_ColumnNames = new List<string>();
 
-        //                    DataTable schemaTable = result.GetSchemaTable();
-        //                    foreach (DataRow row in schemaTable.Rows)
-        //                        m_ColumnNames.Add(row["ColumnName"].ToString());
-        //                }
+                            DataTable schemaTable = result.GetSchemaTable();
+                            foreach (DataRow row in schemaTable.Rows)
+                                m_ColumnNames.Add(row["ColumnName"].ToString());
+                        }
 
-        //                foreach (string s in m_ColumnNames)
-        //                {
-        //                    if (s == "UUID")
-        //                        continue;
-        //                    if (s == "ScopeID")
-        //                        continue;
+                        foreach (string s in m_ColumnNames)
+                        {
+                            if (s == "UUID")
+                                continue;
+                            if (s == "ScopeID")
+                                continue;
 
-        //                    ret.Data[s] = result[s].ToString();
-        //                }
-        //                return ret;
-        //            }
-        //        }
-        //    }
-        //    return null;
-        //}
-
+                            ret.Data[s] = result[s].ToString();
+                        }
+                        return ret;
+                    }
+                }
+            }
+            return null;
+        }
+        */
         /*
         public override bool Store(UserAccountData data)
         {
@@ -145,7 +149,10 @@ namespace OpenSim.Data.PGSQL
                     updateBuilder.AppendFormat("{0} = :{0}", field);
 
                     first = false;
-                    cmd.Parameters.Add(m_database.CreateParameter("" + field, data.Data[field]));
+                    if (m_FieldTypes.ContainsKey(field))
+                        cmd.Parameters.Add(m_database.CreateParameter("" + field, data.Data[field], m_FieldTypes[field]));
+                    else
+                        cmd.Parameters.Add(m_database.CreateParameter("" + field, data.Data[field]));
                 }
 
                 updateBuilder.Append(" where principalid = :principalID");
@@ -198,30 +205,34 @@ namespace OpenSim.Data.PGSQL
             }
             return true;
         }
-         * */
+        */
 
         //public bool Store(UserAccountData data, UUID principalID, string token)
         //{
         //    return false;
         //}
 
-        //public bool SetDataItem(UUID principalID, string item, string value)
-        //{
-        //    string sql = string.Format("update {0} set {1} = :{1} where UUID = :UUID", m_Realm, item);
-        //    using (SqlConnection conn = new SqlConnection(m_ConnectionString))
-        //    using (SqlCommand cmd = new SqlCommand(sql, conn))
-        //    {
-        //        cmd.Parameters.Add(m_database.CreateParameter("" + item, value));
-        //        cmd.Parameters.Add(m_database.CreateParameter("UUID", principalID));
+        /*
+        public bool SetDataItem(UUID principalID, string item, string value)
+        {
+            string sql = string.Format("update {0} set {1} = :{1} where UUID = :UUID", m_Realm, item);
+            using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
+            using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
+            {
+                if (m_FieldTypes.ContainsKey(item))
+                    cmd.Parameters.Add(m_database.CreateParameter("" + item, value, m_FieldTypes[item]));
+                else
+                    cmd.Parameters.Add(m_database.CreateParameter("" + item, value));
 
-        //        conn.Open();
+                cmd.Parameters.Add(m_database.CreateParameter("UUID", principalID));
+                conn.Open();
 
-        //        if (cmd.ExecuteNonQuery() > 0)
-        //            return true;
-        //    }
-        //    return false;
-        //}
-
+                if (cmd.ExecuteNonQuery() > 0)
+                    return true;
+            }
+            return false;
+        }
+        */
         //public UserAccountData[] Get(string[] keys, string[] vals)
         //{
         //    return null;

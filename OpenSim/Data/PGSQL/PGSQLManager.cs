@@ -113,6 +113,41 @@ namespace OpenSim.Data.PGSQL
             return NpgsqlDbType.Varchar;
         }
 
+        internal NpgsqlDbType DbtypeFromString(Type type, string PGFieldType)
+        {
+            if (PGFieldType == "")
+            {
+                return DbtypeFromType(type);
+            }
+
+            if (PGFieldType == "character varying")
+            {
+                return NpgsqlDbType.Varchar;
+            }
+            if (PGFieldType == "double precision")
+            {
+                return NpgsqlDbType.Double;
+            }
+            if (PGFieldType == "integer")
+            {
+                return NpgsqlDbType.Integer;
+            }
+            if (PGFieldType == "boolean")
+            {
+                return NpgsqlDbType.Boolean;
+            }
+            if (PGFieldType == "uuid")
+            {
+                return NpgsqlDbType.Uuid;
+            }
+            if (PGFieldType == "bytea")
+            {
+                return NpgsqlDbType.Bytea;
+            }
+
+            return DbtypeFromType(type);
+        }
+
         /// <summary>
         /// Creates value for parameter.
         /// </summary>
@@ -146,6 +181,41 @@ namespace OpenSim.Data.PGSQL
         }
 
         /// <summary>
+        ///  Create value for parameter based on PGSQL Schema
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="PGFieldType"></param>
+        /// <returns></returns>
+        internal static object CreateParameterValue(object value, string PGFieldType)
+        {
+            if (PGFieldType == "uuid")
+            {
+                UUID uidout;
+                UUID.TryParse(value.ToString(), out uidout);
+                return uidout;
+            }
+            if (PGFieldType == "integer")
+            {
+                int intout;
+                int.TryParse(value.ToString(), out intout);
+                return intout;
+            }
+            if (PGFieldType == "boolean")
+            {
+                return (value.ToString() == "true");
+            }
+            if (PGFieldType == "timestamp with time zone")
+            {
+                return (DateTime)value;
+            }
+            if (PGFieldType == "timestamp without time zone")
+            {
+                return (DateTime)value;
+            }
+            return CreateParameterValue(value);
+        }
+
+        /// <summary>
         /// Create a parameter for a command
         /// </summary>
         /// <param name="parameterName">Name of the parameter.</param>
@@ -165,8 +235,8 @@ namespace OpenSim.Data.PGSQL
         /// <returns></returns>
         internal NpgsqlParameter CreateParameter(string parameterName, object parameterObject, bool parameterOut)
         {
-            //Tweak so we dont always have to add @ sign
-            //if (!parameterName.StartsWith("@")) parameterName = "@" + parameterName;
+            //Tweak so we dont always have to add : sign
+            if (parameterName.StartsWith(":")) parameterName = parameterName.Replace(":","");
 
             //HACK if object is null, it is turned into a string, there are no nullable type till now
             if (parameterObject == null) parameterObject = "";
@@ -182,6 +252,29 @@ namespace OpenSim.Data.PGSQL
                 parameter.Direction = ParameterDirection.Input;
                 parameter.Value = CreateParameterValue(parameterObject);
             }
+
+            return parameter;
+        }
+
+        /// <summary>
+        /// Create a parameter with PGSQL schema type
+        /// </summary>
+        /// <param name="parameterName"></param>
+        /// <param name="parameterObject"></param>
+        /// <param name="PGFieldType"></param>
+        /// <returns></returns>
+        internal NpgsqlParameter CreateParameter(string parameterName, object parameterObject, string PGFieldType)
+        {
+            //Tweak so we dont always have to add : sign
+            if (parameterName.StartsWith(":")) parameterName = parameterName.Replace(":", "");
+
+            //HACK if object is null, it is turned into a string, there are no nullable type till now
+            if (parameterObject == null) parameterObject = "";
+
+            NpgsqlParameter parameter = new NpgsqlParameter(parameterName, DbtypeFromString(parameterObject.GetType(), PGFieldType));
+
+            parameter.Direction = ParameterDirection.Input;
+            parameter.Value = CreateParameterValue(parameterObject, PGFieldType);
 
             return parameter;
         }

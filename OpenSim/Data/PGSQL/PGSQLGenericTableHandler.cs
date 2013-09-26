@@ -125,6 +125,7 @@ namespace OpenSim.Data.PGSQL
             m_ColumnNames = new List<string>();
 
             DataTable schemaTable = reader.GetSchemaTable();
+
             foreach (DataRow row in schemaTable.Rows)
             {
                 if (row["ColumnName"] != null &&
@@ -155,7 +156,7 @@ namespace OpenSim.Data.PGSQL
                         AND rc.unique_constraint_schema = ccu.constraint_schema
                         AND rc.unique_constraint_name = ccu.constraint_name
 
-                        where tc.table_name = '{0}' 
+                        where tc.table_name = lower('{0}') 
                         and lower(tc.constraint_type) in ('primary key')
                         and kcu.column_name is not null
                         ;", m_Realm);

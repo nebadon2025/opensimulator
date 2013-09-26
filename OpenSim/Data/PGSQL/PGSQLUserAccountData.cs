@@ -42,13 +42,13 @@ namespace OpenSim.Data.PGSQL
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        
+        /*
         public PGSQLUserAccountData(string connectionString, string realm) :
             base(connectionString, realm, "UserAccount")
         {
         }
-        
-        /* 
+        */
+         
         private string m_Realm;
         private List<string> m_ColumnNames = null;
         private PGSQLManager m_database;
@@ -67,19 +67,58 @@ namespace OpenSim.Data.PGSQL
                 m.Update();
             }
         }
-        */
-        //public List<UserAccountData> Query(UUID principalID, UUID scopeID, string query)
-        //{
-        //    return null;
-        //}
-
+        
         /*
+        public List<UserAccountData> Query(UUID principalID, UUID scopeID, string query)
+        {
+            return null;
+        }
+        */
+
+        public override UserAccountData[] Get(string[] fields, string[] keys)
+        {
+            UserAccountData[] retUA = base.Get(fields,keys);
+
+            if (retUA.Length > 0)
+            {
+                Dictionary<string, string> data = retUA[0].Data;
+                Dictionary<string, string> data2 = new Dictionary<string, string>();
+
+                foreach (KeyValuePair<string,string> chave in data)
+                {
+                    string s2 = chave.Key;
+
+                    if (s2 == "created") s2 = "Created";
+                    if (s2 == "userlevel") s2 = "UserLevel";
+                    if (s2 == "UserTitle") s2 = "UserTitle";
+                    if (s2 == "userflags") s2 = "UserFlags";
+                    if (s2 == "serviceurls") s2 = "ServiceURLs";
+
+                    data2[s2] = chave.Value;
+
+                    if (m_FieldTypes.ContainsKey(chave.Key))
+                    {
+                        string tipo = "";
+                        m_FieldTypes.TryGetValue(chave.Key, out tipo);
+                        m_FieldTypes.Add(s2, tipo);
+                    }
+                }
+                foreach (KeyValuePair<string, string> chave in data2)
+                {
+                    if (!retUA[0].Data.ContainsKey(chave.Key))
+                        retUA[0].Data.Add(chave.Key, chave.Value);
+                }
+            }
+
+            return retUA;
+        }
+
         public UserAccountData Get(UUID principalID, UUID scopeID)
         {
             UserAccountData ret = new UserAccountData();
             ret.Data = new Dictionary<string, string>();
 
-            string sql = string.Format("select * from {0} where UUID = :principalID", m_Realm);
+            string sql = string.Format("select * from {0} where principalID = :principalID", m_Realm);
             if (scopeID != UUID.Zero)
                 sql += " and ScopeID = :scopeID";
 
@@ -96,7 +135,7 @@ namespace OpenSim.Data.PGSQL
                     {
                         ret.PrincipalID = principalID;
                         UUID scope;
-                        UUID.TryParse(result["ScopeID"].ToString(), out scope);
+                        UUID.TryParse(result["scopeid"].ToString(), out scope);
                         ret.ScopeID = scope;
 
                         if (m_ColumnNames == null)
@@ -110,12 +149,14 @@ namespace OpenSim.Data.PGSQL
 
                         foreach (string s in m_ColumnNames)
                         {
-                            if (s == "UUID")
+                            string s2 = s;
+                            if (s2 == "uuid")
                                 continue;
-                            if (s == "ScopeID")
+                            if (s2 == "scopeid")
                                 continue;
 
                             ret.Data[s] = result[s].ToString();
+                            ret.Data[s2] = result[s].ToString();
                         }
                         return ret;
                     }
@@ -123,14 +164,14 @@ namespace OpenSim.Data.PGSQL
             }
             return null;
         }
-        */
-        /*
+        
+        
         public override bool Store(UserAccountData data)
         {
-            if (data.Data.ContainsKey("principalID"))
-                data.Data.Remove("principalID");
-            if (data.Data.ContainsKey("ScopeID"))
-                data.Data.Remove("ScopeID");
+            if (data.Data.ContainsKey("principalid"))
+                data.Data.Remove("principalid");
+            if (data.Data.ContainsKey("scopeid"))
+                data.Data.Remove("scopeid");
 
             string[] fields = new List<string>(data.Data.Keys).ToArray();
 
@@ -149,8 +190,8 @@ namespace OpenSim.Data.PGSQL
                     updateBuilder.AppendFormat("{0} = :{0}", field);
 
                     first = false;
-                    if (m_FieldTypes.ContainsKey(field))
-                        cmd.Parameters.Add(m_database.CreateParameter("" + field, data.Data[field], m_FieldTypes[field]));
+                    if (m_FieldTypes.ContainsKey(field.ToLower()))
+                        cmd.Parameters.Add(m_database.CreateParameter("" + field, data.Data[field], m_FieldTypes[field.ToLower()]));
                     else
                         cmd.Parameters.Add(m_database.CreateParameter("" + field, data.Data[field]));
                 }
@@ -205,14 +246,14 @@ namespace OpenSim.Data.PGSQL
             }
             return true;
         }
-        */
+        
 
-        //public bool Store(UserAccountData data, UUID principalID, string token)
-        //{
-        //    return false;
-        //}
+        public bool Store(UserAccountData data, UUID principalID, string token)
+        {
+            return false;
+        }
 
-        /*
+        
         public bool SetDataItem(UUID principalID, string item, string value)
         {
             string sql = string.Format("update {0} set {1} = :{1} where UUID = :UUID", m_Realm, item);
@@ -232,7 +273,7 @@ namespace OpenSim.Data.PGSQL
             }
             return false;
         }
-        */
+        
         //public UserAccountData[] Get(string[] keys, string[] vals)
         //{
         //    return null;

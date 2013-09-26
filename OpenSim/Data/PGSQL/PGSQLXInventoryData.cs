@@ -174,7 +174,7 @@ namespace OpenSim.Data.PGSQL
             {
                 using (NpgsqlCommand cmd = new NpgsqlCommand())
                 {
-                    cmd.CommandText = String.Format("select * from inventoryitems where avatarId = ':uuid' and assetType = :type and flags = 1", m_Realm);
+                    cmd.CommandText = String.Format("select * from inventoryitems where avatarId = :uuid and assetType = :type and flags = 1", m_Realm);
 
                     cmd.Parameters.Add(m_database.CreateParameter("uuid", principalID ));
                     cmd.Parameters.Add(m_database.CreateParameter("type", (int)AssetType.Gesture));
@@ -191,7 +191,10 @@ namespace OpenSim.Data.PGSQL
             {
                 using (NpgsqlCommand cmd = new NpgsqlCommand())
                 {
-                    cmd.CommandText = String.Format("select bit_or(inventoryCurrentPermissions) as inventoryCurrentPermissions from inventoryitems where avatarID = ':PrincipalID' and assetID = ':AssetID' group by assetID", m_Realm);
+                    cmd.CommandText = String.Format("select bit_or(inventoryCurrentPermissions) as inventoryCurrentPermissions " + 
+                                " from inventoryitems where avatarID = :PrincipalID " + 
+                                " and assetID = ':AssetID' group by assetID", m_Realm);
+
                     cmd.Parameters.Add(m_database.CreateParameter("PrincipalID", principalID));
                     cmd.Parameters.Add(m_database.CreateParameter("AssetID", assetID));
                     cmd.Connection = conn;

@@ -108,11 +108,11 @@ namespace OpenSim.Data.PGSQL
             SceneObjectGroup grp = null;
 
             string sql = "SELECT *, " +
-                           "CASE WHEN prims.UUID = prims.SceneGroupID THEN 0 ELSE 1 END as sort" +
-                           "FROM prims " +
-                           "LEFT JOIN primshapes ON prims.UUID = primshapes.UUID " +
-                           "WHERE RegionUUID = :RegionUUID " +
-                           "ORDER BY SceneGroupID asc, sort asc, LinkNumber asc";
+                           "CASE WHEN prims.UUID = prims.SceneGroupID THEN 0 ELSE 1 END as sort " +
+                           " FROM prims " +
+                           " LEFT JOIN primshapes ON prims.UUID = primshapes.UUID " +
+                           " WHERE RegionUUID = :RegionUUID " +
+                           " ORDER BY SceneGroupID asc, sort asc, LinkNumber asc";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand command = new NpgsqlCommand(sql, conn))
@@ -1925,8 +1925,8 @@ telehubobject = :telehubobject, parcel_tile_id = :ParcelImageID
             parameters.Add(_Database.CreateParameter("SalePrice", land.SalePrice));
             parameters.Add(_Database.CreateParameter("LandStatus", (int)land.Status)); //Enum. libsecondlife.Parcel.ParcelStatus
             parameters.Add(_Database.CreateParameter("LandFlags", land.Flags));
-            parameters.Add(_Database.CreateParameter("LandingType", land.LandingType));
-            parameters.Add(_Database.CreateParameter("MediaAutoScale", land.MediaAutoScale));
+            parameters.Add(_Database.CreateParameter("LandingType", Convert.ToInt32( land.LandingType) ));
+            parameters.Add(_Database.CreateParameter("MediaAutoScale", Convert.ToInt32( land.MediaAutoScale )));
             parameters.Add(_Database.CreateParameter("MediaTextureUUID", land.MediaID));
             parameters.Add(_Database.CreateParameter("MediaURL", land.MediaURL));
             parameters.Add(_Database.CreateParameter("MusicURL", land.MusicURL));

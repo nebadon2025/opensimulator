@@ -92,8 +92,8 @@ namespace OpenSim.Data.PGSQL
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
-                cmd.Parameters.Add(m_database.CreateParameter("posX", posX.ToString()));
-                cmd.Parameters.Add(m_database.CreateParameter("posY", posY.ToString()));
+                cmd.Parameters.Add(m_database.CreateParameter("posX", posX));
+                cmd.Parameters.Add(m_database.CreateParameter("posY", posY));
                 if (scopeID != UUID.Zero) 
                     cmd.Parameters.Add(m_database.CreateParameter("scopeID", scopeID));
                 conn.Open();

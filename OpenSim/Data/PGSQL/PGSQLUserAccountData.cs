@@ -96,7 +96,7 @@ namespace OpenSim.Data.PGSQL
 
                     data2[s2] = chave.Value;
 
-                    if (m_FieldTypes.ContainsKey(chave.Key))
+                    if (!m_FieldTypes.ContainsKey(chave.Key))
                     {
                         string tipo = "";
                         m_FieldTypes.TryGetValue(chave.Key, out tipo);
@@ -224,16 +224,18 @@ namespace OpenSim.Data.PGSQL
 
                 if (conta < 1)
                 {
-                    
                     m_log.DebugFormat("[USER]: Try to insert user {0} {1}", data.FirstName, data.LastName);
 
                     StringBuilder insertBuilder = new StringBuilder();
-                    insertBuilder.AppendFormat("insert into {0} (principalid, ScopeID, ", m_Realm);
+                    insertBuilder.AppendFormat("insert into {0} (principalid, ScopeID, FirstName, LastName, ", m_Realm);
                     insertBuilder.Append(String.Join(", ", fields));
-                    insertBuilder.Append(") values (:principalID, :scopeID, :");
+                    insertBuilder.Append(") values (:principalID, :scopeID, :FirstName, :LastName, :");
                     insertBuilder.Append(String.Join(", :", fields));
-                    insertBuilder.Append(")");
-                           
+                    insertBuilder.Append(");");
+
+                    cmd.Parameters.Add(m_database.CreateParameter("FirstName", data.FirstName));
+                    cmd.Parameters.Add(m_database.CreateParameter("LastName", data.LastName));
+
                     cmd.CommandText = insertBuilder.ToString();
 
                     if (cmd.ExecuteNonQuery() < 1)

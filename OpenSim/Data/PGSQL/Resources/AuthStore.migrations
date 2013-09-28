@@ -4,10 +4,10 @@ BEGIN TRANSACTION;
 
 CREATE TABLE auth (
   uuid uuid NOT NULL default '00000000-0000-0000-0000-000000000000',
-  passwordHash varchar(32) NOT NULL,
-  passwordSalt varchar(32) NOT NULL,
-  webLoginKey varchar(255) NOT NULL,
-  accountType VARCHAR(32) NOT NULL DEFAULT 'UserAccount'
+  "passwordHash" varchar(32) NOT NULL,
+  "passwordSalt" varchar(32) NOT NULL,
+  "webLoginKey" varchar(255) NOT NULL,
+  "accountType" VARCHAR(32) NOT NULL DEFAULT 'UserAccount'
 ) ;
 
 CREATE TABLE tokens (
@@ -22,7 +22,7 @@ COMMIT;
 
 BEGIN TRANSACTION;
 
-   INSERT INTO auth (UUID, passwordHash, passwordSalt, webLoginKey, accountType) 
+   INSERT INTO auth (UUID, "passwordHash", "passwordSalt", "webLoginKey", "accountType") 
 	SELECT UUID AS UUID, passwordHash AS passwordHash, passwordSalt AS passwordSalt, webLoginKey AS webLoginKey, 'UserAccount' as accountType 
 	FROM users
       where exists ( Select * from information_schema.tables where table_name = 'users' )

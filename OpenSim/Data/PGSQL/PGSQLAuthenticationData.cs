@@ -88,7 +88,7 @@ namespace OpenSim.Data.PGSQL
 
                         foreach (string s in m_ColumnNames)
                         {
-                            if (s == "UUID")
+                            if (s == "UUID"||s == "uuid")
                                 continue;
 
                             ret.Data[s] = result[s].ToString();
@@ -104,7 +104,26 @@ namespace OpenSim.Data.PGSQL
         {
             if (data.Data.ContainsKey("UUID"))
                 data.Data.Remove("UUID");
+            if (data.Data.ContainsKey("uuid"))
+                data.Data.Remove("uuid");
 
+            /*
+            Dictionary<string, object> oAuth = new Dictionary<string, object>();
+
+            foreach (KeyValuePair<string, object> oDado in data.Data)
+            {
+                if (oDado.Key != oDado.Key.ToLower())
+                {
+                    oAuth.Add(oDado.Key.ToLower(), oDado.Value);
+                }
+            }
+            foreach (KeyValuePair<string, object> oDado in data.Data)
+            {
+                if (!oAuth.ContainsKey(oDado.Key.ToLower())) {
+                    oAuth.Add(oDado.Key.ToLower(), oDado.Value);
+                }
+            }
+            */
             string[] fields = new List<string>(data.Data.Keys).ToArray();
             StringBuilder updateBuilder = new StringBuilder();
 
@@ -118,9 +137,10 @@ namespace OpenSim.Data.PGSQL
                 {
                     if (!first)
                         updateBuilder.Append(", ");
-                    updateBuilder.AppendFormat("{0} = :{0}",field);
+                    updateBuilder.AppendFormat("\"{0}\" = :{0}",field);
 
                     first = false;
+                    
                     cmd.Parameters.Add(m_database.CreateParameter("" + field, data.Data[field]));
                 }
 
@@ -135,9 +155,9 @@ namespace OpenSim.Data.PGSQL
                 {
                     StringBuilder insertBuilder = new StringBuilder();
 
-                    insertBuilder.AppendFormat("insert into {0} (UUID, ", m_Realm);
-                    insertBuilder.Append(String.Join(", ", fields));
-                    insertBuilder.Append(") values (:principalID, :");
+                    insertBuilder.AppendFormat("insert into {0} (UUID, \"", m_Realm);
+                    insertBuilder.Append(String.Join("\", \"", fields));
+                    insertBuilder.Append("\") values (:principalID, :");
                     insertBuilder.Append(String.Join(", :", fields));
                     insertBuilder.Append(")");
 

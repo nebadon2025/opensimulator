@@ -66,7 +66,7 @@ namespace OpenSim.Data.PGSQL
             using (NpgsqlCommand cmd = new NpgsqlCommand())
             {
 
-                cmd.CommandText = String.Format("DELETE FROM {0} WHERE RegionID=:RegionID", m_Realm);
+                cmd.CommandText = String.Format(@"DELETE FROM {0} WHERE ""RegionID""=:RegionID", m_Realm);
 
                 cmd.Parameters.Add(m_database.CreateParameter("RegionID", regionID));
                 cmd.Connection = conn;
@@ -86,8 +86,8 @@ namespace OpenSim.Data.PGSQL
             {
 
                 cmd.CommandText = String.Format(@"UPDATE {0} SET 
-                                                RegionID = :RegionID
-                                        WHERE SessionID = :SessionID", m_Realm);
+                                                ""RegionID"" = :RegionID
+                                        WHERE ""SessionID"" = :SessionID", m_Realm);
 
                 cmd.Parameters.Add(m_database.CreateParameter("SessionID", sessionID));
                 cmd.Parameters.Add(m_database.CreateParameter("RegionID", regionID));

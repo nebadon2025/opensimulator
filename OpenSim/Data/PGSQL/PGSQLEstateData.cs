@@ -239,7 +239,7 @@ namespace OpenSim.Data.PGSQL
                 sql += "\"" + name + "\" = :" + name + ", ";
             }
             sql = sql.Remove(sql.LastIndexOf(","));
-            sql += " WHERE EstateID = :EstateID";
+            sql += " WHERE \"EstateID\" = :EstateID";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -464,7 +464,7 @@ namespace OpenSim.Data.PGSQL
         public List<int> GetEstatesAll()
         {
             List<int> result = new List<int>();
-            string sql = "select \"estateID\" from estate_settings";
+            string sql = "select \"EstateID\" from estate_settings";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             {
                 conn.Open();

@@ -35,6 +35,7 @@ using System.Reflection;
 using System.Text;
 using log4net;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace OpenSim.Data.PGSQL
 {
@@ -156,7 +157,7 @@ namespace OpenSim.Data.PGSQL
                     UUID parent2 = UUID.Zero;
                     UUID.TryParse(newParent, out parent2);
 
-                    cmd.CommandText = String.Format("update {0} set parentFolderID = :ParentFolderID where inventoryID = :InventoryID", m_Realm);
+                    cmd.CommandText = String.Format(@"update {0} set ""parentFolderID"" = :ParentFolderID where ""inventoryID"" = :InventoryID", m_Realm);
                     cmd.Parameters.Add(m_database.CreateParameter("ParentFolderID", parent2));
                     cmd.Parameters.Add(m_database.CreateParameter("InventoryID", id2 ));
                     cmd.Connection = conn;
@@ -179,7 +180,7 @@ namespace OpenSim.Data.PGSQL
             {
                 using (NpgsqlCommand cmd = new NpgsqlCommand())
                 {
-                    cmd.CommandText = String.Format("select * from inventoryitems where avatarId = :uuid and assetType = :type and flags = 1", m_Realm);
+                    cmd.CommandText = String.Format(@"select * from inventoryitems where ""avatarId"" = :uuid and ""assetType"" = :type and ""flags"" = 1", m_Realm);
 
                     UUID princID = UUID.Zero;
                     UUID.TryParse(principalID, out princID);
@@ -199,9 +200,11 @@ namespace OpenSim.Data.PGSQL
             {
                 using (NpgsqlCommand cmd = new NpgsqlCommand())
                 {
-                    cmd.CommandText = String.Format("select bit_or(inventoryCurrentPermissions) as inventoryCurrentPermissions " + 
-                                " from inventoryitems where avatarID = :PrincipalID " + 
-                                " and assetID = :AssetID group by assetID", m_Realm);
+                    cmd.CommandText = String.Format(@"select bit_or(""inventoryCurrentPermissions"") as ""inventoryCurrentPermissions"" 
+                                 from inventoryitems 
+                                 where ""avatarID"" = :PrincipalID 
+                                   and ""assetID"" = :AssetID 
+                                 group by ""assetID"" ", m_Realm);
 
                     cmd.Parameters.Add(m_database.CreateParameter("PrincipalID", principalID));
                     cmd.Parameters.Add(m_database.CreateParameter("AssetID", assetID));
@@ -261,7 +264,7 @@ namespace OpenSim.Data.PGSQL
                     UUID newPar = UUID.Zero;
                     UUID.TryParse(newParentFolderID, out newPar);
 
-                    cmd.CommandText = String.Format("update {0} set parentFolderID = :ParentFolderID where folderID = :folderID", m_Realm);
+                    cmd.CommandText = String.Format(@"update {0} set ""parentFolderID"" = :ParentFolderID where ""folderID"" = :folderID", m_Realm);
                     cmd.Parameters.Add(m_database.CreateParameter("ParentFolderID", newPar));
                     cmd.Parameters.Add(m_database.CreateParameter("folderID", foldID));
                     cmd.Connection = conn;
@@ -303,7 +306,7 @@ namespace OpenSim.Data.PGSQL
 //            m_log.DebugFormat("[MYSQL ITEM HANDLER]: Incrementing version on folder {0}", folderID);
 //            Util.PrintCallStack();
 
-            string sql = "update inventoryfolders set version=version+1 where folderID = :folderID";
+            string sql = @"update inventoryfolders set version=version+1 where ""folderID"" = :folderID";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             {
@@ -314,7 +317,7 @@ namespace OpenSim.Data.PGSQL
 
                     conn.Open();
 
-                    cmd.Parameters.AddWithValue("folderID", foldID);
+                    cmd.Parameters.Add( m_database.CreateParameter("folderID", foldID) );
 
                     try
                     {

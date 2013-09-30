@@ -616,7 +616,7 @@ namespace OpenSim.Data.PGSQL
         /// </returns>
         public List<InventoryItemBase> fetchActiveGestures(UUID avatarID)
         {
-            string sql = @"SELECT * FROM inventoryitems WHERE ""avatarId"" = :uuid AND ""assetType"" = :assetType and flags = 1";
+            string sql = @"SELECT * FROM inventoryitems WHERE ""avatarID"" = :uuid AND ""assetType"" = :assetType and flags = 1";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {

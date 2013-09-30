@@ -180,7 +180,7 @@ namespace OpenSim.Data.PGSQL
             {
                 using (NpgsqlCommand cmd = new NpgsqlCommand())
                 {
-                    cmd.CommandText = String.Format(@"select * from inventoryitems where ""avatarId"" = :uuid and ""assetType"" = :type and ""flags"" = 1", m_Realm);
+                    cmd.CommandText = String.Format(@"select * from inventoryitems where ""avatarID"" = :uuid and ""assetType"" = :type and ""flags"" = 1", m_Realm);
 
                     UUID princID = UUID.Zero;
                     UUID.TryParse(principalID, out princID);

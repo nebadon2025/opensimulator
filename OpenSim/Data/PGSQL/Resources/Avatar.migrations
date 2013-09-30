@@ -3,9 +3,9 @@
 BEGIN TRANSACTION;
 
 CREATE TABLE Avatars (
-PrincipalID uuid NOT NULL PRIMARY KEY, 
-Name varchar(32) NOT NULL, 
-Value varchar(255) NOT NULL DEFAULT ''
+"PrincipalID" uuid NOT NULL PRIMARY KEY, 
+"Name" varchar(32) NOT NULL, 
+"Value" varchar(255) NOT NULL DEFAULT ''
 );
 
 
@@ -17,13 +17,13 @@ BEGIN TRANSACTION;
 
 CREATE TABLE Tmp_Avatars
 	(
-	PrincipalID uuid NOT NULL,
-	Name varchar(32) NOT NULL, 
-	Value text NOT NULL DEFAULT ''
+	"PrincipalID" uuid NOT NULL,
+	"Name" varchar(32) NOT NULL, 
+	"Value" text NOT NULL DEFAULT ''
 	)  ;
 	
- INSERT INTO Tmp_Avatars (PrincipalID, Name, Value)
-	SELECT PrincipalID, cast(Name as text), Value 
+ INSERT INTO Tmp_Avatars ("PrincipalID", "Name", "Value")
+	SELECT "PrincipalID", cast("Name" as text), "Value" 
 	FROM Avatars ;
 
 DROP TABLE Avatars;
@@ -39,16 +39,16 @@ BEGIN TRANSACTION;
 
 CREATE TABLE Tmp_Avatars
 	(
-	PrincipalID uuid NOT NULL,
-	Name varchar(32) NOT NULL, 
-	Value text NOT NULL DEFAULT ''
+	"PrincipalID" uuid NOT NULL,
+	"Name" varchar(32) NOT NULL, 
+	"Value" text NOT NULL DEFAULT ''
 );
 
-ALTER TABLE Tmp_Avatars ADD PRIMARY KEY (PrincipalID, Name);
+ALTER TABLE Tmp_Avatars ADD PRIMARY KEY ("PrincipalID", "Name");
 
 
-INSERT INTO Tmp_Avatars (PrincipalID, Name, Value)
-	SELECT PrincipalID, cast(Name as text), Value FROM Avatars ;
+INSERT INTO Tmp_Avatars ("PrincipalID", "Name", "Value")
+	SELECT "PrincipalID", cast("Name" as text), "Value" FROM Avatars ;
 
 DROP TABLE Avatars;
 

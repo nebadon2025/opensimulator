@@ -195,12 +195,12 @@ namespace OpenSim.Data.PGSQL
 
                 for (int i = 0; i < fields.Length; i++)
                 {
-                    if ( m_FieldTypes.ContainsKey(fields[i].ToLower()) )
-                        cmd.Parameters.Add(m_database.CreateParameter(fields[i], keys[i], m_FieldTypes[fields[i].ToLower() ]));
+                    if ( m_FieldTypes.ContainsKey(fields[i]) )
+                        cmd.Parameters.Add(m_database.CreateParameter(fields[i], keys[i], m_FieldTypes[fields[i]]));
                     else
                         cmd.Parameters.Add(m_database.CreateParameter(fields[i], keys[i]));
 
-                    terms.Add(" " + fields[i] + " = :" + fields[i]);
+                    terms.Add(" \"" + fields[i] + "\" = :" + fields[i]);
                 }
 
                 string where = String.Join(" AND ", terms.ToArray());
@@ -324,8 +324,8 @@ namespace OpenSim.Data.PGSQL
                     {
                         constraints.Add(new KeyValuePair<string, string>(fi.Name, fi.GetValue(row).ToString() ));
                     }
-                    if (m_FieldTypes.ContainsKey(fi.Name.ToLower()))
-                        cmd.Parameters.Add(m_database.CreateParameter(fi.Name, fi.GetValue(row), m_FieldTypes[fi.Name.ToLower()]));
+                    if (m_FieldTypes.ContainsKey(fi.Name))
+                        cmd.Parameters.Add(m_database.CreateParameter(fi.Name, fi.GetValue(row), m_FieldTypes[fi.Name]));
                     else
                         cmd.Parameters.Add(m_database.CreateParameter(fi.Name, fi.GetValue(row)));
                 }
@@ -344,8 +344,8 @@ namespace OpenSim.Data.PGSQL
                         names.Add(kvp.Key);
                         values.Add(":" + kvp.Key);
 
-                        if (m_FieldTypes.ContainsKey(kvp.Key.ToLower()))
-                            cmd.Parameters.Add(m_database.CreateParameter("" + kvp.Key, kvp.Value, m_FieldTypes[kvp.Key.ToLower()]));
+                        if (m_FieldTypes.ContainsKey(kvp.Key))
+                            cmd.Parameters.Add(m_database.CreateParameter("" + kvp.Key, kvp.Value, m_FieldTypes[kvp.Key]));
                         else
                             cmd.Parameters.Add(m_database.CreateParameter("" + kvp.Key, kvp.Value));
                     }
@@ -356,15 +356,15 @@ namespace OpenSim.Data.PGSQL
                 int i = 0;
                 for (i = 0; i < names.Count - 1; i++)
                 {
-                    query.AppendFormat("{0} = {1}, ", names[i], values[i]);
+                    query.AppendFormat("\"{0}\" = {1}, ", names[i], values[i]);
                 }
-                query.AppendFormat("{0} = {1} ", names[i], values[i]);
+                query.AppendFormat("\"{0}\" = {1} ", names[i], values[i]);
                 if (constraints.Count > 0)
                 {
                     List<string> terms = new List<string>();
                     for (int j = 0; j < constraints.Count; j++)
                     {
-                        terms.Add(" " + constraints[j].Key + " = :" + constraints[j].Key);
+                        terms.Add(" \"" + constraints[j].Key + "\" = :" + constraints[j].Key);
                     }
                     string where = String.Join(" AND ", terms.ToArray());
                     query.AppendFormat(" WHERE {0} ", where);
@@ -384,9 +384,9 @@ namespace OpenSim.Data.PGSQL
                     // assume record has not yet been inserted
 
                     query = new StringBuilder();
-                    query.AppendFormat("INSERT INTO {0} (", m_Realm);
-                    query.Append(String.Join(",", names.ToArray()));
-                    query.Append(") values (" + String.Join(",", values.ToArray()) + ")");
+                    query.AppendFormat("INSERT INTO {0} (\"", m_Realm);
+                    query.Append(String.Join("\",\"", names.ToArray()));
+                    query.Append("\") values (" + String.Join(",", values.ToArray()) + ")");
                     cmd.Connection = conn;
                     cmd.CommandText = query.ToString();
                     m_log.WarnFormat("[PGSQLGenericTable]: Inserting into {0} sql {1}", m_Realm, cmd.CommandText);
@@ -417,12 +417,12 @@ namespace OpenSim.Data.PGSQL
             {
                 for (int i = 0; i < fields.Length; i++)
                 {
-                    if (m_FieldTypes.ContainsKey(fields[i].ToLower()))
-                        cmd.Parameters.Add(m_database.CreateParameter(fields[i], keys[i], m_FieldTypes[fields[i].ToLower()]));
+                    if (m_FieldTypes.ContainsKey(fields[i]))
+                        cmd.Parameters.Add(m_database.CreateParameter(fields[i], keys[i], m_FieldTypes[fields[i]]));
                     else
                         cmd.Parameters.Add(m_database.CreateParameter(fields[i], keys[i]));
 
-                    terms.Add(" " + fields[i] + " = :" + fields[i]);
+                    terms.Add(" \"" + fields[i] + "\" = :" + fields[i]);
                 }
 
                 string where = String.Join(" AND ", terms.ToArray());

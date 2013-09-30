@@ -148,12 +148,12 @@ namespace OpenSim.Data.PGSQL
         {
            
             string sql =
-                @"UPDATE assets set name = :name, description = :description, assetType = :assetType,
+                @"UPDATE assets set name = :name, description = :description, " + "\"assetType\" " + @" = :assetType,
                          local = :local, temporary = :temporary, creatorid = :creatorid, data = :data
                     WHERE id=:id;
 
                   INSERT INTO assets
-                    (id, name, description, assetType, local, 
+                    (id, name, description, " + "\"assetType\" " + @", local, 
                      temporary, create_time, access_time, creatorid, asset_flags, data)
                   Select :id, :name, :description, :assetType, :local, 
                          :temporary, :create_time, :access_time, :creatorid, :asset_flags, :data
@@ -250,7 +250,7 @@ namespace OpenSim.Data.PGSQL
         public override List<AssetMetadata> FetchAssetMetadataSet(int start, int count)
         {
             List<AssetMetadata> retList = new List<AssetMetadata>(count);
-            string sql = @" SELECT id, name, description, assetType, temporary, creatorid
+            string sql = @" SELECT id, name, description, " + "\"assetType\"" + @", temporary, creatorid
                               FROM assets 
                              order by id
                              limit :stop

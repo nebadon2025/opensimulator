@@ -22,8 +22,8 @@ COMMIT;
 
 BEGIN TRANSACTION;
 
-   INSERT INTO auth (UUID, "passwordHash", "passwordSalt", "webLoginKey", "accountType") 
-	SELECT UUID AS UUID, passwordHash AS passwordHash, passwordSalt AS passwordSalt, webLoginKey AS webLoginKey, 'UserAccount' as accountType 
+   INSERT INTO auth (uuid, "passwordHash", "passwordSalt", "webLoginKey", "accountType") 
+	SELECT uuid AS UUID, passwordHash AS passwordHash, passwordSalt AS passwordSalt, webLoginKey AS webLoginKey, 'UserAccount' as accountType 
 	FROM users
       where exists ( Select * from information_schema.tables where table_name = 'users' )
 	;

@@ -364,7 +364,7 @@ namespace OpenSim.Data.PGSQL
                     List<string> terms = new List<string>();
                     for (int j = 0; j < constraints.Count; j++)
                     {
-                        terms.Add(" \"" + constraints[j].Key + "\" = :" + constraints[j].Key);
+                        terms.Add(String.Format(" \"{0}\" = :{0}", constraints[j].Key));
                     }
                     string where = String.Join(" AND ", terms.ToArray());
                     query.AppendFormat(" WHERE {0} ", where);
@@ -376,7 +376,7 @@ namespace OpenSim.Data.PGSQL
                 conn.Open();
                 if (cmd.ExecuteNonQuery() > 0)
                 {
-                    m_log.WarnFormat("[PGSQLGenericTable]: Updating {0}", m_Realm);
+                    //m_log.WarnFormat("[PGSQLGenericTable]: Updating {0}", m_Realm);
                     return true;
                 }
                 else
@@ -389,7 +389,9 @@ namespace OpenSim.Data.PGSQL
                     query.Append("\") values (" + String.Join(",", values.ToArray()) + ")");
                     cmd.Connection = conn;
                     cmd.CommandText = query.ToString();
-                    m_log.WarnFormat("[PGSQLGenericTable]: Inserting into {0} sql {1}", m_Realm, cmd.CommandText);
+                    
+                    // m_log.WarnFormat("[PGSQLGenericTable]: Inserting into {0} sql {1}", m_Realm, cmd.CommandText);
+
                     if (conn.State != ConnectionState.Open)
                         conn.Open();
                     if (cmd.ExecuteNonQuery() > 0)

@@ -68,10 +68,11 @@ namespace OpenSim.Data.PGSQL
 
         public List<RegionData> Get(string regionName, UUID scopeID)
         {
-            string sql = "select * from "+m_Realm+" where regionName like :regionName";
+            string sql = "select * from "+m_Realm+" where \"regionName\" like :regionName";
             if (scopeID != UUID.Zero)
-                sql += " and ScopeID = :scopeID";
-            sql += " order by regionName";
+                sql += " and \"ScopeID\" = :scopeID";
+            sql += " order by \"regionName\"";
+
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -85,9 +86,9 @@ namespace OpenSim.Data.PGSQL
 
         public RegionData Get(int posX, int posY, UUID scopeID)
         {
-            string sql = "select * from "+m_Realm+" where locX = :posX and locY = :posY";
+            string sql = "select * from "+m_Realm+" where \"locX\" = :posX and \"locY\" = :posY";
             if (scopeID != UUID.Zero)
-                sql += " and ScopeID = :scopeID";
+                sql += " and \"ScopeID\" = :scopeID";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -109,7 +110,7 @@ namespace OpenSim.Data.PGSQL
         {
             string sql = "select * from "+m_Realm+" where uuid = :regionID";
             if (scopeID != UUID.Zero)
-                sql += " and ScopeID = :scopeID";
+                sql += " and \"ScopeID\" = :scopeID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -127,9 +128,9 @@ namespace OpenSim.Data.PGSQL
 
         public List<RegionData> Get(int startX, int startY, int endX, int endY, UUID scopeID)
         {
-            string sql = "select * from "+m_Realm+" where locX between :startX and :endX and locY between :startY and :endY";
+            string sql = "select * from "+m_Realm+" where \"locX\" between :startX and :endX and \"locY\" between :startY and :endY";
             if (scopeID != UUID.Zero)
-                sql += " and ScopeID = :scopeID";
+                sql += " and \"ScopeID\" = :scopeID";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -224,7 +225,7 @@ namespace OpenSim.Data.PGSQL
             using (NpgsqlCommand cmd = new NpgsqlCommand())
             {
 
-                string update = "update " + m_Realm + " set locX=:posX, locY=:posY, sizeX=:sizeX, sizeY=:sizeY ";
+                string update = "update " + m_Realm + " set \"locX\"=:posX, \"locY\"=:posY, \"sizeX\"=:sizeX, \"sizeY\"=:sizeY ";
                 
                 foreach (string field in fields)
                 {
@@ -238,7 +239,7 @@ namespace OpenSim.Data.PGSQL
                 update += " where uuid = :regionID";
 
                 if (data.ScopeID != UUID.Zero)
-                    update += " and ScopeID = :scopeID";
+                    update += " and \"ScopeID\" = :scopeID";
 
                 cmd.CommandText = update;
                 cmd.Connection = conn;
@@ -254,9 +255,9 @@ namespace OpenSim.Data.PGSQL
                 {
                     if (cmd.ExecuteNonQuery() < 1)
                     {
-                        string insert = "insert into " + m_Realm + " (uuid, ScopeID, locX, locY, sizeX, sizeY, regionName, " +
-                                String.Join(", ", fields) +
-                                ") values (:regionID, :scopeID, :posX, :posY, :sizeX, :sizeY, :regionName, :" + String.Join(", :", fields) + ")";
+                        string insert = "insert into " + m_Realm + " (uuid, \"ScopeID\", \"locX\", \"locY\", \"sizeX\", \"sizeY\", \"regionName\", \"" +
+                                String.Join("\", \"", fields) +
+                                "\") values (:regionID, :scopeID, :posX, :posY, :sizeX, :sizeY, :regionName, :" + String.Join(", :", fields) + ")";
 
                         cmd.CommandText = insert;
 
@@ -285,7 +286,7 @@ namespace OpenSim.Data.PGSQL
         public bool SetDataItem(UUID regionID, string item, string value)
         {
             string sql = "update " + m_Realm +
-                    " set " + item + " = :" + item + " where uuid = :UUID";
+                    " set \"" + item + "\" = :" + item + " where uuid = :UUID";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -342,7 +343,7 @@ namespace OpenSim.Data.PGSQL
         {
             string sql = "SELECT * FROM " + m_Realm + " WHERE (flags & " + regionFlags.ToString() + ") <> 0";
             if (scopeID != UUID.Zero)
-                sql += " AND ScopeID = :scopeID";
+                sql += " AND \"ScopeID\" = :scopeID";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))

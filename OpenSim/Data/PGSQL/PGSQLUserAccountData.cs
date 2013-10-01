@@ -88,12 +88,6 @@ namespace OpenSim.Data.PGSQL
                 {
                     string s2 = chave.Key;
 
-                    if (s2 == "created") s2 = "Created";
-                    if (s2 == "userlevel") s2 = "UserLevel";
-                    if (s2 == "UserTitle") s2 = "UserTitle";
-                    if (s2 == "userflags") s2 = "UserFlags";
-                    if (s2 == "serviceurls") s2 = "ServiceURLs";
-
                     data2[s2] = chave.Value;
 
                     if (!m_FieldTypes.ContainsKey(chave.Key))
@@ -118,9 +112,9 @@ namespace OpenSim.Data.PGSQL
             UserAccountData ret = new UserAccountData();
             ret.Data = new Dictionary<string, string>();
 
-            string sql = string.Format("select * from {0} where principalID = :principalID", m_Realm);
+            string sql = string.Format(@"select * from {0} where ""PrincipalID"" = :principalID", m_Realm);
             if (scopeID != UUID.Zero)
-                sql += " and ScopeID = :scopeID";
+                sql += @" and ""ScopeID"" = :scopeID";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -156,7 +150,6 @@ namespace OpenSim.Data.PGSQL
                                 continue;
 
                             ret.Data[s] = result[s].ToString();
-                            ret.Data[s2] = result[s].ToString();
                         }
                         return ret;
                     }
@@ -168,10 +161,10 @@ namespace OpenSim.Data.PGSQL
         
         public override bool Store(UserAccountData data)
         {
-            if (data.Data.ContainsKey("principalid"))
-                data.Data.Remove("principalid");
-            if (data.Data.ContainsKey("scopeid"))
-                data.Data.Remove("scopeid");
+            if (data.Data.ContainsKey("PrincipalID"))
+                data.Data.Remove("PrincipalID");
+            if (data.Data.ContainsKey("ScopeID"))
+                data.Data.Remove("ScopeID");
 
             string[] fields = new List<string>(data.Data.Keys).ToArray();
 
@@ -187,19 +180,19 @@ namespace OpenSim.Data.PGSQL
                 {
                     if (!first)
                         updateBuilder.Append(", ");
-                    updateBuilder.AppendFormat("{0} = :{0}", field);
+                    updateBuilder.AppendFormat("\"{0}\" = :{0}", field);
 
                     first = false;
-                    if (m_FieldTypes.ContainsKey(field.ToLower()))
-                        cmd.Parameters.Add(m_database.CreateParameter("" + field, data.Data[field], m_FieldTypes[field.ToLower()]));
+                    if (m_FieldTypes.ContainsKey(field))
+                        cmd.Parameters.Add(m_database.CreateParameter("" + field, data.Data[field], m_FieldTypes[field]));
                     else
                         cmd.Parameters.Add(m_database.CreateParameter("" + field, data.Data[field]));
                 }
 
-                updateBuilder.Append(" where principalid = :principalID");
+                updateBuilder.Append(" where \"PrincipalID\" = :principalID");
 
                 if (data.ScopeID != UUID.Zero)
-                    updateBuilder.Append(" and ScopeID = :scopeID");
+                    updateBuilder.Append(" and \"ScopeID\" = :scopeID");
 
                 cmd.CommandText = updateBuilder.ToString();
                 cmd.Connection = conn;
@@ -227,9 +220,9 @@ namespace OpenSim.Data.PGSQL
                     m_log.DebugFormat("[USER]: Try to insert user {0} {1}", data.FirstName, data.LastName);
 
                     StringBuilder insertBuilder = new StringBuilder();
-                    insertBuilder.AppendFormat("insert into {0} (principalid, ScopeID, FirstName, LastName, ", m_Realm);
-                    insertBuilder.Append(String.Join(", ", fields));
-                    insertBuilder.Append(") values (:principalID, :scopeID, :FirstName, :LastName, :");
+                    insertBuilder.AppendFormat(@"insert into {0} (""PrincipalID"", ""ScopeID"", ""FirstName"", ""LastName"", """, m_Realm);
+                    insertBuilder.Append(String.Join(@""", """, fields));
+                    insertBuilder.Append(@""") values (:principalID, :scopeID, :FirstName, :LastName, :");
                     insertBuilder.Append(String.Join(", :", fields));
                     insertBuilder.Append(");");
 
@@ -258,7 +251,7 @@ namespace OpenSim.Data.PGSQL
         
         public bool SetDataItem(UUID principalID, string item, string value)
         {
-            string sql = string.Format("update {0} set {1} = :{1} where UUID = :UUID", m_Realm, item);
+            string sql = string.Format(@"update {0} set {1} = :{1} where ""UUID"" = :UUID", m_Realm, item);
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -308,13 +301,13 @@ namespace OpenSim.Data.PGSQL
             {
                 if (words.Length == 1)
                 {
-                    sql = String.Format("select * from {0} where (ScopeID=:ScopeID or ScopeID='00000000-0000-0000-0000-000000000000') and (FirstName like :search or LastName like :search)", m_Realm);
+                    sql = String.Format(@"select * from {0} where (""ScopeID""=:ScopeID or ""ScopeID""='00000000-0000-0000-0000-000000000000') and (""FirstName"" like :search or ""LastName"" like :search)", m_Realm);
                     cmd.Parameters.Add(m_database.CreateParameter("scopeID", scopeID));
                     cmd.Parameters.Add(m_database.CreateParameter("search", "%" + words[0] + "%"));
                 }
                 else
                 {
-                    sql = String.Format("select * from {0} where (ScopeID=:ScopeID or ScopeID='00000000-0000-0000-0000-000000000000') and (FirstName like :searchFirst or LastName like :searchLast)", m_Realm);
+                    sql = String.Format(@"select * from {0} where (""ScopeID""=:ScopeID or ""ScopeID""='00000000-0000-0000-0000-000000000000') and (""FirstName"" like :searchFirst or ""LastName"" like :searchLast)", m_Realm);
                     cmd.Parameters.Add(m_database.CreateParameter("searchFirst", "%" + words[0] + "%"));
                     cmd.Parameters.Add(m_database.CreateParameter("searchLast", "%" + words[1] + "%"));
                     cmd.Parameters.Add(m_database.CreateParameter("ScopeID", scopeID.ToString()));

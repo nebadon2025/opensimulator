@@ -158,7 +158,7 @@ namespace OpenSim.Data.PGSQL
         /// <returns>A folder class</returns>
         public InventoryFolderBase getInventoryFolder(UUID folderID)
         {
-            string sql = "SELECT * FROM inventoryfolders WHERE folderID = :folderID";
+            string sql = "SELECT * FROM inventoryfolders WHERE \"folderID\" = :folderID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -200,7 +200,7 @@ namespace OpenSim.Data.PGSQL
             if (parentID == UUID.Zero)
                 return folders;
 
-            string sql = "SELECT * FROM inventoryfolders WHERE parentFolderID = :parentID";
+            string sql = "SELECT * FROM inventoryfolders WHERE \"parentFolderID\" = :parentID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -228,8 +228,8 @@ namespace OpenSim.Data.PGSQL
         /// <param name="folder">Folder to create</param>
         public void addInventoryFolder(InventoryFolderBase folder)
         {
-            string sql = @"INSERT INTO inventoryfolders (folderID, agentID, parentFolderID, folderName, type, version) 
-                            VALUES (:folderID, :agentID, :parentFolderID, :folderName, :type, :version);";
+            string sql = "INSERT INTO inventoryfolders (\"folderID\", \"agentID\", \"parentFolderID\", \"folderName\", type, version) " +
+                         "   VALUES (:folderID, :agentID, :parentFolderID, :folderName, :type, :version);";
 
             string folderName = folder.Name;
             if (folderName.Length > 64)
@@ -264,9 +264,9 @@ namespace OpenSim.Data.PGSQL
         /// <param name="folder">Folder to update</param>
         public void updateInventoryFolder(InventoryFolderBase folder)
         {
-            string sql = @"UPDATE inventoryfolders SET agentID = :agentID, 
-                                                       parentFolderID = :parentFolderID,
-                                                       folderName = :folderName,
+            string sql = @"UPDATE inventoryfolders SET ""agentID"" = :agentID, 
+                                                       ""parentFolderID"" = :parentFolderID,
+                                                       ""folderName"" = :folderName,
                                                        type = :type,
                                                        version = :version 
                            WHERE folderID = :folderID";
@@ -304,7 +304,7 @@ namespace OpenSim.Data.PGSQL
         /// <param name="folder">Folder to update</param>
         public void moveInventoryFolder(InventoryFolderBase folder)
         {
-            string sql = @"UPDATE inventoryfolders SET parentFolderID = :parentFolderID WHERE folderID = :folderID";
+            string sql = @"UPDATE inventoryfolders SET ""parentFolderID"" = :parentFolderID WHERE ""folderID"" = :folderID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -328,7 +328,7 @@ namespace OpenSim.Data.PGSQL
         /// <param name="folderID">Id of folder to delete</param>
         public void deleteInventoryFolder(UUID folderID)
         {
-            string sql = "SELECT * FROM inventoryfolders WHERE parentFolderID = :parentID";
+            string sql = @"SELECT * FROM inventoryfolders WHERE ""parentFolderID"" = :parentID";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -363,7 +363,7 @@ namespace OpenSim.Data.PGSQL
         /// <returns>A list containing inventory items</returns>
         public List<InventoryItemBase> getInventoryInFolder(UUID folderID)
         {
-            string sql = "SELECT * FROM inventoryitems WHERE parentFolderID = :parentFolderID";
+            string sql = @"SELECT * FROM inventoryitems WHERE ""parentFolderID"" = :parentFolderID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -389,7 +389,7 @@ namespace OpenSim.Data.PGSQL
         /// <returns>An inventory item</returns>
         public InventoryItemBase getInventoryItem(UUID itemID)
         {
-            string sql = "SELECT * FROM inventoryitems WHERE inventoryID = :inventoryID";
+            string sql = @"SELECT * FROM inventoryitems WHERE ""inventoryID"" = :inventoryID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -421,10 +421,10 @@ namespace OpenSim.Data.PGSQL
             }
 
             string sql = @"INSERT INTO inventoryitems 
-                            (inventoryID, assetID, assetType, parentFolderID, avatarID, inventoryName, 
-                             inventoryDescription, inventoryNextPermissions, inventoryCurrentPermissions,
-                             invType, creatorID, inventoryBasePermissions, inventoryEveryOnePermissions, inventoryGroupPermissions,
-                             salePrice, saleType, creationDate, groupID, groupOwned, flags) 
+                            (""inventoryID"", ""assetID"", ""assetType"", ""parentFolderID"", ""avatarID"", ""inventoryName"", 
+                             ""inventoryDescription"", ""inventoryNextPermissions"", ""inventoryCurrentPermissions"",
+                             ""invType"", ""creatorID"", ""inventoryBasePermissions"", ""inventoryEveryOnePermissions"", ""inventoryGroupPermissions"",
+                             ""salePrice"", ""saleType"", ""creationDate"", ""groupID"", ""groupOwned"", flags) 
                         VALUES
                             (:inventoryID, :assetID, :assetType, :parentFolderID, :avatarID, :inventoryName, :inventoryDescription,
                              :inventoryNextPermissions, :inventoryCurrentPermissions, :invType, :creatorID,
@@ -479,7 +479,7 @@ namespace OpenSim.Data.PGSQL
                 }
             }
 
-            sql = "UPDATE inventoryfolders SET version = version + 1 WHERE folderID = @folderID";
+            sql = @"UPDATE inventoryfolders SET version = version + 1 WHERE ""folderID"" = @folderID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand command = new NpgsqlCommand(sql, conn))
             {
@@ -502,26 +502,26 @@ namespace OpenSim.Data.PGSQL
         /// <param name="item">Inventory item to update</param>
         public void updateInventoryItem(InventoryItemBase item)
         {
-            string sql = @"UPDATE inventoryitems SET assetID = :assetID, 
-                                                assetType = :assetType,
-                                                parentFolderID = :parentFolderID,
-                                                avatarID = :avatarID,
-                                                inventoryName = :inventoryName, 
-                                                inventoryDescription = :inventoryDescription, 
-                                                inventoryNextPermissions = :inventoryNextPermissions, 
-                                                inventoryCurrentPermissions = :inventoryCurrentPermissions, 
-                                                invType = :invType, 
-                                                creatorID = :creatorID, 
-                                                inventoryBasePermissions = :inventoryBasePermissions, 
-                                                inventoryEveryOnePermissions = :inventoryEveryOnePermissions, 
-                                                inventoryGroupPermissions = :inventoryGroupPermissions, 
-                                                salePrice = :salePrice, 
-                                                saleType = :saleType, 
-                                                creationDate = :creationDate, 
-                                                groupID = :groupID, 
-                                                groupOwned = :groupOwned, 
+            string sql = @"UPDATE inventoryitems SET ""assetID"" = :assetID, 
+                                                ""assetType"" = :assetType,
+                                                ""parentFolderID"" = :parentFolderID,
+                                                ""avatarID"" = :avatarID,
+                                                ""inventoryName"" = :inventoryName, 
+                                                ""inventoryDescription"" = :inventoryDescription, 
+                                                ""inventoryNextPermissions"" = :inventoryNextPermissions, 
+                                                ""inventoryCurrentPermissions"" = :inventoryCurrentPermissions, 
+                                                ""invType"" = :invType, 
+                                                ""creatorID"" = :creatorID, 
+                                                ""inventoryBasePermissions"" = :inventoryBasePermissions, 
+                                                ""inventoryEveryOnePermissions"" = :inventoryEveryOnePermissions, 
+                                                ""inventoryGroupPermissions"" = :inventoryGroupPermissions, 
+                                                ""salePrice"" = :salePrice, 
+                                                ""saleType"" = :saleType, 
+                                                ""creationDate"" = :creationDate, 
+                                                ""groupID"" = :groupID, 
+                                                ""groupOwned"" = :groupOwned, 
                                                 flags = :flags 
-                                        WHERE inventoryID = :inventoryID";
+                                        WHERE ""inventoryID"" = :inventoryID";
 
             string itemName = item.Name;
             if (item.Name.Length > 64)
@@ -580,7 +580,7 @@ namespace OpenSim.Data.PGSQL
         /// <param name="itemID">the item UUID</param>
         public void deleteInventoryItem(UUID itemID)
         {
-            string sql = "DELETE FROM inventoryitems WHERE inventoryID=:inventoryID";
+            string sql = @"DELETE FROM inventoryitems WHERE ""inventoryID""=:inventoryID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -616,7 +616,7 @@ namespace OpenSim.Data.PGSQL
         /// </returns>
         public List<InventoryItemBase> fetchActiveGestures(UUID avatarID)
         {
-            string sql = "SELECT * FROM inventoryitems WHERE avatarId = :uuid AND assetType = :assetType and flags = 1";
+            string sql = @"SELECT * FROM inventoryitems WHERE ""avatarID"" = :uuid AND ""assetType"" = :assetType and flags = 1";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -646,7 +646,7 @@ namespace OpenSim.Data.PGSQL
         /// <param name="connection">connection to the database</param>
         private void DeleteItemsInFolder(UUID folderID, NpgsqlConnection connection)
         {
-            using (NpgsqlCommand command = new NpgsqlCommand("DELETE FROM inventoryitems WHERE folderID=:folderID", connection))
+            using (NpgsqlCommand command = new NpgsqlCommand(@"DELETE FROM inventoryitems WHERE ""folderID""=:folderID", connection))
             {
                 command.Parameters.Add(database.CreateParameter("folderID", folderID));
 
@@ -698,7 +698,7 @@ namespace OpenSim.Data.PGSQL
         /// <returns></returns>
         private List<InventoryFolderBase> getInventoryFolders(UUID parentID, UUID user)
         {
-            string sql = "SELECT * FROM inventoryfolders WHERE parentFolderID = :parentID AND agentID LIKE :uuid";
+            string sql = @"SELECT * FROM inventoryfolders WHERE ""parentFolderID"" = :parentID AND ""agentID"" LIKE :uuid";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand command = new NpgsqlCommand(sql, conn))
             {
@@ -813,7 +813,7 @@ namespace OpenSim.Data.PGSQL
         {
             try
             {
-                using (NpgsqlCommand command = new NpgsqlCommand("DELETE FROM inventoryfolders WHERE folderID=:folderID and type=-1", connection))
+                using (NpgsqlCommand command = new NpgsqlCommand(@"DELETE FROM inventoryfolders WHERE ""folderID""=:folderID and type=-1", connection))
                 {
                     command.Parameters.Add(database.CreateParameter("folderID", folderID));
 

@@ -132,6 +132,10 @@ namespace OpenSim.Data.PGSQL
             {
                 return NpgsqlDbType.Integer;
             }
+            if (PGFieldType == "smallint")
+            {
+                return NpgsqlDbType.Smallint;
+            }
             if (PGFieldType == "boolean")
             {
                 return NpgsqlDbType.Boolean;

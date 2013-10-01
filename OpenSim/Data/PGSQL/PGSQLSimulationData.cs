@@ -107,12 +107,12 @@ namespace OpenSim.Data.PGSQL
             Dictionary<UUID, SceneObjectGroup> objects = new Dictionary<UUID, SceneObjectGroup>();
             SceneObjectGroup grp = null;
 
-            string sql = "SELECT *, " +
-                           "CASE WHEN prims.UUID = prims.SceneGroupID THEN 0 ELSE 1 END as sort " +
-                           " FROM prims " +
-                           " LEFT JOIN primshapes ON prims.UUID = primshapes.UUID " +
-                           " WHERE RegionUUID = :RegionUUID " +
-                           " ORDER BY SceneGroupID asc, sort asc, LinkNumber asc";
+            string sql = @"SELECT *, 
+                           CASE WHEN prims.""UUID"" = prims.""SceneGroupID"" THEN 0 ELSE 1 END as sort 
+                            FROM prims 
+                            LEFT JOIN primshapes ON prims.""UUID"" = primshapes.""UUID"" 
+                            WHERE ""RegionUUID"" = :RegionUUID 
+                            ORDER BY ""SceneGroupID"" asc, sort asc, ""LinkNumber"" asc";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand command = new NpgsqlCommand(sql, conn))
@@ -179,7 +179,7 @@ namespace OpenSim.Data.PGSQL
             // list from DB of all prims which have items and
             // LoadItems only on those
             List<SceneObjectPart> primsWithInventory = new List<SceneObjectPart>();
-            string qry = "select distinct primID from primitems";
+            string qry = "select distinct \"primID\" from primitems";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand command = new NpgsqlCommand(qry, conn))
             {
@@ -213,7 +213,7 @@ namespace OpenSim.Data.PGSQL
         /// <param name="allPrims">all prims with inventory on a region</param>
         private void LoadItems(List<SceneObjectPart> allPrimsWithInventory)
         {
-            string sql = "SELECT * FROM primitems WHERE PrimID = :PrimID";
+            string sql = @"SELECT * FROM primitems WHERE ""primID"" = :PrimID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand command = new NpgsqlCommand(sql, conn))
             {
@@ -331,40 +331,40 @@ namespace OpenSim.Data.PGSQL
             
             string queryPrims = @"
         UPDATE prims SET 
-            CreationDate = :CreationDate, Name = :Name, Text = :Text, Description = :Description, SitName = :SitName, 
-            TouchName = :TouchName, ObjectFlags = :ObjectFlags, OwnerMask = :OwnerMask, NextOwnerMask = :NextOwnerMask, GroupMask = :GroupMask, 
-            EveryoneMask = :EveryoneMask, BaseMask = :BaseMask, PositionX = :PositionX, PositionY = :PositionY, PositionZ = :PositionZ, 
-            GroupPositionX = :GroupPositionX, GroupPositionY = :GroupPositionY, GroupPositionZ = :GroupPositionZ, VelocityX = :VelocityX, 
-            VelocityY = :VelocityY, VelocityZ = :VelocityZ, AngularVelocityX = :AngularVelocityX, AngularVelocityY = :AngularVelocityY, 
-            AngularVelocityZ = :AngularVelocityZ, AccelerationX = :AccelerationX, AccelerationY = :AccelerationY, 
-            AccelerationZ = :AccelerationZ, RotationX = :RotationX, RotationY = :RotationY, RotationZ = :RotationZ, RotationW = :RotationW, 
-            SitTargetOffsetX = :SitTargetOffsetX, SitTargetOffsetY = :SitTargetOffsetY, SitTargetOffsetZ = :SitTargetOffsetZ, 
-            SitTargetOrientW = :SitTargetOrientW, SitTargetOrientX = :SitTargetOrientX, SitTargetOrientY = :SitTargetOrientY, 
-            SitTargetOrientZ = :SitTargetOrientZ, RegionUUID = :RegionUUID, CreatorID = :CreatorID, OwnerID = :OwnerID, GroupID = :GroupID, 
-            LastOwnerID = :LastOwnerID, SceneGroupID = :SceneGroupID, PayPrice = :PayPrice, PayButton1 = :PayButton1, PayButton2 = :PayButton2, 
-            PayButton3 = :PayButton3, PayButton4 = :PayButton4, LoopedSound = :LoopedSound, LoopedSoundGain = :LoopedSoundGain, 
-            TextureAnimation = :TextureAnimation, OmegaX = :OmegaX, OmegaY = :OmegaY, OmegaZ = :OmegaZ, CameraEyeOffsetX = :CameraEyeOffsetX, 
-            CameraEyeOffsetY = :CameraEyeOffsetY, CameraEyeOffsetZ = :CameraEyeOffsetZ, CameraAtOffsetX = :CameraAtOffsetX, 
-            CameraAtOffsetY = :CameraAtOffsetY, CameraAtOffsetZ = :CameraAtOffsetZ, ForceMouselook = :ForceMouselook, 
-            ScriptAccessPin = :ScriptAccessPin, AllowedDrop = :AllowedDrop, DieAtEdge = :DieAtEdge, SalePrice = :SalePrice, 
-            SaleType = :SaleType, ColorR = :ColorR, ColorG = :ColorG, ColorB = :ColorB, ColorA = :ColorA, ParticleSystem = :ParticleSystem, 
-            ClickAction = :ClickAction, Material = :Material, CollisionSound = :CollisionSound, CollisionSoundVolume = :CollisionSoundVolume, PassTouches = :PassTouches,
-            LinkNumber = :LinkNumber, MediaURL = :MediaURL, DynAttrs = :DynAttrs,
-            PhysicsShapeType = :PhysicsShapeType, Density = :Density, GravityModifier = :GravityModifier, Friction = :Friction, Restitution = :Restitution
-        WHERE UUID = :UUID
+            ""CreationDate"" = :CreationDate, ""Name"" = :Name, ""Text"" = :Text, ""Description"" = :Description, ""SitName"" = :SitName, 
+            ""TouchName"" = :TouchName, ""ObjectFlags"" = :ObjectFlags, ""OwnerMask"" = :OwnerMask, ""NextOwnerMask"" = :NextOwnerMask, ""GroupMask"" = :GroupMask, 
+            ""EveryoneMask"" = :EveryoneMask, ""BaseMask"" = :BaseMask, ""PositionX"" = :PositionX, ""PositionY"" = :PositionY, ""PositionZ"" = :PositionZ, 
+            ""GroupPositionX"" = :GroupPositionX, ""GroupPositionY"" = :GroupPositionY, ""GroupPositionZ"" = :GroupPositionZ, ""VelocityX"" = :VelocityX, 
+            ""VelocityY"" = :VelocityY, ""VelocityZ"" = :VelocityZ, ""AngularVelocityX"" = :AngularVelocityX, ""AngularVelocityY"" = :AngularVelocityY, 
+            ""AngularVelocityZ"" = :AngularVelocityZ, ""AccelerationX"" = :AccelerationX, ""AccelerationY"" = :AccelerationY, 
+            ""AccelerationZ"" = :AccelerationZ, ""RotationX"" = :RotationX, ""RotationY"" = :RotationY, ""RotationZ"" = :RotationZ, ""RotationW"" = :RotationW, 
+            ""SitTargetOffsetX"" = :SitTargetOffsetX, ""SitTargetOffsetY"" = :SitTargetOffsetY, ""SitTargetOffsetZ"" = :SitTargetOffsetZ, 
+            ""SitTargetOrientW"" = :SitTargetOrientW, ""SitTargetOrientX"" = :SitTargetOrientX, ""SitTargetOrientY"" = :SitTargetOrientY, 
+            ""SitTargetOrientZ"" = :SitTargetOrientZ, ""RegionUUID"" = :RegionUUID, ""CreatorID"" = :CreatorID, ""OwnerID"" = :OwnerID, ""GroupID"" = :GroupID, 
+            ""LastOwnerID"" = :LastOwnerID, ""SceneGroupID"" = :SceneGroupID, ""PayPrice"" = :PayPrice, ""PayButton1"" = :PayButton1, ""PayButton2"" = :PayButton2, 
+            ""PayButton3"" = :PayButton3, ""PayButton4"" = :PayButton4, ""LoopedSound"" = :LoopedSound, ""LoopedSoundGain"" = :LoopedSoundGain, 
+            ""TextureAnimation"" = :TextureAnimation, ""OmegaX"" = :OmegaX, ""OmegaY"" = :OmegaY, ""OmegaZ"" = :OmegaZ, ""CameraEyeOffsetX"" = :CameraEyeOffsetX, 
+            ""CameraEyeOffsetY"" = :CameraEyeOffsetY, ""CameraEyeOffsetZ"" = :CameraEyeOffsetZ, ""CameraAtOffsetX"" = :CameraAtOffsetX, 
+            ""CameraAtOffsetY"" = :CameraAtOffsetY, ""CameraAtOffsetZ"" = :CameraAtOffsetZ, ""ForceMouselook"" = :ForceMouselook, 
+            ""ScriptAccessPin"" = :ScriptAccessPin, ""AllowedDrop"" = :AllowedDrop, ""DieAtEdge"" = :DieAtEdge, ""SalePrice"" = :SalePrice, 
+            ""SaleType"" = :SaleType, ""ColorR"" = :ColorR, ""ColorG"" = :ColorG, ""ColorB"" = :ColorB, ""ColorA"" = :ColorA, ""ParticleSystem"" = :ParticleSystem, 
+            ""ClickAction"" = :ClickAction, ""Material"" = :Material, ""CollisionSound"" = :CollisionSound, ""CollisionSoundVolume"" = :CollisionSoundVolume, ""PassTouches"" = :PassTouches,
+            ""LinkNumber"" = :LinkNumber, ""MediaURL"" = :MediaURL, ""DynAttrs"" = :DynAttrs,
+            ""PhysicsShapeType"" = :PhysicsShapeType, ""Density"" = :Density, ""GravityModifier"" = :GravityModifier, ""Friction"" = :Friction, ""Restitution"" = :Restitution
+        WHERE ""UUID"" = :UUID
 
         INSERT INTO 
             prims (
-            UUID, CreationDate, Name, Text, Description, SitName, TouchName, ObjectFlags, OwnerMask, NextOwnerMask, GroupMask, 
-            EveryoneMask, BaseMask, PositionX, PositionY, PositionZ, GroupPositionX, GroupPositionY, GroupPositionZ, VelocityX, 
-            VelocityY, VelocityZ, AngularVelocityX, AngularVelocityY, AngularVelocityZ, AccelerationX, AccelerationY, AccelerationZ, 
-            RotationX, RotationY, RotationZ, RotationW, SitTargetOffsetX, SitTargetOffsetY, SitTargetOffsetZ, SitTargetOrientW, 
-            SitTargetOrientX, SitTargetOrientY, SitTargetOrientZ, RegionUUID, CreatorID, OwnerID, GroupID, LastOwnerID, SceneGroupID, 
-            PayPrice, PayButton1, PayButton2, PayButton3, PayButton4, LoopedSound, LoopedSoundGain, TextureAnimation, OmegaX, 
-            OmegaY, OmegaZ, CameraEyeOffsetX, CameraEyeOffsetY, CameraEyeOffsetZ, CameraAtOffsetX, CameraAtOffsetY, CameraAtOffsetZ, 
-            ForceMouselook, ScriptAccessPin, AllowedDrop, DieAtEdge, SalePrice, SaleType, ColorR, ColorG, ColorB, ColorA, 
-            ParticleSystem, ClickAction, Material, CollisionSound, CollisionSoundVolume, PassTouches, LinkNumber, MediaURL, DynAttrs,
-            PhysicsShapeType, Density, GravityModifier, Friction, Restitution
+            ""UUID"", ""CreationDate"", ""Name"", ""Text"", ""Description"", ""SitName"", ""TouchName"", ""ObjectFlags"", ""OwnerMask"", ""NextOwnerMask"", ""GroupMask"",
+            ""EveryoneMask"", ""BaseMask"", ""PositionX"", ""PositionY"", ""PositionZ"", ""GroupPositionX"", ""GroupPositionY"", ""GroupPositionZ"", ""VelocityX"", 
+            ""VelocityY"", ""VelocityZ"", ""AngularVelocityX"", ""AngularVelocityY"", ""AngularVelocityZ"", ""AccelerationX"", ""AccelerationY"", ""AccelerationZ"", 
+            ""RotationX"", ""RotationY"", ""RotationZ"", ""RotationW"", ""SitTargetOffsetX"", ""SitTargetOffsetY"", ""SitTargetOffsetZ"", ""SitTargetOrientW"", 
+            ""SitTargetOrientX"", ""SitTargetOrientY"", ""SitTargetOrientZ"", ""RegionUUID"", ""CreatorID"", ""OwnerID"", ""GroupID"", ""LastOwnerID"", ""SceneGroupID"", 
+            ""PayPrice"", ""PayButton1"", ""PayButton2"", ""PayButton3"", ""PayButton4"", ""LoopedSound"", ""LoopedSoundGain"", ""TextureAnimation"", ""OmegaX"", 
+            ""OmegaY"", ""OmegaZ"", ""CameraEyeOffsetX"", ""CameraEyeOffsetY"", ""CameraEyeOffsetZ"", ""CameraAtOffsetX"", ""CameraAtOffsetY"", ""CameraAtOffsetZ"", 
+            ""ForceMouselook"", ""ScriptAccessPin"", ""AllowedDrop"", ""DieAtEdge"", ""SalePrice"", ""SaleType"", ""ColorR"", ""ColorG"", ""ColorB"", ""ColorA"", 
+            ""ParticleSystem"", ""ClickAction"", ""Material"", ""CollisionSound"", ""CollisionSoundVolume"", ""PassTouches"", ""LinkNumber"", ""MediaURL"", ""DynAttrs"",
+            ""PhysicsShapeType"", ""Density"", ""GravityModifier"", ""Friction"", ""Restitution""
             ) Select 
             :UUID, :CreationDate, :Name, :Text, :Description, :SitName, :TouchName, :ObjectFlags, :OwnerMask, :NextOwnerMask, :GroupMask, 
             :EveryoneMask, :BaseMask, :PositionX, :PositionY, :PositionZ, :GroupPositionX, :GroupPositionY, :GroupPositionZ, :VelocityX, 
@@ -376,7 +376,7 @@ namespace OpenSim.Data.PGSQL
             :ForceMouselook, :ScriptAccessPin, :AllowedDrop, :DieAtEdge, :SalePrice, :SaleType, :ColorR, :ColorG, :ColorB, :ColorA, 
             :ParticleSystem, :ClickAction, :Material, :CollisionSound, :CollisionSoundVolume, :PassTouches, :LinkNumber, :MediaURL, :DynAttrs,
             :PhysicsShapeType, :Density, :GravityModifier, :Friction, :Restitution
-            where not EXISTS (SELECT UUID FROM prims WHERE UUID = :UUID)
+            where not EXISTS (SELECT ""UUID"" FROM prims WHERE ""UUID"" = :UUID)
         ";
 
             //Set commandtext.
@@ -401,25 +401,25 @@ namespace OpenSim.Data.PGSQL
             
             string queryPrimShapes = @"
         UPDATE primshapes SET 
-            Shape = :Shape, ScaleX = :ScaleX, ScaleY = :ScaleY, ScaleZ = :ScaleZ, PCode = :PCode, PathBegin = :PathBegin, 
-            PathEnd = :PathEnd, PathScaleX = :PathScaleX, PathScaleY = :PathScaleY, PathShearX = :PathShearX, PathShearY = :PathShearY, 
-            PathSkew = :PathSkew, PathCurve = :PathCurve, PathRadiusOffset = :PathRadiusOffset, PathRevolutions = :PathRevolutions, 
-            PathTaperX = :PathTaperX, PathTaperY = :PathTaperY, PathTwist = :PathTwist, PathTwistBegin = :PathTwistBegin, 
-            ProfileBegin = :ProfileBegin, ProfileEnd = :ProfileEnd, ProfileCurve = :ProfileCurve, ProfileHollow = :ProfileHollow, 
-            Texture = :Texture, ExtraParams = :ExtraParams, State = :State, Media = :Media
-        WHERE UUID = :UUID
+            ""Shape"" = :Shape, ""ScaleX"" = :ScaleX, ""ScaleY"" = :ScaleY, ""ScaleZ"" = :ScaleZ, ""PCode"" = :PCode, ""PathBegin"" = :PathBegin, 
+            ""PathEnd"" = :PathEnd, ""PathScaleX"" = :PathScaleX, ""PathScaleY"" = :PathScaleY, ""PathShearX"" = :PathShearX, ""PathShearY"" = :PathShearY, 
+            ""PathSkew"" = :PathSkew, ""PathCurve"" = :PathCurve, ""PathRadiusOffset"" = :PathRadiusOffset, ""PathRevolutions"" = :PathRevolutions, 
+            ""PathTaperX"" = :PathTaperX, ""PathTaperY"" = :PathTaperY, ""PathTwist"" = :PathTwist, ""PathTwistBegin"" = :PathTwistBegin, 
+            ""ProfileBegin"" = :ProfileBegin, ""ProfileEnd"" = :ProfileEnd, ""ProfileCurve"" = :ProfileCurve, ""ProfileHollow"" = :ProfileHollow, 
+            ""Texture"" = :Texture, ""ExtraParams"" = :ExtraParams, ""State"" = :State, ""Media"" = :Media
+        WHERE ""UUID"" = :UUID
 
         INSERT INTO 
             primshapes (
-            UUID, Shape, ScaleX, ScaleY, ScaleZ, PCode, PathBegin, PathEnd, PathScaleX, PathScaleY, PathShearX, PathShearY, 
-            PathSkew, PathCurve, PathRadiusOffset, PathRevolutions, PathTaperX, PathTaperY, PathTwist, PathTwistBegin, ProfileBegin, 
-            ProfileEnd, ProfileCurve, ProfileHollow, Texture, ExtraParams, State, Media
+            ""UUID"", ""Shape"", ""ScaleX"", ""ScaleY"", ""ScaleZ"", ""PCode"", ""PathBegin"", ""PathEnd"", ""PathScaleX"", ""PathScaleY"", ""PathShearX"", ""PathShearY"", 
+            ""PathSkew"", ""PathCurve"", ""PathRadiusOffset"", ""PathRevolutions"", ""PathTaperX"", ""PathTaperY"", ""PathTwist"", ""PathTwistBegin"", ""ProfileBegin"", 
+            ""ProfileEnd"", ""ProfileCurve"", ""ProfileHollow"", ""Texture"", ""ExtraParams"", ""State"", ""Media""
             ) 
             Select
             :UUID, :Shape, :ScaleX, :ScaleY, :ScaleZ, :PCode, :PathBegin, :PathEnd, :PathScaleX, :PathScaleY, :PathShearX, :PathShearY, 
             :PathSkew, :PathCurve, :PathRadiusOffset, :PathRevolutions, :PathTaperX, :PathTaperY, :PathTwist, :PathTwistBegin, :ProfileBegin, 
             :ProfileEnd, :ProfileCurve, :ProfileHollow, :Texture, :ExtraParams, :State, :Media
-        where not EXISTS (SELECT UUID FROM primshapes WHERE UUID = :UUID)
+        where not EXISTS (SELECT ""UUID"" FROM primshapes WHERE ""UUID"" = :UUID)
         ";
 
             //Set commandtext.
@@ -444,9 +444,9 @@ namespace OpenSim.Data.PGSQL
             _Log.InfoFormat("[PGSQL]: Removing obj: {0} from region: {1}", objectID, regionUUID);
 
             //Remove from prims and primsitem table
-            string sqlPrims = "DELETE FROM PRIMS WHERE SceneGroupID = :objectID";
-            string sqlPrimItems = "DELETE FROM PRIMITEMS WHERE primID in (SELECT UUID FROM PRIMS WHERE SceneGroupID = :objectID)";
-            string sqlPrimShapes = "DELETE FROM PRIMSHAPES WHERE uuid in (SELECT UUID FROM PRIMS WHERE SceneGroupID = :objectID)";
+            string sqlPrims = @"DELETE FROM PRIMS WHERE ""SceneGroupID"" = :objectID";
+            string sqlPrimItems = @"DELETE FROM PRIMITEMS WHERE ""primID"" in (SELECT ""UUID"" FROM PRIMS WHERE ""SceneGroupID"" = :objectID)";
+            string sqlPrimShapes = @"DELETE FROM PRIMSHAPES WHERE ""UUID"" in (SELECT ""UUID"" FROM PRIMS WHERE ""SceneGroupID"" = :objectID)";
 
             lock (_Database)
             {
@@ -485,7 +485,7 @@ namespace OpenSim.Data.PGSQL
             //Delete everything from PrimID
             //TODO add index on PrimID in DB, if not already exist
 
-            string sql = "DELETE PRIMITEMS WHERE primID = :primID";
+            string sql = @"DELETE PRIMITEMS WHERE ""primID"" = :primID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -496,8 +496,8 @@ namespace OpenSim.Data.PGSQL
 
             sql =
                 @"INSERT INTO primitems (
-            itemID,primID,assetID,parentFolderID,invType,assetType,name,description,creationDate,creatorID,ownerID,lastOwnerID,groupID,
-            nextPermissions,currentPermissions,basePermissions,everyonePermissions,groupPermissions,flags) 
+            ""itemID"",""primID"",""assetID"",""parentFolderID"",""invType"",""assetType"",""name"",""description"",""creationDate"",""creatorID"",""ownerID"",""lastOwnerID"",""groupID"",
+            ""nextPermissions"",""currentPermissions"",""basePermissions"",""everyonePermissions"",""groupPermissions"",""flags"") 
             VALUES (:itemID,:primID,:assetID,:parentFolderID,:invType,:assetType,:name,:description,:creationDate,:creatorID,:ownerID,
             :lastOwnerID,:groupID,:nextPermissions,:currentPermissions,:basePermissions,:everyonePermissions,:groupPermissions,:flags)";
 
@@ -526,8 +526,8 @@ namespace OpenSim.Data.PGSQL
             double[,] terrain = new double[(int)Constants.RegionSize, (int)Constants.RegionSize];
             terrain.Initialize();
 
-            string sql = "select RegionUUID, Revision, Heightfield from terrain " +
-                         " where RegionUUID = :RegionUUID order by Revision desc limit 1; ";
+            string sql = @"select ""RegionUUID"", ""Revision"", ""Heightfield"" from terrain 
+                            where ""RegionUUID"" = :RegionUUID order by ""Revision"" desc limit 1; ";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -573,7 +573,7 @@ namespace OpenSim.Data.PGSQL
             int revision = Util.UnixTimeSinceEpoch();
 
             //Delete old terrain map
-            string sql = "delete from terrain where RegionUUID=:RegionUUID";
+            string sql = @"delete from terrain where ""RegionUUID""=:RegionUUID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -584,7 +584,7 @@ namespace OpenSim.Data.PGSQL
 
             _Log.Info("[REGION DB]: Deleted terrain revision r " + revision);
 
-            sql = "insert into terrain(RegionUUID, Revision, Heightfield) values(:RegionUUID, :Revision, :Heightfield)";
+            sql = @"insert into terrain(""RegionUUID"", ""Revision"", ""Heightfield"") values(:RegionUUID, :Revision, :Heightfield)";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -608,7 +608,7 @@ namespace OpenSim.Data.PGSQL
         {
             List<LandData> LandDataForRegion = new List<LandData>();
 
-            string sql = "select * from land where RegionUUID = :RegionUUID";
+            string sql = @"select * from land where ""RegionUUID"" = :RegionUUID";
 
             //Retrieve all land data from region
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
@@ -628,7 +628,7 @@ namespace OpenSim.Data.PGSQL
             //Retrieve all accesslist data for all landdata
             foreach (LandData LandData in LandDataForRegion)
             {
-                sql = "select * from landaccesslist where LandUUID = :LandUUID";
+                sql = @"select * from landaccesslist where ""LandUUID"" = :LandUUID";
                 using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
                 using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
                 {
@@ -662,9 +662,13 @@ namespace OpenSim.Data.PGSQL
 
             //Insert new values
             string sql = @"INSERT INTO land
-(UUID,RegionUUID,LocalLandID,Bitmap,Name,Description,OwnerUUID,IsGroupOwned,Area,AuctionID,Category,ClaimDate,ClaimPrice,GroupUUID,SalePrice,LandStatus,LandFlags,LandingType,MediaAutoScale,MediaTextureUUID,MediaURL,MusicURL,PassHours,PassPrice,SnapshotUUID,UserLocationX,UserLocationY,UserLocationZ,UserLookAtX,UserLookAtY,UserLookAtZ,AuthbuyerID,OtherCleanTime)
-VALUES
-(:UUID,:RegionUUID,:LocalLandID,:Bitmap,:Name,:Description,:OwnerUUID,:IsGroupOwned,:Area,:AuctionID,:Category,:ClaimDate,:ClaimPrice,:GroupUUID,:SalePrice,:LandStatus,:LandFlags,:LandingType,:MediaAutoScale,:MediaTextureUUID,:MediaURL,:MusicURL,:PassHours,:PassPrice,:SnapshotUUID,:UserLocationX,:UserLocationY,:UserLocationZ,:UserLookAtX,:UserLookAtY,:UserLookAtZ,:AuthbuyerID,:OtherCleanTime)";
+                (""UUID"",""RegionUUID"",""LocalLandID"",""Bitmap"",""Name"",""Description"",""OwnerUUID"",""IsGroupOwned"",""Area"",""AuctionID"",""Category"",""ClaimDate"",""ClaimPrice"",
+                 ""GroupUUID"",""SalePrice"",""LandStatus"",""LandFlags"",""LandingType"",""MediaAutoScale"",""MediaTextureUUID"",""MediaURL"",""MusicURL"",""PassHours"",""PassPrice"",
+                 ""SnapshotUUID"",""UserLocationX"",""UserLocationY"",""UserLocationZ"",""UserLookAtX"",""UserLookAtY"",""UserLookAtZ"",""AuthbuyerID"",""OtherCleanTime"")
+                VALUES
+                (:UUID,:RegionUUID,:LocalLandID,:Bitmap,:Name,:Description,:OwnerUUID,:IsGroupOwned,:Area,:AuctionID,:Category,:ClaimDate,:ClaimPrice,
+                 :GroupUUID,:SalePrice,:LandStatus,:LandFlags,:LandingType,:MediaAutoScale,:MediaTextureUUID,:MediaURL,:MusicURL,:PassHours,:PassPrice,
+                 :SnapshotUUID,:UserLocationX,:UserLocationY,:UserLocationZ,:UserLookAtX,:UserLookAtY,:UserLookAtZ,:AuthbuyerID,:OtherCleanTime)";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -674,7 +678,7 @@ VALUES
                 cmd.ExecuteNonQuery();
             }
 
-            sql = "INSERT INTO landaccesslist (LandUUID,AccessUUID,Flags,Expires) VALUES (:LandUUID,:AccessUUID,:Flags,:Expires)";
+            sql = @"INSERT INTO landaccesslist (""LandUUID"",""AccessUUID"",""LandFlags"",""Expires"") VALUES (:LandUUID,:AccessUUID,:Flags,:Expires)";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -696,7 +700,7 @@ VALUES
         /// <param name="globalID">UUID of landobject</param>
         public void RemoveLandObject(UUID globalID)
         {
-            string sql = "delete from land where UUID=:UUID";
+            string sql = @"delete from land where ""UUID""=:UUID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -704,7 +708,7 @@ VALUES
                 conn.Open();
                 cmd.ExecuteNonQuery();
             }
-            sql = "delete from landaccesslist where LandUUID=:UUID";
+            sql = @"delete from landaccesslist where ""LandUUID""=:UUID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -718,7 +722,7 @@ VALUES
             RegionLightShareData nWP = new RegionLightShareData();
             nWP.OnSave += StoreRegionWindlightSettings;
 
-            string sql = "select * from regionwindlight where region_id = :regionID";
+            string sql = @"select * from regionwindlight where ""region_id"" = :regionID";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -808,7 +812,7 @@ VALUES
 
         public void RemoveRegionWindlightSettings(UUID regionID)
         {
-            string sql = "delete from regionwindlight where region_id = :region_id";
+            string sql = @"delete from regionwindlight where ""region_id"" = :region_id";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -820,7 +824,7 @@ VALUES
 
         public void StoreRegionWindlightSettings(RegionLightShareData wl)
         {
-            string sql = "select count (region_id) from regionwindlight where region_id = :region_id";
+            string sql = @"select count (region_id) from regionwindlight where ""region_id"" = :region_id";
             bool exists = false;
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             {
@@ -1254,7 +1258,7 @@ VALUES
         /// <returns></returns>
         public RegionSettings LoadRegionSettings(UUID regionUUID)
         {
-            string sql = "select * from regionsettings where regionUUID = :regionUUID";
+            string sql = @"select * from regionsettings where ""regionUUID"" = :regionUUID";
             RegionSettings regionSettings;
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -1294,7 +1298,7 @@ VALUES
         {
             //Little check if regionUUID already exist in DB
             string regionUUID;
-            string sql = "SELECT regionUUID FROM regionsettings WHERE regionUUID = :regionUUID";
+            string sql = @"SELECT ""regionUUID"" FROM regionsettings WHERE ""regionUUID"" = :regionUUID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -1321,9 +1325,9 @@ VALUES
 ,elevation_1_sw = :elevation_1_sw ,elevation_2_sw = :elevation_2_sw ,water_height = :water_height ,terrain_raise_limit = :terrain_raise_limit 
 ,terrain_lower_limit = :terrain_lower_limit ,use_estate_sun = :use_estate_sun ,fixed_sun = :fixed_sun ,sun_position = :sun_position 
 ,covenant = :covenant ,covenant_datetime = :covenant_datetime, sunvectorx = :sunvectorx, sunvectory = :sunvectory, sunvectorz = :sunvectorz,  
-Sandbox = :Sandbox, loaded_creation_datetime = :loaded_creation_datetime, loaded_creation_id = :loaded_creation_id, map_tile_id = :TerrainImageID, 
-telehubobject = :telehubobject, parcel_tile_id = :ParcelImageID
- WHERE regionUUID = :regionUUID";
+""Sandbox"" = :Sandbox, loaded_creation_datetime = :loaded_creation_datetime, loaded_creation_id = :loaded_creation_id, ""map_tile_ID"" = :TerrainImageID, 
+""TelehubObject"" = :telehubobject, ""parcel_tile_ID"" = :ParcelImageID
+ WHERE ""regionUUID"" = :regionUUID";
 
                 using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
                 using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -1374,19 +1378,20 @@ telehubobject = :telehubobject, parcel_tile_id = :ParcelImageID
         private void StoreNewRegionSettings(RegionSettings regionSettings)
         {
             string sql = @"INSERT INTO regionsettings
-                                (regionUUID,block_terraform,block_fly,allow_damage,restrict_pushing,allow_land_resell,allow_land_join_divide,
+                                (""regionUUID"",block_terraform,block_fly,allow_damage,restrict_pushing,allow_land_resell,allow_land_join_divide,
                                 block_show_in_search,agent_limit,object_bonus,maturity,disable_scripts,disable_collisions,disable_physics,
                                 terrain_texture_1,terrain_texture_2,terrain_texture_3,terrain_texture_4,elevation_1_nw,elevation_2_nw,elevation_1_ne,
                                 elevation_2_ne,elevation_1_se,elevation_2_se,elevation_1_sw,elevation_2_sw,water_height,terrain_raise_limit,
-                                terrain_lower_limit,use_estate_sun,fixed_sun,sun_position,covenant,covenant_datetime,sunvectorx, sunvectory, sunvectorz,Sandbox, loaded_creation_datetime, loaded_creation_id
- ) 
+                                terrain_lower_limit,use_estate_sun,fixed_sun,sun_position,covenant,covenant_datetime,sunvectorx, sunvectory, sunvectorz,
+                                ""Sandbox"", loaded_creation_datetime, loaded_creation_id
+                                ) 
                             VALUES
                                 (:regionUUID,:block_terraform,:block_fly,:allow_damage,:restrict_pushing,:allow_land_resell,:allow_land_join_divide,
                                 :block_show_in_search,:agent_limit,:object_bonus,:maturity,:disable_scripts,:disable_collisions,:disable_physics,
                                 :terrain_texture_1,:terrain_texture_2,:terrain_texture_3,:terrain_texture_4,:elevation_1_nw,:elevation_2_nw,:elevation_1_ne,
                                 :elevation_2_ne,:elevation_1_se,:elevation_2_se,:elevation_1_sw,:elevation_2_sw,:water_height,:terrain_raise_limit,
                                 :terrain_lower_limit,:use_estate_sun,:fixed_sun,:sun_position,:covenant, :covenant_datetime, :sunvectorx,:sunvectory, 
-                                :sunvectorz, :Sandbox, :loaded_creation_datetime, :loaded_creation_id)";
+                                :sunvectorz, :Sandbox, :loaded_creation_datetime, :loaded_creation_id )";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -2178,7 +2183,7 @@ telehubobject = :telehubobject, parcel_tile_id = :ParcelImageID
         {
             rs.ClearSpawnPoints();
 
-            string sql = "SELECT Yaw, Pitch, Distance FROM spawn_points WHERE RegionUUID = :RegionUUID";
+            string sql = @"SELECT ""Yaw"", ""Pitch"", ""Distance"" FROM spawn_points WHERE ""RegionUUID"" = :RegionUUID";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -2203,7 +2208,7 @@ telehubobject = :telehubobject, parcel_tile_id = :ParcelImageID
 
         private void SaveSpawnPoints(RegionSettings rs)
         {
-            string sql = "DELETE FROM spawn_points WHERE RegionUUID = :RegionUUID";
+            string sql = @"DELETE FROM spawn_points WHERE ""RegionUUID"" = :RegionUUID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -2213,7 +2218,7 @@ telehubobject = :telehubobject, parcel_tile_id = :ParcelImageID
             }
             foreach (SpawnPoint p in rs.SpawnPoints())
             {
-                sql = "INSERT INTO spawn_points (RegionUUID, Yaw, Pitch, Distance) VALUES (:RegionUUID, :Yaw, :Pitch, :Distance)";
+                sql = @"INSERT INTO spawn_points (""RegionUUID"", ""Yaw"", ""Pitch"", ""Distance"") VALUES (:RegionUUID, :Yaw, :Pitch, :Distance)";
                 using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
                 using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
                 {

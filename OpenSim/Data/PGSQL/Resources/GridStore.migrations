@@ -196,7 +196,7 @@ COMMIT;
 
 BEGIN TRANSACTION;
 
-ALTER TABLE regions ADD "scopeid" uuid default '00000000-0000-0000-0000-000000000000';
+ALTER TABLE regions ADD "ScopeID" uuid default '00000000-0000-0000-0000-000000000000';
 ALTER TABLE regions alter column "owner_uuid" set DEFAULT ('00000000-0000-0000-0000-000000000000');
 ALTER TABLE regions ADD "sizeX" integer not null default 0;
 ALTER TABLE regions ADD "sizeY" integer not null default 0;
@@ -236,7 +236,7 @@ COMMIT;
 
 BEGIN TRANSACTION;
 
-ALTER TABLE regions ADD parcelMapTexture uuid NULL;
+ALTER TABLE regions ADD "parcelMapTexture" uuid NULL;
 
 COMMIT;
 

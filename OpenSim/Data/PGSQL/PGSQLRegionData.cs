@@ -52,6 +52,8 @@ namespace OpenSim.Data.PGSQL
         private PGSQLManager m_database;
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
+        protected Dictionary<string, string> m_FieldTypes = new Dictionary<string, string>();
+
         public PGSQLRegionData(string connectionString, string realm) 
         {
             m_Realm = realm;
@@ -64,7 +66,32 @@ namespace OpenSim.Data.PGSQL
                 Migration m = new Migration(conn, GetType().Assembly, "GridStore");
                 m.Update();
             }
+            LoadFieldTypes();
          }
+
+        private void LoadFieldTypes()
+        {
+            m_FieldTypes = new Dictionary<string, string>();
+
+            string query = string.Format(@"select column_name,data_type
+                        from INFORMATION_SCHEMA.COLUMNS 
+                       where table_name = lower('{0}');
+
+                ", m_Realm);
+            using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
+            using (NpgsqlCommand cmd = new NpgsqlCommand(query, conn))
+            {
+                conn.Open();
+                using (NpgsqlDataReader rdr = cmd.ExecuteReader())
+                {
+                    while (rdr.Read())
+                    {
+                        // query produces 0 to many rows of single column, so always add the first item in each row
+                        m_FieldTypes.Add((string)rdr[0], (string)rdr[1]);
+                    }
+                }
+            }
+        }
 
         public List<RegionData> Get(string regionName, UUID scopeID)
         {
@@ -231,9 +258,12 @@ namespace OpenSim.Data.PGSQL
                 {
 
                     update += ", ";
-                    update += " " + field + " = :" + field;
+                    update += " \"" + field + "\" = :" + field;
 
-                    cmd.Parameters.Add(m_database.CreateParameter("" + field, data.Data[field]));
+                    if (m_FieldTypes.ContainsKey(field))
+                        cmd.Parameters.Add(m_database.CreateParameter(field, data.Data[field], m_FieldTypes[field]));
+                    else
+                        cmd.Parameters.Add(m_database.CreateParameter(field, data.Data[field]));
                 }
 
                 update += " where uuid = :regionID";

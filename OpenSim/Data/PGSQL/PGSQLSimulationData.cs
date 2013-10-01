@@ -351,7 +351,7 @@ namespace OpenSim.Data.PGSQL
             ""ClickAction"" = :ClickAction, ""Material"" = :Material, ""CollisionSound"" = :CollisionSound, ""CollisionSoundVolume"" = :CollisionSoundVolume, ""PassTouches"" = :PassTouches,
             ""LinkNumber"" = :LinkNumber, ""MediaURL"" = :MediaURL, ""DynAttrs"" = :DynAttrs,
             ""PhysicsShapeType"" = :PhysicsShapeType, ""Density"" = :Density, ""GravityModifier"" = :GravityModifier, ""Friction"" = :Friction, ""Restitution"" = :Restitution
-        WHERE ""UUID"" = :UUID
+        WHERE ""UUID"" = :UUID ;
 
         INSERT INTO 
             prims (
@@ -376,7 +376,7 @@ namespace OpenSim.Data.PGSQL
             :ForceMouselook, :ScriptAccessPin, :AllowedDrop, :DieAtEdge, :SalePrice, :SaleType, :ColorR, :ColorG, :ColorB, :ColorA, 
             :ParticleSystem, :ClickAction, :Material, :CollisionSound, :CollisionSoundVolume, :PassTouches, :LinkNumber, :MediaURL, :DynAttrs,
             :PhysicsShapeType, :Density, :GravityModifier, :Friction, :Restitution
-            where not EXISTS (SELECT ""UUID"" FROM prims WHERE ""UUID"" = :UUID)
+            where not EXISTS (SELECT ""UUID"" FROM prims WHERE ""UUID"" = :UUID);
         ";
 
             //Set commandtext.
@@ -407,7 +407,7 @@ namespace OpenSim.Data.PGSQL
             ""PathTaperX"" = :PathTaperX, ""PathTaperY"" = :PathTaperY, ""PathTwist"" = :PathTwist, ""PathTwistBegin"" = :PathTwistBegin, 
             ""ProfileBegin"" = :ProfileBegin, ""ProfileEnd"" = :ProfileEnd, ""ProfileCurve"" = :ProfileCurve, ""ProfileHollow"" = :ProfileHollow, 
             ""Texture"" = :Texture, ""ExtraParams"" = :ExtraParams, ""State"" = :State, ""Media"" = :Media
-        WHERE ""UUID"" = :UUID
+        WHERE ""UUID"" = :UUID ;
 
         INSERT INTO 
             primshapes (
@@ -419,7 +419,7 @@ namespace OpenSim.Data.PGSQL
             :UUID, :Shape, :ScaleX, :ScaleY, :ScaleZ, :PCode, :PathBegin, :PathEnd, :PathScaleX, :PathScaleY, :PathShearX, :PathShearY, 
             :PathSkew, :PathCurve, :PathRadiusOffset, :PathRevolutions, :PathTaperX, :PathTaperY, :PathTwist, :PathTwistBegin, :ProfileBegin, 
             :ProfileEnd, :ProfileCurve, :ProfileHollow, :Texture, :ExtraParams, :State, :Media
-        where not EXISTS (SELECT ""UUID"" FROM primshapes WHERE ""UUID"" = :UUID)
+        where not EXISTS (SELECT ""UUID"" FROM primshapes WHERE ""UUID"" = :UUID);
         ";
 
             //Set commandtext.
@@ -485,7 +485,7 @@ namespace OpenSim.Data.PGSQL
             //Delete everything from PrimID
             //TODO add index on PrimID in DB, if not already exist
 
-            string sql = @"DELETE PRIMITEMS WHERE ""primID"" = :primID";
+            string sql = @"delete from primitems where ""primID"" = :primID";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
@@ -824,7 +824,7 @@ namespace OpenSim.Data.PGSQL
 
         public void StoreRegionWindlightSettings(RegionLightShareData wl)
         {
-            string sql = @"select count (region_id) from regionwindlight where ""region_id"" = :region_id";
+            string sql = @"select count (region_id) from regionwindlight where ""region_id"" = :region_id ;";
             bool exists = false;
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             {
@@ -968,7 +968,8 @@ namespace OpenSim.Data.PGSQL
                        ,:cloud_scroll_x_lock
                        ,:cloud_scroll_y
                        ,:cloud_scroll_y_lock
-                       ,:draw_classic_clouds)";
+                       ,:draw_classic_clouds);";
+
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             {
                 conn.Open();
@@ -1213,7 +1214,7 @@ namespace OpenSim.Data.PGSQL
         public void StoreRegionEnvironmentSettings(UUID regionUUID, string settings)
         {
             {
-                string sql = "DELETE FROM regionenvironment WHERE region_id = :region_id";
+                string sql = "DELETE FROM regionenvironment WHERE region_id = :region_id ;";
                 
                 using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
                 using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -1223,7 +1224,7 @@ namespace OpenSim.Data.PGSQL
                     cmd.ExecuteNonQuery();
                 }
 
-                sql = "INSERT INTO regionenvironment (region_id, llsd_settings) VALUES (:region_id, :llsd_settings)";
+                sql = "INSERT INTO regionenvironment (region_id, llsd_settings) VALUES (:region_id, :llsd_settings) ;";
 
                 using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
                 using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
@@ -1239,7 +1240,7 @@ namespace OpenSim.Data.PGSQL
 
         public void RemoveRegionEnvironmentSettings(UUID regionUUID)
         {
-            string sql = "delete from regionenvironment where region_id = :region_id";
+            string sql = "delete from regionenvironment where region_id = :region_id ;";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {

@@ -89,6 +89,10 @@ namespace OpenSim.Data.PGSQL
             {
                 return NpgsqlDbType.Uuid;
             }
+            if (type == typeof(byte))
+            {
+                return NpgsqlDbType.Smallint;
+            }
             if (type == typeof(sbyte))
             {
                 return NpgsqlDbType.Integer;

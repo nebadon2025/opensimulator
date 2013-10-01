@@ -94,7 +94,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Simulation
                     throw new Exception(string.Format("Invalid ConnectorProtocolVersion {0}", ServiceVersion));
 
                 m_log.InfoFormat(
-                    "[LOCAL SIMULATION CONNECTOR]: Initialzied with connector protocol version {0}", ServiceVersion);
+                    "[LOCAL SIMULATION CONNECTOR]: Initialized with connector protocol version {0}", ServiceVersion);
             }
         }
 
@@ -311,7 +311,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Simulation
 //                        "[LOCAL SIMULATION CONNECTOR]: Found region {0} {1} to send AgentUpdate",
 //                        s.RegionInfo.RegionName, destination.RegionHandle);
 
-                m_scenes[destination.RegionID].IncomingCloseAgent(id, false, auth_token);
+                m_scenes[destination.RegionID].CloseAgent(id, false, auth_token);
                 return true;
             }
 

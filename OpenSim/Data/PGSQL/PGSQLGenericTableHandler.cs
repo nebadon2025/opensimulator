@@ -38,7 +38,7 @@ using Npgsql;
 
 namespace OpenSim.Data.PGSQL
 {
-    public class PGSQLGenericTableHandler<T> where T : class, new()
+    public class PGSQLGenericTableHandler<T> : PGSqlFramework where T : class, new()
     {
         private static readonly ILog m_log =
             LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
@@ -54,8 +54,14 @@ namespace OpenSim.Data.PGSQL
         protected string m_Realm;
         protected FieldInfo m_DataField = null;
 
+        protected virtual Assembly Assembly
+        {
+            get { return GetType().Assembly; }
+        }
+
         public PGSQLGenericTableHandler(string connectionString,
                 string realm, string storeName)
+            : base(connectionString)
         {
             m_Realm = realm;
             
@@ -441,6 +447,64 @@ namespace OpenSim.Data.PGSQL
                     return true;
                 }
                 return false;
+            }
+        }
+        public long GetCount(string field, string key)
+        {
+            return GetCount(new string[] { field }, new string[] { key });
+        }
+
+        public long GetCount(string[] fields, string[] keys)
+        {
+            if (fields.Length != keys.Length)
+                return 0;
+
+            List<string> terms = new List<string>();
+
+            using (NpgsqlCommand cmd = new NpgsqlCommand())
+            {
+                for (int i = 0; i < fields.Length; i++)
+                {
+                    cmd.Parameters.AddWithValue(fields[i], keys[i]);
+                    terms.Add("\"" + fields[i] + "\" = :" + fields[i]);
+                }
+
+                string where = String.Join(" and ", terms.ToArray());
+
+                string query = String.Format("select count(*) from {0} where {1}",
+                                             m_Realm, where);
+
+                cmd.CommandText = query;
+
+                Object result = DoQueryScalar(cmd);
+
+                return Convert.ToInt64(result);
+            }
+        }
+
+        public long GetCount(string where)
+        {
+            using (NpgsqlCommand cmd = new NpgsqlCommand())
+            {
+                string query = String.Format("select count(*) from {0} where {1}",
+                                             m_Realm, where);
+
+                cmd.CommandText = query;
+
+                object result = DoQueryScalar(cmd);
+
+                return Convert.ToInt64(result);
+            }
+        }
+
+        public object DoQueryScalar(NpgsqlCommand cmd)
+        {
+            using (NpgsqlConnection dbcon = new NpgsqlConnection(m_ConnectionString))
+            {
+                dbcon.Open();
+                cmd.Connection = dbcon;
+
+                return cmd.ExecuteScalar();
             }
         }
     }

@@ -38,5 +38,7 @@ DROP TABLE Friends;
 Alter table Tmp_Friends
   rename to Friends;
 
+ALTER TABLE Friends ADD PRIMARY KEY("PrincipalID", "Friend");
+
 
 COMMIT;

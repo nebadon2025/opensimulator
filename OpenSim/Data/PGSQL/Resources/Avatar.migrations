@@ -48,7 +48,7 @@ ALTER TABLE Tmp_Avatars ADD PRIMARY KEY ("PrincipalID", "Name");
 
 
 INSERT INTO Tmp_Avatars ("PrincipalID", "Name", "Value")
-	SELECT "PrincipalID", cast("Name" as text), "Value" FROM Avatars ;
+	SELECT "PrincipalID", "Name", cast("Value" as text) FROM Avatars ;
 
 DROP TABLE Avatars;
 

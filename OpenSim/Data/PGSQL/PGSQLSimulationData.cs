@@ -478,7 +478,7 @@ namespace OpenSim.Data.PGSQL
         {
             //_Log.InfoFormat("[REGION DB: Persisting Prim Inventory with prim ID {0}", primID);
 
-            //Statement from MySQL section!
+            //Statement from PGSQL section!
             // For now, we're just going to crudely remove all the previous inventory items
             // no matter whether they have changed or not, and replace them with the current set.
 

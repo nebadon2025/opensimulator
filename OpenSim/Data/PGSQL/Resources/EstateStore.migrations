@@ -28,7 +28,7 @@ CREATE TABLE estateban(
 	);
 
 CREATE TABLE estate_settings(
-	"EstateID" serial NOT NULL,
+	"EstateID" integer NOT NULL,
 	"EstateName" varchar(64) NULL DEFAULT (NULL),
 	"AbuseEmailToEstateOwner" boolean NOT NULL,
 	"DenyAnonymous" boolean NOT NULL,
@@ -53,6 +53,8 @@ CREATE TABLE estate_settings(
 	"EstateOwner" varchar(36) NOT NULL,
 	"DenyMinors" boolean NOT NULL
 	);
+
+Create Sequence estate_settings_id increment by 100 start with 100 owned by estate_settings."EstateID";
 
 CREATE TABLE estate_map(
 	"RegionID" varchar(36) NOT NULL DEFAULT ('00000000-0000-0000-0000-000000000000'),
@@ -226,7 +228,7 @@ BEGIN TRANSACTION;
 
 CREATE TABLE Tmp_estate_settings
 	(
-	"EstateID" serial NOT NULL,
+	"EstateID" integer NOT NULL,
 	"EstateName" varchar(64) NULL DEFAULT (NULL),
 	"AbuseEmailToEstateOwner" boolean NOT NULL,
 	"DenyAnonymous" boolean NOT NULL,
@@ -255,11 +257,14 @@ CREATE TABLE Tmp_estate_settings
 INSERT INTO Tmp_estate_settings ("EstateID", "EstateName", "AbuseEmailToEstateOwner", "DenyAnonymous", "ResetHomeOnTeleport", "FixedSun", "DenyTransacted", "BlockDwell", "DenyIdentified", "AllowVoice", "UseGlobalTime", "PricePerMeter", "TaxFree", "AllowDirectTeleport", "RedirectGridX", "RedirectGridY", "ParentEstateID", "SunPosition", "EstateSkipScripts", "BillableFactor", "PublicAccess", "AbuseEmail", "EstateOwner", "DenyMinors")
 	SELECT "EstateID", "EstateName", "AbuseEmailToEstateOwner", "DenyAnonymous", "ResetHomeOnTeleport", "FixedSun", "DenyTransacted", "BlockDwell", "DenyIdentified", "AllowVoice", "UseGlobalTime", "PricePerMeter", "TaxFree", "AllowDirectTeleport", "RedirectGridX", "RedirectGridY", "ParentEstateID", "SunPosition", "EstateSkipScripts", "BillableFactor", "PublicAccess", "AbuseEmail", cast("EstateOwner" as uuid), "DenyMinors" FROM estate_settings ;
 
+Drop Sequence estate_settings_id;
+
 DROP TABLE estate_settings;
 
 Alter table Tmp_estate_settings
   rename to estate_settings;
 
+Create Sequence estate_settings_id increment by 100 start with 100 owned by estate_settings."EstateID";
 
 COMMIT;
 

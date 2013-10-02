@@ -38,21 +38,17 @@ using Npgsql;
 namespace OpenSim.Data.PGSQL
 {
     /// <summary>
-    /// A PGSQL Interface for the Presence Server
+    /// A MySQL Interface for user grid data
     /// </summary>
-    public class PGSQLPresenceData : PGSQLGenericTableHandler<PresenceData>,
-            IPresenceData
+    public class MySQLHGTravelData : PGSQLGenericTableHandler<HGTravelingData>, IHGTravelingData
     {
 //        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        public PGSQLPresenceData(string connectionString, string realm) :
-                base(connectionString, realm, "Presence")
-        {
-        }
+        public MySQLHGTravelData(string connectionString, string realm) : base(connectionString, realm, "HGTravelStore") { }
 
-        public PresenceData Get(UUID sessionID)
+        public HGTravelingData Get(UUID sessionID)
         {
-            PresenceData[] ret = Get("SessionID", sessionID.ToString());
+            HGTravelingData[] ret = Get("SessionID", sessionID.ToString());
 
             if (ret.Length == 0)
                 return null;
@@ -60,56 +56,25 @@ namespace OpenSim.Data.PGSQL
             return ret[0];
         }
 
-        public void LogoutRegionAgents(UUID regionID)
+        public HGTravelingData[] GetSessions(UUID userID)
         {
-            using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
-            using (NpgsqlCommand cmd = new NpgsqlCommand())
-            {
-
-                cmd.CommandText = String.Format(@"DELETE FROM {0} WHERE ""RegionID""=:RegionID", m_Realm);
-
-                cmd.Parameters.Add(m_database.CreateParameter("RegionID", regionID));
-                cmd.Connection = conn;
-                conn.Open();
-                cmd.ExecuteNonQuery();
-            }
+            return base.Get("UserID", userID.ToString());
         }
 
-        public bool ReportAgent(UUID sessionID, UUID regionID)
+        public bool Delete(UUID sessionID)
         {
-            PresenceData[] pd = Get("SessionID", sessionID.ToString());
-            if (pd.Length == 0)
-                return false;
-
-            using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
-            using (NpgsqlCommand cmd = new NpgsqlCommand())
-            {
-
-                cmd.CommandText = String.Format(@"UPDATE {0} SET 
-                                                ""RegionID"" = :RegionID
-                                        WHERE ""SessionID"" = :SessionID", m_Realm);
-
-                cmd.Parameters.Add(m_database.CreateParameter("SessionID", sessionID));
-                cmd.Parameters.Add(m_database.CreateParameter("RegionID", regionID));
-                cmd.Connection = conn;
-                conn.Open();
-                if (cmd.ExecuteNonQuery() == 0)
-                    return false;
-            }
-            return true;
+            return Delete("SessionID", sessionID.ToString());
         }
 
-        public bool VerifyAgent(UUID agentId, UUID secureSessionID)
+        public void DeleteOld()
         {
-            PresenceData[] ret = Get("SecureSessionID", secureSessionID.ToString());
-            
-            if (ret.Length == 0)
-                return false;
+            using (NpgsqlCommand cmd = new NpgsqlCommand())
+            {
+                cmd.CommandText = String.Format(@"delete from {0} where ""TMStamp"" < CURRENT_DATE - INTERVAL '2 day'", m_Realm);
 
-            if(ret[0].UserID != agentId.ToString())
-                return false;
+                ExecuteNonQuery(cmd);
+            }
 
-            return true;
         }
     }
 }

@@ -132,52 +132,27 @@ namespace OpenSim.Data.PGSQL
         
         public bool UpdateClassifiedRecord(UserClassifiedAdd ad, ref string result)
         {
-            stringXXX query = string.Empty;
-            
-            
-            query += "INSERT INTO classifieds (";
-            query += "\"classifieduuid\",";
-            query += "\"creatoruuid\",";
-            query += "\"creationdate\",";
-            query += "\"expirationdate\",";
-            query += "\"category\",";
-            query += "\"name\",";
-            query += "\"description\",";
-            query += "\"parceluuid\",";
-            query += "\"parentestate\",";
-            query += "\"snapshotuuid\",";
-            query += "\"simname\",";
-            query += "\"posglobal\",";
-            query += "\"parcelname\",";
-            query += "\"classifiedflags\",";
-            query += "\"priceforlisting\") ";
-            query += "VALUES (";
-            query += ":ClassifiedId,";
-            query += ":CreatorId,";
-            query += ":CreatedDate,";
-            query += ":ExpirationDate,";
-            query += ":Category,";
-            query += ":Name,";
-            query += ":Description,";
-            query += ":ParcelId,";
-            query += ":ParentEstate,";
-            query += ":SnapshotId,";
-            query += ":SimName,";
-            query += ":GlobalPos,";
-            query += ":ParcelName,";
-            query += ":Flags,";
-            query += ":ListingPrice ) ";
-            query += "ON DUPLICATE KEY UPDATE ";
-            query += "category=:Category, ";
-            query += "expirationdate=:ExpirationDate, ";
-            query += "name=:Name, ";
-            query += "description=:Description, ";
-            query += "parentestate=:ParentEstate, ";
-            query += "posglobal=:GlobalPos, ";
-            query += "parcelname=:ParcelName, ";
-            query += "classifiedflags=:Flags, ";
-            query += "priceforlisting=:ListingPrice, ";
-            query += "snapshotuuid=:SnapshotId";
+            string query = @"INSERT INTO classifieds ( ""classifieduuid"",""creatoruuid"", ""creationdate"", ""expirationdate"", ""category"",
+                                    ""name"", ""description"", ""parceluuid"", ""parentestate"", ""snapshotuuid"", ""simname"",
+                                    ""posglobal"", ""parcelname"", ""classifiedflags"", ""priceforlisting"")
+                              Select :ClassifiedId, :CreatorId, :CreatedDate, :ExpirationDate, :Category,
+                                     :Name, :Description, :ParcelId, :ParentEstate, :SnapshotId, :SimName 
+                                     :GlobalPos, :ParcelName, :Flags, :ListingPrice 
+                                Where not exists( Select ""classifieduuid"" from classifieds where ""classifieduuid"" = :ClassifiedId );
+
+                           update classifieds
+                              set category =:Category, 
+                                  expirationdate = :ExpirationDate, 
+                                  name = :Name, 
+                                  description  = :Description, 
+                                  parentestate = :ParentEstate, 
+                                  posglobal       = :GlobalPos, 
+                                  parcelname      = :ParcelName,
+                                  classifiedflags = :Flags, 
+                                  priceforlisting = :ListingPrice, 
+                                  snapshotuuid    = :SnapshotId
+                            where classifieduuid = :ClassifiedId ;
+                                ";
             
             if(string.IsNullOrEmpty(ad.ParcelName))
                 ad.ParcelName = "Unknown";
@@ -245,12 +220,12 @@ namespace OpenSim.Data.PGSQL
             return true;
         }
         
+       
         public bool DeleteClassifiedRecord(UUID recordId)
         {
             string query = string.Empty;
             
-            query += "DELETE FROM classifieds WHERE ";
-            query += "classifieduuid = :ClasifiedId";
+            query = @"DELETE FROM classifieds WHERE classifieduuid = :ClasifiedId ;";
             
             try
             {
@@ -298,20 +273,20 @@ namespace OpenSim.Data.PGSQL
                         {
                             if(reader.Read ())
                             {
-                                ad.CreatorId = new UUID(reader.GetGuid("creatoruuid"));
-                                ad.ParcelId = new UUID(reader.GetGuid("parceluuid"));
-                                ad.SnapshotId = new UUID(reader.GetGuid("snapshotuuid"));
+                                ad.CreatorId = GetUUID(reader["creatoruuid"]);
+                                ad.ParcelId = GetUUID(reader["parceluuid"]);
+                                ad.SnapshotId = GetUUID(reader["snapshotuuid"]);
                                 ad.CreationDate = Convert.ToInt32(reader["creationdate"]);
                                 ad.ExpirationDate = Convert.ToInt32(reader["expirationdate"]);
                                 ad.ParentEstate = Convert.ToInt32(reader["parentestate"]);
-                                ad.Flags = (byte)reader.GetUInt32("classifiedflags");
-                                ad.Category = reader.GetInt32("category");
-                                ad.Price = reader.GetInt16("priceforlisting");
-                                ad.Name = reader.GetString("name");
-                                ad.Description = reader.GetString("description");
-                                ad.SimName = reader.GetString("simname");
-                                ad.GlobalPos = reader.GetString("posglobal");
-                                ad.ParcelName = reader.GetString("parcelname");
+                                ad.Flags = (byte)Convert.ToInt16(reader["classifiedflags"]);
+                                ad.Category = Convert.ToInt32(reader["category"]);
+                                ad.Price = Convert.ToInt16(reader["priceforlisting"]);
+                                ad.Name = reader["name"].ToString();
+                                ad.Description = reader["description"].ToString();
+                                ad.SimName = reader["simname"].ToString();
+                                ad.GlobalPos = reader["posglobal"].ToString();
+                                ad.ParcelName = reader["parcelname"].ToString();
                                 
                             }
                         }
@@ -326,8 +301,19 @@ namespace OpenSim.Data.PGSQL
             }
             return true;
         }
+
+        public static UUID GetUUID( object uuidValue ) {
+
+            UUID ret = UUID.Zero;
+
+            UUID.TryParse(uuidValue.ToString(), out ret);
+
+            return ret;
+        }
+
+
         #endregion Classifieds Queries
-        
+
         #region Picks Queries
         public OSDArray GetAvatarPicks(UUID avatarId)
         {
@@ -431,28 +417,20 @@ namespace OpenSim.Data.PGSQL
         public bool UpdatePicksRecord(UserProfilePick pick)
         {       
             string query = string.Empty;
-            
-            query += "INSERT INTO userpicks VALUES (";
-            query += ":PickId,";
-            query += ":CreatorId,";
-            query += ":TopPick,";
-            query += ":ParcelId,";
-            query += ":Name,";
-            query += ":Desc,";
-            query += ":SnapshotId,";
-            query += ":User,";
-            query += ":Original,";
-            query += ":SimName,";
-            query += ":GlobalPos,";
-            query += ":SortOrder,";
-            query += ":Enabled) ";
-            query += "ON DUPLICATE KEY UPDATE ";
-            query += "parceluuid=:ParcelId,";
-            query += "name=:Name,";
-            query += "description=:Desc,";
-            query += "snapshotuuid=:SnapshotId,";
-            query += "pickuuid=:PickId,";
-            query += "posglobal=:GlobalPos";
+
+            query = @"INSERT INTO userpicks VALUES ( :PickId, :CreatorId, :TopPick, :ParcelId,:Name, :Desc, :SnapshotId,:User,
+                          :Original, :SimName, :GlobalPos, :SortOrder, :Enabled) 
+                      where not exists ( select pickid from userpicks where pickid = :pickid);
+
+                     Update userpicks
+                        set parceluuid = :ParcelId,
+                            name = :Name,
+                            description  = :Desc,
+                            snapshotuuid = :SnapshotId,
+                            pickuuid     = :PickId,
+                            posglobal    = :GlobalPos
+                       where pickid = :PickId;
+                    ";
             
             try
             {
@@ -573,13 +551,14 @@ namespace OpenSim.Data.PGSQL
             else
             {
                 remove = false;
-                query += "INSERT INTO usernotes VALUES ( ";
-                query += ":UserId,";
-                query += ":TargetId,";
-                query += ":Notes )";
-                query += "ON DUPLICATE KEY ";
-                query += "UPDATE ";
-                query += "notes=:Notes";
+                query = @"INSERT INTO usernotes VALUES ( :UserId, :TargetId, :Notes )
+                            where not exists ( Select useruuid from usernotes where useruuid = :UserId and targetuuid = :TargetId );
+
+                           update usernotes
+                              set notes = :Notes
+                            where useruuid = :UserId 
+                              and targetuuid = :TargetId;
+                        ";
             }
             
             try
@@ -995,9 +974,9 @@ namespace OpenSim.Data.PGSQL
         {
             string query = string.Empty;
             
-            query += "SELECT * FROM `userdata` WHERE ";
-            query += "UserId = :Id AND ";
-            query += "TagId = :TagId";
+            query += "SELECT * FROM userdata WHERE ";
+            query += "\"UserId\" = :Id AND ";
+            query += "\"TagId\" = :TagId";
             
             try
             {
@@ -1057,11 +1036,11 @@ namespace OpenSim.Data.PGSQL
             string query = string.Empty;
             
             query += "UPDATE userdata SET ";
-            query += "TagId = :TagId, ";
-            query += "DataKey = :DataKey, ";
-            query += "DataVal = :DataVal WHERE ";
-            query += "UserId = :UserId AND ";
-            query += "TagId = :TagId";
+            query += "\"TagId\" = :TagId, ";
+            query += "\"DataKey\" = :DataKey, ";
+            query += "\"DataVal\" = :DataVal WHERE ";
+            query += "\"UserId\" = :UserId AND ";
+            query += "\"TagId\" = :TagId";
             
             try
             {

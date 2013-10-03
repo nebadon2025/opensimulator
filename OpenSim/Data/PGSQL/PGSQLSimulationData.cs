@@ -1587,8 +1587,8 @@ namespace OpenSim.Data.PGSQL
             prim.TouchName = (string)primRow["TouchName"];
             // permissions
             prim.Flags = (PrimFlags)Convert.ToUInt32(primRow["ObjectFlags"]);
-            //prim.CreatorID = new UUID((Guid)primRow["CreatorID"]);
-            prim.CreatorIdentification = (string)primRow["CreatorID"];
+            //prim.creatorID = new UUID((Guid)primRow["creatorID"]);
+            prim.CreatorIdentification = (string)primRow["CreatorID"].ToString();
             prim.OwnerID = new UUID((Guid)primRow["OwnerID"]);
             prim.GroupID = new UUID((Guid)primRow["GroupID"]);
             prim.LastOwnerID = new UUID((Guid)primRow["LastOwnerID"]);
@@ -1699,8 +1699,8 @@ namespace OpenSim.Data.PGSQL
 
             if (!(primRow["MediaURL"] is System.DBNull))
                 prim.MediaUrl = (string)primRow["MediaURL"];
-            
-            if (!(primRow["DynAttrs"] is System.DBNull))
+
+            if (!(primRow["DynAttrs"] is System.DBNull) && primRow["DynAttrs"] != "")
                 prim.DynAttrs = DAMap.FromXml((string)primRow["DynAttrs"]);
             else
                 prim.DynAttrs = new DAMap();             
@@ -1791,8 +1791,8 @@ namespace OpenSim.Data.PGSQL
             taskItem.Name = (string)inventoryRow["name"];
             taskItem.Description = (string)inventoryRow["description"];
             taskItem.CreationDate = Convert.ToUInt32(inventoryRow["creationDate"]);
-            //taskItem.CreatorID = new UUID((Guid)inventoryRow["creatorID"]);
-            taskItem.CreatorIdentification = (string)inventoryRow["creatorID"];
+            //taskItem.creatorID = new UUID((Guid)inventoryRow["creatorID"]);
+            taskItem.CreatorIdentification = (string)inventoryRow["creatorID"].ToString();
             taskItem.OwnerID = new UUID((Guid)inventoryRow["ownerID"]);
             taskItem.LastOwnerID = new UUID((Guid)inventoryRow["lastOwnerID"]);
             taskItem.GroupID = new UUID((Guid)inventoryRow["groupID"]);

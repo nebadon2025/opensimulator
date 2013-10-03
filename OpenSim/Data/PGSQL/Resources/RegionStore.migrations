@@ -1014,9 +1014,9 @@ alter column "CreatorID" set DEFAULT '00000000-0000-0000-0000-000000000000' ;
 ALTER TABLE prims  ALTER COLUMN "CreatorID" set NOT NULL;
 
 ALTER TABLE primitems
-alter column "CreatorID" set DEFAULT '00000000-0000-0000-0000-000000000000' ;
+alter column "creatorID" set DEFAULT '00000000-0000-0000-0000-000000000000' ;
 
-ALTER TABLE primitems ALTER COLUMN "CreatorID" set NOT NULL;
+ALTER TABLE primitems ALTER COLUMN "creatorID" set NOT NULL;
 
 COMMIT;
 
@@ -1033,7 +1033,7 @@ COMMIT;
 BEGIN TRANSACTION;
 
 alter table prims rename column "CreatorID" to "CreatorIDOld";
-alter table primitems rename column "CreatorID" to "CreatorIDOld";
+alter table primitems rename column "creatorID" to "creatorIDOld";
 
 COMMIT;
 
@@ -1042,7 +1042,7 @@ COMMIT;
 BEGIN TRANSACTION;
 
 ALTER TABLE prims ADD "CreatorID" varchar(255);
-ALTER TABLE primitems ADD "CreatorID" varchar(255);
+ALTER TABLE primitems ADD "creatorID" varchar(255);
 
 COMMIT;
 
@@ -1051,7 +1051,7 @@ COMMIT;
 BEGIN TRANSACTION;
 
 UPDATE prims SET "CreatorID" = cast("CreatorIDOld" as varchar(255));
-UPDATE primitems SET "CreatorID" = cast("CreatorIDOld" as varchar(255));
+UPDATE primitems SET "creatorID" = cast("creatorIDOld" as varchar(255));
 
 COMMIT;
 

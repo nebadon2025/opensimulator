@@ -185,7 +185,7 @@ namespace OpenSim.Data.PGSQL
                     UUID princID = UUID.Zero;
                     UUID.TryParse(principalID, out princID);
 
-                    cmd.Parameters.Add(m_database.CreateParameter("uuid", princID));
+                    cmd.Parameters.Add(m_database.CreateParameter("uuid", principalID));
                     cmd.Parameters.Add(m_database.CreateParameter("type", (int)AssetType.Gesture));
                     cmd.Connection = conn;
                     conn.Open();

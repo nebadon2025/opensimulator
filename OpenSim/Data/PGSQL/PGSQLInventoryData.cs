@@ -424,11 +424,11 @@ namespace OpenSim.Data.PGSQL
                             (""inventoryID"", ""assetID"", ""assetType"", ""parentFolderID"", ""avatarID"", ""inventoryName"", 
                              ""inventoryDescription"", ""inventoryNextPermissions"", ""inventoryCurrentPermissions"",
                              ""invType"", ""creatorID"", ""inventoryBasePermissions"", ""inventoryEveryOnePermissions"", ""inventoryGroupPermissions"",
-                             ""salePrice"", ""saleType"", ""creationDate"", ""groupID"", ""groupOwned"", flags) 
+                             ""salePrice"", ""SaleType"", ""creationDate"", ""groupID"", ""groupOwned"", flags) 
                         VALUES
                             (:inventoryID, :assetID, :assetType, :parentFolderID, :avatarID, :inventoryName, :inventoryDescription,
                              :inventoryNextPermissions, :inventoryCurrentPermissions, :invType, :creatorID,
-                             :inventoryBasePermissions, :inventoryEveryOnePermissions, :inventoryGroupPermissions, :salePrice, :saleType,
+                             :inventoryBasePermissions, :inventoryEveryOnePermissions, :inventoryGroupPermissions, :SalePrice, :SaleType,
                              :creationDate, :groupID, :groupOwned, :flags)";
             
             string itemName = item.Name;
@@ -462,8 +462,8 @@ namespace OpenSim.Data.PGSQL
                 command.Parameters.Add(database.CreateParameter("inventoryBasePermissions", item.BasePermissions));
                 command.Parameters.Add(database.CreateParameter("inventoryEveryOnePermissions", item.EveryOnePermissions));
                 command.Parameters.Add(database.CreateParameter("inventoryGroupPermissions", item.GroupPermissions));
-                command.Parameters.Add(database.CreateParameter("salePrice", item.SalePrice));
-                command.Parameters.Add(database.CreateParameter("saleType", item.SaleType));
+                command.Parameters.Add(database.CreateParameter("SalePrice", item.SalePrice));
+                command.Parameters.Add(database.CreateParameter("SaleType", item.SaleType));
                 command.Parameters.Add(database.CreateParameter("creationDate", item.CreationDate));
                 command.Parameters.Add(database.CreateParameter("groupID", item.GroupID));
                 command.Parameters.Add(database.CreateParameter("groupOwned", item.GroupOwned));
@@ -515,8 +515,8 @@ namespace OpenSim.Data.PGSQL
                                                 ""inventoryBasePermissions"" = :inventoryBasePermissions, 
                                                 ""inventoryEveryOnePermissions"" = :inventoryEveryOnePermissions, 
                                                 ""inventoryGroupPermissions"" = :inventoryGroupPermissions, 
-                                                ""salePrice"" = :salePrice, 
-                                                ""saleType"" = :saleType, 
+                                                ""salePrice"" = :SalePrice, 
+                                                ""saleType"" = :SaleType, 
                                                 ""creationDate"" = :creationDate, 
                                                 ""groupID"" = :groupID, 
                                                 ""groupOwned"" = :groupOwned, 
@@ -554,8 +554,8 @@ namespace OpenSim.Data.PGSQL
                 command.Parameters.Add(database.CreateParameter("inventoryBasePermissions", item.BasePermissions));
                 command.Parameters.Add(database.CreateParameter("inventoryEveryOnePermissions", item.EveryOnePermissions));
                 command.Parameters.Add(database.CreateParameter("inventoryGroupPermissions", item.GroupPermissions));
-                command.Parameters.Add(database.CreateParameter("salePrice", item.SalePrice));
-                command.Parameters.Add(database.CreateParameter("saleType", item.SaleType));
+                command.Parameters.Add(database.CreateParameter("SalePrice", item.SalePrice));
+                command.Parameters.Add(database.CreateParameter("SaleType", item.SaleType));
                 command.Parameters.Add(database.CreateParameter("creationDate", item.CreationDate));
                 command.Parameters.Add(database.CreateParameter("groupID", item.GroupID));
                 command.Parameters.Add(database.CreateParameter("groupOwned", item.GroupOwned));

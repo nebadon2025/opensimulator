@@ -126,7 +126,11 @@ namespace OpenSim.Data.PGSQL
                             }
                             else if (f.FieldType == typeof(UUID))
                             {
-                                f.SetValue(es, new UUID((Guid)v)); // uuid);
+                                UUID estUUID = UUID.Zero;
+
+                                UUID.TryParse((string)v, out estUUID);
+
+                                f.SetValue(es, estUUID);
                             }
                             else if (f.FieldType == typeof(string))
                             {

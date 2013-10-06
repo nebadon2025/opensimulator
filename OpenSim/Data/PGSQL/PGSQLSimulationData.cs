@@ -441,7 +441,7 @@ namespace OpenSim.Data.PGSQL
         /// <param name="regionUUID">regionUUID (is this used anyway</param>
         public void RemoveObject(UUID objectID, UUID regionUUID)
         {
-            _Log.InfoFormat("[PGSQL]: Removing obj: {0} from region: {1}", objectID, regionUUID);
+            //_Log.InfoFormat("[PGSQL]: Removing obj: {0} from region: {1}", objectID, regionUUID);
 
             //Remove from prims and primsitem table
             string sqlPrims = @"DELETE FROM PRIMS WHERE ""SceneGroupID"" = :objectID";

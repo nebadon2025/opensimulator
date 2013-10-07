@@ -151,15 +151,9 @@ namespace OpenSim.Data.PGSQL
             {
                 using (NpgsqlCommand cmd = new NpgsqlCommand())
                 {
-                    UUID id2 = UUID.Zero;
-                    UUID.TryParse(id, out id2);
-
-                    UUID parent2 = UUID.Zero;
-                    UUID.TryParse(newParent, out parent2);
-
                     cmd.CommandText = String.Format(@"update {0} set ""parentFolderID"" = :ParentFolderID where ""inventoryID"" = :InventoryID", m_Realm);
-                    cmd.Parameters.Add(m_database.CreateParameter("ParentFolderID", parent2));
-                    cmd.Parameters.Add(m_database.CreateParameter("InventoryID", id2 ));
+                    cmd.Parameters.Add(m_database.CreateParameter("ParentFolderID", newParent));
+                    cmd.Parameters.Add(m_database.CreateParameter("InventoryID", id ));
                     cmd.Connection = conn;
                     conn.Open();
 

@@ -142,6 +142,8 @@ CREATE TABLE land(
 	"UserLookAtZ" double precision NULL
 );
 
+Create index on land (lower("Name"));
+
 CREATE TABLE landaccesslist(
 	"LandUUID" varchar(255)  NULL,
 	"AccessUUID" varchar(255)  NULL,
@@ -763,6 +765,8 @@ ALTER TABLE land ADD CONSTRAINT
 	(
 	"UUID"
 	);
+
+Create index on land (lower("Name"));
 
 COMMIT;
 

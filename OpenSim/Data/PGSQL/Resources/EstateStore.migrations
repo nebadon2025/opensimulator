@@ -267,6 +267,8 @@ Alter table Tmp_estate_settings
 
 Create Sequence estate_settings_id increment by 100 start with 100;
 
+Create index on estate_settings (lower("EstateName"));
+
 COMMIT;
 
 
@@ -298,5 +300,10 @@ ALTER TABLE estate_settings ADD COLUMN "AllowParcelChanges" boolean NOT NULL def
 ALTER TABLE estate_settings ADD COLUMN "AllowSetHome" boolean NOT NULL default true;
 COMMIT;
 
+:VERSION 11
 
+Begin transaction;
+
+
+Commit;
 

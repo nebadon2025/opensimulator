@@ -301,13 +301,13 @@ namespace OpenSim.Data.PGSQL
             {
                 if (words.Length == 1)
                 {
-                    sql = String.Format(@"select * from {0} where (""ScopeID""=:ScopeID or ""ScopeID""='00000000-0000-0000-0000-000000000000') and (""FirstName"" like :search or ""LastName"" like :search)", m_Realm);
+                    sql = String.Format(@"select * from {0} where (""ScopeID""=:ScopeID or ""ScopeID""='00000000-0000-0000-0000-000000000000') and (""FirstName"" ilike :search or ""LastName"" ilike :search)", m_Realm);
                     cmd.Parameters.Add(m_database.CreateParameter("scopeID", scopeID));
                     cmd.Parameters.Add(m_database.CreateParameter("search", "%" + words[0] + "%"));
                 }
                 else
                 {
-                    sql = String.Format(@"select * from {0} where (""ScopeID""=:ScopeID or ""ScopeID""='00000000-0000-0000-0000-000000000000') and (""FirstName"" like :searchFirst or ""LastName"" like :searchLast)", m_Realm);
+                    sql = String.Format(@"select * from {0} where (""ScopeID""=:ScopeID or ""ScopeID""='00000000-0000-0000-0000-000000000000') and (""FirstName"" ilike :searchFirst or ""LastName"" ilike :searchLast)", m_Realm);
                     cmd.Parameters.Add(m_database.CreateParameter("searchFirst", "%" + words[0] + "%"));
                     cmd.Parameters.Add(m_database.CreateParameter("searchLast", "%" + words[1] + "%"));
                     cmd.Parameters.Add(m_database.CreateParameter("ScopeID", scopeID.ToString()));

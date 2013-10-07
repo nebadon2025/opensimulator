@@ -83,9 +83,9 @@ namespace OpenSim.Data.PGSQL
         public GroupData[] RetrieveGroups(string pattern)
         {
             if (string.IsNullOrEmpty(pattern))
-                pattern = "1 ORDER BY \"Name\" LIMIT 100";
+                pattern = "1 ORDER BY lower(\"Name\") LIMIT 100";
             else
-                pattern = string.Format("\"Name\" LIKE '%{0}%' ORDER BY \"Name\" LIMIT 100", pattern);
+                pattern = string.Format("\"Name\" ILIKE '%{0}%' ORDER BY lower(\"Name\") LIMIT 100", pattern);
 
             return m_Groups.Get(pattern);
         }

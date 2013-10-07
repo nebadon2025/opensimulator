@@ -1,12 +1,14 @@
 ﻿:VERSION 1         # -------------------------- 
 
-BEGIN;
+BEGIN Transaction;
+
+Create Sequence im_offiline_id increment by 1 start with 1;
 
 CREATE TABLE im_offline (
-  "ID" integer PRIMARY KEY NOT NULL,
+  "ID" integer PRIMARY KEY NOT NULL DEFAULT nextval('im_offiline_id') ,
   "PrincipalID" char(36) NOT NULL default '',
   "Message" text NOT NULL,
-  "TMStamp" timestamp NOT NULL
+  "TMStamp" timestamp NOT NULL default now()
 );
 
 COMMIT;

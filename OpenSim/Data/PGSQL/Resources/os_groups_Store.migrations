@@ -55,7 +55,7 @@ CREATE TABLE os_groups_invites (
   "GroupID" char(36) NOT NULL default '',
   "RoleID" char(36) NOT NULL default '',
   "PrincipalID" VARCHAR(255) NOT NULL default '',
-  "TMStamp" timestamp NOT NULL,
+  "TMStamp" timestamp NOT NULL default now(),
   constraint os_groupinvitespk PRIMARY KEY  ("InviteID")
 );
 --  UNIQUE KEY "PrincipalGroup" ("GroupID","PrincipalID")

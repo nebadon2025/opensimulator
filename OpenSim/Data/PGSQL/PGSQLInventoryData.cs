@@ -698,7 +698,7 @@ namespace OpenSim.Data.PGSQL
         /// <returns></returns>
         private List<InventoryFolderBase> getInventoryFolders(UUID parentID, UUID user)
         {
-            string sql = @"SELECT * FROM inventoryfolders WHERE ""parentFolderID"" = :parentID AND ""agentID"" LIKE :uuid";
+            string sql = @"SELECT * FROM inventoryfolders WHERE ""parentFolderID"" = :parentID AND ""agentID"" = :uuid";
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand command = new NpgsqlCommand(sql, conn))
             {

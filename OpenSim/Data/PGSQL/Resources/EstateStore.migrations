@@ -260,12 +260,10 @@ INSERT INTO Tmp_estate_settings ("EstateID", "EstateName", "AbuseEmailToEstateOw
 
 DROP TABLE estate_settings;
 
-Drop Sequence estate_settings_id;
 
 Alter table Tmp_estate_settings
   rename to estate_settings;
 
-Create Sequence estate_settings_id increment by 100 start with 100;
 
 Create index on estate_settings (lower("EstateName"));
 

@@ -128,7 +128,7 @@ namespace OpenSim.Data.PGSQL
                             {
                                 UUID estUUID = UUID.Zero;
 
-                                UUID.TryParse((string)v, out estUUID);
+                                UUID.TryParse(v.ToString(), out estUUID);
 
                                 f.SetValue(es, estUUID);
                             }

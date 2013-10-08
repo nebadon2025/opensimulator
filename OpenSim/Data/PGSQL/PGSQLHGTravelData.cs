@@ -40,11 +40,11 @@ namespace OpenSim.Data.PGSQL
     /// <summary>
     /// A MySQL Interface for user grid data
     /// </summary>
-    public class MySQLHGTravelData : PGSQLGenericTableHandler<HGTravelingData>, IHGTravelingData
+    public class PGSQLHGTravelData : PGSQLGenericTableHandler<HGTravelingData>, IHGTravelingData
     {
 //        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        public MySQLHGTravelData(string connectionString, string realm) : base(connectionString, realm, "HGTravelStore") { }
+        public PGSQLHGTravelData(string connectionString, string realm) : base(connectionString, realm, "HGTravelStore") { }
 
         public HGTravelingData Get(UUID sessionID)
         {

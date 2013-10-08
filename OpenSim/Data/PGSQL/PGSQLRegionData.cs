@@ -95,10 +95,10 @@ namespace OpenSim.Data.PGSQL
 
         public List<RegionData> Get(string regionName, UUID scopeID)
         {
-            string sql = "select * from "+m_Realm+" where \"regionName\" ilike :regionName ";
+            string sql = "select * from "+m_Realm+" where lower(\"regionName\") like lower(:regionName) ";
             if (scopeID != UUID.Zero)
                 sql += " and \"ScopeID\" = :scopeID";
-            sql += " order by \"regionName\"";
+            sql += " order by lower(\"regionName\")";
 
             using (NpgsqlConnection conn = new NpgsqlConnection(m_ConnectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))

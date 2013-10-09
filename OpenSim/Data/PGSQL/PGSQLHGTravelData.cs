@@ -38,7 +38,7 @@ using Npgsql;
 namespace OpenSim.Data.PGSQL
 {
     /// <summary>
-    /// A MySQL Interface for user grid data
+    /// A PGSQL Interface for user grid data
     /// </summary>
     public class PGSQLHGTravelData : PGSQLGenericTableHandler<HGTravelingData>, IHGTravelingData
     {

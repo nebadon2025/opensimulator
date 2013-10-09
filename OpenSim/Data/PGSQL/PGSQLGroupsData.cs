@@ -82,10 +82,10 @@ namespace OpenSim.Data.PGSQL
 
         public GroupData[] RetrieveGroups(string pattern)
         {
-            if (string.IsNullOrEmpty(pattern))
-                pattern = " ORDER BY lower(\"Name\") LIMIT 100";
+            if (string.IsNullOrEmpty(pattern)) // True for where clause
+                pattern = " true ORDER BY lower(\"Name\") LIMIT 100";
             else
-                pattern = string.Format("\"Name\" ILIKE '%{0}%' ORDER BY lower(\"Name\") LIMIT 100", pattern);
+                pattern = string.Format(" lower(\"Name\") LIKE lower('%{0}%') ORDER BY lower(\"Name\") LIMIT 100", pattern);
 
             return m_Groups.Get(pattern);
         }
@@ -97,7 +97,7 @@ namespace OpenSim.Data.PGSQL
 
         public int GroupsCount()
         {
-            return (int)m_Groups.GetCount("Location=\"\"");
+            return (int)m_Groups.GetCount(" \"Location\" = \"\"");
         }
 
         #endregion

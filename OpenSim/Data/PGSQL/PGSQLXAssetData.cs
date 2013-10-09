@@ -73,7 +73,7 @@ namespace OpenSim.Data.PGSQL
         /// <para>
         /// <list type="bullet">
         /// <item>Loads and initialises the PGSQL storage plugin.</item>
-        /// <item>Warns and uses the obsolete mysql_connection.ini if connect string is empty.</item>
+        /// <item>Warns and uses the obsolete pgsql_connection.ini if connect string is empty.</item>
         /// <item>Check for migration</item>
         /// </list>
         /// </para>
@@ -359,8 +359,8 @@ namespace OpenSim.Data.PGSQL
                     catch (Exception e)
                     {
                         m_log.ErrorFormat(
-                            "[XASSET PGSQL DB]: Failure updating access_time for asset {0} with name {1}", 
-                            assetMetadata.ID, assetMetadata.Name);
+                            "[XASSET PGSQL DB]: Failure updating access_time for asset {0} with name {1} : {2}", 
+                            assetMetadata.ID, assetMetadata.Name, e.Message);
                     }
                 }
             }

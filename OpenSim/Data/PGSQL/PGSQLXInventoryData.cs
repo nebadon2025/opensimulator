@@ -297,7 +297,7 @@ namespace OpenSim.Data.PGSQL
 
         protected bool IncrementFolderVersion(string folderID)
         {
-//            m_log.DebugFormat("[MYSQL ITEM HANDLER]: Incrementing version on folder {0}", folderID);
+//            m_log.DebugFormat("[PGSQL ITEM HANDLER]: Incrementing version on folder {0}", folderID);
 //            Util.PrintCallStack();
 
             string sql = @"update inventoryfolders set version=version+1 where ""folderID"" = :folderID";

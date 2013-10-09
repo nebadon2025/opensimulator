@@ -42,13 +42,13 @@ namespace OpenSim.Data.PGSQL
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        /*
+        
         public PGSQLUserAccountData(string connectionString, string realm) :
             base(connectionString, realm, "UserAccount")
         {
         }
-        */
-         
+        
+        /* 
         private string m_Realm;
         private List<string> m_ColumnNames = null;
         private PGSQLManager m_database;
@@ -67,14 +67,14 @@ namespace OpenSim.Data.PGSQL
                 m.Update();
             }
         }
-        
+        */
         /*
         public List<UserAccountData> Query(UUID principalID, UUID scopeID, string query)
         {
             return null;
         }
         */
-
+        /*
         public override UserAccountData[] Get(string[] fields, string[] keys)
         {
             UserAccountData[] retUA = base.Get(fields,keys);
@@ -106,7 +106,8 @@ namespace OpenSim.Data.PGSQL
 
             return retUA;
         }
-
+        */
+        /*
         public UserAccountData Get(UUID principalID, UUID scopeID)
         {
             UserAccountData ret = new UserAccountData();
@@ -268,11 +269,13 @@ namespace OpenSim.Data.PGSQL
             }
             return false;
         }
-        
-        //public UserAccountData[] Get(string[] keys, string[] vals)
-        //{
-        //    return null;
-        //}
+        */
+        /*
+        public UserAccountData[] Get(string[] keys, string[] vals)
+        {
+            return null;
+        }
+        */
 
         public UserAccountData[] GetUsers(UUID scopeID, string query)
         {

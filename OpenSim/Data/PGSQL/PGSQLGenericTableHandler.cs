@@ -224,6 +224,14 @@ namespace OpenSim.Data.PGSQL
         protected T[] DoQuery(NpgsqlCommand cmd)
         {
             List<T> result = new List<T>();
+            if (cmd.Connection == null)
+            {
+                cmd.Connection = new NpgsqlConnection(m_connectionString);
+            }
+            if (cmd.Connection.State == ConnectionState.Closed)
+            {
+                cmd.Connection.Open();
+            }
             using (NpgsqlDataReader reader = cmd.ExecuteReader())
             {
                 if (reader == null)

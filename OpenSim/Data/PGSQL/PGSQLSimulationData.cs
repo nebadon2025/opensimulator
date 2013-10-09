@@ -532,7 +532,7 @@ namespace OpenSim.Data.PGSQL
             using (NpgsqlConnection conn = new NpgsqlConnection(m_connectionString))
             using (NpgsqlCommand cmd = new NpgsqlCommand(sql, conn))
             {
-                // MySqlParameter param = new MySqlParameter();
+                // PGSqlParameter param = new PGSqlParameter();
                 cmd.Parameters.Add(_Database.CreateParameter("RegionUUID", regionID));
                 conn.Open();
                 using (NpgsqlDataReader reader = cmd.ExecuteReader())
@@ -655,7 +655,7 @@ namespace OpenSim.Data.PGSQL
         public void StoreLandObject(ILandObject parcel)
         {
             //As this is only one record in land table I just delete all and then add a new record.
-            //As the delete landaccess is already in the mysql code
+            //As the delete landaccess is already in the pgsql code
 
             //Delete old values
             RemoveLandObject(parcel.LandData.GlobalID);
@@ -1700,7 +1700,7 @@ namespace OpenSim.Data.PGSQL
             if (!(primRow["MediaURL"] is System.DBNull))
                 prim.MediaUrl = (string)primRow["MediaURL"];
 
-            if (!(primRow["DynAttrs"] is System.DBNull) && primRow["DynAttrs"] != "")
+            if (!(primRow["DynAttrs"] is System.DBNull) && (string)primRow["DynAttrs"] != "")
                 prim.DynAttrs = DAMap.FromXml((string)primRow["DynAttrs"]);
             else
                 prim.DynAttrs = new DAMap();             

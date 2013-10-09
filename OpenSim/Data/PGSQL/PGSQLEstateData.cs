@@ -60,6 +60,11 @@ namespace OpenSim.Data.PGSQL
             Initialise(connectionString);
         }
 
+        protected virtual Assembly Assembly
+        {
+            get { return GetType().Assembly; }
+        }
+
         /// <summary>
         /// Initialises the estatedata class.
         /// </summary>

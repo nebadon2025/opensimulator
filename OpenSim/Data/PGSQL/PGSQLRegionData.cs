@@ -54,6 +54,11 @@ namespace OpenSim.Data.PGSQL
 
         protected Dictionary<string, string> m_FieldTypes = new Dictionary<string, string>();
 
+        protected virtual Assembly Assembly
+        {
+            get { return GetType().Assembly; }
+        }
+
         public PGSQLRegionData(string connectionString, string realm) 
         {
             m_Realm = realm;

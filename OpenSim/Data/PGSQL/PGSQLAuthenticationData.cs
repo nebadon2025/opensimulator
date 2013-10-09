@@ -46,6 +46,11 @@ namespace OpenSim.Data.PGSQL
         private string m_ConnectionString;
         private PGSQLManager m_database;
 
+        protected virtual Assembly Assembly
+        {
+            get { return GetType().Assembly; }
+        }
+
         public PGSQLAuthenticationData(string connectionString, string realm)
         {
             m_Realm = realm;

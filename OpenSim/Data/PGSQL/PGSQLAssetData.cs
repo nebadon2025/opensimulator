@@ -52,6 +52,11 @@ namespace OpenSim.Data.PGSQL
         private PGSQLManager m_database;
         private string m_connectionString;
 
+        protected virtual Assembly Assembly
+        {
+            get { return GetType().Assembly; }
+        }
+
         #region IPlugin Members
 
         override public void Dispose() { }

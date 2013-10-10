@@ -1067,4 +1067,3 @@
     ; Include-Architecture = "config-include/GridHypergrid.ini"
     ; Include-Architecture = "config-include/SimianGrid.ini"
     ; Include-Architecture = "config-include/HyperSimianGrid.ini"
-    ; Include-Architecture = "config-include/DivaPreferences.ini"

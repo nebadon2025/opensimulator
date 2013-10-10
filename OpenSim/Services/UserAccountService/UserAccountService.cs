@@ -491,7 +491,7 @@ namespace OpenSim.Services.UserAccountService
                             m_log.WarnFormat("[USER ACCOUNT SERVICE]: Unable to set password for account {0} {1}.",
                                 firstName, lastName);
                     }
-                    
+
                     GridRegion home = null;
                     if (m_GridService != null)
                     {

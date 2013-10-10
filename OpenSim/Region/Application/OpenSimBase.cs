@@ -513,6 +513,7 @@ namespace OpenSim
                     if (estateOwnerUuid == UUID.Zero)
                         estateOwnerUuid = UUID.Random();
 
+                    m_log.DebugFormat("[USER]: Try to create user {0} {1}", estateOwnerFirstName, estateOwnerLastName);
                     account
                         = ((UserAccountService)scene.UserAccountService).CreateUser(
                             regionInfo.ScopeID,

@@ -666,7 +666,14 @@ namespace pCampBot
         {
             lock (m_bots)
             {
-                m_bots.ForEach(b => b.SitOnGround());
+                foreach (Bot bot in m_bots)
+                {
+                    if (bot.ConnectionState == ConnectionState.Connected)
+                    {
+                        MainConsole.Instance.OutputFormat("Sitting bot {0} on ground.", bot.Name);
+                        bot.SitOnGround();
+                    }
+                }
             }
         }
 
@@ -674,7 +681,14 @@ namespace pCampBot
         {
             lock (m_bots)
             {
-                m_bots.ForEach(b => b.Stand());
+                foreach (Bot bot in m_bots)
+                {
+                    if (bot.ConnectionState == ConnectionState.Connected)
+                    {
+                        MainConsole.Instance.OutputFormat("Standing bot {0} from ground.", bot.Name);
+                        bot.Stand();
+                    }
+                }
             }
         }
 

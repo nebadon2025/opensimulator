@@ -2599,7 +2599,7 @@ namespace OpenSim.Framework
         }
 
         #region Xml Serialization Utilities
-        public static bool ReadBoolean(XmlTextReader reader)
+        public static bool ReadBoolean(XmlReader reader)
         {
             // AuroraSim uses "int" for some fields that are boolean in OpenSim, e.g. "PassCollisions". Don't fail because of this.
             reader.ReadStartElement();
@@ -2610,7 +2610,7 @@ namespace OpenSim.Framework
             return result;
         }
 
-        public static UUID ReadUUID(XmlTextReader reader, string name)
+        public static UUID ReadUUID(XmlReader reader, string name)
         {
             UUID id;
             string idStr;
@@ -2629,7 +2629,7 @@ namespace OpenSim.Framework
             return id;
         }
 
-        public static Vector3 ReadVector(XmlTextReader reader, string name)
+        public static Vector3 ReadVector(XmlReader reader, string name)
         {
             Vector3 vec;
 
@@ -2642,7 +2642,7 @@ namespace OpenSim.Framework
             return vec;
         }
 
-        public static Quaternion ReadQuaternion(XmlTextReader reader, string name)
+        public static Quaternion ReadQuaternion(XmlReader reader, string name)
         {
             Quaternion quat = new Quaternion();
 
@@ -2671,7 +2671,7 @@ namespace OpenSim.Framework
             return quat;
         }
 
-        public static T ReadEnum<T>(XmlTextReader reader, string name)
+        public static T ReadEnum<T>(XmlReader reader, string name)
         {
             string value = reader.ReadElementContentAsString(name, String.Empty);
             // !!!!! to deal with flags without commas

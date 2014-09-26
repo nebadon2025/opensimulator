@@ -399,13 +399,13 @@ namespace OpenSim.Region.Framework.Scenes
         private int m_update_physics = 1;
         private int m_update_entitymovement = 1;
         private int m_update_objects = 1;
-        private int m_update_temp_cleaning = 1000;
         private int m_update_presences = 1; // Update scene presence movements
         private int m_update_events = 1;
         private int m_update_backup = 200;
         private int m_update_terrain = 50;
 //        private int m_update_land = 1;
         private int m_update_coarse_locations = 50;
+        private int m_update_temp_cleaning = 180;
 
         private int agentMS;
         private int frameMS;
@@ -1046,7 +1046,7 @@ namespace OpenSim.Region.Framework.Scenes
                 m_update_physics          = startupConfig.GetInt(   "UpdatePhysicsEveryNFrames",         m_update_physics);
                 m_update_presences        = startupConfig.GetInt(   "UpdateAgentsEveryNFrames",          m_update_presences);
                 m_update_terrain          = startupConfig.GetInt(   "UpdateTerrainEveryNFrames",         m_update_terrain);
-                m_update_temp_cleaning    = startupConfig.GetInt(   "UpdateTempCleaningEveryNFrames",    m_update_temp_cleaning);
+                m_update_temp_cleaning    = startupConfig.GetInt(   "UpdateTempCleaningEveryNSeconds",    m_update_temp_cleaning);
             }
 
             // FIXME: Ultimately this should be in a module.
@@ -1523,7 +1523,7 @@ namespace OpenSim.Region.Framework.Scenes
         public void DoMaintenance(int runs)
         {
             long? endRun = null;
-            int runtc;
+            int runtc, tmpMS;
             int previousMaintenanceTick;
 
             if (runs >= 0)
@@ -1536,6 +1536,8 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 runtc = Util.EnvironmentTickCount();
                 ++MaintenanceRun;
+
+//                m_log.DebugFormat("[SCENE]: Maintenance run {0} in {1}", MaintenanceRun, Name);
 
                 // Coarse locations relate to positions of green dots on the mini-map (on a SecondLife client)
                 if (MaintenanceRun % (m_update_coarse_locations / 10) == 0)
@@ -1556,6 +1558,21 @@ namespace OpenSim.Region.Framework.Scenes
                     {
                         ForEachRootScenePresence(sp => AvatarFactory.SendAppearance(sp.UUID));
                     }
+                }
+
+                // Delete temp-on-rez stuff
+                if (MaintenanceRun % m_update_temp_cleaning == 0 && !m_cleaningTemps)
+                {
+//                    m_log.DebugFormat("[SCENE]: Running temp-on-rez cleaning in {0}", Name);
+                    tmpMS = Util.EnvironmentTickCount();
+                    m_cleaningTemps = true;
+
+                    Watchdog.RunInThread(
+                        delegate { CleanTempObjects(); m_cleaningTemps = false;  }, 
+                        string.Format("CleanTempObjects ({0})", Name), 
+                        null);
+
+                    tempOnRezMS = Util.EnvironmentTickCountSubtract(tmpMS);
                 }
 
                 Watchdog.UpdateThread();
@@ -1596,7 +1613,7 @@ namespace OpenSim.Region.Framework.Scenes
 
 //            m_log.DebugFormat("[SCENE]: Processing frame {0} in {1}", Frame, RegionInfo.RegionName);
 
-                agentMS = tempOnRezMS = eventMS = backupMS = terrainMS = landMS = spareMS = 0;
+                agentMS = eventMS = backupMS = terrainMS = landMS = spareMS = 0;
 
                 try
                 {
@@ -1649,21 +1666,7 @@ namespace OpenSim.Region.Framework.Scenes
                     if (Frame % m_update_presences == 0)
                         m_sceneGraph.UpdatePresences();
     
-                    agentMS += Util.EnvironmentTickCountSubtract(tmpMS);
-    
-                    // Delete temp-on-rez stuff
-                    if (Frame % m_update_temp_cleaning == 0 && !m_cleaningTemps)
-                    {
-                        tmpMS = Util.EnvironmentTickCount();
-                        m_cleaningTemps = true;
-
-                        Watchdog.RunInThread(
-                            delegate { CleanTempObjects(); m_cleaningTemps = false;  }, 
-                            string.Format("CleanTempObjects ({0})", Name), 
-                            null);
-
-                        tempOnRezMS = Util.EnvironmentTickCountSubtract(tmpMS);
-                    }
+                    agentMS += Util.EnvironmentTickCountSubtract(tmpMS);    
     
                     if (Frame % m_update_events == 0)
                     {
@@ -1733,7 +1736,7 @@ namespace OpenSim.Region.Framework.Scenes
                 }
     
                 EventManager.TriggerRegionHeartbeatEnd(this);
-                otherMS = tempOnRezMS + eventMS + backupMS + terrainMS + landMS;
+                otherMS = eventMS + backupMS + terrainMS + landMS;
 
                 if (!UpdateOnTimer)
                 {

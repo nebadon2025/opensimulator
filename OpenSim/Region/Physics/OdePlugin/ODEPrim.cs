@@ -3344,7 +3344,7 @@ Console.WriteLine(" JointCreateFixed");
                         RequestAssetDelegate assetProvider = _parent_scene.RequestAssetMethod;
                         if (assetProvider != null)
                             assetProvider(_pbs.SculptTexture, MeshAssetReceived);
-                    });
+                    }, null, "ODEPrim.CheckMeshAsset");
             }
         }
 

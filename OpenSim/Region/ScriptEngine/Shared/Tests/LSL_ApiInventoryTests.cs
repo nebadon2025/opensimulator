@@ -45,6 +45,7 @@ using OpenSim.Region.ScriptEngine.Shared.Instance;
 using OpenSim.Services.Interfaces;
 using OpenSim.Tests.Common;
 using OpenSim.Tests.Common.Mock;
+using PermissionMask = OpenSim.Framework.PermissionMask;
 
 namespace OpenSim.Region.ScriptEngine.Shared.Tests
 {
@@ -166,6 +167,124 @@ namespace OpenSim.Region.ScriptEngine.Shared.Tests
                 Assert.That(copiedItems.Count, Is.EqualTo(1));
                 Assert.That(copiedItems[0].Name, Is.EqualTo(inventoryItemName));
             }
+        }
+
+        /// <summary>
+        /// Test giving inventory from an object to an avatar that is not the object's owner.
+        /// </summary>
+        [Test]
+        public void TestLlGiveInventoryO2DifferentAvatar()
+        {
+            TestHelpers.InMethod();
+            //            TestHelpers.EnableLogging();
+
+            UUID user1Id = TestHelpers.ParseTail(0x1);
+            UUID user2Id = TestHelpers.ParseTail(0x2);
+            string inventoryItemName = "item1";
+
+            SceneObjectGroup so1 = SceneHelpers.CreateSceneObject(1, user1Id, "so1", 0x10);
+            m_scene.AddSceneObject(so1);
+            LSL_Api api = new LSL_Api();
+            api.Initialize(m_engine, so1.RootPart, null, null);
+
+            // Create an object embedded inside the first
+            UUID itemId = TestHelpers.ParseTail(0x20);
+            TaskInventoryHelpers.AddSceneObject(m_scene, so1.RootPart, inventoryItemName, itemId, user1Id);
+
+            UserAccountHelpers.CreateUserWithInventory(m_scene, user2Id);
+
+            api.llGiveInventory(user2Id.ToString(), inventoryItemName);
+
+            InventoryItemBase receivedItem 
+                = UserInventoryHelpers.GetInventoryItem(
+                    m_scene.InventoryService, user2Id, string.Format("Objects/{0}", inventoryItemName));
+
+            Assert.IsNotNull(receivedItem);
+        }
+
+        /// <summary>
+        /// Test giving inventory from an object to an avatar that is not the object's owner and where the next
+        /// permissions do not include mod.
+        /// </summary>
+        [Test]
+        public void TestLlGiveInventoryO2DifferentAvatarNoMod()
+        {
+            TestHelpers.InMethod();
+//            TestHelpers.EnableLogging();
+
+            UUID user1Id = TestHelpers.ParseTail(0x1);
+            UUID user2Id = TestHelpers.ParseTail(0x2);
+            string inventoryItemName = "item1";
+
+            SceneObjectGroup so1 = SceneHelpers.CreateSceneObject(1, user1Id, "so1", 0x10);
+            m_scene.AddSceneObject(so1);
+            LSL_Api api = new LSL_Api();
+            api.Initialize(m_engine, so1.RootPart, null, null);
+
+            // Create an object embedded inside the first
+            UUID itemId = TestHelpers.ParseTail(0x20);
+            TaskInventoryItem tii 
+                = TaskInventoryHelpers.AddSceneObject(m_scene, so1.RootPart, inventoryItemName, itemId, user1Id);
+            tii.NextPermissions &= ~((uint)PermissionMask.Modify);
+
+            UserAccountHelpers.CreateUserWithInventory(m_scene, user2Id);
+
+            api.llGiveInventory(user2Id.ToString(), inventoryItemName);
+
+            InventoryItemBase receivedItem 
+                = UserInventoryHelpers.GetInventoryItem(
+                    m_scene.InventoryService, user2Id, string.Format("Objects/{0}", inventoryItemName));
+
+            Assert.IsNotNull(receivedItem);
+            Assert.AreEqual(0, receivedItem.CurrentPermissions & (uint)PermissionMask.Modify);
+        }
+
+        [Test]
+        public void TestLlRemoteLoadScriptPin()
+        {
+            TestHelpers.InMethod();
+//                        TestHelpers.EnableLogging();
+
+            UUID user1Id = TestHelpers.ParseTail(0x1);
+            UUID user2Id = TestHelpers.ParseTail(0x2);
+
+            SceneObjectGroup sourceSo = SceneHelpers.AddSceneObject(m_scene, 1, user1Id, "sourceSo", 0x10);
+            m_scene.AddSceneObject(sourceSo);
+            LSL_Api api = new LSL_Api();
+            api.Initialize(m_engine, sourceSo.RootPart, null, null);
+            TaskInventoryHelpers.AddScript(m_scene, sourceSo.RootPart, "script", "Hello World");
+
+            SceneObjectGroup targetSo = SceneHelpers.AddSceneObject(m_scene, 1, user1Id, "targetSo", 0x20);
+            SceneObjectGroup otherOwnedTargetSo 
+                = SceneHelpers.AddSceneObject(m_scene, 1, user2Id, "otherOwnedTargetSo", 0x30);
+
+            // Test that we cannot load a script when the target pin has never been set (i.e. it is zero)
+            api.llRemoteLoadScriptPin(targetSo.UUID.ToString(), "script", 0, 0, 0);
+            Assert.IsNull(targetSo.RootPart.Inventory.GetInventoryItem("script"));
+
+            // Test that we cannot load a script when the given pin does not match the target
+            targetSo.RootPart.ScriptAccessPin = 5;
+            api.llRemoteLoadScriptPin(targetSo.UUID.ToString(), "script", 3, 0, 0);
+            Assert.IsNull(targetSo.RootPart.Inventory.GetInventoryItem("script"));
+
+            // Test that we cannot load into a prim with a different owner
+            otherOwnedTargetSo.RootPart.ScriptAccessPin = 3;
+            api.llRemoteLoadScriptPin(otherOwnedTargetSo.UUID.ToString(), "script", 3, 0, 0);
+            Assert.IsNull(otherOwnedTargetSo.RootPart.Inventory.GetInventoryItem("script"));
+
+            // Test that we can load a script when given pin and dest pin match.
+            targetSo.RootPart.ScriptAccessPin = 3;
+            api.llRemoteLoadScriptPin(targetSo.UUID.ToString(), "script", 3, 0, 0);
+            TaskInventoryItem insertedItem = targetSo.RootPart.Inventory.GetInventoryItem("script");
+            Assert.IsNotNull(insertedItem);
+
+            // Test that we can no longer load if access pin is unset
+            targetSo.RootPart.Inventory.RemoveInventoryItem(insertedItem.ItemID);
+            Assert.IsNull(targetSo.RootPart.Inventory.GetInventoryItem("script"));
+
+            targetSo.RootPart.ScriptAccessPin = 0;
+            api.llRemoteLoadScriptPin(otherOwnedTargetSo.UUID.ToString(), "script", 3, 0, 0);
+            Assert.IsNull(otherOwnedTargetSo.RootPart.Inventory.GetInventoryItem("script"));
         }
     }
 }

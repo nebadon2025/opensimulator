@@ -1447,8 +1447,6 @@ namespace OpenSim.Region.ScriptEngine.XEngine
 
             instance.Stop(m_WaitForEventCompletionOnScriptStop);
 
-//                bool objectRemoved = false;
-
             lock (m_PrimObjects)
             {
                 // Remove the script from it's prim
@@ -1460,10 +1458,7 @@ namespace OpenSim.Region.ScriptEngine.XEngine
 
                     // If there are no more scripts, remove prim
                     if (m_PrimObjects[localID].Count == 0)
-                    {
                         m_PrimObjects.Remove(localID);
-//                            objectRemoved = true;
-                    }
                 }
             }
 

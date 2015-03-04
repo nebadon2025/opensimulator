@@ -10762,8 +10762,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 }
             }
 
+            HttpInitialRequestStatus status;
             UUID reqID
-                = httpScriptMod.StartHttpRequest(m_host.LocalId, m_item.ItemID, url, param, httpHeaders, body);
+                = httpScriptMod.StartHttpRequest(m_host.LocalId, m_item.ItemID, url, param, httpHeaders, body, out status);
+
+            if (status == HttpInitialRequestStatus.DISALLOWED_BY_FILTER)
+                Error("llHttpRequest", string.Format("Request to {0} disallowed by filter", url));
 
             if (reqID != UUID.Zero)
                 return reqID.ToString();
@@ -11210,6 +11214,29 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 return UUID.Zero;
 
             return item.ItemID;
+        }
+
+        /// <summary>
+        /// Reports the script error in the viewer's Script Warning/Error dialog and shouts it on the debug channel.
+        /// </summary>
+        /// <param name="command">The name of the command that generated the error.</param>
+        /// <param name="message">The error message to report to the user.</param>
+        internal void Error(string command, string message)
+        {
+            string text = command + ": " + message;
+            if (text.Length > 1023)
+            {
+                text = text.Substring(0, 1023);
+            }
+
+            World.SimChat(Utils.StringToBytes(text), ChatTypeEnum.DebugChannel, ScriptBaseClass.DEBUG_CHANNEL,
+                          m_host.ParentGroup.RootPart.AbsolutePosition, m_host.Name, m_host.UUID, false);
+
+            IWorldComm wComm = m_ScriptEngine.World.RequestModuleInterface<IWorldComm>();
+            if (wComm != null)
+            {
+                wComm.DeliverMessage(ChatTypeEnum.Shout, ScriptBaseClass.DEBUG_CHANNEL, m_host.Name, m_host.UUID, text);
+            }
         }
 
         internal void ShoutError(string msg)

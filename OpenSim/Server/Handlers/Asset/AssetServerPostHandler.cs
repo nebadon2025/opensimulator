@@ -57,6 +57,13 @@ namespace OpenSim.Server.Handlers.Asset
         protected override byte[] ProcessRequest(string path, Stream request,
                 IOSHttpRequest httpRequest, IOSHttpResponse httpResponse)
         {
+            if (httpRequest.Headers["X-SecondLife-Shard"] != null)
+            {
+                httpResponse.StatusCode = (int)HttpStatusCode.Forbidden;
+                httpResponse.ContentType = "text/plain";
+                return new byte[0];
+            }
+
             AssetBase asset;
             XmlSerializer xs = new XmlSerializer(typeof (AssetBase));
 

@@ -76,7 +76,7 @@ namespace OpenSim.Server.Handlers.Asset.Test
             }            
 
             buffer.Position = 0;
-            asph.Handle(null, buffer, null, null);
+            asph.Handle(null, buffer, new TestOSHttpRequest(), null);
 
             AssetBase retrievedAsset = assetService.Get(assetId.ToString());
 
@@ -102,7 +102,7 @@ namespace OpenSim.Server.Handlers.Asset.Test
             buffer.Position = 0;
 
             TestOSHttpResponse response = new TestOSHttpResponse();
-            asph.Handle(null, buffer, null, response);
+            asph.Handle(null, buffer, new TestOSHttpRequest(), response);
 
             Assert.That(response.StatusCode, Is.EqualTo((int)HttpStatusCode.BadRequest));
         }

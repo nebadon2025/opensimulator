@@ -28,6 +28,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Reflection;
 using System.Xml;
 
@@ -102,6 +103,14 @@ namespace OpenSim.Server.Handlers.MapImage
         protected override byte[] ProcessRequest(string path, Stream requestData, IOSHttpRequest httpRequest, IOSHttpResponse httpResponse)
         {
 //            m_log.DebugFormat("[MAP SERVICE IMAGE HANDLER]: Received {0}", path);
+
+            if (httpRequest.Headers["X-SecondLife-Shard"] != null)
+            {
+                httpResponse.StatusCode = (int)HttpStatusCode.Forbidden;
+                httpResponse.ContentType = "text/plain";
+                return new byte[0];
+            }
+
             StreamReader sr = new StreamReader(requestData);
             string body = sr.ReadToEnd();
             sr.Close();

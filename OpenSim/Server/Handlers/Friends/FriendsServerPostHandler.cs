@@ -60,6 +60,13 @@ namespace OpenSim.Server.Handlers.Friends
         protected override byte[] ProcessRequest(string path, Stream requestData,
                 IOSHttpRequest httpRequest, IOSHttpResponse httpResponse)
         {
+            if (httpRequest.Headers["X-SecondLife-Shard"] != null)
+            {
+                httpResponse.StatusCode = (int)HttpStatusCode.Forbidden;
+                httpResponse.ContentType = "text/plain";
+                return new byte[0];
+            }
+
             StreamReader sr = new StreamReader(requestData);
             string body = sr.ReadToEnd();
             sr.Close();

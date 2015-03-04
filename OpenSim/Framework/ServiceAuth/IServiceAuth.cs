@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Net;
 
 namespace OpenSim.Framework.ServiceAuth
 {
@@ -9,7 +10,7 @@ namespace OpenSim.Framework.ServiceAuth
     public interface  IServiceAuth
     {
         bool Authenticate(string data);
-        bool Authenticate(NameValueCollection headers, AddHeaderDelegate d);
+        bool Authenticate(NameValueCollection headers, AddHeaderDelegate d, out HttpStatusCode statusCode);
         void AddAuthorization(NameValueCollection headers);
     }
 }

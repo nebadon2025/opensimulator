@@ -162,6 +162,7 @@ namespace OpenSim.Server.Handlers.Simulation
             resp["success"] = OSD.FromBoolean(result);
             resp["reason"] = OSD.FromString(reason);
             resp["version"] = OSD.FromString(version);
+            resp["variable_wearables_count_supported"] = OSD.FromBoolean(true);
 
             // We must preserve defaults here, otherwise a false "success" will not be put into the JSON map!
             responsedata["str_response_string"] = OSDParser.SerializeJsonString(resp, true);

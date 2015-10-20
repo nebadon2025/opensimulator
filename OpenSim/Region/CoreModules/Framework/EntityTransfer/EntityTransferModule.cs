@@ -835,7 +835,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             if (versionComponents.Length >= 2)
                 float.TryParse(versionComponents[1], out versionNumber);
 
-            if (versionNumber >= 0.2f && MaxOutgoingTransferVersion >= versionNumber)
+            if (versionNumber >= 0.2f)
                 TransferAgent_V2(sp, agentCircuit, reg, finalDestination, endPoint, teleportFlags, oldRegionX, newRegionX, oldRegionY, newRegionY, version, out reason);
             else
                 TransferAgent_V1(sp, agentCircuit, reg, finalDestination, endPoint, teleportFlags, oldRegionX, newRegionX, oldRegionY, newRegionY, version, out reason);           

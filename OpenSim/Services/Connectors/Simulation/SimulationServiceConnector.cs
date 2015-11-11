@@ -282,10 +282,9 @@ namespace OpenSim.Services.Connectors.Simulation
         }
 
 
-        public bool QueryAccess(GridRegion destination, UUID agentID, string agentHomeURI, bool viaTeleport, Vector3 position, string myversion, List<UUID> featuresAvailable, out string version, out string reason)
+        public bool QueryAccess(GridRegion destination, UUID agentID, string agentHomeURI, bool viaTeleport, Vector3 position, List<UUID> featuresAvailable, EntityTransferContext ctx, out string reason)
         {
             reason = "Failed to contact destination";
-            version = "Unknown";
 
             // m_log.DebugFormat("[REMOTE SIMULATION CONNECTOR]: QueryAccess start, position={0}", position);
 
@@ -298,7 +297,14 @@ namespace OpenSim.Services.Connectors.Simulation
             OSDMap request = new OSDMap();
             request.Add("viaTeleport", OSD.FromBoolean(viaTeleport));
             request.Add("position", OSD.FromString(position.ToString()));
-            request.Add("my_version", OSD.FromString(myversion));
+            // To those who still understad this field, we're telling them 
+            // the lowest version just to be safe
+            request.Add("my_version", OSD.FromString(String.Format("SIMULATION/{0}", VersionInfo.SimulationServiceVersionSupportedMin)));
+            // New simulation service negotiation
+            request.Add("simulation_service_supported_min", OSD.FromReal(VersionInfo.SimulationServiceVersionSupportedMin));
+            request.Add("simulation_service_supported_max", OSD.FromReal(VersionInfo.SimulationServiceVersionSupportedMax));
+            request.Add("simulation_service_accepted_min", OSD.FromReal(VersionInfo.SimulationServiceVersionAcceptedMin));
+            request.Add("simulation_service_accepted_max", OSD.FromReal(VersionInfo.SimulationServiceVersionAcceptedMax));
 
             OSDArray features = new OSDArray();
             foreach (UUID feature in featuresAvailable)
@@ -322,15 +328,32 @@ namespace OpenSim.Services.Connectors.Simulation
                     success = data["success"];
 
                     reason = data["reason"].AsString();
-                    if (data["version"] != null && data["version"].AsString() != string.Empty)
-                        version = data["version"].AsString();
+                    // We will need to plumb this and start sing the outbound version as well
+                    // TODO: lay the pipe for version plumbing
+                    if (data.ContainsKey("negotiated_inbound_version") && data["negotiated_inbound_version"] != null)
+                    {
+                        ctx.InboundVersion = (float)data["negotiated_inbound_version"].AsReal();
+                        ctx.OutboundVersion = (float)data["negotiated_outbound_version"].AsReal();
+                    }
+                    else if (data["version"] != null && data["version"].AsString() != string.Empty)
+                    {
+                        string versionString = data["version"].AsString();
+                        String[] parts = versionString.Split(new char[] {'/'});
+                        if (parts.Length > 1)
+                        {
+                            ctx.InboundVersion = float.Parse(parts[1]);
+                            ctx.OutboundVersion = float.Parse(parts[1]);
+                        }
+                    }
+                    if (data.ContainsKey("variable_wearables_count_supported"))
+                        ctx.VariableWearablesSupported = true;
 
                     m_log.DebugFormat(
-                        "[REMOTE SIMULATION CONNECTOR]: QueryAccess to {0} returned {1}, reason {2}, version {3} ({4})",
-                        uri, success, reason, version, data["version"].AsString());
+                        "[REMOTE SIMULATION CONNECTOR]: QueryAccess to {0} returned {1}, reason {2}, version {3}/{4}",
+                        uri, success, reason, ctx.InboundVersion, ctx.OutboundVersion);
                 }
 
-                if (!success)
+                if (!success || ctx.InboundVersion == 0f || ctx.OutboundVersion == 0f)
                 {
                     // If we don't check this then OpenSimulator 0.7.3.1 and some period before will never see the
                     // actual failure message

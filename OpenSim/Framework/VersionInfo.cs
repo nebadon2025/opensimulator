@@ -29,7 +29,7 @@ namespace OpenSim
 {
     public class VersionInfo
     {
-        public const string VersionNumber = "0.8.2.0";
+        public const string VersionNumber = "0.8.2.1";
         private const Flavour VERSION_FLAVOUR = Flavour.Post_Fixes;
 
         public enum Flavour
@@ -83,8 +83,8 @@ namespace OpenSim
         ///   - this is an older teleport protocol used in OpenSimulator 0.7.5 and before.
         /// </remarks>
         public readonly static float SimulationServiceVersionAcceptedMin = 0.3f;
-        public readonly static float SimulationServiceVersionAcceptedMax = 0.4f;
+        public readonly static float SimulationServiceVersionAcceptedMax = 0.5f;
         public readonly static float SimulationServiceVersionSupportedMin = 0.3f;
-        public readonly static float SimulationServiceVersionSupportedMax = 0.4f;
+        public readonly static float SimulationServiceVersionSupportedMax = 0.5f;
     }
 }

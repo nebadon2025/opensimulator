@@ -443,9 +443,18 @@ namespace OpenSim.Framework
             // We might not pass this in all cases...
             if ((Appearance.Wearables != null) && (Appearance.Wearables.Length > 0))
             {
-                OSDArray wears = new OSDArray(Appearance.Wearables.Length);
-                foreach (AvatarWearable awear in Appearance.Wearables)
-                    wears.Add(awear.Pack());
+                int wearsCount;
+                if(Appearance.PackLegacyWearables)
+                    wearsCount = AvatarWearable.LEGACY_VERSION_MAX_WEARABLES;
+                else
+                    wearsCount = AvatarWearable.MAX_WEARABLES;
+
+                if(wearsCount > Appearance.Wearables.Length)
+                    wearsCount = Appearance.Wearables.Length;
+
+                OSDArray wears = new OSDArray(wearsCount);
+                for(int i = 0; i < wearsCount ; i++)
+                    wears.Add(Appearance.Wearables[i].Pack());
 
                 args["wearables"] = wears;
             }

@@ -768,7 +768,8 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             AgentCircuitData agentCircuit = sp.ControllingClient.RequestClientInfo();
             agentCircuit.startpos = position;
             agentCircuit.child = true;
-            agentCircuit.Appearance = sp.Appearance;
+            agentCircuit.Appearance = new AvatarAppearance();
+            agentCircuit.Appearance.PackLegacyWearables = true;
             if (currentAgentCircuit != null)
             {
                 agentCircuit.ServiceURLs = currentAgentCircuit.ServiceURLs;
@@ -805,7 +806,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                 "[ENTITY TRANSFER MODULE]: Using TP V1 for {0} going from {1} to {2}", 
                 sp.Name, Scene.Name, finalDestination.RegionName);
 
-            // Let's create an agent there if one doesn't exist yet. 
+             // Let's create an agent there if one doesn't exist yet. 
             // NOTE: logout will always be false for a non-HG teleport.
             bool logout = false;
             if (!CreateAgent(sp, reg, finalDestination, agentCircuit, teleportFlags, out reason, out logout))
@@ -906,6 +907,8 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             // Let's send a full update of the agent. This is a synchronous call.
             AgentData agent = new AgentData();
             sp.CopyTo(agent);
+            if (ctx.OutboundVersion < 0.5f)
+                agent.Appearance.PackLegacyWearables = true;
             agent.Position = agentCircuit.startpos;
             SetCallbackURL(agent, sp.Scene.RegionInfo);
 
@@ -1145,6 +1148,8 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             // Let's send a full update of the agent. 
             AgentData agent = new AgentData();
             sp.CopyTo(agent);
+            if (ctx.OutboundVersion < 0.5f)
+                agent.Appearance.PackLegacyWearables = true;
             agent.Position = agentCircuit.startpos;
             agent.SenderWantsToWaitForRoot = true;
             //SetCallbackURL(agent, sp.Scene.RegionInfo);
@@ -1628,7 +1633,7 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                     m_entityTransferStateMachine.ResetFromTransit(agent.UUID);
                 }
 
-                if (!CrossAgentIntoNewRegionMain(agent, pos, neighbourRegion, isFlying))
+                if (!CrossAgentIntoNewRegionMain(agent, pos, neighbourRegion, isFlying, ctx))
                 {
                     m_log.DebugFormat("{0}: CrossAgentToNewRegionAsync: cross main failed. Resetting transfer state", LogHeader);
                     m_entityTransferStateMachine.ResetFromTransit(agent.UUID);
@@ -1644,12 +1649,14 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             return agent;
         }
 
-        public bool CrossAgentIntoNewRegionMain(ScenePresence agent, Vector3 pos, GridRegion neighbourRegion, bool isFlying)
+        public bool CrossAgentIntoNewRegionMain(ScenePresence agent, Vector3 pos, GridRegion neighbourRegion, bool isFlying, EntityTransferContext ctx)
         {
             try
             {
                 AgentData cAgent = new AgentData(); 
                 agent.CopyTo(cAgent);
+                if (ctx.OutboundVersion < 0.5f)
+                    cAgent.Appearance.PackLegacyWearables = true;
                 cAgent.Position = pos;
 
                 if (isFlying)
@@ -1815,7 +1822,8 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
             agent.InventoryFolder = UUID.Zero;
             agent.startpos = new Vector3(128, 128, 70);
             agent.child = true;
-            agent.Appearance = sp.Appearance;
+            agent.Appearance = new AvatarAppearance();
+            agent.Appearance.PackLegacyWearables = true;
             agent.CapsPath = CapsUtil.GetRandomCapsObjectPath();
 
             agent.ChildrenCapSeeds = new Dictionary<ulong, string>(sp.Scene.CapsModule.GetChildrenSeeds(sp.UUID));
@@ -1938,7 +1946,8 @@ namespace OpenSim.Region.CoreModules.Framework.EntityTransfer
                     agent.InventoryFolder = UUID.Zero;
                     agent.startpos = sp.AbsolutePosition + CalculateOffset(sp, neighbour);
                     agent.child = true;
-                    agent.Appearance = sp.Appearance;
+                    agent.Appearance = new AvatarAppearance();
+                    agent.Appearance.PackLegacyWearables = true;
                     if (currentAgentCircuit != null)
                     {
                         agent.ServiceURLs = currentAgentCircuit.ServiceURLs;

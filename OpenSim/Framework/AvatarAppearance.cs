@@ -69,6 +69,8 @@ namespace OpenSim.Framework
         protected WearableCacheItem[] m_cacheitems;
         protected bool m_cacheItemsDirty = true;
 
+
+        public bool PackLegacyWearables {get; set; }
         public virtual int Serial
         {
             get { return m_serial; }
@@ -133,7 +135,7 @@ namespace OpenSim.Framework
         public AvatarAppearance()
         {
 //            m_log.WarnFormat("[AVATAR APPEARANCE]: create empty appearance");
-
+            PackLegacyWearables = false;
             m_serial = 0;
             SetDefaultWearables();
             SetDefaultTexture();
@@ -712,8 +714,15 @@ namespace OpenSim.Framework
             data["height"] = OSD.FromReal(m_avatarHeight);
 
             // Wearables
-            OSDArray wears = new OSDArray(AvatarWearable.MAX_WEARABLES);
-            for (int i = 0; i < AvatarWearable.MAX_WEARABLES; i++)
+
+            int wearsCount;
+            if(PackLegacyWearables)
+                wearsCount = AvatarWearable.LEGACY_VERSION_MAX_WEARABLES;
+            else
+                wearsCount = AvatarWearable.MAX_WEARABLES;
+
+            OSDArray wears = new OSDArray(wearsCount);
+            for (int i = 0; i < wearsCount; i++)
                 wears.Add(m_wearables[i].Pack());
             data["wearables"] = wears;
 

@@ -490,7 +490,10 @@ namespace OpenSim.Framework
                     m_wearables[i] = new AvatarWearable();
             }
             m_wearables[wearableId].Clear();
-            for (int i = 0; i < wearable.Count; i++)
+            int count = wearable.Count;
+            if (count > AvatarWearable.MAX_WEARABLES)
+                count = AvatarWearable.MAX_WEARABLES;
+            for (int i = 0; i < count; i++)
                 m_wearables[wearableId].Add(wearable[i].ItemID, wearable[i].AssetID);
         }
 
@@ -809,11 +812,9 @@ namespace OpenSim.Framework
                 if ((data != null) && (data["wearables"] != null) && (data["wearables"]).Type == OSDType.Array)
                 {
                     OSDArray wears = (OSDArray)(data["wearables"]);
-
                     int count = wears.Count;
-
-                    m_wearables = new AvatarWearable[count];
-
+                    if (count > AvatarWearable.MAX_WEARABLES)
+                        count = AvatarWearable.MAX_WEARABLES;
                     for (int i = 0; i < count; i++)
                         m_wearables[i] = new AvatarWearable((OSDArray)wears[i]);
                 }

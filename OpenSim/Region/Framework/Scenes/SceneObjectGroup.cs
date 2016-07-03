@@ -473,7 +473,8 @@ namespace OpenSim.Region.Framework.Scenes
                     if (
                         !Scene.PositionIsInCurrentRegion(val)
                                 && !IsAttachmentCheckFull()
-                                && (!Scene.LoadingPrims)
+                                && (!Scene.LoadingPrims) 
+                                && !Scene.DisableObjectTransfer
                         )
                     {
                         IEntityTransferModule entityTransfer = m_scene.RequestModuleInterface<IEntityTransferModule>();

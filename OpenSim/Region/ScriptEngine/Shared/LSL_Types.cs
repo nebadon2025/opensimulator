@@ -653,7 +653,7 @@ namespace OpenSim.Region.ScriptEngine.Shared
             {
                 if (Data[itemIndex] is LSL_Types.key)
                 {
-                    return (LSL_Types.LSLString)Data[itemIndex];
+                    return new LSL_Types.LSLString(Data[itemIndex].ToString());
                 }
                 else
                 {

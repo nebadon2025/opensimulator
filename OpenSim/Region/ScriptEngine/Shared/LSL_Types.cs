@@ -2231,7 +2231,6 @@ namespace OpenSim.Region.ScriptEngine.Shared
                 return value.GetHashCode();
             }
 
-
             #endregion
         }
     }

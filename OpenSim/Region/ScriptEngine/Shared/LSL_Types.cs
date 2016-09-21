@@ -562,7 +562,7 @@ namespace OpenSim.Region.ScriptEngine.Shared
                         else if (o is LSL_Types.LSLString)
                             size += ((LSL_Types.LSLString)o).m_string == null ? 0 : ((LSL_Types.LSLString)o).m_string.Length;
                         else if (o is LSL_Types.key)
-                            size += ((LSL_Types.key)o).value.Length;
+                            size += ((LSL_Types.key)o).m_string.Length;
                         else if (o is LSL_Types.Vector3)
                             size += 32;
                         else if (o is LSL_Types.Quaternion)
@@ -653,11 +653,23 @@ namespace OpenSim.Region.ScriptEngine.Shared
             {
                 if (Data[itemIndex] is LSL_Types.key)
                 {
-                    return (LSL_Types.key)Data[itemIndex];
+                    return (LSL_Types.LSLString)Data[itemIndex];
                 }
                 else
                 {
                     return new LSL_Types.LSLString(Data[itemIndex].ToString());
+                }
+            }
+
+            public LSL_Types.key GetLSLKeyItem(int itemIndex)
+            {
+                if (Data[itemIndex] is LSL_Types.key)
+                {
+                    return (LSL_Types.key)Data[itemIndex];
+                }
+                else
+                {
+                    return new LSL_Types.key(Data[itemIndex].ToString());
                 }
             }
 
@@ -986,7 +998,7 @@ namespace OpenSim.Region.ScriptEngine.Shared
                 {
                     key l = (key)left;
                     key r = (key)right;
-                    ret = String.CompareOrdinal(l.value, r.value);
+                    ret = String.CompareOrdinal(l.m_string, r.m_string);
                 }
                 else if (left is LSLString)
                 {
@@ -1415,27 +1427,27 @@ namespace OpenSim.Region.ScriptEngine.Shared
         [Serializable]
         public struct key
         {
-            public string value;
+            public string m_string;
 
             #region Constructors
             public key(string s)
             {
-                value = s;
+                m_string = s;
             }
 
             public key(LSLString s)
             {
-                value = s.m_string;
+                m_string = s.m_string;
             }
 
             public key(UUID val)
             {
-                value = val.ToString();
+                m_string = val.ToString();
             }
 
             public key(key val)
             {
-                value = val.value;
+                m_string = val.m_string;
             }
 
             #endregion
@@ -1448,19 +1460,18 @@ namespace OpenSim.Region.ScriptEngine.Shared
 
             static public implicit operator Boolean(key k)
             {
-                if (String.IsNullOrEmpty(k.value))
+                if (String.IsNullOrEmpty(k.m_string))
                     return false;
 
-                int len = k.value.Length;
-                if((k.value[0] == '{' && len != 38) || (len != 36 && len != 32))
+                int len = k.m_string.Length;
+                if(len != 36 && len != 32)
                     return false;
 
-                if (k.value == "00000000-0000-0000-0000-000000000000")
-                {
+                if (k.m_string == "00000000-0000-0000-0000-000000000000")
                     return false;
-                }
+
                 Regex isuuid = new Regex(@"^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$", RegexOptions.Compiled);
-                if (isuuid.IsMatch(k.value))
+                if (isuuid.IsMatch(k.m_string))
                 {
                     return true;
                 }
@@ -1494,32 +1505,34 @@ namespace OpenSim.Region.ScriptEngine.Shared
             {
                 return new key(id);
             }
-
+            // warning some funtions have versions for string and UUID paramenters
+            // a cast must be used on those
+            // like GetSceneObjectPart()
             static public implicit operator string(key k)
             {
-                return k.value;
+                return k.m_string;
             }
 
             static public implicit operator LSLString(key k)
             {
-                return new LSLString(k.value);
+                return new LSLString(k.m_string);
             }
 
             static public implicit operator UUID(key k)
             {
                 UUID uuid;
-                if(!UUID.TryParse(k, out uuid))
-                    return UUID.Zero;
+                UUID.TryParse(k, out uuid);
                 return uuid;
             }
-
+           
             public static bool operator ==(key k1, key k2)
             {
-                return k1.value == k2.value;
+                return (k1.m_string == k2.m_string);
             }
+
             public static bool operator !=(key k1, key k2)
             {
-                return k1.value != k2.value;
+                return (k1.m_string != k2.m_string);
             }
 
             #endregion
@@ -1528,17 +1541,17 @@ namespace OpenSim.Region.ScriptEngine.Shared
 
             public override bool Equals(object o)
             {
-                return o.ToString() == value;
+                return (m_string == o.ToString());
             }
 
             public override int GetHashCode()
             {
-                return value.GetHashCode();
+                return m_string.GetHashCode();
             }
 
             public override string ToString()
             {
-                return value;
+                return m_string;
             }
 
             #endregion
@@ -1649,6 +1662,7 @@ namespace OpenSim.Region.ScriptEngine.Shared
             {
                 return new LSLString(d);
             }
+
             
             static public explicit operator LSLString(int i)
             {
@@ -1712,7 +1726,6 @@ namespace OpenSim.Region.ScriptEngine.Shared
             public bool Contains(string value) { return m_string.Contains(value); }
             public int IndexOf(string value) { return m_string.IndexOf(value); }
             public int Length { get { return m_string.Length; } }
-
 
             #endregion
         }

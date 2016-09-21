@@ -46,7 +46,7 @@ using OpenSim.Region.ScriptEngine.Shared.Api.Interfaces;
 
 using LSL_Float = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLFloat;
 using LSL_Integer = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLInteger;
-using LSL_Key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
+using LSL_Key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.key;
 using LSL_List = OpenSim.Region.ScriptEngine.Shared.LSL_Types.list;
 using LSL_Rotation = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Quaternion;
 using LSL_String = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
@@ -202,8 +202,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (returntype != typeof(UUID))
                 MODError(String.Format("return type mismatch for {0}",fname));
 
-            UUID result = (UUID)modInvoke(fname,parms);
-            return new LSL_Key(result.ToString());
+            return (UUID)modInvoke(fname,parms);
         }
 
         public LSL_Vector modInvokeV(string fname, params object[] parms)
@@ -394,7 +393,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             else if (lslparm is LSL_Key)
             {
                 if (type == typeof(UUID))
-                    return new UUID((LSL_Key)lslparm);
+                    return (UUID)((LSL_Key)lslparm);
             }
 
             // ---------- Rotation ----------
@@ -435,7 +434,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         else if (plist[i] is LSL_Float)
                             result[i] = (float)(LSL_Float)plist[i];
                         else if (plist[i] is LSL_Key)
-                            result[i] = new UUID((LSL_Key)plist[i]);
+                            result[i] = (UUID)((LSL_Key)plist[i]);
                         else if (plist[i] is LSL_Rotation)
                             result[i] = (Quaternion)((LSL_Rotation)plist[i]);
                         else if (plist[i] is LSL_Vector)

@@ -37,7 +37,7 @@ using OpenSim.Region.ScriptEngine.Shared.Api.Interfaces;
 
 using LSL_Float = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLFloat;
 using LSL_Integer = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLInteger;
-using LSL_Key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
+using LSL_Key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.key;
 using LSL_List = OpenSim.Region.ScriptEngine.Shared.LSL_Types.list;
 using LSL_Rotation = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Quaternion;
 using LSL_String = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
@@ -75,12 +75,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llAcos(val);
         }
 
-        public void llAddToLandBanList(string avatar, double hours)
+        public void llAddToLandBanList(LSL_Key avatar, double hours)
         {
             m_LSL_Functions.llAddToLandBanList(avatar, hours);
         }
 
-        public void llAddToLandPassList(string avatar, double hours)
+        public void llAddToLandPassList(LSL_Key avatar, double hours)
         {
             m_LSL_Functions.llAddToLandPassList(avatar, hours);
         }
@@ -175,7 +175,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llClearCameraParams();
         }
 
-        public void llCloseRemoteDataChannel(string channel)
+        public void llCloseRemoteDataChannel(LSL_Key channel)
         {
             m_LSL_Functions.llCloseRemoteDataChannel(channel);
         }
@@ -185,7 +185,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llCloud(offset);
         }
 
-        public void llCollisionFilter(string name, string id, int accept)
+        public void llCollisionFilter(string name, LSL_Key id, int accept)
         {
             m_LSL_Functions.llCollisionFilter(name, id, accept);
         }
@@ -205,7 +205,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llCos(f);
         }
 
-        public void llCreateLink(string target, int parent)
+        public void llCreateLink(LSL_Key target, int parent)
         {
             m_LSL_Functions.llCreateLink(target, parent);
         }
@@ -310,7 +310,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llDetectedVel(number);
         }
 
-        public void llDialog(string avatar, string message, LSL_List buttons, int chat_channel)
+        public void llDialog(LSL_Key avatar, string message, LSL_List buttons, int chat_channel)
         {
             m_LSL_Functions.llDialog(avatar, message, buttons, chat_channel);
         }
@@ -331,7 +331,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llEdgeOfWorld(pos, dir);
         }
 
-        public void llEjectFromLand(string pest)
+        public void llEjectFromLand(LSL_Key pest)
         {
             m_LSL_Functions.llEjectFromLand(pest);
         }
@@ -381,7 +381,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llGetAccel();
         }
 
-        public LSL_Integer llGetAgentInfo(string id)
+        public LSL_Integer llGetAgentInfo(LSL_Key id)
         {
             return m_LSL_Functions.llGetAgentInfo(id);
         }
@@ -396,7 +396,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llGetAgentList(scope, options);
         }
 
-        public LSL_Vector llGetAgentSize(string id)
+        public LSL_Vector llGetAgentSize(LSL_Key id)
         {
             return m_LSL_Functions.llGetAgentSize(id);
         }
@@ -411,12 +411,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llGetAndResetTime();
         }
 
-        public LSL_String llGetAnimation(string id)
+        public LSL_String llGetAnimation(LSL_Key id)
         {
             return m_LSL_Functions.llGetAnimation(id);
         }
 
-        public LSL_List llGetAnimationList(string id)
+        public LSL_List llGetAnimationList(LSL_Key id)
         {
             return m_LSL_Functions.llGetAnimationList(id);
         }
@@ -426,7 +426,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llGetAttached();
         }
 
-        public LSL_List llGetBoundingBox(string obj)
+        public LSL_List llGetBoundingBox(LSL_Key obj)
         {
             return m_LSL_Functions.llGetBoundingBox(obj);
         }
@@ -451,7 +451,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llGetColor(face);
         }
 
-        public LSL_String llGetCreator()
+        public LSL_Key llGetCreator()
         {
             return m_LSL_Functions.llGetCreator();
         }
@@ -606,7 +606,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llGetNextEmail(address, subject);
         }
 
-        public LSL_String llGetNotecardLine(string name, int line)
+        public LSL_Key llGetNotecardLine(string name, int line)
         {
             return m_LSL_Functions.llGetNotecardLine(name, line);
         }
@@ -631,12 +631,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llGetObjectDesc();
         }
 
-        public LSL_List llGetObjectDetails(string id, LSL_List args)
+        public LSL_List llGetObjectDetails(LSL_Key id, LSL_List args)
         {
             return m_LSL_Functions.llGetObjectDetails(id, args);
         }
 
-        public LSL_Float llGetObjectMass(string id)
+        public LSL_Float llGetObjectMass(LSL_Key id)
         {
             return m_LSL_Functions.llGetObjectMass(id);
         }
@@ -651,7 +651,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llGetObjectPermMask(mask);
         }
 
-        public LSL_Integer llGetObjectPrimCount(string object_id)
+        public LSL_Integer llGetObjectPrimCount(LSL_Key object_id)
         {
             return m_LSL_Functions.llGetObjectPrimCount(object_id);
         }
@@ -666,7 +666,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llGetOwner();
         }
 
-        public LSL_Key llGetOwnerKey(string id)
+        public LSL_Key llGetOwnerKey(LSL_Key id)
         {
             return m_LSL_Functions.llGetOwnerKey(id);
         }
@@ -871,27 +871,27 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llGetWallclock();
         }
 
-        public void llGiveInventory(string destination, string inventory)
+        public void llGiveInventory(LSL_Key destination, string inventory)
         {
             m_LSL_Functions.llGiveInventory(destination, inventory);
         }
 
-        public void llGiveInventoryList(string destination, string category, LSL_List inventory)
+        public void llGiveInventoryList(LSL_Key destination, string category, LSL_List inventory)
         {
             m_LSL_Functions.llGiveInventoryList(destination, category, inventory);
         }
 
-        public LSL_Integer llGiveMoney(string destination, int amount)
+        public LSL_Integer llGiveMoney(LSL_Key destination, int amount)
         {
             return m_LSL_Functions.llGiveMoney(destination, amount);
         }
 
-        public LSL_String llTransferLindenDollars(string destination, int amount)
+        public LSL_Key llTransferLindenDollars(LSL_Key destination, int amount)
         {
             return m_LSL_Functions.llTransferLindenDollars(destination, amount);
         }
 
-        public void llGodLikeRezObject(string inventory, LSL_Vector pos)
+        public void llGodLikeRezObject(LSL_Key inventory, LSL_Vector pos)
         {
             m_LSL_Functions.llGodLikeRezObject(inventory, pos);
         }
@@ -921,7 +921,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llGroundSlope(offset);
         }
 
-        public LSL_String llHTTPRequest(string url, LSL_List parameters, string body)
+        public LSL_Key llHTTPRequest(string url, LSL_List parameters, string body)
         {
             return m_LSL_Functions.llHTTPRequest(url, parameters, body);
         }
@@ -936,7 +936,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llInsertString(dst, position, src);
         }
 
-        public void llInstantMessage(string user, string message)
+        public void llInstantMessage(LSL_Key user, string message)
         {
             m_LSL_Functions.llInstantMessage(user, message);
         }
@@ -946,27 +946,27 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llIntegerToBase64(number);
         }
 
-        public LSL_String llKey2Name(string id)
+        public LSL_String llKey2Name(LSL_Key id)
         {
             return m_LSL_Functions.llKey2Name(id);
         }
 
-        public LSL_String llGetUsername(string id)
+        public LSL_String llGetUsername(LSL_Key id)
         {
             return m_LSL_Functions.llGetUsername(id);
         }
 
-        public LSL_String llRequestUsername(string id)
+        public LSL_Key llRequestUsername(LSL_Key id)
         {
             return m_LSL_Functions.llRequestUsername(id);
         }
 
-        public LSL_String llGetDisplayName(string id)
+        public LSL_String llGetDisplayName(LSL_Key id)
         {
             return m_LSL_Functions.llGetDisplayName(id);
         }
 
-        public LSL_String llRequestDisplayName(string id)
+        public LSL_Key llRequestDisplayName(LSL_Key id)
         {
             return m_LSL_Functions.llRequestDisplayName(id);
         }
@@ -1026,7 +1026,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llList2Vector(src, index);
         }
 
-        public LSL_Integer llListen(int channelID, string name, string ID, string msg)
+        public LSL_Integer llListen(int channelID, string name, LSL_Key ID, string msg)
         {
             return m_LSL_Functions.llListen(channelID, name, ID, msg);
         }
@@ -1071,7 +1071,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llListStatistics(operation, src);
         }
 
-        public void llLoadURL(string avatar_id, string message, string url)
+        public void llLoadURL(LSL_Key avatar_id, string message, string url)
         {
             m_LSL_Functions.llLoadURL(avatar_id, message, url);
         }
@@ -1106,7 +1106,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llLoopSoundSlave(sound, volume);
         }
 
-        public LSL_Integer llManageEstateAccess(int action, string avatar)
+        public LSL_Integer llManageEstateAccess(int action, LSL_Key avatar)
         {
             return m_LSL_Functions.llManageEstateAccess(action, avatar);
         }
@@ -1146,7 +1146,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llSHA1String(src);
         }
 
-        public void llMessageLinked(int linknum, int num, string str, string id)
+        public void llMessageLinked(int linknum, int num, string str, LSL_Key id)
         {
             m_LSL_Functions.llMessageLinked(linknum, num, str, id);
         }
@@ -1181,7 +1181,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llOpenRemoteDataChannel();
         }
 
-        public LSL_Integer llOverMyLand(string id)
+        public LSL_Integer llOverMyLand(LSL_Key id)
         {
             return m_LSL_Functions.llOverMyLand(id);
         }
@@ -1251,7 +1251,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llPreloadSound(sound);
         }
 
-        public void llPushObject(string target, LSL_Vector impulse, LSL_Vector ang_impulse, int local)
+        public void llPushObject(LSL_Key target, LSL_Vector impulse, LSL_Vector ang_impulse, int local)
         {
             m_LSL_Functions.llPushObject(target, impulse, ang_impulse, local);
         }
@@ -1266,7 +1266,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llRegionSay(channelID, text);
         }
 
-        public void llRegionSayTo(string key, int channelID, string text)
+        public void llRegionSayTo(LSL_Key key, int channelID, string text)
         {
             m_LSL_Functions.llRegionSayTo(key, channelID, text);
         }
@@ -1296,22 +1296,22 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llRemoteDataSetRegion();
         }
 
-        public void llRemoteLoadScript(string target, string name, int running, int start_param)
+        public void llRemoteLoadScript(LSL_Key target, string name, int running, int start_param)
         {
             m_LSL_Functions.llRemoteLoadScript(target, name, running, start_param);
         }
 
-        public void llRemoteLoadScriptPin(string target, string name, int pin, int running, int start_param)
+        public void llRemoteLoadScriptPin(LSL_Key target, string name, int pin, int running, int start_param)
         {
             m_LSL_Functions.llRemoteLoadScriptPin(target, name, pin, running, start_param);
         }
 
-        public void llRemoveFromLandBanList(string avatar)
+        public void llRemoveFromLandBanList(LSL_Key avatar)
         {
             m_LSL_Functions.llRemoveFromLandBanList(avatar);
         }
 
-        public void llRemoveFromLandPassList(string avatar)
+        public void llRemoveFromLandPassList(LSL_Key avatar)
         {
             m_LSL_Functions.llRemoveFromLandPassList(avatar);
         }
@@ -1326,7 +1326,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llRemoveVehicleFlags(flags);
         }
 
-        public LSL_Key llRequestAgentData(string id, int data)
+        public LSL_Key llRequestAgentData(LSL_Key id, int data)
         {
             return m_LSL_Functions.llRequestAgentData(id, data);
         }
@@ -1336,7 +1336,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llRequestInventoryData(name);
         }
 
-        public void llRequestPermissions(string agent, int perm)
+        public void llRequestPermissions(LSL_Key agent, int perm)
         {
             m_LSL_Functions.llRequestPermissions(agent, perm);
         }
@@ -1450,7 +1450,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llRound(f);
         }
 
-        public LSL_Integer llSameGroup(string agent)
+        public LSL_Integer llSameGroup(LSL_Key agent)
         {
             return m_LSL_Functions.llSameGroup(agent);
         }
@@ -1475,12 +1475,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llScriptProfiler(flags);
         }
 
-        public LSL_Key llSendRemoteData(string channel, string dest, int idata, string sdata)
+        public LSL_Key llSendRemoteData(LSL_Key channel, string dest, int idata, string sdata)
         {
             return m_LSL_Functions.llSendRemoteData(channel, dest, idata, sdata);
         }
 
-        public void llSensor(string name, string id, int type, double range, double arc)
+        public void llSensor(string name, LSL_Key id, int type, double range, double arc)
         {
             m_LSL_Functions.llSensor(name, id, type, range, arc);
         }
@@ -1490,7 +1490,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llSensorRemove();
         }
 
-        public void llSensorRepeat(string name, string id, int type, double range, double arc, double rate)
+        public void llSensorRepeat(string name, LSL_Key id, int type, double range, double arc, double rate)
         {
             m_LSL_Functions.llSensorRepeat(name, id, type, range, arc, rate);
         }
@@ -1881,22 +1881,22 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llTargetRemove(number);
         }
 
-        public void llTeleportAgent(string agent, string simname, LSL_Vector pos, LSL_Vector lookAt)
+        public void llTeleportAgent(LSL_Key agent, string simname, LSL_Vector pos, LSL_Vector lookAt)
         {
             m_LSL_Functions.llTeleportAgent(agent, simname, pos, lookAt);
         }
 
-        public void llTeleportAgentGlobalCoords(string agent, LSL_Vector global, LSL_Vector pos, LSL_Vector lookAt)
+        public void llTeleportAgentGlobalCoords(LSL_Key agent, LSL_Vector global, LSL_Vector pos, LSL_Vector lookAt)
         {
             m_LSL_Functions.llTeleportAgentGlobalCoords(agent, global, pos, lookAt);
         }
 
-        public void llTeleportAgentHome(string agent)
+        public void llTeleportAgentHome(LSL_Key agent)
         {
             m_LSL_Functions.llTeleportAgentHome(agent);
         }
 
-        public void llTextBox(string avatar, string message, int chat_channel)
+        public void llTextBox(LSL_Key avatar, string message, int chat_channel)
         {
             m_LSL_Functions.llTextBox(avatar, message, chat_channel);
         }
@@ -1926,7 +1926,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llUnescapeURL(url);
         }
 
-        public void llUnSit(string id)
+        public void llUnSit(LSL_Key id)
         {
             m_LSL_Functions.llUnSit(id);
         }

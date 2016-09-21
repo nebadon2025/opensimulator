@@ -71,7 +71,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Plugins
 
                 object[] resobj = new object[]
                 {
-                    new LSL_Types.LSLString(httpInfo.ReqID.ToString()),
+                    new LSL_Types.key(httpInfo.ReqID),
                     new LSL_Types.LSLInteger(httpInfo.Status),
                     new LSL_Types.list(),
                     new LSL_Types.LSLString(httpInfo.ResponseBody)

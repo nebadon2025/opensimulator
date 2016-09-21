@@ -62,10 +62,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Plugins
                     object[] resobj = new object[]
                     {
                         new LSL_Types.LSLInteger(2),
-                        new LSL_Types.LSLString(
-                                rInfo.GetChannelKey().ToString()),
-                        new LSL_Types.LSLString(
-                                rInfo.GetMessageID().ToString()),
+                        new LSL_Types.key(rInfo.GetChannelKey()),
+                        new LSL_Types.key(rInfo.GetMessageID()),
                         new LSL_Types.LSLString(String.Empty),
                         new LSL_Types.LSLInteger(rInfo.GetIntValue()),
                         new LSL_Types.LSLString(rInfo.GetStrVal())
@@ -93,8 +91,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Plugins
                     object[] resobj = new object[]
                     {
                         new LSL_Types.LSLInteger(3),
-                        new LSL_Types.LSLString(srdInfo.Channel.ToString()),
-                        new LSL_Types.LSLString(srdInfo.GetReqID().ToString()),
+                        new LSL_Types.key(srdInfo.Channel),
+                        new LSL_Types.key(srdInfo.GetReqID()),
                         new LSL_Types.LSLString(String.Empty),
                         new LSL_Types.LSLInteger(srdInfo.Idata),
                         new LSL_Types.LSLString(srdInfo.Sdata)

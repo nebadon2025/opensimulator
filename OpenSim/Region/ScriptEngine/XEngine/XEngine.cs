@@ -1781,6 +1781,8 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                     lsl_p[i] = new LSL_Types.Quaternion((Quaternion)p[i]);
                 else if (p[i] is float)
                     lsl_p[i] = new LSL_Types.LSLFloat((float)p[i]);
+                else if (p[i] is UUID)
+                    lsl_p[i] = new LSL_Types.key((UUID)p[i]);
                 else
                     lsl_p[i] = p[i];
             }
@@ -1807,6 +1809,8 @@ namespace OpenSim.Region.ScriptEngine.XEngine
                     lsl_p[i] = new LSL_Types.Quaternion((Quaternion)p[i]);
                 else if (p[i] is float)
                     lsl_p[i] = new LSL_Types.LSLFloat((float)p[i]);
+                else if (p[i] is UUID)
+                    lsl_p[i] = new LSL_Types.key((UUID)p[i]);
                 else
                     lsl_p[i] = p[i];
             }

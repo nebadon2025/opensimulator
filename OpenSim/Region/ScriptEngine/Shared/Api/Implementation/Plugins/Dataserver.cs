@@ -105,7 +105,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Plugins
 
             m_CmdManager.m_ScriptEngine.PostObjectEvent(ds.localID,
                     new EventParams("dataserver", new Object[]
-                            { new LSL_Types.LSLString(ds.ID.ToString()),
+                            { new LSL_Types.key(ds.ID),
                             new LSL_Types.LSLString(reply)},
                     new DetectParams[0]));
         }

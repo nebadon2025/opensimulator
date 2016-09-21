@@ -29,14 +29,13 @@ using System;
 using System.Collections;
 using OpenSim.Region.ScriptEngine.Interfaces;
 
-using key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
 using rotation = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Quaternion;
 using vector = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Vector3;
 using LSL_List = OpenSim.Region.ScriptEngine.Shared.LSL_Types.list;
 using LSL_String = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
 using LSL_Integer = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLInteger;
 using LSL_Float = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLFloat;
-using LSL_Key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
+using LSL_Key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.key;
 
 namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
 {
@@ -117,15 +116,15 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         void CheckThreatLevel(ThreatLevel level, string function);
 
         //OpenSim functions
-        string osSetDynamicTextureURL(string dynamicID, string contentType, string url, string extraParams, int timer);
-        string osSetDynamicTextureURLBlend(string dynamicID, string contentType, string url, string extraParams,
+        LSL_Key osSetDynamicTextureURL(string dynamicID, string contentType, string url, string extraParams, int timer);
+        LSL_Key osSetDynamicTextureURLBlend(string dynamicID, string contentType, string url, string extraParams,
                                            int timer, int alpha);
-        string osSetDynamicTextureURLBlendFace(string dynamicID, string contentType, string url, string extraParams,
+        LSL_Key osSetDynamicTextureURLBlendFace(string dynamicID, string contentType, string url, string extraParams,
                                            bool blend, int disp, int timer, int alpha, int face);
-        string osSetDynamicTextureData(string dynamicID, string contentType, string data, string extraParams, int timer);
-        string osSetDynamicTextureDataBlend(string dynamicID, string contentType, string data, string extraParams,
+        LSL_Key osSetDynamicTextureData(string dynamicID, string contentType, string data, string extraParams, int timer);
+        LSL_Key osSetDynamicTextureDataBlend(string dynamicID, string contentType, string data, string extraParams,
                                             int timer, int alpha);
-        string osSetDynamicTextureDataBlendFace(string dynamicID, string contentType, string data, string extraParams,
+        LSL_Key osSetDynamicTextureDataBlendFace(string dynamicID, string contentType, string data, string extraParams,
                                             bool blend, int disp, int timer, int alpha, int face);
 
         LSL_Float osGetTerrainHeight(int x, int y);
@@ -143,20 +142,20 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         void osSetParcelSIPAddress(string SIPAddress);
 
         // Avatar Info Commands
-        string osGetAgentIP(string agent);
+        string osGetAgentIP(LSL_Key agent);
         LSL_List osGetAgents();
         
         // Teleport commands
-        void osTeleportAgent(string agent, string regionName, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
-        void osTeleportAgent(string agent, int regionX, int regionY, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
-        void osTeleportAgent(string agent, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
+        void osTeleportAgent(LSL_Key agent, string regionName, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
+        void osTeleportAgent(LSL_Key agent, int regionX, int regionY, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
+        void osTeleportAgent(LSL_Key agent, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
         void osTeleportOwner(string regionName, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
         void osTeleportOwner(int regionX, int regionY, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
         void osTeleportOwner(LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
 
         // Animation commands
-        void osAvatarPlayAnimation(string avatar, string animation);
-        void osAvatarStopAnimation(string avatar, string animation);
+        void osAvatarPlayAnimation(LSL_Key avatar, string animation);
+        void osAvatarStopAnimation(LSL_Key avatar, string animation);
 
         #region Attachment commands
 
@@ -185,7 +184,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         /// <param name='rawAvatarId'>The UUID of the avatar to which to attach.  Nothing happens if this is not a UUID</para>
         /// <param name='itemName'>The name of the item.  If this is not found then a warning is said to the owner</param>
         /// <param name='attachment'>The attachment point.  For example, ATTACH_CHEST</param>
-        void osForceAttachToOtherAvatarFromInventory(string rawAvatarId, string itemName, int attachmentPoint);
+        void osForceAttachToOtherAvatarFromInventory(LSL_Key rawAvatarId, string itemName, int attachmentPoint);
 
         /// <summary>
         /// Detach the object containing this script from the avatar it is attached to without checking for PERMISSION_ATTACH
@@ -234,18 +233,18 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         string osSetPenCap(string drawList, string direction, string type);
         string osDrawImage(string drawList, int width, int height, string imageUrl);
         vector osGetDrawStringSize(string contentType, string text, string fontName, int fontSize);
-        void osSetStateEvents(int events);
+        void   osSetStateEvents(int events);
 
         double osList2Double(LSL_Types.list src, int index);
 
-        void osSetRegionWaterHeight(double height);
-        void osSetRegionSunSettings(bool useEstateSun, bool sunFixed, double sunHour);
-        void osSetEstateSunSettings(bool sunFixed, double sunHour);
+        void   osSetRegionWaterHeight(double height);
+        void   osSetRegionSunSettings(bool useEstateSun, bool sunFixed, double sunHour);
+        void   osSetEstateSunSettings(bool sunFixed, double sunHour);
         double osGetCurrentSunHour();
         double osGetSunParam(string param);
         double osSunGetParam(string param); // Deprecated
-        void osSetSunParam(string param, double value);
-        void osSunSetParam(string param, double value); // Deprecated
+        void   osSetSunParam(string param, double value);
+        void   osSunSetParam(string param, double value); // Deprecated
 
         // Wind Module Functions
         string osWindActiveModelPluginName();
@@ -258,24 +257,25 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         void osSetParcelDetails(vector pos, LSL_List rules);
         void osParcelSetDetails(vector pos, LSL_List rules); // Deprecated
 
-        string osGetScriptEngineName();
-        string osGetSimulatorVersion();
+        string      osGetScriptEngineName();
+        string      osGetSimulatorVersion();
         LSL_Integer osCheckODE();
-        string osGetPhysicsEngineType();
-        string osGetPhysicsEngineName();
+        string      osGetPhysicsEngineType();
+        string      osGetPhysicsEngineName();
+
         Object osParseJSONNew(string JSON);
         Hashtable osParseJSON(string JSON);
 
-        void osMessageObject(key objectUUID,string message);
+        void osMessageObject(LSL_Key objectUUID, string message);
 
         void osMakeNotecard(string notecardName, LSL_Types.list contents);
 
         string osGetNotecardLine(string name, int line);
         string osGetNotecard(string name);
-        int osGetNumberOfNotecardLines(string name);
+        int    osGetNumberOfNotecardLines(string name);
 
-        string osAvatarName2Key(string firstname, string lastname);
-        string osKey2Name(string id);
+        LSL_Key osAvatarName2Key(string firstname, string lastname);
+        string  osKey2Name(LSL_Key id);
 
         // Grid Info Functions
         string osGetGridNick();
@@ -285,16 +285,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         string osGetGridGatekeeperURI();
         string osGetGridCustom(string key);
 
-        string osGetAvatarHomeURI(string uuid);
+        string osGetAvatarHomeURI(LSL_Key uuid);
 
         LSL_String osFormatString(string str, LSL_List strings);
-        LSL_List osMatchString(string src, string pattern, int start);
+        LSL_List   osMatchString(string src, string pattern, int start);
         LSL_String osReplaceString(string src, string pattern, string replace, int count, int start);
 
         // Information about data loaded into the region
-        string osLoadedCreationDate();
-        string osLoadedCreationTime();
-        string osLoadedCreationID();
+        string  osLoadedCreationDate();
+        string  osLoadedCreationTime();
+        LSL_Key osLoadedCreationID();
 
         LSL_List osGetLinkPrimitiveParams(int linknumber, LSL_List rules);
 
@@ -303,7 +303,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         /// </summary>
         /// <param name='target'></param>
         /// <param name='parent'></param>
-        void osForceCreateLink(string target, int parent);
+        void osForceCreateLink(LSL_Key target, int parent);
 
         /// <summary>
         /// Identical to llBreakLink() but does not require permission from the owner.
@@ -323,13 +323,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         /// <returns>TRUE if the key belongs to an npc in the scene.  FALSE otherwise.</returns>
         LSL_Integer osIsNpc(LSL_Key npc);
 
-        key         osNpcCreate(string user, string name, vector position, string notecard);
-        key         osNpcCreate(string user, string name, vector position, string notecard, int options);
-        LSL_Key     osNpcSaveAppearance(key npc, string notecard);
-        void        osNpcLoadAppearance(key npc, string notecard);
-        vector      osNpcGetPos(key npc);
-        void        osNpcMoveTo(key npc, vector position);
-        void        osNpcMoveToTarget(key npc, vector target, int options);
+        LSL_Key osNpcCreate(string user, string name, vector position, string notecard);
+        LSL_Key osNpcCreate(string user, string name, vector position, string notecard, int options);
+        LSL_Key osNpcSaveAppearance(LSL_Key npc, string notecard);
+        void    osNpcLoadAppearance(LSL_Key npc, string notecard);
+        vector  osNpcGetPos(LSL_Key npc);
+        void    osNpcMoveTo(LSL_Key npc, vector position);
+        void    osNpcMoveToTarget(LSL_Key npc, vector target, int options);
 
         /// <summary>
         /// Get the owner of the NPC
@@ -338,46 +338,47 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         /// <returns>
         /// The owner of the NPC for an owned NPC.  The NPC's agent id for an unowned NPC.  UUID.Zero if the key is not an npc.
         /// </returns>
-        LSL_Key     osNpcGetOwner(key npc);
+        LSL_Key  osNpcGetOwner(LSL_Key npc);
+        rotation osNpcGetRot(LSL_Key npc);
+        void     osNpcSetRot(LSL_Key npc, rotation rot);
+        void     osNpcStopMoveToTarget(LSL_Key npc);
+        void     osNpcSay(LSL_Key npc, string message);
+        void     osNpcSay(LSL_Key npc, int channel, string message);
+        void     osNpcShout(LSL_Key npc, int channel, string message);
+        void     osNpcSit(LSL_Key npc, LSL_Key target, int options);
+        void     osNpcStand(LSL_Key npc);
+        void     osNpcRemove(LSL_Key npc);
+        void     osNpcPlayAnimation(LSL_Key npc, string animation);
+        void     osNpcStopAnimation(LSL_Key npc, string animation);
+        void     osNpcTouch(LSL_Key npcLSL_Key, LSL_Key object_key, LSL_Integer link_num);
+        void     osNpcWhisper(LSL_Key npc, int channel, string message);
 
-        rotation    osNpcGetRot(key npc);
-        void        osNpcSetRot(LSL_Key npc, rotation rot);
-        void        osNpcStopMoveToTarget(LSL_Key npc);
-        void        osNpcSay(key npc, string message);
-        void        osNpcSay(key npc, int channel, string message);
-        void        osNpcShout(key npc, int channel, string message);
-        void        osNpcSit(key npc, key target, int options);
-        void        osNpcStand(LSL_Key npc);
-        void        osNpcRemove(key npc);
-        void        osNpcPlayAnimation(LSL_Key npc, string animation);
-        void        osNpcStopAnimation(LSL_Key npc, string animation);
-        void        osNpcTouch(LSL_Key npcLSL_Key, LSL_Key object_key, LSL_Integer link_num);
-        void        osNpcWhisper(key npc, int channel, string message);
+        LSL_Key  osOwnerSaveAppearance(string notecard);
+        LSL_Key  osAgentSaveAppearance(LSL_Key agentId, string notecard);
 
-        LSL_Key     osOwnerSaveAppearance(string notecard);
-        LSL_Key     osAgentSaveAppearance(key agentId, string notecard);
+        LSL_String  osGetGender(LSL_Key rawAvatarId);
+        LSL_Key     osGetMapTexture();
+        LSL_Key     osGetRegionMapTexture(string regionName);
+        LSL_List    osGetRegionStats();
+        vector      osGetRegionSize();
 
-        key osGetGender(LSL_Key rawAvatarId);
-        key osGetMapTexture();
-        key osGetRegionMapTexture(string regionName);
-        LSL_List osGetRegionStats();
-        vector osGetRegionSize();
-
-        int osGetSimulatorMemory();
-        void osKickAvatar(string FirstName,string SurName,string alert);
-        void osSetSpeed(string UUID, LSL_Float SpeedModifier);
-        LSL_Float osGetHealth(string avatar);
-        void osCauseHealing(string avatar, double healing);
-        void osSetHealth(string avatar, double health);
-        void osSetHealRate(string avatar, double health);
-        LSL_Float osGetHealRate(string avatar);
-        void osCauseDamage(string avatar, double damage);
-        void osForceOtherSit(string avatar);
-        void osForceOtherSit(string avatar, string target);
-        LSL_List osGetPrimitiveParams(LSL_Key prim, LSL_List rules);
-        void osSetPrimitiveParams(LSL_Key prim, LSL_List rules);
-        void osSetProjectionParams(bool projection, LSL_Key texture, double fov, double focus, double amb);
-        void osSetProjectionParams(LSL_Key prim, bool projection, LSL_Key texture, double fov, double focus, double amb);
+        int         osGetSimulatorMemory();
+        void        osKickAvatar(string FirstName, string SurName, string alert);
+        void        osSetSpeed(LSL_Key UUID, LSL_Float SpeedModifier);
+        LSL_Float   osGetHealth(LSL_Key avatar);
+        void        osCauseHealing(LSL_Key avatar, double healing);
+        void        osSetHealth(LSL_Key avatar, double health);
+        void        osSetHealRate(LSL_Key avatar, double health);
+        LSL_Float   osGetHealRate(LSL_Key avatar);
+        void        osCauseDamage(LSL_Key avatar, double damage);
+        void        osForceOtherSit(LSL_Key avatar);
+        void        osForceOtherSit(LSL_Key avatar, string target);
+        LSL_List    osGetPrimitiveParams(LSL_Key prim, LSL_List rules);
+        void        osSetPrimitiveParams(LSL_Key prim, LSL_List rules);
+        void        osSetProjectionParams(bool projection, LSL_Key texture, double fov,
+                                        double focus, double amb);
+        void        osSetProjectionParams(LSL_Key prim, bool projection, LSL_Key texture, double fov,
+                                        double focus, double amb);
 
         LSL_List osGetAvatarList();
 
@@ -463,7 +464,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         /// OS_LISTEN_REGEX_MESSAGE
         /// </param>
         /// <returns></returns>
-        LSL_Integer osListenRegex(int channelID, string name, string ID,
+        LSL_Integer osListenRegex(int channelID, string name, LSL_Key ID,
                 string msg, int regexBitfield);
 
         /// <summary>
@@ -474,8 +475,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         /// <returns>boolean</returns>
         LSL_Integer osRegexIsMatch(string input, string pattern);
 
-        LSL_String osRequestURL(LSL_List options);
-        LSL_String osRequestSecureURL(LSL_List options);
+        LSL_Key osRequestURL(LSL_List options);
+        LSL_Key osRequestSecureURL(LSL_List options);
         void osCollisionSound(string impact_sound, double impact_volume);
         void osVolumeDetect(int detect);
     }

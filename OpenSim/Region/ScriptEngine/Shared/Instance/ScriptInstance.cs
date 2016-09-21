@@ -419,7 +419,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                 if (m_stateSource == StateSource.AttachedRez)
                 {
                     PostEvent(new EventParams("attach",
-                        new object[] { new LSL_Types.LSLString(m_AttachedAvatar.ToString()) }, new DetectParams[0]));
+                        new object[] { new LSL_Types.key(m_AttachedAvatar) }, new DetectParams[0]));
                 }
                 else if (m_stateSource == StateSource.RegionStart)
                 {
@@ -454,7 +454,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Instance
                 if (m_stateSource == StateSource.AttachedRez)
                 {
                     PostEvent(new EventParams("attach",
-                        new object[] { new LSL_Types.LSLString(m_AttachedAvatar.ToString()) }, new DetectParams[0]));
+                        new object[] { new LSL_Types.key(m_AttachedAvatar) }, new DetectParams[0]));
                 }
             }
         }

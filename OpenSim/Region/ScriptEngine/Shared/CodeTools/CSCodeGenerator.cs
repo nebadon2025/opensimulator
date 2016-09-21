@@ -957,6 +957,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.CodeTools
             {
                 c.Value = "new LSL_Types.LSLString(\""+c.Value+"\")";
             }
+            else if ("LSL_Types.key" == c.Type)
+            {
+                c.Value = "new LSL_Types.key(\""+c.Value+"\")";
+            }
 
             Generate(c.Value, c, sb);
         }

@@ -168,6 +168,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
                 }
                 else if (field.FieldType == typeof(LSL_Types.LSLInteger) ||
                         field.FieldType == typeof(LSL_Types.LSLString) ||
+                        field.FieldType == typeof(LSL_Types.key) ||
                         field.FieldType == typeof(LSL_Types.LSLFloat) ||
                         field.FieldType == typeof(Int32) ||
                         field.FieldType == typeof(Double) ||
@@ -198,6 +199,15 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
                         v.Data = new Object[data.Length];
                         Array.Copy(data, 0, v.Data, 0, data.Length);
                         m_Fields[var.Key].SetValue(this, v);
+                    }
+                    else if(m_Fields[var.Key].FieldType == typeof(LSL_Types.key))
+                    {
+                        if(var.Value.GetType() == typeof(LSL_Types.LSLString))
+                        {
+                            m_Fields[var.Key].SetValue(this, (object)((LSL_Types.key)var.Value.ToString()));
+                        }
+                        else
+                            m_Fields[var.Key].SetValue(this, var.Value);
                     }
                     else if (m_Fields[var.Key].FieldType == typeof(LSL_Types.LSLInteger) ||
                             m_Fields[var.Key].FieldType == typeof(LSL_Types.LSLString) ||

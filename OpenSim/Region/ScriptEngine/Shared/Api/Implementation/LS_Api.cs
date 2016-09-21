@@ -567,7 +567,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                         idx++;
                         try
                         {
-                            wl.normalMapTexture = new UUID(rules.GetLSLStringItem(idx).m_string);
+                            wl.normalMapTexture = new UUID(rules.GetLSLKeyItem(idx).m_string);
                         }
                         catch (ArgumentException)
                         {

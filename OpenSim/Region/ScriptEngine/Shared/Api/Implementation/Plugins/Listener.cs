@@ -71,7 +71,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Plugins
                     {
                         new LSL_Types.LSLInteger(lInfo.GetChannel()),
                         new LSL_Types.LSLString(lInfo.GetName()),
-                        new LSL_Types.LSLString(lInfo.GetID().ToString()),
+                        new LSL_Types.key(lInfo.GetID()),
                         new LSL_Types.LSLString(lInfo.GetMessage())
                     };
 

@@ -38,10 +38,10 @@ using OpenSim.Region.ScriptEngine.Shared.Api.Interfaces;
 using integer = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLInteger;
 using vector = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Vector3;
 using rotation = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Quaternion;
-using key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
+using key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.key;
 using LSL_List = OpenSim.Region.ScriptEngine.Shared.LSL_Types.list;
 using LSL_String = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
-using LSL_Key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
+using LSL_Key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.key;
 using LSL_Float = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLFloat;
 using LSL_Integer = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLInteger;
 
@@ -141,7 +141,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_OSSL_Functions.osList2Double(src, index);
         }
 
-        public string osSetDynamicTextureURL(string dynamicID, string contentType, string url, string extraParams,
+        public LSL_Key osSetDynamicTextureURL(string dynamicID, string contentType, string url, string extraParams,
                                              int timer)
         {
             return m_OSSL_Functions.osSetDynamicTextureURL(dynamicID, contentType, url, extraParams, timer);
@@ -153,7 +153,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_OSSL_Functions.osSetDynamicTextureData(dynamicID, contentType, data, extraParams, timer);
         }
 
-        public string osSetDynamicTextureURLBlend(string dynamicID, string contentType, string url, string extraParams,
+        public LSL_Key osSetDynamicTextureURLBlend(string dynamicID, string contentType, string url, string extraParams,
                                            int timer, int alpha)
         {
             return m_OSSL_Functions.osSetDynamicTextureURLBlend(dynamicID, contentType, url, extraParams, timer, alpha);
@@ -165,14 +165,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_OSSL_Functions.osSetDynamicTextureDataBlend(dynamicID, contentType, data, extraParams, timer, alpha);
         }
 
-        public string osSetDynamicTextureURLBlendFace(string dynamicID, string contentType, string url, string extraParams,
+        public LSL_Key osSetDynamicTextureURLBlendFace(string dynamicID, string contentType, string url, string extraParams,
                                            bool blend, int disp, int timer, int alpha, int face)
         {
             return m_OSSL_Functions.osSetDynamicTextureURLBlendFace(dynamicID, contentType, url, extraParams,
                                              blend, disp, timer, alpha, face);
         }
 
-        public string osSetDynamicTextureDataBlendFace(string dynamicID, string contentType, string data, string extraParams,
+        public LSL_Key osSetDynamicTextureDataBlendFace(string dynamicID, string contentType, string data, string extraParams,
                                              bool blend, int disp, int timer, int alpha, int face)
         {
             return m_OSSL_Functions.osSetDynamicTextureDataBlendFace(dynamicID, contentType, data, extraParams,
@@ -241,12 +241,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
 
         // Teleport Functions
 
-        public void osTeleportAgent(string agent, string regionName, vector position, vector lookat)
+        public void osTeleportAgent(LSL_Key agent, string regionName, vector position, vector lookat)
         {
             m_OSSL_Functions.osTeleportAgent(agent, regionName, position, lookat);
         }
 
-        public void osTeleportAgent(string agent, int regionX, int regionY, vector position, vector lookat)
+        public void osTeleportAgent(LSL_Key agent, int regionX, int regionY, vector position, vector lookat)
         {
             m_OSSL_Functions.osTeleportAgent(agent, regionX, regionY, position, lookat);
         }
@@ -272,7 +272,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         }
 
         // Avatar info functions
-        public string osGetAgentIP(string agent)
+        public string osGetAgentIP(LSL_Key agent)
         {
             return m_OSSL_Functions.osGetAgentIP(agent);
         }
@@ -284,12 +284,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
 
         // Animation Functions
 
-        public void osAvatarPlayAnimation(string avatar, string animation)
+        public void osAvatarPlayAnimation(LSL_Key avatar, string animation)
         {
             m_OSSL_Functions.osAvatarPlayAnimation(avatar, animation);
         }
 
-        public void osAvatarStopAnimation(string avatar, string animation)
+        public void osAvatarStopAnimation(LSL_Key avatar, string animation)
         {
             m_OSSL_Functions.osAvatarStopAnimation(avatar, animation);
         }
@@ -306,7 +306,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_OSSL_Functions.osForceAttachToAvatarFromInventory(itemName, attachmentPoint);
         }
 
-        public void osForceAttachToOtherAvatarFromInventory(string rawAvatarId, string itemName, int attachmentPoint)
+        public void osForceAttachToOtherAvatarFromInventory(LSL_Key rawAvatarId, string itemName, int attachmentPoint)
         {
             m_OSSL_Functions.osForceAttachToOtherAvatarFromInventory(rawAvatarId, itemName, attachmentPoint);
         }
@@ -480,12 +480,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_OSSL_Functions.osGetNumberOfNotecardLines(name);
         }
 
-        public string osAvatarName2Key(string firstname, string lastname)
+        public key osAvatarName2Key(string firstname, string lastname)
         {
             return m_OSSL_Functions.osAvatarName2Key(firstname, lastname);
         }
 
-        public string osKey2Name(string id)
+        public string osKey2Name(LSL_Key id)
         {
             return m_OSSL_Functions.osKey2Name(id);
         }
@@ -520,7 +520,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_OSSL_Functions.osGetGridCustom(key);
         }
 
-        public string osGetAvatarHomeURI(string uuid)
+        public string osGetAvatarHomeURI(LSL_Key uuid)
         {
             return m_OSSL_Functions.osGetAvatarHomeURI(uuid);
         }
@@ -562,7 +562,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_OSSL_Functions.osGetLinkPrimitiveParams(linknumber, rules);
         }
 
-        public void osForceCreateLink(string target, int parent)
+        public void osForceCreateLink(LSL_Key target, int parent)
         {
             m_OSSL_Functions.osForceCreateLink(target, parent);
         }
@@ -925,47 +925,47 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_OSSL_Functions.osKickAvatar(FirstName, SurName, alert);
         }
         
-        public void osSetSpeed(string UUID, LSL_Float SpeedModifier)
+        public void osSetSpeed(LSL_Key UUID, LSL_Float SpeedModifier)
         {
             m_OSSL_Functions.osSetSpeed(UUID, SpeedModifier);
         }
 
-        public LSL_Float osGetHealth(string avatar)
+        public LSL_Float osGetHealth(LSL_Key avatar)
         {
             return m_OSSL_Functions.osGetHealth(avatar);
         }
 
-        public void osCauseDamage(string avatar, double damage)
+        public void osCauseDamage(LSL_Key avatar, double damage)
         {
             m_OSSL_Functions.osCauseDamage(avatar, damage);
         }
         
-        public void osCauseHealing(string avatar, double healing)
+        public void osCauseHealing(LSL_Key avatar, double healing)
         {
             m_OSSL_Functions.osCauseHealing(avatar, healing);
         }
 
-        public void osSetHealth(string avatar, double health)
+        public void osSetHealth(LSL_Key avatar, double health)
         {
             m_OSSL_Functions.osSetHealth(avatar, health);
         }
 
-        public void osSetHealRate(string avatar, double health)
+        public void osSetHealRate(LSL_Key avatar, double health)
         {
             m_OSSL_Functions.osSetHealRate(avatar, health);
         }
 
-        public LSL_Float osGetHealRate(string avatar)
+        public LSL_Float osGetHealRate(LSL_Key avatar)
         {
             return m_OSSL_Functions.osGetHealRate(avatar);
         }
 
-        public void osForceOtherSit(string avatar)
+        public void osForceOtherSit(LSL_Key avatar)
         {
             m_OSSL_Functions.osForceOtherSit(avatar);
         }
 
-        public void osForceOtherSit(string avatar, string target)
+        public void osForceOtherSit(LSL_Key avatar, string target)
         {
             m_OSSL_Functions.osForceOtherSit(avatar, target);
         }
@@ -1070,7 +1070,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_OSSL_Functions.osForceDropAttachmentAt(pos, rot);
         }
 
-        public LSL_Integer osListenRegex(int channelID, string name, string ID, string msg, int regexBitfield)
+        public LSL_Integer osListenRegex(int channelID, string name, LSL_Key ID, string msg, int regexBitfield)
         {
             return m_OSSL_Functions.osListenRegex(channelID, name, ID, msg, regexBitfield);
         }
@@ -1080,12 +1080,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_OSSL_Functions.osRegexIsMatch(input, pattern);
         }
 
-        public LSL_String osRequestURL(LSL_List options)
+        public LSL_Key osRequestURL(LSL_List options)
         {
             return m_OSSL_Functions.osRequestURL(options);
         }
 
-        public LSL_String osRequestSecureURL(LSL_List options)
+        public LSL_Key osRequestSecureURL(LSL_List options)
         {
             return m_OSSL_Functions.osRequestSecureURL(options);
         }

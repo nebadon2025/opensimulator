@@ -982,7 +982,6 @@ namespace OpenSim.Region.ScriptEngine.Shared
                 }
 
                 int ret = 0;
-
                 if (left is key)
                 {
                     key l = (key)left;
@@ -1424,22 +1423,24 @@ namespace OpenSim.Region.ScriptEngine.Shared
                 value = s;
             }
 
+            public key(LSLString s)
+            {
+                value = s.m_string;
+            }
+
+            public key(UUID val)
+            {
+                value = val.ToString();
+            }
+
+            public key(key val)
+            {
+                value = val.value;
+            }
+
             #endregion
 
             #region Methods
-
-            static public bool Parse2Key(string s)
-            {
-                Regex isuuid = new Regex(@"^[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}$", RegexOptions.Compiled);
-                if (isuuid.IsMatch(s))
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
 
             #endregion
 
@@ -1447,10 +1448,12 @@ namespace OpenSim.Region.ScriptEngine.Shared
 
             static public implicit operator Boolean(key k)
             {
-                if (k.value.Length == 0)
-                {
+                if (String.IsNullOrEmpty(k.value))
                     return false;
-                }
+
+                int len = k.value.Length;
+                if((k.value[0] == '{' && len != 38) || (len != 36 && len != 32))
+                    return false;
 
                 if (k.value == "00000000-0000-0000-0000-000000000000")
                 {
@@ -1482,14 +1485,32 @@ namespace OpenSim.Region.ScriptEngine.Shared
                 return new key(s);
             }
 
-            static public implicit operator String(key k)
+            static public implicit operator key(LSLString s)
+            {
+                return new key(s);
+            }
+
+            static public implicit operator key(UUID id)
+            {
+                return new key(id);
+            }
+
+            static public implicit operator string(key k)
             {
                 return k.value;
             }
 
             static public implicit operator LSLString(key k)
             {
-                return k.value;
+                return new LSLString(k.value);
+            }
+
+            static public implicit operator UUID(key k)
+            {
+                UUID uuid;
+                if(!UUID.TryParse(k, out uuid))
+                    return UUID.Zero;
+                return uuid;
             }
 
             public static bool operator ==(key k1, key k2)
@@ -1560,14 +1581,23 @@ namespace OpenSim.Region.ScriptEngine.Shared
             #region Operators
             static public implicit operator Boolean(LSLString s)
             {
-                if (s.m_string.Length == 0)
-                {
+                if(s.m_string.Length == 0)
                     return false;
-                }
-                else
-                {
+                return true;
+            }
+
+            public static bool operator true(LSLString s)
+            {
+                if(s.m_string.Length == 0)
+                    return false;
+                return true;
+            }
+
+            public static bool operator false(LSLString s)
+            {
+                if(s.m_string.Length == 0)
                     return true;
-                }
+                return false;
             }
 
             static public implicit operator String(LSLString s)

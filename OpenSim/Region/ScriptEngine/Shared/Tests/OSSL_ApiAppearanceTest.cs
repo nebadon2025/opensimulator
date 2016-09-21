@@ -138,7 +138,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Tests
 
             string notecardName = "appearanceNc";
 
-            osslApi.osAgentSaveAppearance(new LSL_Types.LSLString(nonOwnerId.ToString()), notecardName);
+            osslApi.osAgentSaveAppearance(new LSL_Types.key(nonOwnerId.ToString()), notecardName);
 
             IList<TaskInventoryItem> items = part.Inventory.GetInventoryItems(notecardName);
             Assert.That(items.Count, Is.EqualTo(1));

@@ -230,7 +230,7 @@ namespace OpenSim.Region.ScriptEngine.XEngine
         {
             myScriptEngine.PostObjectEvent(localID, new EventParams(
                     "money", new object[] {
-                    new LSL_Types.LSLString(agentID.ToString()),
+                    new LSL_Types.key(agentID),
                     new LSL_Types.LSLInteger(amount) },
                     new DetectParams[0]));
         }
@@ -349,7 +349,7 @@ namespace OpenSim.Region.ScriptEngine.XEngine
         {
             myScriptEngine.PostScriptEvent(itemID, new EventParams(
                     "control",new object[] {
-                    new LSL_Types.LSLString(agentID.ToString()),
+                    new LSL_Types.key(agentID),
                     new LSL_Types.LSLInteger(held),
                     new LSL_Types.LSLInteger(change)},
                     new DetectParams[0]));
@@ -416,7 +416,7 @@ namespace OpenSim.Region.ScriptEngine.XEngine
             { 
                 myScriptEngine.PostObjectEvent(part.LocalId, new EventParams(
                     "attach",new object[] {
-                    new LSL_Types.LSLString(avatar.ToString()) },
+                    new LSL_Types.key(avatar) },
                     new DetectParams[0]));
             }
         }

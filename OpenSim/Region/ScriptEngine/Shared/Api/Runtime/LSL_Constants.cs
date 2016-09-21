@@ -29,6 +29,7 @@ using System;
 using vector = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Vector3;
 using rotation = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Quaternion;
 using LSLInteger = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLInteger;
+using LSLKey = OpenSim.Region.ScriptEngine.Shared.LSL_Types.key;
 
 namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
 {
@@ -540,7 +541,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public static readonly LSLInteger PAY_HIDE = new LSLInteger(-1);
         public static readonly LSLInteger PAY_DEFAULT = new LSLInteger(-2);
 
-        public const string NULL_KEY = "00000000-0000-0000-0000-000000000000";
+        public static readonly LSLKey NULL_KEY = new LSLKey("00000000-0000-0000-0000-000000000000");
         public const string EOF = "\n\n\n";
         public const double PI = 3.14159274f;
         public const double TWO_PI = 6.28318548f;

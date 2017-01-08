@@ -70,7 +70,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
         private bool m_Enabled = false;
 
         #region INonSharedRegionModule
-        
+
         public Type ReplaceableInterface { get { return null; } }
         public void RegionLoaded(Scene scene) { }
         public void Close() { }
@@ -284,7 +284,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
         private void RequestAvatarPropertiesHandler(IClientAPI client, UUID avatarID)
         {
             m_log.DebugFormat("[SIMIAN PROFILES]: Request avatar properties for {0}",avatarID);
-            
+
             OSDMap user = FetchUserData(avatarID);
 
             ProfileFlags flags = ProfileFlags.AllowPublish | ProfileFlags.MaturePublish;
@@ -308,11 +308,11 @@ namespace OpenSim.Services.Connectors.SimianGrid
                     about = new OSDMap(0);
 
                 // Check if this user is a grid operator
-                byte[] charterMember;
+                byte[] membershipType;
                 if (user["AccessLevel"].AsInteger() >= 200)
-                    charterMember = Utils.StringToBytes("Operator");
+                    membershipType = Utils.StringToBytes("Operator");
                 else
-                    charterMember = Utils.EmptyBytes;
+                    membershipType = Utils.EmptyBytes;
 
                 // Check if the user is online
                 if (client.Scene is Scene)
@@ -327,7 +327,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
                     flags |= ProfileFlags.Identified;
 
                 client.SendAvatarProperties(avatarID, about["About"].AsString(), user["CreationDate"].AsDate().ToString("M/d/yyyy",
-                    System.Globalization.CultureInfo.InvariantCulture), charterMember, about["FLAbout"].AsString(), (uint)flags,
+                    System.Globalization.CultureInfo.InvariantCulture), membershipType, about["FLAbout"].AsString(), (uint)flags,
                     about["FLImage"].AsUUID(), about["Image"].AsUUID(), about["URL"].AsString(), user["Partner"].AsUUID());
 
                 OSDMap interests = null;
@@ -455,7 +455,7 @@ namespace OpenSim.Services.Connectors.SimianGrid
         private OSDMap FetchUserData(UUID userID)
         {
             m_log.DebugFormat("[SIMIAN PROFILES]: Fetch information about {0}",userID);
-            
+
             NameValueCollection requestArgs = new NameValueCollection
             {
                 { "RequestMethod", "GetUser" },

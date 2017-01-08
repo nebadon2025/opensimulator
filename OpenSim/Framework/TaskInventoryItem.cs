@@ -59,6 +59,7 @@ namespace OpenSim.Framework
         private int _invType = 0;
         private UUID _itemID = UUID.Zero;
         private UUID _lastOwnerID = UUID.Zero;
+        private UUID _rezzerID = UUID.Zero;
         private string _name = String.Empty;
         private uint _nextOwnerMask = FULL_MASK_PERMISSIONS_GENERAL;
         private UUID _ownerID = UUID.Zero;
@@ -72,7 +73,7 @@ namespace OpenSim.Framework
         private UUID _loadedID = UUID.Zero;
 
         private bool _ownerChanged = false;
-        
+
         public UUID AssetID {
             get {
                 return _assetID;
@@ -251,6 +252,16 @@ namespace OpenSim.Framework
             }
             set {
                 _lastOwnerID = value;
+            }
+        }
+
+        public UUID RezzerID
+        {
+            get {
+                return _rezzerID;
+            }
+            set {
+                _rezzerID = value;
             }
         }
 

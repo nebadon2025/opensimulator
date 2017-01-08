@@ -707,7 +707,7 @@ namespace OpenSim.Data.SQLite
                 DataRow[] primsForRegion = prims.Select(byRegion);
 //                m_log.Info("[SQLITE REGION DB]: Loaded " + primsForRegion.Length + " prims for region: " + regionUUID);
 
-                // First, create all groups 
+                // First, create all groups
                 foreach (DataRow primRow in primsForRegion)
                 {
                     try
@@ -733,12 +733,12 @@ namespace OpenSim.Data.SQLite
                             }
 
                             SceneObjectGroup group = new SceneObjectGroup(prim);
-                            
+
                             createdObjects.Add(group.UUID, group);
                             retvals.Add(group);
                             LoadItems(prim);
 
-                           
+
                         }
                     }
                     catch (Exception e)
@@ -1216,6 +1216,7 @@ namespace OpenSim.Data.SQLite
             createCol(prims, "OwnerID", typeof(String));
             createCol(prims, "GroupID", typeof(String));
             createCol(prims, "LastOwnerID", typeof(String));
+            createCol(prims, "RezzerID", typeof(String));
             createCol(prims, "OwnerMask", typeof(Int32));
             createCol(prims, "NextOwnerMask", typeof(Int32));
             createCol(prims, "GroupMask", typeof(Int32));
@@ -1297,7 +1298,7 @@ namespace OpenSim.Data.SQLite
             createCol(prims, "VolumeDetect", typeof(Int16));
 
             createCol(prims, "MediaURL", typeof(String));
-            
+
             createCol(prims, "AttachedPosX", typeof(Double));
             createCol(prims, "AttachedPosY", typeof(Double));
             createCol(prims, "AttachedPosZ", typeof(Double));
@@ -1679,6 +1680,7 @@ namespace OpenSim.Data.SQLite
             prim.OwnerID = new UUID((String)row["OwnerID"]);
             prim.GroupID = new UUID((String)row["GroupID"]);
             prim.LastOwnerID = new UUID((String)row["LastOwnerID"]);
+            prim.RezzerID = row["RezzerID"] == DBNull.Value ? UUID.Zero : new UUID((String)row["RezzerID"]);
             prim.OwnerMask = Convert.ToUInt32(row["OwnerMask"]);
             prim.NextOwnerMask = Convert.ToUInt32(row["NextOwnerMask"]);
             prim.GroupMask = Convert.ToUInt32(row["GroupMask"]);
@@ -1793,7 +1795,7 @@ namespace OpenSim.Data.SQLite
 //                m_log.DebugFormat("[SQLITE]: MediaUrl type [{0}]", row["MediaURL"].GetType());
                 prim.MediaUrl = (string)row["MediaURL"];
             }
-            
+
             prim.AttachedPos = new Vector3(
                 Convert.ToSingle(row["AttachedPosX"]),
                 Convert.ToSingle(row["AttachedPosY"]),
@@ -1804,7 +1806,7 @@ namespace OpenSim.Data.SQLite
             {
                 //m_log.DebugFormat("[SQLITE]: DynAttrs type [{0}]", row["DynAttrs"].GetType());
                 prim.DynAttrs = DAMap.FromXml((string)row["DynAttrs"]);
-            }   
+            }
             else
             {
                 prim.DynAttrs = new DAMap();
@@ -1816,7 +1818,7 @@ namespace OpenSim.Data.SQLite
             prim.Friction = Convert.ToSingle(row["Friction"]);
             prim.Restitution = Convert.ToSingle(row["Restitution"]);
 
-            
+
             if (!(row["KeyframeMotion"] is DBNull))
             {
                 Byte[] data = (byte[])row["KeyframeMotion"];
@@ -2125,6 +2127,7 @@ namespace OpenSim.Data.SQLite
             row["OwnerID"] = prim.OwnerID.ToString();
             row["GroupID"] = prim.GroupID.ToString();
             row["LastOwnerID"] = prim.LastOwnerID.ToString();
+            row["RezzerID"] = prim.RezzerID.ToString();
             row["OwnerMask"] = prim.OwnerMask;
             row["NextOwnerMask"] = prim.NextOwnerMask;
             row["GroupMask"] = prim.GroupMask;
@@ -2529,7 +2532,7 @@ namespace OpenSim.Data.SQLite
 
             if (!(row["Media"] is System.DBNull))
                 s.Media = PrimitiveBaseShape.MediaList.FromXml((string)row["Media"]);
-                        
+
             return s;
         }
 

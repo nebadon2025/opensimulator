@@ -206,7 +206,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                 }
 
                 // Not found in cache, queue continuation
-                m_ServiceThrottle.Enqueue("name", uuid.ToString(),  delegate
+                m_ServiceThrottle.Enqueue("uuidname", uuid.ToString(),  delegate
                 {
                     //m_log.DebugFormat("[YYY]: Name request {0}", uuid);
 
@@ -216,9 +216,12 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                     // So to avoid clients
                     // (particularly Hypergrid clients) permanently binding "Unknown User" to a given UUID, we will
                     // instead drop the request entirely.
+                    if(!client.IsActive)
+                        return;
                     if (GetUser(uuid, out user))
                     {
-                        client.SendNameReply(uuid, user.FirstName, user.LastName);
+                        if(client.IsActive)
+                            client.SendNameReply(uuid, user.FirstName, user.LastName);
                     }
 //                    else
 //                        m_log.DebugFormat(
@@ -342,7 +345,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="uuid"></param>
         /// <param name="names">Caller please provide a properly instantiated array for names, string[2]</param>
@@ -554,7 +557,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                 return ret;
 
             // try grid user service
-            
+
             GridUserInfo[] pinfos = m_Scenes[0].GridUserService.GetGridUserInfo(missing.ToArray());
             if(pinfos.Length > 0)
             {
@@ -802,7 +805,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
             return !userdata.IsUnknownUser;
         }
 
-        public virtual void AddUser(UUID uuid, string first, string last)
+        public virtual void AddUser(UUID uuid, string first, string last, bool isNPC = false)
         {
             lock(m_UserCache)
             {
@@ -813,7 +816,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                     user.FirstName = first;
                     user.LastName = last;
                     user.IsUnknownUser = false;
-                    user.HasGridUserTried = false;
+                    user.HasGridUserTried = isNPC;
                     m_UserCache.Add(uuid, user);
                 }
             }

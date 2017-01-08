@@ -49,34 +49,34 @@ namespace OpenSim.Region.CoreModules.World.Objects.BuySell
 
         protected Scene m_scene = null;
         protected IDialogModule m_dialogModule;
-        
+
         public string Name { get { return "Object BuySell Module"; } }
         public Type ReplaceableInterface { get { return null; } }
 
         public void Initialise(IConfigSource source) {}
-        
+
         public void AddRegion(Scene scene)
         {
             m_scene = scene;
             m_scene.RegisterModuleInterface<IBuySellModule>(this);
             m_scene.EventManager.OnNewClient += SubscribeToClientEvents;
         }
-        
-        public void RemoveRegion(Scene scene) 
+
+        public void RemoveRegion(Scene scene)
         {
             m_scene.EventManager.OnNewClient -= SubscribeToClientEvents;
         }
-        
-        public void RegionLoaded(Scene scene) 
+
+        public void RegionLoaded(Scene scene)
         {
             m_dialogModule = scene.RequestModuleInterface<IDialogModule>();
         }
-        
-        public void Close() 
+
+        public void Close()
         {
             RemoveRegion(m_scene);
         }
-        
+
         public void SubscribeToClientEvents(IClientAPI client)
         {
             client.OnObjectSaleInfo += ObjectSaleInfo;
@@ -211,7 +211,13 @@ namespace OpenSim.Region.CoreModules.World.Objects.BuySell
                 item.InvType = (int)InventoryType.Object;
                 item.Folder = categoryID;
 
-                PermissionsUtil.ApplyFoldedPermissions(perms, ref perms);
+                uint nextPerms=(perms & 7) << 13;
+                if ((nextPerms & (uint)PermissionMask.Copy) == 0)
+                    perms &= ~(uint)PermissionMask.Copy;
+                if ((nextPerms & (uint)PermissionMask.Transfer) == 0)
+                    perms &= ~(uint)PermissionMask.Transfer;
+                if ((nextPerms & (uint)PermissionMask.Modify) == 0)
+                    perms &= ~(uint)PermissionMask.Modify;
 
                 item.BasePermissions = perms & part.NextOwnerMask;
                 item.CurrentPermissions = perms & part.NextOwnerMask;

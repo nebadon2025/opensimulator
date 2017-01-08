@@ -55,41 +55,41 @@ namespace OpenSim.Region.OptionalModules.Avatar.Attachments
 //        private IAvatarFactoryModule m_avatarFactory;
 
         public string Name { get { return "Attachments Command Module"; } }
-        
+
         public Type ReplaceableInterface { get { return null; } }
-        
+
         public void Initialise(IConfigSource source)
         {
 //            m_log.DebugFormat("[ATTACHMENTS COMMAND MODULE]: INITIALIZED MODULE");
         }
-        
+
         public void PostInitialise()
         {
 //            m_log.DebugFormat("[ATTACHMENTS COMMAND MODULE]: POST INITIALIZED MODULE");
         }
-        
+
         public void Close()
         {
 //            m_log.DebugFormat("[ATTACHMENTS COMMAND MODULE]: CLOSED MODULE");
         }
-        
+
         public void AddRegion(Scene scene)
         {
 //            m_log.DebugFormat("[ATTACHMENTS COMMAND MODULE]: REGION {0} ADDED", scene.RegionInfo.RegionName);
         }
-        
+
         public void RemoveRegion(Scene scene)
         {
 //            m_log.DebugFormat("[ATTACHMENTS COMMAND MODULE]: REGION {0} REMOVED", scene.RegionInfo.RegionName);
-            
+
             lock (m_scenes)
                 m_scenes.Remove(scene);
-        }        
-        
+        }
+
         public void RegionLoaded(Scene scene)
         {
 //            m_log.DebugFormat("[ATTACHMENTS COMMAND MODULE]: REGION {0} LOADED", scene.RegionInfo.RegionName);
-            
+
             lock (m_scenes)
                 m_scenes.Add(scene);
 
@@ -144,14 +144,9 @@ namespace OpenSim.Region.OptionalModules.Avatar.Attachments
 
         private void GetAttachmentsReport(ScenePresence sp, StringBuilder sb)
         {
-            sb.AppendFormat("Attachments for {0}\n", sp.Name);
+            sb.AppendFormat("Attachments for {0}\n\n", sp.Name);
 
-            ConsoleDisplayTable ct = new ConsoleDisplayTable() { Indent = 2 };
-            ct.Columns.Add(new ConsoleDisplayTableColumn("Attachment Name", 50));
-            ct.Columns.Add(new ConsoleDisplayTableColumn("Local ID", 10));
-            ct.Columns.Add(new ConsoleDisplayTableColumn("Item ID", 36));
-            ct.Columns.Add(new ConsoleDisplayTableColumn("Attach Point", 14));
-            ct.Columns.Add(new ConsoleDisplayTableColumn("Position", 15));
+            ConsoleDisplayList ct = new ConsoleDisplayList();
 
 //            sb.AppendFormat(
 //                "  {0,-36}  {1,-10}  {2,-36}  {3,-14}  {4,-15}\n",
@@ -177,17 +172,17 @@ namespace OpenSim.Region.OptionalModules.Avatar.Attachments
 //                        attachmentObject.Name, attachmentObject.LocalId, attachmentObject.FromItemID,
 //                        (AttachmentPoint)attachmentObject.AttachmentPoint, attachmentObject.RootPart.AttachedPos);
 
-                    ct.AddRow(
-                        attachmentObject.Name,
-                        attachmentObject.LocalId,
-                        attachmentObject.FromItemID,
-                        ((AttachmentPoint)attachmentObject.AttachmentPoint),
-                        attachmentObject.RootPart.AttachedPos);
+                ct.Indent = 2;
+                ct.AddRow("Attachment Name", attachmentObject.Name);
+                ct.AddRow("Local ID", attachmentObject.LocalId);
+                ct.AddRow("Item ID", attachmentObject.UUID);
+                ct.AddRow("From Item ID", attachmentObject.FromItemID);
+                ct.AddRow("Attach Point", ((AttachmentPoint)attachmentObject.AttachmentPoint));
+                ct.AddRow("Position", attachmentObject.RootPart.AttachedPos + "\n\n");
 //                }
             }
 
             ct.AddToStringBuilder(sb);
-            sb.Append("\n");
         }
     }
 }

@@ -49,7 +49,7 @@ namespace OpenSim.Region.Framework.Interfaces
     /// </summary>
     public interface INPC
     {
-        
+
         /// <summary>
         /// Should this NPC be sensed by LSL sensors as an 'agent'
         /// (interpreted here to mean a normal user) rather than an OpenSim
@@ -58,6 +58,9 @@ namespace OpenSim.Region.Framework.Interfaces
         bool SenseAsAgent { get; }
         UUID ActiveGroupId { get; set; }
         UUID Owner { get; }
+        string profileAbout { get; set; }
+        UUID profileImage { get; set; }
+        string Born { get; set; }
     }
 
     public interface INPCModule
@@ -298,7 +301,7 @@ namespace OpenSim.Region.Framework.Interfaces
         /// agent, the agent is unowned  or the agent was not an NPC.
         /// </returns>
         UUID GetOwner(UUID agentID);
- 
+
         NPCOptionsFlags NPCOptionFlags {get;}
     }
 }

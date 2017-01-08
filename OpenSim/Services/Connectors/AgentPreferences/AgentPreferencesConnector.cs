@@ -62,7 +62,7 @@ namespace OpenSim.Services.Connectors
             Initialise(source);
         }
 
-        public virtual void Initialise(IConfigSource source)
+        public void Initialise(IConfigSource source)
         {
             IConfig gridConfig = source.Configs["AgentPreferencesService"];
             if (gridConfig == null)
@@ -110,7 +110,7 @@ namespace OpenSim.Services.Connectors
             {
                 m_log.DebugFormat("[AGENT PREFERENCES CONNECTOR]: Exception when contacting agent preferences server at {0}: {1}", uri, e.Message);
             }
-                
+
             Dictionary<string, object> replyData = ServerUtils.ParseXmlResponse(reply);
             if (replyData != null)
             {

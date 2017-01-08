@@ -137,6 +137,12 @@ namespace OpenSim.Services.GridService
                 m_log.WarnFormat("[HYPERGRID LINKER]: Malformed URL in [GridService], variable Gatekeeper = {0}", m_ThisGatekeeper);
             }
 
+            m_ThisGatekeeper = m_ThisGatekeeperURI.AbsoluteUri;
+            if(m_ThisGatekeeperURI.Port == 80)
+                m_ThisGatekeeper = m_ThisGatekeeper.Trim(new char[] { '/', ' ' }) +":80/";
+            else if(m_ThisGatekeeperURI.Port == 443)
+                m_ThisGatekeeper = m_ThisGatekeeper.Trim(new char[] { '/', ' ' }) +":443/";
+
             m_GatekeeperConnector = new GatekeeperServiceConnector(m_AssetService);
 
             m_log.Debug("[HYPERGRID LINKER]: Loaded all services...");
@@ -191,84 +197,29 @@ namespace OpenSim.Services.GridService
             return TryLinkRegionToCoords(scopeID, mapName, xloc, yloc, UUID.Zero, out reason);
         }
 
+        public bool IsLocalGrid(string serverURI)
+        {
+            return serverURI == m_ThisGatekeeper;
+        }
+
         public GridRegion TryLinkRegionToCoords(UUID scopeID, string mapName, int xloc, int yloc, UUID ownerID, out string reason)
         {
             reason = string.Empty;
             GridRegion regInfo = null;
 
-            mapName = mapName.Trim();
+            string serverURI = string.Empty;
+            string regionName = string.Empty;
 
-            if (!mapName.StartsWith("http"))
+            if(!Util.buildHGRegionURI(mapName, out serverURI, out regionName))
             {
-                // Formats: grid.example.com:8002:region name
-                //          grid.example.com:region name
-                //          grid.example.com:8002
-                //          grid.example.com
-
-                string host;
-                uint port = 80;
-                string regionName = "";
-                
-                string[] parts = mapName.Split(new char[] { ':' });
-                
-                if (parts.Length == 0)
-                {
-                    reason = "Wrong format for link-region";
-                    return null;
-                }
-                
-                host = parts[0];
-                
-                if (parts.Length >= 2)
-                {
-                    // If it's a number then assume it's a port. Otherwise, it's a region name.
-                    if (!UInt32.TryParse(parts[1], out port))
-                        regionName = parts[1];
-                }
-
-                // always take the last one
-                if (parts.Length >= 3)
-                {
-                    regionName = parts[2];
-                }
-               
-                bool success = TryCreateLink(scopeID, xloc, yloc, regionName, port, host, ownerID, out regInfo, out reason);
-                if (success)
-                {
-                    regInfo.RegionName = mapName;
-                    return regInfo;
-                }
+                reason = "Wrong URI format for link-region";
+                return null;
             }
-            else
+
+            if (TryCreateLink(scopeID, xloc, yloc, regionName, 0, null, serverURI, ownerID, out regInfo, out reason))
             {
-                // Formats: http://grid.example.com region name
-                //          http://grid.example.com "region name"
-                //          http://grid.example.com
-
-                string serverURI;
-                string regionName = "";
-
-                string[] parts = mapName.Split(new char[] { ' ' });
-
-                if (parts.Length == 0)
-                {
-                    reason = "Wrong format for link-region";
-                    return null;
-                }
-
-                serverURI = parts[0];
-
-                if (parts.Length >= 2)
-                {
-                    regionName = mapName.Substring(serverURI.Length);
-                    regionName = regionName.Trim(new char[] { '"', ' ' });
-                }
-
-                if (TryCreateLink(scopeID, xloc, yloc, regionName, 0, null, serverURI, ownerID, out regInfo, out reason))
-                {
-                    regInfo.RegionName = mapName; 
-                    return regInfo;
-                }
+                regInfo.RegionName = serverURI + regionName;
+                return regInfo;
             }
 
             return null;
@@ -289,7 +240,7 @@ namespace OpenSim.Services.GridService
 
         private bool TryCreateLinkImpl(UUID scopeID, int xloc, int yloc, string remoteRegionName, uint externalPort, string externalHostName, string serverURI, UUID ownerID, out GridRegion regInfo, out string reason)
         {
-            m_log.InfoFormat("[HYPERGRID LINKER]: Link to {0} {1}, in <{2},{3}>", 
+            m_log.InfoFormat("[HYPERGRID LINKER]: Link to {0} {1}, in <{2},{3}>",
                 ((serverURI == null) ? (externalHostName + ":" + externalPort) : serverURI),
                 remoteRegionName, Util.WorldToRegionLoc((uint)xloc), Util.WorldToRegionLoc((uint)yloc));
 
@@ -319,7 +270,7 @@ namespace OpenSim.Services.GridService
 
             if (remoteRegionName != string.Empty)
                 regInfo.RegionName = remoteRegionName;
-                
+
             regInfo.RegionLocX = xloc;
             regInfo.RegionLocY = yloc;
             regInfo.ScopeID = scopeID;
@@ -365,7 +316,9 @@ namespace OpenSim.Services.GridService
             UUID regionID = UUID.Zero;
             string externalName = string.Empty;
             string imageURL = string.Empty;
-            if (!m_GatekeeperConnector.LinkRegion(regInfo, out regionID, out handle, out externalName, out imageURL, out reason))
+            int sizeX = (int)Constants.RegionSize;
+            int sizeY = (int)Constants.RegionSize;
+            if (!m_GatekeeperConnector.LinkRegion(regInfo, out regionID, out handle, out externalName, out imageURL, out reason, out sizeX, out sizeY))
                 return false;
 
             if (regionID == UUID.Zero)
@@ -397,6 +350,8 @@ namespace OpenSim.Services.GridService
 //            }
 
             regInfo.RegionID = regionID;
+            regInfo.RegionSizeX = sizeX;
+            regInfo.RegionSizeY = sizeY;
 
             if (externalName == string.Empty)
                 regInfo.RegionName = regInfo.ServerURI;
@@ -404,7 +359,7 @@ namespace OpenSim.Services.GridService
                 regInfo.RegionName = externalName;
 
             m_log.DebugFormat("[HYPERGRID LINKER]: naming linked region {0}, handle {1}", regInfo.RegionName, handle.ToString());
-                
+
             // Get the map image
             regInfo.TerrainImage = GetMapImage(regionID, imageURL);
 
@@ -428,7 +383,7 @@ namespace OpenSim.Services.GridService
                 OpenSim.Framework.RegionFlags rflags = (OpenSim.Framework.RegionFlags)Convert.ToInt32(regions[0].Data["flags"]);
                 if ((rflags & OpenSim.Framework.RegionFlags.Hyperlink) != 0)
                 {
-                    regInfo = new GridRegion(); 
+                    regInfo = new GridRegion();
                     regInfo.RegionID = regions[0].RegionID;
                     regInfo.ScopeID = m_ScopeID;
                 }
@@ -536,7 +491,7 @@ namespace OpenSim.Services.GridService
             {
                 MainConsole.Instance.Output(
                     String.Format("{0}\n{2,-32} {1}\n",
-                        r.RegionName, r.RegionID, 
+                        r.RegionName, r.RegionID,
                         String.Format("{0},{1} ({2},{3})", r.posX, r.posY,
                                     Util.WorldToRegionLoc((uint)r.posX), Util.WorldToRegionLoc((uint)r.posY)
                         )
@@ -560,7 +515,7 @@ namespace OpenSim.Services.GridService
             RunHGCommand(command, cmdparams);
 
         }
-        
+
         private void RunLinkRegionCommand(string[] cmdparams)
         {
             int xloc, yloc;
@@ -618,7 +573,7 @@ namespace OpenSim.Services.GridService
                 if (cmdparams[2].StartsWith("http"))
                 {
                     RunLinkRegionCommand(cmdparams);
-                } 
+                }
                 else if (cmdparams[2].Contains(":"))
                 {
                     // New format

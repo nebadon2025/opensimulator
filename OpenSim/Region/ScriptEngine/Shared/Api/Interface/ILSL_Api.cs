@@ -116,6 +116,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         LSL_String llGetAnimation(string id);
           LSL_List llGetAnimationList(string id);
        LSL_Integer llGetAttached();
+          LSL_List llGetAttachedList(string id);
           LSL_List llGetBoundingBox(string obj);
         LSL_Vector llGetCameraPos();
       LSL_Rotation llGetCameraRot();
@@ -325,6 +326,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
        LSL_Integer llRound(double f);
        LSL_Integer llSameGroup(string agent);
               void llSay(int channelID, string text);
+       LSL_Integer llScaleByFactor(double scaling_factor);
+        LSL_Float  llGetMaxScaleFactor();
+        LSL_Float  llGetMinScaleFactor();
               void llScaleTexture(double u, double v, int face);
        LSL_Integer llScriptDanger(LSL_Vector pos);
               void llScriptProfiler(LSL_Integer flag);
@@ -430,7 +434,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         LSL_String llXorBase64Strings(string str1, string str2);
         LSL_String llXorBase64StringsCorrect(string str1, string str2);
        LSL_Integer llGetLinkNumberOfSides(LSL_Integer link);
-              void llSetPhysicsMaterial(int material_bits, float material_gravity_modifier, float material_restitution, float material_friction, float material_density);
+              void llSetPhysicsMaterial(int material_bits, LSL_Float material_gravity_modifier, LSL_Float material_restitution, LSL_Float material_friction, LSL_Float material_density);
 
               void SetPrimitiveParamsEx(LSL_Key prim, LSL_List rules, string originFunc);
               void llSetKeyframedMotion(LSL_List frames, LSL_List options);

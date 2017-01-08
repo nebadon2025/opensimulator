@@ -58,7 +58,7 @@ namespace OpenSim.Region.ScriptEngine.Interfaces
         /// Post an event to a single script
         /// </summary>
         bool PostScriptEvent(UUID itemID, EventParams parms);
-        
+
         /// <summary>
         /// Post event to an entire prim
         /// </summary>
@@ -68,7 +68,7 @@ namespace OpenSim.Region.ScriptEngine.Interfaces
         void SetMinEventDelay(UUID itemID, double delay);
         int GetStartParameter(UUID itemID);
 
-        void SetScriptState(UUID itemID, bool state);
+        void SetScriptState(UUID itemID, bool state, bool self);
         bool GetScriptState(UUID itemID);
         void SetState(UUID itemID, string newState);
         void ApiResetScript(UUID itemID);
@@ -95,7 +95,7 @@ namespace OpenSim.Region.ScriptEngine.Interfaces
         /// Assemblies that need to be referenced when compiling scripts.
         /// </summary>
         /// <remarks>
-        /// These are currently additional to those always referenced by the compiler, BUT THIS MAY CHANGE IN THE 
+        /// These are currently additional to those always referenced by the compiler, BUT THIS MAY CHANGE IN THE
         /// FUTURE.
         /// This can be null if there are no additional assemblies.
         /// </remarks>

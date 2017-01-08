@@ -45,12 +45,14 @@ using Mono.Addins;
 namespace OpenSim.Region.CoreModules.World.Estate
 {
     [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "XEstate")]
-    public class XEstateModule : ISharedRegionModule
+    public class EstateModule : ISharedRegionModule
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         protected List<Scene> m_Scenes = new List<Scene>();
         protected bool m_InInfoUpdate = false;
+        private string token = "7db8eh2gvgg45jj";
+        protected bool m_enabled = false;
 
         public bool InInfoUpdate
         {
@@ -67,19 +69,33 @@ namespace OpenSim.Region.CoreModules.World.Estate
 
         public void Initialise(IConfigSource config)
         {
-            int port = 0;
+            uint port = MainServer.Instance.Port;
 
-            IConfig estateConfig = config.Configs["Estate"];
+            IConfig estateConfig = config.Configs["Estates"];
             if (estateConfig != null)
             {
-                port = estateConfig.GetInt("Port", 0);
+                if (estateConfig.GetString("EstateCommunicationsHandler", Name) == Name)
+                    m_enabled = true;
+                else
+                    return;
+
+                port = (uint)estateConfig.GetInt("Port", 0);
+                // this will need to came from somewhere else
+                token = estateConfig.GetString("Token", token);
+            }
+            else
+            {
+                m_enabled = true;
             }
 
-            m_EstateConnector = new EstateConnector(this);
+            m_EstateConnector = new EstateConnector(this, token, port);
+
+            if(port == 0)
+                 port = MainServer.Instance.Port;
 
             // Instantiate the request handler
-            IHttpServer server = MainServer.GetHttpServer((uint)port);
-            server.AddStreamHandler(new EstateRequestHandler(this));
+            IHttpServer server = MainServer.GetHttpServer(port);
+            server.AddStreamHandler(new EstateRequestHandler(this, token));
         }
 
         public void PostInitialise()
@@ -92,24 +108,31 @@ namespace OpenSim.Region.CoreModules.World.Estate
 
         public void AddRegion(Scene scene)
         {
+            if (!m_enabled)
+                return;
+
             lock (m_Scenes)
                 m_Scenes.Add(scene);
-
-            scene.EventManager.OnNewClient += OnNewClient;
         }
 
         public void RegionLoaded(Scene scene)
         {
+            if (!m_enabled)
+                return;
+
             IEstateModule em = scene.RequestModuleInterface<IEstateModule>();
 
             em.OnRegionInfoChange += OnRegionInfoChange;
             em.OnEstateInfoChange += OnEstateInfoChange;
             em.OnEstateMessage += OnEstateMessage;
+            em.OnEstateTeleportOneUserHomeRequest += OnEstateTeleportOneUserHomeRequest;
+            em.OnEstateTeleportAllUsersHomeRequest += OnEstateTeleportAllUsersHomeRequest;
         }
 
         public void RemoveRegion(Scene scene)
         {
-            scene.EventManager.OnNewClient -= OnNewClient;
+            if (!m_enabled)
+                return;
 
             lock (m_Scenes)
                 m_Scenes.Remove(scene);
@@ -181,13 +204,6 @@ namespace OpenSim.Region.CoreModules.World.Estate
                 m_EstateConnector.SendEstateMessage(estateID, FromID, FromName, Message);
         }
 
-        private void OnNewClient(IClientAPI client)
-        {
-            client.OnEstateTeleportOneUserHomeRequest += OnEstateTeleportOneUserHomeRequest;
-            client.OnEstateTeleportAllUsersHomeRequest += OnEstateTeleportAllUsersHomeRequest;
-
-        }
-
         private void OnEstateTeleportOneUserHomeRequest(IClientAPI client, UUID invoice, UUID senderID, UUID prey)
         {
             if (prey == UUID.Zero)
@@ -205,16 +221,18 @@ namespace OpenSim.Region.CoreModules.World.Estate
 
             foreach (Scene s in Scenes)
             {
-                if (s == scene)
-                    continue; // Already handles by estate module
                 if (s.RegionInfo.EstateSettings.EstateID != estateID)
                     continue;
 
                 ScenePresence p = scene.GetScenePresence(prey);
-                if (p != null && !p.IsChildAgent)
+                if (p != null && !p.IsChildAgent )
                 {
-                    p.ControllingClient.SendTeleportStart(16);
-                    scene.TeleportClientHome(prey, p.ControllingClient);
+                    if(!p.IsDeleted && !p.IsInTransit)
+                    {
+                        p.ControllingClient.SendTeleportStart(16);
+                        scene.TeleportClientHome(prey, p.ControllingClient);
+                    }
+                    return;
                 }
             }
 
@@ -235,8 +253,6 @@ namespace OpenSim.Region.CoreModules.World.Estate
 
             foreach (Scene s in Scenes)
             {
-                if (s == scene)
-                    continue; // Already handles by estate module
                 if (s.RegionInfo.EstateSettings.EstateID != estateID)
                     continue;
 

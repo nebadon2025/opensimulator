@@ -539,7 +539,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         {
             return m_OSSL_Functions.osReplaceString(src,pattern,replace,count,start);
         }
-        
+
 
         // Information about data loaded into the region
         public string osLoadedCreationDate()
@@ -575,6 +575,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public void osForceBreakAllLinks()
         {
             m_OSSL_Functions.osForceBreakAllLinks();
+        }
+
+        public void osDie(LSL_Key objectUUID)
+        {
+            m_OSSL_Functions.osDie(objectUUID);
         }
 
         public LSL_Integer osIsNpc(LSL_Key npc)
@@ -635,6 +640,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public void osNpcStopMoveToTarget(LSL_Key npc)
         {
             m_OSSL_Functions.osNpcStopMoveToTarget(npc);
+        }
+
+        public void osNpcSetProfileAbout(LSL_Key npc, string about)
+        {
+            m_OSSL_Functions.osNpcSetProfileAbout(npc, about);
+        }
+
+        public void osNpcSetProfileImage(LSL_Key npc, string image)
+        {
+            m_OSSL_Functions.osNpcSetProfileImage(npc, image);
         }
 
         public void osNpcSay(key npc, string message)
@@ -899,7 +914,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         {
             return m_OSSL_Functions.osGetRegionMapTexture(regionName);
         }
-        
+
         public LSL_List osGetRegionStats()
         {
             return m_OSSL_Functions.osGetRegionStats();
@@ -919,12 +934,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         {
             return m_OSSL_Functions.osGetSimulatorMemory();
         }
-        
+
         public void osKickAvatar(string FirstName,string SurName,string alert)
         {
             m_OSSL_Functions.osKickAvatar(FirstName, SurName, alert);
         }
-        
+
         public void osSetSpeed(string UUID, LSL_Float SpeedModifier)
         {
             m_OSSL_Functions.osSetSpeed(UUID, SpeedModifier);
@@ -939,7 +954,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         {
             m_OSSL_Functions.osCauseDamage(avatar, damage);
         }
-        
+
         public void osCauseHealing(string avatar, double healing)
         {
             m_OSSL_Functions.osCauseHealing(avatar, healing);
@@ -969,12 +984,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         {
             m_OSSL_Functions.osForceOtherSit(avatar, target);
         }
-        
+
         public LSL_List osGetPrimitiveParams(LSL_Key prim, LSL_List rules)
         {
             return m_OSSL_Functions.osGetPrimitiveParams(prim, rules);
         }
-        
+
         public void osSetPrimitiveParams(LSL_Key prim, LSL_List rules)
         {
             m_OSSL_Functions.osSetPrimitiveParams(prim, rules);

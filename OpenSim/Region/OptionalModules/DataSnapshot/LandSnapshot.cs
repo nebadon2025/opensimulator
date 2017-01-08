@@ -120,12 +120,15 @@ namespace OpenSim.Region.DataSnapshot.Providers
 
         public XmlNode RequestSnapshotData(XmlDocument nodeFactory)
         {
+            XmlNode parent = nodeFactory.CreateNode(XmlNodeType.Element, "parceldata", "");
             ILandChannel landChannel = m_scene.LandChannel;
+            if(landChannel == null)
+                return parent;
+
             List<ILandObject> parcels = landChannel.AllParcels();
 
             IDwellModule dwellModule = m_scene.RequestModuleInterface<IDwellModule>();
 
-            XmlNode parent = nodeFactory.CreateNode(XmlNodeType.Element, "parceldata", "");
             if (parcels != null)
             {
 
@@ -140,7 +143,7 @@ namespace OpenSim.Region.DataSnapshot.Providers
 
                     LandData parcel = land.LandData;
                     if (m_parent.ExposureLevel.Equals("all") ||
-                        (m_parent.ExposureLevel.Equals("minimum") && 
+                        (m_parent.ExposureLevel.Equals("minimum") &&
                         (parcel.Flags & (uint)ParcelFlags.ShowDirectory) == (uint)ParcelFlags.ShowDirectory))
                     {
 
@@ -265,8 +268,12 @@ namespace OpenSim.Region.DataSnapshot.Providers
                             {
                                 XmlNode username = nodeFactory.CreateNode(XmlNodeType.Element, "name", "");
                                 UserAccount account = m_scene.UserAccountService.GetUserAccount(m_scene.RegionInfo.ScopeID, userOwnerUUID);
-                                username.InnerText = account.FirstName + " " + account.LastName;
+                                if(account != null)
+                                    username.InnerText = account.FirstName + " " + account.LastName;
+                                else
+                                    username.InnerText = "UnKnown";
                                 userblock.AppendChild(username);
+
                             }
                             catch (Exception)
                             {

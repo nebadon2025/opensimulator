@@ -66,22 +66,31 @@ namespace OpenSim.Services.Connectors
         public virtual LandData GetLandData(UUID scopeID, ulong regionHandle, uint x, uint y, out byte regionAccess)
         {
             LandData landData = null;
-            Hashtable hash = new Hashtable();
-            hash["region_handle"] = regionHandle.ToString();
-            hash["x"] = x.ToString();
-            hash["y"] = y.ToString();
 
             IList paramList = new ArrayList();
-            paramList.Add(hash);
             regionAccess = 42; // Default to adult. Better safe...
 
             try
             {
                 uint xpos = 0, ypos = 0;
                 Util.RegionHandleToWorldLoc(regionHandle, out xpos, out ypos);
+
                 GridRegion info = m_GridService.GetRegionByPosition(scopeID, (int)xpos, (int)ypos);
                 if (info != null) // just to be sure
                 {
+                    string targetHandlestr = info.RegionHandle.ToString();
+                    if( ypos == 0 ) //HG proxy?
+                    {
+                        // this is real region handle on hg proxies hack
+                        targetHandlestr = info.RegionSecret;
+                    }
+
+                    Hashtable hash = new Hashtable();
+                    hash["region_handle"] = targetHandlestr;
+                    hash["x"] = x.ToString();
+                    hash["y"] = y.ToString();
+                    paramList.Add(hash);
+
                     XmlRpcRequest request = new XmlRpcRequest("land_data", paramList);
                     XmlRpcResponse response = request.Send(info.ServerURI, 10000);
                     if (response.IsFault)
@@ -113,12 +122,12 @@ namespace OpenSim.Services.Connectors
                         catch (Exception e)
                         {
                             m_log.ErrorFormat(
-                                "[LAND CONNECTOR]: Got exception while parsing land-data: {0} {1}", 
+                                "[LAND CONNECTOR]: Got exception while parsing land-data: {0} {1}",
                                 e.Message, e.StackTrace);
                         }
                     }
                 }
-                else 
+                else
                     m_log.WarnFormat("[LAND CONNECTOR]: Couldn't find region with handle {0}", regionHandle);
             }
             catch (Exception e)
@@ -126,7 +135,7 @@ namespace OpenSim.Services.Connectors
                 m_log.ErrorFormat(
                     "[LAND CONNECTOR]: Couldn't contact region {0}: {1} {2}", regionHandle, e.Message, e.StackTrace);
             }
-        
+
             return landData;
         }
     }

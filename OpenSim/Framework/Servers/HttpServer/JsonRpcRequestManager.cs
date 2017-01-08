@@ -43,7 +43,7 @@ namespace OpenSim.Framework.Servers.HttpServer
     public class JsonRpcRequestManager
     {
         static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-        
+
         public JsonRpcRequestManager()
         {
         }
@@ -76,6 +76,9 @@ namespace OpenSim.Framework.Servers.HttpServer
                 throw new ArgumentNullException("method");
             if (parameters == null)
                 throw new ArgumentNullException("parameters");
+
+            if(string.IsNullOrWhiteSpace(uri))
+                return false;
 
             OSDMap request = new OSDMap();
             request.Add("jsonrpc", OSD.FromString("2.0"));
@@ -185,6 +188,6 @@ namespace OpenSim.Framework.Servers.HttpServer
 
             return true;
         }
-    
+
     }
 }

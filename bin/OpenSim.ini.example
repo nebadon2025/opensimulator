@@ -391,10 +391,6 @@
     ;; Allow region managers to assume god powers in regions they manage
     ; region_manager_is_god = false
 
-    ;# {parcel_owner_is_god} {} {Allow parcel owner gods} {true false} false
-    ;; Allow parcel owners to assume god powers in their parcels
-    ; parcel_owner_is_god = false
-
     ;# {simple_build_permissions} {} {Allow building in parcel by access list (no groups)} {true false} false
     ;; More control over permissions
     ;; This is definitely not SL!
@@ -696,12 +692,6 @@
     ;; then you might want to try setting this to false.
     ; mesh_sculpted_prim = true
 
-    ;# {use_NINJA_physics_joints} {[Startup]physics:OpenDynamicsEngine} {Use jointed (NINJA) physics?} {true false} false
-    ;; If you would like physics joints to be enabled through a special naming
-    ;; convention in the client, set this to true.
-    ;; (see NINJA Physics, http://opensimulator.org/wiki/NINJA_Physics)
-    ; use_NINJA_physics_joints = false
-
 [RemoteAdmin]
     ;; This is the remote admin module, which uses XMLRPC requests to
     ;; manage regions from a web interface.
@@ -925,6 +915,13 @@
     ;; by scripts have changed.
     ; DeleteScriptsOnStartup = true
 
+    ;# {CompactMemOnLoad} {} {compacts memory on each script load at startup?} {true false} false
+    ;; forces calls to memory garbage collector before loading each script DLL during region startup.
+    ;; Peak memory usage is reduced and region starts with a more compacted memory allocation.
+    ;; But this costs a lot of time, so region load will take a lot longer.
+    ;; it is more usefull if there are no previously compiled scripts DLLs (as with DeleteScriptsOnStartup = true)
+    ;CompactMemOnLoad = false
+    
     ;# {DefaultCompileLanguage} {Enabled:true} {Default script language?} {lsl vb cs} lsl
     ;; Default language for scripts
     ; DefaultCompileLanguage = "lsl"
@@ -1131,17 +1128,21 @@
 	
 	;; several options to control NPCs creation
 	
+    ;# {AllowNotOwned} {} {allow NPCs to be created not Owned} {true false} true
 	;; allow NPCs to be created not Owned {true false} default: true
-    ; AllowNotOwned = false
+    ; AllowNotOwned = true
 	
+    ;# {AllowSenseAsAvatar} {} {allow NPCs to set to be sensed as Avatars} {true false} true
 	;; allow NPCs to set to be sensed as Avatars {true false} default: true
-    ; AllowSenseAsAvatar = false
+    ; AllowSenseAsAvatar = true
 	
+    ;# {AllowCloneOtherAvatars} {} {allow NPCs to created cloning any avatar in region} {true false} true
 	;; allow NPCs to created cloning any avatar in region {true false} default: true
-    ; AllowCloneOtherAvatars = false
+    ; AllowCloneOtherAvatars = true
 	
+    ;# {NoNPCGroup} {} {if true NPCs will have no group title, if false display "- NPC -"} {true false} true
 	;; if true NPCs will have no group title, if false display "- NPC -" for easy identification {true false} default: true
-    ; NoNPCGroup = false 
+    ; NoNPCGroup = true 
 
 
 [Terrain]
@@ -1157,6 +1158,11 @@
   ;; Set the value of the url to your UserProfilesService
   ;; If un-set / "" the module is disabled
   ;; ProfileServiceURL = ${Const|BaseURL}:${Const|PublicPort}
+  
+  ;# {AllowUserProfileWebURLs} {} {allow user profiles web urls} {true false} true
+  ;; set this to false to prevent your users to be sent to unknown
+  ;; web sites by other users on their profiles
+  ; AllowUserProfileWebURLs = true
 
 [XBakes]
   ;# {URL} {} {Set URL for Baked texture service} {}

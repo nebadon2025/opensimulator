@@ -80,7 +80,7 @@ namespace OpenSim.Data.MySQL
 
             return m_Items.Store(item);
         }
-        
+
         public bool DeleteFolders(string field, string val)
         {
             return m_Folders.Delete(field, val);
@@ -193,7 +193,9 @@ namespace OpenSim.Data.MySQL
         {
             using (MySqlCommand cmd  = new MySqlCommand())
             {
-                cmd.CommandText = String.Format("select * from inventoryitems where avatarId = ?uuid and assetType = ?type and flags & 1", m_Realm);
+//                cmd.CommandText = String.Format("select * from inventoryitems where avatarId = ?uuid and assetType = ?type and flags & 1", m_Realm);
+
+                cmd.CommandText = String.Format("select * from inventoryitems where avatarId = ?uuid and assetType = ?type and flags & 1");
 
                 cmd.Parameters.AddWithValue("?uuid", principalID.ToString());
                 cmd.Parameters.AddWithValue("?type", (int)AssetType.Gesture);
@@ -212,15 +214,18 @@ namespace OpenSim.Data.MySQL
                 {
                     cmd.Connection = dbcon;
 
-                    cmd.CommandText = String.Format("select bit_or(inventoryCurrentPermissions) as inventoryCurrentPermissions from inventoryitems where avatarID = ?PrincipalID and assetID = ?AssetID group by assetID", m_Realm);
+//                    cmd.CommandText = String.Format("select bit_or(inventoryCurrentPermissions) as inventoryCurrentPermissions from inventoryitems where avatarID = ?PrincipalID and assetID = ?AssetID group by assetID", m_Realm);
+
+                    cmd.CommandText = String.Format("select bit_or(inventoryCurrentPermissions) as inventoryCurrentPermissions from inventoryitems where avatarID = ?PrincipalID and assetID = ?AssetID group by assetID");
+
                     cmd.Parameters.AddWithValue("?PrincipalID", principalID.ToString());
                     cmd.Parameters.AddWithValue("?AssetID", assetID.ToString());
-                
+
                     using (IDataReader reader = cmd.ExecuteReader())
                     {
 
                         int perms = 0;
-                    
+
                         if (reader.Read())
                         {
                             perms = Convert.ToInt32(reader["inventoryCurrentPermissions"]);

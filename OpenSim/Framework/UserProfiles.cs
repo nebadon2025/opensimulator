@@ -27,6 +27,8 @@
 
 using System;
 using OpenMetaverse;
+using System.Collections.Generic;
+
 
 namespace OpenSim.Framework
 {
@@ -48,7 +50,7 @@ namespace OpenSim.Framework
         public byte Flags = 0;
         public int Price = 0;
     }
-    
+
     public class UserProfileProperties
     {
         public UUID UserId = UUID.Zero;
@@ -66,7 +68,7 @@ namespace OpenSim.Framework
         public UUID FirstLifeImageId = UUID.Zero;
         public string FirstLifeText = string.Empty;
     }
-    
+
     public class UserProfilePick
     {
         public UUID PickId = UUID.Zero;
@@ -84,7 +86,7 @@ namespace OpenSim.Framework
         public int SortOrder = 0;
         public bool Enabled = false;
     }
-    
+
     public class UserProfileNotes
     {
         public UUID UserId;
@@ -99,7 +101,7 @@ namespace OpenSim.Framework
         public bool Visible = false;
         public string EMail = string.Empty;
     }
-    
+
     public class UserAccountProperties
     {
         public string EmailAddress = string.Empty;
@@ -108,19 +110,32 @@ namespace OpenSim.Framework
         public string Password = string.Empty;
         public string UserId = string.Empty;
     }
-    
+
     public class UserAccountAuth
     {
         public string UserId = UUID.Zero.ToString();
         public string Password = string.Empty;
     }
-    
+
     public class UserAppData
     {
         public string TagId = string.Empty;
         public string DataKey = string.Empty;
         public string UserId = UUID.Zero.ToString();
         public string DataVal = string.Empty;
+    }
+
+    public class UserProfileCacheEntry
+    {
+        public Dictionary<UUID, string> picksList;
+        public Dictionary<UUID, UserProfilePick> picks;
+        public Dictionary<UUID, string> classifiedsLists;
+        public Dictionary<UUID, UserClassifiedAdd> classifieds;
+        public UserProfileProperties props;
+        public string born;
+        public byte[] membershipType;
+        public uint flags;
+        public HashSet<IClientAPI> ClientsWaitingProps;
     }
 }
 

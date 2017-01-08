@@ -56,7 +56,7 @@ namespace OpenSim.Framework
         bool IsChildAgent { get; }
 
         bool IsInTransit { get; }
-        bool isNPC { get;}
+        bool IsNPC { get;}
 
         bool Invulnerable { get; set; }
         /// <summary>
@@ -81,6 +81,6 @@ namespace OpenSim.Framework
         /// Direction in which the scene presence is looking.
         /// </summary>
         /// <remarks>Will be Vector3.Zero for a child agent.</remarks>
-        Vector3 Lookat { get; }        
+        Vector3 Lookat { get; }
     }
 }

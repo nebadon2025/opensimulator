@@ -68,7 +68,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Profile
         {
             if (!m_Enabled)
                 return;
-            
+
             lock (m_Scenes)
             {
                 if (!m_Scenes.Contains(scene))
@@ -154,7 +154,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Profile
                 name = account.FirstName + " " + account.LastName;
                 created = account.Created;
             }
-            Byte[] charterMember = Utils.StringToBytes(name);
+            Byte[] membershipType = Utils.StringToBytes(name);
 
             profileUrl = "No profile data";
             aboutText = string.Empty;
@@ -166,7 +166,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Profile
             remoteClient.SendAvatarProperties(avatarID, aboutText,
                         Util.ToDateTime(created).ToString(
                                 "M/d/yyyy", CultureInfo.InvariantCulture),
-                        charterMember, firstLifeAboutText,
+                        membershipType, firstLifeAboutText,
                         (uint)(0 & 0xff),
                         firstLifeImage, image, profileUrl, partner);
 

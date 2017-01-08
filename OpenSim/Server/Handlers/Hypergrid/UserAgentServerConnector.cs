@@ -63,14 +63,14 @@ namespace OpenSim.Server.Handlers.Hypergrid
 
         public UserAgentServerConnector(IConfigSource config, IHttpServer server) :
             this(config, server, (IFriendsSimConnector)null)
-        {            
+        {
         }
 
         public UserAgentServerConnector(IConfigSource config, IHttpServer server, string configName) :
             this(config, server)
         {
         }
-        
+
         public UserAgentServerConnector(IConfigSource config, IHttpServer server, IFriendsSimConnector friendsConnector) :
                 base(config, server, String.Empty)
         {
@@ -139,6 +139,7 @@ namespace OpenSim.Server.Handlers.Hypergrid
                 hash["region_name"] = regInfo.RegionName;
                 hash["hostname"] = regInfo.ExternalHostName;
                 hash["http_port"] = regInfo.HttpPort.ToString();
+                hash["server_uri"] = regInfo.ServerURI;
                 hash["internal_port"] = regInfo.InternalEndPoint.Port.ToString();
                 hash["position"] = position.ToString();
                 hash["lookAt"] = lookAt.ToString();

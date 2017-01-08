@@ -70,13 +70,17 @@ namespace OpenSim.Server.Handlers.Hypergrid
             string imageURL = string.Empty;
             ulong regionHandle = 0;
             string reason = string.Empty;
+            int sizeX = 256;
+            int sizeY = 256;
 
-            bool success = m_GatekeeperService.LinkRegion(name, out regionID, out regionHandle, out externalName, out imageURL, out reason);
+            bool success = m_GatekeeperService.LinkRegion(name, out regionID, out regionHandle, out externalName, out imageURL, out reason, out sizeX, out sizeY);
 
             Hashtable hash = new Hashtable();
             hash["result"] = success.ToString();
             hash["uuid"] = regionID.ToString();
             hash["handle"] = regionHandle.ToString();
+            hash["size_x"] = sizeX.ToString();
+            hash["size_y"] = sizeY.ToString();
             hash["region_image"] = imageURL;
             hash["external_name"] = externalName;
 
@@ -121,6 +125,7 @@ namespace OpenSim.Server.Handlers.Hypergrid
                 hash["hostname"] = regInfo.ExternalHostName;
                 hash["http_port"] = regInfo.HttpPort.ToString();
                 hash["internal_port"] = regInfo.InternalEndPoint.Port.ToString();
+                hash["server_uri"] = regInfo.ServerURI;
             }
 
             if (message != null)

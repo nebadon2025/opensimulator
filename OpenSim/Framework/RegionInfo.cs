@@ -138,8 +138,6 @@ namespace OpenSim.Framework
         protected uint m_httpPort;
         protected string m_serverURI;
         protected string m_regionName = String.Empty;
-        protected bool Allow_Alternate_Ports;
-        public bool m_allow_alternate_ports;
         protected string m_externalHostName;
         protected IPEndPoint m_internalEndPoint;
         protected uint m_remotingPort;
@@ -147,6 +145,7 @@ namespace OpenSim.Framework
         public string RemotingAddress;
         public UUID ScopeID = UUID.Zero;
         private UUID m_maptileStaticUUID = UUID.Zero;
+        private bool m_resolveAddress = false;
 
         public uint WorldLocX = 0;
         public uint WorldLocY = 0;
@@ -175,6 +174,9 @@ namespace OpenSim.Framework
         /// XXX: Unknown if this accounts for regions with negative Z.
         /// </remarks>
         public uint RegionSizeZ = Constants.RegionHeight;
+
+        // If entering avatar has no specific coords, this is where they land
+        public Vector3 DefaultLandingPoint = new Vector3(128, 128, 30);
 
         private Dictionary<String, String> m_extraSettings = new Dictionary<string, string>();
 
@@ -374,7 +376,7 @@ namespace OpenSim.Framework
         }
 
         public string MaptileStaticFile { get; private set; }
-        
+
         /// <summary>
         /// The port by which http communication occurs with the region (most noticeably, CAPS communication)
         /// </summary>
@@ -387,17 +389,17 @@ namespace OpenSim.Framework
         /// <summary>
         /// A well-formed URI for the host region server (namely "http://" + ExternalHostName)
         /// </summary>
-        
+
         public string ServerURI
         {
-            get { 
+            get {
                 if ( m_serverURI != string.Empty ) {
                     return m_serverURI;
                 } else {
                     return "http://" + m_externalHostName + ":" + m_httpPort + "/";
                 }
-            }            
-            set { 
+            }
+            set {
                 if ( value.EndsWith("/") ) {
                     m_serverURI = value;
                 } else {
@@ -541,7 +543,7 @@ namespace OpenSim.Framework
 
         private void ReadNiniConfig(IConfigSource source, string name)
         {
-//            bool creatingNew = false;
+            bool creatingNew = false;
 
             if (source.Configs.Count == 0)
             {
@@ -565,7 +567,7 @@ namespace OpenSim.Framework
 
                 source.AddConfig(name);
 
-//                creatingNew = true;
+                creatingNew = true;
             }
 
             if (name == String.Empty)
@@ -669,18 +671,19 @@ namespace OpenSim.Framework
             }
             m_internalEndPoint = new IPEndPoint(address, port);
 
-            // AllowAlternatePorts
+            // ResolveAddress
             //
-            allKeys.Remove("AllowAlternatePorts");
-            if (config.Contains("AllowAlternatePorts"))
+            allKeys.Remove("ResolveAddress");
+            if (config.Contains("ResolveAddress"))
             {
-                m_allow_alternate_ports = config.GetBoolean("AllowAlternatePorts", true);
+                m_resolveAddress = config.GetBoolean("ResolveAddress", false);
             }
             else
             {
-                m_allow_alternate_ports = Convert.ToBoolean(MainConsole.Instance.CmdPrompt("Allow alternate ports", "False"));
+                if (creatingNew)
+                    m_resolveAddress = Convert.ToBoolean(MainConsole.Instance.CmdPrompt("Resolve hostname to IP on start (for running inside Docker)", "False"));
 
-                config.Set("AllowAlternatePorts", m_allow_alternate_ports.ToString());
+                config.Set("ResolveAddress", m_resolveAddress.ToString());
             }
 
             // ExternalHostName
@@ -703,14 +706,35 @@ namespace OpenSim.Framework
                     "[REGIONINFO]: Resolving SYSTEMIP to {0} for external hostname of region {1}",
                     m_externalHostName, name);
             }
-            else
+            else if (!m_resolveAddress)
             {
                 m_externalHostName = externalName;
+            }
+            else
+            {
+                IPAddress[] addrs = Dns.GetHostAddresses(externalName);
+                if (addrs.Length != 1) // If it is ambiguous or not resolveable, use it literally
+                    m_externalHostName = externalName;
+                else
+                    m_externalHostName = addrs[0].ToString();
             }
 
             // RegionType
             m_regionType = config.GetString("RegionType", String.Empty);
             allKeys.Remove("RegionType");
+
+            // Get Default Landing Location (Defaults to 128,128)
+            string temp_location = config.GetString("DefaultLanding", "<128, 128, 30>");
+            Vector3 temp_vector;
+
+            if (Vector3.TryParse(temp_location, out temp_vector))
+                DefaultLandingPoint = temp_vector;
+            else
+                m_log.ErrorFormat("[RegionInfo]: Unable to parse DefaultLanding for '{0}'. The value given was '{1}'", RegionName, temp_location);
+
+            allKeys.Remove("DefaultLanding");
+
+            DoDefaultLandingSanityChecks();
 
             #region Prim and map stuff
 
@@ -725,10 +749,10 @@ namespace OpenSim.Framework
 
             m_physPrimMax = config.GetInt("PhysicalPrimMax", 0);
             allKeys.Remove("PhysicalPrimMax");
-            
+
             m_clampPrimSize = config.GetBoolean("ClampPrimSize", false);
             allKeys.Remove("ClampPrimSize");
-            
+
             m_objectCapacity = config.GetInt("MaxPrims", 15000);
             allKeys.Remove("MaxPrims");
 
@@ -742,12 +766,12 @@ namespace OpenSim.Framework
             string mapTileStaticUUID = config.GetString("MaptileStaticUUID", UUID.Zero.ToString());
             if (UUID.TryParse(mapTileStaticUUID.Trim(), out m_maptileStaticUUID))
             {
-                config.Set("MaptileStaticUUID", m_maptileStaticUUID.ToString()); 
+                config.Set("MaptileStaticUUID", m_maptileStaticUUID.ToString());
             }
 
             MaptileStaticFile = config.GetString("MaptileStaticFile", String.Empty);
             allKeys.Remove("MaptileStaticFile");
-            
+
             #endregion
 
             AgentCapacity = config.GetInt("MaxAgents", 100);
@@ -762,6 +786,48 @@ namespace OpenSim.Framework
             {
                 SetExtraSetting(s, config.GetString(s));
             }
+        }
+
+        // Make sure DefaultLanding is within region borders with a buffer zone 5 meters from borders
+        private void DoDefaultLandingSanityChecks()
+        {
+            // Sanity Check Default Landing
+            float buffer_zone = 5f;
+
+            bool ValuesCapped = false;
+
+            // Minimum Positions
+            if (DefaultLandingPoint.X < buffer_zone)
+            {
+                DefaultLandingPoint.X = buffer_zone;
+                ValuesCapped = true;
+            }
+
+            if (DefaultLandingPoint.Y < buffer_zone)
+            {
+                DefaultLandingPoint.Y = buffer_zone;
+                ValuesCapped = true;
+            }
+
+            // Maximum Positions
+            if (DefaultLandingPoint.X > RegionSizeX - buffer_zone)
+            {
+                DefaultLandingPoint.X = RegionSizeX - buffer_zone;
+                ValuesCapped = true;
+            }
+
+            if (DefaultLandingPoint.Y > RegionSizeY - buffer_zone)
+            {
+                DefaultLandingPoint.Y = RegionSizeY - buffer_zone;
+                ValuesCapped = true;
+            }
+
+            // Height
+            if (DefaultLandingPoint.Z < 0f)
+                DefaultLandingPoint.Z = 0f;
+
+            if (ValuesCapped == true)
+                m_log.WarnFormat("[RegionInfo]: The default landing location for {0} has been capped to {1}", RegionName, DefaultLandingPoint);
         }
 
         // Make sure user specified region sizes are sane.
@@ -843,8 +909,6 @@ namespace OpenSim.Framework
             config.Set("InternalAddress", m_internalEndPoint.Address.ToString());
             config.Set("InternalPort", m_internalEndPoint.Port);
 
-            config.Set("AllowAlternatePorts", m_allow_alternate_ports.ToString());
-
             config.Set("ExternalHostName", m_externalHostName);
 
             if (m_nonphysPrimMin > 0)
@@ -855,10 +919,10 @@ namespace OpenSim.Framework
 
             if (m_physPrimMin > 0)
                 config.Set("PhysicalPrimMax", m_physPrimMin);
-            
+
             if (m_physPrimMax > 0)
                 config.Set("PhysicalPrimMax", m_physPrimMax);
-                        
+
             config.Set("ClampPrimSize", m_clampPrimSize.ToString());
 
             if (m_objectCapacity > 0)
@@ -937,10 +1001,6 @@ namespace OpenSim.Framework
             configMember.addConfigurationOption("internal_ip_port", ConfigurationOption.ConfigurationTypes.TYPE_INT32,
                                                 "Internal IP Port for incoming UDP client connections",
                                                 m_internalEndPoint.Port.ToString(), true);
-            configMember.addConfigurationOption("allow_alternate_ports",
-                                                ConfigurationOption.ConfigurationTypes.TYPE_BOOLEAN,
-                                                "Allow sim to find alternate UDP ports when ports are in use?",
-                                                m_allow_alternate_ports.ToString(), true);
             configMember.addConfigurationOption("external_host_name",
                                                 ConfigurationOption.ConfigurationTypes.TYPE_STRING_NOT_EMPTY,
                                                 "External Host Name", m_externalHostName, true);
@@ -978,7 +1038,7 @@ namespace OpenSim.Framework
 
             configMember.addConfigurationOption("region_type", ConfigurationOption.ConfigurationTypes.TYPE_STRING,
                                                 "Free form string describing the type of region", String.Empty, true);
-            
+
             configMember.addConfigurationOption("region_static_maptile", ConfigurationOption.ConfigurationTypes.TYPE_UUID,
                                                 "UUID of a texture to use as the map for this region", m_maptileStaticUUID.ToString(), true);
         }
@@ -1010,9 +1070,6 @@ namespace OpenSim.Framework
             configMember.addConfigurationOption("internal_ip_port", ConfigurationOption.ConfigurationTypes.TYPE_INT32,
                                                 "Internal IP Port for incoming UDP client connections",
                                                 ConfigSettings.DefaultRegionHttpPort.ToString(), false);
-            configMember.addConfigurationOption("allow_alternate_ports", ConfigurationOption.ConfigurationTypes.TYPE_BOOLEAN,
-                                                "Allow sim to find alternate UDP ports when ports are in use?",
-                                                "false", true);
             configMember.addConfigurationOption("external_host_name",
                                                 ConfigurationOption.ConfigurationTypes.TYPE_STRING_NOT_EMPTY,
                                                 "External Host Name", "127.0.0.1", false);
@@ -1033,7 +1090,7 @@ namespace OpenSim.Framework
 
             configMember.addConfigurationOption("object_capacity", ConfigurationOption.ConfigurationTypes.TYPE_INT32,
                                                 "Max objects this sim will hold", "15000", true);
-            
+
             configMember.addConfigurationOption("agent_capacity", ConfigurationOption.ConfigurationTypes.TYPE_INT32,
                                                 "Max avatars this sim will hold", "100", true);
 
@@ -1082,9 +1139,6 @@ namespace OpenSim.Framework
                     break;
                 case "internal_ip_port":
                     m_internalEndPoint.Port = (int) configuration_result;
-                    break;
-                case "allow_alternate_ports":
-                    m_allow_alternate_ports = (bool) configuration_result;
                     break;
                 case "external_host_name":
                     if ((string) configuration_result != "SYSTEMIP")
@@ -1162,7 +1216,6 @@ namespace OpenSim.Framework
             if ((RemotingAddress != null) && !RemotingAddress.Equals(""))
                 args["remoting_address"] = OSD.FromString(RemotingAddress);
             args["remoting_port"] = OSD.FromString(RemotingPort.ToString());
-            args["allow_alt_ports"] = OSD.FromBoolean(m_allow_alternate_ports);
             if ((proxyUrl != null) && !proxyUrl.Equals(""))
                 args["proxy_url"] = OSD.FromString(proxyUrl);
             if (RegionType != String.Empty)
@@ -1217,8 +1270,6 @@ namespace OpenSim.Framework
                 RemotingAddress = args["remoting_address"].AsString();
             if (args["remoting_port"] != null)
                 UInt32.TryParse(args["remoting_port"].AsString(), out m_remotingPort);
-            if (args["allow_alt_ports"] != null)
-                m_allow_alternate_ports = args["allow_alt_ports"].AsBoolean();
             if (args["proxy_url"] != null)
                 proxyUrl = args["proxy_url"].AsString();
             if (args["region_type"] != null)
@@ -1256,7 +1307,8 @@ namespace OpenSim.Framework
             kvp["http_port"] = HttpPort.ToString();
             kvp["internal_ip_address"] = InternalEndPoint.Address.ToString();
             kvp["internal_port"] = InternalEndPoint.Port.ToString();
-            kvp["alternate_ports"] = m_allow_alternate_ports.ToString();
+            // TODO: Remove in next major version
+            kvp["alternate_ports"] = "False";
             kvp["server_uri"] = ServerURI;
 
             return kvp;

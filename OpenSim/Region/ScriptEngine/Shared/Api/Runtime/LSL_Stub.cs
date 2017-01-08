@@ -426,6 +426,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_LSL_Functions.llGetAttached();
         }
 
+        public LSL_List llGetAttachedList(string id)
+        {
+            return m_LSL_Functions.llGetAttachedList(id);
+        }
+
         public LSL_List llGetBoundingBox(string obj)
         {
             return m_LSL_Functions.llGetBoundingBox(obj);
@@ -1460,6 +1465,21 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llSay(channelID, text);
         }
 
+        public LSL_Integer llScaleByFactor(double scaling_factor)
+        {
+            return m_LSL_Functions.llScaleByFactor(scaling_factor);
+        }
+
+        public LSL_Float llGetMaxScaleFactor()
+        {
+            return m_LSL_Functions.llGetMaxScaleFactor();
+        }
+
+        public LSL_Float llGetMinScaleFactor()
+        {
+            return m_LSL_Functions.llGetMinScaleFactor();
+        }
+
         public void llScaleTexture(double u, double v, int face)
         {
             m_LSL_Functions.llScaleTexture(u, v, face);
@@ -1560,7 +1580,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llSetVelocity(force, local);
         }
 
-		
+
         public void llSetAngularVelocity(LSL_Vector force, int local)
         {
             m_LSL_Functions.llSetAngularVelocity(force, local);
@@ -1975,7 +1995,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         {
             return m_LSL_Functions.llXorBase64StringsCorrect(str1, str2);
         }
-        
+
         public LSL_List llGetPrimMediaParams(int face, LSL_List rules)
         {
             return m_LSL_Functions.llGetPrimMediaParams(face, rules);
@@ -2016,7 +2036,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_LSL_Functions.llSetKeyframedMotion(frames, options);
         }
 
-        public void llSetPhysicsMaterial(int material_bits, float material_gravity_modifier, float material_restitution, float material_friction, float material_density)
+        public void llSetPhysicsMaterial(int material_bits, LSL_Float material_gravity_modifier, LSL_Float material_restitution, LSL_Float material_friction, LSL_Float material_density)
         {
             m_LSL_Functions.llSetPhysicsMaterial(material_bits, material_gravity_modifier, material_restitution, material_friction, material_density);
         }

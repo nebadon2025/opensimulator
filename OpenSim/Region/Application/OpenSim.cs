@@ -26,6 +26,7 @@
  */
 
 using System;
+using System.Threading;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -74,7 +75,7 @@ namespace OpenSim
 
         private string m_timedScript = "disabled";
         private int m_timeInterval = 1200;
-        private Timer m_scriptTimer;
+        private System.Timers.Timer m_scriptTimer;
 
         public OpenSim(IConfigSource configSource) : base(configSource)
         {
@@ -125,6 +126,21 @@ namespace OpenSim
             m_log.Info("[OPENSIM MAIN]: Using async_call_method " + Util.FireAndForgetMethod);
         }
 
+        private static Mono.Unix.UnixSignal[] signals;
+
+
+        private Thread signal_thread = new Thread (delegate ()
+        {
+            while (true)
+            {
+                // Wait for a signal to be delivered
+                int index = Mono.Unix.UnixSignal.WaitAny (signals, -1);
+
+                //Mono.Unix.Native.Signum signal = signals [index].Signum;
+                MainConsole.Instance.RunCommand("shutdown");
+            }
+        });
+
         /// <summary>
         /// Performs initialisation of the scene, such as loading configuration from disk.
         /// </summary>
@@ -134,6 +150,24 @@ namespace OpenSim
             m_log.Info("========================= STARTING OPENSIM =========================");
             m_log.Info("====================================================================");
 
+            if(!Util.IsWindows())
+            {
+                try
+                {
+                    // linux mac os specifics
+                    signals = new Mono.Unix.UnixSignal[]
+                    {
+                        new Mono.Unix.UnixSignal(Mono.Unix.Native.Signum.SIGTERM)
+                    };
+                    signal_thread.Start();
+                }
+                catch (Exception e)
+                {
+                    m_log.Info("Could not set up UNIX signal handlers. SIGTERM will not");
+                    m_log.InfoFormat("shut down gracefully: {0}", e.Message);
+                    m_log.Debug("Exception was: ", e);
+                }
+            }
             //m_log.InfoFormat("[OPENSIM MAIN]: GC Is Server GC: {0}", GCSettings.IsServerGC.ToString());
             // http://msdn.microsoft.com/en-us/library/bb384202.aspx
             //GCSettings.LatencyMode = GCLatencyMode.Batch;
@@ -172,6 +206,7 @@ namespace OpenSim
             MainServer.Instance.AddStreamHandler(new OpenSim.XSimStatusHandler(this));
             if (userStatsURI != String.Empty)
                 MainServer.Instance.AddStreamHandler(new OpenSim.UXSimStatusHandler(this));
+            MainServer.Instance.AddStreamHandler(new OpenSim.SimRobotsHandler());
 
             if (managedStatsURI != String.Empty)
             {
@@ -217,7 +252,7 @@ namespace OpenSim
             // Start timer script (run a script every xx seconds)
             if (m_timedScript != "disabled")
             {
-                m_scriptTimer = new Timer();
+                m_scriptTimer = new System.Timers.Timer();
                 m_scriptTimer.Enabled = true;
                 m_scriptTimer.Interval = m_timeInterval*1000;
                 m_scriptTimer.Elapsed += RunAutoTimerScript;
@@ -238,32 +273,32 @@ namespace OpenSim
 
             m_console.Commands.AddCommand("General", false, "change region",
                                           "change region <region name>",
-                                          "Change current console region", 
+                                          "Change current console region",
                                           ChangeSelectedRegion);
 
             m_console.Commands.AddCommand("Archiving", false, "save xml",
-                                          "save xml",
-                                          "Save a region's data in XML format", 
+                                          "save xml [<file name>]",
+                                          "Save a region's data in XML format",
                                           SaveXml);
 
             m_console.Commands.AddCommand("Archiving", false, "save xml2",
-                                          "save xml2",
-                                          "Save a region's data in XML2 format", 
+                                          "save xml2 [<file name>]",
+                                          "Save a region's data in XML2 format",
                                           SaveXml2);
 
             m_console.Commands.AddCommand("Archiving", false, "load xml",
-                                          "load xml [-newIDs [<x> <y> <z>]]",
+                                          "load xml [<file name> [-newUID [<x> <y> <z>]]]",
                                           "Load a region's data from XML format",
                                           LoadXml);
 
             m_console.Commands.AddCommand("Archiving", false, "load xml2",
-                                          "load xml2",
-                                          "Load a region's data from XML2 format", 
+                                          "load xml2 [<file name>]",
+                                          "Load a region's data from XML2 format",
                                           LoadXml2);
 
             m_console.Commands.AddCommand("Archiving", false, "save prims xml2",
                                           "save prims xml2 [<prim name> <file name>]",
-                                          "Save named prim to XML2", 
+                                          "Save named prim to XML2",
                                           SavePrimsXml2);
 
             m_console.Commands.AddCommand("Archiving", false, "load oar",
@@ -317,7 +352,7 @@ namespace OpenSim
 
             m_console.Commands.AddCommand("Objects", false, "edit scale",
                                           "edit scale <name> <x> <y> <z>",
-                                          "Change the scale of a named prim", 
+                                          "Change the scale of a named prim",
                                           HandleEditScale);
 
             m_console.Commands.AddCommand("Objects", false, "rotate scene",
@@ -344,44 +379,44 @@ namespace OpenSim
 
             m_console.Commands.AddCommand("Users", false, "show users",
                                           "show users [full]",
-                                          "Show user data for users currently on the region", 
+                                          "Show user data for users currently on the region",
                                           "Without the 'full' option, only users actually on the region are shown."
                                             + "  With the 'full' option child agents of users in neighbouring regions are also shown.",
                                           HandleShow);
 
             m_console.Commands.AddCommand("Comms", false, "show connections",
                                           "show connections",
-                                          "Show connection data", 
+                                          "Show connection data",
                                           HandleShow);
 
             m_console.Commands.AddCommand("Comms", false, "show circuits",
                                           "show circuits",
-                                          "Show agent circuit data", 
+                                          "Show agent circuit data",
                                           HandleShow);
 
             m_console.Commands.AddCommand("Comms", false, "show pending-objects",
                                           "show pending-objects",
-                                          "Show # of objects on the pending queues of all scene viewers", 
+                                          "Show # of objects on the pending queues of all scene viewers",
                                           HandleShow);
 
             m_console.Commands.AddCommand("General", false, "show modules",
                                           "show modules",
-                                          "Show module data", 
+                                          "Show module data",
                                           HandleShow);
 
             m_console.Commands.AddCommand("Regions", false, "show regions",
                                           "show regions",
-                                          "Show region data", 
+                                          "Show region data",
                                           HandleShow);
-            
+
             m_console.Commands.AddCommand("Regions", false, "show ratings",
                                           "show ratings",
-                                          "Show rating data", 
+                                          "Show rating data",
                                           HandleShow);
 
             m_console.Commands.AddCommand("Objects", false, "backup",
                                           "backup",
-                                          "Persist currently unsaved object changes immediately instead of waiting for the normal persistence call.", 
+                                          "Persist currently unsaved object changes immediately instead of waiting for the normal persistence call.",
                                           RunCommand);
 
             m_console.Commands.AddCommand("Regions", false, "create region",
@@ -395,22 +430,22 @@ namespace OpenSim
 
             m_console.Commands.AddCommand("Regions", false, "restart",
                                           "restart",
-                                          "Restart the currently selected region(s) in this instance", 
+                                          "Restart the currently selected region(s) in this instance",
                                           RunCommand);
 
             m_console.Commands.AddCommand("General", false, "command-script",
                                           "command-script <script>",
-                                          "Run a command script from file", 
+                                          "Run a command script from file",
                                           RunCommand);
 
             m_console.Commands.AddCommand("Regions", false, "remove-region",
                                           "remove-region <name>",
-                                          "Remove a region from this simulator", 
+                                          "Remove a region from this simulator",
                                           RunCommand);
 
             m_console.Commands.AddCommand("Regions", false, "delete-region",
                                           "delete-region <name>",
-                                          "Delete a region from disk", 
+                                          "Delete a region from disk",
                                           RunCommand);
 
             m_console.Commands.AddCommand("Estates", false, "estate create",
@@ -441,7 +476,7 @@ namespace OpenSim
             {
                 RunCommandScript(m_shutdownCommandsFile);
             }
-            
+
             base.ShutdownSpecific();
         }
 
@@ -480,7 +515,7 @@ namespace OpenSim
         private void KickUserCommand(string module, string[] cmdparams)
         {
             bool force = false;
-            
+
             OptionSet options = new OptionSet().Add("f|force", delegate (string v) { force = v != null; });
 
             List<string> mainParams = options.Parse(cmdparams);
@@ -577,7 +612,7 @@ namespace OpenSim
                 MainConsole.Instance.Output(usage);
                 return;
             }
-            
+
             float angle = (float)(Convert.ToSingle(args[2]) / 180.0 * Math.PI);
             OpenMetaverse.Quaternion rot = OpenMetaverse.Quaternion.CreateFromAxisAngle(0, 0, 1, angle);
 
@@ -589,7 +624,7 @@ namespace OpenSim
 
             Vector3 center = new Vector3(centerX, centerY, 0.0f);
 
-            SceneManager.ForEachSelectedScene(delegate(Scene scene) 
+            SceneManager.ForEachSelectedScene(delegate(Scene scene)
             {
                 scene.ForEachSOG(delegate(SceneObjectGroup sog)
                 {
@@ -741,8 +776,8 @@ namespace OpenSim
             CreateRegion(regInfo, true, out scene);
 
             if (changed)
-	            m_estateDataService.StoreEstateSettings(regInfo.EstateSettings);
-        
+                m_estateDataService.StoreEstateSettings(regInfo.EstateSettings);
+
             scene.Start();
         }
 
@@ -845,8 +880,8 @@ namespace OpenSim
         protected override void HandleRestartRegion(RegionInfo whichRegion)
         {
             base.HandleRestartRegion(whichRegion);
- 
-            // Where we are restarting multiple scenes at once, a previous call to RefreshPrompt may have set the 
+
+            // Where we are restarting multiple scenes at once, a previous call to RefreshPrompt may have set the
             // m_console.ConsoleScene to null (indicating all scenes).
             if (m_console.ConsoleScene != null && whichRegion.RegionName == ((Scene)m_console.ConsoleScene).Name)
                 SceneManager.TrySetCurrentScene(whichRegion.RegionName);
@@ -879,7 +914,7 @@ namespace OpenSim
                     {
                         agents = SceneManager.GetCurrentSceneAvatars();
                     }
-                
+
                     MainConsole.Instance.Output(String.Format("\nAgents connected: {0}\n", agents.Count));
 
                     MainConsole.Instance.Output(
@@ -925,7 +960,7 @@ namespace OpenSim
 
                 case "modules":
                     SceneManager.ForEachSelectedScene(
-                        scene => 
+                        scene =>
                         {
                             MainConsole.Instance.OutputFormat("Loaded region modules in {0} are:", scene.Name);
 
@@ -961,16 +996,16 @@ namespace OpenSim
                     cdt.AddColumn("Ready?", 6);
                     cdt.AddColumn("Estate", ConsoleDisplayUtil.EstateNameSize);
                     SceneManager.ForEachScene(
-                        scene => 
-                        { 
-                            RegionInfo ri = scene.RegionInfo; 
+                        scene =>
+                        {
+                            RegionInfo ri = scene.RegionInfo;
                             cdt.AddRow(
-                                ri.RegionName, 
-                                ri.RegionID, 
-                                string.Format("{0},{1}", ri.RegionLocX, ri.RegionLocY), 
+                                ri.RegionName,
+                                ri.RegionID,
+                                string.Format("{0},{1}", ri.RegionLocX, ri.RegionLocY),
                                 string.Format("{0}x{1}", ri.RegionSizeX, ri.RegionSizeY),
-                                ri.InternalEndPoint.Port, 
-                                scene.Ready ? "Yes" : "No", 
+                                ri.InternalEndPoint.Port,
+                                scene.Ready ? "Yes" : "No",
                                 ri.EstateSettings.EstateName);
                         }
                     );
@@ -1068,7 +1103,7 @@ namespace OpenSim
         /// <param name="cmdparams"></param>
         protected void SavePrimsXml2(string module, string[] cmdparams)
         {
-            if (cmdparams.Length > 5)
+            if (cmdparams.Length > 4)
             {
                 SceneManager.SaveNamedPrimsToXml2(cmdparams[3], cmdparams[4]);
             }
@@ -1087,7 +1122,7 @@ namespace OpenSim
         {
             MainConsole.Instance.Output("PLEASE NOTE, save-xml is DEPRECATED and may be REMOVED soon.  If you are using this and there is some reason you can't use save-xml2, please file a mantis detailing the reason.");
 
-            if (cmdparams.Length > 0)
+            if (cmdparams.Length > 2)
             {
                 SceneManager.SaveCurrentSceneToXml(cmdparams[2]);
             }

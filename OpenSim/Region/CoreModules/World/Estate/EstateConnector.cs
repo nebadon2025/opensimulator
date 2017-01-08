@@ -45,17 +45,22 @@ namespace OpenSim.Region.CoreModules.World.Estate
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        protected XEstateModule m_EstateModule;
+        protected EstateModule m_EstateModule;
+        private string token;
+        uint port = 0;
 
-        public EstateConnector(XEstateModule module)
+        public EstateConnector(EstateModule module, string _token, uint _port)
         {
             m_EstateModule = module;
+            token = _token;
+            port = _port;
         }
 
         public void SendTeleportHomeOneUser(uint EstateID, UUID PreyID)
         {
             Dictionary<string, object> sendData = new Dictionary<string, object>();
             sendData["METHOD"] = "teleport_home_one_user";
+            sendData["TOKEN"] = token;
 
             sendData["EstateID"] = EstateID.ToString();
             sendData["PreyID"] = PreyID.ToString();
@@ -67,6 +72,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
         {
             Dictionary<string, object> sendData = new Dictionary<string, object>();
             sendData["METHOD"] = "teleport_home_all_users";
+            sendData["TOKEN"] = token;
 
             sendData["EstateID"] = EstateID.ToString();
 
@@ -77,6 +83,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
         {
             Dictionary<string, object> sendData = new Dictionary<string, object>();
             sendData["METHOD"] = "update_covenant";
+            sendData["TOKEN"] = token;
 
             sendData["CovenantID"] = CovenantID.ToString();
             sendData["EstateID"] = EstateID.ToString();
@@ -99,6 +106,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
         {
             Dictionary<string, object> sendData = new Dictionary<string, object>();
             sendData["METHOD"] = "update_estate";
+            sendData["TOKEN"] = token;
 
             sendData["EstateID"] = EstateID.ToString();
 
@@ -119,6 +127,7 @@ namespace OpenSim.Region.CoreModules.World.Estate
         {
             Dictionary<string, object> sendData = new Dictionary<string, object>();
             sendData["METHOD"] = "estate_message";
+            sendData["TOKEN"] = token;
 
             sendData["EstateID"] = EstateID.ToString();
             sendData["FromID"] = FromID.ToString();
@@ -132,47 +141,43 @@ namespace OpenSim.Region.CoreModules.World.Estate
         {
             List<UUID> regions = m_EstateModule.Scenes[0].GetEstateRegions((int)EstateID);
 
-            UUID ScopeID = UUID.Zero;
+            // Don't send to the same instance twice
+            List<string> done = new List<string>();
 
             // Handle local regions locally
-            //
             lock (m_EstateModule.Scenes)
             {
                 foreach (Scene s in m_EstateModule.Scenes)
                 {
-                    if (regions.Contains(s.RegionInfo.RegionID))
+                    RegionInfo sreg = s.RegionInfo;
+                    if (regions.Contains(sreg.RegionID))
                     {
-                        // All regions in one estate are in the same scope.
-                        // Use that scope.
-                        //
-                        ScopeID = s.RegionInfo.ScopeID;
-                        regions.Remove(s.RegionInfo.RegionID);
+                        string url = sreg.ExternalHostName + ":" + sreg.HttpPort;
+                        regions.Remove(sreg.RegionID);
+                        if(!done.Contains(url)) // we may have older regs with same url lost in dbs
+                            done.Add(url);
                     }
                 }
             }
 
-            // Our own region should always be in the above list.
-            // In a standalone this would not be true. But then,
-            // Scope ID is not relevat there. Use first scope.
-            //
-            if (ScopeID == UUID.Zero)
-                ScopeID = m_EstateModule.Scenes[0].RegionInfo.ScopeID;
+            if(regions.Count == 0)
+                return;
 
-            // Don't send to the same instance twice
-            //
-            List<string> done = new List<string>();
+            Scene baseScene = m_EstateModule.Scenes[0];
+            UUID ScopeID = baseScene.RegionInfo.ScopeID;
+            IGridService gridService = baseScene.GridService;
+            if(gridService == null)
+                return;
 
             // Send to remote regions
-            //
             foreach (UUID regionID in regions)
             {
-                GridRegion region = m_EstateModule.Scenes[0].GridService.GetRegionByUUID(ScopeID, regionID);
+                GridRegion region = gridService.GetRegionByUUID(ScopeID, regionID);
                 if (region != null)
                 {
-                    string url = "http://" + region.ExternalHostName + ":" + region.HttpPort;
-                    if (done.Contains(url))
+                    string url = region.ExternalHostName + ":" + region.HttpPort;
+                    if(done.Contains(url))
                         continue;
-
                     Call(region, sendData);
                     done.Add(url);
                 }
@@ -185,7 +190,12 @@ namespace OpenSim.Region.CoreModules.World.Estate
             // m_log.DebugFormat("[XESTATE CONNECTOR]: queryString = {0}", reqString);
             try
             {
-                string url = "http://" + region.ExternalHostName + ":" + region.HttpPort;
+                string url = "";
+                if(port != 0)
+                    url = "http://" + region.ExternalHostName + ":" + port;
+                else
+                    url = region.ServerURI;
+
                 string reply = SynchronousRestFormsRequester.MakeRequest("POST",
                         url + "/estate",
                         reqString);

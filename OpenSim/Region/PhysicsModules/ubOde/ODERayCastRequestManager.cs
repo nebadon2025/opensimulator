@@ -139,7 +139,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                             continue;
                         }
                     }
-                   
+
                     CurrentRayFilter = req.filter;
                     CurrentMaxCount = req.Count;
 
@@ -279,7 +279,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
         /// Method that actually initiates the raycast with spaces
         /// </summary>
         /// <param name="req"></param>
-        /// 
+        ///
 
         private void NoContacts(ODERayRequest req)
         {
@@ -317,8 +317,17 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                 // current ode land to ray collisions is very bad
                 // so for now limit its range badly
                 if (req.length > 60.0f)
-                    d.GeomRaySetLength(ray, 60.0f);
+                {
+                    Vector3 t = req.Normal * req.length;
+                    float tmp = t.X * t.X + t.Y * t.Y;
+                    if(tmp > 2500)
+                    {
+                        float tmp2 = req.length * req.length - tmp + 2500;
+                        tmp2 = (float)Math.Sqrt(tmp2);
+                        d.GeomRaySetLength(ray, tmp2);
+                    }
 
+                }
                 d.SpaceCollide2(ray, m_scene.GroundSpace, IntPtr.Zero, nearCallback);
             }
 
@@ -479,7 +488,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
             newcontactgeom = (d.ContactGeom)Marshal.PtrToStructure(contactptr, typeof(d.ContactGeom));
             return true;
         }
-        
+
         // This is the standard Near. g1 is the ray
         private void near(IntPtr space, IntPtr g1, IntPtr g2)
         {
@@ -521,7 +530,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
             uint col1 = d.GeomGetCollideBits(g1);
             uint col2 = d.GeomGetCollideBits(g2);
 */
-            
+
             uint ID = 0;
             PhysicsActor p2 = null;
 
@@ -662,7 +671,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
             {
                 d.GeomDestroy(Plane);
                 Plane = IntPtr.Zero;
-            }           
+            }
         }
     }
 

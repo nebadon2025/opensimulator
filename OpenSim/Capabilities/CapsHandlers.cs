@@ -53,31 +53,15 @@ namespace OpenSim.Framework.Capabilities
         /// <param name="httpListener">base HTTP server</param>
         /// <param name="httpListenerHostname">host name of the HTTP server</param>
         /// <param name="httpListenerPort">HTTP port</param>
-        public CapsHandlers(BaseHttpServer httpListener, string httpListenerHostname, uint httpListenerPort)
-            : this(httpListener,httpListenerHostname,httpListenerPort, false)
-        {
-        }
-
-        /// <summary></summary>
-        /// CapsHandlers is a cap handler container but also takes
-        /// care of adding and removing cap handlers to and from the
-        /// supplied BaseHttpServer.
-        /// </summary>
-        /// <param name="httpListener">base HTTP server</param>
-        /// <param name="httpListenerHostname">host name of the HTTP
-        /// server</param>
-        /// <param name="httpListenerPort">HTTP port</param>
-        public CapsHandlers(IHttpServer httpListener, string httpListenerHostname, uint httpListenerPort, bool https)
-        {
+        public CapsHandlers(IHttpServer httpListener, string httpListenerHostname, uint httpListenerPort)
+           {
             m_httpListener = httpListener;
             m_httpListenerHostName = httpListenerHostname;
             m_httpListenerPort = httpListenerPort;
-            m_useSSL = https;
-            if (httpListener != null && m_useSSL)
-            {
-                m_httpListenerHostName = httpListener.SSLCommonName;
-                m_httpListenerPort = httpListener.SSLPort;
-            }
+            if (httpListener != null && httpListener.UseSSL)
+                m_useSSL = true;
+            else
+                m_useSSL = false;
         }
 
         /// <summary>
@@ -128,9 +112,9 @@ namespace OpenSim.Framework.Capabilities
                         m_httpListener.RemoveStreamHandler("POST", m_capsHandlers[idx].Path);
                         m_capsHandlers.Remove(idx);
                     }
-    
+
                     if (null == value) return;
-    
+
                     m_capsHandlers[idx] = value;
                     m_httpListener.AddStreamHandler(value);
                 }
@@ -163,7 +147,7 @@ namespace OpenSim.Framework.Capabilities
         {
             Hashtable caps = new Hashtable();
             string protocol = "http://";
-            
+
             if (m_useSSL)
                 protocol = "https://";
 

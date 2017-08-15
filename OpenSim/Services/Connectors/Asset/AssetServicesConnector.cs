@@ -34,7 +34,7 @@ using System.Reflection;
 using System.Timers;
 using Nini.Config;
 using OpenSim.Framework;
-using OpenSim.Framework.Console;
+using OpenSim.Framework.Monitoring;
 using OpenSim.Services.Interfaces;
 using OpenMetaverse;
 
@@ -135,8 +135,11 @@ namespace OpenSim.Services.Connectors
 
             for (int i = 0 ; i < 2 ; i++)
             {
-                m_fetchThreads[i] = new Thread(AssetRequestProcessor);
-                m_fetchThreads[i].Start();
+                m_fetchThreads[i] = WorkManager.StartThread(AssetRequestProcessor,
+                            String.Format("GetTextureWorker{0}", i),
+                            ThreadPriority.Normal,
+                            true,
+                            false);
             }
         }
 
@@ -243,8 +246,12 @@ namespace OpenSim.Services.Connectors
             string uri = MapServer(id) + "/assets/" + id;
 
             AssetBase asset = null;
+
             if (m_Cache != null)
-                asset = m_Cache.Get(id);
+            {
+                if (!m_Cache.Get(id, out asset))
+                    return null;
+            }
 
             if (asset == null || asset.Data == null || asset.Data.Length == 0)
             {
@@ -275,17 +282,22 @@ namespace OpenSim.Services.Connectors
         {
 //            m_log.DebugFormat("[ASSET SERVICE CONNECTOR]: Cache request for {0}", id);
 
+            AssetBase asset = null;
             if (m_Cache != null)
-                return m_Cache.Get(id);
+            {
+                m_Cache.Get(id, out asset);
+            }
 
-            return null;
+            return asset;
         }
 
         public AssetMetadata GetMetadata(string id)
         {
             if (m_Cache != null)
             {
-                AssetBase fullAsset = m_Cache.Get(id);
+                AssetBase fullAsset;
+                if (!m_Cache.Get(id, out fullAsset))
+                    return null;
 
                 if (fullAsset != null)
                     return fullAsset.Metadata;
@@ -301,7 +313,9 @@ namespace OpenSim.Services.Connectors
         {
             if (m_Cache != null)
             {
-                AssetBase fullAsset = m_Cache.Get(id);
+                AssetBase fullAsset;
+                if (!m_Cache.Get(id, out fullAsset))
+                    return null;
 
                 if (fullAsset != null)
                     return fullAsset.Data;
@@ -338,8 +352,8 @@ namespace OpenSim.Services.Connectors
             public string id;
         }
 
-        private OpenMetaverse.BlockingQueue<QueuedAssetRequest> m_requestQueue =
-                new OpenMetaverse.BlockingQueue<QueuedAssetRequest>();
+        private OpenSim.Framework.BlockingQueue<QueuedAssetRequest> m_requestQueue =
+                new OpenSim.Framework.BlockingQueue<QueuedAssetRequest>();
 
         private void AssetRequestProcessor()
         {
@@ -347,8 +361,10 @@ namespace OpenSim.Services.Connectors
 
             while (true)
             {
-                r = m_requestQueue.Dequeue();
-
+                r = m_requestQueue.Dequeue(4500);
+                Watchdog.UpdateThread();
+                if(r== null)
+                    continue;
                 string uri = r.uri;
                 string id = r.id;
 
@@ -389,7 +405,10 @@ namespace OpenSim.Services.Connectors
 
             AssetBase asset = null;
             if (m_Cache != null)
-                asset = m_Cache.Get(id);
+            {
+                if (!m_Cache.Get(id, out asset))
+                    return false;
+            }
 
             if (asset == null || asset.Data == null || asset.Data.Length == 0)
             {
@@ -590,7 +609,7 @@ namespace OpenSim.Services.Connectors
             AssetBase asset = null;
 
             if (m_Cache != null)
-                asset = m_Cache.Get(id);
+                m_Cache.Get(id, out asset);
 
             if (asset == null)
             {

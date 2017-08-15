@@ -149,7 +149,7 @@ namespace OpenSim.Region.CoreModules.Avatar.UserProfiles
 
             if (profileConfig == null)
             {
-                m_log.Debug("[PROFILES]: UserProfiles disabled, no configuration");
+                //m_log.Debug("[PROFILES]: UserProfiles disabled, no configuration");
                 Enabled = false;
                 return;
             }
@@ -1839,12 +1839,12 @@ namespace OpenSim.Region.CoreModules.Avatar.UserProfiles
             webRequest.ContentType = "application/json-rpc";
             webRequest.Method = "POST";
 
-            using(Stream dataStream = webRequest.GetRequestStream())
-                dataStream.Write(content,0,content.Length);
-
             WebResponse webResponse = null;
             try
             {
+                using(Stream dataStream = webRequest.GetRequestStream())
+                    dataStream.Write(content,0,content.Length);
+
                 webResponse = webRequest.GetResponse();
             }
             catch (WebException e)
@@ -1920,12 +1920,12 @@ namespace OpenSim.Region.CoreModules.Avatar.UserProfiles
             webRequest.ContentType = "application/json-rpc";
             webRequest.Method = "POST";
 
-            using(Stream dataStream = webRequest.GetRequestStream())
-                dataStream.Write(content,0,content.Length);
-
             WebResponse webResponse = null;
             try
             {
+                using(Stream dataStream = webRequest.GetRequestStream())
+                    dataStream.Write(content,0,content.Length);
+
                 webResponse = webRequest.GetResponse();
             }
             catch (WebException e)

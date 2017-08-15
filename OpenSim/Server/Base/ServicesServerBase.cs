@@ -61,6 +61,10 @@ namespace OpenSim.Server.Base
         //
         private bool m_Running = true;
 
+#if (_MONO)
+        private static Mono.Unix.UnixSignal[] signals;
+#endif
+
         // Handle all the automagical stuff
         //
         public ServicesServerBase(string prompt, string[] args) : base()
@@ -183,6 +187,42 @@ namespace OpenSim.Server.Base
             RegisterCommonCommands();
             RegisterCommonComponents(Config);
 
+#if (_MONO)
+            Thread signal_thread = new Thread (delegate ()
+            {
+                while (true)
+                {
+                    // Wait for a signal to be delivered
+                    int index = Mono.Unix.UnixSignal.WaitAny (signals, -1);
+
+                    //Mono.Unix.Native.Signum signal = signals [index].Signum;
+                    ShutdownSpecific();
+                    m_Running = false;
+                    Environment.Exit(0);
+                }
+            });
+
+            if(!Util.IsWindows())
+            {
+                try
+                {
+                    // linux mac os specifics
+                    signals = new Mono.Unix.UnixSignal[]
+                    {
+                        new Mono.Unix.UnixSignal(Mono.Unix.Native.Signum.SIGTERM)
+                    };
+                    ignal_thread.IsBackground = true;
+                    signal_thread.Start();
+                }
+                catch (Exception e)
+                {
+                    m_log.Info("Could not set up UNIX signal handlers. SIGTERM will not");
+                    m_log.InfoFormat("shut down gracefully: {0}", e.Message);
+                    m_log.Debug("Exception was: ", e);
+                }
+            }
+#endif
+
             // Allow derived classes to perform initialization that
             // needs to be done after the console has opened
             Initialise();
@@ -210,6 +250,9 @@ namespace OpenSim.Server.Base
                 }
             }
 
+            MemoryWatchdog.Enabled = false;
+            Watchdog.Enabled = false;
+            WorkManager.Stop();
             RemovePIDFile();
 
             return 0;

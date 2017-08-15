@@ -41,6 +41,7 @@ using OpenSim.Framework;
 using OpenSim.Framework.Capabilities;
 using OpenSim.Framework.Console;
 using OpenSim.Framework.Servers;
+using OpenSim.Framework.Monitoring;
 using OpenSim.Framework.Servers.HttpServer;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
@@ -92,6 +93,7 @@ namespace OpenSim.Region.CoreModules.World.Land
 
         //ubit: removed the readonly so i can move it around
         private Dictionary<int, ILandObject> m_landList = new Dictionary<int, ILandObject>();
+        private Dictionary<UUID, int> m_landUUIDList = new Dictionary<UUID, int>();
 
         private int m_lastLandLocalID = LandChannel.START_LAND_LOCAL_ID - 1;
 
@@ -149,9 +151,11 @@ namespace OpenSim.Region.CoreModules.World.Land
             parcelInfoCache.Size = 30; // the number of different parcel requests in this region to cache
             parcelInfoCache.DefaultTTL = new TimeSpan(0, 5, 0);
 
+            m_scene.EventManager.OnObjectAddedToScene += EventManagerOnParcelPrimCountAdd;
             m_scene.EventManager.OnParcelPrimCountAdd += EventManagerOnParcelPrimCountAdd;
-            m_scene.EventManager.OnParcelPrimCountUpdate += EventManagerOnParcelPrimCountUpdate;
+
             m_scene.EventManager.OnObjectBeingRemovedFromScene += EventManagerOnObjectBeingRemovedFromScene;
+            m_scene.EventManager.OnParcelPrimCountUpdate += EventManagerOnParcelPrimCountUpdate;
             m_scene.EventManager.OnRequestParcelPrimCountUpdate += EventManagerOnRequestParcelPrimCountUpdate;
 
             m_scene.EventManager.OnAvatarEnteringNewParcel += EventManagerOnAvatarEnteringNewParcel;
@@ -213,6 +217,7 @@ namespace OpenSim.Region.CoreModules.World.Land
             client.OnParcelEjectUser += ClientOnParcelEjectUser;
             client.OnParcelFreezeUser += ClientOnParcelFreezeUser;
             client.OnSetStartLocationRequest += ClientOnSetHome;
+            client.OnParcelBuyPass += ClientParcelBuyPass;
         }
 
         public void EventMakeChildAgent(ScenePresence avatar)
@@ -247,7 +252,10 @@ namespace OpenSim.Region.CoreModules.World.Land
             lock (m_landList)
             {
                 if (m_landList.TryGetValue(local_id, out land))
+                {
                     land.LandData = newData;
+                    m_landUUIDList[newData.GlobalID] = local_id;
+                }
             }
 
             if (land != null)
@@ -268,7 +276,11 @@ namespace OpenSim.Region.CoreModules.World.Land
             //Remove all the land objects in the sim and add a blank, full sim land object set to public
             lock (m_landList)
             {
+                foreach(ILandObject parcel in m_landList.Values)
+                    parcel.Clear();
+
                 m_landList.Clear();
+                m_landUUIDList.Clear();
                 m_lastLandLocalID = LandChannel.START_LAND_LOCAL_ID - 1;
 
                 m_landIDList = new int[m_scene.RegionInfo.RegionSizeX / LandUnit, m_scene.RegionInfo.RegionSizeY / LandUnit];
@@ -287,8 +299,10 @@ namespace OpenSim.Region.CoreModules.World.Land
 
             fullSimParcel.SetLandBitmap(fullSimParcel.GetSquareLandBitmap(0, 0,
                                             (int)m_scene.RegionInfo.RegionSizeX, (int)m_scene.RegionInfo.RegionSizeY));
-            fullSimParcel.LandData.OwnerID = m_scene.RegionInfo.EstateSettings.EstateOwner;
-            fullSimParcel.LandData.ClaimDate = Util.UnixTimeSinceEpoch();
+            LandData ldata = fullSimParcel.LandData;
+            ldata.SimwideArea = ldata.Area;
+            ldata.OwnerID = m_scene.RegionInfo.EstateSettings.EstateOwner;
+            ldata.ClaimDate = Util.UnixTimeSinceEpoch();
 
             return AddLandObject(fullSimParcel);
         }
@@ -525,6 +539,118 @@ namespace OpenSim.Region.CoreModules.World.Land
             }
         }
 
+        public void ClientParcelBuyPass(IClientAPI remote_client, UUID targetID, int landLocalID)
+        {
+            ILandObject land;
+            lock (m_landList)
+            {
+                m_landList.TryGetValue(landLocalID, out land);
+            }
+            // trivial checks
+            if(land == null)
+                return;
+
+            LandData ldata = land.LandData;
+
+            if(ldata == null)
+                return;
+
+            if(ldata.OwnerID == targetID)
+                return;
+
+            if(ldata.PassHours == 0)
+                return;
+
+            // don't allow passes on group owned until we can give money to groups
+            if(ldata.IsGroupOwned)
+            {
+                remote_client.SendAgentAlertMessage("pass to group owned parcel not suported", false);
+                return;
+            }
+
+            if((ldata.Flags & (uint)ParcelFlags.UsePassList) == 0)
+                return;
+
+            int cost = ldata.PassPrice;
+
+            int idx = land.LandData.ParcelAccessList.FindIndex(
+                delegate(LandAccessEntry e)
+                {
+                    if (e.AgentID == targetID && e.Flags == AccessList.Access)
+                        return true;
+                    return false;
+                });
+            int now = Util.UnixTimeSinceEpoch();
+            int expires = (int)(3600.0 * ldata.PassHours + 0.5f);
+            int currenttime = -1;
+            if (idx != -1)
+            {
+                if(ldata.ParcelAccessList[idx].Expires == 0)
+                {
+                    remote_client.SendAgentAlertMessage("You already have access to parcel", false);
+                    return;
+                }
+
+                currenttime = ldata.ParcelAccessList[idx].Expires - now;
+                if(currenttime > (int)(0.25f * expires + 0.5f))
+                {
+                    if(currenttime > 3600)
+                        remote_client.SendAgentAlertMessage(string.Format("You already have a pass valid for {0:0.###} hours",
+                                    currenttime/3600f), false);
+                   else if(currenttime > 60)
+                        remote_client.SendAgentAlertMessage(string.Format("You already have a pass valid for {0:0.##} minutes",
+                                    currenttime/60f), false);
+                   else
+                        remote_client.SendAgentAlertMessage(string.Format("You already have a pass valid for {0:0.#} seconds",
+                                    currenttime), false);
+                    return;
+                }
+            }
+            
+            LandAccessEntry entry = new LandAccessEntry();
+            entry.AgentID = targetID;
+            entry.Flags = AccessList.Access;
+            entry.Expires = now + expires;
+            if(currenttime > 0)
+                entry.Expires += currenttime;
+            IMoneyModule mm = m_scene.RequestModuleInterface<IMoneyModule>();
+            if(cost != 0 && mm != null)
+            {
+                WorkManager.RunInThreadPool(
+                delegate
+                {
+                    string regionName = m_scene.RegionInfo.RegionName;
+
+                    if (!mm.AmountCovered(remote_client.AgentId, cost))
+                    {
+                        remote_client.SendAgentAlertMessage(String.Format("Insufficient funds in region '{0}' money system", regionName), true); 
+                        return;
+                    }
+
+                    string payDescription = String.Format("Parcel '{0}' at region '{1} {2:0.###} hours access pass", ldata.Name, regionName, ldata.PassHours);
+
+                    if(!mm.MoveMoney(remote_client.AgentId, ldata.OwnerID, cost,MoneyTransactionType.LandPassSale, payDescription))
+                    {
+                        remote_client.SendAgentAlertMessage("Sorry pass payment processing failed, please try again later", true); 
+                        return;
+                    }
+
+                    if (idx != -1)
+                        ldata.ParcelAccessList.RemoveAt(idx);
+                    ldata.ParcelAccessList.Add(entry);
+                    m_scene.EventManager.TriggerLandObjectUpdated((uint)land.LandData.LocalID, land);
+                    return;
+                }, null, "ParcelBuyPass");
+            }
+            else
+            {
+                if (idx != -1)
+                    ldata.ParcelAccessList.RemoveAt(idx);
+                ldata.ParcelAccessList.Add(entry);
+                m_scene.EventManager.TriggerLandObjectUpdated((uint)land.LandData.LocalID, land);
+            }
+        }
+
         public void ClientOnParcelAccessListRequest(UUID agentID, UUID sessionID, uint flags, int sequenceID,
                                                     int landLocalID, IClientAPI remote_client)
         {
@@ -584,10 +710,8 @@ namespace OpenSim.Region.CoreModules.World.Land
         /// The land object being added.
         /// Will return null if this overlaps with an existing parcel that has not had its bitmap adjusted.
         /// </param>
-        public ILandObject AddLandObject(ILandObject land)
+        public ILandObject AddLandObject(ILandObject new_land)
         {
-            ILandObject new_land = land.Copy();
-
             // Only now can we add the prim counts to the land object - we rely on the global ID which is generated
             // as a random UUID inside LandData initialization
             if (m_primCountModule != null)
@@ -652,6 +776,7 @@ namespace OpenSim.Region.CoreModules.World.Land
                 }
 
                 m_landList.Add(newLandLocalID, new_land);
+                m_landUUIDList[new_land.LandData.GlobalID] = newLandLocalID;
                 m_lastLandLocalID++;
             }
 
@@ -668,6 +793,7 @@ namespace OpenSim.Region.CoreModules.World.Land
         public void removeLandObject(int local_id)
         {
             ILandObject land;
+            UUID landGlobalID = UUID.Zero;
             lock (m_landList)
             {
                 for (int x = 0; x < m_landIDList.GetLength(0); x++)
@@ -686,9 +812,18 @@ namespace OpenSim.Region.CoreModules.World.Land
 
                 land = m_landList[local_id];
                 m_landList.Remove(local_id);
+                if(land != null && land.LandData != null)
+                {
+                    landGlobalID = land.LandData.GlobalID;
+                    m_landUUIDList.Remove(landGlobalID);
+                }
             }
 
-            m_scene.EventManager.TriggerLandObjectRemoved(land.LandData.GlobalID);
+            if(landGlobalID != UUID.Zero)
+            {
+                m_scene.EventManager.TriggerLandObjectRemoved(landGlobalID);
+                land.Clear();
+            }
         }
 
         /// <summary>
@@ -736,9 +871,27 @@ namespace OpenSim.Region.CoreModules.World.Land
                     }
                 }
             }
-
+            master.LandData.Dwell += slave.LandData.Dwell;
             removeLandObject(slave.LandData.LocalID);
             UpdateLandObject(master.LandData.LocalID, master.LandData);
+        }
+
+        public ILandObject GetLandObject(UUID globalID)
+        {
+            lock (m_landList)
+            {
+                int lid = -1;
+                if(m_landUUIDList.TryGetValue(globalID, out lid) && lid >= 0)
+                {
+                    if (m_landList.ContainsKey(lid))
+                    {
+                        return m_landList[lid];
+                    }
+                    else
+                        m_landUUIDList.Remove(globalID); // auto heal
+                }
+            }
+            return null;
         }
 
         public ILandObject GetLandObject(int parcelLocalID)
@@ -813,6 +966,9 @@ namespace OpenSim.Region.CoreModules.World.Land
                     throw new Exception("Error: Parcel not found at point " + x + ", " + y);
             }
 
+            if(m_landList.Count == 0  || m_landIDList == null)
+                return null;
+
             lock (m_landIDList)
             {
                 try
@@ -824,8 +980,6 @@ namespace OpenSim.Region.CoreModules.World.Land
                         return null;
                 }
             }
-
-            return m_landList[m_landIDList[x / 4, y / 4]];
         }
 
         // Create a 'parcel is here' bitmap for the parcel identified by the passed landID
@@ -1252,7 +1406,7 @@ namespace OpenSim.Region.CoreModules.World.Land
                     {
                         if (!temp.Contains(currentParcel))
                         {
-                            if (!currentParcel.IsEitherBannedOrRestricted(remote_client.AgentId))
+                            if (!currentParcel.IsBannedFromLand(remote_client.AgentId))
                             {
                                 currentParcel.ForceUpdateLandInfo();
                                 temp.Add(currentParcel);
@@ -1346,7 +1500,7 @@ namespace OpenSim.Region.CoreModules.World.Land
 
         public void ClientOnParcelObjectOwnerRequest(int local_id, IClientAPI remote_client)
         {
-            ILandObject land;
+            ILandObject land = null;
             lock (m_landList)
             {
                 m_landList.TryGetValue(local_id, out land);
@@ -1355,7 +1509,7 @@ namespace OpenSim.Region.CoreModules.World.Land
             if (land != null)
             {
                 m_scene.EventManager.TriggerParcelPrimCountUpdate();
-                m_landList[local_id].SendLandObjectOwners(remote_client);
+                land.SendLandObjectOwners(remote_client);
             }
             else
             {
@@ -1365,7 +1519,7 @@ namespace OpenSim.Region.CoreModules.World.Land
 
         public void ClientOnParcelGodForceOwner(int local_id, UUID ownerID, IClientAPI remote_client)
         {
-            ILandObject land;
+            ILandObject land = null;
             lock (m_landList)
             {
                 m_landList.TryGetValue(local_id, out land);
@@ -1388,7 +1542,7 @@ namespace OpenSim.Region.CoreModules.World.Land
 
         public void ClientOnParcelAbandonRequest(int local_id, IClientAPI remote_client)
         {
-            ILandObject land;
+            ILandObject land = null;
             lock (m_landList)
             {
                 m_landList.TryGetValue(local_id, out land);
@@ -1412,7 +1566,7 @@ namespace OpenSim.Region.CoreModules.World.Land
 
         public void ClientOnParcelReclaim(int local_id, IClientAPI remote_client)
         {
-            ILandObject land;
+            ILandObject land = null;
             lock (m_landList)
             {
                 m_landList.TryGetValue(local_id, out land);
@@ -1498,17 +1652,16 @@ namespace OpenSim.Region.CoreModules.World.Land
 
         void ClientOnParcelDeedToGroup(int parcelLocalID, UUID groupID, IClientAPI remote_client)
         {
-            ILandObject land;
+            ILandObject land = null;
             lock (m_landList)
             {
                 m_landList.TryGetValue(parcelLocalID, out land);
             }
 
-            if (!m_scene.Permissions.CanDeedParcel(remote_client.AgentId, land))
-                return;
-
             if (land != null)
             {
+                if (!m_scene.Permissions.CanDeedParcel(remote_client.AgentId, land))
+                    return;
                 land.DeedToGroup(groupID);
             }
         }
@@ -1576,13 +1729,13 @@ namespace OpenSim.Region.CoreModules.World.Land
                         }
                     }
                 }
+                FinalizeLandPrimCountUpdate(); // update simarea information
             }
         }
 
         private void IncomingLandObjectFromStorage(LandData data)
         {
-            ILandObject new_land = new LandObject(data.OwnerID, data.IsGroupOwned, m_scene);
-            new_land.LandData = data.Copy();
+            ILandObject new_land = new LandObject(data.OwnerID, data.IsGroupOwned, m_scene, data);
 
             new_land.SetLandBitmapFromByteArray();
             AddLandObject(new_land);
@@ -1640,9 +1793,9 @@ namespace OpenSim.Region.CoreModules.World.Land
                 foreach (HashSet<SceneObjectGroup> objs in returns.Values)
                 {
                     List<SceneObjectGroup> objs2 = new List<SceneObjectGroup>(objs);
-                    if (m_scene.Permissions.CanReturnObjects(null, remoteClient.AgentId, objs2))
+                    if (m_scene.Permissions.CanReturnObjects(null, remoteClient, objs2))
                     {
-                        m_scene.returnObjects(objs2.ToArray(), remoteClient.AgentId);
+                        m_scene.returnObjects(objs2.ToArray(), remoteClient);
                     }
                     else
                     {
@@ -1730,7 +1883,7 @@ namespace OpenSim.Region.CoreModules.World.Land
             land_update.MusicURL = properties.MusicURL;
             land_update.Name = properties.Name;
             land_update.ParcelFlags = (uint) properties.ParcelFlags;
-            land_update.PassHours = (int) properties.PassHours;
+            land_update.PassHours = properties.PassHours;
             land_update.PassPrice = (int) properties.PassPrice;
             land_update.SalePrice = (int) properties.SalePrice;
             land_update.SnapshotID = properties.SnapshotID;
@@ -1757,7 +1910,7 @@ namespace OpenSim.Region.CoreModules.World.Land
                 land_update.GroupAVSounds = true;
             }
 
-            ILandObject land;
+            ILandObject land = null;
             lock (m_landList)
             {
                 m_landList.TryGetValue(parcelID, out land);
@@ -1920,6 +2073,9 @@ namespace OpenSim.Region.CoreModules.World.Land
                 if (data.RegionHandle == m_scene.RegionInfo.RegionHandle)
                 {
                     info = new GridRegion(m_scene.RegionInfo);
+                    IDwellModule dwellModule = m_scene.RequestModuleInterface<IDwellModule>();
+                    if (dwellModule != null)
+                        data.LandData.Dwell = dwellModule.GetDwell(data.LandData);
                 }
                 else
                 {
@@ -1945,7 +2101,7 @@ namespace OpenSim.Region.CoreModules.World.Land
 
         public void setParcelOtherCleanTime(IClientAPI remoteClient, int localID, int otherCleanTime)
         {
-            ILandObject land;
+            ILandObject land = null;
             lock (m_landList)
             {
                 m_landList.TryGetValue(localID, out land);
@@ -2035,7 +2191,7 @@ namespace OpenSim.Region.CoreModules.World.Land
         {
             SceneObjectGroup[] objs = new SceneObjectGroup[1];
             objs[0] = obj;
-            ((Scene)client.Scene).returnObjects(objs, client.AgentId);
+            ((Scene)client.Scene).returnObjects(objs, client);
         }
 
         Dictionary<UUID, System.Threading.Timer> Timers = new Dictionary<UUID, System.Threading.Timer>();
@@ -2242,7 +2398,7 @@ namespace OpenSim.Region.CoreModules.World.Land
                 if (!ConsoleUtil.TryParseConsoleInt(MainConsole.Instance, args[2], out landLocalId))
                     return;
 
-                ILandObject lo;
+                ILandObject lo = null;
 
                 lock (m_landList)
                 {

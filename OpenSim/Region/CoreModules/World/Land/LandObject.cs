@@ -58,6 +58,7 @@ namespace OpenSim.Region.CoreModules.World.Land
 
         protected ExpiringCache<UUID, bool> m_groupMemberCache = new ExpiringCache<UUID, bool>();
         protected TimeSpan m_groupMemberCacheTimeout = TimeSpan.FromSeconds(30);  // cache invalidation after 30 seconds
+        IDwellModule m_dwellModule;
 
         private bool[,] m_landBitmap;
         public bool[,] LandBitmap
@@ -268,26 +269,45 @@ namespace OpenSim.Region.CoreModules.World.Land
         {
             LandData = landData.Copy();
             m_scene = scene;
+            m_scene.EventManager.OnFrame += OnFrame;
+            m_dwellModule = m_scene.RequestModuleInterface<IDwellModule>();
         }
 
-        public LandObject(UUID owner_id, bool is_group_owned, Scene scene)
+        public LandObject(UUID owner_id, bool is_group_owned, Scene scene, LandData data = null)
         {
             m_scene = scene;
             if (m_scene == null)
                 LandBitmap = new bool[Constants.RegionSize / landUnit, Constants.RegionSize / landUnit];
             else
+            {
                 LandBitmap = new bool[m_scene.RegionInfo.RegionSizeX / landUnit, m_scene.RegionInfo.RegionSizeY / landUnit];
+                m_dwellModule = m_scene.RequestModuleInterface<IDwellModule>();
+            }
 
-            LandData = new LandData();
+            if(data == null)
+                LandData = new LandData();
+            else
+                LandData = data;
+
             LandData.OwnerID = owner_id;
             if (is_group_owned)
                 LandData.GroupID = owner_id;
-            else
-                LandData.GroupID = UUID.Zero;
+            
             LandData.IsGroupOwned = is_group_owned;
+
+            if(m_dwellModule == null)
+                LandData.Dwell = 0;
 
             m_scene.EventManager.OnFrame += OnFrame;
         }
+
+        public void Clear()
+        {
+            if(m_scene != null)
+                 m_scene.EventManager.OnFrame -= OnFrame;
+            LandData = null;     
+        }
+
 
         #endregion
 
@@ -356,6 +376,7 @@ namespace OpenSim.Region.CoreModules.World.Land
             }
         }
 
+        // the total prims a parcel owner can have on a region
         public int GetSimulatorMaxPrimCount()
         {
             if (overrideSimulatorMaxPrimCount != null)
@@ -370,7 +391,7 @@ namespace OpenSim.Region.CoreModules.World.Land
                                     * (double)m_scene.RegionInfo.RegionSettings.ObjectBonus
                                     / (long)(m_scene.RegionInfo.RegionSizeX * m_scene.RegionInfo.RegionSizeY)
                                     +0.5 );
-
+                // sanity check
                 if(simMax > m_scene.RegionInfo.ObjectCapacity)
                     simMax = m_scene.RegionInfo.ObjectCapacity;
                  //m_log.DebugFormat("Simwide Area: {0}, Capacity {1}, SimMax {2}, SimWidePrims {3}",
@@ -519,7 +540,8 @@ namespace OpenSim.Region.CoreModules.World.Land
                         ParcelFlags.UseEstateVoiceChan);
             }
 
-            if (m_scene.Permissions.CanEditParcelProperties(remote_client.AgentId,this, GroupPowers.LandManagePasses, false))
+            // don't allow passes on group owned until we can give money to groups
+            if (!newData.IsGroupOwned && m_scene.Permissions.CanEditParcelProperties(remote_client.AgentId,this, GroupPowers.LandManagePasses, false))
             {
                 newData.PassHours = args.PassHours;
                 newData.PassPrice = args.PassPrice;
@@ -1043,7 +1065,8 @@ namespace OpenSim.Region.CoreModules.World.Land
             else
                 LandData.AABBMax = new Vector3(tx, ty, (float)m_scene.Heightmap[tx - 1, ty - 1]);
 
-            LandData.Area = tempArea * landUnit * landUnit;
+            tempArea *= landUnit * landUnit;
+            LandData.Area = tempArea;
         }
 
         #endregion
@@ -1647,8 +1670,7 @@ namespace OpenSim.Region.CoreModules.World.Land
             {
                 foreach (SceneObjectGroup obj in primsOverMe)
                 {
-                    if (obj.OwnerID == previousOwner && obj.GroupID == UUID.Zero &&
-                        (obj.GetEffectivePermissions() & (uint)(OpenSim.Framework.PermissionMask.Transfer)) != 0)
+                    if(m_scene.Permissions.CanSellObject(previousOwner,obj, (byte)SaleType.Original))
                         m_BuySellModule.BuyObject(sp.ControllingClient, UUID.Zero, obj.LocalId, 1, 0);
                 }
             }
@@ -1662,7 +1684,7 @@ namespace OpenSim.Region.CoreModules.World.Land
         {
             SceneObjectGroup[] objs = new SceneObjectGroup[1];
             objs[0] = obj;
-            m_scene.returnObjects(objs, obj.OwnerID);
+            m_scene.returnObjects(objs, null);
         }
 
         public void ReturnLandObjects(uint type, UUID[] owners, UUID[] tasks, IClientAPI remote_client)
@@ -1693,6 +1715,8 @@ namespace OpenSim.Region.CoreModules.World.Land
                     {
                         if (obj.GroupID == LandData.GroupID)
                         {
+                            if (obj.OwnerID == LandData.OwnerID)
+                                continue;
                             if (!returns.ContainsKey(obj.OwnerID))
                                 returns[obj.OwnerID] =
                                         new List<SceneObjectGroup>();
@@ -1734,8 +1758,8 @@ namespace OpenSim.Region.CoreModules.World.Land
 
             foreach (List<SceneObjectGroup> ol in returns.Values)
             {
-                if (m_scene.Permissions.CanReturnObjects(this, remote_client.AgentId, ol))
-                    m_scene.returnObjects(ol.ToArray(), remote_client.AgentId);
+                if (m_scene.Permissions.CanReturnObjects(this, remote_client, ol))
+                    m_scene.returnObjects(ol.ToArray(), remote_client);
             }
         }
 
@@ -1808,6 +1832,37 @@ namespace OpenSim.Region.CoreModules.World.Land
             {
                 ExpireAccessList();
                 m_expiryCounter = 0;
+            }
+
+            // need to update dwell here bc landdata has no parent info
+            if(LandData != null && m_dwellModule != null)
+            {
+                double now = Util.GetTimeStampMS();
+                double elapsed = now - LandData.LastDwellTimeMS;
+                if(elapsed > 150000) //2.5 minutes resolution / throttle
+                {
+                    float dwell = LandData.Dwell;
+                    double cur = dwell * 60000.0;
+                    double decay = 1.5e-8 * cur * elapsed;
+                    cur -= decay;
+                    if(cur < 0)
+                        cur = 0;
+
+                    UUID lgid = LandData.GlobalID;
+                    m_scene.ForEachRootScenePresence(delegate(ScenePresence sp)
+                    {
+                        if(sp.IsNPC || sp.IsLoggingIn || sp.IsDeleted || sp.currentParcelUUID != lgid)
+                            return;
+                        cur += (now - sp.ParcelDwellTickMS);
+                        sp.ParcelDwellTickMS = now;
+                    });
+                
+                    float newdwell = (float)(cur * 1.666666666667e-5); 
+                    LandData.Dwell = newdwell;
+
+                    if(Math.Abs(newdwell - dwell) >= 0.9)
+                        m_scene.EventManager.TriggerLandObjectAdded(this);
+                }
             }
         }
 

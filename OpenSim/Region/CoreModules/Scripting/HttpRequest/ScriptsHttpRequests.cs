@@ -223,20 +223,16 @@ namespace OpenSim.Region.CoreModules.Scripting.HttpRequest
                                 if (parms.Length - i < 2)
                                     break;
 
-                                //Have we reached the end of the list of headers?
-                                //End is marked by a string with a single digit.
-                                //We already know we have at least one parameter
-                                //so it is safe to do this check at top of loop.
-                                if (Char.IsDigit(parms[i][0]))
-                                    break;
-
                                 if (htc.HttpCustomHeaders == null)
                                     htc.HttpCustomHeaders = new List<string>();
 
                                 htc.HttpCustomHeaders.Add(parms[i]);
                                 htc.HttpCustomHeaders.Add(parms[i+1]);
+                                int nexti = i + 2;
+                                if (nexti >= parms.Length || Char.IsDigit(parms[nexti][0]))
+                                    break;
 
-                                i += 2;
+                                i = nexti;
                             }
                             break;
 
@@ -383,9 +379,9 @@ namespace OpenSim.Region.CoreModules.Scripting.HttpRequest
             if (ThreadPool == null)
             {
                 STPStartInfo startInfo = new STPStartInfo();
-                startInfo.IdleTimeout = 20000;
+                startInfo.IdleTimeout = 2000;
                 startInfo.MaxWorkerThreads = maxThreads;
-                startInfo.MinWorkerThreads = 1;
+                startInfo.MinWorkerThreads = 0;
                 startInfo.ThreadPriority = ThreadPriority.BelowNormal;
                 startInfo.StartSuspended = true;
                 startInfo.ThreadPoolName = "ScriptsHttpReq";
@@ -419,6 +415,7 @@ namespace OpenSim.Region.CoreModules.Scripting.HttpRequest
 
         public void Close()
         {
+            ThreadPool.Shutdown();
         }
 
         public string Name
@@ -542,6 +539,7 @@ namespace OpenSim.Region.CoreModules.Scripting.HttpRequest
             {
                 Request = (HttpWebRequest)WebRequest.Create(Url);
                 Request.AllowAutoRedirect = false;
+                Request.KeepAlive = false;
 
                 //This works around some buggy HTTP Servers like Lighttpd
                 Request.ServicePoint.Expect100Continue = false;
@@ -667,12 +665,6 @@ namespace OpenSim.Region.CoreModules.Scripting.HttpRequest
                     Status = (int)OSHttpStatusCode.ClientErrorJoker;
                     ResponseBody = e.Message;
                 }
-
-                if (ResponseBody == null)
-                    ResponseBody = String.Empty;
-
-                _finished = true;
-                return;
             }
             catch (Exception e)
             {
@@ -731,13 +723,10 @@ namespace OpenSim.Region.CoreModules.Scripting.HttpRequest
                 else
                 {
                     _finished = true;
+                    if (ResponseBody == null)
+                        ResponseBody = String.Empty;
                 }
             }
-
-            if (ResponseBody == null)
-                ResponseBody = String.Empty;
-
-            _finished = true;
         }
 
         public void Stop()

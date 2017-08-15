@@ -155,6 +155,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
         VehicleRotationParam,
         VehicleFlags,
         SetVehicle,
+        SetInertia,
 
         Null             //keep this last used do dim the methods array. does nothing but pulsing the prim
     }
@@ -185,7 +186,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
         float frictionMovementMult = 0.8f;
 
-        float TerrainBounce = 0.1f;
+        float TerrainBounce = 0.001f;
         float TerrainFriction = 0.3f;
 
         public float AvatarFriction = 0;// 0.9f * 0.5f;
@@ -202,8 +203,8 @@ namespace OpenSim.Region.PhysicsModule.ubOde
         private float metersInSpace = 25.6f;
         private float m_timeDilation = 1.0f;
 
-        private DateTime m_lastframe;
-        private DateTime m_lastMeshExpire;
+        private double m_lastframe;
+        private double m_lastMeshExpire;
 
         public float gravityx = 0f;
         public float gravityy = 0f;
@@ -480,7 +481,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                     contactsPerCollision = physicsconfig.GetInt("contacts_per_collision", contactsPerCollision);
 
                     geomDefaultDensity = physicsconfig.GetFloat("geometry_default_density", geomDefaultDensity);
-                    bodyFramesAutoDisable = physicsconfig.GetInt("body_frames_auto_disable", bodyFramesAutoDisable);
+//                    bodyFramesAutoDisable = physicsconfig.GetInt("body_frames_auto_disable", bodyFramesAutoDisable);
 
                     physics_logging = physicsconfig.GetBoolean("physics_logging", false);
                     physics_logging_interval = physicsconfig.GetInt("physics_logging_interval", 0);
@@ -502,7 +503,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
             d.WorldSetGravity(world, gravityx, gravityy, gravityz);
 
-            d.WorldSetLinearDamping(world, 0.002f);
+            d.WorldSetLinearDamping(world, 0.001f);
             d.WorldSetAngularDamping(world, 0.002f);
             d.WorldSetAngularDampingThreshold(world, 0f);
             d.WorldSetLinearDampingThreshold(world, 0f);
@@ -528,6 +529,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
             SharedTmpcontact.surface.mode = comumContactFlags;
             SharedTmpcontact.surface.mu = 0;
             SharedTmpcontact.surface.bounce = 0;
+            SharedTmpcontact.surface.bounce_vel = 1.5f;
             SharedTmpcontact.surface.soft_cfm = comumContactCFM;
             SharedTmpcontact.surface.soft_erp = comumContactERP;
             SharedTmpcontact.surface.slip1 = comumContactSLIP;
@@ -627,8 +629,9 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                 staticPrimspaceOffRegion[i] = newspace;
             }
 
-            m_lastframe = DateTime.UtcNow;
+            m_lastframe = Util.GetTimeStamp();
             m_lastMeshExpire = m_lastframe;
+            step_time = -1;
         }
 
         internal void waitForSpaceUnlock(IntPtr space)
@@ -726,8 +729,8 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                 if (g1 == g2)
                     return; // Can't collide with yourself
 
-                if (b1 != IntPtr.Zero && b2 != IntPtr.Zero && d.AreConnectedExcluding(b1, b2, d.JointType.Contact))
-                    return;
+//                if (b1 != IntPtr.Zero && b2 != IntPtr.Zero && d.AreConnectedExcluding(b1, b2, d.JointType.Contact))
+//                    return;
                 /*
                 // debug
                                 PhysicsActor dp2;
@@ -950,8 +953,8 @@ namespace OpenSim.Region.PhysicsModule.ubOde
             SharedTmpcontact.surface.bounce = bounce;
 
             d.ContactGeom altContact = new d.ContactGeom();
-            bool useAltcontact = false;
-            bool noskip = true;
+            bool useAltcontact;
+            bool noskip;
 
             if(dop1ava || dop2ava)
                 smoothMesh = false;
@@ -998,7 +1001,6 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                         Joint = CreateContacJoint(ref altContact,smoothMesh);
                     else
                         Joint = CreateContacJoint(ref curContact,smoothMesh);
-
                     if (Joint == IntPtr.Zero)
                         break;
 
@@ -1082,9 +1084,12 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                         case ActorTypes.Prim:
                             if (p2events)
                             {
-                                AddCollisionEventReporting(p2);
+                                //AddCollisionEventReporting(p2);
                                 p2.AddCollisionEvent(p1.ParentActor.LocalID, contact);
                             }
+                            else if(p1.IsVolumeDtc)
+                                p2.AddVDTCCollisionEvent(p1.ParentActor.LocalID, contact);
+
                             obj2LocalID = p2.ParentActor.LocalID;
                             break;
 
@@ -1098,8 +1103,15 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                     {
                         contact.SurfaceNormal = -contact.SurfaceNormal;
                         contact.RelativeSpeed = -contact.RelativeSpeed;
-                        AddCollisionEventReporting(p1);
+                        //AddCollisionEventReporting(p1);
                         p1.AddCollisionEvent(obj2LocalID, contact);
+                    }
+                    else if(p2.IsVolumeDtc)
+                    {
+                        contact.SurfaceNormal = -contact.SurfaceNormal;
+                        contact.RelativeSpeed = -contact.RelativeSpeed;
+                        //AddCollisionEventReporting(p1);
+                        p1.AddVDTCCollisionEvent(obj2LocalID, contact);
                     }
                     break;
                 }
@@ -1109,7 +1121,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                 {
                     if (p2events && !p2.IsVolumeDtc)
                     {
-                        AddCollisionEventReporting(p2);
+                        //AddCollisionEventReporting(p2);
                         p2.AddCollisionEvent(0, contact);
                     }
                     break;
@@ -1161,8 +1173,11 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                 {
                     aprim.CollisionScore = 0;
                     aprim.IsColliding = false;
+                    if(!aprim.m_outbounds && d.BodyIsEnabled(aprim.Body))
+                        aprim.clearSleeperCollisions();
                 }
             }
+
             lock (_activegroups)
             {
                 try
@@ -1611,6 +1626,8 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                 }
                 m_log.InfoFormat("[ubOde] {0} prim actors loaded",_prims.Count);
             }
+            m_lastframe = Util.GetTimeStamp() + 0.5;
+            step_time = -0.5f;
         }
 
         /// <summary>
@@ -1624,13 +1641,12 @@ namespace OpenSim.Region.PhysicsModule.ubOde
         /// <returns></returns>
         public override float Simulate(float reqTimeStep)
         {
-            DateTime now = DateTime.UtcNow;
-            TimeSpan timedif = now - m_lastframe;
-            float timeStep = (float)timedif.TotalSeconds;
+            double now = Util.GetTimeStamp();
+            double timeStep = now - m_lastframe;
             m_lastframe = now;
 
             // acumulate time so we can reduce error
-            step_time += timeStep;
+            step_time += (float)timeStep;
 
             if (step_time < HalfOdeStep)
                 return 0;
@@ -1657,11 +1673,15 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
 //                d.WorldSetQuickStepNumIterations(world, curphysiteractions);
 
-                int loopstartMS = Util.EnvironmentTickCount();
-                int looptimeMS = 0;
-                int changestimeMS = 0;
-                int maxChangestime = (int)(reqTimeStep * 500f); // half the time
-                int maxLoopTime = (int)(reqTimeStep * 1200f); // 1.2 the time
+                double loopstartMS = Util.GetTimeStampMS();
+                double looptimeMS = 0;
+                double changestimeMS = 0;
+                double maxChangestime = (int)(reqTimeStep * 500f); // half the time
+                double maxLoopTime = (int)(reqTimeStep * 1200f); // 1.2 the time
+
+//                double collisionTime = 0;
+//                double qstepTIme = 0;
+//                double tmpTime = 0;
 
                 d.AllocateODEDataForThread(~0U);
 
@@ -1684,7 +1704,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                                     item.actor.Name, item.what.ToString());
                             }
                         }
-                        changestimeMS = Util.EnvironmentTickCountSubtract(loopstartMS);
+                        changestimeMS = Util.GetTimeStampMS() - loopstartMS;
                         if (changestimeMS > maxChangestime)
                             break;
                     }
@@ -1729,9 +1749,19 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
                         m_rayCastManager.ProcessQueuedRequests();
 
+//                        tmpTime =  Util.GetTimeStampMS();
                         collision_optimized();
-                        List<OdePrim> sleepers = new List<OdePrim>();
+//                        collisionTime += Util.GetTimeStampMS() - tmpTime;
 
+                        lock(_collisionEventPrimRemove)
+                        {
+                            foreach (PhysicsActor obj in _collisionEventPrimRemove)
+                                _collisionEventPrim.Remove(obj);
+
+                            _collisionEventPrimRemove.Clear();
+                        }
+
+                        List<OdePrim> sleepers = new List<OdePrim>();
                         foreach (PhysicsActor obj in _collisionEventPrim)
                         {
                             if (obj == null)
@@ -1761,18 +1791,12 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                         foreach(OdePrim prm in sleepers)
                             prm.SleeperAddCollisionEvents();
                         sleepers.Clear();
-
-                        lock(_collisionEventPrimRemove)
-                        {
-                            foreach (PhysicsActor obj in _collisionEventPrimRemove)
-                                _collisionEventPrim.Remove(obj);
-
-                            _collisionEventPrimRemove.Clear();
-                        }
-
+ 
                         // do a ode simulation step
+//                        tmpTime =  Util.GetTimeStampMS();
                         d.WorldQuickStep(world, ODE_STEPSIZE);
                         d.JointGroupEmpty(contactgroup);
+//                        qstepTIme += Util.GetTimeStampMS() - tmpTime;
 
                         // update managed ideia of physical data and do updates to core
         /*
@@ -1813,7 +1837,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                     step_time -= ODE_STEPSIZE;
                     nodeframes++;
 
-                    looptimeMS = Util.EnvironmentTickCountSubtract(loopstartMS);
+                    looptimeMS = Util.GetTimeStampMS() - loopstartMS;
                     if (looptimeMS > maxLoopTime)
                         break;
                 }
@@ -1829,14 +1853,6 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
                         _badCharacter.Clear();
                     }
-                }
-
-                timedif = now - m_lastMeshExpire;
-
-                if (timedif.Seconds > 10)
-                {
-                    mesher.ExpireReleaseMeshs();
-                    m_lastMeshExpire = now;
                 }
 
 // information block for in debug breakpoint only
@@ -1882,6 +1898,14 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                 int nbodies = d.NTotalBodies;
                 int ngeoms = d.NTotalGeoms;
 */
+/*
+                looptimeMS /= nodeframes;
+                if(looptimeMS > 0.080)
+                {
+                    collisionTime /= nodeframes;
+                    qstepTIme /= nodeframes;    
+                }
+*/
                 // Finished with all sim stepping. If requested, dump world state to file for debugging.
                 // TODO: This call to the export function is already inside lock (OdeLock) - but is an extra lock needed?
                 // TODO: This overwrites all dump files in-place. Should this be a growing logfile, or separate snapshots?
@@ -1910,7 +1934,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                     // if we lag too much skip frames
                     m_timeDilation = 0.0f;
                     step_time = 0;
-                    m_lastframe = DateTime.UtcNow; // skip also the time lost
+                    m_lastframe = Util.GetTimeStamp(); // skip also the time lost
                 }
                 else
                 {
@@ -1918,6 +1942,14 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                     if (m_timeDilation > 1)
                         m_timeDilation = 1;
                 }
+
+                if (m_timeDilation == 1 && now - m_lastMeshExpire > 30)
+                {
+                    mesher.ExpireReleaseMeshs();
+                    m_lastMeshExpire = now;
+                }
+
+
             }
 
             return fps;

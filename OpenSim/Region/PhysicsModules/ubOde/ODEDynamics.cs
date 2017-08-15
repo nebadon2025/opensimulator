@@ -243,6 +243,8 @@ namespace OpenSim.Region.PhysicsModule.ubOde
         internal void ProcessFloatVehicleParam(Vehicle pParam, float pValue)
         {
             float len;
+            if(float.IsNaN(pValue) || float.IsInfinity(pValue))
+                return;
 
             switch (pParam)
             {
@@ -343,6 +345,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                     if (rootPrim.Body != IntPtr.Zero && !d.BodyIsEnabled(rootPrim.Body)
                             && !rootPrim.m_isSelected && !rootPrim.m_disabled)
                         d.BodyEnable(rootPrim.Body);
+
                     break;
                 case Vehicle.LINEAR_FRICTION_TIMESCALE:
                     if (pValue < m_timestep) pValue = m_timestep;
@@ -374,6 +377,8 @@ namespace OpenSim.Region.PhysicsModule.ubOde
         internal void ProcessVectorVehicleParam(Vehicle pParam, Vector3 pValue)
         {
             float len;
+            if(!pValue.IsFinite())
+                return;
 
             switch (pParam)
             {

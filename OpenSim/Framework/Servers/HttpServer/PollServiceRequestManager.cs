@@ -48,7 +48,6 @@ namespace OpenSim.Framework.Servers.HttpServer
 
         private Dictionary<PollServiceHttpRequest, Queue<PollServiceHttpRequest>> m_bycontext;
         private BlockingQueue<PollServiceHttpRequest> m_requests = new BlockingQueue<PollServiceHttpRequest>();
-        private static Queue<PollServiceHttpRequest> m_slowRequests = new Queue<PollServiceHttpRequest>();
         private static Queue<PollServiceHttpRequest> m_retryRequests = new Queue<PollServiceHttpRequest>();
 
         private uint m_WorkerThreadCount = 0;
@@ -56,10 +55,8 @@ namespace OpenSim.Framework.Servers.HttpServer
         private Thread m_retrysThread;
 
         private bool m_running = false;
-        private int slowCount = 0;
 
         private SmartThreadPool m_threadPool;
-
 
         public PollServiceRequestManager(
             BaseHttpServer pSrv, bool performResponsesAsync, uint pWorkerThreadCount, int pTimeout)
@@ -80,7 +77,6 @@ namespace OpenSim.Framework.Servers.HttpServer
             startInfo.ThreadPoolName = "PoolService";
 
             m_threadPool = new SmartThreadPool(startInfo);
-
         }
 
         public void Start()
@@ -95,7 +91,7 @@ namespace OpenSim.Framework.Servers.HttpServer
                         PoolWorkerJob,
                         string.Format("PollServiceWorkerThread {0}:{1}", i, m_server.Port),
                         ThreadPriority.Normal,
-                        false,
+                        true,
                         false,
                         null,
                         int.MaxValue);
@@ -105,7 +101,7 @@ namespace OpenSim.Framework.Servers.HttpServer
                 this.CheckRetries,
                 string.Format("PollServiceWatcherThread:{0}", m_server.Port),
                 ThreadPriority.Normal,
-                false,
+                true,
                 true,
                 null,
                 1000 * 60 * 10);
@@ -163,17 +159,7 @@ namespace OpenSim.Framework.Servers.HttpServer
         public void EnqueueInt(PollServiceHttpRequest req)
         {
             if (m_running)
-            {
-                if (req.PollServiceArgs.Type != PollServiceEventArgs.EventType.LongPoll)
-                {
-                    m_requests.Enqueue(req);
-                }
-                else
-                {
-                    lock (m_slowRequests)
-                        m_slowRequests.Enqueue(req);
-                }
-            }
+                m_requests.Enqueue(req);
         }
 
         private void CheckRetries()
@@ -188,17 +174,6 @@ namespace OpenSim.Framework.Servers.HttpServer
                     while (m_retryRequests.Count > 0 && m_running)
                         m_requests.Enqueue(m_retryRequests.Dequeue());
                 }
-                slowCount++;
-                if (slowCount >= 10)
-                {
-                    slowCount = 0;
-
-                    lock (m_slowRequests)
-                    {
-                        while (m_slowRequests.Count > 0 && m_running)
-                            m_requests.Enqueue(m_slowRequests.Dequeue());
-                    }
-                }
             }
         }
 
@@ -206,10 +181,12 @@ namespace OpenSim.Framework.Servers.HttpServer
         {
             m_running = false;
 
-            Thread.Sleep(1000); // let the world move
+            Thread.Sleep(100); // let the world move
 
             foreach (Thread t in m_workerThreads)
                 Watchdog.AbortThread(t.ManagedThreadId);
+
+            m_threadPool.Shutdown();
 
             // any entry in m_bycontext should have a active request on the other queues
             // so just delete contents to easy GC
@@ -229,14 +206,8 @@ namespace OpenSim.Framework.Servers.HttpServer
             }
 
             PollServiceHttpRequest wreq;
+
             m_retryRequests.Clear();
-
-            lock (m_slowRequests)
-            {
-                while (m_slowRequests.Count > 0)
-                    m_requests.Enqueue(m_slowRequests.Dequeue());
-
-            }
 
             while (m_requests.Count() > 0)
             {
@@ -244,7 +215,6 @@ namespace OpenSim.Framework.Servers.HttpServer
                 {
                     wreq = m_requests.Dequeue(0);
                     wreq.DoHTTPstop(m_server);
-
                 }
                 catch
                 {
@@ -260,8 +230,7 @@ namespace OpenSim.Framework.Servers.HttpServer
         {
             while (m_running)
             {
-                PollServiceHttpRequest req = m_requests.Dequeue(5000);
-
+                PollServiceHttpRequest req = m_requests.Dequeue(4500);
                 Watchdog.UpdateThread();
                 if (req != null)
                 {
@@ -276,11 +245,13 @@ namespace OpenSim.Framework.Servers.HttpServer
                                 try
                                 {
                                     req.DoHTTPGruntWork(m_server, responsedata);
-                                    byContextDequeue(req);
                                 }
-                                catch (ObjectDisposedException) // Browser aborted before we could read body, server closed the stream
+                                catch (ObjectDisposedException)
                                 {
-                                    // Ignore it, no need to reply
+                                }
+                                finally
+                                {
+                                    byContextDequeue(req);
                                 }
                                 return null;
                             }, null);
@@ -295,11 +266,14 @@ namespace OpenSim.Framework.Servers.HttpServer
                                     {
                                         req.DoHTTPGruntWork(m_server,
                                             req.PollServiceArgs.NoEvents(req.RequestID, req.PollServiceArgs.Id));
-                                        byContextDequeue(req);
                                     }
                                     catch (ObjectDisposedException)
                                     {
                                     // Ignore it, no need to reply
+                                    }
+                                    finally
+                                    {
+                                        byContextDequeue(req);
                                     }
                                     return null;
                                 }, null);

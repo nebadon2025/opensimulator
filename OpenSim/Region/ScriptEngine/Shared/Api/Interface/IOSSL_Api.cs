@@ -38,6 +38,7 @@ using LSL_Integer = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLInteger;
 using LSL_Float = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLFloat;
 using LSL_Key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
 
+
 namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
 {
     /// <summary>
@@ -50,7 +51,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
     /// </summary>
     public enum ThreatLevel
     {
-        // Not documented, presumably means permanently disabled ?
         NoAccess = -1,
 
         /// <summary>
@@ -123,6 +123,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         string osSetDynamicTextureURLBlendFace(string dynamicID, string contentType, string url, string extraParams,
                                            bool blend, int disp, int timer, int alpha, int face);
         string osSetDynamicTextureData(string dynamicID, string contentType, string data, string extraParams, int timer);
+        string osSetDynamicTextureDataFace(string dynamicID, string contentType, string data, string extraParams, int timer, int face);
         string osSetDynamicTextureDataBlend(string dynamicID, string contentType, string data, string extraParams,
                                             int timer, int alpha);
         string osSetDynamicTextureDataBlendFace(string dynamicID, string contentType, string data, string extraParams,
@@ -143,8 +144,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         void osSetParcelSIPAddress(string SIPAddress);
 
         // Avatar Info Commands
-        string osGetAgentIP(string agent);
         LSL_List osGetAgents();
+        string osGetAgentIP(string agent);
 
         // Teleport commands
         void osTeleportAgent(string agent, string regionName, LSL_Types.Vector3 position, LSL_Types.Vector3 lookat);
@@ -222,10 +223,15 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         string osDrawLine(string drawList, int endX, int endY);
         string osDrawText(string drawList, string text);
         string osDrawEllipse(string drawList, int width, int height);
+        string osDrawFilledEllipse(string drawList, int width, int height);
         string osDrawRectangle(string drawList, int width, int height);
         string osDrawFilledRectangle(string drawList, int width, int height);
         string osDrawPolygon(string drawList, LSL_List x, LSL_List y);
         string osDrawFilledPolygon(string drawList, LSL_List x, LSL_List y);
+        string osDrawResetTransform(string drawList);
+        string osDrawRotationTransform(string drawList, LSL_Float x);
+        string osDrawScaleTransform(string drawList, LSL_Float x, LSL_Float y);
+        string osDrawTranslationTransform(string drawList, LSL_Float x, LSL_Float y);
         string osSetFontName(string drawList, string fontName);
         string osSetFontSize(string drawList, int fontSize);
         string osSetPenSize(string drawList, int penSize);
@@ -389,6 +395,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         void osSetProjectionParams(LSL_Key prim, bool projection, LSL_Key texture, double fov, double focus, double amb);
 
         LSL_List osGetAvatarList();
+        LSL_List osGetNPCList();
 
         LSL_String osUnixTimeToTimestamp(long time);
 
@@ -486,6 +493,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         LSL_String osRequestURL(LSL_List options);
         LSL_String osRequestSecureURL(LSL_List options);
         void osCollisionSound(string impact_sound, double impact_volume);
+
         void osVolumeDetect(int detect);
+
+        LSL_List osGetInertiaData();
+        void osClearInertia();
+        void osSetInertiaAsBox(LSL_Float mass, vector boxSize, vector centerOfMass, rotation rot);
+        void osSetInertiaAsSphere(LSL_Float mass,  LSL_Float radius, vector centerOfMass);
+        void osSetInertiaAsCylinder(LSL_Float mass,  LSL_Float radius, LSL_Float lenght, vector centerOfMass,rotation lslrot);
+
+        LSL_Integer osTeleportObject(LSL_Key objectUUID, vector targetPos, rotation targetrotation, LSL_Integer flags);
+        LSL_Integer osGetLinkNumber(LSL_String name);
     }
 }

@@ -103,7 +103,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
         public float walkDivisor = 1.3f;
         public float runDivisor = 0.8f;
-        private bool flying = false;
+        private bool m_flying = false;
         private bool m_iscolliding = false;
         private bool m_iscollidingGround = false;
         private bool m_iscollidingObj = false;
@@ -138,7 +138,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                                                         );
         // we do land collisions not ode                | CollisionCategories.Land);
         public IntPtr Body = IntPtr.Zero;
-        private ODEScene _parent_scene;
+        private ODEScene m_parent_scene;
         private IntPtr capsule = IntPtr.Zero;
         public IntPtr collider = IntPtr.Zero;
 
@@ -169,6 +169,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
         {
             m_uuid = UUID.Random();
             m_localID = localID;
+            m_parent_scene = parent_scene;
 
             timeStep = parent_scene.ODE_STEPSIZE;
             invtimeStep = 1 / timeStep;
@@ -187,12 +188,9 @@ namespace OpenSim.Region.PhysicsModule.ubOde
             }
             else
             {
-                _position = new Vector3(((float)_parent_scene.WorldExtents.X * 0.5f), ((float)_parent_scene.WorldExtents.Y * 0.5f), parent_scene.GetTerrainHeightAtXY(128f, 128f) + 10f);
+                _position = new Vector3(((float)m_parent_scene.WorldExtents.X * 0.5f), ((float)m_parent_scene.WorldExtents.Y * 0.5f), parent_scene.GetTerrainHeightAtXY(128f, 128f) + 10f);
                 m_log.Warn("[PHYSICS]: Got NaN Position on Character Create");
             }
-
-            _parent_scene = parent_scene;
-
 
             m_size.X = pSize.X;
             m_size.Y = pSize.Y;
@@ -213,7 +211,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
             // force lower density for testing
             m_density = 3.0f;
 
-            mu = parent_scene.AvatarFriction;
+            mu = m_parent_scene.AvatarFriction;
 
             walkDivisor = walk_divisor;
             runDivisor = rundivisor;
@@ -300,10 +298,10 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
         public override bool Flying
         {
-            get { return flying; }
+            get { return m_flying; }
             set
             {
-                flying = value;
+                m_flying = value;
 //                m_log.DebugFormat("[PHYSICS]: Set OdeCharacter Flying to {0}", flying);
             }
         }
@@ -437,11 +435,11 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                 {
                     if (value.Z > 9999999f)
                     {
-                        value.Z = _parent_scene.GetTerrainHeightAtXY(127, 127) + 5;
+                        value.Z = m_parent_scene.GetTerrainHeightAtXY(127, 127) + 5;
                     }
                     if (value.Z < -100f)
                     {
-                        value.Z = _parent_scene.GetTerrainHeightAtXY(127, 127) + 5;
+                        value.Z = m_parent_scene.GetTerrainHeightAtXY(127, 127) + 5;
                     }
                     AddChange(changes.Position, value);
                 }
@@ -704,7 +702,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
             {
                 if (pushforce)
                 {
-                    AddChange(changes.Force, force * m_density / (_parent_scene.ODE_STEPSIZE * 28f));
+                    AddChange(changes.Force, force * m_density / (m_parent_scene.ODE_STEPSIZE * 28f));
                 }
                 else
                 {
@@ -751,9 +749,9 @@ namespace OpenSim.Region.PhysicsModule.ubOde
             AvaAvaSizeYsq = 0.5f * sy;
             AvaAvaSizeYsq *= AvaAvaSizeYsq;
 
-            _parent_scene.waitForSpaceUnlock(_parent_scene.CharsSpace);
+            m_parent_scene.waitForSpaceUnlock(m_parent_scene.CharsSpace);
 
-            collider = d.HashSpaceCreate(_parent_scene.CharsSpace);
+            collider = d.HashSpaceCreate(m_parent_scene.CharsSpace);
             d.HashSpaceSetLevels(collider, -4, 3);
             d.SpaceSetSublevel(collider, 3);
             d.SpaceSetCleanup(collider, false);
@@ -772,10 +770,10 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
             d.MassSetBoxTotal(out ShellMass, m_mass, m_size.X, m_size.Y, m_size.Z);
 
-            PID_D = basePID_D * m_mass / _parent_scene.ODE_STEPSIZE;
-            PID_P = basePID_P * m_mass / _parent_scene.ODE_STEPSIZE;
+            PID_D = basePID_D * m_mass / m_parent_scene.ODE_STEPSIZE;
+            PID_P = basePID_P * m_mass / m_parent_scene.ODE_STEPSIZE;
 
-            Body = d.BodyCreate(_parent_scene.world);
+            Body = d.BodyCreate(m_parent_scene.world);
 
             _zeroFlag = false;
             m_pidControllerActive = true;
@@ -795,7 +793,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
             // The purpose of the AMotor here is to keep the avatar's physical
             // surrogate from rotating while moving
-            Amotor = d.JointCreateAMotor(_parent_scene.world, IntPtr.Zero);
+            Amotor = d.JointCreateAMotor(m_parent_scene.world, IntPtr.Zero);
             d.JointAttach(Amotor, Body, IntPtr.Zero);
 
             d.JointSetAMotorMode(Amotor, 0);
@@ -854,8 +852,8 @@ namespace OpenSim.Region.PhysicsModule.ubOde
             //kill the Geoms
             if (capsule != IntPtr.Zero)
             {
-                _parent_scene.actor_name_map.Remove(capsule);
-                _parent_scene.waitForSpaceUnlock(collider);
+                m_parent_scene.actor_name_map.Remove(capsule);
+                m_parent_scene.waitForSpaceUnlock(collider);
                 d.GeomDestroy(capsule);
                 capsule = IntPtr.Zero;
             }
@@ -901,9 +899,9 @@ namespace OpenSim.Region.PhysicsModule.ubOde
             y = tx * sin + y * cos;
         }
 
-        public bool Collide(IntPtr me, IntPtr other, bool reverse, ref d.ContactGeom contact,
+            public bool Collide(IntPtr me, IntPtr other, bool reverse, ref d.ContactGeom contact,
                 ref d.ContactGeom altContact , ref bool useAltcontact, ref bool feetcollision)
-        {
+            {
             feetcollision = false;
             useAltcontact = false;
 
@@ -945,12 +943,13 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                     }
                     return true;
                 }
-/*
-                d.AABB aabb;
-                d.GeomGetAABB(other,out aabb);
-                float othertop = aabb.MaxZ - _position.Z;
-*/
-//                if (offset.Z > 0 || othertop > -feetOff || contact.normal.Z > 0.35f)
+
+                if (gtype == d.GeomClassID.SphereClass && d.GeomGetBody(other) != IntPtr.Zero)
+                {
+                    if(d.GeomSphereGetRadius(other) < 0.5)
+                        return true;
+                }
+
                 if (offset.Z > 0 || contact.normal.Z > 0.35f)
                 {
                     if (offset.Z <= 0)
@@ -967,6 +966,18 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                     return true;
                 }
 
+                if(m_flying)
+                    return true;
+
+                feetcollision = true;
+                if (h < boneOff)
+                {
+                    m_collideNormal.X = contact.normal.X;
+                    m_collideNormal.Y = contact.normal.Y;
+                    m_collideNormal.Z = contact.normal.Z;
+                    IsColliding = true;
+                }
+
                 altContact = contact;
                 useAltcontact = true;
 
@@ -974,8 +985,21 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
                 offset.Normalize();
 
-                if (contact.depth > 0.1f)
-                    contact.depth = 0.1f;
+                float tdp = contact.depth;
+                float t = offset.X;
+                t = Math.Abs(t);
+                if(t > 1e-6)
+                {
+                   tdp /= t;
+                   tdp *= contact.normal.X;
+                }
+                else
+                    tdp *= 10;
+
+                if (tdp > 0.25f)
+                    tdp = 0.25f;
+
+                altContact.depth = tdp;
 
                 if (reverse)
                 {
@@ -988,15 +1012,6 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                     altContact.normal.X = -offset.X;
                     altContact.normal.Y = -offset.Y;
                     altContact.normal.Z = -offset.Z;
-                }
-
-                feetcollision = true;
-                if (h < boneOff)
-                {
-                    m_collideNormal.X = contact.normal.X;
-                    m_collideNormal.Y = contact.normal.Y;
-                    m_collideNormal.Z = contact.normal.Z;
-                    IsColliding = true;
                 }
                 return true;
             }
@@ -1049,20 +1064,20 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                 fixbody = true;
                 localpos.X = 0.1f;
             }
-            else if (localpos.X > _parent_scene.WorldExtents.X - 0.1f)
+            else if (localpos.X > m_parent_scene.WorldExtents.X - 0.1f)
             {
                 fixbody = true;
-                localpos.X = _parent_scene.WorldExtents.X - 0.1f;
+                localpos.X = m_parent_scene.WorldExtents.X - 0.1f;
             }
             if (localpos.Y < 0.0f)
             {
                 fixbody = true;
                 localpos.Y = 0.1f;
             }
-            else if (localpos.Y > _parent_scene.WorldExtents.Y - 0.1)
+            else if (localpos.Y > m_parent_scene.WorldExtents.Y - 0.1)
             {
                 fixbody = true;
-                localpos.Y = _parent_scene.WorldExtents.Y - 0.1f;
+                localpos.Y = m_parent_scene.WorldExtents.Y - 0.1f;
             }
             if (fixbody)
             {
@@ -1100,14 +1115,14 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
             float ftmp;
 
-            if (flying)
+            if (m_flying)
             {
                 ftmp = timeStep;
                 posch.X += vel.X * ftmp;
                 posch.Y += vel.Y * ftmp;
             }
 
-            float terrainheight = _parent_scene.GetTerrainHeightAtXY(posch.X, posch.Y);
+            float terrainheight = m_parent_scene.GetTerrainHeightAtXY(posch.X, posch.Y);
             if (chrminZ < terrainheight)
             {
                 if (ctz.Z < 0)
@@ -1119,12 +1134,12 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                     m_haveLastFallVel = true;
                 }
 
-                Vector3 n = _parent_scene.GetTerrainNormalAtXY(posch.X, posch.Y);
+                Vector3 n = m_parent_scene.GetTerrainNormalAtXY(posch.X, posch.Y);
                 float depth = terrainheight - chrminZ;
 
                 vec.Z = depth * PID_P * 50;
 
-                if (!flying)
+                if (!m_flying)
                 {
                     vec.Z += -vel.Z * PID_D;
                     if(n.Z < 0.4f)
@@ -1215,7 +1230,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                         break;
 
                     case PIDHoverType.GroundAndWater:
-                        float waterHeight = _parent_scene.GetWaterLevel();
+                        float waterHeight = m_parent_scene.GetWaterLevel();
                         if (terrainheight > waterHeight)
                             m_targetHoverHeight = terrainheight + m_PIDHoverHeight;
                         else
@@ -1261,7 +1276,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
                 // movement relative to surface if moving on it
                 // dont disturbe vertical movement, ie jumps
-                if (m_iscolliding && !flying && ctz.Z == 0 && m_collideNormal.Z > 0.2f && m_collideNormal.Z < 0.94f)
+                if (m_iscolliding && !m_flying && ctz.Z == 0 && m_collideNormal.Z > 0.2f && m_collideNormal.Z < 0.94f)
                 {
                     float p = ctz.X * m_collideNormal.X + ctz.Y * m_collideNormal.Y;
                     ctz.X *= (float)Math.Sqrt(1 - m_collideNormal.X * m_collideNormal.X);
@@ -1278,7 +1293,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
             {
 
                 //  if velocity is zero, use position control; otherwise, velocity control
-                if (tviszero && m_iscolliding && !flying)
+                if (tviszero && m_iscolliding && !m_flying)
                 {
                     //  keep track of where we stopped.  No more slippin' & slidin'
                     if (!_zeroFlag)
@@ -1315,7 +1330,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
                     if (m_iscolliding)
                     {
-                        if (!flying)
+                        if (!m_flying)
                         {
                             // we are on a surface
                             if (ctz.Z > 0f)
@@ -1363,7 +1378,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                     }
                     else // ie not colliding
                     {
-                        if (flying || hoverPIDActive) //(!m_iscolliding && flying)
+                        if (m_flying || hoverPIDActive) //(!m_iscolliding && flying)
                         {
                             // we're in mid air suspended
                             vec.X += (ctz.X - vel.X) * (PID_D);
@@ -1381,7 +1396,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                             vec.Y += (ctz.Y - vel.Y) * PID_D * 0.833f;
                             // hack for  breaking on fall
                             if (ctz.Z == -9999f)
-                                vec.Z += -vel.Z * PID_D - _parent_scene.gravityz * m_mass;
+                                vec.Z += -vel.Z * PID_D - m_parent_scene.gravityz * m_mass;
                         }
                     }
                 }
@@ -1399,15 +1414,15 @@ namespace OpenSim.Region.PhysicsModule.ubOde
                 breakfactor = m_mass;
                 vec.X -= breakfactor * vel.X;
                 vec.Y -= breakfactor * vel.Y;
-                if (flying)
+                if (m_flying)
                     vec.Z -= 0.5f * breakfactor * vel.Z;
                 else
                     vec.Z -= .16f* m_mass * vel.Z;
             }
 
-            if (flying || hoverPIDActive)
+            if (m_flying || hoverPIDActive)
             {
-                vec.Z -= _parent_scene.gravityz * m_mass;
+                vec.Z -= m_parent_scene.gravityz * m_mass;
 
                 if(!hoverPIDActive)
                 {
@@ -1585,7 +1600,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
         public override void UnSubscribeEvents()
         {
             m_eventsubscription = 0;
-            _parent_scene.RemoveCollisionEventReporting(this);
+            m_parent_scene.RemoveCollisionEventReporting(this);
             lock(CollisionEventsThisFrame)
                 CollisionEventsThisFrame.Clear();
         }
@@ -1594,7 +1609,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
         {
             lock(CollisionEventsThisFrame)
                 CollisionEventsThisFrame.AddCollider(CollidedWith, contact);
-            _parent_scene.AddCollisionEventReporting(this);
+            m_parent_scene.AddCollisionEventReporting(this);
         }
 
         public void SendCollisions(int timestep)
@@ -1645,14 +1660,14 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
                     AvatarGeomAndBodyCreation(_position.X, _position.Y, _position.Z);
 
-                    _parent_scene.actor_name_map[collider] = (PhysicsActor)this;
-                    _parent_scene.actor_name_map[capsule] = (PhysicsActor)this;
-                    _parent_scene.AddCharacter(this);
+                    m_parent_scene.actor_name_map[collider] = (PhysicsActor)this;
+                    m_parent_scene.actor_name_map[capsule] = (PhysicsActor)this;
+                    m_parent_scene.AddCharacter(this);
                 }
                 else
                 {
-                    _parent_scene.RemoveCollisionEventReporting(this);
-                    _parent_scene.RemoveCharacter(this);
+                    m_parent_scene.RemoveCollisionEventReporting(this);
+                    m_parent_scene.RemoveCharacter(this);
                     // destroy avatar capsule and related ODE data
                     AvatarGeomAndBodyDestroy();
                 }
@@ -1699,8 +1714,8 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 //                    Velocity = Vector3.Zero;
                     m_targetVelocity = Vector3.Zero;
 
-                    _parent_scene.actor_name_map[collider] = (PhysicsActor)this;
-                    _parent_scene.actor_name_map[capsule] = (PhysicsActor)this;
+                    m_parent_scene.actor_name_map[collider] = (PhysicsActor)this;
+                    m_parent_scene.actor_name_map[capsule] = (PhysicsActor)this;
                 }
                 m_freemove = false;
                 m_pidControllerActive = true;
@@ -2008,7 +2023,7 @@ namespace OpenSim.Region.PhysicsModule.ubOde
 
         public void AddChange(changes what, object arg)
         {
-            _parent_scene.AddChange((PhysicsActor)this, what, arg);
+            m_parent_scene.AddChange((PhysicsActor)this, what, arg);
         }
 
         private struct strAvatarSize

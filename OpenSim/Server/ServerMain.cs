@@ -31,6 +31,7 @@ using System.Reflection;
 using System;
 using System.Net;
 using System.Collections.Generic;
+using OpenSim.Framework;
 using OpenSim.Framework.Servers;
 using OpenSim.Framework.Servers.HttpServer;
 using OpenSim.Server.Base;
@@ -54,9 +55,11 @@ namespace OpenSim.Server
 
         public static int Main(string[] args)
         {
-            // Make sure we don't get outbound connections queueing
-            ServicePointManager.DefaultConnectionLimit = 50;
+            ServicePointManager.DefaultConnectionLimit = 64;
+            ServicePointManager.Expect100Continue = false;
             ServicePointManager.UseNagleAlgorithm = false;
+
+            try { ServicePointManager.DnsRefreshTimeout = 300000; } catch { }
 
             m_Server = new HttpServerBase("R.O.B.U.S.T.", args);
 
@@ -157,6 +160,11 @@ namespace OpenSim.Server
             loader = new PluginLoader(m_Server.Config, registryLocation);
 
             int res = m_Server.Run();
+
+            if(m_Server != null)
+                m_Server.Shutdown();
+
+            Util.StopThreadPool();
 
             Environment.Exit(res);
 

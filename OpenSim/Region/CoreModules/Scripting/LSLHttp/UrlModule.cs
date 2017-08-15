@@ -26,10 +26,11 @@
  */
 
 using System;
-using System.Threading;
 using System.Collections.Generic;
 using System.Collections;
 using System.Reflection;
+using System.Net;
+using System.Net.Sockets;
 using log4net;
 using Mono.Addins;
 using Nini.Config;
@@ -83,17 +84,19 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
                 LogManager.GetLogger(
                 MethodBase.GetCurrentMethod().DeclaringType);
 
-        private Dictionary<UUID, UrlData> m_RequestMap =
+        protected Dictionary<UUID, UrlData> m_RequestMap =
                 new Dictionary<UUID, UrlData>();
 
-        private Dictionary<string, UrlData> m_UrlMap =
+        protected Dictionary<string, UrlData> m_UrlMap =
                 new Dictionary<string, UrlData>();
 
-        private uint m_HttpsPort = 0;
-        private IHttpServer m_HttpServer = null;
-        private IHttpServer m_HttpsServer = null;
+        protected bool m_enabled = false;
+        protected string m_ErrorStr;
+        protected uint m_HttpsPort = 0;
+        protected IHttpServer m_HttpServer = null;
+        protected IHttpServer m_HttpsServer = null;
 
-        public string ExternalHostNameForLSL { get; private set; }
+        public string ExternalHostNameForLSL { get; protected set; }
 
         /// <summary>
         /// The default maximum number of urls
@@ -107,7 +110,7 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
 
         public Type ReplaceableInterface
         {
-            get { return null; }
+            get { return typeof(IUrlModule); }
         }
 
         public string Name
@@ -118,6 +121,7 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
         public void Initialise(IConfigSource config)
         {
             IConfig networkConfig = config.Configs["Network"];
+            m_enabled = false;
 
             if (networkConfig != null)
             {
@@ -128,9 +132,31 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
                 if (ssl_enabled)
                     m_HttpsPort = (uint)config.Configs["Network"].GetInt("https_port", (int)m_HttpsPort);
             }
+            else
+            {
+                m_ErrorStr = "[Network] configuration missing, HTTP listener for LSL disabled";
+                m_log.Warn("[URL MODULE]: " + m_ErrorStr);
+                return;
+            }
 
-            if (ExternalHostNameForLSL == null)
-                ExternalHostNameForLSL = System.Environment.MachineName;
+            if (String.IsNullOrWhiteSpace(ExternalHostNameForLSL))
+            {
+                m_ErrorStr = "ExternalHostNameForLSL not defined in configuration, HTTP listener for LSL disabled";
+                m_log.Warn("[URL MODULE]: " + m_ErrorStr);
+                return;
+            }
+
+            IPAddress ia = null;
+            ia = Util.GetHostFromDNS(ExternalHostNameForLSL);
+            if (ia == null)
+            {
+                m_ErrorStr = "Could not resolve ExternalHostNameForLSL, HTTP listener for LSL disabled";
+                m_log.Warn("[URL MODULE]: " + m_ErrorStr);
+                return;
+            }
+
+            m_enabled = true;
+            m_ErrorStr = String.Empty;
 
             IConfig llFunctionsConfig = config.Configs["LL-Functions"];
 
@@ -146,7 +172,7 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
 
         public void AddRegion(Scene scene)
         {
-            if (m_HttpServer == null)
+            if (m_enabled && m_HttpServer == null)
             {
                 // There can only be one
                 //
@@ -197,11 +223,18 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
         {
             UUID urlcode = UUID.Random();
 
+            if(!m_enabled)
+            {
+                engine.PostScriptEvent(itemID, "http_request", new Object[] { urlcode.ToString(), "URL_REQUEST_DENIED", m_ErrorStr });
+                return urlcode;
+            }
+
             lock (m_UrlMap)
             {
                 if (m_UrlMap.Count >= TotalUrls)
                 {
-                    engine.PostScriptEvent(itemID, "http_request", new Object[] { urlcode.ToString(), "URL_REQUEST_DENIED", "" });
+                    engine.PostScriptEvent(itemID, "http_request", new Object[] { urlcode.ToString(), "URL_REQUEST_DENIED",
+                        "Too many URLs already open" });
                     return urlcode;
                 }
                 string url = "http://" + ExternalHostNameForLSL + ":" + m_HttpServer.Port.ToString() + "/lslhttp/" + urlcode.ToString() + "/";
@@ -243,6 +276,12 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
         {
             UUID urlcode = UUID.Random();
 
+            if(!m_enabled)
+            {
+                engine.PostScriptEvent(itemID, "http_request", new Object[] { urlcode.ToString(), "URL_REQUEST_DENIED",  m_ErrorStr });
+                return urlcode;
+            }
+
             if (m_HttpsServer == null)
             {
                 engine.PostScriptEvent(itemID, "http_request", new Object[] { urlcode.ToString(), "URL_REQUEST_DENIED", "" });
@@ -253,7 +292,8 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
             {
                 if (m_UrlMap.Count >= TotalUrls)
                 {
-                    engine.PostScriptEvent(itemID, "http_request", new Object[] { urlcode.ToString(), "URL_REQUEST_DENIED", "" });
+                    engine.PostScriptEvent(itemID, "http_request", new Object[] { urlcode.ToString(), "URL_REQUEST_DENIED",
+                        "Too many URLs already open" });
                     return urlcode;
                 }
                 string url = "https://" + ExternalHostNameForLSL + ":" + m_HttpsServer.Port.ToString() + "/lslhttps/" + urlcode.ToString() + "/";
@@ -453,7 +493,7 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
         }
 
 
-        private void RemoveUrl(UrlData data)
+        protected void RemoveUrl(UrlData data)
         {
             if (data.isSsl)
                 m_HttpsServer.RemoveHTTPHandler("", "/lslhttps/"+data.urlcode.ToString()+"/");
@@ -461,7 +501,7 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
                 m_HttpServer.RemoveHTTPHandler("", "/lslhttp/"+data.urlcode.ToString()+"/");
         }
 
-        private Hashtable NoEvents(UUID requestID, UUID sessionID)
+        protected Hashtable NoEvents(UUID requestID, UUID sessionID)
         {
             Hashtable response = new Hashtable();
             UrlData url;
@@ -499,7 +539,7 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
             return response;
         }
 
-        private bool HasEvents(UUID requestID, UUID sessionID)
+        protected bool HasEvents(UUID requestID, UUID sessionID)
         {
             UrlData url=null;
 
@@ -530,7 +570,7 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
                 }
             }
         }
-        private Hashtable GetEvents(UUID requestID, UUID sessionID)
+        protected Hashtable GetEvents(UUID requestID, UUID sessionID)
         {
             UrlData url = null;
             RequestData requestData = null;
@@ -735,7 +775,7 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
             }
         }
 
-        private void OnScriptReset(uint localID, UUID itemID)
+        protected void OnScriptReset(uint localID, UUID itemID)
         {
             ScriptRemoved(itemID);
         }
